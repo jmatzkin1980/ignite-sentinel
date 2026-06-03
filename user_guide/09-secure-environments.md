@@ -54,4 +54,6 @@ Run CLI commands manually in the VS Code terminal and use the extension only to 
 - Do not commit client-sensitive workspaces unless approved.
 - `workspaces/` is ignored by Git by default.
 - Keep the source of truth in versionable artifacts only when data classification allows it.
+- Keep `main` clean so a fresh download of the repo never includes client or workflow test data.
+- Use dedicated project branches for execution in laptops or VDIs, and avoid merging those branches into `main` when they contain client artifacts.
 

@@ -8,15 +8,16 @@ This guide is written for Business Analysts, Product members, and AI-assisted de
 
 Ignite Sentinel supports the requirements lifecycle:
 
-1. Ingest raw input from a client or stakeholder.
-2. Extract requirements, gaps, decisions, and risks.
-3. Evaluate whether the requirement is mature enough to continue.
-4. Generate AI-friendly specs.
-5. Generate backlog artifacts: epics, user stories, and acceptance criteria.
-6. Generate quality artifacts and test-case coverage.
-7. Maintain traceability across all artifacts.
-8. Process changes, feedback, and meetings as controlled change events.
-9. Run health and validation checks before downstream work.
+1. Receive the initial client package: initial synchronization guide, architecture or repository references, design references, and any quality or delivery context.
+2. Ingest raw input as evidence, not as mature truth.
+3. Analyze the requirement across Product, Business, Functional, Technology, Design, Quality, Delivery, and Compliance as configured for the project.
+4. Extract requirements, gaps, decisions, assumptions, risks, and missing context.
+5. Share gaps with the client or POD domains and ingest responses, meeting notes, Slack/email content, and domain context as change events.
+6. Keep requirements, gaps, decisions, and traceability alive while the shared understanding evolves.
+7. Generate AI-friendly specs only when maturity gates are satisfied.
+8. Generate backlog artifacts: epics, user stories, and acceptance criteria.
+9. Generate quality artifacts and test-case coverage.
+10. Run health and validation checks before downstream work.
 
 ## Core Ideas
 
@@ -88,6 +89,12 @@ If `python` is not available in your shell, use the Python runtime configured fo
 ```text
 workspaces/[PROJECT_ID]/
   00_raw/             Raw client or stakeholder input
+    00_client_requirement/
+    01_business_context/
+    02_technology_context/
+    03_design_context/
+    04_quality_context/
+    05_interactions/
   01_discovery/       Gaps, decisions, maturity reports, digests
   02_requirements/    Requirement register
   03_specs/           AI-friendly specs / PRD
@@ -95,6 +102,10 @@ workspaces/[PROJECT_ID]/
   05_quality/         Test cases and quality coverage
   06_traceability/    Graph JSON, matrix, Mermaid, health reports
   07_changes/         Change events and impact reports
+    00_client_responses/
+    01_meetings/
+    02_mail_slack/
+    03_domain_updates/
   08_context_packs/   Retrieval context packs
   memory.lancedb/     Local memory fallback/index files
   state.json
@@ -250,6 +261,8 @@ The skills are intentionally short. Detailed context lives in references and run
 
 ## Practical Guidance For BAs
 
+- Keep the repository `main` branch clean and framework-only.
+- Run client/project workflows in a dedicated project branch and avoid merging generated client workspaces into `main`.
 - Do not hide uncertainty. Convert it into a `GAP`.
 - Do not invent metrics. If a percentage, cost, or performance claim lacks source or baseline, treat it as a gap.
 - Do not generate backlog from immature requirements.

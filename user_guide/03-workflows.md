@@ -4,7 +4,19 @@ This document describes the main workflows and when to use them.
 
 ## Workflow 1: New Requirement
 
-Use when a client provides a new request, idea, email, brief, or meeting note.
+Use when a client provides the initial project package: synchronization guide, architecture or repository references, UX/UI references, sketches, snapshots, design system files, quality context, or delivery constraints.
+
+Recommended source organization before ingestion:
+
+```text
+input/
+  client_requirement/
+  business_context/
+  technology_context/
+  design_context/
+  quality_context/
+  interactions/
+```
 
 ```powershell
 python -m sentinel /init PROJECT_ID
@@ -20,6 +32,14 @@ workspaces/PROJECT_ID/01_discovery/requirement_maturity_report.md
 ```
 
 Then ask stakeholders for missing information.
+
+Typical gaps to surface include:
+
+- missing user access or navigation path;
+- undefined data source, calculation logic, metric owner, or refresh frequency;
+- missing UX behavior, empty/error/loading states, or design-system constraints;
+- missing non-functional expectations, permissions, auditability, or compliance constraints;
+- acceptance criteria that are not measurable or testable.
 
 ## Workflow 2: Specs Generation
 
@@ -58,7 +78,7 @@ workspaces/PROJECT_ID/05_quality/
 
 ## Workflow 4: Change Or Meeting Sync
 
-Use when the client, POD, or stakeholder introduces new information.
+Use when the client, POD, or stakeholder introduces new information: client answers to gaps, email or Slack content, meeting transcripts, architecture notes, design updates, QA observations, or delivery decisions.
 
 ```powershell
 python -m sentinel /sync PROJECT_ID --source input\change.md --note "source and intent"
@@ -80,6 +100,27 @@ python -m sentinel /trace PROJECT_ID
 python -m sentinel /health PROJECT_ID
 python -m sentinel /validate PROJECT_ID
 ```
+
+Use this loop until the shared understanding is stable enough to generate or refresh specs and backlog.
+
+## Workflow 4B: Project Branch Execution
+
+Use a dedicated Git branch for real project execution or workflow tests.
+
+```powershell
+git switch main
+git pull
+git switch -c project/PROJECT_ID
+```
+
+Run Ignite commands in that branch:
+
+```powershell
+python -m sentinel /init PROJECT_ID
+python -m sentinel /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
+```
+
+Do not merge project branches into `main` when they contain client documents, generated workspaces, or test artifacts. Merge back only isolated improvements to the framework itself.
 
 ## Workflow 5: Health Audit
 
@@ -128,4 +169,3 @@ Before sharing with another domain:
 - Quality: acceptance criteria and test cases exist.
 - Delivery: open gaps, risks, and change impacts are visible.
 - Agents: trace IDs and source artifacts are present.
-
