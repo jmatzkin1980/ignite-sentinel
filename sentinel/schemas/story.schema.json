@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ignite Sentinel User Story",
+  "type": "object",
+  "required": ["id", "parent_ids", "status", "story", "acceptance_criteria"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^US-[0-9]{3}$" },
+    "parent_ids": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string" },
+    "story": { "type": "string" },
+    "acceptance_criteria": { "type": "array", "items": { "type": "string" } }
+  }
+}

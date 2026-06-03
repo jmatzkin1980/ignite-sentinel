@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ignite Sentinel Acceptance Criteria",
+  "type": "object",
+  "required": ["id", "parent_story_id", "criterion"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^AC-[0-9]{3}$" },
+    "parent_story_id": { "type": "string", "pattern": "^US-[0-9]{3}$" },
+    "criterion": { "type": "string" }
+  }
+}

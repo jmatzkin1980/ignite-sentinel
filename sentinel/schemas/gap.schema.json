@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ignite Sentinel Gap",
+  "type": "object",
+  "required": ["id", "severity", "status", "parent_id", "description"],
+  "properties": {
+    "id": { "type": "string" },
+    "severity": { "enum": ["critical", "high", "medium", "low"] },
+    "status": { "enum": ["OPEN", "CLOSED"] },
+    "parent_id": { "type": "string" },
+    "description": { "type": "string" }
+  }
+}
