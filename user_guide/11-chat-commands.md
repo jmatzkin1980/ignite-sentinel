@@ -39,6 +39,7 @@ Use these directly in Kilo chat:
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 /maturity PROJECT_ID
+/sync PROJECT_ID
 /sync PROJECT_ID --source input\interactions\client-answer.md --note "client response"
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery
 /reindex PROJECT_ID
@@ -87,7 +88,7 @@ sentinel /init PROJECT_ID
 /ingest PROJECT_ID --source input\technology_context\architecture.md
 /ingest PROJECT_ID --source input\design_context\screens.md
 /maturity PROJECT_ID
-/sync PROJECT_ID --source input\interactions\client-gap-response.md --note "client gap response"
+/sync PROJECT_ID
 /maturity PROJECT_ID
 /health PROJECT_ID
 /specs PROJECT_ID

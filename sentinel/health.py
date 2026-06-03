@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from .memory import ContextBroker
-from .traceability import load_graph, parents_of
+from .traceability import children_of, load_graph, parents_of
 from .workspace import memory_path, update_state, workspace_path, write_json
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
@@ -23,7 +23,7 @@ def run_health(project_id: str) -> dict[str, object]:
     gaps_path = base / "01_discovery" / "gaps.md"
     if gaps_path.exists():
         gaps_text = gaps_path.read_text(encoding="utf-8")
-        if "| critical | OPEN |" in gaps_text or "| high | OPEN |" in gaps_text:
+        if has_blocking_open_gap(gaps_text):
             findings.append("Blocking gaps remain open.")
 
     for path in base.rglob("*.md"):
@@ -36,6 +36,20 @@ def run_health(project_id: str) -> dict[str, object]:
     for node in graph.get("nodes", []):
         if node.get("path") and node["path"] not in indexed_paths and node["type"] not in {"acceptance_criteria"}:
             findings.append(f"{node['id']} is not indexed in memory.")
+
+    node_types = {node.get("type") for node in graph.get("nodes", [])}
+    if "raw_input" in node_types and "identity_seed_bank" not in node_types:
+        findings.append("Raw input exists without identity seeds.")
+    if "raw_input" in node_types and "discovery_log" not in node_types:
+        findings.append("Raw input exists without discovery log.")
+    if "raw_input" in node_types and "lens_review" not in node_types:
+        findings.append("Raw input exists without multi-lens critical review.")
+    for req in [node for node in graph.get("nodes", []) if node.get("type") == "requirement"]:
+        if not children_of(project_id, req["id"]):
+            findings.append(f"{req['id']} has no downstream trace.")
+    for story in [node for node in graph.get("nodes", []) if node.get("type") == "user_story"]:
+        if not any(parent.startswith("EPIC-") for parent in parents_of(project_id, story["id"])):
+            findings.append(f"{story['id']} is not linked to an epic.")
 
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
@@ -55,3 +69,17 @@ def render_health(project_id: str, verdict: str, findings: list[str]) -> str:
 
 {rows}
 """
+
+
+def has_blocking_open_gap(text: str) -> bool:
+    for line in text.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if not cells or not cells[0].startswith("GAP-"):
+            continue
+        # Old format: Gap ID | Severity | Status | ...
+        if len(cells) >= 3 and cells[1].lower() in {"critical", "high"} and cells[2].upper() == "OPEN":
+            return True
+        # New format: Gap ID | Lens | Severity | Status | ...
+        if len(cells) >= 4 and cells[2].lower() in {"critical", "high"} and cells[3].upper() == "OPEN":
+            return True
+    return False

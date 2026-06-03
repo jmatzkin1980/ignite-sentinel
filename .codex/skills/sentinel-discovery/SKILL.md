@@ -18,7 +18,7 @@ Use this skill to start or refresh discovery for a project.
    - `workspaces/PROJECT_ID/00_raw/05_interactions/`
 3. Ingest raw material with `python -m sentinel /ingest PROJECT_ID --source PATH`.
 4. Use focused retrieval before analysis: `python -m sentinel /retrieve PROJECT_ID --query "DISCOVERY_TOPIC" --workflow discovery --write-pack`.
-5. Review generated artifacts in `workspaces/PROJECT_ID/01_discovery/` and `02_requirements/`.
+5. Review generated artifacts in `workspaces/PROJECT_ID/01_discovery/` and `02_requirements/`, especially `identity_seeds.md`, `discovery_log.md`, `lens_review.md`, `gaps.md`, and `requirements.md`.
 6. Run `python -m sentinel /health PROJECT_ID` before downstream specs or backlog work.
 
 ## Memory
@@ -31,6 +31,8 @@ Use this skill to start or refresh discovery for a project.
 
 - Treat raw input as evidence, not truth.
 - Treat technology, design, and quality context folders as source input owned by external domains.
+- Scrutinize every initial requirement through Product/BA, Technology, Design, and Quality lenses before declaring it mature.
+- Use the mature requirement rubric in `lens_review.md`: identity/value, actors, scope, as-is/to-be delta, business rules, data/integrations, non-functional constraints, UX journey/states, acceptance/quality, and delivery readiness.
 - Convert missing or ambiguous information into explicit `GAP` entries.
 - Do not invent metrics, users, scope, or acceptance criteria.
-- Preserve traceability from `RAW` to `REQ`, `GAP`, and `DEC`.
+- Preserve traceability from `RAW` to `SEED`, `DISC`, `REQ`, `GAP`, and `DEC`.

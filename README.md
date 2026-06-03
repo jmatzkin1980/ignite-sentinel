@@ -40,11 +40,25 @@ python -m sentinel /validate PROJECT_ID
 ## Change Flow
 
 ```powershell
+python -m sentinel /sync PROJECT_ID
 python -m sentinel /sync PROJECT_ID --source input\change.md --note "client follow-up"
 python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
 python -m sentinel /reindex PROJECT_ID
 python -m sentinel /health PROJECT_ID
 ```
+
+Use `/sync PROJECT_ID` for autonomous novelty detection. It scans known input/context folders, compares hashes in `00_raw/source_manifest.json`, and processes new or modified files as change events.
+
+## Command Protocol
+
+Every project command runs through the Sentinel vNext protocol:
+
+1. preflight guard for workspace, phase, health, and command preconditions
+2. CLI execution against versionable workspace artifacts
+3. postflight trace materialization for mutating commands
+4. command anchor in `06_traceability/command_protocol_log.md`
+
+This replaces the old Roo hook model with repo-local, deterministic runtime checks.
 
 ## Local Memory
 

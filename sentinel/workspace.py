@@ -68,6 +68,10 @@ def memory_path(project_id: str, root: Path | None = None) -> Path:
     return workspace_path(project_id, root) / "memory.lancedb" / "memory.json"
 
 
+def source_manifest_path(project_id: str, root: Path | None = None) -> Path:
+    return workspace_path(project_id, root) / "00_raw" / "source_manifest.json"
+
+
 def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
     base = workspace_path(project_id, root)
     for relative in WORKSPACE_DIRS:
@@ -96,6 +100,8 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
         config_path(project_id, root).write_text(default_config(project_id), encoding="utf-8")
     if not memory_path(project_id, root).exists():
         write_json(memory_path(project_id, root), {"chunks": [], "artifacts": [], "trace_edges": []})
+    if not source_manifest_path(project_id, root).exists():
+        write_json(source_manifest_path(project_id, root), {"sources": {}})
     return base
 
 
@@ -138,7 +144,7 @@ def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:
                 "blocking_gap_severities": ["critical", "high"],
                 "required_domains": ["product", "functional", "quality"],
             },
-            "memory": {"provider": "local-first", "fallback": "json-hybrid"},
+            "memory": {"provider": "lancedb-hybrid", "fallback": "json-hybrid", "embedding": "local-hash"},
         }
     return parse_simple_yaml(path.read_text(encoding="utf-8"))
 

@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import json
 from pathlib import Path
 
 from sentinel.cli import main
@@ -36,6 +37,9 @@ class SentinelCoreFlowTest(unittest.TestCase):
         fixture = ROOT / "fixtures" / "complete_requirement.md"
         self.assertEqual(main(["init", "NOVA"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(fixture)]), 0)
+        lens_review = self.temp / "workspaces" / "NOVA" / "01_discovery" / "lens_review.md"
+        self.assertTrue(lens_review.exists())
+        self.assertIn("Multi-Lens Critical Review", lens_review.read_text(encoding="utf-8"))
         self.assertEqual(main(["maturity", "NOVA"]), 0)
         self.assertEqual(main(["specs", "NOVA"]), 0)
         self.assertEqual(main(["backlog", "NOVA"]), 0)
@@ -51,6 +55,9 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("Acceptance Criteria", story)
         mermaid = self.temp / "workspaces" / "NOVA" / "06_traceability" / "traceability_graph.md"
         self.assertTrue(mermaid.exists())
+        command_log = self.temp / "workspaces" / "NOVA" / "06_traceability" / "command_protocol_log.md"
+        self.assertTrue(command_log.exists())
+        self.assertIn("`quality`", command_log.read_text(encoding="utf-8"))
 
     def test_retrieval_is_project_scoped(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
@@ -114,6 +121,39 @@ class SentinelCoreFlowTest(unittest.TestCase):
         pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "sync.json"
         self.assertTrue(pack.exists())
 
+    def test_autonomous_sync_detects_new_and_modified_inputs(self) -> None:
+        complete = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["ingest", "NOVA", "--source", str(complete)]), 0)
+        self.assertEqual(main(["specs", "NOVA"]), 0)
+        self.assertEqual(main(["backlog", "NOVA"]), 0)
+
+        interactions = self.temp / "input" / "interactions"
+        interactions.mkdir(parents=True)
+        response = interactions / "client-gap-response.md"
+        response.write_text(
+            "Client confirms target users are support leads. New concern: dashboard export scope remains undefined.",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(main(["sync", "NOVA"]), 0)
+        manifest = json.loads(
+            (self.temp / "workspaces" / "NOVA" / "00_raw" / "source_manifest.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("input/interactions/client-gap-response.md", manifest["sources"])
+        graph = (self.temp / "workspaces" / "NOVA" / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+        self.assertIn('"type": "change"', graph)
+
+        self.assertEqual(main(["sync", "NOVA"]), 0)
+        response.write_text(
+            "Client confirms target users are support leads and managers. New concern: dashboard export scope remains undefined.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["sync", "NOVA"]), 0)
+        results = ContextBroker("NOVA").retrieve("managers export scope", "sync", artifact_type="change")
+        self.assertTrue(results)
+        self.assertIn("content", results[0])
+
     def test_doctor_passes_for_repo_root(self) -> None:
         self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
         self.assertEqual(main(["/doctor", "--root", str(ROOT.parent)]), 0)
@@ -125,6 +165,9 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertTrue((workspace / "00_raw" / "02_technology_context").is_dir())
         self.assertTrue((workspace / "00_raw" / "03_design_context").is_dir())
         self.assertTrue((workspace / "07_changes" / "03_domain_updates").is_dir())
+
+    def test_protocol_guard_requires_initialized_workspace(self) -> None:
+        self.assertNotEqual(main(["maturity", "MISSING"]), 0)
 
 
 if __name__ == "__main__":

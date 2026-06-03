@@ -67,17 +67,85 @@ def children_of(project_id: str, node_id: str) -> list[str]:
     return [edge["to"] for edge in graph.get("edges", []) if edge.get("from") == node_id]
 
 
+def descendants_of(project_id: str, node_id: str) -> list[str]:
+    graph = load_graph(project_id)
+    seen: set[str] = set()
+
+    def walk(current: str) -> None:
+        for edge in graph.get("edges", []):
+            if edge.get("from") != current:
+                continue
+            target = edge.get("to")
+            if not target or target in seen:
+                continue
+            seen.add(target)
+            walk(target)
+
+    walk(node_id)
+    return sorted(seen)
+
+
+def impact_analysis(project_id: str, target_node: str) -> dict[str, object]:
+    graph = load_graph(project_id)
+    node_lookup = {node["id"]: node for node in graph.get("nodes", [])}
+    impacted = descendants_of(project_id, target_node)
+    return {
+        "target": target_node,
+        "impacted": impacted,
+        "count": len(impacted),
+        "by_type": count_by_type(impacted, node_lookup),
+    }
+
+
+def count_by_type(node_ids: list[str], node_lookup: dict[str, dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for node_id in node_ids:
+        node_type = node_lookup.get(node_id, {}).get("type", "unknown")
+        counts[node_type] = counts.get(node_type, 0) + 1
+    return counts
+
+
 def write_traceability_matrix(project_id: str) -> Path:
     graph = load_graph(project_id)
-    rows = [
-        f"| `{edge['from']}` | `{edge['to']}` | {edge['relation']} |"
-        for edge in graph.get("edges", [])
+    node_lookup = {node["id"]: node for node in graph.get("nodes", [])}
+    rows = []
+    for edge in graph.get("edges", []):
+        source = node_lookup.get(edge["from"], {})
+        target = node_lookup.get(edge["to"], {})
+        rows.append(
+            f"| `{edge['from']}` | {source.get('type', 'unknown')} | `{edge['to']}` | {target.get('type', 'unknown')} | {edge['relation']} | {target.get('domain', 'n/a')} | {target.get('status', 'n/a')} |"
+        )
+    node_rows = [
+        f"| `{node['id']}` | {node.get('type', 'artifact')} | {node.get('domain', 'n/a')} | {node.get('status', 'n/a')} | `{node.get('path', '')}` |"
+        for node in graph.get("nodes", [])
     ]
     matrix_path = graph_path(project_id).parent / "traceability_matrix.md"
     matrix_path.write_text(
-        "# Traceability Matrix - {project_id}\n\n| Source | Target | Relation |\n| --- | --- | --- |\n{rows}\n".format(
+        """# Traceability Matrix - {project_id}
+
+This matrix supports the Sentinel vNext golden thread. Source files remain authoritative; LanceDB memory is retrieval only.
+
+## Edge Matrix
+
+| Source | Source Type | Target | Target Type | Relation | Target Domain | Target Status |
+| --- | --- | --- | --- | --- | --- | --- |
+{rows}
+
+## Artifact Registry
+
+| Node ID | Type | Domain | Status | Path |
+| --- | --- | --- | --- | --- |
+{node_rows}
+
+## Coverage Review
+
+- Requirements should connect to discovery, specs, backlog, acceptance criteria, tests, changes, and audits as applicable.
+- User stories without requirement/spec ancestry should be treated as health risks.
+- Changes should point to impacted downstream nodes.
+""".format(
             project_id=project_id,
-            rows="\n".join(rows) if rows else "| N/A | N/A | No trace edges found. |",
+            rows="\n".join(rows) if rows else "| N/A | N/A | N/A | N/A | No trace edges found. | N/A | N/A |",
+            node_rows="\n".join(node_rows) if node_rows else "| N/A | N/A | N/A | N/A | N/A |",
         ),
         encoding="utf-8",
     )
@@ -91,6 +159,9 @@ def write_mermaid_graph(project_id: str) -> Path:
         safe_id = node["id"].replace("-", "_")
         label = f"{node['id']}\\n{node.get('type', 'artifact')}"
         lines.append(f'    {safe_id}["{label}"]')
+        style = mermaid_style_for_node(node)
+        if style:
+            lines.append(f"    style {safe_id} {style}")
     for edge in graph.get("edges", []):
         source = edge["from"].replace("-", "_")
         target = edge["to"].replace("-", "_")
@@ -99,3 +170,17 @@ def write_mermaid_graph(project_id: str) -> Path:
     mermaid_path = graph_path(project_id).parent / "traceability_graph.md"
     mermaid_path.write_text("# Traceability Graph\n\n```mermaid\n" + "\n".join(lines) + "\n```\n", encoding="utf-8")
     return mermaid_path
+
+
+def mermaid_style_for_node(node: dict[str, Any]) -> str:
+    node_type = node.get("type", "")
+    status = str(node.get("status", "")).lower()
+    if node_type == "gap_report" and status == "open":
+        return "fill:#ffdfba,stroke:#c2410c,stroke-width:2px"
+    if node_type == "change":
+        return "fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px"
+    if node_type in {"identity_seed_bank", "discovery_log", "lens_review"}:
+        return "fill:#dcfce7,stroke:#15803d"
+    if node_type == "backlog_readiness_audit":
+        return "fill:#fef9c3,stroke:#a16207"
+    return ""

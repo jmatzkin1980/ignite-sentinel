@@ -23,6 +23,8 @@ Rules:
 - Treat technology, design, business, quality, and interaction context folders as external domain input.
 - `/ingest` indexes generated artifacts and context folders into local LanceDB memory.
 - Use `/retrieve` for focused context before analysis, and `/reindex` after manual artifact edits.
+- Review `01_discovery/lens_review.md` to verify Product, Technology, Design, and Quality scrutiny before maturity.
+- Check the mature requirement rubric: identity/value, actors, scope, as-is/to-be delta, business rules, data/integrations, non-functional constraints, UX journey/states, acceptance/quality, and delivery readiness.
 - Convert uncertainty into explicit `GAP` entries.
 - Do not invent users, scope, acceptance criteria, or metrics.
-- Preserve traceability from `RAW` to `REQ`, `GAP`, and `DEC`.
+- Preserve traceability from `RAW` to `SEED`, `DISC`, `REQ`, `GAP`, and `DEC`.

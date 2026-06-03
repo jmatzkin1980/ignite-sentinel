@@ -13,6 +13,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
+- `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
 - `/reindex PROJECT_ID`
@@ -38,6 +39,8 @@ For `/doctor`, omit `PROJECT_ID`.
 
 3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible.
 4. Return a concise summary of the CLI result and point to generated artifacts.
+
+The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md`.
 
 ## Routing
 

@@ -35,8 +35,22 @@ def generate_quality(project_id: str) -> dict[str, object]:
         )
         created.append(tc_id)
 
+    audit_path = base / "05_quality" / "backlog_readiness_audit.md"
+    audit_path.write_text(render_backlog_audit(project_id, stories), encoding="utf-8")
+    audit_id = add_node(project_id, "QA", "backlog_readiness_audit", audit_path, "Backlog readiness audit", domain="quality")
+    for story in stories:
+        add_edge(project_id, story["id"], audit_id, "audited_by")
+    ContextBroker(project_id).index_artifact(
+        audit_id,
+        "backlog_readiness_audit",
+        audit_path,
+        audit_path.read_text(encoding="utf-8"),
+        domain="quality",
+        trace_ids=[audit_id, *[story["id"] for story in stories]],
+    )
+
     update_state(project_id, phase="quality_completed")
-    return {"test_cases": created, "count": len(created)}
+    return {"test_cases": created, "count": len(created), "audit": str(audit_path)}
 
 
 def resolve_story_path(path_value: str):
@@ -74,4 +88,35 @@ def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str
 - Prepare valid input data for the happy path.
 - Prepare missing or invalid input data for validation paths.
 - Assert that trace IDs remain visible in the artifact chain.
+"""
+
+
+def render_backlog_audit(project_id: str, stories: list[dict[str, str]]) -> str:
+    rows = "\n".join(
+        f"| `{story['id']}` | {story.get('title', 'User story')} | {'PASS' if story.get('id') else 'FAIL'} | Review JTBD, source links, testability, and domain context citations. |"
+        for story in stories
+    )
+    return f"""# Backlog Readiness Audit - {project_id}
+
+This audit checks whether backlog items are ready for downstream execution using Sentinel vNext traceability and domain context.
+
+## Verdict
+
+`PARTIAL`
+
+## Story Census
+
+| Story ID | Title | Structural Status | Review Notes |
+| --- | --- | --- | --- |
+{rows}
+
+## Audit Checklist
+
+- [ ] Each story links to a JTBD or source requirement.
+- [ ] Each story is an end-to-end functional slice.
+- [ ] Acceptance criteria are testable and observable.
+- [ ] Technology context is cited or explicitly pending.
+- [ ] Design context is cited or explicitly pending.
+- [ ] Quality and risk expectations are cited or explicitly pending.
+- [ ] Traceability can map requirement -> spec -> epic -> story -> AC -> TC.
 """

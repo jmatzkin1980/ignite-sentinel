@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .memory import ContextBroker
+from .memory import ContextBroker, get_multi_domain_context
 from .maturity import evaluate
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import update_state, workspace_path
@@ -13,8 +13,9 @@ def generate_specs(project_id: str) -> dict[str, str]:
     base = workspace_path(project_id)
     req_path = base / "02_requirements" / "requirements.md"
     req_text = req_path.read_text(encoding="utf-8")
+    context = get_multi_domain_context(req_text, project_id)
     specs_path = base / "03_specs" / "prd_ai_friendly.md"
-    specs_path.write_text(render_specs(project_id, req_text), encoding="utf-8")
+    specs_path.write_text(render_specs(project_id, req_text, context), encoding="utf-8")
     spec_id = add_node(project_id, "SPEC", "spec", specs_path, "AI-friendly PRD", domain="product")
     for req in nodes_by_type(project_id, "requirement"):
         add_edge(project_id, req["id"], spec_id, "elaborates")
@@ -55,10 +56,10 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     return {"epic_id": epic_id, "story_id": story_id, "acceptance_id": ac_id, "path": str(story_path)}
 
 
-def render_specs(project_id: str, req_text: str) -> str:
+def render_specs(project_id: str, req_text: str, context: dict[str, object]) -> str:
     return f"""# AI-Friendly PRD - {project_id}
 
-## Purpose
+## Product Purpose
 
 Transform the validated requirement into a shared source of truth for Product, Technology, Design, Quality, and Delivery.
 
@@ -66,20 +67,43 @@ Transform the validated requirement into a shared source of truth for Product, T
 
 {req_text}
 
-## Functional Scope
+## Scope Boundaries
 
-- Preserve the primary user job from `REQ-001`.
-- Keep scope, constraints, open decisions, and acceptance criteria traceable.
+- In scope: Preserve the primary user job from `REQ-001` and confirmed scope seeds.
+- Out of scope: Keep exclusions explicit and traceable to source evidence.
+- Guardrail: Do not invent metrics, users, or acceptance criteria without sourced evidence.
 
-## Domain Notes
+## Jobs To Be Done
 
-| Domain | Expected Consumer | Required Signal |
-| --- | --- | --- |
-| Product | BA / PM | Business value, scope, rules |
-| Technology | TL / FE / BE | Constraints, integrations, data assumptions |
-| Design | UX/UI | User journey and interaction states |
-| Quality | QE / Automation | Testable outcomes and edge cases |
-| Delivery | PM | Dependencies, sequencing, risks |
+| JTBD ID | Context | Need | Expected Result | Source |
+| --- | --- | --- | --- | --- |
+| JTBD-001 | When the target user faces the scenario in `REQ-001` | Complete the primary job | Obtain the expected business outcome | `REQ-001` |
+
+## Functional Capabilities
+
+| Capability ID | Capability | JTBD Link | Trace Source |
+| --- | --- | --- | --- |
+| CAP-001 | Deliver the primary workflow described by the matured requirement. | JTBD-001 | `REQ-001` |
+
+## Domain Context Retrieved From Memory
+
+{render_context_summary(context)}
+
+## Acceptance Strategy
+
+- Acceptance criteria must validate the JTBD outcome, missing/invalid data, and traceability.
+- Quality scenarios must include happy path, recoverable failure path, and stale/missing data where relevant.
+
+## Decision And Assumption Trail
+
+| ID | Type | Statement | Risk If Wrong |
+| --- | --- | --- | --- |
+| ASM-001 | Assumption | Any detail not present in seeds, source input, or domain context remains pending confirmation. | Downstream backlog may require rework after `/sync`. |
+
+## Traceability
+
+- Parent requirement: `REQ-001`
+- Downstream artifacts: epics, user stories, acceptance criteria, tests, and traceability matrix.
 """
 
 
@@ -103,10 +127,26 @@ def render_story(project_id: str, epic_id: str) -> str:
 - Parent epic: `{epic_id}`
 - Trace parent: `SPEC-001`
 - Status: `draft`
+- JTBD: `JTBD-001`
 
 ## User Story
 
 As a target user, I want to complete the primary job described by the matured requirement so that I can obtain the expected business outcome.
+
+## Context References
+
+| Context Type | Source |
+| --- | --- |
+| Product requirement | `REQ-001`, `SPEC-001` |
+| Business / Product seeds | `01_discovery/identity_seeds.md` |
+| Technology context | `00_raw/02_technology_context/` if available |
+| Design context | `00_raw/03_design_context/` if available |
+| Quality context | `00_raw/04_quality_context/` if available |
+
+## Functional Slice
+
+- This story must deliver an end-to-end user-visible outcome, not a layer-only technical task.
+- Any missing technical, design, or quality input must remain explicit as a gap or assumption.
 
 ## Acceptance Criteria
 
@@ -115,4 +155,25 @@ As a target user, I want to complete the primary job described by the matured re
 | AC-001 | Given the user has valid inputs, when the primary action is completed, then the system records the expected outcome. |
 | AC-002 | Given required information is missing, when the user attempts to continue, then the system presents a clear recoverable validation state. |
 | AC-003 | Given the outcome is produced, when QA validates the story, then source requirement and spec IDs are visible in the artifact. |
+
+## Readiness Checklist
+
+- [ ] JTBD link is present.
+- [ ] Source requirement and PRD/spec link are present.
+- [ ] Acceptance criteria are testable.
+- [ ] Required technology/design/quality context is cited or explicitly marked as pending.
 """
+
+
+def render_context_summary(context: dict[str, object]) -> str:
+    domains = context.get("domains", {}) if isinstance(context, dict) else {}
+    rows: list[str] = []
+    for domain, results in domains.items():
+        if not results:
+            rows.append(f"| {domain} | No focused context retrieved. | N/A |")
+            continue
+        top = results[0]
+        rows.append(
+            f"| {domain} | {top.get('summary', 'Context retrieved')[:160]} | `{top.get('artifact_id', 'N/A')}` |"
+        )
+    return "| Domain | Retrieved Signal | Artifact |\n| --- | --- | --- |\n" + "\n".join(rows)

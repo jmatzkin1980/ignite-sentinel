@@ -32,9 +32,14 @@ def evaluate(project_id: str) -> dict[str, object]:
 def parse_blocking_gaps(text: str, blocking_severities: set[str]) -> list[str]:
     blocking_gaps = []
     for line in text.splitlines():
-        match = re.match(r"\|\s*(GAP-[^|]+)\|\s*([^|]+)\|\s*OPEN\s*\|", line.strip(), re.I)
-        if match and match.group(2).strip().lower() in blocking_severities:
-            blocking_gaps.append(match.group(1).strip())
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if not cells or not cells[0].startswith("GAP-"):
+            continue
+        if len(cells) >= 4:
+            severity = cells[2] if cells[1].lower() not in blocking_severities else cells[1]
+            status = cells[3] if cells[1].lower() not in blocking_severities else cells[2]
+            if status.upper() == "OPEN" and severity.lower() in blocking_severities:
+                blocking_gaps.append(cells[0])
     return blocking_gaps
 
 

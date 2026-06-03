@@ -45,6 +45,19 @@ Ignite Sentinel uses local LanceDB as the primary retrieval backend:
 memory.lancedb/lance/
 ```
 
+The main LanceDB table is:
+
+```text
+ba_memory
+```
+
+It stores chunk rows with fields aligned to the BA Local Brain model:
+
+```text
+project_id, id, chunk_id, type, title, content, domain, iteration, status,
+file_path, trace_ids, source_hash, metadata, indexed_at, vector
+```
+
 The framework also keeps a JSON hybrid fallback:
 
 ```text
@@ -75,6 +88,8 @@ python -m sentinel /retrieve PROJECT_ID --query "..." --workflow "..."
 - `07_changes`
 
 These context folders are input owned by the relevant domains. Sentinel retrieves and cites them; it does not replace them with generated tech or design specs.
+
+`00_raw/source_manifest.json` records which source files have already been processed, including hash, status, and related event ID. Autonomous sync uses this manifest to detect new or modified inputs.
 
 ## Context Packs
 

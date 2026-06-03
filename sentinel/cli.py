@@ -11,8 +11,9 @@ from .generation import generate_backlog, generate_specs
 from .health import run_health
 from .maturity import evaluate
 from .memory import ContextBroker, reindex_workspace
+from .protocols import postflight_command, preflight_command
 from .quality import generate_quality
-from .sync import sync_change
+from .sync import sync_change, sync_pending_sources
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .validation import validate_project
 from .workspace import ensure_workspace
@@ -60,11 +61,12 @@ def main(argv: list[str] | None = None) -> int:
     retrieve_p.add_argument("--artifact-type")
     retrieve_p.add_argument("--domain")
     retrieve_p.add_argument("--trace-id")
+    retrieve_p.add_argument("--iteration-min", type=int, default=1)
     retrieve_p.add_argument("--write-pack", action="store_true")
 
     sync_p = sub.add_parser("sync")
     sync_p.add_argument("project_id")
-    sync_p.add_argument("--source", required=True)
+    sync_p.add_argument("--source")
     sync_p.add_argument("--note", default="")
 
     for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "reindex"):
@@ -73,15 +75,20 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     try:
+        project_id = getattr(args, "project_id", None)
+        preflight_command(args.command, project_id)
+        result = None
         if args.command == "init":
             path = ensure_workspace(args.project_id)
-            print(json.dumps({"workspace": str(path)}, indent=2))
+            result = {"workspace": str(path)}
+            print_json(result)
         elif args.command == "doctor":
             result = run_doctor(Path(args.root))
-            print(json.dumps(result, indent=2, ensure_ascii=False))
+            print_json(result)
             return 0 if result["verdict"] == "PASS" else 1
         elif args.command == "ingest":
-            print(json.dumps(ingest(args.project_id, Path(args.source)), indent=2))
+            result = ingest(args.project_id, Path(args.source))
+            print_json(result)
         elif args.command == "retrieve":
             broker = ContextBroker(args.project_id)
             if args.write_pack:
@@ -92,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.artifact_type,
                     args.domain,
                     args.trace_id,
+                    args.iteration_min,
                 )
             else:
                 result = broker.retrieve(
@@ -101,30 +109,44 @@ def main(argv: list[str] | None = None) -> int:
                     args.artifact_type,
                     args.domain,
                     args.trace_id,
+                    args.iteration_min,
                 )
-            print(json.dumps(result, indent=2, ensure_ascii=False))
+            print_json(result)
         elif args.command == "sync":
-            print(json.dumps(sync_change(args.project_id, Path(args.source), args.note), indent=2, ensure_ascii=False))
+            if args.source:
+                result = sync_change(args.project_id, Path(args.source), args.note)
+            else:
+                result = sync_pending_sources(args.project_id, args.note or "autonomous sync")
+            print_json(result)
         elif args.command == "maturity":
-            print(json.dumps(evaluate(args.project_id), indent=2, ensure_ascii=False))
+            result = evaluate(args.project_id)
+            print_json(result)
         elif args.command == "specs":
-            print(json.dumps(generate_specs(args.project_id), indent=2, ensure_ascii=False))
+            result = generate_specs(args.project_id)
+            print_json(result)
         elif args.command == "backlog":
-            print(json.dumps(generate_backlog(args.project_id), indent=2, ensure_ascii=False))
+            result = generate_backlog(args.project_id)
+            print_json(result)
         elif args.command == "quality":
-            print(json.dumps(generate_quality(args.project_id), indent=2, ensure_ascii=False))
+            result = generate_quality(args.project_id)
+            print_json(result)
         elif args.command == "health":
-            print(json.dumps(run_health(args.project_id), indent=2, ensure_ascii=False))
+            result = run_health(args.project_id)
+            print_json(result)
         elif args.command == "trace":
             matrix = write_traceability_matrix(args.project_id)
             mermaid = write_mermaid_graph(args.project_id)
-            print(json.dumps({"graph": load_graph(args.project_id), "matrix": str(matrix), "mermaid": str(mermaid)}, indent=2, ensure_ascii=False))
+            result = {"graph": load_graph(args.project_id), "matrix": str(matrix), "mermaid": str(mermaid)}
+            print_json(result)
         elif args.command == "validate":
             result = validate_project(args.project_id)
-            print(json.dumps(result, indent=2, ensure_ascii=False))
+            print_json(result)
+            postflight_command(args.command, project_id, result)
             return 0 if result["verdict"] == "VALID" else 1
         elif args.command == "reindex":
-            print(json.dumps(reindex_workspace(args.project_id), indent=2, ensure_ascii=False))
+            result = reindex_workspace(args.project_id)
+            print_json(result)
+        postflight_command(args.command, project_id, result)
         return 0
     except Exception as exc:
         print(f"sentinel error: {exc}", file=sys.stderr)
@@ -138,3 +160,7 @@ def normalize_slash_command(argv: list[str]) -> list[str]:
     if first.startswith("/") and first[1:] in COMMANDS:
         return [first[1:], *argv[1:]]
     return argv
+
+
+def print_json(data: object) -> None:
+    print(json.dumps(data, indent=2, ensure_ascii=True))

@@ -9,15 +9,19 @@ Use this skill when new information may mutate existing requirements, specs, bac
 
 ## Workflow
 
-1. Run `python -m sentinel /sync PROJECT_ID --source PATH --note "WHY_THIS_CHANGE_EXISTS"`.
+1. Run `python -m sentinel /sync PROJECT_ID` for autonomous detection of new or modified inputs.
+   - Use `python -m sentinel /sync PROJECT_ID --source PATH --note "WHY_THIS_CHANGE_EXISTS"` only when the user wants one explicit file processed.
 2. Review the generated impact report in `workspaces/PROJECT_ID/07_changes/`.
 3. Use `python -m sentinel /retrieve PROJECT_ID --query "CHANGE_TOPIC" --workflow sync --write-pack` to build a context pack.
 4. Patch affected artifacts deliberately.
 5. Run `python -m sentinel /reindex PROJECT_ID`, then `python -m sentinel /health PROJECT_ID`.
 
+The Sentinel command protocol records each sync in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md` and refreshes trace views after mutation.
+
 ## Memory
 
 - `/sync` creates a `CHG` node, indexes the change in local LanceDB memory, and links it to potentially impacted artifacts.
+- Autonomous `/sync PROJECT_ID` uses `workspaces/PROJECT_ID/00_raw/source_manifest.json` to detect new and modified files by content hash.
 - Use `/retrieve` with `--workflow sync` before patching requirements, backlog, acceptance criteria, or quality artifacts.
 - Use filters when the task needs a domain-owned context:
   - `--domain technical`

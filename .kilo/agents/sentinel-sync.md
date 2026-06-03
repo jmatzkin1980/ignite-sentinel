@@ -9,6 +9,7 @@ mode: primary
 Run:
 
 ```powershell
+python -m sentinel /sync PROJECT_ID
 python -m sentinel /sync PROJECT_ID --source PATH --note "source and intent"
 python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
 python -m sentinel /reindex PROJECT_ID
@@ -18,6 +19,7 @@ python -m sentinel /health PROJECT_ID
 Rules:
 
 - Treat new information as a `CHG` event.
+- Prefer `/sync PROJECT_ID` when the user wants autonomous detection of new or modified inputs.
 - `/sync` indexes the change into local LanceDB memory and links it to impacted artifacts.
 - Use `/retrieve --workflow sync --write-pack` before patching downstream artifacts.
 - Run `/reindex PROJECT_ID` after manual artifact edits so memory matches source files.

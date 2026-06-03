@@ -18,6 +18,7 @@ Accepted forms:
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
+- `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
 - `/reindex PROJECT_ID`
@@ -35,6 +36,10 @@ Execution rule:
 - Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
 - If `python` is not available, use the configured or bundled Python runtime when visible in the environment.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
+- `/sync PROJECT_ID` without `--source` is the autonomous novelty scan: it detects new or modified input/context files by hash, creates `CHG` events, impact reports, trace edges, and memory entries.
+- Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
+- Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.
+- `/backlog` and `/quality` are blocked while project health is `DIRTY`; use `/maturity`, `/sync`, `/health`, `/retrieve`, and gap resolution evidence before forcing downstream execution.
 - If a Codex surface intercepts a native slash command before it reaches the agent, ask the user to send the same request as `sentinel /COMMAND PROJECT_ID`.
 
 ## Verification

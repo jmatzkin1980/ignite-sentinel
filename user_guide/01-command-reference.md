@@ -10,6 +10,17 @@ Commands can be invoked in three ways:
 
 In Kilo Code, repo-local workflow files live in `.kilo/commands/`. In Codex, `AGENTS.md` and the `sentinel-command-router` skill define how chat commands map to the CLI.
 
+## Command Protocol
+
+Project commands use a deterministic protocol inspired by the original Sentinel command guards, adapted for vNext:
+
+1. preflight validates workspace existence, phase, health, and command-specific prerequisites
+2. command execution mutates only versionable workspace artifacts and local memory
+3. postflight refreshes trace views for mutating commands
+4. `06_traceability/command_protocol_log.md` records the command anchor
+
+`/backlog` and `/quality` are blocked while project health is `DIRTY`.
+
 Run help:
 
 ```powershell
@@ -33,7 +44,8 @@ Checks:
 - Kilo config
 - user guide
 - repo write access
-- optional memory dependencies
+- required LanceDB dependency
+- optional embedding dependencies
 
 ## `init`
 
@@ -48,8 +60,9 @@ Creates:
 - folder structure under `workspaces/PROJECT_ID/`
 - `state.json`
 - `sentinel.config.yaml`
+- `00_raw/source_manifest.json`
 - empty traceability graph
-- local memory fallback file
+- local LanceDB memory metadata file
 
 ## `ingest`
 
@@ -181,6 +194,16 @@ Returns non-zero when invalid.
 
 Ingest stakeholder feedback, meeting notes, or change requests.
 
+Autonomous scan:
+
+```powershell
+python -m sentinel /sync PROJECT_ID
+```
+
+This detects new or modified files in input and workspace context folders using `00_raw/source_manifest.json`.
+
+Explicit file:
+
 ```powershell
 python -m sentinel /sync PROJECT_ID --source path\to\change.md --note "why this change exists"
 ```
@@ -190,6 +213,8 @@ Creates:
 - `CHG` node
 - impact report
 - `may_impact` edges to downstream artifacts
+- source manifest entries for processed files
+- LanceDB `ba_memory` rows for change and impact chunks
 
 ## `retrieve`
 
@@ -202,7 +227,7 @@ python -m sentinel /retrieve PROJECT_ID --query "scope and success criteria" --w
 Optional filters:
 
 ```powershell
-python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product --trace-id CHG-001
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product --trace-id CHG-001 --iteration-min 1
 ```
 
 Write a reusable context pack:
@@ -217,7 +242,7 @@ Output:
 
 ## `reindex`
 
-Rebuild local memory from the traceability graph and versionable artifacts.
+Rebuild local LanceDB memory from the traceability graph, versionable artifacts, and context folders.
 
 ```powershell
 python -m sentinel /reindex PROJECT_ID

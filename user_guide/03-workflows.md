@@ -80,6 +80,16 @@ workspaces/PROJECT_ID/05_quality/
 
 Use when the client, POD, or stakeholder introduces new information: client answers to gaps, email or Slack content, meeting transcripts, architecture notes, design updates, QA observations, or delivery decisions.
 
+Autonomous mode:
+
+```powershell
+python -m sentinel /sync PROJECT_ID
+```
+
+Sentinel scans known input and workspace context folders, compares file hashes against `00_raw/source_manifest.json`, and processes new or modified files as change events.
+
+Explicit mode:
+
 ```powershell
 python -m sentinel /sync PROJECT_ID --source input\change.md --note "source and intent"
 python -m sentinel /retrieve PROJECT_ID --query "main change topic" --workflow sync --write-pack
@@ -141,7 +151,7 @@ Hand off only when:
 
 ## Workflow 6: Context Retrieval
 
-Use when Codex needs focused context without loading the entire workspace.
+Use when Codex or Kilo needs focused context without loading the entire workspace. This is a read-only progressive disclosure step; it queries local LanceDB memory and can write a reusable context pack.
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "acceptance criteria and SLA risk" --workflow backlog --limit 5

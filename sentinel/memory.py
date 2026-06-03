@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import math
 import re
-from hashlib import blake2b
+import json
+from hashlib import blake2b, sha256
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,7 +66,7 @@ class ContextBroker:
         self.path = memory_path(project_id)
         self.data = read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []})
         self.lance_dir = self.path.parent / "lance"
-        self.table_name = "sentinel_memory"
+        self.table_name = "ba_memory"
         self._lancedb = None
         self._table = None
         self.backend = "json-hybrid"
@@ -88,12 +89,20 @@ class ContextBroker:
                             "chunk_id": "__bootstrap__",
                             "artifact_id": "__bootstrap__",
                             "artifact_type": "bootstrap",
+                            "id": "__bootstrap__",
+                            "type": "bootstrap",
+                            "title": "bootstrap",
                             "source_path": "",
+                            "file_path": "",
                             "domain": "system",
                             "trace_ids": "",
+                            "iteration": 1,
+                            "metadata": "{}",
+                            "source_hash": content_hash("bootstrap"),
                             "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                             "summary": "bootstrap",
                             "text": "bootstrap",
+                            "content": "bootstrap",
                             "status": "inactive",
                             "vector": hash_embedding("bootstrap"),
                         }
@@ -114,15 +123,27 @@ class ContextBroker:
         text: str,
         domain: str = "product",
         trace_ids: list[str] | None = None,
+        title: str | None = None,
+        iteration: int = 1,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         trace_ids = trace_ids or [artifact_id]
+        metadata = metadata or {}
+        source_hash = content_hash(text)
         artifact = {
             "project_id": self.project_id,
             "artifact_id": artifact_id,
             "artifact_type": artifact_type,
+            "id": artifact_id,
+            "type": artifact_type,
+            "title": title or source_path.stem,
             "source_path": str(source_path.as_posix()),
+            "file_path": str(source_path.as_posix()),
             "domain": domain,
             "trace_ids": trace_ids,
+            "iteration": iteration,
+            "metadata": metadata,
+            "source_hash": source_hash,
             "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         }
         self.data["artifacts"] = [
@@ -138,6 +159,7 @@ class ContextBroker:
                     **artifact,
                     "chunk_id": f"{artifact_id}::chunk-{index + 1:03d}",
                     "text": chunk_text,
+                    "content": chunk_text,
                     "summary": chunk_text[:180],
                     "status": "active",
                 }
@@ -158,12 +180,20 @@ class ContextBroker:
                     "chunk_id": chunk["chunk_id"],
                     "artifact_id": chunk["artifact_id"],
                     "artifact_type": chunk["artifact_type"],
+                    "id": chunk["id"],
+                    "type": chunk["type"],
+                    "title": chunk["title"],
                     "source_path": chunk["source_path"],
+                    "file_path": chunk["file_path"],
                     "domain": chunk["domain"],
                     "trace_ids": ",".join(chunk.get("trace_ids", [])),
+                    "iteration": int(chunk.get("iteration", 1)),
+                    "metadata": json.dumps(chunk.get("metadata", {}), ensure_ascii=False),
+                    "source_hash": chunk.get("source_hash", ""),
                     "indexed_at": chunk["indexed_at"],
                     "summary": chunk["summary"],
                     "text": chunk["text"],
+                    "content": chunk["content"],
                     "status": chunk["status"],
                     "vector": hash_embedding(chunk["text"]),
                 }
@@ -195,6 +225,7 @@ class ContextBroker:
         artifact_type: str | None = None,
         domain: str | None = None,
         trace_id: str | None = None,
+        iteration_min: int = 1,
     ) -> list[dict[str, Any]]:
         vector_candidates = self._lancedb_candidates(query, limit=max(limit * 4, 20))
         query_tokens = set(tokenize(query))
@@ -206,6 +237,8 @@ class ContextBroker:
             if domain and chunk.get("domain") != domain:
                 continue
             if trace_id and trace_id not in chunk.get("trace_ids", []):
+                continue
+            if int(chunk.get("iteration", 1)) < iteration_min:
                 continue
             text = chunk["text"]
             lexical = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
@@ -240,8 +273,9 @@ class ContextBroker:
         artifact_type: str | None = None,
         domain: str | None = None,
         trace_id: str | None = None,
+        iteration_min: int = 1,
     ) -> dict[str, Any]:
-        results = self.retrieve(query, workflow, limit, artifact_type, domain, trace_id)
+        results = self.retrieve(query, workflow, limit, artifact_type, domain, trace_id, iteration_min)
         pack = {
             "project_id": self.project_id,
             "workflow": workflow,
@@ -251,6 +285,7 @@ class ContextBroker:
                 "artifact_type": artifact_type,
                 "domain": domain,
                 "trace_id": trace_id,
+                "iteration_min": iteration_min,
             },
             "results": results,
         }
@@ -288,6 +323,64 @@ def reindex_workspace(project_id: str) -> dict[str, Any]:
     return {"project_id": project_id, "indexed": indexed, "count": len(indexed)}
 
 
+def init_lancedb(project_id: str) -> dict[str, str]:
+    broker = ContextBroker(project_id)
+    return {"project_id": project_id, "backend": broker.backend, "table": broker.table_name}
+
+
+def ingest_file(file_path: Path, project_id: str, domain: str, item_type: str, iteration: int = 1) -> str:
+    broker = ContextBroker(project_id)
+    artifact_id = context_artifact_id(project_id, file_path)
+    broker.index_artifact(
+        artifact_id,
+        item_type,
+        file_path,
+        file_path.read_text(encoding="utf-8"),
+        domain=domain,
+        trace_ids=[artifact_id],
+        iteration=iteration,
+    )
+    return artifact_id
+
+
+def hybrid_search(
+    project_id: str,
+    query: str,
+    domains: list[str] | None = None,
+    iteration_min: int = 1,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    broker = ContextBroker(project_id)
+    if not domains:
+        return broker.retrieve(query, "hybrid_search", limit=limit, iteration_min=iteration_min)
+    results: list[dict[str, Any]] = []
+    per_domain_limit = max(limit, 1)
+    for domain in domains:
+        results.extend(
+            broker.retrieve(query, "hybrid_search", limit=per_domain_limit, domain=domain, iteration_min=iteration_min)
+        )
+    return sorted(results, key=lambda row: row["score"], reverse=True)[:limit]
+
+
+def get_multi_domain_context(query: str, project_id: str, iteration_min: int = 1) -> dict[str, Any]:
+    domains = ["business", "technical", "design", "quality", "product"]
+    return {
+        "project_id": project_id,
+        "query": query,
+        "iteration_min": iteration_min,
+        "domains": {
+            domain: ContextBroker(project_id).retrieve(
+                query,
+                "multi_domain_context",
+                limit=4,
+                domain=domain,
+                iteration_min=iteration_min,
+            )
+            for domain in domains
+        },
+    }
+
+
 def index_context_folders(project_id: str, broker: ContextBroker | None = None) -> list[str]:
     broker = broker or ContextBroker(project_id)
     base = workspace_path(project_id)
@@ -320,6 +413,10 @@ def context_artifact_id(project_id: str, path: Path) -> str:
         relative = path.as_posix()
     slug = re.sub(r"[^A-Za-z0-9]+", "-", relative).strip("-").upper()
     return f"CTX-{slug[:80]}"
+
+
+def content_hash(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
 
 
 def chunk_texts(text: str, max_chars: int = 900) -> list[str]:
