@@ -114,9 +114,17 @@ maturity:
     - functional
     - quality
 memory:
-  provider: local-first
+  provider: lancedb-hybrid
   lancedb_optional: true
   fallback: json-hybrid
+  embedding: local-hash
+  context_folders:
+    - 00_raw/00_client_requirement
+    - 00_raw/01_business_context
+    - 00_raw/02_technology_context
+    - 00_raw/03_design_context
+    - 00_raw/04_quality_context
+    - 00_raw/05_interactions
 """
 
 

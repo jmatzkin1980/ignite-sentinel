@@ -17,4 +17,6 @@ Run:
 python -m sentinel /reindex PROJECT_ID
 ```
 
+This rebuilds local LanceDB memory from versionable workspace artifacts, traceability nodes, and context folders.
+
 Summarize indexed artifacts and chunks.

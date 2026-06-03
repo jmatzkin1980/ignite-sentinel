@@ -15,8 +15,19 @@ Use this skill when new information may mutate existing requirements, specs, bac
 4. Patch affected artifacts deliberately.
 5. Run `python -m sentinel /reindex PROJECT_ID`, then `python -m sentinel /health PROJECT_ID`.
 
+## Memory
+
+- `/sync` creates a `CHG` node, indexes the change in local LanceDB memory, and links it to potentially impacted artifacts.
+- Use `/retrieve` with `--workflow sync` before patching requirements, backlog, acceptance criteria, or quality artifacts.
+- Use filters when the task needs a domain-owned context:
+  - `--domain technical`
+  - `--domain design`
+  - `--domain quality`
+  - `--artifact-type change`
+
 ## Rules
 
 - Treat new information as a change event, not a silent edit.
 - Every change must create a `CHG` node and impact report.
 - Do not mark downstream artifacts healthy until impact has been reviewed.
+- If source files and memory disagree, trust source files and run `/reindex`.

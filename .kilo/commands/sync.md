@@ -17,4 +17,10 @@ Run:
 python -m sentinel /sync PROJECT_ID --source PATH --note "NOTE"
 ```
 
-Summarize the change ID, impacted artifacts, and newly detected gaps.
+This indexes the change into local LanceDB memory.
+
+Summarize the change ID, impacted artifacts, and newly detected gaps. Recommend a focused context pack before patching downstream artifacts:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
+```

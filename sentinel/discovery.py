@@ -4,7 +4,7 @@ import re
 import shutil
 from pathlib import Path
 
-from .memory import ContextBroker
+from .memory import ContextBroker, index_context_folders
 from .traceability import add_edge, add_node
 from .workspace import ensure_workspace, update_state, workspace_path
 
@@ -52,6 +52,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     broker.index_artifact(req_id, "requirement", req_path, req_path.read_text(encoding="utf-8"), trace_ids=[raw_id, req_id])
     broker.index_artifact(gap_id, "gap_report", gap_path, gap_path.read_text(encoding="utf-8"), trace_ids=[req_id, gap_id])
     broker.index_artifact(dec_id, "decision_log", dec_path, dec_path.read_text(encoding="utf-8"), trace_ids=[req_id, dec_id])
+    index_context_folders(project_id, broker)
 
     update_state(
         project_id,

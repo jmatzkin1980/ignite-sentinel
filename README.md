@@ -46,6 +46,16 @@ python -m sentinel /reindex PROJECT_ID
 python -m sentinel /health PROJECT_ID
 ```
 
+## Local Memory
+
+Ignite Sentinel uses local LanceDB memory under each workspace:
+
+```text
+workspaces/PROJECT_ID/memory.lancedb/
+```
+
+`/ingest`, `/sync`, and `/reindex` populate memory from generated artifacts and domain-owned context folders such as technology, design, quality, business, and interactions. Use `/retrieve` to build focused context packs before Codex or Kilo Code executes a workflow.
+
 ## Workspace Layout
 
 ```text

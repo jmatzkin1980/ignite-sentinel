@@ -52,6 +52,13 @@ Creates:
 - gaps
 - decisions
 - initial traceability
+- local LanceDB memory entries for generated artifacts and workspace context folders
+
+Before deeper analysis, use:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "discovery topic" --workflow discovery --write-pack
+```
 
 ### `sentinel-maturity`
 
@@ -95,6 +102,7 @@ Creates:
 - change node
 - impact report
 - `CHG -> impacted artifact` traceability
+- local LanceDB memory entries for the change
 
 ### `sentinel-health`
 
@@ -118,4 +126,6 @@ They are reminders and guardrails, not the primary enforcement mechanism. The de
 python -m sentinel /validate PROJECT_ID
 python -m sentinel /health PROJECT_ID
 ```
+
+The post-tool hook also attempts to index edited workspace `.md` and `.txt` artifacts into local memory. Run `/reindex PROJECT_ID` if a workflow depends on fresh context.
 

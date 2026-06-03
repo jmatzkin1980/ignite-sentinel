@@ -46,7 +46,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "workspaces/_template/00_raw/03_design_context", "workspace design context template"),
         path_check(root, "workspaces/_template/07_changes/03_domain_updates", "workspace domain updates template"),
         write_check(root),
-        optional_dependency_check("lancedb"),
+        required_dependency_check("lancedb"),
         optional_dependency_check("sentence_transformers"),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
@@ -100,4 +100,13 @@ def optional_dependency_check(module_name: str) -> dict[str, str]:
         "name": f"optional dependency: {module_name}",
         "status": "PASS" if found else "WARN",
         "detail": "available" if found else "not installed; JSON fallback remains usable",
+    }
+
+
+def required_dependency_check(module_name: str) -> dict[str, str]:
+    found = importlib.util.find_spec(module_name) is not None
+    return {
+        "name": f"required dependency: {module_name}",
+        "status": "PASS" if found else "FAIL",
+        "detail": "available" if found else "not installed",
     }

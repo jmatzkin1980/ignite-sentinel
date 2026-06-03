@@ -52,5 +52,13 @@ For `/doctor`, omit `PROJECT_ID`.
 ## Safety
 
 - Do not edit generated workspace artifacts by hand unless the user explicitly asks for a manual correction.
+- After manual edits to workspace `.md` or `.txt` artifacts, run `/reindex PROJECT_ID` so LanceDB memory matches the versionable files.
+- Before executing a task that depends on project context, prefer `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW --write-pack` over loading the whole workspace.
 - Do not commit project workspace data unless explicitly approved.
 - If a Codex UI intercepts `/init` or another slash command before it reaches the agent, tell the user to send `sentinel /init PROJECT_ID`.
+
+## Memory
+
+- Ignite Sentinel stores local retrieval memory in `workspaces/PROJECT_ID/memory.lancedb/`.
+- LanceDB is the primary backend; source files remain the source of truth.
+- `/ingest`, `/sync`, and `/reindex` keep memory available for Codex and Kilo Code workflows.

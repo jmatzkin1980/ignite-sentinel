@@ -17,4 +17,10 @@ Run from the repository root:
 python -m sentinel /ingest PROJECT_ID --source PATH
 ```
 
-Then summarize generated `RAW`, `REQ`, `GAP`, and `DEC` IDs.
+This also indexes generated artifacts plus workspace context folders into local LanceDB memory.
+
+Then summarize generated `RAW`, `REQ`, `GAP`, and `DEC` IDs, and mention that focused context can be retrieved with:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "topic" --workflow discovery --write-pack
+```

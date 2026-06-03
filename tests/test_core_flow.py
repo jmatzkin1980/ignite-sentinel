@@ -63,6 +63,27 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertTrue(results)
         self.assertTrue(all(row["project_id"] == "NOVA" for row in results))
 
+    def test_context_folders_are_indexed_for_hybrid_retrieval(self) -> None:
+        complete = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "NOVA"]), 0)
+        tech_context = self.temp / "workspaces" / "NOVA" / "00_raw" / "02_technology_context" / "integration.md"
+        tech_context.write_text(
+            "The support queue integration uses webhook retries and the Atlas CRM account identifier.",
+            encoding="utf-8",
+        )
+        design_context = self.temp / "workspaces" / "NOVA" / "00_raw" / "03_design_context" / "states.md"
+        design_context.write_text(
+            "Queue screens must show loading, empty, and recoverable error states for SLA triage.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["ingest", "NOVA", "--source", str(complete)]), 0)
+        tech_results = ContextBroker("NOVA").retrieve("Atlas CRM webhook retries", "discovery", domain="technical")
+        design_results = ContextBroker("NOVA").retrieve("recoverable error state SLA triage", "discovery", domain="design")
+        self.assertTrue(tech_results)
+        self.assertTrue(design_results)
+        self.assertEqual(tech_results[0]["artifact_type"], "technology_context")
+        self.assertEqual(design_results[0]["artifact_type"], "design_context")
+
     def test_sync_creates_change_impact_and_context_pack(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
         change = ROOT / "fixtures" / "change_request.md"

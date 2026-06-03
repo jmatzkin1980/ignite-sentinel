@@ -24,6 +24,8 @@ python -m sentinel ...
 | `sentinel-sync` | Process changes and impact |
 | `sentinel-health` | Run health, validation, traceability checks |
 
+Kilo agents use the same local LanceDB memory layer as Codex. `/ingest`, `/sync`, and `/reindex` keep `workspaces/[PROJECT_ID]/memory.lancedb/` populated, while `/retrieve` builds focused context packs for the active workflow.
+
 ## Slash Workflows
 
 Kilo Code supports repo-local workflows in `.kilo/commands/`. In this repo, those workflows let you type short Ignite commands directly in Kilo chat.
@@ -36,6 +38,7 @@ Examples:
 /ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
 /maturity TESORO_CIERRE_FORZADO
 /sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client gap response"
+/retrieve TESORO_CIERRE_FORZADO --query "client gap response" --workflow sync
 /specs TESORO_CIERRE_FORZADO
 /backlog TESORO_CIERRE_FORZADO
 /quality TESORO_CIERRE_FORZADO
@@ -77,6 +80,7 @@ If Kilo cannot execute commands, use the VS Code terminal manually:
 
 ```powershell
 python -m sentinel /doctor
+python -m sentinel /retrieve PROJECT_ID --query "topic" --workflow sync --write-pack
 python -m sentinel /health PROJECT_ID
 ```
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+from hashlib import blake2b
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,16 @@ from .workspace import graph_path, memory_path, read_json, write_json, workspace
 
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+VECTOR_DIMENSIONS = 128
+CONTEXT_FOLDERS = {
+    "00_raw/00_client_requirement": ("raw_context", "product"),
+    "00_raw/01_business_context": ("business_context", "business"),
+    "00_raw/02_technology_context": ("technology_context", "technical"),
+    "00_raw/03_design_context": ("design_context", "design"),
+    "00_raw/04_quality_context": ("quality_context", "quality"),
+    "00_raw/05_interactions": ("interaction_context", "product"),
+    "07_changes": ("change_context", "product"),
+}
 
 
 def tokenize(text: str) -> list[str]:
@@ -30,14 +41,70 @@ def cosine(a: Counter[str], b: Counter[str]) -> float:
     return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
 
 
+def hash_embedding(text: str, dimensions: int = VECTOR_DIMENSIONS) -> list[float]:
+    """Small deterministic local embedding used when no model service is configured."""
+    vector = [0.0] * dimensions
+    for token in tokenize(text):
+        bucket = int.from_bytes(blake2b(token.encode("utf-8"), digest_size=4).digest(), "big") % dimensions
+        vector[bucket] += 1.0
+    norm = math.sqrt(sum(value * value for value in vector))
+    if not norm:
+        return vector
+    return [round(value / norm, 6) for value in vector]
+
+
 class ContextBroker:
-    """Local-first retrieval broker. Uses a JSON hybrid fallback even when LanceDB is absent."""
+    """Local-first retrieval broker backed by LanceDB when available.
+
+    Versionable workspace artifacts remain the source of truth. The vector store
+    is a retrieval aid and can be rebuilt from the graph and context folders.
+    """
 
     def __init__(self, project_id: str):
         self.project_id = project_id
         self.path = memory_path(project_id)
         self.data = read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []})
+        self.lance_dir = self.path.parent / "lance"
+        self.table_name = "sentinel_memory"
+        self._lancedb = None
+        self._table = None
         self.backend = "json-hybrid"
+        self._connect_lancedb()
+
+    def _connect_lancedb(self) -> None:
+        try:
+            import lancedb  # type: ignore
+
+            self.lance_dir.mkdir(parents=True, exist_ok=True)
+            self._lancedb = lancedb.connect(str(self.lance_dir))
+            if self.table_name in self._lancedb.list_tables():
+                self._table = self._lancedb.open_table(self.table_name)
+            else:
+                self._table = self._lancedb.create_table(
+                    self.table_name,
+                    data=[
+                        {
+                            "project_id": self.project_id,
+                            "chunk_id": "__bootstrap__",
+                            "artifact_id": "__bootstrap__",
+                            "artifact_type": "bootstrap",
+                            "source_path": "",
+                            "domain": "system",
+                            "trace_ids": "",
+                            "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                            "summary": "bootstrap",
+                            "text": "bootstrap",
+                            "status": "inactive",
+                            "vector": hash_embedding("bootstrap"),
+                        }
+                    ],
+                    mode="overwrite",
+                )
+            self.backend = "lancedb-hybrid"
+        except Exception:
+            self._lancedb = None
+            self._table = None
+            self.backend = "json-hybrid"
 
     def index_artifact(
         self,
@@ -76,6 +143,45 @@ class ContextBroker:
                 }
             )
         write_json(self.path, self.data)
+        self._upsert_lancedb_chunks(artifact_id)
+
+    def _upsert_lancedb_chunks(self, artifact_id: str) -> None:
+        if self._table is None:
+            return
+        rows = []
+        for chunk in self.data.get("chunks", []):
+            if chunk.get("artifact_id") != artifact_id:
+                continue
+            rows.append(
+                {
+                    "project_id": chunk["project_id"],
+                    "chunk_id": chunk["chunk_id"],
+                    "artifact_id": chunk["artifact_id"],
+                    "artifact_type": chunk["artifact_type"],
+                    "source_path": chunk["source_path"],
+                    "domain": chunk["domain"],
+                    "trace_ids": ",".join(chunk.get("trace_ids", [])),
+                    "indexed_at": chunk["indexed_at"],
+                    "summary": chunk["summary"],
+                    "text": chunk["text"],
+                    "status": chunk["status"],
+                    "vector": hash_embedding(chunk["text"]),
+                }
+            )
+        try:
+            existing = self._table.to_list()
+            retained = [
+                row
+                for row in existing
+                if row.get("artifact_id") != artifact_id
+                and row.get("chunk_id") != "__bootstrap__"
+                and row.get("project_id") == self.project_id
+            ]
+            all_rows = retained + rows
+            if all_rows:
+                self._table = self._lancedb.create_table(self.table_name, data=all_rows, mode="overwrite")
+        except Exception:
+            self.backend = "json-hybrid"
 
     def index_trace_edges(self, edges: list[dict[str, Any]]) -> None:
         self.data["trace_edges"] = edges
@@ -90,6 +196,7 @@ class ContextBroker:
         domain: str | None = None,
         trace_id: str | None = None,
     ) -> list[dict[str, Any]]:
+        vector_candidates = self._lancedb_candidates(query, limit=max(limit * 4, 20))
         query_tokens = set(tokenize(query))
         query_vector = text_vector(query)
         scored = []
@@ -103,11 +210,27 @@ class ContextBroker:
             text = chunk["text"]
             lexical = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
             semantic = cosine(query_vector, text_vector(text))
+            vector = vector_candidates.get(chunk["chunk_id"], 0.0)
             workflow_boost = 0.05 if workflow.lower() in text.lower() else 0.0
-            score = lexical + semantic + workflow_boost
+            score = lexical + semantic + vector + workflow_boost
             if score > 0:
                 scored.append({"score": round(score, 4), **chunk})
         return sorted(scored, key=lambda row: row["score"], reverse=True)[:limit]
+
+    def _lancedb_candidates(self, query: str, limit: int) -> dict[str, float]:
+        if self._table is None:
+            return {}
+        try:
+            rows = self._table.search(hash_embedding(query)).limit(limit).to_list()
+        except Exception:
+            return {}
+        candidates: dict[str, float] = {}
+        for row in rows:
+            if row.get("project_id") != self.project_id or row.get("status") != "active":
+                continue
+            distance = float(row.get("_distance", 1.0))
+            candidates[row["chunk_id"]] = max(0.0, 1.0 - distance)
+        return candidates
 
     def build_context_pack(
         self,
@@ -160,8 +283,43 @@ def reindex_workspace(project_id: str) -> dict[str, Any]:
             trace_ids=[node["id"]],
         )
         indexed.append(node["id"])
+    indexed.extend(index_context_folders(project_id, broker))
     broker.index_trace_edges(graph.get("edges", []))
     return {"project_id": project_id, "indexed": indexed, "count": len(indexed)}
+
+
+def index_context_folders(project_id: str, broker: ContextBroker | None = None) -> list[str]:
+    broker = broker or ContextBroker(project_id)
+    base = workspace_path(project_id)
+    indexed: list[str] = []
+    for relative, (artifact_type, domain) in CONTEXT_FOLDERS.items():
+        folder = base / relative
+        if not folder.exists():
+            continue
+        for path in sorted(folder.rglob("*")):
+            if path.suffix.lower() not in {".md", ".txt"} or not path.is_file():
+                continue
+            artifact_id = context_artifact_id(project_id, path)
+            broker.index_artifact(
+                artifact_id,
+                artifact_type,
+                path,
+                path.read_text(encoding="utf-8"),
+                domain=domain,
+                trace_ids=[artifact_id],
+            )
+            indexed.append(artifact_id)
+    return indexed
+
+
+def context_artifact_id(project_id: str, path: Path) -> str:
+    base = workspace_path(project_id)
+    try:
+        relative = path.relative_to(base).as_posix()
+    except ValueError:
+        relative = path.as_posix()
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", relative).strip("-").upper()
+    return f"CTX-{slug[:80]}"
 
 
 def chunk_texts(text: str, max_chars: int = 900) -> list[str]:

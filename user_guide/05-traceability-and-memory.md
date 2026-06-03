@@ -39,7 +39,13 @@ Memory lives at:
 workspaces/[PROJECT_ID]/memory.lancedb/
 ```
 
-Current MVP uses a JSON hybrid fallback:
+Ignite Sentinel uses local LanceDB as the primary retrieval backend:
+
+```text
+memory.lancedb/lance/
+```
+
+The framework also keeps a JSON hybrid fallback:
 
 ```text
 memory.json
@@ -50,12 +56,25 @@ The memory layer stores:
 - chunks
 - artifacts metadata
 - trace edges
+- local vectors for hybrid retrieval
 
 It is used by:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "..." --workflow "..."
 ```
+
+`/ingest`, `/sync`, and `/reindex` populate memory. The indexed workspace context folders are:
+
+- `00_raw/00_client_requirement`
+- `00_raw/01_business_context`
+- `00_raw/02_technology_context`
+- `00_raw/03_design_context`
+- `00_raw/04_quality_context`
+- `00_raw/05_interactions`
+- `07_changes`
+
+These context folders are input owned by the relevant domains. Sentinel retrieves and cites them; it does not replace them with generated tech or design specs.
 
 ## Context Packs
 
@@ -88,7 +107,7 @@ Run reindex after manual edits:
 python -m sentinel /reindex PROJECT_ID
 ```
 
-This rebuilds the memory fallback from the graph and versionable artifacts.
+This rebuilds LanceDB memory and the JSON fallback from the graph, versionable artifacts, and context folders.
 
 ## Important Rule
 
