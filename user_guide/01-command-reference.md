@@ -2,6 +2,14 @@
 
 This document explains each command in the `sentinel` CLI.
 
+Commands can be invoked in three ways:
+
+1. Kilo Code chat workflow: `/command PROJECT_ID [options]`
+2. Codex chat router: `sentinel /command PROJECT_ID [options]`
+3. Terminal fallback: `python -m sentinel /command PROJECT_ID [options]`
+
+In Kilo Code, repo-local workflow files live in `.kilo/commands/`. In Codex, `AGENTS.md` and the `sentinel-command-router` skill define how chat commands map to the CLI.
+
 Run help:
 
 ```powershell

@@ -6,6 +6,24 @@ Ignite Sentinel turns raw client input into traceable requirements, specs, backl
 
 ## Quick Start
 
+Kilo Code chat:
+
+```text
+/doctor
+/init PROJECT_ID
+/ingest PROJECT_ID --source input\client_requirement\sync-guide.md
+/maturity PROJECT_ID
+```
+
+Codex chat:
+
+```text
+sentinel /init PROJECT_ID
+sentinel /maturity PROJECT_ID
+```
+
+PowerShell fallback:
+
 ```powershell
 python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
@@ -70,7 +88,7 @@ The repository also includes:
 - Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
 - Use Codex skills in `.codex/skills/` for progressive disclosure.
-- Use Kilo Code agents in `.kilo/agents/` when Codex is unavailable.
+- Use Kilo Code agents in `.kilo/agents/` and slash workflows in `.kilo/commands/` when Codex is unavailable.
 
 ## Verification
 
@@ -91,3 +109,4 @@ python -m unittest discover -s tests
 - [Codex Adapter](user_guide/08-codex-adapter.md)
 - [Secure Environments](user_guide/09-secure-environments.md)
 - [Repo And Branching Strategy](user_guide/10-repo-and-branching-strategy.md)
+- [Chat Commands](user_guide/11-chat-commands.md)

@@ -24,6 +24,32 @@ python -m sentinel ...
 | `sentinel-sync` | Process changes and impact |
 | `sentinel-health` | Run health, validation, traceability checks |
 
+## Slash Workflows
+
+Kilo Code supports repo-local workflows in `.kilo/commands/`. In this repo, those workflows let you type short Ignite commands directly in Kilo chat.
+
+Examples:
+
+```text
+/doctor
+/init TESORO_CIERRE_FORZADO
+/ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
+/maturity TESORO_CIERRE_FORZADO
+/sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client gap response"
+/specs TESORO_CIERRE_FORZADO
+/backlog TESORO_CIERRE_FORZADO
+/quality TESORO_CIERRE_FORZADO
+/trace TESORO_CIERRE_FORZADO
+/health TESORO_CIERRE_FORZADO
+/validate TESORO_CIERRE_FORZADO
+```
+
+If a command name conflicts with the chat surface, use the generic fallback:
+
+```text
+/sentinel /init TESORO_CIERRE_FORZADO
+```
+
 ## Suggested Prompt
 
 ```text

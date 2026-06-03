@@ -23,6 +23,27 @@ python -m sentinel ...
 | `sentinel-quality` | Generate quality artifacts |
 | `sentinel-sync` | Process changes |
 | `sentinel-health` | Audit health |
+| `sentinel-command-router` | Translate Ignite chat commands into CLI runs |
+
+## Chat Command Router
+
+Codex uses `AGENTS.md` plus the `sentinel-command-router` skill to interpret Ignite-style chat commands and run the matching CLI command.
+
+Recommended Codex chat form:
+
+```text
+sentinel /init TESORO_CIERRE_FORZADO
+sentinel /ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
+sentinel /maturity TESORO_CIERRE_FORZADO
+```
+
+The shorter form may also work if the Codex surface does not reserve that slash command:
+
+```text
+/init TESORO_CIERRE_FORZADO
+```
+
+If Codex intercepts `/init` or another slash command as a native Codex command, resend it with the `sentinel` prefix.
 
 ## Suggested Prompt
 

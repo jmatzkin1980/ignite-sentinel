@@ -19,6 +19,7 @@
         "user_guide/**",
         "sentinel/**",
         ".kilo/agents/**",
+        ".kilo/commands/**",
         ".codex/skills/**",
         "tests/**",
         "README.md",

@@ -32,6 +32,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "sentinel", "core runtime"),
         path_check(root, ".codex/skills", "Codex skills adapter"),
         path_check(root, ".kilo/agents", "Kilo Code agents adapter"),
+        path_check(root, ".kilo/commands", "Kilo Code slash commands"),
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "user_guide", "user guide"),
         path_check(root, "input", "input folder scaffold"),
