@@ -18,6 +18,12 @@ DEFAULT_DOMAINS = [
 
 WORKSPACE_DIRS = [
     "00_raw",
+    "00_raw/00_client_requirement",
+    "00_raw/01_business_context",
+    "00_raw/02_technology_context",
+    "00_raw/03_design_context",
+    "00_raw/04_quality_context",
+    "00_raw/05_interactions",
     "01_discovery",
     "02_requirements",
     "03_specs",
@@ -25,6 +31,10 @@ WORKSPACE_DIRS = [
     "05_quality",
     "06_traceability",
     "07_changes",
+    "07_changes/00_client_responses",
+    "07_changes/01_meetings",
+    "07_changes/02_mail_slack",
+    "07_changes/03_domain_updates",
     "08_context_packs",
     "memory.lancedb",
 ]

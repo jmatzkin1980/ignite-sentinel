@@ -1,6 +1,14 @@
-# Ignite Sentinel Command Reference
+﻿# Ignite Sentinel Command Reference
 
 This document explains each command in the `sentinel` CLI.
+
+Commands can be invoked in three ways:
+
+1. Kilo Code chat workflow: `/command PROJECT_ID [options]`
+2. Codex chat router: `sentinel /command PROJECT_ID [options]`
+3. Terminal fallback: `python -m sentinel /command PROJECT_ID [options]`
+
+In Kilo Code, repo-local workflow files live in `.kilo/commands/`. In Codex, `AGENTS.md` and the `sentinel-command-router` skill define how chat commands map to the CLI.
 
 Run help:
 
@@ -13,7 +21,7 @@ python -m sentinel --help
 Check whether the repo is ready for portable VS Code usage.
 
 ```powershell
-python -m sentinel doctor
+python -m sentinel /doctor
 ```
 
 Checks:
@@ -32,7 +40,7 @@ Checks:
 Create a project workspace.
 
 ```powershell
-python -m sentinel init PROJECT_ID
+python -m sentinel /init PROJECT_ID
 ```
 
 Creates:
@@ -48,7 +56,7 @@ Creates:
 Ingest raw input and create discovery artifacts.
 
 ```powershell
-python -m sentinel ingest PROJECT_ID --source path\to\input.md
+python -m sentinel /ingest PROJECT_ID --source path\to\input.md
 ```
 
 Creates or updates:
@@ -66,7 +74,7 @@ Creates or updates:
 Evaluate whether the requirement is ready for specs/backlog.
 
 ```powershell
-python -m sentinel maturity PROJECT_ID
+python -m sentinel /maturity PROJECT_ID
 ```
 
 Output:
@@ -80,7 +88,7 @@ Blocks when open gaps have severities configured as blocking in `sentinel.config
 Generate AI-friendly specs from a mature requirement.
 
 ```powershell
-python -m sentinel specs PROJECT_ID
+python -m sentinel /specs PROJECT_ID
 ```
 
 Fails if maturity is `BLOCKED`.
@@ -94,7 +102,7 @@ Output:
 Generate initial epic, user story, and acceptance criteria.
 
 ```powershell
-python -m sentinel backlog PROJECT_ID
+python -m sentinel /backlog PROJECT_ID
 ```
 
 Fails if maturity is `BLOCKED`.
@@ -109,7 +117,7 @@ Outputs:
 Generate quality/test-case coverage from user stories.
 
 ```powershell
-python -m sentinel quality PROJECT_ID
+python -m sentinel /quality PROJECT_ID
 ```
 
 Output:
@@ -121,7 +129,7 @@ Output:
 Materialize graph views.
 
 ```powershell
-python -m sentinel trace PROJECT_ID
+python -m sentinel /trace PROJECT_ID
 ```
 
 Outputs:
@@ -135,7 +143,7 @@ Outputs:
 Run deterministic health checks.
 
 ```powershell
-python -m sentinel health PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 Checks:
@@ -156,7 +164,7 @@ Outputs:
 Validate workspace structure and graph integrity.
 
 ```powershell
-python -m sentinel validate PROJECT_ID
+python -m sentinel /validate PROJECT_ID
 ```
 
 Checks:
@@ -174,7 +182,7 @@ Returns non-zero when invalid.
 Ingest stakeholder feedback, meeting notes, or change requests.
 
 ```powershell
-python -m sentinel sync PROJECT_ID --source path\to\change.md --note "why this change exists"
+python -m sentinel /sync PROJECT_ID --source path\to\change.md --note "why this change exists"
 ```
 
 Creates:
@@ -188,19 +196,19 @@ Creates:
 Retrieve focused context from the local memory index.
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "scope and success criteria" --workflow maturity
+python -m sentinel /retrieve PROJECT_ID --query "scope and success criteria" --workflow maturity
 ```
 
 Optional filters:
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product --trace-id CHG-001
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product --trace-id CHG-001
 ```
 
 Write a reusable context pack:
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "SLA risk" --workflow sync --write-pack
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --write-pack
 ```
 
 Output:
@@ -212,7 +220,7 @@ Output:
 Rebuild local memory from the traceability graph and versionable artifacts.
 
 ```powershell
-python -m sentinel reindex PROJECT_ID
+python -m sentinel /reindex PROJECT_ID
 ```
 
 Use after manual artifact edits.

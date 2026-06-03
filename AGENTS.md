@@ -8,6 +8,35 @@
 - Prefer small Codex skills with progressive disclosure: concise `SKILL.md`, deeper `references/`, reusable `assets/templates/`, deterministic scripts when possible.
 - Do not reintroduce Roo-specific concepts such as `.roo`, `.roomodes`, `.roorules`, P3, or P5 as global architecture.
 
+## Ignite Chat Commands
+
+When the user sends an Ignite-style chat command, parse it as a request to run the Sentinel CLI from the repository root.
+
+Accepted forms:
+
+- `/doctor`
+- `/init PROJECT_ID`
+- `/ingest PROJECT_ID --source PATH`
+- `/maturity PROJECT_ID`
+- `/sync PROJECT_ID --source PATH --note "NOTE"`
+- `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
+- `/reindex PROJECT_ID`
+- `/specs PROJECT_ID`
+- `/backlog PROJECT_ID`
+- `/quality PROJECT_ID`
+- `/trace PROJECT_ID`
+- `/health PROJECT_ID`
+- `/validate PROJECT_ID`
+- `sentinel /init PROJECT_ID`
+- `ignite /init PROJECT_ID`
+
+Execution rule:
+
+- Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
+- If `python` is not available, use the configured or bundled Python runtime when visible in the environment.
+- For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
+- If a Codex surface intercepts a native slash command before it reaches the agent, ask the user to send the same request as `sentinel /COMMAND PROJECT_ID`.
+
 ## Verification
 
 - Run `python -m unittest discover -s tests` after changing Sentinel runtime code.

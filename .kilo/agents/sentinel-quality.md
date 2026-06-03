@@ -1,4 +1,4 @@
----
+﻿---
 name: sentinel-quality
 description: Generate quality and test-case coverage from Ignite Sentinel user stories.
 mode: primary
@@ -9,9 +9,9 @@ mode: primary
 Run:
 
 ```powershell
-python -m sentinel quality PROJECT_ID
-python -m sentinel trace PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /quality PROJECT_ID
+python -m sentinel /trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 Rules:

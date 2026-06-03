@@ -95,6 +95,15 @@ class SentinelCoreFlowTest(unittest.TestCase):
 
     def test_doctor_passes_for_repo_root(self) -> None:
         self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
+        self.assertEqual(main(["/doctor", "--root", str(ROOT.parent)]), 0)
+
+    def test_slash_command_aliases_work(self) -> None:
+        self.assertEqual(main(["/init", "SLASH_DEMO"]), 0)
+        workspace = self.temp / "workspaces" / "SLASH_DEMO"
+        self.assertTrue((workspace / "state.json").exists())
+        self.assertTrue((workspace / "00_raw" / "02_technology_context").is_dir())
+        self.assertTrue((workspace / "00_raw" / "03_design_context").is_dir())
+        self.assertTrue((workspace / "07_changes" / "03_domain_updates").is_dir())
 
 
 if __name__ == "__main__":

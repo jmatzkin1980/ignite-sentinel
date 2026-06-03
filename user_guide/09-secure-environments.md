@@ -1,4 +1,4 @@
-# Secure Environments Guide
+﻿# Secure Environments Guide
 
 This guide is for company laptops and client VDIs with restricted permissions.
 
@@ -20,7 +20,7 @@ Ignite Sentinel assumes:
 3. Run:
 
 ```powershell
-python -m sentinel doctor
+python -m sentinel /doctor
 ```
 
 4. Use Codex skills, Kilo agents, or the CLI.
@@ -38,8 +38,8 @@ Ask for a portable or approved Python 3.10+ runtime. Ignite does not require adm
 Use no-install mode:
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel init PROJECT_ID
+python -m sentinel /doctor
+python -m sentinel /init PROJECT_ID
 ```
 
 The MVP core uses only the Python standard library.
@@ -54,4 +54,6 @@ Run CLI commands manually in the VS Code terminal and use the extension only to 
 - Do not commit client-sensitive workspaces unless approved.
 - `workspaces/` is ignored by Git by default.
 - Keep the source of truth in versionable artifacts only when data classification allows it.
+- Keep `main` clean so a fresh download of the repo never includes client or workflow test data.
+- Use dedicated project branches for execution in laptops or VDIs, and avoid merging those branches into `main` when they contain client artifacts.
 

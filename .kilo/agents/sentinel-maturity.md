@@ -1,4 +1,4 @@
----
+﻿---
 name: sentinel-maturity
 description: Evaluate whether a requirement is mature enough for AI-friendly specs and backlog generation.
 mode: primary
@@ -9,7 +9,7 @@ mode: primary
 Run:
 
 ```powershell
-python -m sentinel maturity PROJECT_ID
+python -m sentinel /maturity PROJECT_ID
 ```
 
 Read:

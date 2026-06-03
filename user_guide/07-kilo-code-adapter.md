@@ -1,4 +1,4 @@
-# Kilo Code Adapter
+﻿# Kilo Code Adapter
 
 Ignite Sentinel includes a repo-local Kilo Code adapter under:
 
@@ -23,6 +23,32 @@ python -m sentinel ...
 | `sentinel-quality` | Generate test coverage |
 | `sentinel-sync` | Process changes and impact |
 | `sentinel-health` | Run health, validation, traceability checks |
+
+## Slash Workflows
+
+Kilo Code supports repo-local workflows in `.kilo/commands/`. In this repo, those workflows let you type short Ignite commands directly in Kilo chat.
+
+Examples:
+
+```text
+/doctor
+/init TESORO_CIERRE_FORZADO
+/ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
+/maturity TESORO_CIERRE_FORZADO
+/sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client gap response"
+/specs TESORO_CIERRE_FORZADO
+/backlog TESORO_CIERRE_FORZADO
+/quality TESORO_CIERRE_FORZADO
+/trace TESORO_CIERRE_FORZADO
+/health TESORO_CIERRE_FORZADO
+/validate TESORO_CIERRE_FORZADO
+```
+
+If a command name conflicts with the chat surface, use the generic fallback:
+
+```text
+/sentinel /init TESORO_CIERRE_FORZADO
+```
 
 ## Suggested Prompt
 
@@ -50,7 +76,7 @@ The config is intentionally conservative:
 If Kilo cannot execute commands, use the VS Code terminal manually:
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel health PROJECT_ID
+python -m sentinel /doctor
+python -m sentinel /health PROJECT_ID
 ```
 

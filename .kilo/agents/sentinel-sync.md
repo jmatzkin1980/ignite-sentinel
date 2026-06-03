@@ -1,4 +1,4 @@
----
+﻿---
 name: sentinel-sync
 description: Ingest stakeholder feedback, meeting notes, or client changes and generate impact analysis.
 mode: primary
@@ -9,10 +9,10 @@ mode: primary
 Run:
 
 ```powershell
-python -m sentinel sync PROJECT_ID --source PATH --note "source and intent"
-python -m sentinel retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
-python -m sentinel reindex PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /sync PROJECT_ID --source PATH --note "source and intent"
+python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
+python -m sentinel /reindex PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 Rules:

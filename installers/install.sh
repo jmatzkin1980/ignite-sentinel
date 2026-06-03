@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+﻿#!/usr/bin/env sh
 set -eu
 
 echo "Ignite Sentinel portable setup"
@@ -18,7 +18,7 @@ if [ "${1:-}" = "--venv" ]; then
   "$PYTHON_BIN" -m venv .venv
   . .venv/bin/activate
   python -m pip install -e .
-  python -m sentinel doctor
+  python -m sentinel /doctor
 else
   "$PYTHON_BIN" -m sentinel doctor
 fi

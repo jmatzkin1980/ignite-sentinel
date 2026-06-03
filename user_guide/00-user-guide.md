@@ -1,4 +1,4 @@
-# Ignite Sentinel vNext - User Guide
+﻿# Ignite Sentinel vNext - User Guide
 
 Ignite Sentinel vNext is a repo-local BA/Product framework for AI PODs. It helps transform raw client input into mature, traceable, AI-friendly artifacts that can be consumed by humans and agents across Product, Technology, Design, Quality, and Delivery.
 
@@ -8,15 +8,16 @@ This guide is written for Business Analysts, Product members, and AI-assisted de
 
 Ignite Sentinel supports the requirements lifecycle:
 
-1. Ingest raw input from a client or stakeholder.
-2. Extract requirements, gaps, decisions, and risks.
-3. Evaluate whether the requirement is mature enough to continue.
-4. Generate AI-friendly specs.
-5. Generate backlog artifacts: epics, user stories, and acceptance criteria.
-6. Generate quality artifacts and test-case coverage.
-7. Maintain traceability across all artifacts.
-8. Process changes, feedback, and meetings as controlled change events.
-9. Run health and validation checks before downstream work.
+1. Receive the initial client package: initial synchronization guide, architecture or repository references, design references, and any quality or delivery context.
+2. Ingest raw input as evidence, not as mature truth.
+3. Analyze the requirement across Product, Business, Functional, Technology, Design, Quality, Delivery, and Compliance as configured for the project.
+4. Extract requirements, gaps, decisions, assumptions, risks, and missing context.
+5. Share gaps with the client or POD domains and ingest responses, meeting notes, Slack/email content, and domain context as change events.
+6. Keep requirements, gaps, decisions, and traceability alive while the shared understanding evolves.
+7. Generate AI-friendly specs only when maturity gates are satisfied.
+8. Generate backlog artifacts: epics, user stories, and acceptance criteria.
+9. Generate quality artifacts and test-case coverage.
+10. Run health and validation checks before downstream work.
 
 ## Core Ideas
 
@@ -69,16 +70,16 @@ Do not treat `CLEAN` as business approval. Treat it as structural readiness.
 Use a unique project ID, for example `ACME_DASHBOARD`.
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel init ACME_DASHBOARD
-python -m sentinel ingest ACME_DASHBOARD --source path\to\client-note.md
-python -m sentinel maturity ACME_DASHBOARD
-python -m sentinel specs ACME_DASHBOARD
-python -m sentinel backlog ACME_DASHBOARD
-python -m sentinel quality ACME_DASHBOARD
-python -m sentinel trace ACME_DASHBOARD
-python -m sentinel health ACME_DASHBOARD
-python -m sentinel validate ACME_DASHBOARD
+python -m sentinel /doctor
+python -m sentinel /init ACME_DASHBOARD
+python -m sentinel /ingest ACME_DASHBOARD --source path\to\client-note.md
+python -m sentinel /maturity ACME_DASHBOARD
+python -m sentinel /specs ACME_DASHBOARD
+python -m sentinel /backlog ACME_DASHBOARD
+python -m sentinel /quality ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
 If `python` is not available in your shell, use the Python runtime configured for your Codex environment.
@@ -88,6 +89,12 @@ If `python` is not available in your shell, use the Python runtime configured fo
 ```text
 workspaces/[PROJECT_ID]/
   00_raw/             Raw client or stakeholder input
+    00_client_requirement/
+    01_business_context/
+    02_technology_context/
+    03_design_context/
+    04_quality_context/
+    05_interactions/
   01_discovery/       Gaps, decisions, maturity reports, digests
   02_requirements/    Requirement register
   03_specs/           AI-friendly specs / PRD
@@ -95,6 +102,10 @@ workspaces/[PROJECT_ID]/
   05_quality/         Test cases and quality coverage
   06_traceability/    Graph JSON, matrix, Mermaid, health reports
   07_changes/         Change events and impact reports
+    00_client_responses/
+    01_meetings/
+    02_mail_slack/
+    03_domain_updates/
   08_context_packs/   Retrieval context packs
   memory.lancedb/     Local memory fallback/index files
   state.json
@@ -106,7 +117,7 @@ workspaces/[PROJECT_ID]/
 ### 1. Start A Workspace
 
 ```powershell
-python -m sentinel init ACME_DASHBOARD
+python -m sentinel /init ACME_DASHBOARD
 ```
 
 This creates the project workspace, default configuration, empty traceability graph, and local memory files.
@@ -114,7 +125,7 @@ This creates the project workspace, default configuration, empty traceability gr
 ### 2. Ingest Raw Input
 
 ```powershell
-python -m sentinel ingest ACME_DASHBOARD --source input\client-note.md
+python -m sentinel /ingest ACME_DASHBOARD --source input\client-note.md
 ```
 
 Outputs:
@@ -130,7 +141,7 @@ Outputs:
 ### 3. Evaluate Maturity
 
 ```powershell
-python -m sentinel maturity ACME_DASHBOARD
+python -m sentinel /maturity ACME_DASHBOARD
 ```
 
 Outputs:
@@ -142,7 +153,7 @@ If the report says `BLOCKED`, resolve the blocking gaps before generating specs 
 ### 4. Generate Specs
 
 ```powershell
-python -m sentinel specs ACME_DASHBOARD
+python -m sentinel /specs ACME_DASHBOARD
 ```
 
 Output:
@@ -154,7 +165,7 @@ The spec is intentionally implementation-agnostic and domain-aware.
 ### 5. Generate Backlog
 
 ```powershell
-python -m sentinel backlog ACME_DASHBOARD
+python -m sentinel /backlog ACME_DASHBOARD
 ```
 
 Outputs:
@@ -166,7 +177,7 @@ Outputs:
 ### 6. Generate Quality Coverage
 
 ```powershell
-python -m sentinel quality ACME_DASHBOARD
+python -m sentinel /quality ACME_DASHBOARD
 ```
 
 Output:
@@ -178,7 +189,7 @@ This gives Quality and Test Automation a traceable starting point.
 ### 7. Review Traceability
 
 ```powershell
-python -m sentinel trace ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
 ```
 
 Outputs:
@@ -190,8 +201,8 @@ Outputs:
 ### 8. Run Health And Validation
 
 ```powershell
-python -m sentinel health ACME_DASHBOARD
-python -m sentinel validate ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
 Use both:
@@ -204,7 +215,7 @@ Use both:
 When new information arrives, do not edit downstream artifacts silently. Ingest it as a change event.
 
 ```powershell
-python -m sentinel sync ACME_DASHBOARD --source input\client-followup.md --note "client follow-up after demo"
+python -m sentinel /sync ACME_DASHBOARD --source input\client-followup.md --note "client follow-up after demo"
 ```
 
 Outputs:
@@ -217,15 +228,15 @@ Outputs:
 Then build a context pack:
 
 ```powershell
-python -m sentinel retrieve ACME_DASHBOARD --query "SLA risk by queue" --workflow sync --write-pack
+python -m sentinel /retrieve ACME_DASHBOARD --query "SLA risk by queue" --workflow sync --write-pack
 ```
 
 After reviewing and patching affected artifacts:
 
 ```powershell
-python -m sentinel reindex ACME_DASHBOARD
-python -m sentinel trace ACME_DASHBOARD
-python -m sentinel health ACME_DASHBOARD
+python -m sentinel /reindex ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
 ```
 
 ## Working With Codex Skills
@@ -250,6 +261,8 @@ The skills are intentionally short. Detailed context lives in references and run
 
 ## Practical Guidance For BAs
 
+- Keep the repository `main` branch clean and framework-only.
+- Run client/project workflows in a dedicated project branch and avoid merging generated client workspaces into `main`.
 - Do not hide uncertainty. Convert it into a `GAP`.
 - Do not invent metrics. If a percentage, cost, or performance claim lacks source or baseline, treat it as a gap.
 - Do not generate backlog from immature requirements.
