@@ -69,6 +69,7 @@ Do not treat `CLEAN` as business approval. Treat it as structural readiness.
 Use a unique project ID, for example `ACME_DASHBOARD`.
 
 ```powershell
+python -m sentinel doctor
 python -m sentinel init ACME_DASHBOARD
 python -m sentinel ingest ACME_DASHBOARD --source path\to\client-note.md
 python -m sentinel maturity ACME_DASHBOARD
@@ -255,4 +256,3 @@ The skills are intentionally short. Detailed context lives in references and run
 - Do not treat generated artifacts as final client-approved documents without review.
 - Use change events for feedback, meetings, and stakeholder refinements.
 - Keep the graph healthy before handing work to Technology, Design, Quality, or Delivery.
-

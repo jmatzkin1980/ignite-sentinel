@@ -1,0 +1,59 @@
+{
+  // Ignite Sentinel repo-local Kilo Code configuration.
+  // Keep permissions narrow for laptop/VDI environments.
+  "permissions": {
+    "file": {
+      "read": [
+        "AGENTS.md",
+        "README.md",
+        "user_guide/**",
+        "sentinel/**",
+        ".kilo/**",
+        ".codex/**",
+        "workspaces/**",
+        "tests/**",
+        "pyproject.toml"
+      ],
+      "write": [
+        "workspaces/**",
+        "user_guide/**",
+        "sentinel/**",
+        ".kilo/agents/**",
+        ".codex/skills/**",
+        "tests/**",
+        "README.md",
+        "AGENTS.md"
+      ],
+      "deny": [
+        ".git/**",
+        "**/.env",
+        "**/.env.*",
+        "**/*secret*",
+        "**/*token*",
+        "**/__pycache__/**",
+        "dist/**",
+        "build/**"
+      ]
+    },
+    "commands": {
+      "allow": [
+        "python -m sentinel --help",
+        "python -m sentinel doctor",
+        "python -m sentinel init *",
+        "python -m sentinel ingest *",
+        "python -m sentinel retrieve *",
+        "python -m sentinel sync *",
+        "python -m sentinel maturity *",
+        "python -m sentinel specs *",
+        "python -m sentinel backlog *",
+        "python -m sentinel quality *",
+        "python -m sentinel health *",
+        "python -m sentinel trace *",
+        "python -m sentinel validate *",
+        "python -m sentinel reindex *",
+        "python -m unittest discover -s tests"
+      ],
+      "default": "ask"
+    }
+  }
+}

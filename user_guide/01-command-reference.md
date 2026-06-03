@@ -8,6 +8,25 @@ Run help:
 python -m sentinel --help
 ```
 
+## `doctor`
+
+Check whether the repo is ready for portable VS Code usage.
+
+```powershell
+python -m sentinel doctor
+```
+
+Checks:
+
+- Python version
+- core runtime
+- Codex skills adapter
+- Kilo Code agents adapter
+- Kilo config
+- user guide
+- repo write access
+- optional memory dependencies
+
 ## `init`
 
 Create a project workspace.
@@ -197,4 +216,3 @@ python -m sentinel reindex PROJECT_ID
 ```
 
 Use after manual artifact edits.
-

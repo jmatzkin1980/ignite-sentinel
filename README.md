@@ -7,6 +7,7 @@ Ignite Sentinel turns raw client input into traceable requirements, specs, backl
 ## Quick Start
 
 ```powershell
+python -m sentinel doctor
 python -m sentinel init PROJECT_ID
 python -m sentinel ingest PROJECT_ID --source path\to\client-note.md
 python -m sentinel maturity PROJECT_ID
@@ -51,6 +52,7 @@ workspaces/PROJECT_ID/
 - Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
 - Use Codex skills in `.codex/skills/` for progressive disclosure.
+- Use Kilo Code agents in `.kilo/agents/` when Codex is unavailable.
 
 ## Verification
 
@@ -66,3 +68,7 @@ python -m unittest discover -s tests
 - [Workflows](user_guide/03-workflows.md)
 - [Codex Skills Guide](user_guide/04-codex-skills-guide.md)
 - [Traceability And Memory](user_guide/05-traceability-and-memory.md)
+- [VS Code Portable Install](user_guide/06-installation-vscode.md)
+- [Kilo Code Adapter](user_guide/07-kilo-code-adapter.md)
+- [Codex Adapter](user_guide/08-codex-adapter.md)
+- [Secure Environments](user_guide/09-secure-environments.md)

@@ -93,6 +93,9 @@ class SentinelCoreFlowTest(unittest.TestCase):
         pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "sync.json"
         self.assertTrue(pack.exists())
 
+    def test_doctor_passes_for_repo_root(self) -> None:
+        self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

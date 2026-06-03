@@ -1,0 +1,8 @@
+.git/
+workspaces/*/memory.lancedb/
+**/__pycache__/
+**/.env
+**/.env.*
+dist/
+build/
+*.egg-info/

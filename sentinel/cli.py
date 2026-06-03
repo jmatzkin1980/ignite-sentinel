@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from .doctor import run_doctor
 from .discovery import ingest
 from .generation import generate_backlog, generate_specs
 from .health import run_health
@@ -20,6 +21,9 @@ from .workspace import ensure_workspace
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sentinel", description="Ignite Sentinel vNext Core BA CLI")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    doctor_p = sub.add_parser("doctor")
+    doctor_p.add_argument("--root", default=".")
 
     init_p = sub.add_parser("init")
     init_p.add_argument("project_id")
@@ -52,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "init":
             path = ensure_workspace(args.project_id)
             print(json.dumps({"workspace": str(path)}, indent=2))
+        elif args.command == "doctor":
+            result = run_doctor(Path(args.root))
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0 if result["verdict"] == "PASS" else 1
         elif args.command == "ingest":
             print(json.dumps(ingest(args.project_id, Path(args.source)), indent=2))
         elif args.command == "retrieve":
