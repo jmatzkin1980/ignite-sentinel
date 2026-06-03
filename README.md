@@ -1,4 +1,4 @@
-# Ignite Sentinel vNext
+﻿# Ignite Sentinel vNext
 
 Repo-local BA/Product requirements framework for AI PODs.
 
@@ -7,25 +7,25 @@ Ignite Sentinel turns raw client input into traceable requirements, specs, backl
 ## Quick Start
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel init PROJECT_ID
-python -m sentinel ingest PROJECT_ID --source path\to\client-note.md
-python -m sentinel maturity PROJECT_ID
-python -m sentinel specs PROJECT_ID
-python -m sentinel backlog PROJECT_ID
-python -m sentinel quality PROJECT_ID
-python -m sentinel trace PROJECT_ID
-python -m sentinel health PROJECT_ID
-python -m sentinel validate PROJECT_ID
+python -m sentinel /doctor
+python -m sentinel /init PROJECT_ID
+python -m sentinel /ingest PROJECT_ID --source input\client-note.md
+python -m sentinel /maturity PROJECT_ID
+python -m sentinel /specs PROJECT_ID
+python -m sentinel /backlog PROJECT_ID
+python -m sentinel /quality PROJECT_ID
+python -m sentinel /trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
 ```
 
 ## Change Flow
 
 ```powershell
-python -m sentinel sync PROJECT_ID --source path\to\change.md --note "client follow-up"
-python -m sentinel retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
-python -m sentinel reindex PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /sync PROJECT_ID --source input\change.md --note "client follow-up"
+python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
+python -m sentinel /reindex PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 ## Workspace Layout
@@ -45,6 +45,11 @@ workspaces/PROJECT_ID/
   state.json
   sentinel.config.yaml
 ```
+
+The repository also includes:
+
+- `input/`: place local source files here before ingestion.
+- `workspaces/_template/`: versionable empty workspace scaffold.
 
 ## Design Rules
 

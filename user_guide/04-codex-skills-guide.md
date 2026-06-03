@@ -1,4 +1,4 @@
-# Ignite Sentinel Codex Skills Guide
+﻿# Ignite Sentinel Codex Skills Guide
 
 Ignite Sentinel includes repo-local Codex skills under:
 
@@ -115,7 +115,7 @@ Optional hooks live in:
 They are reminders and guardrails, not the primary enforcement mechanism. The deterministic CLI commands remain the source of validation:
 
 ```powershell
-python -m sentinel validate PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 

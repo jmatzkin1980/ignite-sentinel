@@ -1,4 +1,4 @@
-# Codex Adapter
+﻿# Codex Adapter
 
 Ignite Sentinel includes repo-local Codex skills under:
 
@@ -41,8 +41,8 @@ Optional hooks live in:
 They are guardrails and reminders. The primary enforcement layer remains:
 
 ```powershell
-python -m sentinel validate PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 ## If Codex Is Unavailable

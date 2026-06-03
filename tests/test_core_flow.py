@@ -95,6 +95,11 @@ class SentinelCoreFlowTest(unittest.TestCase):
 
     def test_doctor_passes_for_repo_root(self) -> None:
         self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
+        self.assertEqual(main(["/doctor", "--root", str(ROOT.parent)]), 0)
+
+    def test_slash_command_aliases_work(self) -> None:
+        self.assertEqual(main(["/init", "SLASH_DEMO"]), 0)
+        self.assertTrue((self.temp / "workspaces" / "SLASH_DEMO" / "state.json").exists())
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Ignite Sentinel vNext - User Guide
+﻿# Ignite Sentinel vNext - User Guide
 
 Ignite Sentinel vNext is a repo-local BA/Product framework for AI PODs. It helps transform raw client input into mature, traceable, AI-friendly artifacts that can be consumed by humans and agents across Product, Technology, Design, Quality, and Delivery.
 
@@ -69,16 +69,16 @@ Do not treat `CLEAN` as business approval. Treat it as structural readiness.
 Use a unique project ID, for example `ACME_DASHBOARD`.
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel init ACME_DASHBOARD
-python -m sentinel ingest ACME_DASHBOARD --source path\to\client-note.md
-python -m sentinel maturity ACME_DASHBOARD
-python -m sentinel specs ACME_DASHBOARD
-python -m sentinel backlog ACME_DASHBOARD
-python -m sentinel quality ACME_DASHBOARD
-python -m sentinel trace ACME_DASHBOARD
-python -m sentinel health ACME_DASHBOARD
-python -m sentinel validate ACME_DASHBOARD
+python -m sentinel /doctor
+python -m sentinel /init ACME_DASHBOARD
+python -m sentinel /ingest ACME_DASHBOARD --source path\to\client-note.md
+python -m sentinel /maturity ACME_DASHBOARD
+python -m sentinel /specs ACME_DASHBOARD
+python -m sentinel /backlog ACME_DASHBOARD
+python -m sentinel /quality ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
 If `python` is not available in your shell, use the Python runtime configured for your Codex environment.
@@ -106,7 +106,7 @@ workspaces/[PROJECT_ID]/
 ### 1. Start A Workspace
 
 ```powershell
-python -m sentinel init ACME_DASHBOARD
+python -m sentinel /init ACME_DASHBOARD
 ```
 
 This creates the project workspace, default configuration, empty traceability graph, and local memory files.
@@ -114,7 +114,7 @@ This creates the project workspace, default configuration, empty traceability gr
 ### 2. Ingest Raw Input
 
 ```powershell
-python -m sentinel ingest ACME_DASHBOARD --source input\client-note.md
+python -m sentinel /ingest ACME_DASHBOARD --source input\client-note.md
 ```
 
 Outputs:
@@ -130,7 +130,7 @@ Outputs:
 ### 3. Evaluate Maturity
 
 ```powershell
-python -m sentinel maturity ACME_DASHBOARD
+python -m sentinel /maturity ACME_DASHBOARD
 ```
 
 Outputs:
@@ -142,7 +142,7 @@ If the report says `BLOCKED`, resolve the blocking gaps before generating specs 
 ### 4. Generate Specs
 
 ```powershell
-python -m sentinel specs ACME_DASHBOARD
+python -m sentinel /specs ACME_DASHBOARD
 ```
 
 Output:
@@ -154,7 +154,7 @@ The spec is intentionally implementation-agnostic and domain-aware.
 ### 5. Generate Backlog
 
 ```powershell
-python -m sentinel backlog ACME_DASHBOARD
+python -m sentinel /backlog ACME_DASHBOARD
 ```
 
 Outputs:
@@ -166,7 +166,7 @@ Outputs:
 ### 6. Generate Quality Coverage
 
 ```powershell
-python -m sentinel quality ACME_DASHBOARD
+python -m sentinel /quality ACME_DASHBOARD
 ```
 
 Output:
@@ -178,7 +178,7 @@ This gives Quality and Test Automation a traceable starting point.
 ### 7. Review Traceability
 
 ```powershell
-python -m sentinel trace ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
 ```
 
 Outputs:
@@ -190,8 +190,8 @@ Outputs:
 ### 8. Run Health And Validation
 
 ```powershell
-python -m sentinel health ACME_DASHBOARD
-python -m sentinel validate ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
 Use both:
@@ -204,7 +204,7 @@ Use both:
 When new information arrives, do not edit downstream artifacts silently. Ingest it as a change event.
 
 ```powershell
-python -m sentinel sync ACME_DASHBOARD --source input\client-followup.md --note "client follow-up after demo"
+python -m sentinel /sync ACME_DASHBOARD --source input\client-followup.md --note "client follow-up after demo"
 ```
 
 Outputs:
@@ -217,15 +217,15 @@ Outputs:
 Then build a context pack:
 
 ```powershell
-python -m sentinel retrieve ACME_DASHBOARD --query "SLA risk by queue" --workflow sync --write-pack
+python -m sentinel /retrieve ACME_DASHBOARD --query "SLA risk by queue" --workflow sync --write-pack
 ```
 
 After reviewing and patching affected artifacts:
 
 ```powershell
-python -m sentinel reindex ACME_DASHBOARD
-python -m sentinel trace ACME_DASHBOARD
-python -m sentinel health ACME_DASHBOARD
+python -m sentinel /reindex ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
 ```
 
 ## Working With Codex Skills

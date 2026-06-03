@@ -1,4 +1,4 @@
-# Secure Environments Guide
+﻿# Secure Environments Guide
 
 This guide is for company laptops and client VDIs with restricted permissions.
 
@@ -20,7 +20,7 @@ Ignite Sentinel assumes:
 3. Run:
 
 ```powershell
-python -m sentinel doctor
+python -m sentinel /doctor
 ```
 
 4. Use Codex skills, Kilo agents, or the CLI.
@@ -38,8 +38,8 @@ Ask for a portable or approved Python 3.10+ runtime. Ignite does not require adm
 Use no-install mode:
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel init PROJECT_ID
+python -m sentinel /doctor
+python -m sentinel /init PROJECT_ID
 ```
 
 The MVP core uses only the Python standard library.

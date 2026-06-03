@@ -1,4 +1,4 @@
-# VS Code Portable Installation
+﻿# VS Code Portable Installation
 
 Ignite Sentinel is designed to run from the cloned repository. This is the safest path for company laptops and client VDIs where admin rights, global installs, and marketplace access may be restricted.
 
@@ -22,13 +22,13 @@ code .
 3. Run the portable doctor.
 
 ```powershell
-python -m sentinel doctor
+python -m sentinel /doctor
 ```
 
 4. Start a workspace.
 
 ```powershell
-python -m sentinel init DEMO_PROJECT
+python -m sentinel /init DEMO_PROJECT
 ```
 
 ## No-Install Mode
@@ -37,7 +37,7 @@ Use this mode first in securitized environments:
 
 ```powershell
 python -m sentinel --help
-python -m sentinel doctor
+python -m sentinel /doctor
 ```
 
 No global package install is required.
@@ -67,11 +67,11 @@ Ignite works through repo-local files:
 ## Daily Use
 
 ```powershell
-python -m sentinel ingest PROJECT_ID --source input\client-note.md
-python -m sentinel maturity PROJECT_ID
-python -m sentinel specs PROJECT_ID
-python -m sentinel backlog PROJECT_ID
-python -m sentinel quality PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /ingest PROJECT_ID --source input\client-note.md
+python -m sentinel /maturity PROJECT_ID
+python -m sentinel /specs PROJECT_ID
+python -m sentinel /backlog PROJECT_ID
+python -m sentinel /quality PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 

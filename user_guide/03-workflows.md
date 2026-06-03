@@ -1,4 +1,4 @@
-# Ignite Sentinel Workflows
+﻿# Ignite Sentinel Workflows
 
 This document describes the main workflows and when to use them.
 
@@ -7,9 +7,9 @@ This document describes the main workflows and when to use them.
 Use when a client provides a new request, idea, email, brief, or meeting note.
 
 ```powershell
-python -m sentinel init PROJECT_ID
-python -m sentinel ingest PROJECT_ID --source input\client-note.md
-python -m sentinel maturity PROJECT_ID
+python -m sentinel /init PROJECT_ID
+python -m sentinel /ingest PROJECT_ID --source input\client-note.md
+python -m sentinel /maturity PROJECT_ID
 ```
 
 If maturity is `BLOCKED`, review:
@@ -26,10 +26,10 @@ Then ask stakeholders for missing information.
 Use when the requirement is mature enough to become an AI-friendly spec.
 
 ```powershell
-python -m sentinel maturity PROJECT_ID
-python -m sentinel specs PROJECT_ID
-python -m sentinel trace PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /maturity PROJECT_ID
+python -m sentinel /specs PROJECT_ID
+python -m sentinel /trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 Review:
@@ -43,10 +43,10 @@ workspaces/PROJECT_ID/03_specs/prd_ai_friendly.md
 Use when specs are ready to become execution-oriented backlog.
 
 ```powershell
-python -m sentinel backlog PROJECT_ID
-python -m sentinel quality PROJECT_ID
-python -m sentinel trace PROJECT_ID
-python -m sentinel health PROJECT_ID
+python -m sentinel /backlog PROJECT_ID
+python -m sentinel /quality PROJECT_ID
+python -m sentinel /trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
 ```
 
 Review:
@@ -61,8 +61,8 @@ workspaces/PROJECT_ID/05_quality/
 Use when the client, POD, or stakeholder introduces new information.
 
 ```powershell
-python -m sentinel sync PROJECT_ID --source input\change.md --note "source and intent"
-python -m sentinel retrieve PROJECT_ID --query "main change topic" --workflow sync --write-pack
+python -m sentinel /sync PROJECT_ID --source input\change.md --note "source and intent"
+python -m sentinel /retrieve PROJECT_ID --query "main change topic" --workflow sync --write-pack
 ```
 
 Review:
@@ -75,10 +75,10 @@ workspaces/PROJECT_ID/08_context_packs/
 Then patch affected artifacts and rerun:
 
 ```powershell
-python -m sentinel reindex PROJECT_ID
-python -m sentinel trace PROJECT_ID
-python -m sentinel health PROJECT_ID
-python -m sentinel validate PROJECT_ID
+python -m sentinel /reindex PROJECT_ID
+python -m sentinel /trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
 ```
 
 ## Workflow 5: Health Audit
@@ -86,9 +86,9 @@ python -m sentinel validate PROJECT_ID
 Use before handing artifacts to another domain or agent.
 
 ```powershell
-python -m sentinel health PROJECT_ID
-python -m sentinel validate PROJECT_ID
-python -m sentinel trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
+python -m sentinel /trace PROJECT_ID
 ```
 
 Hand off only when:
@@ -103,19 +103,19 @@ Hand off only when:
 Use when Codex needs focused context without loading the entire workspace.
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "acceptance criteria and SLA risk" --workflow backlog --limit 5
+python -m sentinel /retrieve PROJECT_ID --query "acceptance criteria and SLA risk" --workflow backlog --limit 5
 ```
 
 Use filters when possible:
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product
 ```
 
 Create a context pack:
 
 ```powershell
-python -m sentinel retrieve PROJECT_ID --query "SLA risk" --workflow sync --write-pack
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --write-pack
 ```
 
 ## Recommended Handoff Checklist

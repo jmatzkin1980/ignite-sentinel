@@ -1,4 +1,4 @@
-# Kilo Code Adapter
+﻿# Kilo Code Adapter
 
 Ignite Sentinel includes a repo-local Kilo Code adapter under:
 
@@ -50,7 +50,7 @@ The config is intentionally conservative:
 If Kilo cannot execute commands, use the VS Code terminal manually:
 
 ```powershell
-python -m sentinel doctor
-python -m sentinel health PROJECT_ID
+python -m sentinel /doctor
+python -m sentinel /health PROJECT_ID
 ```
 

@@ -34,6 +34,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, ".kilo/agents", "Kilo Code agents adapter"),
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "user_guide", "user guide"),
+        path_check(root, "input", "input folder scaffold"),
+        path_check(root, "workspaces/_template", "workspace template scaffold"),
         write_check(root),
         optional_dependency_check("lancedb"),
         optional_dependency_check("sentence_transformers"),

@@ -6,4 +6,7 @@ __pycache__/
 dist/
 build/
 *.egg-info/
-workspaces/
+workspaces/*
+!workspaces/.gitkeep
+!workspaces/_template/
+!workspaces/_template/**

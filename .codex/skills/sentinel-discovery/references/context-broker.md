@@ -1,4 +1,4 @@
-# Context Broker
+﻿# Context Broker
 
 Ignite Sentinel uses retrieval to reduce prompt context, not to replace source artifacts.
 
@@ -12,5 +12,5 @@ Ignite Sentinel uses retrieval to reduce prompt context, not to replace source a
 ## CLI
 
 ```bash
-python -m sentinel retrieve PROJECT_ID --query "scope and acceptance criteria" --workflow maturity
+python -m sentinel /retrieve PROJECT_ID --query "scope and acceptance criteria" --workflow maturity
 ```

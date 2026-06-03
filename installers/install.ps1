@@ -1,4 +1,4 @@
-param(
+﻿param(
   [switch]$CreateVenv
 )
 
@@ -19,7 +19,7 @@ if ($CreateVenv) {
   & $python.Source -m venv .venv
   $venvPython = Join-Path ".venv" "Scripts\python.exe"
   & $venvPython -m pip install -e .
-  & $venvPython -m sentinel doctor
+  & $venvpython -m sentinel /doctor
 } else {
   & $python.Source -m sentinel doctor
 }

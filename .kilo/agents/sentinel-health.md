@@ -1,4 +1,4 @@
----
+﻿---
 name: sentinel-health
 description: Audit health, traceability, missing artifacts, unbacked metrics, and local memory indexing.
 mode: primary
@@ -9,9 +9,9 @@ mode: primary
 Run:
 
 ```powershell
-python -m sentinel health PROJECT_ID
-python -m sentinel validate PROJECT_ID
-python -m sentinel trace PROJECT_ID
+python -m sentinel /health PROJECT_ID
+python -m sentinel /validate PROJECT_ID
+python -m sentinel /trace PROJECT_ID
 ```
 
 Rules:

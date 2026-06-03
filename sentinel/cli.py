@@ -17,9 +17,29 @@ from .traceability import load_graph, write_mermaid_graph, write_traceability_ma
 from .validation import validate_project
 from .workspace import ensure_workspace
 
+COMMANDS = {
+    "doctor",
+    "init",
+    "ingest",
+    "retrieve",
+    "sync",
+    "maturity",
+    "specs",
+    "backlog",
+    "quality",
+    "health",
+    "trace",
+    "validate",
+    "reindex",
+}
+
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="sentinel", description="Ignite Sentinel vNext Core BA CLI")
+    argv = normalize_slash_command(sys.argv[1:] if argv is None else argv)
+    parser = argparse.ArgumentParser(
+        prog="sentinel",
+        description="Ignite Sentinel vNext Core BA CLI. Commands accept slash aliases, e.g. `/maturity PROJECT_ID`.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     doctor_p = sub.add_parser("doctor")
@@ -109,3 +129,12 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"sentinel error: {exc}", file=sys.stderr)
         return 1
+
+
+def normalize_slash_command(argv: list[str]) -> list[str]:
+    if not argv:
+        return argv
+    first = argv[0]
+    if first.startswith("/") and first[1:] in COMMANDS:
+        return [first[1:], *argv[1:]]
+    return argv
