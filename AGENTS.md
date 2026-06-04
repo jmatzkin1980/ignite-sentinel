@@ -8,6 +8,24 @@
 - Prefer small Codex skills with progressive disclosure: concise `SKILL.md`, deeper `references/`, reusable `assets/templates/`, deterministic scripts when possible.
 - Do not reintroduce Roo-specific concepts such as `.roo`, `.roomodes`, `.roorules`, P3, or P5 as global architecture.
 
+## Project Collaboration Memory
+
+- The user wants Ignite Sentinel to be usable after cloning the repository on a new laptop or PC, opening the repo root in VS Code, and using Kilo Code or Codex from repo-local files.
+- Documentation should be understandable for someone unfamiliar with the framework: prefer Spanish narrative, concrete scenarios, checklists, command examples, and plain explanations over overly synthetic reference notes.
+- Discovery is the core upstream workflow: raw client material is iterated through critical product, technology, design, and quality review until it becomes a mature `project-brief.md`.
+- A mature requirement should hit the practical sweet spot: enough information for PRD/specs/backlog and for Technology or Design to deepen their own context packs, without pretending to include every low-level implementation contract.
+- Gaps must be human-friendly when shared with clients: include project/version context, stable gap IDs, clear questions, answer examples, owner/source, evidence, and decision status.
+- The language of generated human artifacts should follow the detected or configured project language. Spanish is the current default expectation unless project context indicates otherwise.
+- Privacy is a first-class constraint: prefer local-only operation, local files as source of truth, local LanceDB/JSON indexes as retrieval aids, and no remote MCP or external embeddings for client/code content unless explicitly approved.
+- When improving the framework, update runtime, skills, slash commands, Kilo/Codex adapters, docs, and tests together so the cloned-repo experience remains coherent.
+- When the user provides prior Roo Code framework documents, treat them as inspiration only: extract reusable workflow intent, templates, validation ideas, and cognitive patterns, but do not revive Roo architecture or terminology as the vNext framework.
+- When the user provides confidential examples, reverse-engineer only generic maturity patterns and never write client-specific names, systems, data, URLs, endpoints, business facts, or decisions into repo artifacts.
+- Discovery should not be thin extraction. It should critically pressure-test raw input through Product/BA, Technology, Design, Quality, Delivery, and Compliance lenses, turning uncertainty into explicit gaps or pending seeds.
+- Prefer autonomous lifecycle flows that call the right skills/CLI commands and use progressive disclosure via `/retrieve` instead of loading entire workspaces.
+- Before pushing framework changes to `main`, run the unit suite, `/doctor`, at least one lifecycle smoke test when runtime changed, inspect staged files, and scan staged diffs for sensitive/confidential terms.
+- Do not stage or commit unrelated local deletions or user-owned files. In this repo, legacy Roo source documents may appear as local deletions; leave them untouched unless the user explicitly asks to manage them.
+- The user prefers Spanish explanations for framework behavior, with concise but concrete examples of commands, artifacts, inputs, and outputs.
+
 ## Ignite Chat Commands
 
 When the user sends an Ignite-style chat command, parse it as a request to run the Sentinel CLI from the repository root.
