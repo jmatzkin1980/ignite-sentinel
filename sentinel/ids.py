@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-ID_PREFIXES = ("RAW", "REQ", "GAP", "DEC", "SEED", "DISC", "SPEC", "EPIC", "US", "AC", "TC", "QA", "CHG", "CTX")
+ID_PREFIXES = ("RAW", "REQ", "GAP", "DEC", "SEED", "DISC", "PRD", "SPEC", "EPIC", "US", "AC", "TC", "QA", "CHG", "CTX")
 
 
 def next_id(prefix: str, existing: list[str]) -> str:
@@ -38,6 +38,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "discovery_log": "DISC",
         "lens_review": "DISC",
         "project_brief": "REQ",
+        "prd": "PRD",
         "spec": "SPEC",
         "epic": "EPIC",
         "user_story": "US",

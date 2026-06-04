@@ -220,7 +220,20 @@ TBD from confirmed client language.
 - Specs must preserve system boundaries, data ownership, UX states, NFRs, and acceptance strategy.
 - Backlog must be dev-ready, testable, vertically sliced, and linked to requirement, brief, PRD, acceptance criteria, tests, and changes.
 
-## 10. Domain Context Pack Requests
+## 10. PRD Coverage Readiness
+
+| PRD Section | Required Discovery Signal | Evidence Source | If Missing |
+| --- | --- | --- | --- |
+| Personas | Primary/secondary personas, goals, pains, proficiency, usage frequency, impacted teams. | `01_discovery/identity_seeds.md`, `00_raw/01_business_context/` | Open `GAP-PRD-PERSONA-DETAIL`. |
+| Functional Requirements | Source-backed FRs, priority, and acceptance criteria per FR. | `02_requirements/requirements.md`, `01_discovery/lens_review.md`, quality context | Open `GAP-PRD-FR-AC`. |
+| NFRs and KPIs | Security, privacy, reliability, auditability, compatibility, targets, measurement method, timeframe. | `00_raw/04_quality_context/`, governance notes, decisions | Open `GAP-PRD-NFR-KPI`. |
+| JTBD Traceability | Core, secondary, emotional/social jobs mapped to FRs. | `01_discovery/discovery_log.md`, `identity_seeds.md` | Keep traceability gap visible. |
+| Execution Plan | Dependencies, owners, MVP, nice-to-haves, roadmap, rollout constraints. | `00_raw/01_business_context/`, `07_changes/03_domain_updates/` | Open `GAP-PRD-DEPENDENCIES-ROADMAP`. |
+| Governance | Mandatory constraints, glossary, pending inputs, decisions, assumptions, audit trail. | `01_discovery/decisions.md`, `gaps.md`, context folders | Open `GAP-PRD-GLOSSARY-GOVERNANCE`. |
+
+PRD generation must retrieve focused context for each row instead of rereading the full workspace. Any section that lacks enough evidence should be explicit as `[PENDING INPUT]`, not invented.
+
+## 11. Domain Context Pack Requests
 
 | Domain | Minimum Brief Signal | Expected Deepening Outside This Brief |
 | --- | --- | --- |

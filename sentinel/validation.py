@@ -63,12 +63,31 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
             if required not in node_types:
                 findings.append(f"Discovery artifact missing after raw input: {required}.")
 
-    spec_path = base / "03_specs" / "prd_ai_friendly.md"
+    prd_path = base / "03_specs" / "prd.md"
+    if prd_path.exists():
+        prd_text = prd_path.read_text(encoding="utf-8")
+        required_pairs = (
+            ("Resumen Ejecutivo", "Executive Summary"),
+            ("Alcance", "Scope"),
+            ("Usuarios y personas", "Users And Personas"),
+            ("Requerimientos funcionales", "Functional Requirements"),
+            ("Acceptance Criteria", "Acceptance Criteria"),
+            ("Criterios de exito del negocio", "Business Success Criteria"),
+            ("Mapa de dependencias", "Dependency Map"),
+            ("Trazabilidad", "Traceability"),
+        )
+        for es_section, en_section in required_pairs:
+            if es_section not in prd_text and en_section not in prd_text:
+                findings.append(f"PRD missing section: {es_section}/{en_section}.")
+
+    spec_path = base / "03_specs" / "specs.md"
     if spec_path.exists():
         spec_text = spec_path.read_text(encoding="utf-8")
-        for section in ("Jobs To Be Done", "Domain Context Retrieved From Memory", "Acceptance Strategy", "Traceability"):
+        for section in ("Spec Contract", "Backlog-Relevant Contract", "Progressive Disclosure Context Map", "Retrieval Plan For Backlog Agents", "Backlog Seeds", "Traceability"):
             if section not in spec_text:
-                findings.append(f"PRD missing section: {section}.")
+                findings.append(f"Spec missing section: {section}.")
+        if not (base / "08_context_packs" / "specs_generation.json").exists():
+            findings.append("Specs exist without specs_generation context pack.")
 
     for story in [node for node in graph.get("nodes", []) if node.get("type") == "user_story"]:
         story_path = resolve_path(base, story.get("path", ""))

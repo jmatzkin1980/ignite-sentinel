@@ -198,7 +198,7 @@ Output:
 
 ## `specs`
 
-Generate AI-friendly specs from a mature requirement.
+Generate the human PRD and AI-friendly spec from a mature requirement.
 
 ```powershell
 python -m sentinel /specs PROJECT_ID
@@ -208,7 +208,11 @@ Fails if maturity is `BLOCKED`.
 
 Output:
 
-- `03_specs/prd_ai_friendly.md`
+- `03_specs/prd.md`
+- `03_specs/specs.md`
+- `08_context_packs/specs_generation.json`
+
+The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. The spec stays compact for agents: it keeps trace IDs, backlog contract, progressive disclosure context map, and retrieval guidance for backlog agents. The context pack records the focused memory retrieval used during generation.
 
 ## `backlog`
 

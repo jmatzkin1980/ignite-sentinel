@@ -222,9 +222,9 @@ python -m sentinel /context-request PROJECT_ID --domain design
 
 ## Bloque C: Specs, Backlog Y Calidad
 
-### Escenario 10: Generacion De Specs AI-Friendly
+### Escenario 10: Generacion De PRD Y Specs AI-Friendly
 
-**Contexto:** El proyecto esta maduro y existe un `project-brief.md`. Se necesita generar un PRD/spec que otros agentes o humanos puedan consumir.
+**Contexto:** El proyecto esta maduro y existe un `project-brief.md`. Se necesita generar un PRD para audiencia humana/negocio y una spec preparada para agentes.
 
 **Comando:**
 
@@ -232,14 +232,15 @@ python -m sentinel /context-request PROJECT_ID --domain design
 python -m sentinel /specs PROJECT_ID
 ```
 
-**Que hace Sentinel:** Genera `03_specs/prd_ai_friendly.md`, tomando el project brief como fuente madura cuando existe. Mantiene trazabilidad desde requirement/brief hacia spec.
+**Que hace Sentinel:** Genera `03_specs/prd.md` y `03_specs/specs.md`, tomando el project brief como fuente madura cuando existe. Mantiene trazabilidad desde requirement/brief hacia PRD y desde PRD hacia spec. La spec incluye un plan de retrieval para que agentes de backlog recuperen contexto puntual sin releer toda la documentacion.
 
 **Output principal:**
 
-- `03_specs/prd_ai_friendly.md`
-- Edge `REQ -> SPEC`
+- `03_specs/prd.md`
+- `03_specs/specs.md`
+- Edges `REQ/project_brief -> PRD -> SPEC`
 
-**Como interpretar el resultado:** La spec es un artefacto de producto/funcionalidad listo para profundizar downstream. Debe revisarse, no aceptarse ciegamente.
+**Como interpretar el resultado:** El PRD debe narrar que se implementa y por que. La spec debe funcionar como contrato operativo para agentes y como puente trazable hacia backlog. Ambos deben revisarse, no aceptarse ciegamente.
 
 ### Escenario 11: Generacion De Backlog Dev-Ready Inicial
 

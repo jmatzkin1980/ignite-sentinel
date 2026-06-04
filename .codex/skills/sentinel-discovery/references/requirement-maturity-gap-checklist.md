@@ -96,3 +96,21 @@ Gap examples:
 - `GAP-QUALITY`: quality or testability expectations are unclear.
 - `GAP-QUALITY-HANDOFF`: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.
 
+## PRD Coverage Readiness
+
+Discovery should capture enough evidence for a complete PRD without turning discovery into the final PRD. If the PRD section cannot be drafted from confirmed evidence, keep a gap visible.
+
+- Personas: primary and secondary personas include goals, pain points, proficiency, usage frequency, and impacted teams.
+- Functional requirements: source-backed FRs can be listed with priority and acceptance criteria.
+- NFRs and KPIs: quality attributes, measurable targets, measurement method, baseline/source, owner, and timeframe are known or flagged.
+- JTBD traceability: core, secondary, emotional, and social jobs can be mapped to FRs or explicitly marked absent.
+- Execution plan: dependencies, owners, MVP, nice-to-haves, roadmap, environments, and rollout constraints are known or flagged.
+- Governance: mandatory restrictions, glossary, pending inputs, decisions, assumptions, and audit trail are explicit.
+
+Gap examples:
+
+- `GAP-PRD-PERSONA-DETAIL`: persona details are too thin for the PRD.
+- `GAP-PRD-FR-AC`: FRs or acceptance criteria are missing or not traceable.
+- `GAP-PRD-NFR-KPI`: NFRs, KPIs, targets, or measurement methods are missing.
+- `GAP-PRD-DEPENDENCIES-ROADMAP`: dependencies, owners, MVP, or roadmap are unclear.
+- `GAP-PRD-GLOSSARY-GOVERNANCE`: glossary, constraints, pending inputs, or audit trail are unclear.

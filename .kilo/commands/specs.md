@@ -1,5 +1,5 @@
 ---
-description: Generate the AI-friendly PRD/specification when maturity allows it.
+description: Generate the PRD and AI-friendly specification when maturity allows it.
 agent: sentinel-specs
 ---
 

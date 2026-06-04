@@ -100,8 +100,12 @@ Review:
 
 ```text
 workspaces/PROJECT_ID/02_requirements/project-brief.md
-workspaces/PROJECT_ID/03_specs/prd_ai_friendly.md
+workspaces/PROJECT_ID/03_specs/prd.md
+workspaces/PROJECT_ID/03_specs/specs.md
+workspaces/PROJECT_ID/08_context_packs/specs_generation.json
 ```
+
+`prd.md` is the complete what/why narrative for humans and business reviewers, including personas, FRs with ACs, NFRs, KPIs, JTBD traceability, execution planning, and governance. `specs.md` is the compact agent contract: it keeps trace IDs, retrieved context signals, backlog seeds, and the retrieval plan that backlog agents should use before slicing epics and stories. `specs_generation.json` shows the local memory context used to draft each major PRD/spec section.
 
 ## Workflow 3: Backlog Generation
 

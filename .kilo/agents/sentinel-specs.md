@@ -1,6 +1,6 @@
 ﻿---
 name: sentinel-specs
-description: Generate AI-friendly PRD/specification artifacts from mature requirements.
+description: Generate PRD and AI-friendly specification artifacts from mature requirements.
 mode: primary
 ---
 
@@ -17,5 +17,6 @@ python -m sentinel /trace PROJECT_ID
 Rules:
 
 - Do not generate specs while maturity is `BLOCKED`.
-- Keep specs implementation-agnostic and useful for Product, Technology, Design, Quality, and Delivery.
-- Preserve `REQ -> SPEC` traceability.
+- Generate `03_specs/prd.md` for the human/business narrative.
+- Generate `03_specs/specs.md` for agent progressive disclosure, trace IDs, and backlog handoff.
+- Preserve `REQ/project_brief -> PRD -> SPEC` traceability.

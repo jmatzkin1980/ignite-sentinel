@@ -160,7 +160,7 @@ The repository also includes:
 - Merge only framework improvements back to `main`; do not merge generated project workspaces unless explicitly approved.
 - Keep truth in workspace files, not in memory indexes.
 - Keep project privacy local-only by default: no remote MCP, external vector database, or external embedding service for client/project content.
-- Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
+- Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `PRD`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
 - Use Codex skills in `.codex/skills/` for progressive disclosure.
 - Use Kilo Code agents in `.kilo/agents/` and slash workflows in `.kilo/commands/` when Codex is unavailable.

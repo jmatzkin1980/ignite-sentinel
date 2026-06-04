@@ -155,6 +155,11 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
         ("GAP-GOVERNANCE-CONSTRAINTS", "compliance", "medium", "Governance, security, privacy, compliance, or operational restrictions are not explicit.", lowered, ("seguridad", "security", "privacidad", "privacy", "compliance", "normativa", "restriccion", "restricción", "gobernanza")),
         ("GAP-DELIVERY-READINESS", "delivery", "medium", "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.", lowered, ("dependencia", "dependency", "ambiente", "environment", "deadline", "fecha", "timeline", "owner", "responsable", "rollout")),
         ("GAP-QUALITY-HANDOFF", "quality", "medium", "Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.", quality_evidence, ("test", "quality", "calidad", "qa", "happy path", "edge", "borde", "regression", "regresion", "evidencia", "data")),
+        ("GAP-PRD-PERSONA-DETAIL", "business", "medium", "Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear.", lowered, ("pain", "dolor", "goal", "objetivo", "frecuencia", "frequency", "proficiency", "habilidad", "perfil")),
+        ("GAP-PRD-FR-AC", "product", "medium", "Functional requirements are not decomposed with source-backed acceptance criteria.", lowered, ("fr-", "requerimiento funcional", "functional requirement", "acceptance criteria", "criterios de aceptacion", "criterios de aceptación", "given", "when", "then")),
+        ("GAP-PRD-NFR-KPI", "quality", "medium", "NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance.", lowered, ("nfr", "non functional", "no funcional", "kpi", "target", "measurement", "medicion", "medición", "timeframe", "baseline")),
+        ("GAP-PRD-DEPENDENCIES-ROADMAP", "delivery", "medium", "Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning.", lowered, ("mvp", "roadmap", "dependencia", "dependency", "owner", "responsable", "nice-to-have", "fase", "phase")),
+        ("GAP-PRD-GLOSSARY-GOVERNANCE", "compliance", "medium", "Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.", lowered, ("glosario", "glossary", "restriccion", "restricción", "mandatory", "audit", "auditoria", "governance", "gobernanza", "pending input")),
     ]
     gaps = [
         {"id": gap_id, "lens": lens, "severity": severity, "description": description}
@@ -534,6 +539,24 @@ Client / domain response:
 
 
 def human_title_for_gap(gap_id: str, language: str = "en") -> str:
+    prd_titles_es = {
+        "GAP-PRD-PERSONA-DETAIL": "Detalle de personas para PRD",
+        "GAP-PRD-FR-AC": "Requerimientos funcionales y criterios de aceptacion",
+        "GAP-PRD-NFR-KPI": "NFRs, KPIs y medicion",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencias y roadmap",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario y gobernanza",
+    }
+    prd_titles_en = {
+        "GAP-PRD-PERSONA-DETAIL": "PRD Persona Detail",
+        "GAP-PRD-FR-AC": "Functional Requirements And ACs",
+        "GAP-PRD-NFR-KPI": "NFRs, KPIs, And Measurement",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencies And Roadmap",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary And Governance",
+    }
+    if language == "es" and gap_id in prd_titles_es:
+        return prd_titles_es[gap_id]
+    if gap_id in prd_titles_en:
+        return prd_titles_en[gap_id]
     if language == "es":
         titles = {
             "GAP-OBJECTIVE": "Resultado esperado",
@@ -582,6 +605,24 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
 
 
 def why_gap_matters(gap_id: str, language: str = "en") -> str:
+    prd_reasons_es = {
+        "GAP-PRD-PERSONA-DETAIL": "El PRD necesita personas con objetivos, dolores, frecuencia y habilidad para orientar experiencia, adopcion y soporte.",
+        "GAP-PRD-FR-AC": "El PRD debe listar requerimientos funcionales con criterios de aceptacion trazables para que backlog y QA no inventen alcance.",
+        "GAP-PRD-NFR-KPI": "NFRs y KPIs con targets, metodo de medicion y ventana temporal permiten validar valor y calidad objetivamente.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencias, owners, MVP y roadmap sostienen la planificacion y evitan historias bloqueadas por supuestos.",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario, restricciones mandatorias, pending inputs y audit trail preservan entendimiento compartido y trazabilidad.",
+    }
+    prd_reasons_en = {
+        "GAP-PRD-PERSONA-DETAIL": "The PRD needs personas with goals, pain points, frequency, and proficiency to guide experience, adoption, and support decisions.",
+        "GAP-PRD-FR-AC": "The PRD must list functional requirements with traceable acceptance criteria so backlog and QA do not invent scope.",
+        "GAP-PRD-NFR-KPI": "NFRs and KPIs with targets, measurement method, and timeframe make value and quality objectively verifiable.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencies, owners, MVP, and roadmap support planning and prevent stories from being blocked by assumptions.",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary, mandatory constraints, pending inputs, and audit trail preserve shared understanding and traceability.",
+    }
+    if language == "es" and gap_id in prd_reasons_es:
+        return prd_reasons_es[gap_id]
+    if gap_id in prd_reasons_en:
+        return prd_reasons_en[gap_id]
     if language == "es":
         reasons = {
             "GAP-OBJECTIVE": "Sin el resultado esperado, los agentes downstream podrían optimizar la solución pedida en lugar del objetivo real de negocio.",
@@ -630,6 +671,24 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
 
 
 def example_response_for_gap(gap_id: str, language: str = "en") -> str:
+    prd_examples_es = {
+        "GAP-PRD-PERSONA-DETAIL": "Persona primaria: operador central. Objetivo: resolver casos sin TI. Dolor: proceso manual riesgoso. Frecuencia: diaria. Habilidad: backoffice avanzado.",
+        "GAP-PRD-FR-AC": "FR-01: el sistema debe listar elementos pendientes. AC: Given existen pendientes, When el operador consulta, Then ve ID, estado, responsable y fecha con fuente trazable.",
+        "GAP-PRD-NFR-KPI": "NFR: auditoria disponible por 2 anios. KPI: 0 operaciones incorrectas, medido por incidentes post-release diarios durante el primer mes.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: consulta, regla principal y auditoria. Dependencias: servicio X owner Equipo A, copy owner Diseno, credenciales owner Seguridad. Fase 2: reportes.",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario: 'estado grisado' significa no operable. Restriccion: no exponer datos sensibles en logs. Pending input: owner de metrica.",
+    }
+    prd_examples_en = {
+        "GAP-PRD-PERSONA-DETAIL": "Primary persona: central operator. Goal: resolve cases without IT. Pain: risky manual process. Frequency: daily. Proficiency: advanced backoffice.",
+        "GAP-PRD-FR-AC": "FR-01: the system must list pending items. AC: Given pending items exist, When the operator opens the list, Then ID, status, owner, and date are visible with source trace.",
+        "GAP-PRD-NFR-KPI": "NFR: audit records available for 2 years. KPI: 0 incorrect operations, measured through daily post-release incidents during month one.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: query, main rule, and audit. Dependencies: service X owner Team A, copy owner Design, credentials owner Security. Phase 2: reporting.",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary: 'disabled state' means not operable. Constraint: do not expose sensitive data in logs. Pending input: metric owner.",
+    }
+    if language == "es" and gap_id in prd_examples_es:
+        return prd_examples_es[gap_id]
+    if gap_id in prd_examples_en:
+        return prd_examples_en[gap_id]
     if language == "es":
         examples = {
             "GAP-OBJECTIVE": "El objetivo es reducir el tiempo de revisión manual de analistas operativos mostrando casos de alto riesgo antes de la reunión diaria.",

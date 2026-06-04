@@ -34,10 +34,10 @@ Use this skill to start or refresh discovery for a project.
 - Treat raw input as evidence, not truth.
 - Treat technology, design, and quality context folders as source input owned by external domains.
 - Scrutinize every initial requirement through Product/BA, Technology, Design, and Quality lenses before declaring it mature.
-- Use the mature requirement rubric in `lens_review.md`: identity/value, actors, scope, as-is/to-be delta, business rules, data/integrations, non-functional constraints, UX journey/states, acceptance/quality, and delivery readiness.
+- Use the mature requirement rubric in `lens_review.md`: identity/value, actors, scope, as-is/to-be delta, business rules, data/integrations, non-functional constraints, UX journey/states, acceptance/quality, delivery readiness, and PRD coverage readiness.
 - Use `references/requirement-maturity-gap-checklist.md` when deciding whether missing information should become a gap. This checklist covers the sweet spot for Product, Design/prototype readiness, Technology deep-dive readiness, Frontend, Backend, and Quality handoff.
 - Convert missing or ambiguous information into explicit `GAP` entries.
 - Treat `gaps.md` as a human response contract and a framework artifact. Do not strip IDs, response fields, or the trace table.
 - Gap statuses are `OPEN`, `PARTIALLY_CLOSED`, `ANSWERED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT`, and `NEW_GAP`. Critical/high `OPEN`, `PARTIALLY_CLOSED`, or `ANSWERED` gaps still block maturity.
-- Do not invent metrics, users, scope, or acceptance criteria.
+- Do not invent metrics, users, scope, functional requirements, acceptance criteria, NFRs, dependencies, roadmap, or governance constraints.
 - Preserve traceability from `RAW` to `SEED`, `DISC`, `REQ`, `GAP`, and `DEC`.

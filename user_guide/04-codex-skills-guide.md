@@ -14,7 +14,7 @@ Skills provide progressive disclosure. Codex sees the skill metadata first and l
 | --- | --- |
 | `sentinel-discovery` | Ingesting raw client/stakeholder requirements |
 | `sentinel-maturity` | Checking readiness before specs/backlog |
-| `sentinel-specs` | Generating AI-friendly specs |
+| `sentinel-specs` | Generating PRD and AI-friendly specs |
 | `sentinel-backlog` | Generating epics, stories, and acceptance criteria |
 | `sentinel-quality` | Generating quality/test coverage |
 | `sentinel-sync` | Processing feedback, meetings, or changes |
@@ -155,8 +155,9 @@ Rules:
 
 Creates:
 
-- AI-friendly PRD/spec
-- `REQ -> SPEC` traceability
+- `03_specs/prd.md` for the human/business narrative
+- `03_specs/specs.md` for agent progressive disclosure
+- `REQ/project_brief -> PRD -> SPEC` traceability
 
 ### `sentinel-backlog`
 
