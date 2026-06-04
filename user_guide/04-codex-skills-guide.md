@@ -19,6 +19,10 @@ Skills provide progressive disclosure. Codex sees the skill metadata first and l
 | `sentinel-quality` | Generating quality/test coverage |
 | `sentinel-sync` | Processing feedback, meetings, or changes |
 | `sentinel-health` | Auditing health, traceability, and indexing |
+| `sentinel-gap-response` | Processing answered discovery gaps |
+| `sentinel-project-brief` | Generating or refreshing the mature project brief |
+| `sentinel-domain-request` | Asking domains for deeper context packs |
+| `sentinel-privacy-local-first` | Enforcing local-only privacy rules |
 
 ## How To Ask Codex
 
@@ -34,6 +38,14 @@ Use sentinel-maturity and tell me why the project is blocked.
 
 ```text
 Use sentinel-sync to ingest this follow-up and generate an impact report.
+```
+
+```text
+Use sentinel-gap-response to process this answered gaps file.
+```
+
+```text
+Use sentinel-domain-request to ask Technology for a context pack.
 ```
 
 ```text
@@ -54,6 +66,20 @@ Creates:
 - initial traceability
 - local LanceDB memory entries for generated artifacts and workspace context folders
 
+Can regenerate the human-friendly gap response contract with:
+
+```powershell
+python -m sentinel /gaps PROJECT_ID
+```
+
+Uses the maturity gap checklist:
+
+```text
+.codex/skills/sentinel-discovery/references/requirement-maturity-gap-checklist.md
+```
+
+This checklist helps agents decide whether unclear product, design/prototype, technology, frontend, backend, or quality information should be marked as a gap.
+
 Before deeper analysis, use:
 
 ```powershell
@@ -71,6 +97,59 @@ Reads:
 Creates:
 
 - maturity report
+- project brief when readiness reaches `READY_FOR_SPECS`
+
+### `sentinel-gap-response`
+
+Runs:
+
+```powershell
+python -m sentinel /resolve-gaps PROJECT_ID --source PATH
+```
+
+Creates:
+
+- copied client response
+- gap resolution report
+- gap resolution log
+- confirmed seeds and decisions for structurally confirmed answers
+- trace links from `CHG` to `GAP`, `SEED`, and `DEC`
+
+### `sentinel-project-brief`
+
+Runs:
+
+```powershell
+python -m sentinel /brief PROJECT_ID
+```
+
+Creates or refreshes:
+
+- `02_requirements/project-brief.md`
+
+### `sentinel-domain-request`
+
+Runs:
+
+```powershell
+python -m sentinel /context-request PROJECT_ID --domain technology
+```
+
+Creates:
+
+- `08_context_packs/requests/[domain]_context_request.md`
+
+### `sentinel-privacy-local-first`
+
+Use this when handling project data, memory, retrieval, or exports.
+
+Rules:
+
+- no remote MCP for client/project content;
+- no external embedding APIs;
+- no external vector database;
+- LanceDB and JSON fallback stay under the project workspace;
+- source files remain the source of truth.
 
 ### `sentinel-specs`
 

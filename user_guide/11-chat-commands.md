@@ -39,6 +39,12 @@ Use these directly in Kilo chat:
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 /maturity PROJECT_ID
+/gaps PROJECT_ID
+/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+/brief PROJECT_ID
+/context-request PROJECT_ID --domain technology
+/status PROJECT_ID
+/export PROJECT_ID --artifact gaps --format md
 /sync PROJECT_ID
 /sync PROJECT_ID --source input\interactions\client-answer.md --note "client response"
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery
@@ -65,6 +71,7 @@ Codex may reserve some native slash commands depending on the surface. For that 
 sentinel /init PROJECT_ID
 sentinel /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 sentinel /maturity PROJECT_ID
+sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
 
 The repo also includes instructions in `AGENTS.md` and the `sentinel-command-router` skill so Codex can translate Ignite-style chat commands into:
@@ -85,11 +92,15 @@ sentinel /init PROJECT_ID
 /doctor
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
-/ingest PROJECT_ID --source input\technology_context\architecture.md
-/ingest PROJECT_ID --source input\design_context\screens.md
+/gaps PROJECT_ID
+/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 /maturity PROJECT_ID
+/brief PROJECT_ID
+/context-request PROJECT_ID --domain technology
+/context-request PROJECT_ID --domain design
 /sync PROJECT_ID
 /maturity PROJECT_ID
+/status PROJECT_ID
 /health PROJECT_ID
 /specs PROJECT_ID
 /backlog PROJECT_ID

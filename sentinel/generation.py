@@ -12,13 +12,17 @@ def generate_specs(project_id: str) -> dict[str, str]:
         raise RuntimeError("Cannot generate specs while requirement maturity is BLOCKED.")
     base = workspace_path(project_id)
     req_path = base / "02_requirements" / "requirements.md"
-    req_text = req_path.read_text(encoding="utf-8")
+    brief_path = base / "02_requirements" / "project-brief.md"
+    source_path = brief_path if brief_path.exists() else req_path
+    req_text = source_path.read_text(encoding="utf-8")
     context = get_multi_domain_context(req_text, project_id)
     specs_path = base / "03_specs" / "prd_ai_friendly.md"
-    specs_path.write_text(render_specs(project_id, req_text, context), encoding="utf-8")
+    specs_path.write_text(render_specs(project_id, req_text, context, source_path.name), encoding="utf-8")
     spec_id = add_node(project_id, "SPEC", "spec", specs_path, "AI-friendly PRD", domain="product")
     for req in nodes_by_type(project_id, "requirement"):
         add_edge(project_id, req["id"], spec_id, "elaborates")
+    for brief in nodes_by_type(project_id, "project_brief"):
+        add_edge(project_id, brief["id"], spec_id, "elaborates")
     ContextBroker(project_id).index_artifact(
         spec_id, "spec", specs_path, specs_path.read_text(encoding="utf-8"), trace_ids=[spec_id]
     )
@@ -56,7 +60,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     return {"epic_id": epic_id, "story_id": story_id, "acceptance_id": ac_id, "path": str(story_path)}
 
 
-def render_specs(project_id: str, req_text: str, context: dict[str, object]) -> str:
+def render_specs(project_id: str, req_text: str, context: dict[str, object], source_name: str) -> str:
     return f"""# AI-Friendly PRD - {project_id}
 
 ## Product Purpose
@@ -64,6 +68,8 @@ def render_specs(project_id: str, req_text: str, context: dict[str, object]) -> 
 Transform the validated requirement into a shared source of truth for Product, Technology, Design, Quality, and Delivery.
 
 ## Source Requirement
+
+- Mature source: `02_requirements/{source_name}`
 
 {req_text}
 
@@ -103,6 +109,7 @@ Transform the validated requirement into a shared source of truth for Product, T
 ## Traceability
 
 - Parent requirement: `REQ-001`
+- Mature brief: `02_requirements/project-brief.md` when present
 - Downstream artifacts: epics, user stories, acceptance criteria, tests, and traceability matrix.
 """
 

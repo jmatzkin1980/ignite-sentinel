@@ -55,7 +55,8 @@ It stores chunk rows with fields aligned to the BA Local Brain model:
 
 ```text
 project_id, id, chunk_id, type, title, content, domain, iteration, status,
-file_path, trace_ids, source_hash, metadata, indexed_at, vector
+file_path, trace_ids, source_hash, section_path, language, confidence,
+sensitivity, metadata, indexed_at, vector
 ```
 
 The framework also keeps a JSON hybrid fallback:
@@ -64,18 +65,33 @@ The framework also keeps a JSON hybrid fallback:
 memory.json
 ```
 
+The local artifact manifest is:
+
+```text
+artifact_manifest.json
+```
+
 The memory layer stores:
 
 - chunks
 - artifacts metadata
 - trace edges
 - local vectors for hybrid retrieval
+- artifact hashes, language, sensitivity, confidence, status, trace IDs, and source metadata
 
 It is used by:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "..." --workflow "..."
 ```
+
+Retrieval supports progressive-disclosure filters:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "..." --workflow discovery --status active --language es --sensitivity internal --section "GAP" --max-chars 2000 --summary-only
+```
+
+Each result includes `why_retrieved`, based on local lexical match, local semantic similarity, LanceDB/hash vector match, and explicit filters such as domain, trace ID, or artifact type.
 
 `/ingest`, `/sync`, and `/reindex` populate memory. The indexed workspace context folders are:
 
@@ -107,6 +123,8 @@ Output:
 workspaces/[PROJECT_ID]/08_context_packs/sync.json
 ```
 
+Each pack stores the query, filters, backend, source hashes, and retrieved rows so a downstream agent can audit the context used.
+
 Use context packs when:
 
 - a workspace is too large to load fully;
@@ -127,4 +145,13 @@ This rebuilds LanceDB memory and the JSON fallback from the graph, versionable a
 ## Important Rule
 
 If memory and source files disagree, source files win.
+
+## Privacy
+
+Sentinel is local-first by default:
+
+- `privacy_mode: local-only`
+- LanceDB is local under the project workspace.
+- Hash embeddings are deterministic and local.
+- Do not use remote MCP, external vector databases, or external embedding APIs for client/project data unless explicitly approved outside this framework.
 

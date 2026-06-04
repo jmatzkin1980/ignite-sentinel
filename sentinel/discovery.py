@@ -7,7 +7,7 @@ from pathlib import Path
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
 from .traceability import add_edge, add_node
-from .workspace import ensure_workspace, update_state, workspace_path
+from .workspace import ensure_workspace, load_config, update_state, workspace_path
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))", re.I)
 
@@ -16,6 +16,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
     text = source.read_text(encoding="utf-8")
+    language = resolve_project_language(load_config(project_id).get("project_language", "auto"), text)
     context = load_domain_context(base)
     raw_target = base / "00_raw" / f"{source.stem}.md"
     shutil.copyfile(source, raw_target)
@@ -31,7 +32,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
 
     gaps = detect_gaps(text, context)
     gap_path = base / "01_discovery" / "gaps.md"
-    gap_path.write_text(render_gaps(project_id, gaps, req_id), encoding="utf-8")
+    gap_path.write_text(render_gaps(project_id, gaps, req_id, language), encoding="utf-8")
     gap_id = add_node(
         project_id,
         "GAP",
@@ -95,6 +96,10 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         project_id,
         phase="discovery_completed",
         health="DIRTY" if gaps else "CLEAN",
+        project_language=language,
+        privacy_mode="local-only",
+        readiness_stage="CLIENT_RESPONSE_NEEDED" if gaps else "READY_FOR_PROJECT_BRIEF",
+        gap_counts=count_gaps(gaps),
         artifacts={
             "raw_input": str(raw_target.as_posix()),
             "requirements": str(req_path.as_posix()),
@@ -141,10 +146,15 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
         ("GAP-TECH-NFR", "technical", "medium", "Performance, security, observability, or operational constraints are not explicit.", tech_evidence, ("performance", "seguridad", "security", "observability", "observabilidad", "sla", "timeout", "audit", "compliance")),
         ("GAP-DESIGN-FLOW", "design", "medium", "User journey, screen flow, or interaction model is not explicit in source or design context.", design_evidence, ("flow", "flujo", "screen", "pantalla", "mock", "prototype", "journey", "wireframe", "navigation")),
         ("GAP-DESIGN-STATES", "design", "medium", "Required UI states for loading, empty, error, and recovery are not explicit.", design_evidence, ("loading", "empty", "error", "idle", "state", "estado", "resiliencia", "recover")),
+        ("GAP-DESIGN-PROTOTYPE-INPUT", "design", "medium", "The requirement does not make clear what Design must prototype or validate in user flows.", design_evidence, ("prototype", "prototipo", "wireframe", "figma", "flujo", "journey", "pantalla", "screen", "interaction", "interaccion")),
         ("GAP-PRODUCT-ASIS-TOBE", "product", "medium", "Current state and target state are not both explicit enough to compare impact.", lowered, ("as-is", "to-be", "situacion actual", "situación actual", "proceso actual", "proceso ideal", "estado actual", "estado futuro")),
         ("GAP-BUSINESS-RULES", "business", "medium", "Business rules, exclusions, or decision rules are not explicit enough for downstream slicing.", lowered, ("regla", "rule", "validacion", "validación", "condicion", "condición", "exclusion", "exclusión")),
+        ("GAP-FRONTEND-SURFACE", "technical", "medium", "Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear.", " ".join([text, context.get("design", ""), context.get("technical", "")]).lower(), ("frontend", "front", "pantalla", "screen", "estado", "state", "copy", "role", "rol", "validacion", "validación", "api")),
+        ("GAP-BACKEND-SURFACE", "technical", "medium", "Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.", tech_evidence, ("backend", "api", "endpoint", "service", "servicio", "integration", "integracion", "persist", "database", "evento", "event", "rule", "regla")),
+        ("GAP-TECH-DEEP-DIVE-INPUT", "technical", "medium", "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.", tech_evidence, ("repo", "repository", "arquitectura", "architecture", "endpoint", "api", "event", "evento", "source of truth", "fuente", "owner", "responsable", "riesgo", "risk")),
         ("GAP-GOVERNANCE-CONSTRAINTS", "compliance", "medium", "Governance, security, privacy, compliance, or operational restrictions are not explicit.", lowered, ("seguridad", "security", "privacidad", "privacy", "compliance", "normativa", "restriccion", "restricción", "gobernanza")),
         ("GAP-DELIVERY-READINESS", "delivery", "medium", "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.", lowered, ("dependencia", "dependency", "ambiente", "environment", "deadline", "fecha", "timeline", "owner", "responsable", "rollout")),
+        ("GAP-QUALITY-HANDOFF", "quality", "medium", "Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.", quality_evidence, ("test", "quality", "calidad", "qa", "happy path", "edge", "borde", "regression", "regresion", "evidencia", "data")),
     ]
     gaps = [
         {"id": gap_id, "lens": lens, "severity": severity, "description": description}
@@ -163,6 +173,87 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
     return gaps
 
 
+def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
+    counts = {
+        "open": 0,
+        "closed": 0,
+        "partially_closed": 0,
+        "answered": 0,
+        "blocking_open": 0,
+        "total": len(gaps),
+    }
+    for gap in gaps:
+        status = str(gap.get("status", "OPEN")).upper()
+        severity = str(gap.get("severity", "")).lower()
+        if status == "OPEN":
+            counts["open"] += 1
+            if severity in {"critical", "high"}:
+                counts["blocking_open"] += 1
+        elif status in {"PARTIALLY_CLOSED", "ANSWERED"}:
+            counts["partially_closed"] += 1
+            if severity in {"critical", "high"}:
+                counts["blocking_open"] += 1
+        elif status == "CLOSED":
+            counts["closed"] += 1
+        elif status == "ANSWERED":
+            counts["answered"] += 1
+    return counts
+
+
+def parse_gap_rows(text: str) -> list[dict[str, str]]:
+    gaps: list[dict[str, str]] = []
+    for line in text.splitlines():
+        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        if not cells or not cells[0].startswith("GAP-"):
+            continue
+        if len(cells) >= 8:
+            gaps.append(
+                {
+                    "id": cells[0],
+                    "lens": cells[1],
+                    "severity": cells[2],
+                    "status": cells[3],
+                    "parent": cells[4],
+                    "description": cells[5],
+                    "question": cells[6],
+                    "source": cells[7],
+                }
+            )
+    return gaps
+
+
+def regenerate_gaps(project_id: str) -> dict[str, object]:
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot regenerate gaps before /ingest creates 01_discovery/gaps.md.")
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
+    state_language = load_config(project_id).get("project_language", "auto")
+    state_path = base / "state.json"
+    if state_path.exists():
+        try:
+            import json
+
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state_language = state.get("project_language", state_language)
+        except Exception:
+            pass
+    language = str(state_language if state_language in {"es", "en"} else "en")
+    gaps_path.write_text(render_gaps(project_id, existing, req_id, language), encoding="utf-8")
+    counts = count_gaps(existing)
+    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
+    return {"project_id": project_id, "path": str(gaps_path), "gap_counts": counts}
+
+
+def readiness_stage_for_counts(counts: dict[str, int]) -> str:
+    if counts.get("blocking_open", 0):
+        return "CLIENT_RESPONSE_NEEDED"
+    if counts.get("open", 0) or counts.get("partially_closed", 0):
+        return "DOMAIN_RESPONSE_NEEDED"
+    return "READY_FOR_PROJECT_BRIEF"
+
+
 def render_requirement(project_id: str, req_text: str, raw_id: str) -> str:
     return f"""# Requirement Register - {project_id}
 
@@ -176,14 +267,201 @@ def render_requirement(project_id: str, req_text: str, raw_id: str) -> str:
 """
 
 
-def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str) -> str:
+def resolve_project_language(configured_language: object, text: str) -> str:
+    configured = str(configured_language or "auto").lower()
+    if configured in {"es", "en"}:
+        return configured
+    return detect_language(text)
+
+
+def detect_language(text: str) -> str:
+    lowered = text.lower()
+    spanish_markers = (
+        " objetivo",
+        " usuario",
+        " usuarios",
+        " alcance",
+        " criterio",
+        " criterios",
+        " calidad",
+        " requerimiento",
+        " pantalla",
+        " flujo",
+        " diseño",
+        " tecnología",
+        " integración",
+        " validación",
+        " negocio",
+        " fuente",
+        " datos",
+        " qué",
+        " cómo",
+        " para ",
+        " con ",
+        " debe ",
+        " deberán ",
+    )
+    english_markers = (
+        " goal",
+        " user",
+        " users",
+        " scope",
+        " acceptance",
+        " quality",
+        " requirement",
+        " screen",
+        " flow",
+        " design",
+        " technology",
+        " integration",
+        " validation",
+        " business",
+        " source",
+        " data",
+        " what",
+        " how",
+        " should",
+        " must",
+    )
+    spanish_score = sum(1 for marker in spanish_markers if marker in f" {lowered} ")
+    english_score = sum(1 for marker in english_markers if marker in f" {lowered} ")
+    if any(char in lowered for char in "áéíóúñ¿¡"):
+        spanish_score += 2
+    return "es" if spanish_score > english_score else "en"
+
+
+def no_gaps_text(language: str) -> str:
+    if language == "es":
+        return """## No se detectaron gaps abiertos
+
+El escaneo determinístico de discovery no detectó gaps bloqueantes ni de seguimiento. Si el cliente o los equipos de dominio tienen contexto adicional, agregarlo en `Notas adicionales` y devolverlo como input de cambio.
+"""
+    return """## No Open Gaps Detected
+
+No blocking or follow-up gaps were detected by the deterministic discovery scan. If the client or domain teams have additional context, add it under `Additional Notes` and send it back as a change input.
+"""
+
+
+def source_consulted_text(language: str) -> str:
+    return "Carpetas de contexto e input fuente." if language == "es" else "Context folders and source input."
+
+
+def none_gap_row(language: str) -> str:
+    if language == "es":
+        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. |"
+    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. |"
+
+
+def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
+    if language != "es":
+        return gap["description"]
+    descriptions = {
+        "GAP-OBJECTIVE": "El objetivo de negocio o resultado esperado no está explícito.",
+        "GAP-USERS": "Los usuarios, personas o actores objetivo no están explícitos.",
+        "GAP-SCOPE": "Los límites de alcance no están explícitos.",
+        "GAP-ACCEPTANCE": "Faltan criterios de aceptación o condiciones de éxito.",
+        "GAP-QUALITY": "Las expectativas de calidad o testeabilidad no están explícitas.",
+        "GAP-METRIC-SOURCE": "Aparece una métrica cuantitativa sin fuente o baseline explícito.",
+        "GAP-TECH-DATA-SOURCE": "La fuente de datos, integración u ownership de sistema no está explícito en el input o contexto técnico.",
+        "GAP-TECH-NFR": "No están explícitas restricciones de performance, seguridad, observabilidad u operación.",
+        "GAP-DESIGN-FLOW": "El journey de usuario, flujo de pantallas o modelo de interacción no está explícito en el input o contexto de diseño.",
+        "GAP-DESIGN-STATES": "No están explícitos los estados requeridos de UI: loading, empty, error y recuperación.",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "No queda claro qué debe prototipar o validar Diseño en los flujos de usuario.",
+        "GAP-PRODUCT-ASIS-TOBE": "El estado actual y el estado objetivo no están suficientemente claros para comparar impacto.",
+        "GAP-BUSINESS-RULES": "Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream.",
+        "GAP-FRONTEND-SURFACE": "La superficie de implementación frontend no está suficientemente explícita: pantallas, estados, validaciones, copy, roles o bindings de API.",
+        "GAP-BACKEND-SURFACE": "La superficie de implementación backend no está suficientemente explícita: capacidades, integraciones, reglas, persistencia, contratos o comportamiento ante fallas.",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Tecnología no cuenta con suficiente input para análisis de repositorios, arquitectura, endpoints/eventos, source of truth o riesgos.",
+        "GAP-GOVERNANCE-CONSTRAINTS": "No están explícitas restricciones de gobernanza, seguridad, privacidad, compliance u operación.",
+        "GAP-DELIVERY-READINESS": "No están explícitas dependencias, ambientes, ownership, fechas o restricciones de rollout.",
+        "GAP-QUALITY-HANDOFF": "El handoff a Calidad no está suficientemente explícito: flujos críticos, casos borde, datos de prueba, riesgos de regresión o evidencia esperada.",
+    }
+    return descriptions.get(gap["id"], gap["description"])
+
+
+def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en") -> str:
+    response_sections = "\n\n".join(render_gap_response_section(gap, req_id, language) for gap in gaps)
+    if not response_sections:
+        response_sections = no_gaps_text(language)
+
     rows = "\n".join(
-        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | OPEN | `{req_id}` | {gap['description']} | {question_for_gap(gap['id'])} | Context folders and source input. |"
+        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {question_for_gap(gap['id'], language)} | {source_consulted_text(language)} |"
         for gap in gaps
     )
     if not rows:
-        rows = "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. |"
+        rows = none_gap_row(language)
+    if language == "es":
+        return f"""# Gaps de Discovery - {project_id}
+
+Versión del documento: `1.0`
+Proyecto: `{project_id}`
+Requerimiento padre: `{req_id}`
+Audiencia: stakeholders del cliente, Producto, Tecnología, Diseño, Calidad y Delivery.
+Propósito: recopilar información faltante o ambigua para madurar el requerimiento y poder generar project brief, PRD, specs, backlog, criterios de aceptación y tests.
+
+## Cómo responder
+
+Por favor responder directamente debajo de cada gap. Una respuesta breve sirve si es precisa. Si la respuesta corresponde a otro equipo, indicar el owner y cualquier información parcial disponible.
+
+Formato sugerido de respuesta:
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión: confirmado / pendiente / no aplica
+
+## Secciones para respuesta del cliente
+
+{response_sections}
+
+## Notas adicionales
+
+Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diagrama o ejemplo que no haya quedado cubierto arriba.
+
+## Tabla de trazabilidad del framework
+
+Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
+
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+{rows}
+
+## Trazabilidad de resolución
+
+| Gap ID | Fuente de resolución | Seed promovida | Artefactos impactados |
+| --- | --- | --- | --- |
+| TBD | TBD | TBD | TBD |
+"""
     return f"""# Discovery Gaps - {project_id}
+
+Document version: `1.0`
+Project: `{project_id}`
+Parent requirement: `{req_id}`
+Audience: Client stakeholders, Product, Technology, Design, Quality, and Delivery.
+Purpose: collect missing or ambiguous information so the requirement can mature into a project brief, PRD, specs, backlog, acceptance criteria, and tests.
+
+## How To Respond
+
+Please answer directly under each gap. A short answer is fine if it is precise. If a question belongs to another team, name the owner and add any known partial answer.
+
+Suggested response format:
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status: confirmed / pending / not applicable
+
+## Client Response Sections
+
+{response_sections}
+
+## Additional Notes
+
+Add any new requirement, constraint, decision, screenshot, diagram, or example that was not covered above.
+
+## Framework Trace Table
+
+This table is kept for Sentinel traceability and automated processing.
 
 | Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -195,6 +473,208 @@ def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str) -> str
 | --- | --- | --- | --- |
 | TBD | TBD | TBD | TBD |
 """
+
+
+def render_gap_response_section(gap: dict[str, str], req_id: str, language: str = "en") -> str:
+    gap_id = gap["id"]
+    lens = gap.get("lens", lens_for_gap(gap_id))
+    if language == "es":
+        return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
+
+- Lente: `{lens}`
+- Severidad: `{gap['severity']}`
+- Estado: `{gap.get('status', 'OPEN')}`
+- Requerimiento relacionado: `{req_id}`
+
+Descripción breve:
+{description_for_gap(gap, language)}
+
+Por qué lo preguntamos:
+{why_gap_matters(gap_id, language)}
+
+Pregunta:
+{question_for_gap(gap_id, language)}
+
+Ejemplo de respuesta útil:
+{example_response_for_gap(gap_id, language)}
+
+Respuesta del cliente / dominio:
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+"""
+    return f"""### {gap_id} - {human_title_for_gap(gap_id)}
+
+- Lens: `{lens}`
+- Severity: `{gap['severity']}`
+- Status: `{gap.get('status', 'OPEN')}`
+- Related requirement: `{req_id}`
+
+Brief description:
+{gap['description']}
+
+Why we are asking:
+{why_gap_matters(gap_id)}
+
+Question:
+{question_for_gap(gap_id)}
+
+Example of a useful answer:
+{example_response_for_gap(gap_id)}
+
+Client / domain response:
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+"""
+
+
+def human_title_for_gap(gap_id: str, language: str = "en") -> str:
+    if language == "es":
+        titles = {
+            "GAP-OBJECTIVE": "Resultado esperado",
+            "GAP-USERS": "Usuarios y actores",
+            "GAP-SCOPE": "Límites de alcance",
+            "GAP-ACCEPTANCE": "Señal de aceptación",
+            "GAP-QUALITY": "Expectativas de calidad",
+            "GAP-METRIC-SOURCE": "Fuente de métrica",
+            "GAP-TECH-DATA-SOURCE": "Sistemas y ownership de datos",
+            "GAP-TECH-NFR": "Restricciones operativas",
+            "GAP-DESIGN-FLOW": "Journey y pantallas",
+            "GAP-DESIGN-STATES": "Estados de UX",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "Foco del prototipo",
+            "GAP-PRODUCT-ASIS-TOBE": "Proceso actual y objetivo",
+            "GAP-BUSINESS-RULES": "Reglas de negocio",
+            "GAP-FRONTEND-SURFACE": "Superficie frontend",
+            "GAP-BACKEND-SURFACE": "Superficie backend",
+            "GAP-TECH-DEEP-DIVE-INPUT": "Profundización técnica",
+            "GAP-GOVERNANCE-CONSTRAINTS": "Restricciones de gobernanza",
+            "GAP-DELIVERY-READINESS": "Preparación de delivery",
+            "GAP-QUALITY-HANDOFF": "Handoff de calidad",
+        }
+        return titles.get(gap_id, "Información necesaria")
+    titles = {
+        "GAP-OBJECTIVE": "Expected Outcome",
+        "GAP-USERS": "Users And Actors",
+        "GAP-SCOPE": "Scope Boundaries",
+        "GAP-ACCEPTANCE": "Acceptance Signal",
+        "GAP-QUALITY": "Quality Expectations",
+        "GAP-METRIC-SOURCE": "Metric Source",
+        "GAP-TECH-DATA-SOURCE": "Systems And Data Ownership",
+        "GAP-TECH-NFR": "Operational Constraints",
+        "GAP-DESIGN-FLOW": "User Journey And Screens",
+        "GAP-DESIGN-STATES": "UX States",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "Prototype Focus",
+        "GAP-PRODUCT-ASIS-TOBE": "Current And Target Process",
+        "GAP-BUSINESS-RULES": "Business Rules",
+        "GAP-FRONTEND-SURFACE": "Frontend Surface",
+        "GAP-BACKEND-SURFACE": "Backend Surface",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Technology Deep Dive",
+        "GAP-GOVERNANCE-CONSTRAINTS": "Governance Constraints",
+        "GAP-DELIVERY-READINESS": "Delivery Readiness",
+        "GAP-QUALITY-HANDOFF": "Quality Handoff",
+    }
+    return titles.get(gap_id, "Information Needed")
+
+
+def why_gap_matters(gap_id: str, language: str = "en") -> str:
+    if language == "es":
+        reasons = {
+            "GAP-OBJECTIVE": "Sin el resultado esperado, los agentes downstream podrían optimizar la solución pedida en lugar del objetivo real de negocio.",
+            "GAP-USERS": "Diseño, permisos, journeys, criterios de aceptación y rollout pueden cambiar según quién usa u opera la capacidad.",
+            "GAP-SCOPE": "Los límites claros evitan que PRD, specs y backlog incluyan trabajo no previsto.",
+            "GAP-ACCEPTANCE": "Calidad e implementación necesitan condiciones observables para saber cuándo el requerimiento está terminado.",
+            "GAP-QUALITY": "Las expectativas de calidad orientan el análisis de riesgo, la profundidad de pruebas y la evidencia requerida.",
+            "GAP-METRIC-SOURCE": "Las métricas necesitan fuente o baseline para medir el éxito de manera consistente.",
+            "GAP-TECH-DATA-SOURCE": "Tecnología necesita suficiente contexto de sistemas y ownership para analizar arquitectura sin inventar integraciones.",
+            "GAP-TECH-NFR": "Las restricciones operativas afectan arquitectura, implementación, monitoreo y readiness de salida.",
+            "GAP-DESIGN-FLOW": "Diseño necesita journeys y pantallas afectadas para crear flujos o prototipos significativos.",
+            "GAP-DESIGN-STATES": "Los estados UX faltantes suelen convertirse en ambigüedad de implementación o casos borde sin testear.",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "Un prototipo solo es útil si Diseño sabe qué decisión, flujo o interacción debe validar.",
+            "GAP-PRODUCT-ASIS-TOBE": "El delta entre comportamiento actual y objetivo guía el análisis de impacto y el slicing de backlog.",
+            "GAP-BUSINESS-RULES": "Las reglas y excepciones determinan validaciones, casos borde y criterios de aceptación.",
+            "GAP-FRONTEND-SURFACE": "Frontend necesita superficies, estados, copy y bindings afectados antes de estimar o implementar responsablemente.",
+            "GAP-BACKEND-SURFACE": "Backend necesita contexto de capacidades, integraciones, persistencia y comportamiento ante fallas antes de diseñar servicios.",
+            "GAP-TECH-DEEP-DIVE-INPUT": "Los agentes técnicos necesitan dirección suficiente para inspeccionar repositorios, componentes, endpoints y riesgos eficientemente.",
+            "GAP-GOVERNANCE-CONSTRAINTS": "Seguridad, privacidad, compliance y auditoría pueden cambiar diseño, implementación y testing.",
+            "GAP-DELIVERY-READINESS": "Dependencias, owners, ambientes y fechas determinan secuencia y factibilidad de salida.",
+            "GAP-QUALITY-HANDOFF": "QA necesita flujos críticos, casos borde, datos y expectativas de evidencia para profundizar cobertura.",
+        }
+        return reasons.get(gap_id, "Esta información es necesaria para evitar supuestos en artefactos downstream.")
+    reasons = {
+        "GAP-OBJECTIVE": "Without the expected outcome, downstream agents may optimize for the requested feature instead of the real business result.",
+        "GAP-USERS": "Design, permissions, journeys, acceptance criteria, and rollout can change depending on who uses or operates the capability.",
+        "GAP-SCOPE": "Clear boundaries prevent the PRD, specs, and backlog from including unintended work.",
+        "GAP-ACCEPTANCE": "Quality and implementation agents need observable conditions to know when the requirement is done.",
+        "GAP-QUALITY": "Quality expectations guide risk analysis, test depth, and required evidence.",
+        "GAP-METRIC-SOURCE": "Metrics need a source or baseline so success can be measured consistently.",
+        "GAP-TECH-DATA-SOURCE": "Technology needs enough system and ownership context to analyze architecture without inventing integrations.",
+        "GAP-TECH-NFR": "Operational constraints affect architecture, implementation choices, monitoring, and release readiness.",
+        "GAP-DESIGN-FLOW": "Design needs affected journeys and screens to create meaningful flows or prototypes.",
+        "GAP-DESIGN-STATES": "Missing UX states often become implementation ambiguity or untested edge cases.",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "A prototype is useful only if Design knows what decision, flow, or interaction it must validate.",
+        "GAP-PRODUCT-ASIS-TOBE": "The delta between current and target behavior drives impact analysis and backlog slicing.",
+        "GAP-BUSINESS-RULES": "Rules and exceptions determine validations, edge cases, and acceptance criteria.",
+        "GAP-FRONTEND-SURFACE": "Frontend agents need affected surfaces, states, copy, and bindings before estimating or implementing responsibly.",
+        "GAP-BACKEND-SURFACE": "Backend agents need capability, integration, persistence, and failure-behavior context before designing services.",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Technical agents need enough direction to inspect repositories, components, endpoints, and risks efficiently.",
+        "GAP-GOVERNANCE-CONSTRAINTS": "Security, privacy, compliance, and audit constraints can change design, implementation, and testing.",
+        "GAP-DELIVERY-READINESS": "Dependencies, owners, environments, and timing determine sequencing and release feasibility.",
+        "GAP-QUALITY-HANDOFF": "QA needs critical flows, edge cases, data, and evidence expectations to deepen coverage.",
+    }
+    return reasons.get(gap_id, "This information is needed to avoid assumptions in downstream artifacts.")
+
+
+def example_response_for_gap(gap_id: str, language: str = "en") -> str:
+    if language == "es":
+        examples = {
+            "GAP-OBJECTIVE": "El objetivo es reducir el tiempo de revisión manual de analistas operativos mostrando casos de alto riesgo antes de la reunión diaria.",
+            "GAP-USERS": "Usuarios primarios: analistas de operaciones. Supervisores solo revisan estado resumido. Compliance consume evidencia de auditoría pero no usa la pantalla.",
+            "GAP-SCOPE": "In scope: indicador de riesgo en dashboard diario. Out of scope: reportes históricos, facturación y planificación de dotación. Los filtros existentes deben mantenerse.",
+            "GAP-ACCEPTANCE": "Dado que una cola tiene casos por encima del umbral de SLA, cuando carga el dashboard, entonces la cola se marca como alto riesgo y el analista puede identificarla sin abrir el detalle.",
+            "GAP-QUALITY": "QA debe cubrir happy path, sin datos, datos desactualizados, falla de servicio externo y permisos insuficientes.",
+            "GAP-METRIC-SOURCE": "El baseline sale del reporte semanal de operaciones, owner Support Ops; el target es detectar colas de alto riesgo antes de las 9:30 AM.",
+            "GAP-TECH-DATA-SOURCE": "Reutilizar `GET /queues`; modificarlo para incluir `slaRisk`. La fuente de verdad de riesgo es Case Management, owner Operations Platform.",
+            "GAP-TECH-NFR": "La respuesta del dashboard debe mantenerse debajo de 2 segundos p95. Loguear fallas de cálculo y exponer métricas de datos faltantes/desactualizados.",
+            "GAP-DESIGN-FLOW": "El indicador aparece en la lista del dashboard diario. Los usuarios entran por Home > Operaciones > Colas diarias y deciden qué cola revisar primero.",
+            "GAP-DESIGN-STATES": "Mostrar skeleton durante carga, estado neutral sin colas, warning para datos desactualizados y error genérico existente ante fallas de servicio.",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "Prototipar la lista del dashboard con estados normal, alto riesgo, datos desactualizados y vacío para validar escaneabilidad con analistas.",
+            "GAP-PRODUCT-ASIS-TOBE": "Hoy los analistas abren cada cola para inferir riesgo. To-be: la lista muestra riesgo directamente para priorizar antes de abrir detalle.",
+            "GAP-BUSINESS-RULES": "Una cola es de alto riesgo cuando más de 10 casos están a menos de 30 minutos de breach de SLA o cuando cualquier caso ya está vencido.",
+            "GAP-FRONTEND-SURFACE": "Superficie afectada: dashboard diario de Operaciones. Agregar badge de riesgo, preservar filtros existentes, bindear `slaRisk` y trackear `risk_badge_clicked`.",
+            "GAP-BACKEND-SURFACE": "Backend enriquece summaries de cola con SLA risk, maneja indisponibilidad de Case Management como `riskUnknown` y no persiste riesgo localmente.",
+            "GAP-TECH-DEEP-DIVE-INPUT": "Tecnología debe revisar `ops-dashboard-web`, `queue-summary-api` y documentación de integración de Case Management antes de proponer arquitectura.",
+            "GAP-GOVERNANCE-CONSTRAINTS": "No agregar PII en la lista del dashboard. Logs de auditoría no deben incluir nombres de clientes ni números de documento.",
+            "GAP-DELIVERY-READINESS": "Dependencia: Case Management debe exponer umbral de SLA antes del 15 de junio. Rollout con feature flag primero para supervisores de Operaciones.",
+            "GAP-QUALITY-HANDOFF": "Tests críticos: alto riesgo, riesgo normal, datos de fuente desactualizados, permisos faltantes, cola vacía y regresión de filtros existentes.",
+        }
+        return examples.get(gap_id, "Una respuesta útil indica decisión, owner/fuente, evidencia y si está confirmado o pendiente.")
+    examples = {
+        "GAP-OBJECTIVE": "The goal is to reduce manual review time for operations analysts by making high-risk cases visible before the daily standup.",
+        "GAP-USERS": "Primary users are operations analysts. Supervisors only review summary status. The compliance team consumes audit evidence but does not use the screen.",
+        "GAP-SCOPE": "In scope: daily dashboard risk indicator. Out of scope: historical reporting, billing, and workforce scheduling. Existing filters must keep working.",
+        "GAP-ACCEPTANCE": "Given a queue has cases above the SLA threshold, when the dashboard loads, then the queue is marked as high risk and the analyst can identify it without opening case details.",
+        "GAP-QUALITY": "QA should cover happy path, no data, stale data, external service failure, and permission denied scenarios.",
+        "GAP-METRIC-SOURCE": "Baseline comes from the weekly operations report owned by Support Ops; target is to detect high-risk queues before 9:30 AM daily.",
+        "GAP-TECH-DATA-SOURCE": "Reuse `GET /queues`; modify it to include `slaRisk`. Risk source of truth is the Case Management service owned by Operations Platform.",
+        "GAP-TECH-NFR": "Dashboard response should stay under 2 seconds p95. Log risk-calculation failures and expose metrics for missing/stale source data.",
+        "GAP-DESIGN-FLOW": "The indicator appears on the daily dashboard list. Users enter from Home > Operations > Daily queues and decide which queue to inspect first.",
+        "GAP-DESIGN-STATES": "Show skeleton while loading, neutral state when there are no queues, warning state for stale data, and existing generic error for service failures.",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "Prototype the dashboard list with normal, high-risk, stale-data, and empty states to validate scanability with analysts.",
+        "GAP-PRODUCT-ASIS-TOBE": "Today analysts open each queue to infer risk. To-be: the list shows risk directly so they can prioritize before opening details.",
+        "GAP-BUSINESS-RULES": "A queue is high risk when more than 10 cases are within 30 minutes of SLA breach or any case is already breached.",
+        "GAP-FRONTEND-SURFACE": "Affected surface is the Daily Operations dashboard. Add risk badge, preserve existing filters, bind to `slaRisk`, and track `risk_badge_clicked`.",
+        "GAP-BACKEND-SURFACE": "Backend enriches queue summaries with SLA risk, handles unavailable Case Management data as `riskUnknown`, and does not persist risk locally.",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Technology should inspect `ops-dashboard-web`, `queue-summary-api`, and Case Management integration docs before proposing architecture.",
+        "GAP-GOVERNANCE-CONSTRAINTS": "No PII should be added to the dashboard list. Audit logs must not include customer names or document numbers.",
+        "GAP-DELIVERY-READINESS": "Dependency: Case Management team must expose SLA threshold by June 15. Rollout behind feature flag for Operations supervisors first.",
+        "GAP-QUALITY-HANDOFF": "Critical tests: high risk, normal risk, stale source data, missing permissions, empty queue, and regression of existing filters.",
+    }
+    return examples.get(gap_id, "A useful answer names the decision, owner/source, evidence, and whether the answer is confirmed or pending.")
 
 
 def render_decisions(project_id: str, text: str, req_id: str) -> str:
@@ -355,8 +835,8 @@ def build_lens_reviews(text: str, gaps: list[dict[str, str]], context: dict[str,
             text,
             context.get("technical", ""),
             gaps,
-            ("GAP-TECH-DATA-SOURCE", "GAP-TECH-NFR"),
-            "Which data sources, integrations, security, performance, observability, or ownership constraints are required?",
+            ("GAP-TECH-DATA-SOURCE", "GAP-TECH-NFR", "GAP-FRONTEND-SURFACE", "GAP-BACKEND-SURFACE", "GAP-TECH-DEEP-DIVE-INPUT"),
+            "Which systems, endpoint/event surfaces, create/modify/reuse decisions, security, observability, or ownership constraints are required before Technology can deepen the design?",
         ),
         lens_review(
             "design",
@@ -364,7 +844,7 @@ def build_lens_reviews(text: str, gaps: list[dict[str, str]], context: dict[str,
             text,
             context.get("design", ""),
             gaps,
-            ("GAP-DESIGN-FLOW", "GAP-DESIGN-STATES"),
+            ("GAP-DESIGN-FLOW", "GAP-DESIGN-STATES", "GAP-DESIGN-PROTOTYPE-INPUT"),
             "Which journey, screens, states, error/empty/loading behavior, or accessibility requirements are unresolved?",
         ),
         lens_review(
@@ -373,7 +853,7 @@ def build_lens_reviews(text: str, gaps: list[dict[str, str]], context: dict[str,
             text,
             context.get("quality", ""),
             gaps,
-            ("GAP-ACCEPTANCE", "GAP-QUALITY"),
+            ("GAP-ACCEPTANCE", "GAP-QUALITY", "GAP-QUALITY-HANDOFF"),
             "What acceptance criteria, risks, negative paths, stale/missing data cases, or test evidence are missing?",
         ),
     ]
@@ -413,9 +893,27 @@ def mature_requirement_rubric() -> list[dict[str, str]]:
         },
         {
             "area": "Data and integrations",
-            "mature_signal": "Systems, APIs/events, contracts, key fields, ownership, and data source of truth are clear.",
+            "mature_signal": "Systems, APIs/events, create/modify/reuse decisions, ownership, source of truth, and critical fields are clear enough for Technology to produce detailed context packs.",
             "lens": "Technology",
             "gap_when_missing": "GAP-TECH-DATA-SOURCE",
+        },
+        {
+            "area": "Technology deep-dive readiness",
+            "mature_signal": "Repositories or components to inspect, architecture questions, endpoint/event inventory, dependencies, and technical risks are explicit enough for a technical context pack.",
+            "lens": "Technology",
+            "gap_when_missing": "GAP-TECH-DEEP-DIVE-INPUT",
+        },
+        {
+            "area": "Frontend implementation readiness",
+            "mature_signal": "Affected surfaces, roles, UI states, validations, copy, analytics/telemetry needs, and API binding expectations are visible.",
+            "lens": "Frontend/Design",
+            "gap_when_missing": "GAP-FRONTEND-SURFACE",
+        },
+        {
+            "area": "Backend implementation readiness",
+            "mature_signal": "Capabilities, business rules, integrations, persistence/source-of-truth needs, exposed contracts, observability, and failure behavior are visible.",
+            "lens": "Backend/Technology",
+            "gap_when_missing": "GAP-BACKEND-SURFACE",
         },
         {
             "area": "Non-functional constraints",
@@ -430,10 +928,22 @@ def mature_requirement_rubric() -> list[dict[str, str]]:
             "gap_when_missing": "GAP-DESIGN-FLOW or GAP-DESIGN-STATES",
         },
         {
+            "area": "Design prototype readiness",
+            "mature_signal": "The brief states what Design should validate or prototype, including target users, journey moments, decisions, states, and visual evidence references.",
+            "lens": "Design",
+            "gap_when_missing": "GAP-DESIGN-PROTOTYPE-INPUT",
+        },
+        {
             "area": "Acceptance and quality",
             "mature_signal": "Happy path, negative paths, stale/missing data, test data, and acceptance criteria are testable.",
             "lens": "Quality",
             "gap_when_missing": "GAP-ACCEPTANCE or GAP-QUALITY",
+        },
+        {
+            "area": "Quality handoff readiness",
+            "mature_signal": "Critical flows, edge cases, regression areas, test data needs, and evidence expectations are explicit enough for QA to deepen coverage.",
+            "lens": "Quality",
+            "gap_when_missing": "GAP-QUALITY-HANDOFF",
         },
         {
             "area": "Delivery readiness",
@@ -527,7 +1037,30 @@ def lens_for_gap(gap_id: str) -> str:
     return "product"
 
 
-def question_for_gap(gap_id: str) -> str:
+def question_for_gap(gap_id: str, language: str = "en") -> str:
+    if language == "es":
+        questions = {
+            "GAP-OBJECTIVE": "¿Qué resultado de negocio debería lograr este requerimiento?",
+            "GAP-USERS": "¿Qué usuarios, personas o roles están dentro del alcance?",
+            "GAP-SCOPE": "¿Qué está explícitamente dentro y fuera del alcance?",
+            "GAP-ACCEPTANCE": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
+            "GAP-QUALITY": "¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?",
+            "GAP-METRIC-SOURCE": "¿Cuál es la fuente o baseline de la métrica cuantitativa?",
+            "GAP-TECH-DATA-SOURCE": "¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?",
+            "GAP-TECH-NFR": "¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?",
+            "GAP-DESIGN-FLOW": "¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?",
+            "GAP-DESIGN-STATES": "¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?",
+            "GAP-PRODUCT-ASIS-TOBE": "¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?",
+            "GAP-BUSINESS-RULES": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
+            "GAP-FRONTEND-SURFACE": "¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?",
+            "GAP-BACKEND-SURFACE": "¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?",
+            "GAP-TECH-DEEP-DIVE-INPUT": "¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?",
+            "GAP-GOVERNANCE-CONSTRAINTS": "¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?",
+            "GAP-DELIVERY-READINESS": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+            "GAP-QUALITY-HANDOFF": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
+        }
+        return questions.get(gap_id, "¿Qué información confirmada resuelve esta incertidumbre?")
     questions = {
         "GAP-OBJECTIVE": "What business outcome should this requirement achieve?",
         "GAP-USERS": "Which users, personas, or roles are in scope?",
@@ -535,14 +1068,19 @@ def question_for_gap(gap_id: str) -> str:
         "GAP-ACCEPTANCE": "What observable conditions prove the requirement is done?",
         "GAP-QUALITY": "What quality, testability, risk, or compliance expectations apply?",
         "GAP-METRIC-SOURCE": "What is the source or baseline for the quantitative metric?",
-        "GAP-TECH-DATA-SOURCE": "Which systems, APIs, events, key fields, owners, and source-of-truth data are involved?",
+        "GAP-TECH-DATA-SOURCE": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?",
         "GAP-TECH-NFR": "What security, performance, observability, availability, or operational constraints apply?",
         "GAP-DESIGN-FLOW": "Which user journey, screens, flows, copy, or interaction changes are in scope?",
         "GAP-DESIGN-STATES": "What loading, empty, error, recovery, and accessibility states must be handled?",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?",
         "GAP-PRODUCT-ASIS-TOBE": "What is the current process, target process, and exact delta between them?",
         "GAP-BUSINESS-RULES": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
+        "GAP-FRONTEND-SURFACE": "Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?",
+        "GAP-BACKEND-SURFACE": "Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?",
         "GAP-GOVERNANCE-CONSTRAINTS": "Which security, privacy, compliance, audit, or operational restrictions must be respected?",
         "GAP-DELIVERY-READINESS": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+        "GAP-QUALITY-HANDOFF": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
     }
     return questions.get(gap_id, "What confirmed information resolves this uncertainty?")
 

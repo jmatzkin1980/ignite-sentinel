@@ -94,7 +94,107 @@ Output:
 
 - `01_discovery/requirement_maturity_report.md`
 
-Blocks when open gaps have severities configured as blocking in `sentinel.config.yaml`.
+Blocks when open, answered, or partially closed gaps have severities configured as blocking in `sentinel.config.yaml`.
+
+## `gaps`
+
+Regenerate the shareable human-friendly discovery gap document.
+
+```powershell
+python -m sentinel /gaps PROJECT_ID
+```
+
+Output:
+
+- `01_discovery/gaps.md`
+
+Use this before sharing gaps with a client or domain owner.
+
+## `resolve-gaps`
+
+Process an answered `gaps.md` or equivalent Markdown file.
+
+```powershell
+python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\client-gap-response.md
+```
+
+The parser reads `### GAP-ID` blocks and extracts:
+
+- `Answer` / `Respuesta`
+- `Owner / source` / `Owner / fuente`
+- `Evidence or reference` / `Evidencia o referencia`
+- `Decision status` / `Estado de decision`
+
+Auto-close rule:
+
+- answer is non-empty; and
+- decision status is `confirmed`, `not applicable`, `confirmado`, or `no aplica`.
+
+If the answer exists but decision status is pending or unclear, the gap becomes `PARTIALLY_CLOSED`.
+
+Outputs:
+
+- updated `01_discovery/gaps.md`
+- copied response under `07_changes/00_client_responses/`
+- `07_changes/00_client_responses/[source]_gap_resolution_report.md`
+- appended `01_discovery/gap_resolution_log.md`
+- confirmed seeds and decisions when applicable
+
+## `brief`
+
+Generate or refresh the mature project brief.
+
+```powershell
+python -m sentinel /brief PROJECT_ID
+```
+
+Output:
+
+- `02_requirements/project-brief.md`
+
+Use after blocking gaps are resolved or explicitly accepted as non-blocking.
+
+## `context-request`
+
+Generate a domain-specific request for deeper analysis.
+
+```powershell
+python -m sentinel /context-request PROJECT_ID --domain technology
+```
+
+Allowed domains:
+
+- `technology`
+- `design`
+- `quality`
+- `frontend`
+- `backend`
+
+Output:
+
+- `08_context_packs/requests/[domain]_context_request.md`
+
+## `status`
+
+Show phase, health, language, privacy mode, readiness, gap counts, last change IDs, and next recommended step.
+
+```powershell
+python -m sentinel /status PROJECT_ID
+```
+
+## `export`
+
+Copy a shareable artifact under the workspace export folder.
+
+```powershell
+python -m sentinel /export PROJECT_ID --artifact gaps --format md
+python -m sentinel /export PROJECT_ID --artifact brief --format md
+python -m sentinel /export PROJECT_ID --artifact context-request --format md --domain technology
+```
+
+Output:
+
+- `08_context_packs/exports/`
 
 ## `specs`
 
@@ -228,6 +328,12 @@ Optional filters:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product --trace-id CHG-001 --iteration-min 1
+```
+
+Additional local memory filters:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --status active --language es --sensitivity internal --section "Framework Trace Table" --max-chars 2000 --summary-only
 ```
 
 Write a reusable context pack:

@@ -12,7 +12,10 @@ Kilo Code chat:
 /doctor
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
+/gaps PROJECT_ID
+/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 /maturity PROJECT_ID
+/brief PROJECT_ID
 ```
 
 Codex chat:
@@ -28,7 +31,11 @@ PowerShell fallback:
 python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input\client-note.md
+python -m sentinel /gaps PROJECT_ID
+python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 python -m sentinel /maturity PROJECT_ID
+python -m sentinel /brief PROJECT_ID
+python -m sentinel /context-request PROJECT_ID --domain technology
 python -m sentinel /specs PROJECT_ID
 python -m sentinel /backlog PROJECT_ID
 python -m sentinel /quality PROJECT_ID
@@ -39,6 +46,17 @@ python -m sentinel /validate PROJECT_ID
 
 ## Change Flow
 
+Structured gap response flow:
+
+```powershell
+python -m sentinel /gaps PROJECT_ID
+python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+python -m sentinel /maturity PROJECT_ID
+python -m sentinel /brief PROJECT_ID
+```
+
+General novelty/change flow:
+
 ```powershell
 python -m sentinel /sync PROJECT_ID
 python -m sentinel /sync PROJECT_ID --source input\change.md --note "client follow-up"
@@ -47,7 +65,7 @@ python -m sentinel /reindex PROJECT_ID
 python -m sentinel /health PROJECT_ID
 ```
 
-Use `/sync PROJECT_ID` for autonomous novelty detection. It scans known input/context folders, compares hashes in `00_raw/source_manifest.json`, and processes new or modified files as change events.
+Use `/resolve-gaps` for answered `gaps.md` documents. Use `/sync PROJECT_ID` for autonomous novelty detection. It scans known input/context folders, compares hashes in `00_raw/source_manifest.json`, and processes new or modified files as change events.
 
 ## Command Protocol
 
@@ -93,6 +111,8 @@ workspaces/PROJECT_ID/
     02_mail_slack/
     03_domain_updates/
   08_context_packs/
+    requests/
+    exports/
   memory.lancedb/
   state.json
   sentinel.config.yaml
@@ -109,6 +129,7 @@ The repository also includes:
 - Run real project workflows in project branches, for example `project/ACME_DASHBOARD`.
 - Merge only framework improvements back to `main`; do not merge generated project workspaces unless explicitly approved.
 - Keep truth in workspace files, not in memory indexes.
+- Keep project privacy local-only by default: no remote MCP, external vector database, or external embedding service for client/project content.
 - Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
 - Use Codex skills in `.codex/skills/` for progressive disclosure.

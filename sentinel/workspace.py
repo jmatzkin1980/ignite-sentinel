@@ -36,6 +36,8 @@ WORKSPACE_DIRS = [
     "07_changes/02_mail_slack",
     "07_changes/03_domain_updates",
     "08_context_packs",
+    "08_context_packs/requests",
+    "08_context_packs/exports",
     "memory.lancedb",
 ]
 
@@ -86,6 +88,10 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
                 "created_at": utc_now(),
                 "updated_at": utc_now(),
                 "artifacts": {},
+                "project_language": "auto",
+                "privacy_mode": "local-only",
+                "readiness_stage": "DISCOVERY_RAW",
+                "gap_counts": {},
                 "metrics": {
                     "requirements": 0,
                     "gaps_open": 0,
@@ -109,6 +115,8 @@ def default_config(project_id: str) -> str:
     domains = "\n".join(f"  - {domain}" for domain in DEFAULT_DOMAINS)
     return f"""project_id: {project_id}
 version: 0.1.0
+project_language: auto
+privacy_mode: local-only
 domains:
 {domains}
 maturity:
@@ -119,6 +127,8 @@ maturity:
     - product
     - functional
     - quality
+gap_resolution:
+  auto_close_rule: confirmed_structured
 memory:
   provider: lancedb-hybrid
   lancedb_optional: true
@@ -139,11 +149,14 @@ def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:
     if not path.exists():
         return {
             "project_id": project_id,
+            "project_language": "auto",
+            "privacy_mode": "local-only",
             "domains": DEFAULT_DOMAINS,
             "maturity": {
                 "blocking_gap_severities": ["critical", "high"],
                 "required_domains": ["product", "functional", "quality"],
             },
+            "gap_resolution": {"auto_close_rule": "confirmed_structured"},
             "memory": {"provider": "lancedb-hybrid", "fallback": "json-hybrid", "embedding": "local-hash"},
         }
     return parse_simple_yaml(path.read_text(encoding="utf-8"))

@@ -18,6 +18,12 @@ Accepted forms:
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
+- `/gaps PROJECT_ID`
+- `/resolve-gaps PROJECT_ID --source PATH`
+- `/brief PROJECT_ID`
+- `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
+- `/status PROJECT_ID`
+- `/export PROJECT_ID --artifact gaps|brief|context-request --format md`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
@@ -36,10 +42,16 @@ Execution rule:
 - Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
 - If `python` is not available, use the configured or bundled Python runtime when visible in the environment.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
+- `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
+- `/resolve-gaps PROJECT_ID --source PATH` processes structured client/domain answers and safely closes only confirmed or not-applicable gaps.
+- `/brief PROJECT_ID` refreshes `02_requirements/project-brief.md` from mature discovery evidence.
+- `/context-request PROJECT_ID --domain DOMAIN` creates a domain-specific request under `08_context_packs/requests/`.
+- `/status PROJECT_ID` reports phase, health, language, gap counts, and next recommended step.
 - `/sync PROJECT_ID` without `--source` is the autonomous novelty scan: it detects new or modified input/context files by hash, creates `CHG` events, impact reports, trace edges, and memory entries.
 - Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
 - Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.
 - `/backlog` and `/quality` are blocked while project health is `DIRTY`; use `/maturity`, `/sync`, `/health`, `/retrieve`, and gap resolution evidence before forcing downstream execution.
+- Keep privacy local-only: no remote MCP, external vector databases, or external embeddings for client/project content unless explicitly approved outside this framework.
 - If a Codex surface intercepts a native slash command before it reaches the agent, ask the user to send the same request as `sentinel /COMMAND PROJECT_ID`.
 
 ## Verification

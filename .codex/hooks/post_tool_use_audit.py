@@ -8,12 +8,30 @@ from pathlib import Path
 
 def post_tool_use(tool_name: str, args: dict, context: dict | None = None) -> dict:
     indexed = index_workspace_artifact(args)
+    warnings = audit_warnings(args)
     suffix = f" Indexed `{indexed}` in Sentinel memory." if indexed else ""
+    warning_text = f" Warnings: {'; '.join(warnings)}" if warnings else ""
     return {
         "decision": "allow",
         "reason": "Run `python -m sentinel /validate PROJECT_ID` and `python -m sentinel /health PROJECT_ID` after Sentinel artifact changes."
-        + suffix,
+        + suffix
+        + warning_text,
     }
+
+
+def audit_warnings(args: dict) -> list[str]:
+    path_value = str(args.get("path", "") if isinstance(args, dict) else "")
+    if not path_value:
+        return []
+    normalized = path_value.replace("\\", "/")
+    warnings: list[str] = []
+    if normalized.endswith((".md", ".txt")) and "/workspaces/" in normalized:
+        warnings.append("run `/reindex PROJECT_ID` after manual artifact edits")
+    if "/workspaces/" not in normalized and "/input/" not in normalized and normalized.endswith((".md", ".txt", ".json")):
+        warnings.append("project/client data should stay under `workspaces/PROJECT_ID/` or `input/`")
+    if any(segment in normalized for segment in ("/01_discovery/", "/02_requirements/", "/07_changes/")):
+        warnings.append("ensure human-facing artifact language matches `project_language`")
+    return warnings
 
 
 def index_workspace_artifact(args: dict) -> str | None:

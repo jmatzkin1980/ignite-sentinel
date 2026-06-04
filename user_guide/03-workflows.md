@@ -21,6 +21,7 @@ input/
 ```powershell
 python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input\client-note.md
+python -m sentinel /gaps PROJECT_ID
 python -m sentinel /maturity PROJECT_ID
 ```
 
@@ -32,6 +33,43 @@ workspaces/PROJECT_ID/01_discovery/requirement_maturity_report.md
 ```
 
 Then ask stakeholders for missing information.
+
+When the answered gap document returns:
+
+```powershell
+python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+python -m sentinel /maturity PROJECT_ID
+python -m sentinel /status PROJECT_ID
+```
+
+When maturity reaches `READY_FOR_SPECS`, Sentinel also materializes:
+
+```text
+workspaces/PROJECT_ID/02_requirements/project-brief.md
+```
+
+You can also refresh the brief explicitly:
+
+```powershell
+python -m sentinel /brief PROJECT_ID
+```
+
+The brief is the closing artifact for discovery. It consolidates the iterated requirement across business/product, technology, design, quality, governance, decisions, seeds, inferences, and open uncertainty radar. Downstream PRD/spec/backlog generation should treat it as the mature requirement handoff.
+
+Discovery maturity does not mean every domain artifact is fully designed. The brief should provide enough signal for domain agents to deepen their work in context packs:
+
+- Design gets affected journeys, users, screens, states, copy constraints, and visual evidence references.
+- Technology gets system boundaries, endpoint/event inventory, create/modify/reuse decisions, source-of-truth ownership, constraints, and risks.
+- Frontend and Backend get enough behavior, surface, integration, validation, and failure-mode context to split implementation responsibly.
+- Quality gets acceptance strategy, critical flows, edge cases, test data needs, and trace expectations.
+
+Generate domain requests when the brief is ready for deeper analysis:
+
+```powershell
+python -m sentinel /context-request PROJECT_ID --domain technology
+python -m sentinel /context-request PROJECT_ID --domain design
+python -m sentinel /context-request PROJECT_ID --domain quality
+```
 
 Typical gaps to surface include:
 
@@ -55,6 +93,7 @@ python -m sentinel /health PROJECT_ID
 Review:
 
 ```text
+workspaces/PROJECT_ID/02_requirements/project-brief.md
 workspaces/PROJECT_ID/03_specs/prd_ai_friendly.md
 ```
 
@@ -78,7 +117,13 @@ workspaces/PROJECT_ID/05_quality/
 
 ## Workflow 4: Change Or Meeting Sync
 
-Use when the client, POD, or stakeholder introduces new information: client answers to gaps, email or Slack content, meeting transcripts, architecture notes, design updates, QA observations, or delivery decisions.
+Use when the client, POD, or stakeholder introduces new information that is not a structured gap response: email or Slack content, meeting transcripts, architecture notes, design updates, QA observations, delivery decisions, or new requirement signals.
+
+For answered `gaps.md`, prefer:
+
+```powershell
+python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+```
 
 Autonomous mode:
 
@@ -161,6 +206,12 @@ Use filters when possible:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --artifact-type change --domain product
+```
+
+Add filters and budgets to keep context tight:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "scope" --workflow discovery --language es --sensitivity internal --max-chars 2000 --summary-only
 ```
 
 Create a context pack:

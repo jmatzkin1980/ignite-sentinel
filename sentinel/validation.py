@@ -83,4 +83,9 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
 
     if "user_story" in node_types and "backlog_readiness_audit" not in node_types:
         findings.append("Backlog exists without backlog_readiness_audit.")
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if gaps_path.exists() and "CLOSED" in gaps_path.read_text(encoding="utf-8"):
+        resolution_log = base / "01_discovery" / "gap_resolution_log.md"
+        if not resolution_log.exists():
+            findings.append("Closed gaps exist without gap_resolution_log.md.")
     return findings

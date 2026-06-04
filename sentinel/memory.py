@@ -66,6 +66,7 @@ class ContextBroker:
         self.path = memory_path(project_id)
         self.data = read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []})
         self.lance_dir = self.path.parent / "lance"
+        self.manifest_path = self.path.parent / "artifact_manifest.json"
         self.table_name = "ba_memory"
         self._lancedb = None
         self._table = None
@@ -99,6 +100,10 @@ class ContextBroker:
                             "iteration": 1,
                             "metadata": "{}",
                             "source_hash": content_hash("bootstrap"),
+                            "section_path": "",
+                            "language": "unknown",
+                            "confidence": "unknown",
+                            "sensitivity": "internal",
                             "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                             "summary": "bootstrap",
                             "text": "bootstrap",
@@ -129,6 +134,9 @@ class ContextBroker:
     ) -> None:
         trace_ids = trace_ids or [artifact_id]
         metadata = metadata or {}
+        language = metadata.get("language", "unknown")
+        confidence = metadata.get("confidence", "unknown")
+        sensitivity = metadata.get("sensitivity", "internal")
         source_hash = content_hash(text)
         artifact = {
             "project_id": self.project_id,
@@ -143,6 +151,9 @@ class ContextBroker:
             "trace_ids": trace_ids,
             "iteration": iteration,
             "metadata": metadata,
+            "language": language,
+            "confidence": confidence,
+            "sensitivity": sensitivity,
             "source_hash": source_hash,
             "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         }
@@ -158,6 +169,7 @@ class ContextBroker:
                 {
                     **artifact,
                     "chunk_id": f"{artifact_id}::chunk-{index + 1:03d}",
+                    "section_path": section_path_for_chunk(chunk_text),
                     "text": chunk_text,
                     "content": chunk_text,
                     "summary": chunk_text[:180],
@@ -165,6 +177,7 @@ class ContextBroker:
                 }
             )
         write_json(self.path, self.data)
+        write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": self.data["artifacts"]})
         self._upsert_lancedb_chunks(artifact_id)
 
     def _upsert_lancedb_chunks(self, artifact_id: str) -> None:
@@ -190,6 +203,10 @@ class ContextBroker:
                     "iteration": int(chunk.get("iteration", 1)),
                     "metadata": json.dumps(chunk.get("metadata", {}), ensure_ascii=False),
                     "source_hash": chunk.get("source_hash", ""),
+                    "section_path": chunk.get("section_path", ""),
+                    "language": chunk.get("language", "unknown"),
+                    "confidence": chunk.get("confidence", "unknown"),
+                    "sensitivity": chunk.get("sensitivity", "internal"),
                     "indexed_at": chunk["indexed_at"],
                     "summary": chunk["summary"],
                     "text": chunk["text"],
@@ -226,6 +243,12 @@ class ContextBroker:
         domain: str | None = None,
         trace_id: str | None = None,
         iteration_min: int = 1,
+        status: str | None = None,
+        language: str | None = None,
+        sensitivity: str | None = None,
+        section: str | None = None,
+        max_chars: int | None = None,
+        summary_only: bool = False,
     ) -> list[dict[str, Any]]:
         vector_candidates = self._lancedb_candidates(query, limit=max(limit * 4, 20))
         query_tokens = set(tokenize(query))
@@ -240,6 +263,14 @@ class ContextBroker:
                 continue
             if int(chunk.get("iteration", 1)) < iteration_min:
                 continue
+            if status and str(chunk.get("status", "")).lower() != status.lower():
+                continue
+            if language and str(chunk.get("language", "")).lower() != language.lower():
+                continue
+            if sensitivity and str(chunk.get("sensitivity", "")).lower() != sensitivity.lower():
+                continue
+            if section and section.lower() not in str(chunk.get("section_path", "")).lower():
+                continue
             text = chunk["text"]
             lexical = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
             semantic = cosine(query_vector, text_vector(text))
@@ -247,8 +278,16 @@ class ContextBroker:
             workflow_boost = 0.05 if workflow.lower() in text.lower() else 0.0
             score = lexical + semantic + vector + workflow_boost
             if score > 0:
-                scored.append({"score": round(score, 4), **chunk})
-        return sorted(scored, key=lambda row: row["score"], reverse=True)[:limit]
+                row = {"score": round(score, 4), **chunk}
+                row["why_retrieved"] = why_retrieved(lexical, semantic, vector, workflow_boost, artifact_type, domain, trace_id)
+                if summary_only:
+                    row["text"] = row["summary"]
+                    row["content"] = row["summary"]
+                scored.append(row)
+        results = sorted(scored, key=lambda row: row["score"], reverse=True)[:limit]
+        if max_chars is not None:
+            results = apply_char_budget(results, max_chars)
+        return results
 
     def _lancedb_candidates(self, query: str, limit: int) -> dict[str, float]:
         if self._table is None:
@@ -274,8 +313,28 @@ class ContextBroker:
         domain: str | None = None,
         trace_id: str | None = None,
         iteration_min: int = 1,
+        status: str | None = None,
+        language: str | None = None,
+        sensitivity: str | None = None,
+        section: str | None = None,
+        max_chars: int | None = None,
+        summary_only: bool = False,
     ) -> dict[str, Any]:
-        results = self.retrieve(query, workflow, limit, artifact_type, domain, trace_id, iteration_min)
+        results = self.retrieve(
+            query,
+            workflow,
+            limit,
+            artifact_type,
+            domain,
+            trace_id,
+            iteration_min,
+            status,
+            language,
+            sensitivity,
+            section,
+            max_chars,
+            summary_only,
+        )
         pack = {
             "project_id": self.project_id,
             "workflow": workflow,
@@ -286,7 +345,14 @@ class ContextBroker:
                 "domain": domain,
                 "trace_id": trace_id,
                 "iteration_min": iteration_min,
+                "status": status,
+                "language": language,
+                "sensitivity": sensitivity,
+                "section": section,
+                "max_chars": max_chars,
+                "summary_only": summary_only,
             },
+            "source_hashes": sorted({row.get("source_hash", "") for row in results if row.get("source_hash")}),
             "results": results,
         }
         safe_workflow = re.sub(r"[^A-Za-z0-9_-]+", "-", workflow).strip("-") or "context"
@@ -417,6 +483,54 @@ def context_artifact_id(project_id: str, path: Path) -> str:
 
 def content_hash(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def section_path_for_chunk(text: str) -> str:
+    headings = [line.strip("# ").strip() for line in text.splitlines() if line.startswith("#")]
+    return " > ".join(headings[:3]) if headings else ""
+
+
+def why_retrieved(
+    lexical: float,
+    semantic: float,
+    vector: float,
+    workflow_boost: float,
+    artifact_type: str | None,
+    domain: str | None,
+    trace_id: str | None,
+) -> str:
+    reasons = []
+    if lexical:
+        reasons.append("lexical match")
+    if semantic:
+        reasons.append("local semantic similarity")
+    if vector:
+        reasons.append("LanceDB/hash vector match")
+    if workflow_boost:
+        reasons.append("workflow hint")
+    if artifact_type:
+        reasons.append(f"artifact_type={artifact_type}")
+    if domain:
+        reasons.append(f"domain={domain}")
+    if trace_id:
+        reasons.append(f"trace_id={trace_id}")
+    return "; ".join(reasons) or "retrieved by local ranking"
+
+
+def apply_char_budget(results: list[dict[str, Any]], max_chars: int) -> list[dict[str, Any]]:
+    remaining = max(max_chars, 0)
+    budgeted = []
+    for row in results:
+        if remaining <= 0:
+            break
+        text = row.get("text", "")
+        if len(text) > remaining:
+            row = dict(row)
+            row["text"] = text[:remaining]
+            row["content"] = row["text"]
+        remaining -= len(row.get("text", ""))
+        budgeted.append(row)
+    return budgeted
 
 
 def chunk_texts(text: str, max_chars: int = 900) -> list[str]:

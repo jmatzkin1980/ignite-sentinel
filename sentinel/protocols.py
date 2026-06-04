@@ -6,8 +6,20 @@ from typing import Any
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
-READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate"}
-MUTATING_COMMANDS = {"ingest", "sync", "specs", "backlog", "quality", "reindex"}
+READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status"}
+MUTATING_COMMANDS = {
+    "ingest",
+    "sync",
+    "specs",
+    "backlog",
+    "quality",
+    "reindex",
+    "gaps",
+    "brief",
+    "resolve-gaps",
+    "context-request",
+    "export",
+}
 PROJECT_COMMANDS = READ_ONLY_COMMANDS | MUTATING_COMMANDS
 
 

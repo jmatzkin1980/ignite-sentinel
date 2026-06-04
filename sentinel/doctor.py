@@ -22,6 +22,12 @@ REQUIRED_COMMANDS = [
     "trace",
     "validate",
     "reindex",
+    "gaps",
+    "resolve-gaps",
+    "brief",
+    "context-request",
+    "status",
+    "export",
 ]
 
 

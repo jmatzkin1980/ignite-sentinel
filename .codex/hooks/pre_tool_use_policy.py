@@ -17,4 +17,10 @@ def pre_tool_use(tool_name: str, args: dict, context: dict | None = None) -> dic
                 "decision": "block",
                 "reason": f"Ignite Sentinel vNext does not use deprecated path segment: {blocked}",
             }
+    normalized = path.replace("\\", "/")
+    if normalized.endswith((".md", ".txt", ".json")) and "workspaces/" not in normalized and "/input/" not in normalized and "ignite-sentinel/" in normalized:
+        return {
+            "decision": "allow",
+            "reason": "Warning: client/project artifacts should stay under `workspaces/PROJECT_ID/` or `input/`; continuing as non-blocking local-first guardrail.",
+        }
     return {"decision": "allow", "reason": "No Sentinel guardrail violation detected."}

@@ -77,9 +77,17 @@ def has_blocking_open_gap(text: str) -> bool:
         if not cells or not cells[0].startswith("GAP-"):
             continue
         # Old format: Gap ID | Severity | Status | ...
-        if len(cells) >= 3 and cells[1].lower() in {"critical", "high"} and cells[2].upper() == "OPEN":
+        if (
+            len(cells) >= 3
+            and cells[1].lower() in {"critical", "high"}
+            and cells[2].upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"}
+        ):
             return True
         # New format: Gap ID | Lens | Severity | Status | ...
-        if len(cells) >= 4 and cells[2].lower() in {"critical", "high"} and cells[3].upper() == "OPEN":
+        if (
+            len(cells) >= 4
+            and cells[2].lower() in {"critical", "high"}
+            and cells[3].upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"}
+        ):
             return True
     return False

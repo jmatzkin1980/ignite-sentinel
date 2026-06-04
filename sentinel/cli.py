@@ -6,13 +6,18 @@ import sys
 from pathlib import Path
 
 from .doctor import run_doctor
+from .context_requests import generate_context_request
 from .discovery import ingest
+from .discovery import regenerate_gaps
+from .export import export_artifact
+from .gap_resolution import resolve_gaps
 from .generation import generate_backlog, generate_specs
 from .health import run_health
-from .maturity import evaluate
+from .maturity import evaluate, generate_project_brief
 from .memory import ContextBroker, reindex_workspace
 from .protocols import postflight_command, preflight_command
 from .quality import generate_quality
+from .status import project_status
 from .sync import sync_change, sync_pending_sources
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .validation import validate_project
@@ -32,6 +37,12 @@ COMMANDS = {
     "trace",
     "validate",
     "reindex",
+    "gaps",
+    "brief",
+    "resolve-gaps",
+    "context-request",
+    "status",
+    "export",
 }
 
 
@@ -62,6 +73,12 @@ def main(argv: list[str] | None = None) -> int:
     retrieve_p.add_argument("--domain")
     retrieve_p.add_argument("--trace-id")
     retrieve_p.add_argument("--iteration-min", type=int, default=1)
+    retrieve_p.add_argument("--status")
+    retrieve_p.add_argument("--language")
+    retrieve_p.add_argument("--sensitivity")
+    retrieve_p.add_argument("--section")
+    retrieve_p.add_argument("--max-chars", type=int)
+    retrieve_p.add_argument("--summary-only", action="store_true")
     retrieve_p.add_argument("--write-pack", action="store_true")
 
     sync_p = sub.add_parser("sync")
@@ -69,7 +86,21 @@ def main(argv: list[str] | None = None) -> int:
     sync_p.add_argument("--source")
     sync_p.add_argument("--note", default="")
 
-    for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "reindex"):
+    resolve_p = sub.add_parser("resolve-gaps")
+    resolve_p.add_argument("project_id")
+    resolve_p.add_argument("--source", required=True)
+
+    context_request_p = sub.add_parser("context-request")
+    context_request_p.add_argument("project_id")
+    context_request_p.add_argument("--domain", required=True, choices=["technology", "design", "quality", "frontend", "backend"])
+
+    export_p = sub.add_parser("export")
+    export_p.add_argument("project_id")
+    export_p.add_argument("--artifact", required=True, choices=["gaps", "brief", "context-request"])
+    export_p.add_argument("--format", default="md", choices=["md"])
+    export_p.add_argument("--domain")
+
+    for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "reindex", "gaps", "brief", "status"):
         command = sub.add_parser(name)
         command.add_argument("project_id")
 
@@ -100,6 +131,12 @@ def main(argv: list[str] | None = None) -> int:
                     args.domain,
                     args.trace_id,
                     args.iteration_min,
+                    args.status,
+                    args.language,
+                    args.sensitivity,
+                    args.section,
+                    args.max_chars,
+                    args.summary_only,
                 )
             else:
                 result = broker.retrieve(
@@ -110,6 +147,12 @@ def main(argv: list[str] | None = None) -> int:
                     args.domain,
                     args.trace_id,
                     args.iteration_min,
+                    args.status,
+                    args.language,
+                    args.sensitivity,
+                    args.section,
+                    args.max_chars,
+                    args.summary_only,
                 )
             print_json(result)
         elif args.command == "sync":
@@ -118,8 +161,26 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync")
             print_json(result)
+        elif args.command == "gaps":
+            result = regenerate_gaps(args.project_id)
+            print_json(result)
+        elif args.command == "resolve-gaps":
+            result = resolve_gaps(args.project_id, Path(args.source))
+            print_json(result)
         elif args.command == "maturity":
             result = evaluate(args.project_id)
+            print_json(result)
+        elif args.command == "brief":
+            result = generate_project_brief(args.project_id)
+            print_json(result)
+        elif args.command == "context-request":
+            result = generate_context_request(args.project_id, args.domain)
+            print_json(result)
+        elif args.command == "status":
+            result = project_status(args.project_id)
+            print_json(result)
+        elif args.command == "export":
+            result = export_artifact(args.project_id, args.artifact, args.format, args.domain)
             print_json(result)
         elif args.command == "specs":
             result = generate_specs(args.project_id)

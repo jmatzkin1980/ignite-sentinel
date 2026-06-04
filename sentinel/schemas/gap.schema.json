@@ -6,7 +6,7 @@
   "properties": {
     "id": { "type": "string" },
     "severity": { "enum": ["critical", "high", "medium", "low"] },
-    "status": { "enum": ["OPEN", "CLOSED"] },
+    "status": { "enum": ["OPEN", "ANSWERED", "PARTIALLY_CLOSED", "CLOSED", "SUPERSEDED", "NEW_REQUIREMENT", "NEW_GAP"] },
     "parent_id": { "type": "string" },
     "description": { "type": "string" }
   }

@@ -13,6 +13,12 @@ Translate short chat commands into Sentinel CLI executions.
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
+- `/gaps PROJECT_ID`
+- `/resolve-gaps PROJECT_ID --source PATH`
+- `/brief PROJECT_ID`
+- `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
+- `/status PROJECT_ID`
+- `/export PROJECT_ID --artifact gaps|brief|context-request --format md`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
@@ -44,17 +50,22 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 
 ## Routing
 
-- `/init`, `/ingest`: use `sentinel-discovery` guidance after execution.
+- `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
+- `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.
+- `/brief`: use `sentinel-project-brief`.
+- `/context-request`: use `sentinel-domain-request`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
 - `/specs`: use `sentinel-specs`.
 - `/backlog`: use `sentinel-backlog`.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/doctor`: use `sentinel-health`.
+- `/status`, `/export`: summarize the CLI result and generated artifact path.
 
 ## Safety
 
 - Do not edit generated workspace artifacts by hand unless the user explicitly asks for a manual correction.
+- Do not close gaps manually when a structured client response can be processed with `/resolve-gaps`.
 - After manual edits to workspace `.md` or `.txt` artifacts, run `/reindex PROJECT_ID` so LanceDB memory matches the versionable files.
 - Before executing a task that depends on project context, prefer `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW --write-pack` over loading the whole workspace.
 - Do not commit project workspace data unless explicitly approved.
@@ -65,3 +76,4 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - Ignite Sentinel stores local retrieval memory in `workspaces/PROJECT_ID/memory.lancedb/`.
 - LanceDB is the primary backend; source files remain the source of truth.
 - `/ingest`, `/sync`, and `/reindex` keep memory available for Codex and Kilo Code workflows.
+- Privacy mode is local-only: do not route client code or project data through remote MCP or external embedding services.
