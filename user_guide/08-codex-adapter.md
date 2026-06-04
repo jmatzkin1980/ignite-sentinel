@@ -12,6 +12,19 @@ These skills provide progressive disclosure for Codex. Each skill is short and d
 python -m sentinel ...
 ```
 
+On a fresh clone, first validate the local runtime from the VS Code terminal:
+
+```powershell
+python -m sentinel /doctor
+```
+
+If dependencies are missing:
+
+```powershell
+python -m pip install -e .
+python -m sentinel /doctor
+```
+
 ## Skills
 
 | Skill | Purpose |
@@ -24,6 +37,10 @@ python -m sentinel ...
 | `sentinel-sync` | Process changes |
 | `sentinel-health` | Audit health |
 | `sentinel-command-router` | Translate Ignite chat commands into CLI runs |
+| `sentinel-gap-response` | Process answered discovery gaps |
+| `sentinel-project-brief` | Generate or refresh project brief |
+| `sentinel-domain-request` | Generate domain context requests |
+| `sentinel-privacy-local-first` | Apply local-only privacy rules |
 
 ## Chat Command Router
 
@@ -34,7 +51,12 @@ Recommended Codex chat form:
 ```text
 sentinel /init TESORO_CIERRE_FORZADO
 sentinel /ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
+sentinel /gaps TESORO_CIERRE_FORZADO
+sentinel /resolve-gaps TESORO_CIERRE_FORZADO --source input\interactions\answered-gaps.md
 sentinel /maturity TESORO_CIERRE_FORZADO
+sentinel /brief TESORO_CIERRE_FORZADO
+sentinel /context-request TESORO_CIERRE_FORZADO --domain technology
+sentinel /status TESORO_CIERRE_FORZADO
 ```
 
 The shorter form may also work if the Codex surface does not reserve that slash command:

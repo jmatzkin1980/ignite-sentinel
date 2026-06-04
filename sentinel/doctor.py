@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import importlib.metadata
 import os
 import platform
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +55,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "workspaces/_template/07_changes/03_domain_updates", "workspace domain updates template"),
         write_check(root),
         required_dependency_check("lancedb"),
+        lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
@@ -102,17 +105,63 @@ def write_check(root: Path) -> dict[str, str]:
 
 def optional_dependency_check(module_name: str) -> dict[str, str]:
     found = importlib.util.find_spec(module_name) is not None
+    detail = package_detail(module_name) if found else "not installed; JSON fallback remains usable"
     return {
         "name": f"optional dependency: {module_name}",
         "status": "PASS" if found else "WARN",
-        "detail": "available" if found else "not installed; JSON fallback remains usable",
+        "detail": detail,
     }
 
 
 def required_dependency_check(module_name: str) -> dict[str, str]:
     found = importlib.util.find_spec(module_name) is not None
+    detail = package_detail(module_name) if found else "not installed; run `python -m pip install -e .` from the repo root"
     return {
         "name": f"required dependency: {module_name}",
         "status": "PASS" if found else "FAIL",
-        "detail": "available" if found else "not installed",
+        "detail": detail,
     }
+
+
+def lancedb_smoke_check() -> dict[str, str]:
+    if importlib.util.find_spec("lancedb") is None:
+        return {
+            "name": "LanceDB local open/create",
+            "status": "FAIL",
+            "detail": "lancedb is not installed",
+        }
+    try:
+        import lancedb  # type: ignore
+
+        with tempfile.TemporaryDirectory(prefix="sentinel_lancedb_doctor_") as temp_dir:
+            db = lancedb.connect(temp_dir)
+            db.create_table(
+                "doctor_probe",
+                data=[
+                    {
+                        "id": "probe",
+                        "text": "local LanceDB probe",
+                        "vector": [0.0, 1.0],
+                    }
+                ],
+                mode="overwrite",
+            )
+        return {
+            "name": "LanceDB local open/create",
+            "status": "PASS",
+            "detail": "local table probe succeeded",
+        }
+    except Exception as exc:
+        return {
+            "name": "LanceDB local open/create",
+            "status": "FAIL",
+            "detail": str(exc),
+        }
+
+
+def package_detail(module_name: str) -> str:
+    try:
+        version = importlib.metadata.version(module_name.replace("_", "-"))
+        return f"available ({version})"
+    except importlib.metadata.PackageNotFoundError:
+        return "available"

@@ -20,7 +20,7 @@ if [ "${1:-}" = "--venv" ]; then
   python -m pip install -e .
   python -m sentinel /doctor
 else
-  "$PYTHON_BIN" -m sentinel doctor
+  "$PYTHON_BIN" -m sentinel /doctor
 fi
 
 echo "Ignite Sentinel is ready for repo-local VS Code usage."

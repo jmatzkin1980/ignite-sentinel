@@ -2,20 +2,32 @@
 
 This guide explains how to invoke Ignite Sentinel from VS Code chat without manually using PowerShell for every step.
 
+Chat commands are shortcuts over the same CLI. They do not create a second workflow or a hidden state. Whether you run `/gaps PROJECT_ID` in chat or `python -m sentinel /gaps PROJECT_ID` in PowerShell, the framework mutates the same workspace artifacts and follows the same command protocol.
+
 ## Goal
 
-The intended user experience is:
+The intended user experience after cloning the repository and opening the repo root in VS Code is:
 
 ```text
+/doctor
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
+/gaps PROJECT_ID
 /maturity PROJECT_ID
 ```
 
 The terminal equivalent remains available:
 
 ```powershell
+python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
+```
+
+If `/doctor` reports missing Python dependencies, run:
+
+```powershell
+python -m pip install -e .
+python -m sentinel /doctor
 ```
 
 ## Kilo Code
@@ -87,6 +99,8 @@ sentinel /init PROJECT_ID
 ```
 
 ## Recommended BA Lifecycle From Chat
+
+This lifecycle is intentionally conservative. It keeps discovery, gap resolution, brief generation, domain requests, specs, backlog, quality, and health checks as separate moments so the team can inspect each handoff.
 
 ```text
 /doctor

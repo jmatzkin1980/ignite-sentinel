@@ -12,6 +12,19 @@ These agents mirror the Codex skills and call the same portable CLI:
 python -m sentinel ...
 ```
 
+Before relying on Kilo chat commands in a freshly cloned repository, run the setup check from the VS Code terminal:
+
+```powershell
+python -m sentinel /doctor
+```
+
+If LanceDB or another dependency is missing:
+
+```powershell
+python -m pip install -e .
+python -m sentinel /doctor
+```
+
 ## Agents
 
 | Agent | Purpose |
@@ -36,8 +49,13 @@ Examples:
 /doctor
 /init TESORO_CIERRE_FORZADO
 /ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
+/gaps TESORO_CIERRE_FORZADO
+/resolve-gaps TESORO_CIERRE_FORZADO --source input\interactions\answered-gaps.md
 /maturity TESORO_CIERRE_FORZADO
-/sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client gap response"
+/brief TESORO_CIERRE_FORZADO
+/context-request TESORO_CIERRE_FORZADO --domain technology
+/status TESORO_CIERRE_FORZADO
+/sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client follow-up"
 /retrieve TESORO_CIERRE_FORZADO --query "client gap response" --workflow sync
 /specs TESORO_CIERRE_FORZADO
 /backlog TESORO_CIERRE_FORZADO
@@ -72,7 +90,10 @@ The config is intentionally conservative:
 
 - write access is focused on `workspaces/**`, Sentinel runtime files, guides, and adapter files;
 - `.git/**`, secrets, env files, caches, and build output are denied;
+- known Sentinel commands are allowlisted in `kilo.jsonc`;
 - commands default to ask unless explicitly allowed.
+
+If a new Sentinel command is added later, update both `.kilo/commands/` and `kilo.jsonc` so a cloned laptop gets the same chat experience.
 
 ## In Restricted Environments
 

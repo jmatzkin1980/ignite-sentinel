@@ -1,8 +1,12 @@
 ﻿# Ignite Sentinel Workflows
 
-This document describes the main workflows and when to use them.
+This document describes the main workflows and when to use them. It is more procedural than the command reference: the goal is to show how commands connect into a real delivery rhythm, from a raw client request to a mature brief, then to specs, backlog, quality, changes, and health checks.
+
+If you are new to Sentinel, read this page together with [Escenarios Operativos](12-scenarios.md). Workflows describe the usual path; scenarios describe what to do when a concrete situation appears.
 
 ## Workflow 1: New Requirement
+
+This workflow starts when the team receives the first meaningful input from a client or stakeholder. The input is usually incomplete. That is expected. The point of this workflow is not to force completeness on day one, but to make incompleteness visible, structured, and actionable.
 
 Use when a client provides the initial project package: synchronization guide, architecture or repository references, UX/UI references, sketches, snapshots, design system files, quality context, or delivery constraints.
 
@@ -32,7 +36,7 @@ workspaces/PROJECT_ID/01_discovery/gaps.md
 workspaces/PROJECT_ID/01_discovery/requirement_maturity_report.md
 ```
 
-Then ask stakeholders for missing information.
+Then ask stakeholders for missing information. The gap document is designed as a conversation artifact: it should be understandable by a client or domain owner, while still preserving the `GAP-ID` structure Sentinel needs to process the answer later.
 
 When the answered gap document returns:
 
@@ -81,6 +85,8 @@ Typical gaps to surface include:
 
 ## Workflow 2: Specs Generation
 
+Use this workflow only after discovery has produced enough confirmed evidence. Specs created too early tend to hide uncertainty inside polished language, which is exactly what Sentinel tries to prevent.
+
 Use when the requirement is mature enough to become an AI-friendly spec.
 
 ```powershell
@@ -99,6 +105,8 @@ workspaces/PROJECT_ID/03_specs/prd_ai_friendly.md
 
 ## Workflow 3: Backlog Generation
 
+Backlog generation should happen after the spec has a stable source. A user story should be traceable back to the requirement, brief, spec, acceptance criteria, and eventually tests. If the project is still `DIRTY`, fix the discovery or traceability problem first.
+
 Use when specs are ready to become execution-oriented backlog.
 
 ```powershell
@@ -116,6 +124,8 @@ workspaces/PROJECT_ID/05_quality/
 ```
 
 ## Workflow 4: Change Or Meeting Sync
+
+Once a project has artifacts, new information should not be pasted silently into whichever document seems closest. Treat meaningful feedback as an event. This keeps the project history explainable: what changed, why it changed, and which artifacts may be affected.
 
 Use when the client, POD, or stakeholder introduces new information that is not a structured gap response: email or Slack content, meeting transcripts, architecture notes, design updates, QA observations, delivery decisions, or new requirement signals.
 
@@ -156,9 +166,11 @@ python -m sentinel /health PROJECT_ID
 python -m sentinel /validate PROJECT_ID
 ```
 
-Use this loop until the shared understanding is stable enough to generate or refresh specs and backlog.
+Use this loop until the shared understanding is stable enough to generate or refresh specs and backlog. For major changes, rerun maturity and consider refreshing the project brief before touching downstream artifacts.
 
 ## Workflow 4B: Project Branch Execution
+
+Use this when running a real client/project execution, as opposed to improving the framework itself. It protects `main` from client artifacts and makes it easier to decide what should be merged back.
 
 Use a dedicated Git branch for real project execution or workflow tests.
 
@@ -179,6 +191,8 @@ Do not merge project branches into `main` when they contain client documents, ge
 
 ## Workflow 5: Health Audit
 
+Health audit is the system's immune check. It does not approve business content, but it can detect structural problems before another team or agent builds on top of them.
+
 Use before handing artifacts to another domain or agent.
 
 ```powershell
@@ -195,6 +209,8 @@ Hand off only when:
 - known business uncertainties are represented as gaps
 
 ## Workflow 6: Context Retrieval
+
+Use retrieval when the workspace has more context than an agent should load at once. This is Sentinel's progressive disclosure mechanism: retrieve the smallest useful slice, keep source hashes, and preserve why each result was returned.
 
 Use when Codex or Kilo needs focused context without loading the entire workspace. This is a read-only progressive disclosure step; it queries local LanceDB memory and can write a reusable context pack.
 

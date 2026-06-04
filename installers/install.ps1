@@ -19,9 +19,9 @@ if ($CreateVenv) {
   & $python.Source -m venv .venv
   $venvPython = Join-Path ".venv" "Scripts\python.exe"
   & $venvPython -m pip install -e .
-  & $venvpython -m sentinel /doctor
+  & $venvPython -m sentinel /doctor
 } else {
-  & $python.Source -m sentinel doctor
+  & $python.Source -m sentinel /doctor
 }
 
 Write-Host "Ignite Sentinel is ready for repo-local VS Code usage."

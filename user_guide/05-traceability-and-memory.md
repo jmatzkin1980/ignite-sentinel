@@ -51,6 +51,14 @@ The main LanceDB table is:
 ba_memory
 ```
 
+LanceDB is a Python dependency. It does not require a separate database server for Sentinel's default workflow. The package must be installed in the same Python environment that runs `python -m sentinel`. You can verify this with:
+
+```powershell
+python -m sentinel /doctor
+```
+
+The doctor command checks both import availability and a local open/create probe.
+
 It stores chunk rows with fields aligned to the BA Local Brain model:
 
 ```text

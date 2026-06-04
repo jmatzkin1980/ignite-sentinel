@@ -6,6 +6,29 @@ Ignite Sentinel turns raw client input into traceable requirements, specs, backl
 
 ## Quick Start
 
+First time on a new laptop or PC:
+
+```powershell
+git clone https://github.com/jmatzkin1980/ignite-sentinel.git
+cd ignite-sentinel
+python -m sentinel /doctor
+```
+
+If `/doctor` reports missing dependencies, install the repo into the active Python environment and run the check again:
+
+```powershell
+python -m pip install -e .
+python -m sentinel /doctor
+```
+
+Then open the repo root in VS Code:
+
+```powershell
+code .
+```
+
+For Kilo Code, make sure the extension can see `.kilo/agents/`, `.kilo/commands/`, and `kilo.jsonc`. For Codex, make sure `.codex/skills/` and `AGENTS.md` are visible from the opened folder.
+
 Kilo Code chat:
 
 ```text
@@ -42,6 +65,13 @@ python -m sentinel /quality PROJECT_ID
 python -m sentinel /trace PROJECT_ID
 python -m sentinel /health PROJECT_ID
 python -m sentinel /validate PROJECT_ID
+```
+
+`/doctor` verifies Python, required dependencies such as LanceDB, repo-local Kilo/Codex adapter files, write access, and a local LanceDB open/create probe. If LanceDB is missing, install repo dependencies in the active Python environment:
+
+```powershell
+python -m pip install -e .
+python -m sentinel /doctor
 ```
 
 ## Change Flow
@@ -155,3 +185,4 @@ python -m unittest discover -s tests
 - [Secure Environments](user_guide/09-secure-environments.md)
 - [Repo And Branching Strategy](user_guide/10-repo-and-branching-strategy.md)
 - [Chat Commands](user_guide/11-chat-commands.md)
+- [Operational Scenarios](user_guide/12-scenarios.md)
