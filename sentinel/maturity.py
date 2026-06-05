@@ -219,6 +219,19 @@ TBD from confirmed client language.
 - PRD can expand this brief only from confirmed seeds, decisions, context folders, and traceable source material.
 - Specs must preserve system boundaries, data ownership, UX states, NFRs, and acceptance strategy.
 - Backlog must be dev-ready, testable, vertically sliced, and linked to requirement, brief, PRD, acceptance criteria, tests, and changes.
+- Backlog slicing must not split below the value boundary. A small story must remain meaningful, testable, and useful by itself.
+- Cross-cutting enablers are implementation work, frontend/backend/architecture, that must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
+- A valid enabler names the capability boundary it supports, why it must be built earlier, which risk/dependency it reduces, and what objective evidence proves completion.
+- Generic setup, environment availability, broad infrastructure hardening, or statements such as "make an internal tool accessible" are operational preconditions or external tasks unless tied to confirmed project functionality and implementation evidence.
+
+### Backlog Readiness Signals
+
+| Signal | Expected Evidence | If Missing |
+| --- | --- | --- |
+| First value slice | The smallest observable increment that validates user/business value. | Open `GAP-BACKLOG-SLICING-READINESS`. |
+| Slice boundaries | Paths, variants, rule deferral, and the point where smaller splits stop producing value. | Open `GAP-BACKLOG-SLICING-READINESS`. |
+| Cross-cutting enablers | Frontend/backend/architecture work from SAD, as-is/to-be architecture, design prototypes, or specs that must be built in advance to support confirmed functionality. | Open `GAP-BACKLOG-ENABLERS`. |
+| Preconditions vs backlog | Operational setup that must exist but should not become a loose backlog item. | Keep as dependency/precondition, not a user story. |
 
 ## 10. PRD Coverage Readiness
 

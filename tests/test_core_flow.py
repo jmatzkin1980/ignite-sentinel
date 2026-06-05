@@ -91,6 +91,15 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("Retrieval Plan For Backlog Agents", spec_text)
         self.assertTrue((self.temp / "workspaces" / "NOVA" / "08_context_packs" / "specs_generation.json").exists())
         self.assertEqual(main(["backlog", "NOVA"]), 0)
+        backlog_pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "backlog_generation.json"
+        self.assertTrue(backlog_pack.exists())
+        epic_text = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+        self.assertIn("## Story Map", epic_text)
+        self.assertIn("## Slicing Strategy", epic_text)
+        self.assertIn("Small but valuable", epic_text)
+        self.assertFalse((self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-002-cross-cutting-enablers.md").exists())
+        self.assertIn("US-005", epic_text)
+        self.assertIn("backlog_generation.json", epic_text)
         self.assertEqual(main(["quality", "NOVA"]), 0)
         self.assertEqual(main(["health", "NOVA"]), 0)
         self.assertEqual(main(["validate", "NOVA"]), 0)
@@ -101,13 +110,49 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn('"type": "user_story"', graph)
         self.assertIn('"type": "acceptance_criteria"', graph)
         self.assertIn('"type": "test_case"', graph)
+        self.assertIn('"id": "US-005"', graph)
+        self.assertIn('"id": "TC-005"', graph)
         story = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
         self.assertIn("Acceptance Criteria", story)
+        self.assertIn("AC-001-01", story)
         mermaid = self.temp / "workspaces" / "NOVA" / "06_traceability" / "traceability_graph.md"
         self.assertTrue(mermaid.exists())
         command_log = self.temp / "workspaces" / "NOVA" / "06_traceability" / "command_protocol_log.md"
         self.assertTrue(command_log.exists())
         self.assertIn("`quality`", command_log.read_text(encoding="utf-8"))
+
+    def test_backlog_generates_cross_cutting_enabler_epic_only_with_specific_evidence(self) -> None:
+        source = self.temp / "input" / "client_requirement" / "enabler-ready.md"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            """# Requirement
+
+Objetivo: mejorar visibilidad operativa para supervisores.
+Usuarios: supervisores y analistas de operaciones.
+Alcance: mostrar casos de alto riesgo con datos vigentes. Out of scope: reportes historicos.
+Criterio de success: usuarios autorizados identifican casos de alto riesgo antes de la reunion diaria.
+Quality: QA valida happy path, permisos faltantes, datos faltantes y datos vencidos.
+Metric source: baseline from current weekly operations report.
+MVP: first value slice is one authorized user viewing one high-risk case.
+Auth/API enabler: role permissions and API contract are shared by the value stories in this project.
+""",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["init", "ENABLE"]), 0)
+        self.assertEqual(main(["ingest", "ENABLE", "--source", str(source)]), 0)
+        self.assertEqual(main(["maturity", "ENABLE"]), 0)
+        self.assertEqual(main(["specs", "ENABLE"]), 0)
+        self.assertEqual(main(["backlog", "ENABLE"]), 0)
+
+        base = self.temp / "workspaces" / "ENABLE"
+        enabler_epic = base / "04_backlog" / "EPIC-002-cross-cutting-enablers.md"
+        self.assertTrue(enabler_epic.exists())
+        enabler_text = enabler_epic.read_text(encoding="utf-8")
+        self.assertIn("Cross-Cutting Enablers", enabler_text)
+        self.assertIn("make an internal tool accessible", enabler_text)
+        self.assertIn("US-001", enabler_text)
+        graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+        self.assertIn('"relation": "enables"', graph)
 
     def test_retrieval_is_project_scoped(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"

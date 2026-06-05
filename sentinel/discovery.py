@@ -154,6 +154,8 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
         ("GAP-TECH-DEEP-DIVE-INPUT", "technical", "medium", "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.", tech_evidence, ("repo", "repository", "arquitectura", "architecture", "endpoint", "api", "event", "evento", "source of truth", "fuente", "owner", "responsable", "riesgo", "risk")),
         ("GAP-GOVERNANCE-CONSTRAINTS", "compliance", "medium", "Governance, security, privacy, compliance, or operational restrictions are not explicit.", lowered, ("seguridad", "security", "privacidad", "privacy", "compliance", "normativa", "restriccion", "restricción", "gobernanza")),
         ("GAP-DELIVERY-READINESS", "delivery", "medium", "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.", lowered, ("dependencia", "dependency", "ambiente", "environment", "deadline", "fecha", "timeline", "owner", "responsable", "rollout")),
+        ("GAP-BACKLOG-SLICING-READINESS", "product", "medium", "Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear.", lowered, ("slice", "slicing", "vertical", "historia", "story", "epica", "epic", "workflow", "path", "variante", "variant", "mvp")),
+        ("GAP-BACKLOG-ENABLERS", "technical", "medium", "Cross-cutting enablers are not explicit enough: implementation work that must be built in advance across frontend/backend or architecture surfaces must be tied to confirmed project functionality and boundary.", " ".join([lowered, tech_evidence, design_evidence, quality_evidence]), ("enabler", "habilitador", "sad", "architecture", "arquitectura", "as-is", "to-be", "frontend", "backend", "prototype", "prototipo", "auth", "permiso", "permission", "database", "base de datos", "query", "api", "endpoint", "integration", "audit", "observability", "observabilidad")),
         ("GAP-QUALITY-HANDOFF", "quality", "medium", "Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.", quality_evidence, ("test", "quality", "calidad", "qa", "happy path", "edge", "borde", "regression", "regresion", "evidencia", "data")),
         ("GAP-PRD-PERSONA-DETAIL", "business", "medium", "Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear.", lowered, ("pain", "dolor", "goal", "objetivo", "frecuencia", "frequency", "proficiency", "habilidad", "perfil")),
         ("GAP-PRD-FR-AC", "product", "medium", "Functional requirements are not decomposed with source-backed acceptance criteria.", lowered, ("fr-", "requerimiento funcional", "functional requirement", "acceptance criteria", "criterios de aceptacion", "criterios de aceptación", "given", "when", "then")),
@@ -379,6 +381,8 @@ def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Tecnología no cuenta con suficiente input para análisis de repositorios, arquitectura, endpoints/eventos, source of truth o riesgos.",
         "GAP-GOVERNANCE-CONSTRAINTS": "No están explícitas restricciones de gobernanza, seguridad, privacidad, compliance u operación.",
         "GAP-DELIVERY-READINESS": "No están explícitas dependencias, ambientes, ownership, fechas o restricciones de rollout.",
+        "GAP-BACKLOG-SLICING-READINESS": "No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia.",
+        "GAP-BACKLOG-ENABLERS": "No estan claros los enablers transversales validos: trabajo de implementacion frontend/backend o arquitectura que debe construirse antes para soportar funcionalidades confirmadas dentro del boundary del proyecto.",
         "GAP-QUALITY-HANDOFF": "El handoff a Calidad no está suficientemente explícito: flujos críticos, casos borde, datos de prueba, riesgos de regresión o evidencia esperada.",
     }
     return descriptions.get(gap["id"], gap["description"])
@@ -577,6 +581,8 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-TECH-DEEP-DIVE-INPUT": "Profundización técnica",
             "GAP-GOVERNANCE-CONSTRAINTS": "Restricciones de gobernanza",
             "GAP-DELIVERY-READINESS": "Preparación de delivery",
+            "GAP-BACKLOG-SLICING-READINESS": "Preparacion de slicing de backlog",
+            "GAP-BACKLOG-ENABLERS": "Enablers transversales validos",
             "GAP-QUALITY-HANDOFF": "Handoff de calidad",
         }
         return titles.get(gap_id, "Información necesaria")
@@ -599,6 +605,8 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Technology Deep Dive",
         "GAP-GOVERNANCE-CONSTRAINTS": "Governance Constraints",
         "GAP-DELIVERY-READINESS": "Delivery Readiness",
+        "GAP-BACKLOG-SLICING-READINESS": "Backlog Slicing Readiness",
+        "GAP-BACKLOG-ENABLERS": "Valid Cross-Cutting Enablers",
         "GAP-QUALITY-HANDOFF": "Quality Handoff",
     }
     return titles.get(gap_id, "Information Needed")
@@ -643,6 +651,8 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
             "GAP-TECH-DEEP-DIVE-INPUT": "Los agentes técnicos necesitan dirección suficiente para inspeccionar repositorios, componentes, endpoints y riesgos eficientemente.",
             "GAP-GOVERNANCE-CONSTRAINTS": "Seguridad, privacidad, compliance y auditoría pueden cambiar diseño, implementación y testing.",
             "GAP-DELIVERY-READINESS": "Dependencias, owners, ambientes y fechas determinan secuencia y factibilidad de salida.",
+            "GAP-BACKLOG-SLICING-READINESS": "El backlog necesita saber cual es el primer slice de valor, que variantes pueden diferirse y donde no conviene cortar por debajo del valor.",
+            "GAP-BACKLOG-ENABLERS": "Los enablers transversales solo son validos si son implementacion previa/cross que soporta funcionalidad confirmada dentro del boundary del proyecto.",
             "GAP-QUALITY-HANDOFF": "QA necesita flujos críticos, casos borde, datos y expectativas de evidencia para profundizar cobertura.",
         }
         return reasons.get(gap_id, "Esta información es necesaria para evitar supuestos en artefactos downstream.")
@@ -665,6 +675,8 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Technical agents need enough direction to inspect repositories, components, endpoints, and risks efficiently.",
         "GAP-GOVERNANCE-CONSTRAINTS": "Security, privacy, compliance, and audit constraints can change design, implementation, and testing.",
         "GAP-DELIVERY-READINESS": "Dependencies, owners, environments, and timing determine sequencing and release feasibility.",
+        "GAP-BACKLOG-SLICING-READINESS": "Backlog needs the first value slice, deferrable variants, and the boundary where splitting smaller would stop producing value.",
+        "GAP-BACKLOG-ENABLERS": "Cross-cutting enablers are valid only when they are advance/cross implementation work that supports confirmed functionality inside the project boundary.",
         "GAP-QUALITY-HANDOFF": "QA needs critical flows, edge cases, data, and evidence expectations to deepen coverage.",
     }
     return reasons.get(gap_id, "This information is needed to avoid assumptions in downstream artifacts.")
@@ -672,14 +684,14 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
 
 def example_response_for_gap(gap_id: str, language: str = "en") -> str:
     prd_examples_es = {
-        "GAP-PRD-PERSONA-DETAIL": "Persona primaria: operador central. Objetivo: resolver casos sin TI. Dolor: proceso manual riesgoso. Frecuencia: diaria. Habilidad: backoffice avanzado.",
+        "GAP-PRD-PERSONA-DETAIL": "Persona primaria: operador central. Objetivo: resolver casos sin TI. Dolor: proceso manual riesgoso. Frecuencia: diaria. Habilidad: herramienta interna avanzada.",
         "GAP-PRD-FR-AC": "FR-01: el sistema debe listar elementos pendientes. AC: Given existen pendientes, When el operador consulta, Then ve ID, estado, responsable y fecha con fuente trazable.",
         "GAP-PRD-NFR-KPI": "NFR: auditoria disponible por 2 anios. KPI: 0 operaciones incorrectas, medido por incidentes post-release diarios durante el primer mes.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: consulta, regla principal y auditoria. Dependencias: servicio X owner Equipo A, copy owner Diseno, credenciales owner Seguridad. Fase 2: reportes.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario: 'estado grisado' significa no operable. Restriccion: no exponer datos sensibles en logs. Pending input: owner de metrica.",
     }
     prd_examples_en = {
-        "GAP-PRD-PERSONA-DETAIL": "Primary persona: central operator. Goal: resolve cases without IT. Pain: risky manual process. Frequency: daily. Proficiency: advanced backoffice.",
+        "GAP-PRD-PERSONA-DETAIL": "Primary persona: central operator. Goal: resolve cases without IT. Pain: risky manual process. Frequency: daily. Proficiency: advanced internal tool.",
         "GAP-PRD-FR-AC": "FR-01: the system must list pending items. AC: Given pending items exist, When the operator opens the list, Then ID, status, owner, and date are visible with source trace.",
         "GAP-PRD-NFR-KPI": "NFR: audit records available for 2 years. KPI: 0 incorrect operations, measured through daily post-release incidents during month one.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: query, main rule, and audit. Dependencies: service X owner Team A, copy owner Design, credentials owner Security. Phase 2: reporting.",
@@ -709,6 +721,8 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-TECH-DEEP-DIVE-INPUT": "Tecnología debe revisar `ops-dashboard-web`, `queue-summary-api` y documentación de integración de Case Management antes de proponer arquitectura.",
             "GAP-GOVERNANCE-CONSTRAINTS": "No agregar PII en la lista del dashboard. Logs de auditoría no deben incluir nombres de clientes ni números de documento.",
             "GAP-DELIVERY-READINESS": "Dependencia: Case Management debe exponer umbral de SLA antes del 15 de junio. Rollout con feature flag primero para supervisores de Operaciones.",
+            "GAP-BACKLOG-SLICING-READINESS": "Primer slice: usuario autorizado ve un caso de alto riesgo con datos vigentes. Diferir exportacion, bulk actions y reglas avanzadas. No dividir en crear boton/endpoint/tabla porque ninguna parte sola valida valor.",
+            "GAP-BACKLOG-ENABLERS": "Enabler valido: soporte backend compartido para consultas de riesgo y permisos por rol del flujo, con validacion objetiva. No enabler: 'asegurar que una herramienta interna sea accesible'; eso es precondicion operacional.",
             "GAP-QUALITY-HANDOFF": "Tests críticos: alto riesgo, riesgo normal, datos de fuente desactualizados, permisos faltantes, cola vacía y regresión de filtros existentes.",
         }
         return examples.get(gap_id, "Una respuesta útil indica decisión, owner/fuente, evidencia y si está confirmado o pendiente.")
@@ -731,6 +745,8 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Technology should inspect `ops-dashboard-web`, `queue-summary-api`, and Case Management integration docs before proposing architecture.",
         "GAP-GOVERNANCE-CONSTRAINTS": "No PII should be added to the dashboard list. Audit logs must not include customer names or document numbers.",
         "GAP-DELIVERY-READINESS": "Dependency: Case Management team must expose SLA threshold by June 15. Rollout behind feature flag for Operations supervisors first.",
+        "GAP-BACKLOG-SLICING-READINESS": "First slice: authorized user sees one high-risk case with current data. Defer export, bulk actions, and advanced rules. Do not split into button/endpoint/table because none validates value alone.",
+        "GAP-BACKLOG-ENABLERS": "Valid enabler: shared backend support for risk queries and role permissions for the flow, with objective validation. Not an enabler: 'make an internal tool accessible'; that is an operational precondition.",
         "GAP-QUALITY-HANDOFF": "Critical tests: high risk, normal risk, stale source data, missing permissions, empty queue, and regression of existing filters.",
     }
     return examples.get(gap_id, "A useful answer names the decision, owner/source, evidence, and whether the answer is confirmed or pending.")
@@ -885,7 +901,7 @@ def build_lens_reviews(text: str, gaps: list[dict[str, str]], context: dict[str,
             text,
             context.get("business", ""),
             gaps,
-            ("GAP-PRODUCT-ASIS-TOBE", "GAP-BUSINESS-RULES", "GAP-DELIVERY-READINESS"),
+            ("GAP-PRODUCT-ASIS-TOBE", "GAP-BUSINESS-RULES", "GAP-DELIVERY-READINESS", "GAP-BACKLOG-SLICING-READINESS"),
             "Is the as-is/to-be delta, rule set, dependency map, and rollout path clear enough to shape PRD and backlog?",
         ),
         lens_review(
@@ -894,7 +910,7 @@ def build_lens_reviews(text: str, gaps: list[dict[str, str]], context: dict[str,
             text,
             context.get("technical", ""),
             gaps,
-            ("GAP-TECH-DATA-SOURCE", "GAP-TECH-NFR", "GAP-FRONTEND-SURFACE", "GAP-BACKEND-SURFACE", "GAP-TECH-DEEP-DIVE-INPUT"),
+            ("GAP-TECH-DATA-SOURCE", "GAP-TECH-NFR", "GAP-FRONTEND-SURFACE", "GAP-BACKEND-SURFACE", "GAP-TECH-DEEP-DIVE-INPUT", "GAP-BACKLOG-ENABLERS"),
             "Which systems, endpoint/event surfaces, create/modify/reuse decisions, security, observability, or ownership constraints are required before Technology can deepen the design?",
         ),
         lens_review(
@@ -1010,6 +1026,12 @@ def mature_requirement_rubric() -> list[dict[str, str]]:
             "lens": "Delivery/Product",
             "gap_when_missing": "GAP-DELIVERY-READINESS",
         },
+        {
+            "area": "Backlog slicing readiness",
+            "mature_signal": "First value slice, meaningful story boundary, deferred variants/rules, and valid cross-cutting enablers are explicit enough to avoid micro-stories or loose infrastructure work.",
+            "lens": "Product/Technology/Quality",
+            "gap_when_missing": "GAP-BACKLOG-SLICING-READINESS or GAP-BACKLOG-ENABLERS",
+        },
     ]
 
 
@@ -1117,6 +1139,8 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-TECH-DEEP-DIVE-INPUT": "¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?",
             "GAP-GOVERNANCE-CONSTRAINTS": "¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?",
             "GAP-DELIVERY-READINESS": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+            "GAP-BACKLOG-SLICING-READINESS": "¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?",
+            "GAP-BACKLOG-ENABLERS": "¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?",
             "GAP-QUALITY-HANDOFF": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
         }
         return questions.get(gap_id, "¿Qué información confirmada resuelve esta incertidumbre?")
@@ -1139,6 +1163,8 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?",
         "GAP-GOVERNANCE-CONSTRAINTS": "Which security, privacy, compliance, audit, or operational restrictions must be respected?",
         "GAP-DELIVERY-READINESS": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+        "GAP-BACKLOG-SLICING-READINESS": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?",
+        "GAP-BACKLOG-ENABLERS": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?",
         "GAP-QUALITY-HANDOFF": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
     }
     return questions.get(gap_id, "What confirmed information resolves this uncertainty?")

@@ -63,7 +63,7 @@ def resolve_story_path(path_value: str):
 def extract_acceptance_criteria(text: str) -> list[str]:
     criteria = []
     for line in text.splitlines():
-        match = re.match(r"\|\s*(AC-\d+)\s*\|\s*(.+?)\s*\|", line)
+        match = re.match(r"\|\s*(AC-\d+(?:-\d+)?)\s*\|\s*(.+?)\s*\|", line)
         if match:
             criteria.append(f"{match.group(1)}: {match.group(2)}")
     return criteria or ["AC-001: Validate the main happy path and a recoverable failure path."]

@@ -263,13 +263,54 @@ Contains execution-oriented backlog artifacts.
 
 ### `EPIC-001.md`
 
-High-level value slice derived from specs.
+Primary backlog artifact generated from specs and focused local memory retrieval.
+
+Each epic file includes:
+
+- YAML frontmatter for machine routing and Git-friendly review;
+- epic outcome, source and retrieval summary;
+- slicing strategy based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
+- a story map with dependencies, labels, slicing patterns, and trace IDs;
+- embedded user stories with description, narrative, context used, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
+
+This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
 ### `US-001.md`
 
-User story with acceptance criteria.
+Story-level mirror used by traceability and quality tooling.
 
-Generated stories include JTBD link, source context references, functional slice guidance, acceptance criteria, and a readiness checklist.
+Sentinel keeps individual `US-00x.md` files so downstream quality artifacts can link directly to a story node. The epic file remains the human-facing backlog bundle; story files repeat the critical story contract with source context, functional slice guidance, acceptance criteria, and readiness checklist.
+
+### `EPIC-002-cross-cutting-enablers.md`
+
+Optional enabler epic.
+
+Sentinel creates this only when source/context evidence mentions concrete cross-cutting implementation work such as frontend/backend foundations, architecture/SAD decisions, prototype-driven shared UI structure, auth, permissions, database/query/persistence, integration contracts, audit, logs, or observability. The work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
+
+Do not use this epic for loose infrastructure or operational preconditions. Examples that should not become enabler stories by themselves:
+
+- "make an internal tool accessible";
+- "prepare environments";
+- "general backend setup";
+- "harden infrastructure";
+- "create base project structure".
+
+A valid enabler states which capability boundary it supports, why it must be built earlier, what risk or dependency it reduces, and how Quality can verify completion.
+
+### `08_context_packs/backlog_generation.json`
+
+Focused local retrieval pack used by `/backlog`.
+
+It records which local memory chunks were consulted for:
+
+- epic value and MVP;
+- functional slicing and acceptance criteria;
+- technical dependencies;
+- UX states;
+- quality risks;
+- open uncertainty.
+
+This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace.
 
 ## `05_quality/`
 

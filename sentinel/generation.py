@@ -19,6 +19,149 @@ PRD_SECTION_QUERIES = {
     "backlog_handoff": "epics user stories slicing acceptance criteria traceability progressive disclosure",
 }
 
+BACKLOG_CONTEXT_QUERIES = {
+    "epic_value": ("business outcome scope mvp kpi users product goal", None),
+    "functional_slicing": ("functional requirements acceptance criteria given when then business rules jtbd", "product"),
+    "technical_dependencies": ("architecture integrations dependencies data ownership contracts failure behavior nfr", "technical"),
+    "ux_states": ("journey screens states validations copy accessibility empty loading error success permission", "design"),
+    "quality_risks": ("acceptance testability edge cases regression security privacy auditability evidence", "quality"),
+    "open_uncertainty": ("pending input gaps assumptions decisions dependencies roadmap blockers", None),
+    "enabler_boundary": ("SAD architecture as-is to-be frontend backend prototype enabler foundation cross-cutting precondition", None),
+}
+
+BACKLOG_STORY_SEEDS = [
+    {
+        "title": "Habilitar el flujo principal de valor",
+        "type": "value_story",
+        "fr": "FR-01",
+        "jtbd": "JTBD-001",
+        "slicing": "Workflow Step / Happy Path",
+        "label": "Basic",
+        "description": "Entrega el primer recorrido funcional de punta a punta para que el usuario objetivo obtenga el resultado de negocio confirmado.",
+        "goal": "Completar el trabajo principal con informacion suficiente, comportamiento observable y resultado trazable.",
+        "benefit": "Permite validar valor temprano sin esperar a que todas las variaciones, reglas finas o optimizaciones esten completas.",
+    },
+    {
+        "title": "Preservar comportamiento existente y compatibilidad",
+        "type": "value_story",
+        "fr": "FR-02",
+        "jtbd": "JTBD-002",
+        "slicing": "Rules / Regression Slice",
+        "label": "Compatibility",
+        "description": "Asegura que el cambio no rompa comportamientos explicitamente marcados como vigentes o fuera del alcance de modificacion.",
+        "goal": "Mantener contratos, datos, permisos o experiencias existentes que el brief haya declarado como inalterables.",
+        "benefit": "Reduce riesgo de regresion y evita que agentes downstream inventen cambios colaterales.",
+    },
+    {
+        "title": "Conectar datos e integraciones necesarias",
+        "type": "value_story",
+        "fr": "FR-03",
+        "jtbd": "JTBD-002",
+        "slicing": "Data / External Dependency",
+        "label": "Integration",
+        "description": "Cubre las senales de datos, contratos o dependencias externas requeridas para que el flujo sea confiable y verificable.",
+        "goal": "Consumir o exponer la fuente de verdad minima para soportar el resultado del usuario.",
+        "benefit": "Hace explicitos propietarios, fallas recuperables y limites de datos antes de planificar implementacion.",
+    },
+    {
+        "title": "Cubrir estados de experiencia y validaciones",
+        "type": "value_story",
+        "fr": "FR-04",
+        "jtbd": "JTBD-001",
+        "slicing": "Interface / UX State",
+        "label": "UX",
+        "description": "Define la experiencia usable alrededor del flujo: estados, validaciones, mensajes, permisos y recuperacion.",
+        "goal": "Lograr que el usuario entienda que puede hacer, que falta, que fallo y como recuperarse.",
+        "benefit": "Mejora la ejecutabilidad para agentes frontend/design y evita historias tecnicas sin comportamiento visible.",
+    },
+    {
+        "title": "Producir evidencia de aceptacion y trazabilidad",
+        "type": "value_story",
+        "fr": "FR-05",
+        "jtbd": "JTBD-003",
+        "slicing": "Quality Evidence / Traceability",
+        "label": "Quality",
+        "description": "Cierra el circuito de aceptacion con criterios, evidencia, pruebas semilla y trazas hacia requerimientos, specs y riesgos.",
+        "goal": "Permitir que Quality y agentes de testeo validen el incremento sin reinterpretar el contexto completo.",
+        "benefit": "Convierte la velocidad de generacion en trabajo auditable, verificable y seguro de entregar.",
+    },
+]
+
+ENABLER_CANDIDATES = [
+    {
+        "key": "auth",
+        "tokens": ("auth", "autenticacion", "autenticación", "authorization", "autorizacion", "autorización", "permission", "permiso", "role", "rol"),
+        "title": "Alinear permisos y acceso para los slices del flujo",
+        "fr": "NFR-01",
+        "jtbd": "JTBD-002",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Security Boundary",
+        "description": "Define el minimo control de acceso necesario para que las historias de valor puedan ejecutarse sin exponer capacidades fuera del rol confirmado.",
+        "goal": "habilitar permisos verificables estrictamente vinculados al flujo funcional confirmado",
+        "benefit": "las historias de valor pueden implementarse sin duplicar o inventar reglas de acceso",
+    },
+    {
+        "key": "data_foundation",
+        "tokens": ("database", "base de datos", "tabla", "table", "query", "queries", "consulta", "persist", "persistencia", "schema", "esquema"),
+        "title": "Preparar persistencia y consultas internas del flujo",
+        "fr": "FR-03",
+        "jtbd": "JTBD-002",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Data Foundation",
+        "description": "Prepara la persistencia o consulta interna minima que varias historias necesitan para entregar el comportamiento funcional confirmado.",
+        "goal": "habilitar datos verificables para las historias de valor dependientes",
+        "benefit": "los slices funcionales pueden consumir informacion consistente sin convertir cada historia en una tarea de infraestructura",
+    },
+    {
+        "key": "backend_foundation",
+        "tokens": ("backend", "service", "servicio", "worker", "job", "orchestration", "orquestacion", "orquestación", "domain layer", "capa de dominio", "use case", "caso de uso"),
+        "title": "Preparar soporte backend transversal de la funcionalidad",
+        "fr": "FR-03",
+        "jtbd": "JTBD-002",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Backend Foundation",
+        "description": "Construye el soporte backend previo que varias funcionalidades del scope necesitan para operar de forma consistente.",
+        "goal": "habilitar servicios o logica backend compartida dentro del boundary funcional confirmado",
+        "benefit": "las historias de valor pueden implementarse sobre una base tecnica comun sin duplicar comportamiento ni acoplarse a decisiones no confirmadas",
+    },
+    {
+        "key": "frontend_foundation",
+        "tokens": ("frontend", "front", "component", "componente", "design system", "sistema de diseno", "sistema de diseño", "prototype", "prototipo", "screen shell", "layout", "state management", "estado compartido"),
+        "title": "Preparar soporte frontend transversal de la funcionalidad",
+        "fr": "FR-04",
+        "jtbd": "JTBD-001",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Frontend Foundation",
+        "description": "Construye el soporte frontend previo que varias historias del scope necesitan para compartir estructura, estados o patrones de interaccion.",
+        "goal": "habilitar componentes, estados o patrones frontend compartidos dentro del boundary funcional confirmado",
+        "benefit": "las historias de valor pueden implementarse con consistencia de experiencia sin crear trabajo visual o tecnico generico",
+    },
+    {
+        "key": "integration_contract",
+        "tokens": ("api", "endpoint", "event", "evento", "integration", "integracion", "integración", "webhook", "contract", "contrato"),
+        "title": "Estabilizar contrato de integracion usado por el flujo",
+        "fr": "FR-03",
+        "jtbd": "JTBD-002",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Integration Contract",
+        "description": "Alinea el contrato de integracion minimo que desbloquea varias historias de valor dentro del boundary del proyecto.",
+        "goal": "dejar disponible un contrato verificable para los slices que dependen de sistemas externos",
+        "benefit": "frontend, backend y calidad pueden avanzar contra un contrato acotado y trazable",
+    },
+    {
+        "key": "audit_observability",
+        "tokens": ("audit", "auditoria", "auditoría", "log", "logging", "observability", "observabilidad", "trace", "traza"),
+        "title": "Asegurar evidencia transversal de auditoria y observabilidad",
+        "fr": "FR-05",
+        "jtbd": "JTBD-003",
+        "label": "Enabler",
+        "slicing": "Cross-Cutting Enabler / Evidence",
+        "description": "Define la evidencia transversal minima requerida para aceptar y operar las historias de valor del flujo.",
+        "goal": "producir evidencia verificable para las historias funcionales y sus pruebas",
+        "benefit": "calidad y operacion pueden validar el incremento sin agregar trazas ad hoc al final",
+    },
+]
+
 
 def generate_specs(project_id: str) -> dict[str, str]:
     maturity = evaluate(project_id)
@@ -69,25 +212,340 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         generate_specs(project_id)
         specs = nodes_by_type(project_id, "spec")
     base = workspace_path(project_id)
+    spec_path = base / "03_specs" / "specs.md"
+    prd_path = base / "03_specs" / "prd.md"
+    spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
+    prd_text = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
+    backlog_context = build_backlog_generation_context(project_id, spec_text, prd_text)
+    story_specs = build_backlog_story_specs(project_id, backlog_context)
+    enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs)
+
     epic_path = base / "04_backlog" / "EPIC-001.md"
-    epic_path.write_text(render_epic(project_id), encoding="utf-8")
+    epic_path.write_text(render_epic(project_id, story_specs, backlog_context), encoding="utf-8")
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
         add_edge(project_id, spec["id"], epic_id, "decomposes_to")
 
-    story_path = base / "04_backlog" / "US-001.md"
-    story_path.write_text(render_story(project_id, epic_id), encoding="utf-8")
-    story_id = add_node(project_id, "US", "user_story", story_path, "User can complete the primary job", domain="functional")
-    add_edge(project_id, epic_id, story_id, "contains")
+    story_ids: list[str] = []
+    acceptance_ids: list[str] = []
+    for index, story_spec in enumerate(story_specs, start=1):
+        story_path = base / "04_backlog" / f"US-{index:03d}.md"
+        story_path.write_text(render_story(project_id, epic_id, story_spec), encoding="utf-8")
+        story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+        story_ids.append(story_id)
+        add_edge(project_id, epic_id, story_id, "contains")
+        for spec in specs:
+            add_edge(project_id, spec["id"], story_id, "decomposes_to")
 
-    ac_id = add_node(project_id, "AC", "acceptance_criteria", story_path, "Acceptance criteria for US-001", domain="quality")
-    add_edge(project_id, story_id, ac_id, "validated_by")
+        ac_id = add_node(project_id, "AC", "acceptance_criteria", story_path, f"Acceptance criteria for {story_id}", domain="quality")
+        acceptance_ids.append(ac_id)
+        add_edge(project_id, story_id, ac_id, "validated_by")
+
+    epic_ids = [epic_id]
+    if enabler_specs:
+        enabler_epic_path = base / "04_backlog" / "EPIC-002-cross-cutting-enablers.md"
+        enabler_epic_path.write_text(
+            render_enabler_epic(project_id, enabler_specs, story_specs, backlog_context),
+            encoding="utf-8",
+        )
+        enabler_epic_id = add_node(
+            project_id,
+            "EPIC",
+            "epic",
+            enabler_epic_path,
+            "Cross-cutting enablers for validated requirement value",
+            domain="technical",
+        )
+        epic_ids.append(enabler_epic_id)
+        for spec in specs:
+            add_edge(project_id, spec["id"], enabler_epic_id, "decomposes_to")
+        for index, enabler_spec in enumerate(enabler_specs, start=len(story_specs) + 1):
+            story_path = base / "04_backlog" / f"US-{index:03d}.md"
+            story_path.write_text(render_story(project_id, enabler_epic_id, enabler_spec), encoding="utf-8")
+            story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
+            story_ids.append(story_id)
+            add_edge(project_id, enabler_epic_id, story_id, "contains")
+            for enabled in enabler_spec["enables"]:
+                add_edge(project_id, story_id, enabled, "enables")
+            for spec in specs:
+                add_edge(project_id, spec["id"], story_id, "decomposes_to")
+            ac_id = add_node(project_id, "AC", "acceptance_criteria", story_path, f"Acceptance criteria for {story_id}", domain="quality")
+            acceptance_ids.append(ac_id)
+            add_edge(project_id, story_id, ac_id, "validated_by")
+        ContextBroker(project_id).index_artifact(
+            enabler_epic_id,
+            "epic",
+            enabler_epic_path,
+            enabler_epic_path.read_text(encoding="utf-8"),
+            domain="technical",
+            trace_ids=[enabler_epic_id, *[item["id"] for item in enabler_specs]],
+        )
 
     broker = ContextBroker(project_id)
-    broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id])
-    broker.index_artifact(story_id, "user_story", story_path, story_path.read_text(encoding="utf-8"), trace_ids=[epic_id, story_id, ac_id])
-    update_state(project_id, phase="backlog_completed", health="CLEAN", metrics={"requirements": 1, "gaps_open": 0, "decisions_pending": 1, "user_stories": 1})
-    return {"epic_id": epic_id, "story_id": story_id, "acceptance_id": ac_id, "path": str(story_path)}
+    broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])
+    all_story_specs = [*story_specs, *enabler_specs]
+    for story_id, ac_id, story_spec in zip(story_ids, acceptance_ids, all_story_specs):
+        story_path = base / "04_backlog" / f"{story_id}.md"
+        if not story_path.exists():
+            numeric = int(story_id.split("-", 1)[1])
+            story_path = base / "04_backlog" / f"US-{numeric:03d}.md"
+        broker.index_artifact(
+            story_id,
+            "user_story",
+            story_path,
+            story_path.read_text(encoding="utf-8"),
+            domain=story_spec["domain"],
+            trace_ids=[epic_id, story_id, ac_id, *story_spec["trace"]],
+        )
+    update_state(
+        project_id,
+        phase="backlog_completed",
+        health="CLEAN",
+        metrics={"requirements": 1, "gaps_open": 0, "decisions_pending": 1, "user_stories": len(story_ids), "epics": len(epic_ids)},
+    )
+    return {
+        "epic_id": epic_id,
+        "story_id": story_ids[0],
+        "acceptance_id": acceptance_ids[0],
+        "path": str(epic_path),
+        "story_count": str(len(story_ids)),
+        "epic_count": str(len(epic_ids)),
+    }
+
+
+def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: str) -> dict[str, Any]:
+    broker = ContextBroker(project_id)
+    source_text = f"{spec_text[:1600]}\n\n{prd_text[:1600]}"
+    sections: dict[str, Any] = {}
+    for section, (query, domain) in BACKLOG_CONTEXT_QUERIES.items():
+        results = broker.retrieve(
+            f"{query}\n\n{source_text}",
+            "backlog_generation",
+            limit=4,
+            domain=domain,
+            max_chars=1800,
+            summary_only=True,
+        )
+        sections[section] = {
+            "query": query,
+            "domain": domain or "any",
+            "results": [
+                {
+                    "artifact_id": row.get("artifact_id", "N/A"),
+                    "artifact_type": row.get("artifact_type", "artifact"),
+                    "domain": row.get("domain", "unknown"),
+                    "section_path": row.get("section_path", ""),
+                    "summary": row.get("summary", row.get("text", ""))[:260],
+                    "why_retrieved": row.get("why_retrieved", ""),
+                    "trace_ids": row.get("trace_ids", []),
+                }
+                for row in results
+            ],
+        }
+    pack = {
+        "project_id": project_id,
+        "workflow": "backlog_generation",
+        "slicing_model": "vertical_value_slices_with_spidr_lawrence_invest",
+        "sections": sections,
+    }
+    write_json(workspace_path(project_id) / "08_context_packs" / "backlog_generation.json", pack)
+    return pack
+
+
+def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
+    specs: list[dict[str, Any]] = []
+    for index, seed in enumerate(BACKLOG_STORY_SEEDS, start=1):
+        story_id = f"US-{index:03d}"
+        source_context = context_row_for_story(seed, backlog_context)
+        trace = ["REQ-001", "PRD-001", "SPEC-001", seed["fr"], seed["jtbd"]]
+        specs.append(
+            {
+                "id": story_id,
+                "type": seed["type"],
+                "title": seed["title"],
+                "label": seed["label"],
+                "fr": seed["fr"],
+                "jtbd": seed["jtbd"],
+                "slicing": seed["slicing"],
+                "description": seed["description"],
+                "goal": seed["goal"],
+                "benefit": seed["benefit"],
+                "domain": story_domain(seed["fr"]),
+                "trace": trace,
+                "context": source_context,
+                "dependencies": story_dependencies(index),
+                "enables": [],
+                "acceptance": acceptance_criteria_for_story(story_id, seed),
+            }
+        )
+    return specs
+
+
+def build_cross_cutting_enabler_specs(project_id: str, value_stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    evidence = cross_cutting_enabler_evidence(project_id)
+    if not evidence:
+        return []
+    specs: list[dict[str, Any]] = []
+    start = len(value_stories) + 1
+    for candidate in ENABLER_CANDIDATES:
+        if not any(token in evidence for token in candidate["tokens"]):
+            continue
+        story_id = f"US-{start + len(specs):03d}"
+        trace = ["REQ-001", "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
+        specs.append(
+            {
+                "id": story_id,
+                "type": "cross_cutting_enabler",
+                "title": candidate["title"],
+                "label": candidate["label"],
+                "fr": candidate["fr"],
+                "jtbd": candidate["jtbd"],
+                "slicing": candidate["slicing"],
+                "description": candidate["description"],
+                "goal": candidate["goal"],
+                "benefit": candidate["benefit"],
+                "domain": "technical",
+                "trace": trace,
+                "context": {
+                    "need": "cross_cutting_enabler",
+                    "artifact_id": "00_raw/*",
+                    "artifact_type": "source_context",
+                    "summary": "Concrete source/context terms indicate this enabler supports project functionality across multiple stories, capabilities, or implementation surfaces inside the project boundary.",
+                },
+                "dependencies": [],
+                "enables": [story["id"] for story in value_stories if story["type"] == "value_story"],
+                "acceptance": acceptance_criteria_for_enabler(story_id, candidate),
+            }
+        )
+    return specs
+
+
+def cross_cutting_enabler_evidence(project_id: str) -> str:
+    base = workspace_path(project_id)
+    chunks: list[str] = []
+    raw_path = base / "00_raw"
+    for item in sorted(raw_path.rglob("*")) if raw_path.exists() else []:
+        if item.is_file() and item.suffix.lower() in {".md", ".txt"}:
+            chunks.append(item.read_text(encoding="utf-8"))
+    text = "\n".join(chunks).lower()
+    loose_preconditions = ("herramienta interna accesible", "internal tool accessible", "ambiente disponible", "environment available")
+    if any(phrase in text for phrase in loose_preconditions) and not any(
+        token in text for candidate in ENABLER_CANDIDATES for token in candidate["tokens"]
+    ):
+        return ""
+    return text
+
+
+def story_domain(fr_id: str) -> str:
+    if fr_id == "FR-03":
+        return "technical"
+    if fr_id == "FR-04":
+        return "design"
+    if fr_id == "FR-05":
+        return "quality"
+    return "functional"
+
+
+def story_dependencies(index: int) -> list[str]:
+    if index == 1:
+        return []
+    if index in {2, 3, 4}:
+        return ["US-001"]
+    return ["US-001", "US-002", "US-003", "US-004"]
+
+
+def context_row_for_story(seed: dict[str, str], backlog_context: dict[str, Any]) -> dict[str, str]:
+    preferred = {
+        "FR-01": "functional_slicing",
+        "FR-02": "quality_risks",
+        "FR-03": "technical_dependencies",
+        "FR-04": "ux_states",
+        "FR-05": "quality_risks",
+    }.get(seed["fr"], "epic_value")
+    section = backlog_context.get("sections", {}).get(preferred, {})
+    results = section.get("results", []) if isinstance(section, dict) else []
+    if results:
+        top = results[0]
+        return {
+            "need": preferred,
+            "artifact_id": str(top.get("artifact_id", "N/A")),
+            "artifact_type": str(top.get("artifact_type", "artifact")),
+            "summary": str(top.get("summary", "Context retrieved")),
+        }
+    return {
+        "need": preferred,
+        "artifact_id": "N/A",
+        "artifact_type": "pending",
+        "summary": "[PENDING INPUT] No focused context retrieved for this story. Use /retrieve before implementation.",
+    }
+
+
+def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[dict[str, str]]:
+    base = story_id.replace("US-", "AC-")
+    return [
+        {
+            "id": f"{base}-01",
+            "name": "Happy Path",
+            "given": "el usuario objetivo tiene permisos vigentes, datos validos y el contexto minimo confirmado",
+            "when": f"ejecuta la capacidad cubierta por {seed['fr']}",
+            "then": "el sistema produce el resultado esperado y deja evidencia trazable hacia el requerimiento y la spec",
+        },
+        {
+            "id": f"{base}-02",
+            "name": "Validation Path",
+            "given": "falta informacion obligatoria, la seleccion es ambigua o una regla confirmada no se cumple",
+            "when": "el usuario intenta avanzar con el flujo",
+            "then": "el sistema bloquea el avance riesgoso, explica la condicion recuperable y no registra exito falso",
+        },
+        {
+            "id": f"{base}-03",
+            "name": "Failure And Recovery Path",
+            "given": "una dependencia, dato, permiso o estado externo no esta disponible",
+            "when": "el sistema intenta completar el slice",
+            "then": "la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad",
+        },
+        {
+            "id": f"{base}-04",
+            "name": "Quality Evidence Path",
+            "given": "Quality revisa la historia para aceptacion o automatizacion",
+            "when": "consulta criterios, alcance, dependencias y trazas",
+            "then": f"encuentra {seed['fr']}, {seed['jtbd']}, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable",
+        },
+    ]
+
+
+def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list[dict[str, str]]:
+    base = story_id.replace("US-", "AC-")
+    return [
+        {
+            "id": f"{base}-01",
+            "name": "Boundary Fit",
+            "given": "el enabler fue propuesto para el backlog",
+            "when": "Product, Technology y Quality revisan su alcance",
+            "then": "queda ligado a funcionalidad, FR, epica, historia o superficie de implementacion concreta dentro del boundary del proyecto y no a infraestructura generica",
+        },
+        {
+            "id": f"{base}-02",
+            "name": "Enables Project Functionality",
+            "given": "las funcionalidades, historias o superficies dependientes estan identificadas",
+            "when": "el enabler se completa",
+            "then": "el scope funcional habilitado puede avanzar con menos incertidumbre, dependencia o riesgo verificable",
+        },
+        {
+            "id": f"{base}-03",
+            "name": "Observable Validation",
+            "given": "el enabler no produce valor usuario directo",
+            "when": "Quality valida su resultado",
+            "then": "existe una evidencia objetiva que demuestra que el riesgo o dependencia fue reducido",
+        },
+        {
+            "id": f"{base}-04",
+            "name": "No Loose Infrastructure",
+            "given": "aparece trabajo de setup, ambiente o infraestructura no especifica",
+            "when": "no habilita una historia, riesgo o contrato trazable",
+            "then": "se rechaza como backlog item y se trata como precondicion operacional o tarea externa al scope",
+        },
+    ]
 
 
 def build_specs_generation_context(project_id: str, req_text: str) -> dict[str, Any]:
@@ -425,6 +883,9 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | Source hierarchy | Workspace files win over memory. PRD/specs summarize, they do not replace source evidence. |
 | Traceability | Every epic/story/AC must cite `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD/rule where applicable. |
 | Missing evidence | Keep `[PENDING INPUT]` or create/follow a `GAP-*`; do not invent. |
+| Story size | `Small` means the smallest independently meaningful, testable, useful slice. Do not split into micro-stories that no longer produce value or reduce a named risk. |
+| Cross-cutting enablers | Enablers may live in a separate epic only when they are implementation work built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. They must reduce concrete risk/dependency and have objective acceptance evidence. |
+| Preconditions | Generic access, environment availability, broad infrastructure readiness, or vague setup are preconditions/external tasks unless tied to confirmed project functionality and implementation evidence. |
 | Privacy | Do not include sensitive client data, credentials, URLs, account IDs, or raw payloads in backlog artifacts. |
 
 ## Jobs To Be Done
@@ -455,6 +916,7 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | UX stories | `journey screens states validations copy accessibility unchanged behavior` | `--workflow backlog --domain design` | Frontend stories and UX acceptance |
 | Quality coverage | `acceptance testability edge cases regression test data evidence` | `--workflow backlog --domain quality` | ACs, TC seeds, readiness audit |
 | Open gaps | `pending input prd gaps dependencies roadmap nfr kpi` | `--workflow backlog --artifact-type gap_report` | Blockers, spikes, follow-up stories |
+| Enabler boundary | `SAD architecture as-is to-be frontend backend prototype auth data integration audit observability enabler precondition` | `--workflow backlog --summary-only` | Decide whether a cross-cutting enabler epic is valid |
 
 ## Backlog Seeds
 
@@ -466,6 +928,7 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | US-003 | Integrate required data/source-of-truth signals. | User Story | `FR-03` |
 | US-004 | Cover affected UX states, validations, and copy. | User Story | `FR-04` |
 | US-005 | Produce traceable acceptance and quality evidence. | User Story | `FR-05` |
+| EPIC-002 | Cross-cutting enablers only when backed by concrete frontend/backend/auth/data/integration/audit/observability evidence tied to confirmed project functionality. | Optional Enabler Epic | `SPEC-001`, `GAP-BACKLOG-ENABLERS` |
 
 ## Decision And Assumption Trail
 
@@ -484,63 +947,281 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 """
 
 
-def render_epic(project_id: str) -> str:
-    return f"""# EPIC-001 - Deliver Validated Requirement Value
+def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context: dict[str, Any]) -> str:
+    story_sections = "\n\n".join(render_story_section(story) for story in stories)
+    story_rows = "\n".join(
+        f"| `{story['id']}` | {story['type']} | {story['title']} | {story['label']} | {story['slicing']} | {', '.join(story['dependencies']) or 'None'} | {', '.join(story['trace'])} |"
+        for story in stories
+    )
+    return f"""---
+id: EPIC-001
+project: {project_id}
+status: draft
+priority: Must Have
+trace:
+  - REQ-001
+  - PRD-001
+  - SPEC-001
+context_pack: 08_context_packs/backlog_generation.json
+slicing_model: vertical-value-slices
+---
 
-- Project: `{project_id}`
-- Trace parent: `SPEC-001`
-- Status: `draft`
+# EPIC-001 - Deliver Validated Requirement Value
 
 ## Outcome
 
-Deliver the first end-to-end slice that proves the matured requirement can create user and business value.
+Deliver the first ordered set of vertical slices that proves the mature requirement can create user and business value while preserving traceability for downstream AI planning, implementation, and testing agents.
+
+## Source And Retrieval
+
+| Field | Value |
+| --- | --- |
+| Project | `{project_id}` |
+| Primary sources | `02_requirements/project-brief.md`, `03_specs/prd.md`, `03_specs/specs.md` |
+| Context pack | `08_context_packs/backlog_generation.json` |
+| Generation rule | Use focused local retrieval before slicing. Workspace files remain source of truth; memory is a retrieval aid. |
+| Privacy | Do not copy credentials, private URLs, raw payloads, account IDs, or confidential client-specific facts into backlog artifacts. |
+
+## Epic Scope
+
+### In Scope
+
+- End-to-end functional slices derived from `FR-01` through `FR-05`.
+- Acceptance criteria in declarative Given/When/Then form.
+- Dependencies, assumptions, readiness and done checks visible to humans and AI agents.
+- Explicit `[PENDING INPUT]` markers when context was not retrieved or not confirmed.
+
+### Out Of Scope
+
+- Layer-only implementation tasks unless they are framed as spikes or scaffolding needed to unlock a value slice.
+- Unconfirmed enhancements, inferred business rules, or low-level implementation contracts that belong in domain context packs.
+- Rewriting upstream discovery, PRD, or specs without a `/sync` or gap-resolution event.
+
+## Slicing Strategy
+
+| Heuristic | How Sentinel Applies It |
+| --- | --- |
+| Product Backlog transparency | Items stay ordered, explicit and inspectable against the product goal. |
+| INVEST | Stories must be independent enough to plan, valuable, small enough for a sprint-sized increment, and testable. |
+| Vertical slicing | Prefer slices that cross user experience, behavior, data, and validation. Avoid frontend-only/backend-only stories as the default. |
+| SPIDR | Use Spikes for uncertainty, Paths for alternate flows, Interfaces for surfaces, Data for source variations, Rules for business constraints. |
+| Lawrence patterns | Reduce variation to the smallest useful version first, then add workflow steps, edge cases, performance or external dependency work. |
+| Small but valuable | Do not split below the value boundary. A small story must still be independently meaningful, testable, and useful. |
+| Cross-cutting enablers | Only create enabler backlog when implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. Generic environment or accessibility setup is a precondition, not an enabler story. |
+| Agent readiness | Give downstream agents bounded context, trace IDs, acceptance scenarios, non-goals, dependencies and stop conditions. |
+
+## Story Map
+
+| Story | Type | Title | Label | Slicing Pattern | Dependencies | Trace |
+| --- | --- | --- | --- | --- | --- | --- |
+{story_rows}
+
+## Cross-Cutting Enabler Boundary
+
+Use a separate enabler epic only when the work is specifically required to support project functionality across multiple stories, epics, FRs, or implementation surfaces. Valid enablers name the capability boundary they support, the risk or dependency they reduce, the reason they must be built earlier, and the objective evidence that proves completion.
+
+Reject loose items such as "make an internal tool accessible", generic environment setup, broad infrastructure hardening, or unspecified backend/frontend preparation unless they are tied to this project's confirmed functionality and have implementation evidence.
+
+## Retrieved Context Summary
+
+{render_backlog_context_summary(backlog_context)}
+
+## Stories
+
+{story_sections}
+
+## Epic Readiness Checklist
+
+- [ ] Each story is traceable to `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD.
+- [ ] Each story has declarative acceptance criteria with happy, validation, failure/recovery and quality evidence paths.
+- [ ] Dependencies and pending context are explicit.
+- [ ] No story is only a technical layer unless marked as a spike/scaffolding exception.
+- [ ] The epic can be handed to planning, implementation and test agents without loading the entire workspace.
 """
 
 
-def render_story(project_id: str, epic_id: str) -> str:
-    return f"""# US-001 - Complete Primary User Job
+def render_enabler_epic(
+    project_id: str,
+    enablers: list[dict[str, Any]],
+    value_stories: list[dict[str, Any]],
+    backlog_context: dict[str, Any],
+) -> str:
+    story_sections = "\n\n".join(render_story_section(story) for story in enablers)
+    rows = "\n".join(
+        f"| `{story['id']}` | {story['title']} | {', '.join(story['enables'])} | {story['slicing']} | {', '.join(story['trace'])} |"
+        for story in enablers
+    )
+    value_rows = "\n".join(f"| `{story['id']}` | {story['title']} |" for story in value_stories)
+    return f"""---
+id: EPIC-002
+project: {project_id}
+status: draft
+priority: Must Have
+type: cross_cutting_enabler_epic
+trace:
+  - REQ-001
+  - PRD-001
+  - SPEC-001
+context_pack: 08_context_packs/backlog_generation.json
+---
 
-- Project: `{project_id}`
-- Parent epic: `{epic_id}`
-- Trace parent: `SPEC-001`
-- Status: `draft`
-- JTBD: `JTBD-001`
+# EPIC-002 - Cross-Cutting Enablers For Validated Requirement Value
+
+## Boundary Rule
+
+This epic exists only for implementation enablers that must be built in advance to support the functionality being built in `EPIC-001` or the confirmed project scope. It must not collect generic infrastructure, vague setup, or broad platform aspirations.
+
+## Accepted Enabler Test
+
+An item belongs here only when all checks pass:
+
+- It supports a named story, epic, FR, capability, or implementation surface inside the confirmed project boundary.
+- It reduces a concrete dependency, risk, contract uncertainty, permission concern, data need, UX foundation need, backend/frontend foundation need, or evidence need.
+- It has objective acceptance criteria.
+- It is inside the project boundary confirmed by discovery/specs.
+- It is not merely a precondition such as "environment exists", "make an internal tool accessible", or "internal tool is accessible".
+
+## Value Stories Enabled
+
+| Story | Title |
+| --- | --- |
+{value_rows}
+
+## Enabler Story Map
+
+| Story | Title | Enables | Slicing Pattern | Trace |
+| --- | --- | --- | --- | --- |
+{rows}
+
+## Retrieved Context Summary
+
+{render_backlog_context_summary(backlog_context)}
+
+## Stories
+
+{story_sections}
+"""
+
+
+def render_story_section(story: dict[str, Any]) -> str:
+    dependencies = ", ".join(story["dependencies"]) or "None"
+    acceptance = "\n\n".join(render_gherkin_criterion(item) for item in story["acceptance"])
+    return f"""### {story['id']} - {story['title']} [Label: {story['label']}]
+
+**Description:** {story['description']}
+
+**Narrative:**
+As a target user,
+I want {story['goal'].lower()},
+So that {story['benefit'].lower()}
+
+**Slicing Pattern:** {story['slicing']}
+
+**Type:** {story['type']}
+
+**Dependencies:** {dependencies}
+
+**Enables:** {", ".join(story.get("enables", [])) or "N/A"}
+
+**Context Used:**
+| Need | Artifact | Signal |
+| --- | --- | --- |
+| {story['context']['need']} | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) | {safe_cell(story['context']['summary'], 220)} |
+
+**In Scope:**
+- The smallest user-observable behavior that satisfies `{story['fr']}`.
+- Required validation, recoverable failure behavior and trace evidence for this slice.
+- Domain context cited above, or `[PENDING INPUT]` if the evidence is missing.
+
+**Out Of Scope:**
+- Unconfirmed variations, optimizations or implementation details not required for this slice.
+- Sensitive raw data, credentials, private URLs or client-specific operational facts.
+
+**Acceptance Criteria:**
+
+{acceptance}
+
+**Definition Of Ready:**
+- [ ] Product, design, technology and quality context is cited or explicitly pending.
+- [ ] Dependencies are known and do not hide a layer-only prerequisite.
+- [ ] Acceptance criteria are testable without reading the full workspace.
+- [ ] Open gaps or assumptions are visible before planning.
+
+**Definition Of Done:**
+- [ ] Code and artifact review completed.
+- [ ] Happy, validation and failure/recovery paths verified.
+- [ ] Trace IDs remain visible in implementation notes, tests or evidence.
+- [ ] No unrelated scope was added during implementation.
+
+**Traceability:** {", ".join(story['trace'])}
+"""
+
+
+def render_gherkin_criterion(criterion: dict[str, str]) -> str:
+    return f"""> **{criterion['id']} - {criterion['name']}:**
+> Given {criterion['given']},
+> When {criterion['when']},
+> Then {criterion['then']}."""
+
+
+def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
+    rows = "\n".join(
+        f"| {criterion['id']} | Given {criterion['given']}, When {criterion['when']}, Then {criterion['then']}. |"
+        for criterion in story["acceptance"]
+    )
+    return f"""---
+id: {story['id']}
+project: {project_id}
+parent_epic: {epic_id}
+status: draft
+label: {story['label']}
+type: {story['type']}
+trace:
+{frontmatter_list(story['trace'])}
+---
+
+# {story['id']} - {story['title']}
+
+This file mirrors the story embedded in `EPIC-001.md` so quality and traceability tooling can address the story as an individual node.
 
 ## User Story
 
-As a target user, I want to complete the primary job described by the matured requirement so that I can obtain the expected business outcome.
+As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower()}
 
 ## Context References
 
 | Context Type | Source |
 | --- | --- |
-| Product requirement | `REQ-001`, `PRD-001`, `SPEC-001` |
-| Business / Product seeds | `01_discovery/identity_seeds.md` |
-| Technology context | `00_raw/02_technology_context/` if available |
-| Design context | `00_raw/03_design_context/` if available |
-| Quality context | `00_raw/04_quality_context/` if available |
-| Retrieval plan | `03_specs/specs.md#Retrieval Plan For Backlog Agents` |
+| Product requirement | `REQ-001`, `PRD-001`, `SPEC-001`, `{story['fr']}`, `{story['jtbd']}` |
+| Backlog context pack | `08_context_packs/backlog_generation.json` |
+| Retrieved signal | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) |
 
 ## Functional Slice
 
-- This story must deliver an end-to-end user-visible outcome, not a layer-only technical task.
-- Any missing technical, design, or quality input must remain explicit as a gap or assumption.
+- Slicing pattern: {story['slicing']}.
+- Story type: {story['type']}.
+- Dependencies: {', '.join(story['dependencies']) or 'None'}.
+- Enables: {', '.join(story.get('enables', [])) or 'N/A'}.
+- This story must deliver user-observable value or explicit quality evidence, not an isolated implementation layer.
+- Missing context remains `[PENDING INPUT]` and should be resolved upstream through gaps, `/sync`, or domain context packs.
 
 ## Acceptance Criteria
 
 | AC ID | Criterion |
 | --- | --- |
-| AC-001 | Given the user has valid inputs, when the primary action is completed, then the system records the expected outcome. |
-| AC-002 | Given required information is missing, when the user attempts to continue, then the system presents a clear recoverable validation state. |
-| AC-003 | Given the outcome is produced, when QA validates the story, then source requirement and spec IDs are visible in the artifact. |
+{rows}
 
 ## Readiness Checklist
 
 - [ ] JTBD link is present.
-- [ ] Source requirement, PRD, and spec links are present.
+- [ ] Source requirement, PRD, spec, FR and context pack links are present.
 - [ ] Acceptance criteria are testable.
 - [ ] Required technology/design/quality context is cited or explicitly marked as pending.
 """
+
+
+def frontmatter_list(values: list[str]) -> str:
+    return "\n".join(f"  - {value}" for value in values)
 
 
 def render_context_summary(context: dict[str, object]) -> str:
@@ -578,6 +1259,29 @@ def render_prd_section_context(context: dict[str, object]) -> str:
             f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
         )
     return "| PRD / Specs Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+
+
+def render_backlog_context_summary(context: dict[str, object]) -> str:
+    sections = context.get("sections", {}) if isinstance(context, dict) else {}
+    if not isinstance(sections, dict) or not sections:
+        return "| Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n| backlog | No focused context retrieved. | N/A | N/A |"
+    rows: list[str] = []
+    for section, payload in sections.items():
+        if not isinstance(payload, dict):
+            continue
+        results = payload.get("results", [])
+        if not results:
+            rows.append(f"| {section} | No focused context retrieved. | N/A | N/A |")
+            continue
+        top = results[0]
+        if not isinstance(top, dict):
+            continue
+        trace_ids = top.get("trace_ids", [])
+        trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
+        rows.append(
+            f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
+        )
+    return "| Backlog Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
 
 
 def bounded_text(text: str, limit: int) -> str:
