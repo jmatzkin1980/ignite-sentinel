@@ -34,7 +34,7 @@ Examples:
 
 ```powershell
 git switch -c project/ACME_DASHBOARD
-git switch -c test/tesoro-cierre-forzado-fixture
+git switch -c test/backlog-readiness-fixture
 ```
 
 Use `project/` for real client execution and `test/` for disposable workflow experiments.

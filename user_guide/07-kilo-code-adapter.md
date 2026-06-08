@@ -32,12 +32,21 @@ python -m sentinel /doctor
 | `sentinel-discovery` | Ingest raw input and create requirements, gaps, decisions |
 | `sentinel-maturity` | Evaluate readiness |
 | `sentinel-specs` | Generate AI-friendly specs |
-| `sentinel-backlog` | Generate backlog |
+| `sentinel-backlog` | Generate epics, stories, acceptance criteria, retrieval plans, and implementation readiness pack |
 | `sentinel-quality` | Generate test coverage |
 | `sentinel-sync` | Process changes and impact |
-| `sentinel-health` | Run health, validation, traceability checks |
+| `sentinel-health` | Run health, validation, traceability checks, including stale domain context detection |
 
 Kilo agents use the same local LanceDB memory layer as Codex. `/ingest`, `/sync`, and `/reindex` keep `workspaces/[PROJECT_ID]/memory.lancedb/` populated, while `/retrieve` builds focused context packs for the active workflow.
+
+When Kilo generates backlog, review both:
+
+```text
+workspaces/[PROJECT_ID]/08_context_packs/backlog_generation.json
+workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
+```
+
+If `/health` reports that domain context changed after backlog generation, run `/reindex PROJECT_ID` and `/backlog PROJECT_ID` before handing work to implementation or test agents.
 
 ## Slash Workflows
 

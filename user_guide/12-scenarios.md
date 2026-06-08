@@ -1,524 +1,468 @@
-# Escenarios Operativos
+# Scenarios
 
-Este documento describe situaciones concretas que pueden ocurrir durante el uso de Ignite Sentinel vNext. La idea es que una persona nueva en el framework pueda leer un escenario, reconocer su caso y entender que comando ejecutar, que artefactos se generan y que significa el resultado.
+This document describes concrete situations that can happen while using Ignite Sentinel vNext. A new user should be able to find a scenario, recognize their case, run the right command, inspect the generated artifacts, and understand the result.
 
-Los escenarios estan agrupados por etapa del ciclo de vida. No todos los proyectos van a pasar por todos los escenarios, pero todos comparten la misma regla: la verdad vive en `workspaces/[PROJECT_ID]/` y la memoria local es una ayuda de recuperacion, no una fuente final.
+All scenarios share the same rule: the source of truth lives in `workspaces/[PROJECT_ID]/`. Local memory is a retrieval aid, not final authority.
 
-## Bloque A: Discovery E Identidad
+## Block A: Discovery Start
 
-### Escenario 1: Inicio Del Proyecto Desde Cero
+### Scenario A1: A Client Sends The First Requirement Package
 
-**Contexto:** El cliente envia el primer paquete de informacion. Puede ser un markdown, una nota de negocio, pantallazos, diagramas, referencias de sistemas o una mezcla incompleta de todo eso. Todavia no existe workspace para el proyecto.
+**Context:** The client sends the first set of information. It may be a Markdown file, business note, screenshots, diagrams, system references, or an incomplete bundle of all of those. No project workspace exists yet.
 
-**Comandos:**
+**Run:**
 
 ```powershell
-python -m sentinel /doctor
-python -m sentinel /init PROJECT_ID
-python -m sentinel /ingest PROJECT_ID --source input\client_requirement\initial-requirement.md
+python -m sentinel /init ACME_DASHBOARD
+python -m sentinel /ingest ACME_DASHBOARD --source input\client_requirement\initial-request.md
+python -m sentinel /status ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Crea la estructura fisica del workspace, copia el input crudo, detecta idioma, inicializa configuracion local-first, genera el primer registro de requerimiento, analiza el material con lentes de Producto, Tecnologia, Diseno y Calidad, y crea gaps cuando la informacion no alcanza para avanzar responsablemente.
+**What Sentinel does:** Creates the workspace, copies the raw input, detects project language, initializes local-first configuration, generates the first requirement record, reviews the material through Product, Technology, Design, Quality, Delivery, and Compliance lenses, and creates gaps when evidence is insufficient.
 
-**Input esperado:** Documentacion inicial del cliente en Markdown. Si hay informacion adicional de arquitectura, diseno o calidad, puede guardarse en las carpetas de contexto antes del ingest.
+**Main outputs:**
 
-**Output principal:**
-
-- `00_raw/[source].md`
-- `01_discovery/raw_input_digest.md`
+- `00_raw/`
 - `01_discovery/gaps.md`
-- `01_discovery/identity_seeds.md`
-- `01_discovery/decisions.md`
+- `01_discovery/identity_seed_bank.md`
 - `01_discovery/lens_review.md`
 - `02_requirements/requirements.md`
 - `06_traceability/traceability_graph.json`
+- `memory.lancedb/memory.json`
 
-**Como interpretar el resultado:** Si el proyecto queda `DIRTY`, no es un fracaso. Significa que Sentinel detecto incertidumbres que deben resolverse antes de generar specs o backlog.
+**How to interpret it:** If the project becomes `DIRTY`, that is not a failure. It means Sentinel found uncertainty that should be resolved before specs, backlog, or implementation.
 
-### Escenario 2: Inyeccion De Contexto De Dominio Antes Del Analisis
+### Scenario A2: Domain Context Exists Before Or During Discovery
 
-**Contexto:** Antes o despues del primer ingest, el equipo tiene informacion de Tecnologia, Diseno, Calidad o Negocio que no vino en el documento principal. Por ejemplo: arquitectura vigente, endpoints conocidos, capturas de pantalla, reglas de QA o restricciones de compliance.
+**Context:** The team already has Technology, Design, Quality, Delivery, or Business context that did not come from the main client document. Examples include architecture notes, endpoints, prototypes, QA rules, compliance restrictions, or rollout constraints.
 
-**Comandos:**
+**Recommended placement:**
 
-```powershell
-python -m sentinel /ingest PROJECT_ID --source input\client_requirement\initial-requirement.md
-python -m sentinel /retrieve PROJECT_ID --query "architecture endpoints design states" --workflow discovery --write-pack
+```text
+workspaces/ACME_DASHBOARD/00_raw/02_technology_context/
+workspaces/ACME_DASHBOARD/00_raw/03_design_context/
+workspaces/ACME_DASHBOARD/00_raw/04_quality_context/
+workspaces/ACME_DASHBOARD/07_changes/03_domain_updates/
 ```
 
-**Que hace Sentinel:** Durante `/ingest`, tambien indexa carpetas de contexto dentro del workspace, como `00_raw/02_technology_context/`, `00_raw/03_design_context/` y `00_raw/04_quality_context/`. Luego `/retrieve` permite traer solo el contexto relevante para revisar una decision o gap.
-
-**Input esperado:** Archivos `.md` o `.txt` en carpetas como:
-
-- `workspaces/PROJECT_ID/00_raw/01_business_context/`
-- `workspaces/PROJECT_ID/00_raw/02_technology_context/`
-- `workspaces/PROJECT_ID/00_raw/03_design_context/`
-- `workspaces/PROJECT_ID/00_raw/04_quality_context/`
-
-**Output principal:**
-
-- Chunks indexados en `memory.lancedb/memory.json`
-- Manifest local en `memory.lancedb/artifact_manifest.json`
-- Context pack si se usa `--write-pack`
-
-**Como interpretar el resultado:** El contexto de dominio ayuda a cerrar ambiguedades, pero no convierte automaticamente una suposicion en verdad. Si algo sigue sin fuente o decision, debe quedar como gap.
-
-### Escenario 3: Documento De Gaps Para Compartir Con Cliente
-
-**Contexto:** El analisis inicial detecta informacion faltante. El equipo necesita enviar un documento claro al cliente para que responda sin conocer Sentinel.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /gaps PROJECT_ID
+python -m sentinel /reindex ACME_DASHBOARD
+python -m sentinel /retrieve ACME_DASHBOARD --query "endpoint inventory and affected surfaces" --workflow discovery --write-pack
 ```
 
-**Que hace Sentinel:** Regenera `01_discovery/gaps.md` en el idioma del proyecto. El documento contiene titulo, metadata, instrucciones, secciones por gap, ejemplos de respuesta y una tabla tecnica que Sentinel puede volver a procesar.
+**What Sentinel does:** Indexes domain context locally and makes it available through focused retrieval.
 
-**Input esperado:** Workspace ya creado e ingest inicial ejecutado.
+**Main outputs:**
 
-**Output principal:**
+- updated `memory.lancedb/`
+- optional `08_context_packs/discovery.json`
+
+**How to interpret it:** Domain context helps close ambiguity, but it does not automatically turn an assumption into confirmed truth. If something remains unsupported or undecided, keep it as a gap.
+
+### Scenario A3: The Team Needs A Client-Friendly Gap Document
+
+**Context:** The initial analysis detected missing information. The team needs a clear document the client can answer without knowing Sentinel internals.
+
+**Run:**
+
+```powershell
+python -m sentinel /gaps ACME_DASHBOARD
+```
+
+**What Sentinel does:** Regenerates `01_discovery/gaps.md` in the project language. The document includes metadata, instructions, one section per gap, answer examples, owner/source fields, evidence fields, and decision status.
+
+**Main output:**
 
 - `01_discovery/gaps.md`
 
-**Como interpretar el resultado:** Este archivo es tanto humano como tecnico. El cliente puede responder debajo de cada `### GAP-ID`, y Sentinel podra leer esas respuestas despues con `/resolve-gaps`.
+**How to interpret it:** This file is both human-friendly and machine-processable. A stakeholder can answer under each `### GAP-ID`, and Sentinel can later process those answers with `/resolve-gaps`.
 
-### Escenario 4: Resolucion Estructurada De Gaps
+## Block B: Gap Resolution And Maturity
 
-**Contexto:** El cliente devuelve el documento de gaps respondido. Algunas respuestas estan confirmadas, otras son parciales o siguen pendientes.
+### Scenario B1: The Client Returns Answered Gaps
 
-**Comando:**
+**Context:** The client or a domain owner returns the answered `gaps.md`. Some answers are confirmed, some partial, and some still pending.
+
+**Run:**
 
 ```powershell
-python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+python -m sentinel /maturity ACME_DASHBOARD
+python -m sentinel /status ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Busca bloques `### GAP-ID`, extrae respuesta, owner, evidencia y estado de decision. Cierra automaticamente solo cuando hay respuesta no vacia y estado `confirmed`, `not applicable`, `confirmado` o `no aplica`.
+**What Sentinel does:** Reads `### GAP-ID` sections, extracts answers, owner/source, evidence, and decision status. It closes a gap automatically only when there is a non-empty answer with a confirmed or not-applicable decision status.
 
-**Input esperado:** Markdown con campos como:
+**Main outputs:**
 
-```text
-### GAP-USERS
-
-- Answer: Primary users are operations analysts.
-- Owner / source: Product owner
-- Evidence or reference: Workshop notes
-- Decision status: confirmed
-```
-
-**Output principal:**
-
-- `07_changes/00_client_responses/[source].md`
-- `07_changes/00_client_responses/[source]_gap_resolution_report.md`
 - `01_discovery/gap_resolution_log.md`
-- `01_discovery/gaps.md` actualizado
-- Seeds y decisiones confirmadas cuando aplica
-- Edges `CHG -> GAP`, `CHG -> SEED`, `CHG -> DEC`
+- `07_changes/00_client_responses/`
+- updated `01_discovery/gaps.md`
+- updated `01_discovery/requirement_maturity_report.md`
 
-**Como interpretar el resultado:** `CLOSED` significa que la respuesta puede usarse como verdad confirmada. `PARTIALLY_CLOSED` significa que hay informacion, pero no alcanza para desbloquear madurez si el gap es critico o alto.
+**How to interpret it:** `CLOSED` means the answer can be used as confirmed truth. `PARTIALLY_CLOSED` means useful information arrived, but not enough to unblock maturity if the gap is critical or high severity.
 
-### Escenario 5: La Respuesta Del Cliente Trae Un Requerimiento Nuevo
+### Scenario B2: The Gap Response Adds New Scope
 
-**Contexto:** El cliente responde un gap, pero agrega algo que no estaba contemplado. Por ejemplo, "ademas del dashboard, necesitamos exportacion historica mensual".
+**Context:** The client answers a gap but also introduces something new, such as a new export, a new user type, or a behavior not covered by existing gaps.
 
-**Comandos recomendados:**
-
-```powershell
-python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
-python -m sentinel /sync PROJECT_ID --source input\interactions\answered-gaps.md --note "client answer introduced new requirement"
-```
-
-**Que hace Sentinel:** `/resolve-gaps` procesa lo que puede mapear a gaps existentes. `/sync` registra el nuevo contenido como evento de cambio y genera un impact report para revisar alcance, posibles nuevos gaps y artefactos afectados.
-
-**Input esperado:** Respuesta de cliente con informacion adicional no mapeada.
-
-**Output principal:**
-
-- Gap resolution report
-- Change impact report
-- `CHG` node
-- Posibles nuevos gaps detectados
-
-**Como interpretar el resultado:** No todo feedback debe cerrar gaps. Si aparece alcance nuevo, conviene tratarlo como cambio o nuevo requerimiento para no contaminar silenciosamente el brief o backlog.
-
-## Bloque B: Madurez Y Project Brief
-
-### Escenario 6: Evaluacion De Madurez Bloqueada
-
-**Contexto:** Se quiere avanzar a specs, pero todavia hay gaps criticos o altos abiertos/parciales.
-
-**Comandos:**
+**Run:**
 
 ```powershell
-python -m sentinel /maturity PROJECT_ID
-python -m sentinel /status PROJECT_ID
+python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+python -m sentinel /sync ACME_DASHBOARD --source input\interactions\answered-gaps.md --note "gap response includes new scope"
+python -m sentinel /trace ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Evalua `gaps.md`, revisa severidades bloqueantes y genera `requirement_maturity_report.md`. `/status` resume fase, health, idioma, gap counts y proximo paso recomendado.
+**What Sentinel does:** `/resolve-gaps` processes what maps to existing structured gaps. `/sync` registers new content as a change event and creates an impact report.
 
-**Output principal:**
+**Main outputs:**
+
+- `07_changes/00_client_responses/`
+- `07_changes/03_domain_updates/` or another change bucket, depending on source type
+- impact report linked as a decision node
+- new `CHG` trace node
+
+**How to interpret it:** Not all feedback should close a gap. If new scope appears, treat it as a change or new requirement signal so the brief, specs, and backlog do not silently absorb scope creep.
+
+### Scenario B3: The Project Is Mature Enough For A Brief
+
+**Context:** Discovery has enough confirmed evidence. Critical and high blocking gaps are resolved or explicitly accepted as non-blocking.
+
+**Run:**
+
+```powershell
+python -m sentinel /maturity ACME_DASHBOARD
+python -m sentinel /brief ACME_DASHBOARD
+```
+
+**What Sentinel does:** Evaluates gap status and materializes or refreshes `02_requirements/project-brief.md` from requirements, gaps, seeds, decisions, lens review, and available domain context.
+
+**Main outputs:**
 
 - `01_discovery/requirement_maturity_report.md`
-- Status JSON por consola
-
-**Como interpretar el resultado:** Si readiness es `BLOCKED`, no conviene generar specs ni backlog. El siguiente paso normal es compartir gaps, procesar respuestas o pedir contexto de dominio.
-
-### Escenario 7: Cierre De Discovery Y Generacion Del Project Brief
-
-**Contexto:** Los gaps bloqueantes fueron cerrados o el equipo acepta que los restantes son no bloqueantes. Ya hay suficiente informacion para producir el documento maduro de requerimiento.
-
-**Comandos:**
-
-```powershell
-python -m sentinel /maturity PROJECT_ID
-python -m sentinel /brief PROJECT_ID
-```
-
-**Que hace Sentinel:** Materializa o refresca `02_requirements/project-brief.md` usando requerimientos, gaps, seeds, decisiones, lens review y contexto disponible.
-
-**Output principal:**
-
 - `02_requirements/project-brief.md`
 
-**Como interpretar el resultado:** El brief es el cierre de discovery. No debe ser una coleccion de deseos ni una especificacion final de tecnologia. Debe ser suficientemente claro para que otros dominios puedan profundizar sin reinventar el problema.
+**How to interpret it:** The brief closes discovery. It should be clear enough for PRD/specs/backlog and for Technology or Design to deepen their own context packs. It should not pretend to contain every implementation-level contract.
 
-### Escenario 8: Pedido Formal De Contexto A Tecnologia
+## Block C: Domain Context Requests
 
-**Contexto:** El brief ya tiene suficiente senal funcional, pero Tecnologia necesita profundizar arquitectura, repositorios, endpoints, eventos, source of truth, riesgos o NFRs.
+### Scenario C1: Technology Needs A Focused Context Request
 
-**Comando:**
+**Context:** The product requirement is mature enough for Technology to analyze affected systems, architecture, data, integration, commands, risks, and implementation surfaces.
+
+**Run:**
 
 ```powershell
-python -m sentinel /context-request PROJECT_ID --domain technology
+python -m sentinel /context-request ACME_DASHBOARD --domain technology
 ```
 
-**Que hace Sentinel:** Genera un pedido dirigido en `08_context_packs/requests/technology_context_request.md`.
+**What Sentinel does:** Generates a focused request under `08_context_packs/requests/`.
 
-**Output principal:**
+**Main output:**
 
 - `08_context_packs/requests/technology_context_request.md`
-- Nodo `CTX` trazable
 
-**Como interpretar el resultado:** Este documento no reemplaza el analisis tecnico. Le dice a Tecnologia que debe profundizar y con que referencias del brief/gaps debe trabajar.
+**How to interpret it:** This does not replace technical analysis. It tells Technology what to deepen and which brief/gap references should guide the work.
 
-### Escenario 9: Pedido Formal De Contexto A Diseno
+### Scenario C2: Design Needs A Focused Context Request
 
-**Contexto:** Diseno necesita saber que journeys, pantallas, estados, copy, accesibilidad o prototipo debe trabajar.
+**Context:** The requirement is mature enough for Design to analyze journeys, screens, states, prototypes, copy, accessibility, and validation behavior.
 
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /context-request PROJECT_ID --domain design
+python -m sentinel /context-request ACME_DASHBOARD --domain design
 ```
 
-**Que hace Sentinel:** Genera un pedido dirigido en `08_context_packs/requests/design_context_request.md`.
-
-**Output principal:**
+**Main output:**
 
 - `08_context_packs/requests/design_context_request.md`
-- Nodo `CTX` trazable
 
-**Como interpretar el resultado:** El framework no produce el prototipo final. Ayuda a que el pedido a Diseno sea concreto, trazable y basado en discovery maduro.
+**How to interpret it:** Sentinel does not produce the final prototype. It makes the request to Design concrete, traceable, and based on mature discovery.
 
-## Bloque C: Specs, Backlog Y Calidad
+### Scenario C3: Domain Owners Update Their Context Files
 
-### Escenario 10: Generacion De PRD Y Specs AI-Friendly
+**Context:** Technology, Design, Quality, or Delivery adds new context after PRD, specs, or backlog were generated.
 
-**Contexto:** El proyecto esta maduro y existe un `project-brief.md`. Se necesita generar un PRD para audiencia humana/negocio y una spec preparada para agentes.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /specs PROJECT_ID
+python -m sentinel /reindex ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Genera `03_specs/prd.md` y `03_specs/specs.md`, tomando el project brief como fuente madura cuando existe. Mantiene trazabilidad desde requirement/brief hacia PRD y desde PRD hacia spec. La spec incluye un plan de retrieval para que agentes de backlog recuperen contexto puntual sin releer toda la documentacion.
+**What Sentinel does:** Rebuilds local memory and checks whether downstream artifacts may be stale.
 
-**Output principal:**
+**How to interpret it:** If `/health` reports that domain context changed after backlog generation, rerun `/backlog` before implementation handoff. The backlog depends on living domain context.
+
+## Block D: Specs, Backlog, And Quality
+
+### Scenario D1: Generate PRD And Specs
+
+**Context:** A mature `project-brief.md` exists. The team needs a PRD for humans and a compact, agent-friendly spec.
+
+**Run:**
+
+```powershell
+python -m sentinel /specs ACME_DASHBOARD
+```
+
+**What Sentinel does:** Generates `03_specs/prd.md` and `03_specs/specs.md`, preserving traceability from requirement/brief to PRD and from PRD to specs. The spec includes backlog-relevant contract, progressive disclosure context map, retrieval plan, backlog seeds, and traceability.
+
+**Main outputs:**
 
 - `03_specs/prd.md`
 - `03_specs/specs.md`
-- Edges `REQ/project_brief -> PRD -> SPEC`
+- `08_context_packs/specs_generation.json`
 
-**Como interpretar el resultado:** El PRD debe narrar que se implementa y por que. La spec debe funcionar como contrato operativo para agentes y como puente trazable hacia backlog. Ambos deben revisarse, no aceptarse ciegamente.
+**How to interpret it:** The PRD explains what should be built and why. The spec acts as an operational contract for agents and a traceable bridge into backlog.
 
-### Escenario 11: Generacion De Backlog Dev-Ready Inicial
+### Scenario D2: Generate Backlog With Execution Readiness
 
-**Contexto:** Ya existe spec y se quiere crear un primer backlog trazable.
+**Context:** Specs exist and health allows downstream generation.
 
-**Comandos:**
+**Run:**
 
 ```powershell
-python -m sentinel /backlog PROJECT_ID
-python -m sentinel /quality PROJECT_ID
+python -m sentinel /backlog ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Genera epic, user story, acceptance criteria y test case inicial. Tambien crea edges `SPEC -> EPIC -> US -> AC -> TC`.
+**What Sentinel does:** Generates epic Markdown files, story mirrors, acceptance criteria, domain context coverage, agent execution contracts, retrieval plans, backlog retrieval evidence, and implementation readiness pack.
 
-**Output principal:**
+**Main outputs:**
 
 - `04_backlog/EPIC-001.md`
 - `04_backlog/US-001.md`
+- optional `04_backlog/EPIC-002-cross-cutting-enablers.md`
+- `08_context_packs/backlog_generation.json`
+- `08_context_packs/implementation_readiness.json`
+
+**How to interpret it:** This is an initial traceable backlog, not the final sprint plan. Review whether stories are vertical, valuable, testable, and correctly bounded. Check that missing domain context remains visible instead of invented.
+
+### Scenario D3: A Cross-Cutting Enabler Is Needed
+
+**Context:** The project needs concrete implementation work in advance, such as shared auth rules, an API contract, a persistence/query capability, an integration contract, audit logging, or a UI shell that supports multiple confirmed stories.
+
+**Run:**
+
+```powershell
+python -m sentinel /backlog ACME_DASHBOARD
+```
+
+**What Sentinel does:** If evidence is specific enough, creates `EPIC-002-cross-cutting-enablers.md`.
+
+**How to interpret it:** Valid enablers support confirmed functionality across stories, epics, FRs, or implementation surfaces. Generic environment setup, broad hardening, or vague "make this accessible" work should not become backlog enablers unless tied to project-specific functionality and objective completion evidence.
+
+### Scenario D4: Generate Quality Artifacts
+
+**Context:** User stories and acceptance criteria exist.
+
+**Run:**
+
+```powershell
+python -m sentinel /quality ACME_DASHBOARD
+python -m sentinel /trace ACME_DASHBOARD
+```
+
+**What Sentinel does:** Generates test cases and backlog readiness audit. Links `US -> AC -> TC` in traceability.
+
+**Main outputs:**
+
 - `05_quality/TC-001.md`
+- `05_quality/backlog_readiness_audit.md`
+- updated traceability graph and matrix
 
-**Como interpretar el resultado:** Es un backlog inicial y trazable, no necesariamente la planificacion final de sprint. Sirve como base para refinamiento humano/agente.
+**How to interpret it:** Quality artifacts should preserve fail-to-pass, pass-to-pass, and evidence expectations. They are a test-planning handoff, not proof that implementation has already been tested.
 
-### Escenario 12: Intento De Backlog Con Proyecto DIRTY
+### Scenario D5: Backlog Or Quality Is Blocked
 
-**Contexto:** Alguien intenta generar backlog o calidad cuando todavia hay gaps bloqueantes o problemas de salud.
+**Context:** Someone tries to generate backlog or quality while health is `DIRTY`.
 
-**Comando:**
-
-```powershell
-python -m sentinel /backlog PROJECT_ID
-```
-
-**Que hace Sentinel:** El command protocol bloquea la ejecucion si el proyecto esta `DIRTY`.
-
-**Output principal:** Error por consola indicando que el proyecto no esta listo.
-
-**Como interpretar el resultado:** Este bloqueo protege al equipo de generar deuda documental o historias basadas en supuestos no confirmados.
-
-## Bloque D: Cambios, Reuniones Y Feedback
-
-### Escenario 13: Feedback Externo No Estructurado
-
-**Contexto:** El cliente envia un correo, Slack, comentario de demo o nota suelta que cambia prioridad, alcance o comportamiento esperado.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /sync PROJECT_ID --source input\interactions\client-feedback.md --note "client feedback after demo"
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Copia el input a `07_changes/`, crea un `CHG`, genera impact report y relaciona el cambio con artefactos potencialmente afectados.
+**What Sentinel does:** The command protocol blocks downstream generation when project health is not safe.
 
-**Output principal:**
+**How to interpret it:** This protects the team from generating documentary debt or stories based on unresolved assumptions. Fix gaps, context, traceability, or stale artifacts first.
 
-- `07_changes/[source].md`
-- `07_changes/[source]_impact_report.md`
-- `07_changes/metabolism_log.md`
-- Edges `CHG -> impacted artifacts`
+## Block E: Change Management
 
-**Como interpretar el resultado:** `/sync` no parchea magicamente todo. Identifica impacto y deja evidencia para que el equipo actualice brief, specs o backlog con control.
+### Scenario E1: A Stakeholder Sends New Information
 
-### Escenario 14: Sincronizacion Autonoma De Novedades
+**Context:** The client, POD, or stakeholder sends an email, Slack message, demo comment, meeting note, architecture update, design update, QA observation, or delivery decision that changes scope, priority, or behavior.
 
-**Contexto:** Hay varios archivos nuevos o modificados en `input/` o carpetas de contexto y no se quiere procesarlos uno por uno.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /sync PROJECT_ID
+python -m sentinel /sync ACME_DASHBOARD --source input\interactions\demo-feedback.md --note "demo feedback"
 ```
 
-**Que hace Sentinel:** Lee `00_raw/source_manifest.json`, compara hashes y detecta archivos nuevos o modificados. Cada novedad se procesa como cambio.
+**What Sentinel does:** Copies the input into `07_changes/`, creates a `CHG` node, generates an impact report, and links the change to potentially affected artifacts.
 
-**Output principal:**
+**Main outputs:**
 
-- Eventos `CHG`
-- Impact reports
-- Manifest actualizado
+- `07_changes/`
+- impact report
+- updated traceability graph
+- updated local memory
 
-**Como interpretar el resultado:** Es util para barridos periodicos, pero si el archivo es un `gaps.md` respondido, conviene usar `/resolve-gaps` primero para aprovechar el cierre estructurado.
+**How to interpret it:** `/sync` does not magically patch every downstream artifact. It identifies impact and preserves evidence so the team can update brief, specs, backlog, or tests with control.
 
-### Escenario 15: Reunion Formal Con Decisiones
+### Scenario E2: Autonomous Novelty Scan
 
-**Contexto:** Hay una minuta o transcripcion donde stakeholders acuerdan reglas, cambios de alcance o decisiones relevantes.
+**Context:** Several files were added or modified in known input or context folders. The team does not want to process each one manually.
 
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /sync PROJECT_ID --source input\interactions\meeting-notes.md --note "stakeholder meeting decisions"
+python -m sentinel /sync ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Registra la reunion como cambio, genera impact report y ayuda a detectar que specs, gaps, decisions o backlog podrian necesitar actualizacion.
+**What Sentinel does:** Reads `00_raw/source_manifest.json`, compares hashes, detects new or modified files, and processes each novelty as a change event.
 
-**Output principal:**
+**How to interpret it:** This is useful for periodic scans. If a file is an answered `gaps.md`, use `/resolve-gaps` first to preserve structured gap closure.
 
-- Change event
-- Impact report
-- Posibles nuevos gaps o decisiones pendientes
+### Scenario E3: A Meeting Changes The Shared Understanding
 
-**Como interpretar el resultado:** Una reunion no deberia quedar solo como memoria humana. Si cambia el entendimiento, debe quedar trazada.
+**Context:** A meeting clarifies scope, changes priority, introduces a constraint, or invalidates an assumption.
 
-### Escenario 16: Cambio Interno De Tecnologia O Negocio
-
-**Contexto:** El equipo interno detecta una restriccion tecnica, cambia una decision de arquitectura o redefine una regla de negocio sin que venga del cliente.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /sync PROJECT_ID --source input\technology_context\internal-decision.md --note "internal technical decision"
+python -m sentinel /sync ACME_DASHBOARD --source input\interactions\meeting-notes.md --note "scope clarification meeting"
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Trata la novedad como cambio trazable. Si afecta requirements, brief, specs o backlog, el impact report lo deja visible.
+**How to interpret it:** A meeting should not live only in human memory. If it changes understanding, it should become traceable evidence.
 
-**Output principal:**
+## Block F: Retrieval And Memory
 
-- `CHG`
-- Impact report
-- Contexto indexado para retrieval
+### Scenario F1: An Agent Needs Focused Context
 
-**Como interpretar el resultado:** Las decisiones internas tambien pueden invalidar supuestos. Registrar el cambio evita que el proyecto conserve artefactos aparentemente correctos pero tecnicamente obsoletos.
+**Context:** A person or agent needs to understand one topic, such as "SLA risk", "UX states", "endpoint inventory", or "US-003 regression evidence", without loading the whole workspace.
 
-## Bloque E: Memoria, Recuperacion Y Exports
-
-### Escenario 17: Recuperar Contexto Sin Cargar Todo El Workspace
-
-**Contexto:** Un agente o persona necesita entender un tema puntual, como "SLA risk", "usuarios", "estados UX" o "endpoint inventory", sin leer todos los archivos.
-
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /retrieve PROJECT_ID --query "SLA risk source of truth" --workflow discovery --max-chars 2000 --summary-only --write-pack
+python -m sentinel /retrieve ACME_DASHBOARD --query "SLA risk and queue triage" --workflow backlog --write-pack
 ```
 
-**Que hace Sentinel:** Consulta memoria local, aplica filtros, devuelve resultados con `why_retrieved` y puede escribir un context pack reproducible.
+**What Sentinel does:** Queries local memory, applies filters, returns results with `why_retrieved`, and can write a reusable context pack.
 
-**Output principal:**
+**Main output:**
 
-- Resultados por consola
-- `08_context_packs/[workflow].json` si se usa `--write-pack`
+- `08_context_packs/backlog.json` or workflow-specific context pack
 
-**Como interpretar el resultado:** Retrieval es progressive disclosure. Sirve para traer lo necesario y cuidar contexto/tokens, pero siempre se puede volver al archivo fuente.
+**How to interpret it:** Retrieval is progressive disclosure. It helps manage context and tokens, but source workspace files remain authoritative.
 
-### Escenario 18: Reindexar Despues De Edicion Manual
+### Scenario F2: Manual Edits Made Memory Stale
 
-**Contexto:** Alguien edito manualmente un `.md` del workspace. La memoria local puede haber quedado desactualizada.
+**Context:** Someone manually edited a Markdown artifact or domain context file. Local memory may be stale.
 
-**Comando:**
+**Run:**
 
 ```powershell
-python -m sentinel /reindex PROJECT_ID
+python -m sentinel /reindex ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Reconstruye memoria local desde el grafo, artefactos versionables y carpetas de contexto.
+**What Sentinel does:** Rebuilds local LanceDB and JSON fallback memory from versionable artifacts, traceability graph, and context folders.
 
-**Output principal:**
+**How to interpret it:** Reindexing does not change the source of truth. It only refreshes retrieval indexes.
 
-- `memory.lancedb/memory.json`
-- `memory.lancedb/artifact_manifest.json`
-- LanceDB local actualizado cuando esta disponible
+### Scenario F3: Export A Controlled Artifact Copy
 
-**Como interpretar el resultado:** No cambia la fuente de verdad. Solo actualiza los indices de recuperacion.
+**Context:** The team wants to share a brief, gap document, or context request outside the workspace.
 
-### Escenario 19: Exportar Un Artefacto Compartible
-
-**Contexto:** Se quiere compartir un `gaps.md`, `project-brief.md` o context request sin exponer rutas internas innecesarias.
-
-**Comandos:**
+**Run:**
 
 ```powershell
-python -m sentinel /export PROJECT_ID --artifact gaps --format md
-python -m sentinel /export PROJECT_ID --artifact brief --format md
-python -m sentinel /export PROJECT_ID --artifact context-request --format md --domain technology
+python -m sentinel /export ACME_DASHBOARD --artifact brief --format md
 ```
 
-**Que hace Sentinel:** Copia el artefacto a `08_context_packs/exports/`.
+**What Sentinel does:** Copies the selected artifact into `08_context_packs/exports/`.
 
-**Output principal:**
+**How to interpret it:** The export is a controlled copy. The workspace remains the source of truth.
 
-- Archivo exportado en `08_context_packs/exports/`
+## Block G: Audit And Framework Maintenance
 
-**Como interpretar el resultado:** El export es una copia controlada. El workspace sigue siendo la fuente de verdad.
+### Scenario G1: Before Handoff Or Review
 
-## Bloque F: Gobernanza Y Salud
+**Context:** The team wants to confirm that artifacts are structurally healthy before human approval, agent implementation, or repository changes.
 
-### Escenario 20: Health Check Antes De Handoff
-
-**Contexto:** El equipo quiere pasar el requerimiento a Tecnologia, Diseno, QA, specs, backlog o una revision de fase.
-
-**Comandos:**
+**Run:**
 
 ```powershell
-python -m sentinel /trace PROJECT_ID
-python -m sentinel /health PROJECT_ID
-python -m sentinel /validate PROJECT_ID
+python -m sentinel /trace ACME_DASHBOARD
+python -m sentinel /health ACME_DASHBOARD
+python -m sentinel /validate ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Materializa vistas de trazabilidad, revisa health signals y valida integridad estructural del workspace.
+**What Sentinel does:** Materializes traceability views, checks health signals, and validates semantic artifact completeness.
 
-**Output principal:**
+**How to interpret it:** `VALID` and `CLEAN` mean the workspace is structurally sound. They do not mean final functional approval.
 
-- `06_traceability/traceability_matrix.md`
-- `06_traceability/traceability_graph.md`
-- `06_traceability/health_report.md`
-- `06_traceability/health_report.json`
+### Scenario G2: A Blocker Appears Late
 
-**Como interpretar el resultado:** `VALID` y `CLEAN` significan que el workspace esta estructuralmente sano. No significan aprobacion funcional final.
+**Context:** A late dependency, compliance issue, architectural decision, design constraint, or QA risk invalidates existing assumptions.
 
-### Escenario 21: Deteccion De Bloqueo Interno
-
-**Contexto:** El equipo descubre que una historia, regla o decision no puede avanzar por una restriccion tecnica, legal, de datos o de negocio.
-
-**Comando recomendado:**
+**Run:**
 
 ```powershell
-python -m sentinel /sync PROJECT_ID --source input\interactions\blocker.md --note "internal blocker"
-python -m sentinel /health PROJECT_ID
+python -m sentinel /sync ACME_DASHBOARD --source input\interactions\blocker.md --note "late blocker"
+python -m sentinel /health ACME_DASHBOARD
 ```
 
-**Que hace Sentinel:** Registra el bloqueo como cambio, analiza impacto y permite que health marque el proyecto como `DIRTY` si aparecen gaps bloqueantes o inconsistencias.
+**How to interpret it:** A blocker should not be resolved by silently editing the backlog. It should become traceable evidence and, when appropriate, degrade readiness until resolved.
 
-**Output principal:**
+### Scenario G3: Validate The Framework Itself
 
-- Change impact report
-- Posibles gaps nuevos
-- Health report actualizado
+**Context:** Someone changed Sentinel runtime code, skills, Kilo agents, docs, tests, or command behavior.
 
-**Como interpretar el resultado:** Un bloqueo no deberia resolverse con una edicion silenciosa del backlog. Debe quedar como evidencia trazable y, si corresponde, degradar readiness hasta que se resuelva.
-
-### Escenario 22: Validacion Antes De Subir Cambios Del Framework
-
-**Contexto:** Se hicieron cambios al runtime, skills, docs o tests de Sentinel y se quiere asegurar que la version local esta sana antes de commit/push.
-
-**Comando:**
+**Run:**
 
 ```powershell
 python -m unittest discover -s tests
+python -m sentinel /doctor
 ```
 
-**Que hace Sentinel:** En realidad este comando ejecuta la suite Python del repo. Verifica flujos core: init, ingest, gaps, resolve-gaps, brief, context-request, retrieve, sync, health, validate y aliases slash.
+**What Sentinel does:** The unit suite checks core lifecycle flows. `/doctor` verifies local runtime, repo structure, Codex/Kilo adapters, write access, required dependencies, LanceDB local probe, commands, and optional dependencies.
 
-**Output principal:** Resultado de unittest.
+**How to interpret it:** Do not push framework changes if tests or `/doctor` fail. If `sentence_transformers` is missing, `/doctor` may warn while JSON fallback remains usable.
 
-**Como interpretar el resultado:** Si los tests fallan, no subas el framework. Si pasan, el cambio tiene una base minima de confianza local.
+### Scenario G4: A New User Clones Or Downloads The Repo
 
-### Escenario 23: Laptop Nueva O Entorno Recien Clonado
+**Context:** A person clones the repository or downloads a ZIP, opens the root in VS Code, and wants to use the framework with CLI, Kilo Code, Codex, local memory, and LanceDB.
 
-**Contexto:** Una persona clona el repositorio en una laptop nueva y quiere saber si puede usar CLI, Kilo commands, skills, memoria local y LanceDB.
-
-**Comandos:**
+**Run:**
 
 ```powershell
 python -m sentinel /doctor
-python -m sentinel /init DEMO_PROJECT
-python -m sentinel /status DEMO_PROJECT
 ```
 
-**Que hace Sentinel:** `/doctor` funciona como checklist ejecutable. Verifica Python, estructura del repo, adapters de Codex/Kilo, permisos de escritura, dependencia `lancedb`, prueba local de LanceDB, comandos disponibles y dependencias opcionales.
+**What Sentinel does:** Checks Python, repo structure, Kilo/Codex adapter files, write access, LanceDB, command availability, and optional dependencies.
 
-**Input esperado:** Repositorio clonado o ZIP extraido en una carpeta escribible.
+**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
 
-**Output principal:** Resultado JSON de `/doctor` con `PASS`, `WARN` o `FAIL` por cada chequeo.
+## Choosing Between `/resolve-gaps` And `/sync`
 
-**Como interpretar el resultado:** Si falla `lancedb`, instalar dependencias con `python -m pip install -e .` o usar el instalador local aprobado. Si falla Kilo, confirmar que VS Code abrio la raiz del repo y no una subcarpeta.
+Use `/resolve-gaps` when:
 
-## Como Elegir Entre `/resolve-gaps` Y `/sync`
+- the file has `### GAP-ID` sections;
+- the client or domain owner answered structured response fields;
+- the goal is to close, partially close, or keep open known discovery gaps.
 
-Usa `/resolve-gaps` cuando:
+Use `/sync` when:
 
-- el archivo tiene secciones `### GAP-ID`;
-- el cliente o dominio respondio campos de respuesta;
-- queres cerrar gaps de forma controlada;
-- necesitas promover seeds o decisiones confirmadas.
+- information is new or not mapped to existing gaps;
+- the source is a meeting note, email, Slack message, design update, technical update, QA observation, delivery note, or scope change;
+- the goal is change traceability and impact analysis.
 
-Usa `/sync` cuando:
-
-- el input trae informacion nueva no estructurada;
-- hay una minuta, correo, Slack, decision interna o feedback general;
-- necesitas evaluar impacto sobre brief, specs, backlog o tests;
-- el contenido puede crear nuevos gaps o nuevos requerimientos.
-
-En muchos casos se usan ambos: primero `/resolve-gaps` para cerrar lo estructurado, despues `/sync` para registrar novedades que exceden los gaps existentes.
+In many cases, use both: `/resolve-gaps` first for structured closure, then `/sync` for new information that exceeds the existing gaps.

@@ -32,10 +32,10 @@ python -m sentinel /doctor
 | `sentinel-discovery` | Ingest raw input and create requirements/gaps/decisions |
 | `sentinel-maturity` | Evaluate maturity gates |
 | `sentinel-specs` | Generate specs |
-| `sentinel-backlog` | Generate backlog |
+| `sentinel-backlog` | Generate backlog, retrieval plans, and implementation readiness handoff |
 | `sentinel-quality` | Generate quality artifacts |
 | `sentinel-sync` | Process changes |
-| `sentinel-health` | Audit health |
+| `sentinel-health` | Audit health, validation risks, and stale domain context |
 | `sentinel-command-router` | Translate Ignite chat commands into CLI runs |
 | `sentinel-gap-response` | Process answered discovery gaps |
 | `sentinel-project-brief` | Generate or refresh project brief |
@@ -57,6 +57,12 @@ sentinel /maturity ACME_DASHBOARD
 sentinel /brief ACME_DASHBOARD
 sentinel /context-request ACME_DASHBOARD --domain technology
 sentinel /status ACME_DASHBOARD
+sentinel /specs ACME_DASHBOARD
+sentinel /backlog ACME_DASHBOARD
+sentinel /quality ACME_DASHBOARD
+sentinel /trace ACME_DASHBOARD
+sentinel /health ACME_DASHBOARD
+sentinel /validate ACME_DASHBOARD
 ```
 
 The shorter form may also work if the Codex surface does not reserve that slash command:
@@ -87,6 +93,16 @@ They are guardrails and reminders. The primary enforcement layer remains:
 python -m sentinel /validate PROJECT_ID
 python -m sentinel /health PROJECT_ID
 ```
+
+For backlog handoff, Codex should inspect:
+
+```text
+workspaces/[PROJECT_ID]/04_backlog/EPIC-001.md
+workspaces/[PROJECT_ID]/08_context_packs/backlog_generation.json
+workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
+```
+
+If domain context changed after backlog generation, run `/reindex` and `/backlog` before planning or implementing stories.
 
 ## If Codex Is Unavailable
 

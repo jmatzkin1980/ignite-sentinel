@@ -120,15 +120,17 @@ python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\client-g
 
 The parser reads `### GAP-ID` blocks and extracts:
 
-- `Answer` / `Respuesta`
-- `Owner / source` / `Owner / fuente`
-- `Evidence or reference` / `Evidencia o referencia`
-- `Decision status` / `Estado de decision`
+- answer
+- owner or source
+- evidence or reference
+- decision status
+
+The parser also accepts equivalent field labels in the detected project language so existing answered gap files remain processable.
 
 Auto-close rule:
 
 - answer is non-empty; and
-- decision status is `confirmed`, `not applicable`, `confirmado`, or `no aplica`.
+- decision status is confirmed or not applicable.
 
 If the answer exists but decision status is pending or unclear, the gap becomes `PARTIALLY_CLOSED`.
 

@@ -163,10 +163,20 @@ Creates:
 
 Creates:
 
-- epic
-- user story
-- acceptance criteria
+- one Markdown file per epic as the primary human review artifact
+- `US-00x.md` story mirrors for traceability and quality tooling
+- user stories with domain context coverage, agent execution contracts, and retrieval plans
+- acceptance criteria with fail-to-pass, pass-to-pass, and evidence classifications
+- `08_context_packs/backlog_generation.json`
+- `08_context_packs/implementation_readiness.json`
 - `SPEC -> EPIC -> US -> AC` traceability
+
+Rules:
+
+- prefer vertical, value-oriented stories;
+- keep `[PENDING DOMAIN CONTEXT]` visible instead of inventing missing implementation detail;
+- create a cross-cutting enabler epic only for concrete implementation work that must be built in advance to support confirmed project functionality;
+- rerun `/reindex` and `/backlog` if domain context changes after backlog generation.
 
 ### `sentinel-quality`
 
@@ -191,6 +201,7 @@ Creates:
 - health reports
 - traceability findings
 - memory indexing findings
+- stale domain context findings when backlog was generated from an older domain snapshot
 
 ## Guardrail Hooks
 
