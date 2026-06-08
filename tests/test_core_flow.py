@@ -46,11 +46,11 @@ class SentinelCoreFlowTest(unittest.TestCase):
             "# Nota del cliente\n\nNecesitamos un dashboard para operaciones. El objetivo es reducir trabajo manual.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "GALICIA"]), 0)
-        self.assertEqual(main(["ingest", "GALICIA", "--source", str(source)]), 0)
-        state = json.loads((self.temp / "workspaces" / "GALICIA" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(main(["init", "LANG_DEMO"]), 0)
+        self.assertEqual(main(["ingest", "LANG_DEMO", "--source", str(source)]), 0)
+        state = json.loads((self.temp / "workspaces" / "LANG_DEMO" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["project_language"], "es")
-        gaps = (self.temp / "workspaces" / "GALICIA" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        gaps = (self.temp / "workspaces" / "LANG_DEMO" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         self.assertIn("Versión del documento: `1.0`", gaps)
         self.assertIn("## Cómo responder", gaps)
         self.assertIn("Ejemplo de respuesta útil", gaps)
@@ -96,7 +96,12 @@ class SentinelCoreFlowTest(unittest.TestCase):
         epic_text = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
         self.assertIn("## Story Map", epic_text)
         self.assertIn("## Slicing Strategy", epic_text)
+        self.assertIn("## Domain Context Coverage", epic_text)
+        self.assertIn("**Agent Execution Contract:**", epic_text)
         self.assertIn("Small but valuable", epic_text)
+        self.assertIn("Fail-to-Pass", epic_text)
+        self.assertIn("Pass-to-Pass", epic_text)
+        self.assertIn("[PENDING DOMAIN CONTEXT]", epic_text)
         self.assertFalse((self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-002-cross-cutting-enablers.md").exists())
         self.assertIn("US-005", epic_text)
         self.assertIn("backlog_generation.json", epic_text)
@@ -115,6 +120,8 @@ class SentinelCoreFlowTest(unittest.TestCase):
         story = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
         self.assertIn("Acceptance Criteria", story)
         self.assertIn("AC-001-01", story)
+        self.assertIn("Agent Execution Contract", story)
+        self.assertIn("pass-to-pass", story)
         mermaid = self.temp / "workspaces" / "NOVA" / "06_traceability" / "traceability_graph.md"
         self.assertTrue(mermaid.exists())
         command_log = self.temp / "workspaces" / "NOVA" / "06_traceability" / "command_protocol_log.md"
@@ -149,7 +156,9 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertTrue(enabler_epic.exists())
         enabler_text = enabler_epic.read_text(encoding="utf-8")
         self.assertIn("Cross-Cutting Enablers", enabler_text)
-        self.assertIn("make an internal tool accessible", enabler_text)
+        self.assertIn("Domain Context Coverage", enabler_text)
+        self.assertIn("Agent Execution Contract", enabler_text)
+        self.assertIn("precondition", enabler_text)
         self.assertIn("US-001", enabler_text)
         graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
         self.assertIn('"relation": "enables"', graph)
@@ -185,6 +194,14 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertTrue(design_results)
         self.assertEqual(tech_results[0]["artifact_type"], "technology_context")
         self.assertEqual(design_results[0]["artifact_type"], "design_context")
+        self.assertEqual(main(["maturity", "NOVA"]), 0)
+        self.assertEqual(main(["specs", "NOVA"]), 0)
+        self.assertEqual(main(["backlog", "NOVA"]), 0)
+        epic_text = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+        self.assertIn("Domain Context Coverage", epic_text)
+        self.assertRegex(epic_text, r"\| Technology \| .* \| Confirmed \|")
+        self.assertRegex(epic_text, r"\| Design \| .* \| Confirmed \|")
+        self.assertIn("Agent Execution Contract", epic_text)
 
     def test_sync_creates_change_impact_and_context_pack(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"

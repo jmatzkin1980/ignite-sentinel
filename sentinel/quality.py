@@ -63,9 +63,13 @@ def resolve_story_path(path_value: str):
 def extract_acceptance_criteria(text: str) -> list[str]:
     criteria = []
     for line in text.splitlines():
-        match = re.match(r"\|\s*(AC-\d+(?:-\d+)?)\s*\|\s*(.+?)\s*\|", line)
-        if match:
-            criteria.append(f"{match.group(1)}: {match.group(2)}")
+        classified = re.match(r"\|\s*(AC-\d+(?:-\d+)?)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*\|", line)
+        if classified:
+            criteria.append(f"{classified.group(1)} [{classified.group(2).strip()}]: {classified.group(3).strip()}")
+            continue
+        legacy = re.match(r"\|\s*(AC-\d+(?:-\d+)?)\s*\|\s*(.+?)\s*\|", line)
+        if legacy:
+            criteria.append(f"{legacy.group(1)}: {legacy.group(2)}")
     return criteria or ["AC-001: Validate the main happy path and a recoverable failure path."]
 
 
@@ -87,6 +91,7 @@ def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str
 
 - Prepare valid input data for the happy path.
 - Prepare missing or invalid input data for validation paths.
+- Separate fail-to-pass checks, pass-to-pass regression checks, and evidence checks when classifications are present.
 - Assert that trace IDs remain visible in the artifact chain.
 """
 
@@ -115,6 +120,7 @@ This audit checks whether backlog items are ready for downstream execution using
 - [ ] Each story links to a JTBD or source requirement.
 - [ ] Each story is an end-to-end functional slice.
 - [ ] Acceptance criteria are testable and observable.
+- [ ] Acceptance criteria identify fail-to-pass, pass-to-pass, and evidence expectations when available.
 - [ ] Technology context is cited or explicitly pending.
 - [ ] Design context is cited or explicitly pending.
 - [ ] Quality and risk expectations are cited or explicitly pending.

@@ -49,20 +49,20 @@ Codex uses `AGENTS.md` plus the `sentinel-command-router` skill to interpret Ign
 Recommended Codex chat form:
 
 ```text
-sentinel /init TESORO_CIERRE_FORZADO
-sentinel /ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
-sentinel /gaps TESORO_CIERRE_FORZADO
-sentinel /resolve-gaps TESORO_CIERRE_FORZADO --source input\interactions\answered-gaps.md
-sentinel /maturity TESORO_CIERRE_FORZADO
-sentinel /brief TESORO_CIERRE_FORZADO
-sentinel /context-request TESORO_CIERRE_FORZADO --domain technology
-sentinel /status TESORO_CIERRE_FORZADO
+sentinel /init ACME_DASHBOARD
+sentinel /ingest ACME_DASHBOARD --source input\client_requirement\sync-guide.md
+sentinel /gaps ACME_DASHBOARD
+sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+sentinel /maturity ACME_DASHBOARD
+sentinel /brief ACME_DASHBOARD
+sentinel /context-request ACME_DASHBOARD --domain technology
+sentinel /status ACME_DASHBOARD
 ```
 
 The shorter form may also work if the Codex surface does not reserve that slash command:
 
 ```text
-/init TESORO_CIERRE_FORZADO
+/init ACME_DASHBOARD
 ```
 
 If Codex intercepts `/init` or another slash command as a native Codex command, resend it with the `sentinel` prefix.

@@ -39,6 +39,8 @@ Memory lives at:
 workspaces/[PROJECT_ID]/memory.lancedb/
 ```
 
+This is project retrieval memory, not framework operating memory. Reusable lessons about how agents should run Ignite Sentinel belong in repo-local instructions such as `AGENTS.md`, skills, templates, or user guide pages. When a lesson comes from a chat, prior harness, or confidential example, convert it into an agnostic rule before persisting it.
+
 Ignite Sentinel uses local LanceDB as the primary retrieval backend:
 
 ```text
@@ -162,4 +164,5 @@ Sentinel is local-first by default:
 - LanceDB is local under the project workspace.
 - Hash embeddings are deterministic and local.
 - Do not use remote MCP, external vector databases, or external embedding APIs for client/project data unless explicitly approved outside this framework.
+- Do not persist source paths, client names, system names, URLs, account IDs, raw payloads, private business facts, or identifiable wording from inspiration materials into framework memory, docs, skills, tests, or generated examples.
 

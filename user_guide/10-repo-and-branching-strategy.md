@@ -33,7 +33,7 @@ git switch -c project/PROJECT_ID
 Examples:
 
 ```powershell
-git switch -c project/TESORO_CIERRE_FORZADO
+git switch -c project/ACME_DASHBOARD
 git switch -c test/tesoro-cierre-forzado-fixture
 ```
 

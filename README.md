@@ -9,7 +9,7 @@ Ignite Sentinel turns raw client input into traceable requirements, specs, backl
 First time on a new laptop or PC:
 
 ```powershell
-git clone https://github.com/jmatzkin1980/ignite-sentinel.git
+git clone <REPO_URL>
 cd ignite-sentinel
 python -m sentinel /doctor
 ```

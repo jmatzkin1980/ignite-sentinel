@@ -28,7 +28,7 @@ No remote MCP, external vector database, or external embedding service is requir
 1. Clone or download the repository.
 
 ```powershell
-git clone https://github.com/jmatzkin1980/ignite-sentinel.git
+git clone <REPO_URL>
 cd ignite-sentinel
 ```
 

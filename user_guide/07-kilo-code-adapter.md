@@ -47,28 +47,28 @@ Examples:
 
 ```text
 /doctor
-/init TESORO_CIERRE_FORZADO
-/ingest TESORO_CIERRE_FORZADO --source input\client_requirement\sync-guide.md
-/gaps TESORO_CIERRE_FORZADO
-/resolve-gaps TESORO_CIERRE_FORZADO --source input\interactions\answered-gaps.md
-/maturity TESORO_CIERRE_FORZADO
-/brief TESORO_CIERRE_FORZADO
-/context-request TESORO_CIERRE_FORZADO --domain technology
-/status TESORO_CIERRE_FORZADO
-/sync TESORO_CIERRE_FORZADO --source input\interactions\client-answer.md --note "client follow-up"
-/retrieve TESORO_CIERRE_FORZADO --query "client gap response" --workflow sync
-/specs TESORO_CIERRE_FORZADO
-/backlog TESORO_CIERRE_FORZADO
-/quality TESORO_CIERRE_FORZADO
-/trace TESORO_CIERRE_FORZADO
-/health TESORO_CIERRE_FORZADO
-/validate TESORO_CIERRE_FORZADO
+/init ACME_DASHBOARD
+/ingest ACME_DASHBOARD --source input\client_requirement\sync-guide.md
+/gaps ACME_DASHBOARD
+/resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+/maturity ACME_DASHBOARD
+/brief ACME_DASHBOARD
+/context-request ACME_DASHBOARD --domain technology
+/status ACME_DASHBOARD
+/sync ACME_DASHBOARD --source input\interactions\client-answer.md --note "client follow-up"
+/retrieve ACME_DASHBOARD --query "client gap response" --workflow sync
+/specs ACME_DASHBOARD
+/backlog ACME_DASHBOARD
+/quality ACME_DASHBOARD
+/trace ACME_DASHBOARD
+/health ACME_DASHBOARD
+/validate ACME_DASHBOARD
 ```
 
 If a command name conflicts with the chat surface, use the generic fallback:
 
 ```text
-/sentinel /init TESORO_CIERRE_FORZADO
+/sentinel /init ACME_DASHBOARD
 ```
 
 ## Suggested Prompt

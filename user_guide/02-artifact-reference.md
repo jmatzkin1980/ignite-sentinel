@@ -269,9 +269,10 @@ Each epic file includes:
 
 - YAML frontmatter for machine routing and Git-friendly review;
 - epic outcome, source and retrieval summary;
+- domain context coverage for Product, Technology, Design, Quality, and Delivery;
 - slicing strategy based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
-- embedded user stories with description, narrative, context used, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
+- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 
 This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
@@ -280,6 +281,20 @@ This is the main file a human reviewer should inspect before handing work to pla
 Story-level mirror used by traceability and quality tooling.
 
 Sentinel keeps individual `US-00x.md` files so downstream quality artifacts can link directly to a story node. The epic file remains the human-facing backlog bundle; story files repeat the critical story contract with source context, functional slice guidance, acceptance criteria, and readiness checklist.
+
+Story mirrors also include an `Agent Execution Contract` when domain context is available. This contract can include:
+
+- expected downstream agent profile;
+- command hints from Technology context;
+- critical files, services, APIs, data stores, or shared surfaces;
+- design match signals from Design context;
+- engineering practice or handbook references;
+- autonomy limits: always, ask first, never;
+- blast-radius boundaries;
+- validation contract split into `fail-to-pass`, `pass-to-pass`, and evidence checks;
+- parallelization or sequencing notes.
+
+When domain context is missing, Sentinel leaves `[PENDING DOMAIN CONTEXT]` instead of inventing commands, file paths, design tokens, regression suites, or implementation boundaries.
 
 ### `EPIC-002-cross-cutting-enablers.md`
 
@@ -306,8 +321,12 @@ It records which local memory chunks were consulted for:
 - epic value and MVP;
 - functional slicing and acceptance criteria;
 - technical dependencies;
+- execution commands and critical surfaces;
+- engineering practices;
 - UX states;
+- design match;
 - quality risks;
+- regression contract;
 - open uncertainty.
 
 This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace.

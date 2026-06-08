@@ -216,7 +216,7 @@ The PRD explains the what and why for business and human reviewers, including pe
 
 ## `backlog`
 
-Generate initial epic, user story, and acceptance criteria.
+Generate initial epic, user stories, acceptance criteria, and agent-oriented backlog contracts.
 
 ```powershell
 python -m sentinel /backlog PROJECT_ID
@@ -228,6 +228,10 @@ Outputs:
 
 - `04_backlog/EPIC-001.md`
 - `04_backlog/US-001.md`
+- optional `04_backlog/EPIC-002-cross-cutting-enablers.md`
+- `08_context_packs/backlog_generation.json`
+
+`/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage` and derive `Agent Execution Contract` sections. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
 
 ## `quality`
 

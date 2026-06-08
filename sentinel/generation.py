@@ -27,6 +27,11 @@ BACKLOG_CONTEXT_QUERIES = {
     "quality_risks": ("acceptance testability edge cases regression security privacy auditability evidence", "quality"),
     "open_uncertainty": ("pending input gaps assumptions decisions dependencies roadmap blockers", None),
     "enabler_boundary": ("SAD architecture as-is to-be frontend backend prototype enabler foundation cross-cutting precondition", None),
+    "execution_commands": ("build test lint typecheck migration docker boot environment commands", "technical"),
+    "critical_surfaces": ("files routes modules components database schema api contract tests critical surfaces blast radius", None),
+    "engineering_practices": ("handbook coding standards architecture decision adr error handling logging conventions", "technical"),
+    "design_match": ("figma prototype component tokens design system visual states interaction accessibility", "design"),
+    "regression_contract": ("test suite regression fail-to-pass pass-to-pass test data automation quality gate evidence", "quality"),
 }
 
 BACKLOG_STORY_SEEDS = [
@@ -218,7 +223,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     prd_text = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
     backlog_context = build_backlog_generation_context(project_id, spec_text, prd_text)
     story_specs = build_backlog_story_specs(project_id, backlog_context)
-    enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs)
+    enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
     epic_path.write_text(render_epic(project_id, story_specs, backlog_context), encoding="utf-8")
@@ -354,37 +359,44 @@ def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: 
 
 def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
+    domain_coverage = build_domain_context_coverage(backlog_context)
     for index, seed in enumerate(BACKLOG_STORY_SEEDS, start=1):
         story_id = f"US-{index:03d}"
         source_context = context_row_for_story(seed, backlog_context)
         trace = ["REQ-001", "PRD-001", "SPEC-001", seed["fr"], seed["jtbd"]]
-        specs.append(
-            {
-                "id": story_id,
-                "type": seed["type"],
-                "title": seed["title"],
-                "label": seed["label"],
-                "fr": seed["fr"],
-                "jtbd": seed["jtbd"],
-                "slicing": seed["slicing"],
-                "description": seed["description"],
-                "goal": seed["goal"],
-                "benefit": seed["benefit"],
-                "domain": story_domain(seed["fr"]),
-                "trace": trace,
-                "context": source_context,
-                "dependencies": story_dependencies(index),
-                "enables": [],
-                "acceptance": acceptance_criteria_for_story(story_id, seed),
-            }
-        )
+        story = {
+            "id": story_id,
+            "type": seed["type"],
+            "title": seed["title"],
+            "label": seed["label"],
+            "fr": seed["fr"],
+            "jtbd": seed["jtbd"],
+            "slicing": seed["slicing"],
+            "description": seed["description"],
+            "goal": seed["goal"],
+            "benefit": seed["benefit"],
+            "domain": story_domain(seed["fr"]),
+            "trace": trace,
+            "context": source_context,
+            "domain_coverage": domain_coverage,
+            "dependencies": story_dependencies(index),
+            "enables": [],
+            "acceptance": acceptance_criteria_for_story(story_id, seed),
+        }
+        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        specs.append(story)
     return specs
 
 
-def build_cross_cutting_enabler_specs(project_id: str, value_stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_cross_cutting_enabler_specs(
+    project_id: str,
+    value_stories: list[dict[str, Any]],
+    backlog_context: dict[str, Any],
+) -> list[dict[str, Any]]:
     evidence = cross_cutting_enabler_evidence(project_id)
     if not evidence:
         return []
+    domain_coverage = value_stories[0].get("domain_coverage", []) if value_stories else []
     specs: list[dict[str, Any]] = []
     start = len(value_stories) + 1
     for candidate in ENABLER_CANDIDATES:
@@ -392,31 +404,32 @@ def build_cross_cutting_enabler_specs(project_id: str, value_stories: list[dict[
             continue
         story_id = f"US-{start + len(specs):03d}"
         trace = ["REQ-001", "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
-        specs.append(
-            {
-                "id": story_id,
-                "type": "cross_cutting_enabler",
-                "title": candidate["title"],
-                "label": candidate["label"],
-                "fr": candidate["fr"],
-                "jtbd": candidate["jtbd"],
-                "slicing": candidate["slicing"],
-                "description": candidate["description"],
-                "goal": candidate["goal"],
-                "benefit": candidate["benefit"],
-                "domain": "technical",
-                "trace": trace,
-                "context": {
-                    "need": "cross_cutting_enabler",
-                    "artifact_id": "00_raw/*",
-                    "artifact_type": "source_context",
-                    "summary": "Concrete source/context terms indicate this enabler supports project functionality across multiple stories, capabilities, or implementation surfaces inside the project boundary.",
-                },
-                "dependencies": [],
-                "enables": [story["id"] for story in value_stories if story["type"] == "value_story"],
-                "acceptance": acceptance_criteria_for_enabler(story_id, candidate),
-            }
-        )
+        story = {
+            "id": story_id,
+            "type": "cross_cutting_enabler",
+            "title": candidate["title"],
+            "label": candidate["label"],
+            "fr": candidate["fr"],
+            "jtbd": candidate["jtbd"],
+            "slicing": candidate["slicing"],
+            "description": candidate["description"],
+            "goal": candidate["goal"],
+            "benefit": candidate["benefit"],
+            "domain": "technical",
+            "trace": trace,
+            "context": {
+                "need": "cross_cutting_enabler",
+                "artifact_id": "00_raw/*",
+                "artifact_type": "source_context",
+                "summary": "Concrete source/context terms indicate this enabler supports project functionality across multiple stories, capabilities, or implementation surfaces inside the project boundary.",
+            },
+            "domain_coverage": domain_coverage,
+            "dependencies": [],
+            "enables": [story["id"] for story in value_stories if story["type"] == "value_story"],
+            "acceptance": acceptance_criteria_for_enabler(story_id, candidate),
+        }
+        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        specs.append(story)
     return specs
 
 
@@ -434,6 +447,162 @@ def cross_cutting_enabler_evidence(project_id: str) -> str:
     ):
         return ""
     return text
+
+
+def build_domain_context_coverage(backlog_context: dict[str, Any]) -> list[dict[str, str]]:
+    sections = backlog_context.get("sections", {}) if isinstance(backlog_context, dict) else {}
+    domain_specs = [
+        ("Product", ("epic_value", "functional_slicing"), "Defines value, scope, slicing, FR/JTBD links and acceptance intent."),
+        ("Technology", ("technical_dependencies", "execution_commands", "critical_surfaces", "engineering_practices"), "Defines architecture, commands, affected surfaces, constraints and implementation risks."),
+        ("Design", ("ux_states", "design_match"), "Defines journeys, screens, states, components, tokens and interaction rules."),
+        ("Quality", ("quality_risks", "regression_contract"), "Defines testability, regression, evidence, test data and quality gates."),
+        ("Delivery", ("open_uncertainty",), "Defines blockers, sequencing, dependencies, roadmap and planning uncertainty."),
+    ]
+    coverage: list[dict[str, str]] = []
+    for domain, keys, impact in domain_specs:
+        evidence = first_context_result(sections, keys)
+        status = "Confirmed" if evidence else "Pending"
+        coverage.append(
+            {
+                "domain": domain,
+                "evidence": evidence_label(evidence) if evidence else "[PENDING DOMAIN CONTEXT]",
+                "status": status,
+                "impact": impact,
+            }
+        )
+    return coverage
+
+
+def first_context_result(sections: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any] | None:
+    for key in keys:
+        section = sections.get(key, {}) if isinstance(sections, dict) else {}
+        results = section.get("results", []) if isinstance(section, dict) else []
+        if results:
+            return results[0]
+    return None
+
+
+def evidence_label(row: dict[str, Any]) -> str:
+    artifact_id = str(row.get("artifact_id", "N/A"))
+    artifact_type = str(row.get("artifact_type", "artifact"))
+    section = str(row.get("section_path", "")).strip()
+    if section:
+        return f"`{artifact_id}` ({artifact_type}, {section})"
+    return f"`{artifact_id}` ({artifact_type})"
+
+
+def build_agent_execution_contract(
+    story: dict[str, Any],
+    backlog_context: dict[str, Any],
+    domain_coverage: list[dict[str, str]],
+) -> dict[str, Any]:
+    sections = backlog_context.get("sections", {}) if isinstance(backlog_context, dict) else {}
+    technical_ready = coverage_status(domain_coverage, "Technology") == "Confirmed"
+    design_ready = coverage_status(domain_coverage, "Design") == "Confirmed"
+    quality_ready = coverage_status(domain_coverage, "Quality") == "Confirmed"
+    execution_ready = technical_ready and quality_ready
+    if story.get("domain") == "design":
+        execution_ready = execution_ready and design_ready
+
+    return {
+        "readiness": "Ready With Domain Evidence" if execution_ready else "Needs Domain Context",
+        "agent_profile": agent_profile_for_story(story),
+        "decision_priority": "Business value > correctness > safety/privacy > test evidence > implementation elegance",
+        "commands": context_signal(sections, ("execution_commands",), "[PENDING TECHNOLOGY CONTEXT] Provide build, lint, test, typecheck, migration or boot commands."),
+        "critical_surfaces": context_signal(sections, ("critical_surfaces", "technical_dependencies"), "[PENDING TECHNOLOGY CONTEXT] Provide affected files, services, APIs, data stores, modules or shared surfaces."),
+        "design_match": design_signal_for_story(story, sections),
+        "engineering_practices": context_signal(sections, ("engineering_practices",), "[PENDING TECHNOLOGY CONTEXT] Provide engineering handbook, ADRs, style rules, logging/error patterns or repo conventions."),
+        "validation": validation_contract_for_story(story),
+        "autonomy": autonomy_contract_for_story(story),
+        "blast_radius": blast_radius_for_story(story),
+        "parallelization": parallelization_note_for_story(story),
+    }
+
+
+def coverage_status(coverage: list[dict[str, str]], domain: str) -> str:
+    for row in coverage:
+        if row.get("domain") == domain:
+            return row.get("status", "Pending")
+    return "Pending"
+
+
+def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str) -> dict[str, str]:
+    row = first_context_result(sections, keys)
+    if not row:
+        return {"status": "Pending", "source": "[PENDING DOMAIN CONTEXT]", "summary": pending}
+    return {
+        "status": "Confirmed",
+        "source": evidence_label(row),
+        "summary": str(row.get("summary", "Context retrieved"))[:320],
+    }
+
+
+def design_signal_for_story(story: dict[str, Any], sections: dict[str, Any]) -> dict[str, str]:
+    if story.get("domain") != "design" and story.get("label") != "Enabler":
+        return {"status": "Not Applicable", "source": "N/A", "summary": "No direct design execution contract is required for this story unless design context later marks it as impacted."}
+    return context_signal(sections, ("design_match", "ux_states"), "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
+
+
+def agent_profile_for_story(story: dict[str, Any]) -> str:
+    if story.get("type") == "cross_cutting_enabler":
+        return "Implementation enabler agent with Technology and Quality review"
+    domain = story.get("domain")
+    if domain == "technical":
+        return "Backend/integration planning agent with Quality verifier"
+    if domain == "design":
+        return "Frontend/design implementation agent with Quality verifier"
+    if domain == "quality":
+        return "Quality verifier agent with Product traceability review"
+    return "Product-to-implementation planning agent"
+
+
+def validation_contract_for_story(story: dict[str, Any]) -> dict[str, str]:
+    fail_to_pass = [item["id"] for item in story.get("acceptance", []) if item.get("classification") == "fail-to-pass"]
+    pass_to_pass = [item["id"] for item in story.get("acceptance", []) if item.get("classification") == "pass-to-pass"]
+    evidence = [item["id"] for item in story.get("acceptance", []) if item.get("classification") == "evidence"]
+    return {
+        "fail_to_pass": ", ".join(fail_to_pass) or "[PENDING QUALITY CONTEXT]",
+        "pass_to_pass": ", ".join(pass_to_pass) or "[PENDING QUALITY CONTEXT]",
+        "evidence": ", ".join(evidence) or "[PENDING QUALITY CONTEXT]",
+    }
+
+
+def autonomy_contract_for_story(story: dict[str, Any]) -> dict[str, list[str]]:
+    return {
+        "always": [
+            "Preserve trace IDs in implementation notes, tests or evidence.",
+            "Write or update tests/evidence for the acceptance criteria before marking the story done.",
+            "Use retrieved domain context and workspace source files as authority.",
+        ],
+        "ask_first": [
+            "Changing database schemas, auth/permission behavior, external contracts, deployment settings or shared platform configuration.",
+            "Adding new dependencies or expanding scope beyond the story boundary.",
+            "Editing files or surfaces not cited by Technology/Design context when the blast radius is unclear.",
+        ],
+        "never": [
+            "Invent missing Technology, Design or Quality context.",
+            "Commit credentials, private URLs, raw payloads, account IDs or sensitive client facts.",
+            "Modify unrelated flows to make the story pass.",
+        ],
+    }
+
+
+def blast_radius_for_story(story: dict[str, Any]) -> list[str]:
+    return [
+        "Keep changes inside the confirmed capability boundary for this story.",
+        "Do not alter upstream discovery, PRD or specs without a traced /sync or gap-resolution event.",
+        "Treat unlisted shared systems, auth flows, data contracts, design system foundations and deployment settings as out of scope unless domain context explicitly includes them.",
+    ]
+
+
+def parallelization_note_for_story(story: dict[str, Any]) -> str:
+    dependencies = story.get("dependencies", [])
+    enables = story.get("enables", [])
+    if enables:
+        return f"Build before dependent stories when planning execution. Enables: {', '.join(enables)}."
+    if dependencies:
+        return f"Sequence after dependencies are accepted or stubbed with explicit contracts: {', '.join(dependencies)}."
+    return "Can be planned as an early slice if domain context is sufficient and no shared-surface conflict is detected."
 
 
 def story_domain(fr_id: str) -> str:
@@ -486,6 +655,7 @@ def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[d
         {
             "id": f"{base}-01",
             "name": "Happy Path",
+            "classification": "fail-to-pass",
             "given": "el usuario objetivo tiene permisos vigentes, datos validos y el contexto minimo confirmado",
             "when": f"ejecuta la capacidad cubierta por {seed['fr']}",
             "then": "el sistema produce el resultado esperado y deja evidencia trazable hacia el requerimiento y la spec",
@@ -493,6 +663,7 @@ def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[d
         {
             "id": f"{base}-02",
             "name": "Validation Path",
+            "classification": "fail-to-pass",
             "given": "falta informacion obligatoria, la seleccion es ambigua o una regla confirmada no se cumple",
             "when": "el usuario intenta avanzar con el flujo",
             "then": "el sistema bloquea el avance riesgoso, explica la condicion recuperable y no registra exito falso",
@@ -500,13 +671,23 @@ def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[d
         {
             "id": f"{base}-03",
             "name": "Failure And Recovery Path",
+            "classification": "fail-to-pass",
             "given": "una dependencia, dato, permiso o estado externo no esta disponible",
             "when": "el sistema intenta completar el slice",
             "then": "la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad",
         },
         {
             "id": f"{base}-04",
+            "name": "Regression Path",
+            "classification": "pass-to-pass",
+            "given": "existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia",
+            "when": "se valida el incremento junto con la regresion definida por Quality o el repositorio",
+            "then": "las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado",
+        },
+        {
+            "id": f"{base}-05",
             "name": "Quality Evidence Path",
+            "classification": "evidence",
             "given": "Quality revisa la historia para aceptacion o automatizacion",
             "when": "consulta criterios, alcance, dependencias y trazas",
             "then": f"encuentra {seed['fr']}, {seed['jtbd']}, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable",
@@ -520,6 +701,7 @@ def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list
         {
             "id": f"{base}-01",
             "name": "Boundary Fit",
+            "classification": "fail-to-pass",
             "given": "el enabler fue propuesto para el backlog",
             "when": "Product, Technology y Quality revisan su alcance",
             "then": "queda ligado a funcionalidad, FR, epica, historia o superficie de implementacion concreta dentro del boundary del proyecto y no a infraestructura generica",
@@ -527,6 +709,7 @@ def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list
         {
             "id": f"{base}-02",
             "name": "Enables Project Functionality",
+            "classification": "fail-to-pass",
             "given": "las funcionalidades, historias o superficies dependientes estan identificadas",
             "when": "el enabler se completa",
             "then": "el scope funcional habilitado puede avanzar con menos incertidumbre, dependencia o riesgo verificable",
@@ -534,6 +717,7 @@ def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list
         {
             "id": f"{base}-03",
             "name": "Observable Validation",
+            "classification": "evidence",
             "given": "el enabler no produce valor usuario directo",
             "when": "Quality valida su resultado",
             "then": "existe una evidencia objetiva que demuestra que el riesgo o dependencia fue reducido",
@@ -541,6 +725,7 @@ def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list
         {
             "id": f"{base}-04",
             "name": "No Loose Infrastructure",
+            "classification": "pass-to-pass",
             "given": "aparece trabajo de setup, ambiente o infraestructura no especifica",
             "when": "no habilita una historia, riesgo o contrato trazable",
             "then": "se rechaza como backlog item y se trata como precondicion operacional o tarea externa al scope",
@@ -953,6 +1138,7 @@ def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context:
         f"| `{story['id']}` | {story['type']} | {story['title']} | {story['label']} | {story['slicing']} | {', '.join(story['dependencies']) or 'None'} | {', '.join(story['trace'])} |"
         for story in stories
     )
+    domain_coverage = stories[0].get("domain_coverage", build_domain_context_coverage(backlog_context)) if stories else build_domain_context_coverage(backlog_context)
     return f"""---
 id: EPIC-001
 project: {project_id}
@@ -982,12 +1168,19 @@ Deliver the first ordered set of vertical slices that proves the mature requirem
 | Generation rule | Use focused local retrieval before slicing. Workspace files remain source of truth; memory is a retrieval aid. |
 | Privacy | Do not copy credentials, private URLs, raw payloads, account IDs, or confidential client-specific facts into backlog artifacts. |
 
+## Domain Context Coverage
+
+Backlog generation consumes living domain context when Technology, Design, Quality, Delivery or other roles add files to the workspace and those files are ingested or synced. The backlog cites retrieved evidence when available and leaves `[PENDING DOMAIN CONTEXT]` when a domain contract is still missing.
+
+{render_domain_context_coverage(domain_coverage)}
+
 ## Epic Scope
 
 ### In Scope
 
 - End-to-end functional slices derived from `FR-01` through `FR-05`.
 - Acceptance criteria in declarative Given/When/Then form.
+- Agent execution contracts derived from retrieved domain context, or explicit pending markers when context is missing.
 - Dependencies, assumptions, readiness and done checks visible to humans and AI agents.
 - Explicit `[PENDING INPUT]` markers when context was not retrieved or not confirmed.
 
@@ -1008,7 +1201,7 @@ Deliver the first ordered set of vertical slices that proves the mature requirem
 | Lawrence patterns | Reduce variation to the smallest useful version first, then add workflow steps, edge cases, performance or external dependency work. |
 | Small but valuable | Do not split below the value boundary. A small story must still be independently meaningful, testable, and useful. |
 | Cross-cutting enablers | Only create enabler backlog when implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. Generic environment or accessibility setup is a precondition, not an enabler story. |
-| Agent readiness | Give downstream agents bounded context, trace IDs, acceptance scenarios, non-goals, dependencies and stop conditions. |
+| Agent readiness | Give downstream agents bounded context, domain evidence, autonomy limits, validation contract, non-goals, dependencies, blast radius and stop conditions. |
 
 ## Story Map
 
@@ -1052,6 +1245,7 @@ def render_enabler_epic(
         for story in enablers
     )
     value_rows = "\n".join(f"| `{story['id']}` | {story['title']} |" for story in value_stories)
+    domain_coverage = enablers[0].get("domain_coverage", build_domain_context_coverage(backlog_context)) if enablers else build_domain_context_coverage(backlog_context)
     return f"""---
 id: EPIC-002
 project: {project_id}
@@ -1070,6 +1264,10 @@ context_pack: 08_context_packs/backlog_generation.json
 ## Boundary Rule
 
 This epic exists only for implementation enablers that must be built in advance to support the functionality being built in `EPIC-001` or the confirmed project scope. It must not collect generic infrastructure, vague setup, or broad platform aspirations.
+
+## Domain Context Coverage
+
+{render_domain_context_coverage(domain_coverage)}
 
 ## Accepted Enabler Test
 
@@ -1128,6 +1326,14 @@ So that {story['benefit'].lower()}
 | --- | --- | --- |
 | {story['context']['need']} | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) | {safe_cell(story['context']['summary'], 220)} |
 
+**Domain Context Coverage:**
+
+{render_domain_context_coverage(story.get('domain_coverage', []))}
+
+**Agent Execution Contract:**
+
+{render_agent_execution_contract(story.get('execution_contract', {}))}
+
 **In Scope:**
 - The smallest user-observable behavior that satisfies `{story['fr']}`.
 - Required validation, recoverable failure behavior and trace evidence for this slice.
@@ -1158,15 +1364,76 @@ So that {story['benefit'].lower()}
 
 
 def render_gherkin_criterion(criterion: dict[str, str]) -> str:
-    return f"""> **{criterion['id']} - {criterion['name']}:**
+    classification = criterion.get("classification", "acceptance")
+    return f"""> **{criterion['id']} - {criterion['name']} [{classification}]:**
 > Given {criterion['given']},
 > When {criterion['when']},
 > Then {criterion['then']}."""
 
 
+def render_domain_context_coverage(coverage: list[dict[str, str]]) -> str:
+    if not coverage:
+        return "| Domain | Evidence Used | Status | Impact |\n| --- | --- | --- | --- |\n| All | [PENDING DOMAIN CONTEXT] | Pending | No domain coverage was available at generation time. |"
+    rows = "\n".join(
+        f"| {row.get('domain', 'Unknown')} | {row.get('evidence', '[PENDING DOMAIN CONTEXT]')} | {row.get('status', 'Pending')} | {safe_cell(row.get('impact', ''), 180)} |"
+        for row in coverage
+    )
+    return f"""| Domain | Evidence Used | Status | Impact |
+| --- | --- | --- | --- |
+{rows}"""
+
+
+def render_agent_execution_contract(contract: dict[str, Any]) -> str:
+    if not contract:
+        return "[PENDING DOMAIN CONTEXT] Agent execution contract was not generated."
+    commands = contract.get("commands", {})
+    critical_surfaces = contract.get("critical_surfaces", {})
+    design_match = contract.get("design_match", {})
+    engineering_practices = contract.get("engineering_practices", {})
+    validation = contract.get("validation", {})
+    autonomy = contract.get("autonomy", {})
+    return f"""| Field | Value |
+| --- | --- |
+| Readiness | {contract.get('readiness', 'Needs Domain Context')} |
+| Agent profile | {contract.get('agent_profile', 'Planning agent')} |
+| Decision priority | {contract.get('decision_priority', 'Business value > correctness > safety > evidence')} |
+| Commands | {render_context_signal_inline(commands)} |
+| Critical surfaces | {render_context_signal_inline(critical_surfaces)} |
+| Design match | {render_context_signal_inline(design_match)} |
+| Engineering practices | {render_context_signal_inline(engineering_practices)} |
+| Fail-to-Pass | {validation.get('fail_to_pass', '[PENDING QUALITY CONTEXT]')} |
+| Pass-to-Pass | {validation.get('pass_to_pass', '[PENDING QUALITY CONTEXT]')} |
+| Evidence | {validation.get('evidence', '[PENDING QUALITY CONTEXT]')} |
+| Parallelization | {safe_cell(contract.get('parallelization', ''), 220)} |
+
+**Autonomy Limits**
+
+- Always: {', '.join(autonomy.get('always', []))}
+- Ask First: {', '.join(autonomy.get('ask_first', []))}
+- Never: {', '.join(autonomy.get('never', []))}
+
+**Blast Radius**
+
+{render_bullet_list(contract.get('blast_radius', []))}
+"""
+
+
+def render_context_signal_inline(signal: dict[str, str]) -> str:
+    status = signal.get("status", "Pending")
+    source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
+    summary = safe_cell(signal.get("summary", ""), 220)
+    return f"{status}: {source} - {summary}"
+
+
+def render_bullet_list(items: list[str]) -> str:
+    if not items:
+        return "- [PENDING DOMAIN CONTEXT]"
+    return "\n".join(f"- {item}" for item in items)
+
+
 def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
     rows = "\n".join(
-        f"| {criterion['id']} | Given {criterion['given']}, When {criterion['when']}, Then {criterion['then']}. |"
+        f"| {criterion['id']} | {criterion.get('classification', 'acceptance')} | Given {criterion['given']}, When {criterion['when']}, Then {criterion['then']}. |"
         for criterion in story["acceptance"]
     )
     return f"""---
@@ -1196,6 +1463,14 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 | Backlog context pack | `08_context_packs/backlog_generation.json` |
 | Retrieved signal | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) |
 
+## Domain Context Coverage
+
+{render_domain_context_coverage(story.get('domain_coverage', []))}
+
+## Agent Execution Contract
+
+{render_agent_execution_contract(story.get('execution_contract', {}))}
+
 ## Functional Slice
 
 - Slicing pattern: {story['slicing']}.
@@ -1207,8 +1482,8 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 
 ## Acceptance Criteria
 
-| AC ID | Criterion |
-| --- | --- |
+| AC ID | Classification | Criterion |
+| --- | --- | --- |
 {rows}
 
 ## Readiness Checklist
