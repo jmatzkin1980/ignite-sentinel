@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import re
 
+from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .traceability import children_of, load_graph, parents_of
-from .workspace import memory_path, update_state, workspace_path, write_json
+from .workspace import memory_path, read_json, update_state, workspace_path, write_json
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
@@ -50,6 +51,7 @@ def run_health(project_id: str) -> dict[str, object]:
     for story in [node for node in graph.get("nodes", []) if node.get("type") == "user_story"]:
         if not any(parent.startswith("EPIC-") for parent in parents_of(project_id, story["id"])):
             findings.append(f"{story['id']} is not linked to an epic.")
+    findings.extend(domain_context_freshness_findings(project_id, base))
 
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
@@ -69,6 +71,27 @@ def render_health(project_id: str, verdict: str, findings: list[str]) -> str:
 
 {rows}
 """
+
+
+def domain_context_freshness_findings(project_id: str, base) -> list[str]:
+    readiness_path = base / "08_context_packs" / "implementation_readiness.json"
+    backlog_path = base / "08_context_packs" / "backlog_generation.json"
+    snapshot = {}
+    if readiness_path.exists():
+        readiness_pack = read_json(readiness_path, {})
+        snapshot = readiness_pack.get("generated_from", {}).get("domain_context_snapshot", {})
+    elif backlog_path.exists():
+        backlog_pack = read_json(backlog_path, {})
+        snapshot = backlog_pack.get("domain_context_snapshot", {})
+    if not snapshot:
+        return []
+
+    current = domain_context_snapshot(project_id)
+    if current.get("aggregate_hash") == snapshot.get("aggregate_hash"):
+        return []
+    return [
+        "Domain context changed after backlog generation; run /reindex and /backlog before implementation handoff."
+    ]
 
 
 def has_blocking_open_gap(text: str) -> bool:

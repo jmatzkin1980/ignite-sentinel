@@ -230,8 +230,11 @@ Outputs:
 - `04_backlog/US-001.md`
 - optional `04_backlog/EPIC-002-cross-cutting-enablers.md`
 - `08_context_packs/backlog_generation.json`
+- `08_context_packs/implementation_readiness.json`
 
-`/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage` and derive `Agent Execution Contract` sections. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
+`/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage`, derive `Agent Execution Contract` sections, and create a story-level retrieval plan for downstream execution agents. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
+
+`implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
 ## `quality`
 

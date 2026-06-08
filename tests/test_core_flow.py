@@ -93,11 +93,18 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertEqual(main(["backlog", "NOVA"]), 0)
         backlog_pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "backlog_generation.json"
         self.assertTrue(backlog_pack.exists())
+        readiness_pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "implementation_readiness.json"
+        self.assertTrue(readiness_pack.exists())
+        readiness = json.loads(readiness_pack.read_text(encoding="utf-8"))
+        self.assertEqual(readiness["workflow"], "implementation_readiness")
+        self.assertTrue(readiness["stories"])
+        self.assertIn("retrieval_plan", readiness["stories"][0])
         epic_text = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
         self.assertIn("## Story Map", epic_text)
         self.assertIn("## Slicing Strategy", epic_text)
         self.assertIn("## Domain Context Coverage", epic_text)
         self.assertIn("**Agent Execution Contract:**", epic_text)
+        self.assertIn("**Retrieval Plan For Execution Agents:**", epic_text)
         self.assertIn("Small but valuable", epic_text)
         self.assertIn("Fail-to-Pass", epic_text)
         self.assertIn("Pass-to-Pass", epic_text)
@@ -105,6 +112,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertFalse((self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-002-cross-cutting-enablers.md").exists())
         self.assertIn("US-005", epic_text)
         self.assertIn("backlog_generation.json", epic_text)
+        self.assertIn("implementation_readiness.json", epic_text)
         self.assertEqual(main(["quality", "NOVA"]), 0)
         self.assertEqual(main(["health", "NOVA"]), 0)
         self.assertEqual(main(["validate", "NOVA"]), 0)
@@ -121,6 +129,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("Acceptance Criteria", story)
         self.assertIn("AC-001-01", story)
         self.assertIn("Agent Execution Contract", story)
+        self.assertIn("Retrieval Plan For Execution Agents", story)
         self.assertIn("pass-to-pass", story)
         mermaid = self.temp / "workspaces" / "NOVA" / "06_traceability" / "traceability_graph.md"
         self.assertTrue(mermaid.exists())
@@ -202,6 +211,16 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertRegex(epic_text, r"\| Technology \| .* \| Confirmed \|")
         self.assertRegex(epic_text, r"\| Design \| .* \| Confirmed \|")
         self.assertIn("Agent Execution Contract", epic_text)
+        self.assertIn("Retrieval Plan For Execution Agents", epic_text)
+        readiness = json.loads((self.temp / "workspaces" / "NOVA" / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+        self.assertIn(readiness["verdict"], {"READY", "PARTIAL"})
+        self.assertTrue(readiness["stories"][0]["retrieval_plan"])
+        changed_context = self.temp / "workspaces" / "NOVA" / "00_raw" / "02_technology_context" / "changed-contract.md"
+        changed_context.write_text("New deployment command and API contract detail added after backlog generation.", encoding="utf-8")
+        self.assertEqual(main(["health", "NOVA"]), 0)
+        health = json.loads((self.temp / "workspaces" / "NOVA" / "06_traceability" / "health_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(health["verdict"], "DIRTY")
+        self.assertIn("Domain context changed after backlog generation", " ".join(health["findings"]))
 
     def test_sync_creates_change_impact_and_context_pack(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"

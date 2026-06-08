@@ -126,6 +126,7 @@ Review:
 workspaces/PROJECT_ID/04_backlog/
 workspaces/PROJECT_ID/05_quality/
 workspaces/PROJECT_ID/08_context_packs/backlog_generation.json
+workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json
 ```
 
 The primary backlog output is one Markdown file per epic, starting with:
@@ -134,11 +135,22 @@ The primary backlog output is one Markdown file per epic, starting with:
 workspaces/PROJECT_ID/04_backlog/EPIC-001.md
 ```
 
-That epic file contains the domain context coverage, story map, agent execution contracts, and the user stories. Sentinel also creates `US-00x.md` mirrors so traceability and quality tooling can link to each story as an individual node.
+That epic file contains the domain context coverage, story map, agent execution contracts, retrieval plans, and the user stories. Sentinel also creates `US-00x.md` mirrors so traceability and quality tooling can link to each story as an individual node.
 
 Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; source workspace files remain authoritative if memory disagrees.
 
+Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time.
+
 Technology, Design, Quality, Delivery and other domains can keep enriching their context files throughout the lifecycle. After those files are ingested, synced, or reindexed, downstream backlog generation can cite them. If a domain contract is missing, Sentinel keeps `[PENDING DOMAIN CONTEXT]` visible instead of inventing commands, files, design tokens, regression suites, or blast-radius boundaries.
+
+If domain context changes after backlog generation, `/health` reports the backlog as potentially stale. Rerun:
+
+```powershell
+python -m sentinel /reindex PROJECT_ID
+python -m sentinel /backlog PROJECT_ID
+```
+
+Then continue with quality, trace, health, and validation.
 
 When reviewing the backlog, check:
 
@@ -147,6 +159,8 @@ When reviewing the backlog, check:
 - `Small` means small but still valuable: avoid micro-stories that cannot be accepted independently;
 - domain context coverage makes Technology, Design, Quality and Delivery evidence visible or explicitly pending;
 - agent execution contracts include autonomy limits, blast radius, validation contract, and sequencing notes without inventing missing domain context;
+- each story includes a retrieval plan for downstream execution agents;
+- `implementation_readiness.json` is present and does not hide missing domain context;
 - acceptance criteria separate `fail-to-pass`, `pass-to-pass`, and evidence expectations;
 - `EPIC-002-cross-cutting-enablers.md` appears only when concrete frontend/backend/architecture/auth/data/integration/audit/observability work must be built in advance to support confirmed functionality inside the project boundary;
 - generic setup or phrases like "make an internal tool accessible" are treated as preconditions/external tasks, not backlog enablers;

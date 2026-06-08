@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
@@ -32,6 +33,14 @@ BACKLOG_CONTEXT_QUERIES = {
     "engineering_practices": ("handbook coding standards architecture decision adr error handling logging conventions", "technical"),
     "design_match": ("figma prototype component tokens design system visual states interaction accessibility", "design"),
     "regression_contract": ("test suite regression fail-to-pass pass-to-pass test data automation quality gate evidence", "quality"),
+}
+
+DOMAIN_CONTEXT_FOLDERS = {
+    "Product": ("00_raw/00_client_requirement", "00_raw/01_business_context", "00_raw/05_interactions", "07_changes"),
+    "Technology": ("00_raw/02_technology_context",),
+    "Design": ("00_raw/03_design_context",),
+    "Quality": ("00_raw/04_quality_context",),
+    "Delivery": ("07_changes",),
 }
 
 BACKLOG_STORY_SEEDS = [
@@ -224,6 +233,12 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     backlog_context = build_backlog_generation_context(project_id, spec_text, prd_text)
     story_specs = build_backlog_story_specs(project_id, backlog_context)
     enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
+    all_story_specs = [*story_specs, *enabler_specs]
+    readiness_pack = build_implementation_readiness_pack(project_id, all_story_specs, backlog_context)
+    backlog_context["implementation_readiness"] = {
+        "path": "08_context_packs/implementation_readiness.json",
+        "verdict": readiness_pack["verdict"],
+    }
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
     epic_path.write_text(render_epic(project_id, story_specs, backlog_context), encoding="utf-8")
@@ -288,7 +303,6 @@ def generate_backlog(project_id: str) -> dict[str, str]:
 
     broker = ContextBroker(project_id)
     broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])
-    all_story_specs = [*story_specs, *enabler_specs]
     for story_id, ac_id, story_spec in zip(story_ids, acceptance_ids, all_story_specs):
         story_path = base / "04_backlog" / f"{story_id}.md"
         if not story_path.exists():
@@ -315,6 +329,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         "path": str(epic_path),
         "story_count": str(len(story_ids)),
         "epic_count": str(len(epic_ids)),
+        "implementation_readiness": str(base / "08_context_packs" / "implementation_readiness.json"),
     }
 
 
@@ -343,18 +358,133 @@ def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: 
                     "summary": row.get("summary", row.get("text", ""))[:260],
                     "why_retrieved": row.get("why_retrieved", ""),
                     "trace_ids": row.get("trace_ids", []),
+                    "source_hash": row.get("source_hash", ""),
                 }
                 for row in results
             ],
         }
+    domain_snapshot = domain_context_snapshot(project_id)
     pack = {
         "project_id": project_id,
         "workflow": "backlog_generation",
         "slicing_model": "vertical_value_slices_with_spidr_lawrence_invest",
+        "domain_context_snapshot": domain_snapshot,
         "sections": sections,
     }
     write_json(workspace_path(project_id) / "08_context_packs" / "backlog_generation.json", pack)
     return pack
+
+
+def build_implementation_readiness_pack(
+    project_id: str,
+    stories: list[dict[str, Any]],
+    backlog_context: dict[str, Any],
+) -> dict[str, Any]:
+    readiness_items = [implementation_readiness_for_story(story) for story in stories]
+    blocker_count = sum(1 for item in readiness_items if item["status"] != "ready")
+    verdict = "READY" if blocker_count == 0 else "PARTIAL"
+    pack = {
+        "project_id": project_id,
+        "workflow": "implementation_readiness",
+        "verdict": verdict,
+        "generated_from": {
+            "backlog_context_pack": "08_context_packs/backlog_generation.json",
+            "domain_context_snapshot": backlog_context.get("domain_context_snapshot", domain_context_snapshot(project_id)),
+        },
+        "retrieval_contract": {
+            "rule": "Execution agents should use these queries before planning, implementing, or testing. Workspace files remain source of truth; memory is only retrieval evidence.",
+            "freshness_rule": "If the current domain context snapshot differs from this pack, rerun /reindex and /backlog before implementation handoff.",
+        },
+        "stories": readiness_items,
+    }
+    path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
+    write_json(path, pack)
+    ContextBroker(project_id).index_artifact(
+        "IMPL-READINESS",
+        "implementation_readiness",
+        path,
+        path.read_text(encoding="utf-8"),
+        domain="delivery",
+        trace_ids=[story["id"] for story in stories] or ["IMPL-READINESS"],
+    )
+    return pack
+
+
+def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
+    execution = story.get("execution_contract", {})
+    coverage = story.get("domain_coverage", [])
+    pending_domains = [
+        row.get("domain", "Unknown")
+        for row in coverage
+        if row.get("status") == "Pending" and row.get("domain") in required_domains_for_story(story)
+    ]
+    pending_contract = pending_execution_fields(execution)
+    blockers = [f"Pending domain context: {domain}" for domain in pending_domains]
+    blockers.extend(f"Pending execution field: {field}" for field in pending_contract)
+    status = "ready" if not blockers else "needs-context"
+    return {
+        "story_id": story["id"],
+        "title": story["title"],
+        "type": story["type"],
+        "status": status,
+        "readiness": execution.get("readiness", "Needs Domain Context"),
+        "required_domains": required_domains_for_story(story),
+        "pending": blockers,
+        "dependencies": story.get("dependencies", []),
+        "enables": story.get("enables", []),
+        "parallelization": execution.get("parallelization", ""),
+        "retrieval_plan": execution.get("retrieval_plan", []),
+        "validation": execution.get("validation", {}),
+        "blast_radius": execution.get("blast_radius", []),
+        "trace": story.get("trace", []),
+    }
+
+
+def required_domains_for_story(story: dict[str, Any]) -> list[str]:
+    required = ["Product", "Quality"]
+    if story.get("domain") in {"technical"} or story.get("type") == "cross_cutting_enabler":
+        required.append("Technology")
+    if story.get("domain") == "design":
+        required.append("Design")
+    return required
+
+
+def pending_execution_fields(execution: dict[str, Any]) -> list[str]:
+    pending: list[str] = []
+    for field in ("commands", "critical_surfaces", "engineering_practices"):
+        signal = execution.get(field, {})
+        if isinstance(signal, dict) and signal.get("status") == "Pending":
+            pending.append(field)
+    design_signal = execution.get("design_match", {})
+    if isinstance(design_signal, dict) and design_signal.get("status") == "Pending":
+        pending.append("design_match")
+    return pending
+
+
+def domain_context_snapshot(project_id: str) -> dict[str, Any]:
+    base = workspace_path(project_id)
+    domains: dict[str, Any] = {}
+    all_hash = sha256()
+    for domain, folders in DOMAIN_CONTEXT_FOLDERS.items():
+        files: list[dict[str, str]] = []
+        domain_hash = sha256()
+        for folder in folders:
+            path = base / folder
+            if not path.exists():
+                continue
+            for item in sorted(path.rglob("*")):
+                if item.is_file() and item.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml"}:
+                    text = item.read_text(encoding="utf-8")
+                    digest = sha256(text.encode("utf-8")).hexdigest()
+                    relative = item.relative_to(base).as_posix()
+                    files.append({"path": relative, "hash": digest})
+                    domain_hash.update(relative.encode("utf-8"))
+                    domain_hash.update(digest.encode("utf-8"))
+        aggregate = domain_hash.hexdigest() if files else "empty"
+        domains[domain] = {"aggregate_hash": aggregate, "file_count": len(files), "files": files}
+        all_hash.update(domain.encode("utf-8"))
+        all_hash.update(aggregate.encode("utf-8"))
+    return {"aggregate_hash": all_hash.hexdigest(), "domains": domains}
 
 
 def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
@@ -516,6 +646,7 @@ def build_agent_execution_contract(
         "autonomy": autonomy_contract_for_story(story),
         "blast_radius": blast_radius_for_story(story),
         "parallelization": parallelization_note_for_story(story),
+        "retrieval_plan": retrieval_plan_for_story(story),
     }
 
 
@@ -603,6 +734,52 @@ def parallelization_note_for_story(story: dict[str, Any]) -> str:
     if dependencies:
         return f"Sequence after dependencies are accepted or stubbed with explicit contracts: {', '.join(dependencies)}."
     return "Can be planned as an early slice if domain context is sufficient and no shared-surface conflict is detected."
+
+
+def retrieval_plan_for_story(story: dict[str, Any]) -> list[dict[str, str]]:
+    story_id = story["id"]
+    title = story["title"]
+    plan = [
+        {
+            "agent": "Planner",
+            "workflow": "planning",
+            "query": f"{story_id} {title} dependencies sequencing parallelization blast radius",
+            "domain": "any",
+            "expected_evidence": "Dependencies, blockers, enables edges, sequencing and scope boundaries.",
+            "required_before": "planning",
+        },
+        {
+            "agent": "QA",
+            "workflow": "quality",
+            "query": f"{story_id} {title} fail-to-pass pass-to-pass regression evidence test data acceptance",
+            "domain": "quality",
+            "expected_evidence": "Acceptance criteria classifications, regression expectations, evidence and test data.",
+            "required_before": "test design",
+        },
+    ]
+    if story.get("domain") in {"technical"} or story.get("type") == "cross_cutting_enabler":
+        plan.append(
+            {
+                "agent": "Technology",
+                "workflow": "implementation",
+                "query": f"{story_id} {title} architecture commands critical files api data contracts failure behavior",
+                "domain": "technical",
+                "expected_evidence": "Commands, affected surfaces, API/data contracts, engineering practices and failure behavior.",
+                "required_before": "implementation",
+            }
+        )
+    if story.get("domain") == "design":
+        plan.append(
+            {
+                "agent": "Design/Frontend",
+                "workflow": "frontend",
+                "query": f"{story_id} {title} journey screens states components tokens validation accessibility",
+                "domain": "design",
+                "expected_evidence": "Screens, UX states, component mapping, tokens, accessibility and interaction rules.",
+                "required_before": "frontend implementation",
+            }
+        )
+    return plan
 
 
 def story_domain(fr_id: str) -> str:
@@ -1139,6 +1316,7 @@ def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context:
         for story in stories
     )
     domain_coverage = stories[0].get("domain_coverage", build_domain_context_coverage(backlog_context)) if stories else build_domain_context_coverage(backlog_context)
+    readiness = backlog_context.get("implementation_readiness", {})
     return f"""---
 id: EPIC-001
 project: {project_id}
@@ -1165,6 +1343,7 @@ Deliver the first ordered set of vertical slices that proves the mature requirem
 | Project | `{project_id}` |
 | Primary sources | `02_requirements/project-brief.md`, `03_specs/prd.md`, `03_specs/specs.md` |
 | Context pack | `08_context_packs/backlog_generation.json` |
+| Implementation readiness | `08_context_packs/implementation_readiness.json` ({readiness.get('verdict', 'PENDING')}) |
 | Generation rule | Use focused local retrieval before slicing. Workspace files remain source of truth; memory is a retrieval aid. |
 | Privacy | Do not copy credentials, private URLs, raw payloads, account IDs, or confidential client-specific facts into backlog artifacts. |
 
@@ -1334,6 +1513,10 @@ So that {story['benefit'].lower()}
 
 {render_agent_execution_contract(story.get('execution_contract', {}))}
 
+**Retrieval Plan For Execution Agents:**
+
+{render_execution_retrieval_plan(story.get('execution_contract', {}).get('retrieval_plan', []))}
+
 **In Scope:**
 - The smallest user-observable behavior that satisfies `{story['fr']}`.
 - Required validation, recoverable failure behavior and trace evidence for this slice.
@@ -1418,6 +1601,18 @@ def render_agent_execution_contract(contract: dict[str, Any]) -> str:
 """
 
 
+def render_execution_retrieval_plan(plan: list[dict[str, str]]) -> str:
+    if not plan:
+        return "| Agent | Domain | Query | Expected Evidence | Required Before |\n| --- | --- | --- | --- | --- |\n| Planner | any | [PENDING CONTEXT QUERY] | [PENDING CONTEXT] | implementation |"
+    rows = "\n".join(
+        f"| {item.get('agent', 'Execution agent')} | {item.get('domain', 'any')} | `{safe_cell(item.get('query', ''), 220)}` | {safe_cell(item.get('expected_evidence', ''), 180)} | {item.get('required_before', 'implementation')} |"
+        for item in plan
+    )
+    return f"""| Agent | Domain | Query | Expected Evidence | Required Before |
+| --- | --- | --- | --- | --- |
+{rows}"""
+
+
 def render_context_signal_inline(signal: dict[str, str]) -> str:
     status = signal.get("status", "Pending")
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
@@ -1449,7 +1644,7 @@ trace:
 
 # {story['id']} - {story['title']}
 
-This file mirrors the story embedded in `EPIC-001.md` so quality and traceability tooling can address the story as an individual node.
+This file mirrors the story embedded in its parent epic so quality and traceability tooling can address the story as an individual node.
 
 ## User Story
 
@@ -1470,6 +1665,10 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 ## Agent Execution Contract
 
 {render_agent_execution_contract(story.get('execution_contract', {}))}
+
+## Retrieval Plan For Execution Agents
+
+{render_execution_retrieval_plan(story.get('execution_contract', {}).get('retrieval_plan', []))}
 
 ## Functional Slice
 

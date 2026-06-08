@@ -135,6 +135,11 @@ workspaces/[PROJECT_ID]/08_context_packs/sync.json
 
 Each pack stores the query, filters, backend, source hashes, and retrieved rows so a downstream agent can audit the context used.
 
+`/backlog` creates two built-in context packs:
+
+- `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories.
+- `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
+
 Use context packs when:
 
 - a workspace is too large to load fully;
@@ -151,6 +156,8 @@ python -m sentinel /reindex PROJECT_ID
 ```
 
 This rebuilds LanceDB memory and the JSON fallback from the graph, versionable artifacts, and context folders.
+
+If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
 
 ## Important Rule
 

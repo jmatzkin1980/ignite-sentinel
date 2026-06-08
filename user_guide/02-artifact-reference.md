@@ -272,7 +272,7 @@ Each epic file includes:
 - domain context coverage for Product, Technology, Design, Quality, and Delivery;
 - slicing strategy based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
-- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
+- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 
 This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
@@ -282,7 +282,7 @@ Story-level mirror used by traceability and quality tooling.
 
 Sentinel keeps individual `US-00x.md` files so downstream quality artifacts can link directly to a story node. The epic file remains the human-facing backlog bundle; story files repeat the critical story contract with source context, functional slice guidance, acceptance criteria, and readiness checklist.
 
-Story mirrors also include an `Agent Execution Contract` when domain context is available. This contract can include:
+Story mirrors also include an `Agent Execution Contract` and `Retrieval Plan For Execution Agents` when domain context is available. This contract can include:
 
 - expected downstream agent profile;
 - command hints from Technology context;
@@ -292,7 +292,8 @@ Story mirrors also include an `Agent Execution Contract` when domain context is 
 - autonomy limits: always, ask first, never;
 - blast-radius boundaries;
 - validation contract split into `fail-to-pass`, `pass-to-pass`, and evidence checks;
-- parallelization or sequencing notes.
+- parallelization or sequencing notes;
+- focused `/retrieve` queries that implementation, planning, frontend/backend, design, and quality agents should run before executing the story.
 
 When domain context is missing, Sentinel leaves `[PENDING DOMAIN CONTEXT]` instead of inventing commands, file paths, design tokens, regression suites, or implementation boundaries.
 
@@ -330,6 +331,22 @@ It records which local memory chunks were consulted for:
 - open uncertainty.
 
 This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace.
+
+### `08_context_packs/implementation_readiness.json`
+
+Machine-friendly handoff pack for downstream planning, implementation, and test agents.
+
+It records, per story:
+
+- readiness verdict: `ready` or `needs-context`;
+- story type, title, dependencies, enabler links, and trace IDs;
+- required domains such as Product, Technology, Design, Quality, or Delivery;
+- pending execution context that must be resolved before implementation;
+- retrieval plan with focused queries and workflow labels;
+- validation contract: fail-to-pass, pass-to-pass, and evidence expectations;
+- blast-radius boundaries and parallelization notes.
+
+The pack also stores a domain context snapshot hash. If Technology, Design, Quality, Delivery, or other context files change after backlog generation, `/health` reports that the backlog may be stale and should be refreshed with `/reindex` and `/backlog` before implementation handoff.
 
 ## `05_quality/`
 

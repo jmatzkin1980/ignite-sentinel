@@ -94,7 +94,7 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
         if not story_path.exists():
             continue
         story_text = story_path.read_text(encoding="utf-8")
-        for section in ("JTBD", "Acceptance Criteria", "Readiness Checklist"):
+        for section in ("Acceptance Criteria", "Agent Execution Contract", "Retrieval Plan For Execution Agents", "Readiness Checklist"):
             if section not in story_text:
                 findings.append(f"{story['id']} missing story readiness signal: {section}.")
         if not parents_of(project_id, story["id"]):
@@ -102,6 +102,8 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
 
     if "user_story" in node_types and "backlog_readiness_audit" not in node_types:
         findings.append("Backlog exists without backlog_readiness_audit.")
+    if "user_story" in node_types and not (base / "08_context_packs" / "implementation_readiness.json").exists():
+        findings.append("Backlog exists without implementation_readiness context pack.")
     gaps_path = base / "01_discovery" / "gaps.md"
     if gaps_path.exists() and "CLOSED" in gaps_path.read_text(encoding="utf-8"):
         resolution_log = base / "01_discovery" / "gap_resolution_log.md"
