@@ -1,6 +1,6 @@
 ﻿# Ignite Sentinel vNext
 
-Repo-local BA/Product requirements framework for AI PODs.
+Repo-local BA/Product requirements framework.
 
 Ignite Sentinel turns raw client input into traceable requirements, specs, backlog, quality artifacts, change impact reports, and retrieval context packs. The source of truth is always the versionable workspace files; memory indexes are only retrieval aids.
 
