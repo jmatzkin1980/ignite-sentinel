@@ -1,8 +1,41 @@
 # Scenarios
 
-This document describes concrete situations that can happen while using Ignite Sentinel vNext. A new user should be able to find a scenario, recognize their case, run the right command, inspect the generated artifacts, and understand the result.
+This document describes concrete situations that can happen while using Ignite Sentinel vNext. It is written for people working from VS Code with Kilo Code or Codex chat, not only for people comfortable with a terminal.
+
+The normal experience is:
+
+1. Clone or download the repository.
+2. Open the repository root folder in VS Code.
+3. Open Kilo Code chat or Codex chat.
+4. Type a short command or explain what you want to do.
+5. Review the generated files under `workspaces/[PROJECT_ID]/`.
 
 All scenarios share the same rule: the source of truth lives in `workspaces/[PROJECT_ID]/`. Local memory is a retrieval aid, not final authority.
+
+## How To Use These Scenarios From Chat
+
+Each scenario includes a chat-first command.
+
+For Kilo Code, use the slash command directly:
+
+```text
+/status ACME_DASHBOARD
+```
+
+For Codex, use the `sentinel` prefix if the slash command is intercepted:
+
+```text
+sentinel /status ACME_DASHBOARD
+```
+
+If you do not know the exact command, explain the situation in plain language. For example:
+
+```text
+I have a new client requirement at input\client_requirement\initial-request.md.
+Create a project called ACME_DASHBOARD, ingest the file, and tell me the next step.
+```
+
+The terminal form still exists for troubleshooting and restricted environments, but it is not the primary flow for non-technical users.
 
 ## Block A: Discovery Start
 
@@ -10,12 +43,27 @@ All scenarios share the same rule: the source of truth lives in `workspaces/[PRO
 
 **Context:** The client sends the first set of information. It may be a Markdown file, business note, screenshots, diagrams, system references, or an incomplete bundle of all of those. No project workspace exists yet.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /init ACME_DASHBOARD
-python -m sentinel /ingest ACME_DASHBOARD --source input\client_requirement\initial-request.md
-python -m sentinel /status ACME_DASHBOARD
+```text
+/init ACME_DASHBOARD
+/ingest ACME_DASHBOARD --source input\client_requirement\initial-request.md
+/status ACME_DASHBOARD
+```
+
+For Codex, use:
+
+```text
+sentinel /init ACME_DASHBOARD
+sentinel /ingest ACME_DASHBOARD --source input\client_requirement\initial-request.md
+sentinel /status ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+I have a new client requirement at input\client_requirement\initial-request.md.
+Create project ACME_DASHBOARD, ingest it, and summarize the project status.
 ```
 
 **What Sentinel does:** Creates the workspace, copies the raw input, detects project language, initializes local-first configuration, generates the first requirement record, reviews the material through Product, Technology, Design, Quality, Delivery, and Compliance lenses, and creates gaps when evidence is insufficient.
@@ -36,7 +84,7 @@ python -m sentinel /status ACME_DASHBOARD
 
 **Context:** The team already has Technology, Design, Quality, Delivery, or Business context that did not come from the main client document. Examples include architecture notes, endpoints, prototypes, QA rules, compliance restrictions, or rollout constraints.
 
-**Recommended placement:**
+**Put files here when possible:**
 
 ```text
 workspaces/ACME_DASHBOARD/00_raw/02_technology_context/
@@ -45,11 +93,25 @@ workspaces/ACME_DASHBOARD/00_raw/04_quality_context/
 workspaces/ACME_DASHBOARD/07_changes/03_domain_updates/
 ```
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /reindex ACME_DASHBOARD
-python -m sentinel /retrieve ACME_DASHBOARD --query "endpoint inventory and affected surfaces" --workflow discovery --write-pack
+```text
+/reindex ACME_DASHBOARD
+/retrieve ACME_DASHBOARD --query "endpoint inventory and affected surfaces" --workflow discovery --write-pack
+```
+
+For Codex:
+
+```text
+sentinel /reindex ACME_DASHBOARD
+sentinel /retrieve ACME_DASHBOARD --query "endpoint inventory and affected surfaces" --workflow discovery --write-pack
+```
+
+Plain-language option:
+
+```text
+Technology and Design added context files to the ACME_DASHBOARD workspace.
+Refresh local memory and retrieve focused discovery context about endpoint inventory and affected surfaces.
 ```
 
 **What Sentinel does:** Indexes domain context locally and makes it available through focused retrieval.
@@ -65,10 +127,22 @@ python -m sentinel /retrieve ACME_DASHBOARD --query "endpoint inventory and affe
 
 **Context:** The initial analysis detected missing information. The team needs a clear document the client can answer without knowing Sentinel internals.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /gaps ACME_DASHBOARD
+```text
+/gaps ACME_DASHBOARD
+```
+
+For Codex:
+
+```text
+sentinel /gaps ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Generate the client-friendly gap document for ACME_DASHBOARD and tell me where it was written.
 ```
 
 **What Sentinel does:** Regenerates `01_discovery/gaps.md` in the project language. The document includes metadata, instructions, one section per gap, answer examples, owner/source fields, evidence fields, and decision status.
@@ -85,12 +159,27 @@ python -m sentinel /gaps ACME_DASHBOARD
 
 **Context:** The client or a domain owner returns the answered `gaps.md`. Some answers are confirmed, some partial, and some still pending.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
-python -m sentinel /maturity ACME_DASHBOARD
-python -m sentinel /status ACME_DASHBOARD
+```text
+/resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+/maturity ACME_DASHBOARD
+/status ACME_DASHBOARD
+```
+
+For Codex:
+
+```text
+sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+sentinel /maturity ACME_DASHBOARD
+sentinel /status ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+The client answered gaps in input\interactions\answered-gaps.md.
+Process the answers for ACME_DASHBOARD, check maturity, and tell me what remains open.
 ```
 
 **What Sentinel does:** Reads `### GAP-ID` sections, extracts answers, owner/source, evidence, and decision status. It closes a gap automatically only when there is a non-empty answer with a confirmed or not-applicable decision status.
@@ -108,12 +197,21 @@ python -m sentinel /status ACME_DASHBOARD
 
 **Context:** The client answers a gap but also introduces something new, such as a new export, a new user type, or a behavior not covered by existing gaps.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
-python -m sentinel /sync ACME_DASHBOARD --source input\interactions\answered-gaps.md --note "gap response includes new scope"
-python -m sentinel /trace ACME_DASHBOARD
+```text
+/resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
+/sync ACME_DASHBOARD --source input\interactions\answered-gaps.md --note "gap response includes new scope"
+/trace ACME_DASHBOARD
+```
+
+For Codex, prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+The answered gaps file also includes new scope.
+Process the known gap answers, register the new information as a change, and refresh traceability for ACME_DASHBOARD.
 ```
 
 **What Sentinel does:** `/resolve-gaps` processes what maps to existing structured gaps. `/sync` registers new content as a change event and creates an impact report.
@@ -131,11 +229,25 @@ python -m sentinel /trace ACME_DASHBOARD
 
 **Context:** Discovery has enough confirmed evidence. Critical and high blocking gaps are resolved or explicitly accepted as non-blocking.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /maturity ACME_DASHBOARD
-python -m sentinel /brief ACME_DASHBOARD
+```text
+/maturity ACME_DASHBOARD
+/brief ACME_DASHBOARD
+```
+
+For Codex:
+
+```text
+sentinel /maturity ACME_DASHBOARD
+sentinel /brief ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Check whether ACME_DASHBOARD is mature enough for specs.
+If it is ready, generate or refresh the project brief.
 ```
 
 **What Sentinel does:** Evaluates gap status and materializes or refreshes `02_requirements/project-brief.md` from requirements, gaps, seeds, decisions, lens review, and available domain context.
@@ -153,13 +265,23 @@ python -m sentinel /brief ACME_DASHBOARD
 
 **Context:** The product requirement is mature enough for Technology to analyze affected systems, architecture, data, integration, commands, risks, and implementation surfaces.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /context-request ACME_DASHBOARD --domain technology
+```text
+/context-request ACME_DASHBOARD --domain technology
 ```
 
-**What Sentinel does:** Generates a focused request under `08_context_packs/requests/`.
+For Codex:
+
+```text
+sentinel /context-request ACME_DASHBOARD --domain technology
+```
+
+Plain-language option:
+
+```text
+Create a Technology context request for ACME_DASHBOARD so the tech owner knows what architecture, surfaces, commands, and risks to document.
+```
 
 **Main output:**
 
@@ -171,10 +293,22 @@ python -m sentinel /context-request ACME_DASHBOARD --domain technology
 
 **Context:** The requirement is mature enough for Design to analyze journeys, screens, states, prototypes, copy, accessibility, and validation behavior.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /context-request ACME_DASHBOARD --domain design
+```text
+/context-request ACME_DASHBOARD --domain design
+```
+
+For Codex:
+
+```text
+sentinel /context-request ACME_DASHBOARD --domain design
+```
+
+Plain-language option:
+
+```text
+Create a Design context request for ACME_DASHBOARD focused on journeys, screens, states, prototype needs, and accessibility.
 ```
 
 **Main output:**
@@ -187,11 +321,25 @@ python -m sentinel /context-request ACME_DASHBOARD --domain design
 
 **Context:** Technology, Design, Quality, or Delivery adds new context after PRD, specs, or backlog were generated.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /reindex ACME_DASHBOARD
-python -m sentinel /health ACME_DASHBOARD
+```text
+/reindex ACME_DASHBOARD
+/health ACME_DASHBOARD
+```
+
+For Codex:
+
+```text
+sentinel /reindex ACME_DASHBOARD
+sentinel /health ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Domain owners updated context files for ACME_DASHBOARD.
+Refresh memory and check whether any downstream artifacts are stale.
 ```
 
 **What Sentinel does:** Rebuilds local memory and checks whether downstream artifacts may be stale.
@@ -204,13 +352,23 @@ python -m sentinel /health ACME_DASHBOARD
 
 **Context:** A mature `project-brief.md` exists. The team needs a PRD for humans and a compact, agent-friendly spec.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /specs ACME_DASHBOARD
+```text
+/specs ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Generates `03_specs/prd.md` and `03_specs/specs.md`, preserving traceability from requirement/brief to PRD and from PRD to specs. The spec includes backlog-relevant contract, progressive disclosure context map, retrieval plan, backlog seeds, and traceability.
+For Codex:
+
+```text
+sentinel /specs ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Generate the PRD and agent-friendly specs for ACME_DASHBOARD from the mature project brief.
+```
 
 **Main outputs:**
 
@@ -224,13 +382,23 @@ python -m sentinel /specs ACME_DASHBOARD
 
 **Context:** Specs exist and health allows downstream generation.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /backlog ACME_DASHBOARD
+```text
+/backlog ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Generates epic Markdown files, story mirrors, acceptance criteria, domain context coverage, agent execution contracts, retrieval plans, backlog retrieval evidence, and implementation readiness pack.
+For Codex:
+
+```text
+sentinel /backlog ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Generate the backlog for ACME_DASHBOARD with epics, user stories, acceptance criteria, retrieval plans, and implementation readiness.
+```
 
 **Main outputs:**
 
@@ -246,10 +414,17 @@ python -m sentinel /backlog ACME_DASHBOARD
 
 **Context:** The project needs concrete implementation work in advance, such as shared auth rules, an API contract, a persistence/query capability, an integration contract, audit logging, or a UI shell that supports multiple confirmed stories.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /backlog ACME_DASHBOARD
+```text
+/backlog ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+Generate or refresh the backlog for ACME_DASHBOARD.
+Pay special attention to whether a cross-cutting enabler epic is justified by the available evidence.
 ```
 
 **What Sentinel does:** If evidence is specific enough, creates `EPIC-002-cross-cutting-enablers.md`.
@@ -260,14 +435,20 @@ python -m sentinel /backlog ACME_DASHBOARD
 
 **Context:** User stories and acceptance criteria exist.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /quality ACME_DASHBOARD
-python -m sentinel /trace ACME_DASHBOARD
+```text
+/quality ACME_DASHBOARD
+/trace ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Generates test cases and backlog readiness audit. Links `US -> AC -> TC` in traceability.
+For Codex, prefix each line with `sentinel`.
+
+Plain-language option:
+
+```text
+Generate quality artifacts for ACME_DASHBOARD from the backlog, then refresh traceability.
+```
 
 **Main outputs:**
 
@@ -281,14 +462,19 @@ python -m sentinel /trace ACME_DASHBOARD
 
 **Context:** Someone tries to generate backlog or quality while health is `DIRTY`.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /health ACME_DASHBOARD
-python -m sentinel /validate ACME_DASHBOARD
+```text
+/health ACME_DASHBOARD
+/validate ACME_DASHBOARD
 ```
 
-**What Sentinel does:** The command protocol blocks downstream generation when project health is not safe.
+Plain-language option:
+
+```text
+Backlog or quality generation is blocked for ACME_DASHBOARD.
+Check health and validation, then explain what needs to be fixed before continuing.
+```
 
 **How to interpret it:** This protects the team from generating documentary debt or stories based on unresolved assumptions. Fix gaps, context, traceability, or stale artifacts first.
 
@@ -298,13 +484,24 @@ python -m sentinel /validate ACME_DASHBOARD
 
 **Context:** The client, POD, or stakeholder sends an email, Slack message, demo comment, meeting note, architecture update, design update, QA observation, or delivery decision that changes scope, priority, or behavior.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /sync ACME_DASHBOARD --source input\interactions\demo-feedback.md --note "demo feedback"
+```text
+/sync ACME_DASHBOARD --source input\interactions\demo-feedback.md --note "demo feedback"
 ```
 
-**What Sentinel does:** Copies the input into `07_changes/`, creates a `CHG` node, generates an impact report, and links the change to potentially affected artifacts.
+For Codex:
+
+```text
+sentinel /sync ACME_DASHBOARD --source input\interactions\demo-feedback.md --note "demo feedback"
+```
+
+Plain-language option:
+
+```text
+The file input\interactions\demo-feedback.md contains new stakeholder feedback for ACME_DASHBOARD.
+Register it as a change and summarize possible impact.
+```
 
 **Main outputs:**
 
@@ -319,13 +516,17 @@ python -m sentinel /sync ACME_DASHBOARD --source input\interactions\demo-feedbac
 
 **Context:** Several files were added or modified in known input or context folders. The team does not want to process each one manually.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /sync ACME_DASHBOARD
+```text
+/sync ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Reads `00_raw/source_manifest.json`, compares hashes, detects new or modified files, and processes each novelty as a change event.
+Plain-language option:
+
+```text
+Scan ACME_DASHBOARD for new or modified input and context files, register any changes, and tell me what was processed.
+```
 
 **How to interpret it:** This is useful for periodic scans. If a file is an answered `gaps.md`, use `/resolve-gaps` first to preserve structured gap closure.
 
@@ -333,12 +534,19 @@ python -m sentinel /sync ACME_DASHBOARD
 
 **Context:** A meeting clarifies scope, changes priority, introduces a constraint, or invalidates an assumption.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /sync ACME_DASHBOARD --source input\interactions\meeting-notes.md --note "scope clarification meeting"
-python -m sentinel /trace ACME_DASHBOARD
-python -m sentinel /health ACME_DASHBOARD
+```text
+/sync ACME_DASHBOARD --source input\interactions\meeting-notes.md --note "scope clarification meeting"
+/trace ACME_DASHBOARD
+/health ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+The meeting notes at input\interactions\meeting-notes.md change the shared understanding for ACME_DASHBOARD.
+Register them, refresh traceability, and check health.
 ```
 
 **How to interpret it:** A meeting should not live only in human memory. If it changes understanding, it should become traceable evidence.
@@ -349,13 +557,23 @@ python -m sentinel /health ACME_DASHBOARD
 
 **Context:** A person or agent needs to understand one topic, such as "SLA risk", "UX states", "endpoint inventory", or "US-003 regression evidence", without loading the whole workspace.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /retrieve ACME_DASHBOARD --query "SLA risk and queue triage" --workflow backlog --write-pack
+```text
+/retrieve ACME_DASHBOARD --query "SLA risk and queue triage" --workflow backlog --write-pack
 ```
 
-**What Sentinel does:** Queries local memory, applies filters, returns results with `why_retrieved`, and can write a reusable context pack.
+For Codex:
+
+```text
+sentinel /retrieve ACME_DASHBOARD --query "SLA risk and queue triage" --workflow backlog --write-pack
+```
+
+Plain-language option:
+
+```text
+Retrieve focused backlog context for ACME_DASHBOARD about SLA risk and queue triage, and write a reusable context pack.
+```
 
 **Main output:**
 
@@ -367,13 +585,18 @@ python -m sentinel /retrieve ACME_DASHBOARD --query "SLA risk and queue triage" 
 
 **Context:** Someone manually edited a Markdown artifact or domain context file. Local memory may be stale.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /reindex ACME_DASHBOARD
+```text
+/reindex ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Rebuilds local LanceDB and JSON fallback memory from versionable artifacts, traceability graph, and context folders.
+Plain-language option:
+
+```text
+I manually edited workspace files for ACME_DASHBOARD.
+Rebuild local retrieval memory so future agents see fresh context.
+```
 
 **How to interpret it:** Reindexing does not change the source of truth. It only refreshes retrieval indexes.
 
@@ -381,13 +604,17 @@ python -m sentinel /reindex ACME_DASHBOARD
 
 **Context:** The team wants to share a brief, gap document, or context request outside the workspace.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /export ACME_DASHBOARD --artifact brief --format md
+```text
+/export ACME_DASHBOARD --artifact brief --format md
 ```
 
-**What Sentinel does:** Copies the selected artifact into `08_context_packs/exports/`.
+Plain-language option:
+
+```text
+Export the ACME_DASHBOARD project brief as Markdown so I can share a controlled copy.
+```
 
 **How to interpret it:** The export is a controlled copy. The workspace remains the source of truth.
 
@@ -397,15 +624,20 @@ python -m sentinel /export ACME_DASHBOARD --artifact brief --format md
 
 **Context:** The team wants to confirm that artifacts are structurally healthy before human approval, agent implementation, or repository changes.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /trace ACME_DASHBOARD
-python -m sentinel /health ACME_DASHBOARD
-python -m sentinel /validate ACME_DASHBOARD
+```text
+/trace ACME_DASHBOARD
+/health ACME_DASHBOARD
+/validate ACME_DASHBOARD
 ```
 
-**What Sentinel does:** Materializes traceability views, checks health signals, and validates semantic artifact completeness.
+Plain-language option:
+
+```text
+Prepare ACME_DASHBOARD for handoff.
+Refresh traceability, run health, run validation, and summarize any remaining risks.
+```
 
 **How to interpret it:** `VALID` and `CLEAN` mean the workspace is structurally sound. They do not mean final functional approval.
 
@@ -413,11 +645,18 @@ python -m sentinel /validate ACME_DASHBOARD
 
 **Context:** A late dependency, compliance issue, architectural decision, design constraint, or QA risk invalidates existing assumptions.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /sync ACME_DASHBOARD --source input\interactions\blocker.md --note "late blocker"
-python -m sentinel /health ACME_DASHBOARD
+```text
+/sync ACME_DASHBOARD --source input\interactions\blocker.md --note "late blocker"
+/health ACME_DASHBOARD
+```
+
+Plain-language option:
+
+```text
+There is a late blocker documented at input\interactions\blocker.md.
+Register it for ACME_DASHBOARD and check whether the project should become dirty.
 ```
 
 **How to interpret it:** A blocker should not be resolved by silently editing the backlog. It should become traceable evidence and, when appropriate, degrade readiness until resolved.
@@ -426,30 +665,45 @@ python -m sentinel /health ACME_DASHBOARD
 
 **Context:** Someone changed Sentinel runtime code, skills, Kilo agents, docs, tests, or command behavior.
 
-**Run:**
+**For most users:** Ask Codex or the maintainer to run the framework verification.
+
+```text
+Run the Sentinel framework verification suite and doctor check, then summarize failures or warnings.
+```
+
+**For maintainers in a terminal:**
 
 ```powershell
 python -m unittest discover -s tests
 python -m sentinel /doctor
 ```
 
-**What Sentinel does:** The unit suite checks core lifecycle flows. `/doctor` verifies local runtime, repo structure, Codex/Kilo adapters, write access, required dependencies, LanceDB local probe, commands, and optional dependencies.
-
 **How to interpret it:** Do not push framework changes if tests or `/doctor` fail. If `sentence_transformers` is missing, `/doctor` may warn while JSON fallback remains usable.
 
 ### Scenario G4: A New User Clones Or Downloads The Repo
 
-**Context:** A person clones the repository or downloads a ZIP, opens the root in VS Code, and wants to use the framework with CLI, Kilo Code, Codex, local memory, and LanceDB.
+**Context:** A person clones the repository or downloads a ZIP, opens the root in VS Code, and wants to use the framework with Kilo Code, Codex, local memory, and LanceDB.
 
-**Run:**
+**In VS Code chat, type:**
 
-```powershell
-python -m sentinel /doctor
+```text
+/doctor
 ```
 
-**What Sentinel does:** Checks Python, repo structure, Kilo/Codex adapter files, write access, LanceDB, command availability, and optional dependencies.
+For Codex:
 
-**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
+```text
+sentinel /doctor
+```
+
+Plain-language option:
+
+```text
+I just opened this repository in VS Code.
+Check whether Ignite Sentinel is ready to use on this machine and tell me what to fix if anything fails.
+```
+
+**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment or ask a technical teammate to do it. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
 
 ## Choosing Between `/resolve-gaps` And `/sync`
 
@@ -466,3 +720,17 @@ Use `/sync` when:
 - the goal is change traceability and impact analysis.
 
 In many cases, use both: `/resolve-gaps` first for structured closure, then `/sync` for new information that exceeds the existing gaps.
+
+## Terminal Fallback
+
+If chat commands are unavailable because of environment policy or extension limitations, every chat command maps to:
+
+```powershell
+python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
+```
+
+Example:
+
+```powershell
+python -m sentinel /status ACME_DASHBOARD
+```

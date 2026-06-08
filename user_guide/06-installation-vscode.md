@@ -40,7 +40,27 @@ If Git is unavailable, download the repository ZIP from GitHub and extract it to
 code .
 ```
 
-3. Run the portable doctor.
+3. Open Kilo Code chat or Codex chat and run the portable doctor.
+
+Kilo Code:
+
+```text
+/doctor
+```
+
+Codex:
+
+```text
+sentinel /doctor
+```
+
+Plain-language option:
+
+```text
+Check whether Ignite Sentinel is ready to use on this machine.
+```
+
+Terminal fallback:
 
 ```powershell
 python -m sentinel /doctor
@@ -48,7 +68,27 @@ python -m sentinel /doctor
 
 `/doctor` checks the runtime, repo structure, Kilo/Codex adapter files, write access, required dependencies, and whether LanceDB can create a local table in a temporary folder.
 
-4. Start a workspace.
+4. Start a workspace from chat.
+
+Kilo Code:
+
+```text
+/init DEMO_PROJECT
+```
+
+Codex:
+
+```text
+sentinel /init DEMO_PROJECT
+```
+
+Plain-language option:
+
+```text
+Create a demo Sentinel project called DEMO_PROJECT.
+```
+
+Terminal fallback:
 
 ```powershell
 python -m sentinel /init DEMO_PROJECT
@@ -100,12 +140,12 @@ Ignite works through repo-local files:
 
 1. Clone or extract the repo into a writable folder.
 2. Open the folder itself in VS Code, not only a subfolder.
-3. Confirm Kilo Code is enabled.
-4. Run `python -m sentinel /doctor`.
-5. If LanceDB fails, run `python -m pip install -e .` or the approved local installer.
-6. Run `python -m sentinel /init DEMO_PROJECT`.
-7. In Kilo chat, try `/status DEMO_PROJECT`.
-8. If slash commands are intercepted, use `/sentinel /status DEMO_PROJECT` or run the CLI in the terminal.
+3. Open Kilo Code chat or Codex chat.
+4. Run `/doctor` in Kilo or `sentinel /doctor` in Codex.
+5. If LanceDB fails, ask a technical teammate to run `python -m pip install -e .` or use the approved local installer.
+6. Run `/init DEMO_PROJECT` in Kilo or `sentinel /init DEMO_PROJECT` in Codex.
+7. Try `/status DEMO_PROJECT` in Kilo or `sentinel /status DEMO_PROJECT` in Codex.
+8. If slash commands are intercepted, use `sentinel /status DEMO_PROJECT` or the terminal fallback.
 
 ## Troubleshooting
 
@@ -133,14 +173,25 @@ Check that the repo root is open in VS Code and that `kilo.jsonc`, `.kilo/agents
 
 ## Daily Use
 
-```powershell
-python -m sentinel /ingest PROJECT_ID --source input\client-note.md
-python -m sentinel /gaps PROJECT_ID
-python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
-python -m sentinel /maturity PROJECT_ID
-python -m sentinel /brief PROJECT_ID
-python -m sentinel /specs PROJECT_ID
-python -m sentinel /backlog PROJECT_ID
-python -m sentinel /quality PROJECT_ID
-python -m sentinel /health PROJECT_ID
+Use chat commands for everyday work:
+
+```text
+/ingest PROJECT_ID --source input\client-note.md
+/gaps PROJECT_ID
+/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+/maturity PROJECT_ID
+/brief PROJECT_ID
+/specs PROJECT_ID
+/backlog PROJECT_ID
+/quality PROJECT_ID
+/health PROJECT_ID
+```
+
+For Codex, prefix each command with `sentinel` if needed.
+
+Plain-language daily use also works:
+
+```text
+I received new client notes at input\client-note.md.
+Ingest them for PROJECT_ID, regenerate gaps, and tell me the next recommended step.
 ```

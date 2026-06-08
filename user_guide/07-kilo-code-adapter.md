@@ -12,10 +12,10 @@ These agents mirror the Codex skills and call the same portable CLI:
 python -m sentinel ...
 ```
 
-Before relying on Kilo chat commands in a freshly cloned repository, run the setup check from the VS Code terminal:
+Before relying on Kilo chat commands in a freshly cloned repository, run the setup check from Kilo chat:
 
-```powershell
-python -m sentinel /doctor
+```text
+/doctor
 ```
 
 If LanceDB or another dependency is missing:
@@ -52,6 +52,8 @@ If `/health` reports that domain context changed after backlog generation, run `
 
 Kilo Code supports repo-local workflows in `.kilo/commands/`. In this repo, those workflows let you type short Ignite commands directly in Kilo chat.
 
+Non-technical users can also describe the situation in plain language. Kilo should use the matching Sentinel agent or command workflow and then summarize the generated artifacts and next step.
+
 Examples:
 
 ```text
@@ -84,6 +86,17 @@ If a command name conflicts with the chat surface, use the generic fallback:
 
 ```text
 Use the sentinel-discovery agent to ingest input/client-note.md for project ACME_DASHBOARD.
+```
+
+Other plain-language examples:
+
+```text
+The client answered gaps in input\interactions\answered-gaps.md.
+Process them for ACME_DASHBOARD and tell me whether discovery is ready for a brief.
+```
+
+```text
+Generate backlog for ACME_DASHBOARD and tell me whether any story still needs Technology, Design, or Quality context.
 ```
 
 ## Permissions

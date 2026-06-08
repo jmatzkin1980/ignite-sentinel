@@ -19,6 +19,7 @@ python -m sentinel /maturity PROJECT_ID
 
 Rules:
 
+- If the user describes a situation instead of giving an exact command, infer the discovery command sequence and explain the next step in plain language.
 - Treat raw input as evidence, not mature truth.
 - Treat technology, design, business, quality, and interaction context folders as external domain input.
 - `/ingest` indexes generated artifacts and context folders into local LanceDB memory.

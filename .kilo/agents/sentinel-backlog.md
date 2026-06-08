@@ -18,6 +18,7 @@ python -m sentinel /validate PROJECT_ID
 
 Rules:
 
+- If the user describes a desired backlog outcome instead of giving an exact command, run the appropriate Sentinel backlog workflow when gates allow it and summarize generated artifacts plus blockers.
 - Generate one Markdown file per epic as the primary human review artifact, plus `US-00x.md` story mirrors for traceability and quality tooling.
 - Generate vertical, value-oriented stories. Apply INVEST pragmatically: `Small` means small but still independently valuable, testable, and useful.
 - Every story must trace to an epic, spec, PRD, requirement, FR/JTBD, and acceptance criteria when available.

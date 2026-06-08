@@ -4,6 +4,8 @@ This guide explains how to invoke Ignite Sentinel from VS Code chat without manu
 
 Chat commands are shortcuts over the same CLI. They do not create a second workflow or a hidden state. Whether you run `/gaps PROJECT_ID` in chat or `python -m sentinel /gaps PROJECT_ID` in PowerShell, the framework mutates the same workspace artifacts and follows the same command protocol.
 
+Users do not need to memorize every command. They can either type a command or explain the situation in plain language. The agent should translate the request into the right Sentinel command sequence and summarize what changed.
+
 ## Goal
 
 The intended user experience after cloning the repository and opening the repo root in VS Code is:
@@ -75,6 +77,23 @@ Fallback:
 /sentinel /init PROJECT_ID
 ```
 
+Plain-language Kilo examples:
+
+```text
+I have a new client requirement in input\client_requirement\initial-request.md.
+Create PROJECT_ID, ingest the file, and tell me what gaps were found.
+```
+
+```text
+The client answered gaps in input\interactions\answered-gaps.md.
+Process the answers, check maturity, and tell me whether we can generate the brief.
+```
+
+```text
+Technology updated context files for PROJECT_ID.
+Refresh memory and check whether the backlog is stale.
+```
+
 ## Codex
 
 Codex may reserve some native slash commands depending on the surface. For that reason, the most reliable Codex chat form is:
@@ -96,6 +115,23 @@ If `/init PROJECT_ID` is intercepted by Codex itself, resend:
 
 ```text
 sentinel /init PROJECT_ID
+```
+
+Plain-language Codex examples:
+
+```text
+Use Ignite Sentinel to create PROJECT_ID from input\client_requirement\initial-request.md.
+Run the needed commands and summarize the resulting status.
+```
+
+```text
+For PROJECT_ID, generate the PRD/specs if maturity allows it.
+If something blocks the workflow, explain the blocker and the next action.
+```
+
+```text
+For PROJECT_ID, generate backlog and implementation readiness.
+Then tell me which stories still need domain context.
 ```
 
 ## Recommended BA Lifecycle From Chat
@@ -124,6 +160,13 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 ```
 
 For Codex, prefix each line with `sentinel` when needed.
+
+Plain-language equivalent:
+
+```text
+Guide PROJECT_ID through the normal Sentinel lifecycle.
+Start with discovery and gaps, stop at each maturity or health gate, and summarize the next recommended action after each step.
+```
 
 ## Practical Rule
 

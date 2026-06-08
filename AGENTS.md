@@ -30,6 +30,7 @@
 - If Technology, Design, Quality, Delivery, or other domain context changes after backlog generation, `/health` should mark the backlog stale and require `/reindex` plus `/backlog` before implementation handoff.
 - Cross-cutting enablers are valid only when they are concrete implementation work that must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces inside the project boundary. Generic setup, broad hardening, environment availability, or vague accessibility/operability work are preconditions or external tasks unless tied to specific project functionality and objective completion evidence.
 - Prefer autonomous lifecycle flows that call the right skills/CLI commands and use progressive disclosure via `/retrieve` instead of loading entire workspaces.
+- If a user describes a Sentinel situation in plain language instead of providing an exact command, map the intent to the appropriate lifecycle command sequence, run it when safe, and summarize generated artifacts plus the next recommended step.
 - Before pushing framework changes to `main`, run the unit suite, `/doctor`, at least one lifecycle smoke test when runtime changed, inspect staged files, and scan staged diffs for sensitive/confidential terms.
 - Do not stage or commit unrelated local deletions, generated project workspaces, or user-owned files unless the user explicitly asks to manage them.
 - Prefer Spanish explanations for framework behavior unless project language or user request indicates otherwise, with concise but concrete examples of commands, artifacts, inputs, and outputs.
@@ -37,6 +38,8 @@
 ## Ignite Chat Commands
 
 When the user sends an Ignite-style chat command, parse it as a request to run the Sentinel CLI from the repository root.
+
+When the user explains a situation without a command, infer the likely Sentinel workflow. Examples: new client input usually maps to `/init`, `/ingest`, and `/status`; answered gaps map to `/resolve-gaps`, `/maturity`, and `/status`; updated domain context maps to `/reindex` and `/health`; backlog handoff maps to `/backlog`, `/quality`, `/trace`, `/health`, and `/validate` when gates allow it.
 
 Accepted forms:
 

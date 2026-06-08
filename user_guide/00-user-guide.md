@@ -159,94 +159,114 @@ Backlog rules:
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records story readiness, required domains, pending context, retrieval queries, validation expectations, dependencies, trace IDs, blast radius, and the domain context snapshot used during backlog generation.
 
-If domain context changes after backlog generation, `/health` marks the backlog as stale. Run:
+If domain context changes after backlog generation, `/health` marks the backlog as stale. From chat, run:
 
-```powershell
-python -m sentinel /reindex PROJECT_ID
-python -m sentinel /backlog PROJECT_ID
+```text
+/reindex PROJECT_ID
+/backlog PROJECT_ID
 ```
+
+For Codex, prefix each line with `sentinel` if needed.
 
 Then rerun quality, trace, health, and validation before implementation handoff.
 
 ## Basic Flow
 
+Use VS Code chat as the primary interface when Kilo Code or Codex is available.
+
+- In Kilo Code, type the slash command directly.
+- In Codex, prefix the same command with `sentinel` if the slash command is intercepted.
+- If you do not know the exact command, explain the situation in plain language and ask the agent to run the appropriate Sentinel workflow.
+
 ### 1. Initialize A Project
 
-```powershell
-python -m sentinel /init PROJECT_ID
+```text
+/init PROJECT_ID
+```
+
+Codex-safe form:
+
+```text
+sentinel /init PROJECT_ID
 ```
 
 This creates folders, `state.json`, `sentinel.config.yaml`, an empty traceability graph, source manifest, and local memory area.
 
 ### 2. Ingest Initial Input
 
-```powershell
-python -m sentinel /ingest PROJECT_ID --source input\client_requirement\request.md
+```text
+/ingest PROJECT_ID --source input\client_requirement\request.md
 ```
 
 Sentinel copies the input to the workspace, creates initial requirements, gaps, seeds, decisions, and multi-lens review artifacts. It also indexes generated artifacts and domain context folders into local memory.
 
 ### 3. Review Gaps
 
-```powershell
-python -m sentinel /gaps PROJECT_ID
+```text
+/gaps PROJECT_ID
 ```
 
 `01_discovery/gaps.md` is designed for humans. Each gap has an ID, description, question, answer example, owner/source fields, evidence fields, and decision status. It can be shared with a client or domain owner without requiring them to understand the framework internals.
 
 ### 4. Resolve Structured Gap Answers
 
-```powershell
-python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+```text
+/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
 
 Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed.
 
 ### 5. Check Maturity
 
-```powershell
-python -m sentinel /maturity PROJECT_ID
+```text
+/maturity PROJECT_ID
 ```
 
 If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief.
 
 ### 6. Generate The Project Brief
 
-```powershell
-python -m sentinel /brief PROJECT_ID
+```text
+/brief PROJECT_ID
 ```
 
 The brief is the closure of discovery. It should be clear enough for PRD/specs/backlog and for Technology or Design to deepen their own context packs, without pretending to include every low-level implementation contract.
 
 ### 7. Request Domain Context
 
-```powershell
-python -m sentinel /context-request PROJECT_ID --domain technology
-python -m sentinel /context-request PROJECT_ID --domain design
-python -m sentinel /context-request PROJECT_ID --domain quality
+```text
+/context-request PROJECT_ID --domain technology
+/context-request PROJECT_ID --domain design
+/context-request PROJECT_ID --domain quality
 ```
 
 Domain requests are focused, traceable prompts for domain owners. They should enrich the relevant workspace context folders and then be ingested, synced, or reindexed.
 
 ### 8. Generate Specs, Backlog, And Quality Artifacts
 
-```powershell
-python -m sentinel /specs PROJECT_ID
-python -m sentinel /backlog PROJECT_ID
-python -m sentinel /quality PROJECT_ID
+```text
+/specs PROJECT_ID
+/backlog PROJECT_ID
+/quality PROJECT_ID
 ```
 
 Run these only when project maturity and health allow it. `/backlog` and `/quality` are blocked while project health is `DIRTY`.
 
 ### 9. Audit Traceability And Health
 
-```powershell
-python -m sentinel /trace PROJECT_ID
-python -m sentinel /health PROJECT_ID
-python -m sentinel /validate PROJECT_ID
+```text
+/trace PROJECT_ID
+/health PROJECT_ID
+/validate PROJECT_ID
 ```
 
 Use these before human review, agent handoff, or repository changes.
+
+Terminal fallback:
+
+```powershell
+python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
+```
 
 ## Workspace Shape
 

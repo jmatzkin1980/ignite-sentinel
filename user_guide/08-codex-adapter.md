@@ -12,10 +12,10 @@ These skills provide progressive disclosure for Codex. Each skill is short and d
 python -m sentinel ...
 ```
 
-On a fresh clone, first validate the local runtime from the VS Code terminal:
+On a fresh clone, first validate the local runtime from Codex chat:
 
-```powershell
-python -m sentinel /doctor
+```text
+sentinel /doctor
 ```
 
 If dependencies are missing:
@@ -45,6 +45,8 @@ python -m sentinel /doctor
 ## Chat Command Router
 
 Codex uses `AGENTS.md` plus the `sentinel-command-router` skill to interpret Ignite-style chat commands and run the matching CLI command.
+
+Codex can also work from plain-language requests. The user may describe the situation, and Codex should choose the right Sentinel command sequence, run it, and summarize the outputs and next step.
 
 Recommended Codex chat form:
 
@@ -77,6 +79,18 @@ If Codex intercepts `/init` or another slash command as a native Codex command, 
 
 ```text
 Use sentinel-maturity to evaluate ACME_DASHBOARD and explain what blocks specs generation.
+```
+
+More plain-language examples:
+
+```text
+I received new client input at input\client_requirement\initial-request.md.
+Create project ACME_DASHBOARD, ingest it, and explain the open gaps.
+```
+
+```text
+Technology and Design updated their context files for ACME_DASHBOARD.
+Refresh memory, check health, and tell me whether backlog must be regenerated.
 ```
 
 ## Hooks
