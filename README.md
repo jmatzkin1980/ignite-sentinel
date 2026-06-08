@@ -106,7 +106,7 @@ Every project command runs through the Sentinel vNext protocol:
 3. postflight trace materialization for mutating commands
 4. command anchor in `06_traceability/command_protocol_log.md`
 
-This replaces the old Roo hook model with repo-local, deterministic runtime checks.
+This keeps command execution repo-local, deterministic, and auditable across Codex, Kilo Code, and direct CLI usage.
 
 ## Local Memory
 

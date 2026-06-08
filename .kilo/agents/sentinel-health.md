@@ -19,3 +19,6 @@ Rules:
 - Use health and validation before handoff.
 - Source workspace files are authoritative.
 - Memory indexes never override versionable artifacts.
+- If domain context changed after backlog generation, treat the backlog as stale and run `/reindex PROJECT_ID` plus `/backlog PROJECT_ID` before implementation handoff.
+- `/health` should catch blocking gaps, unbacked metrics, orphan trace nodes, missing memory indexing, stale domain context, and story/epic linkage issues.
+- `/validate` should confirm required semantic artifacts exist, including specs context packs, backlog readiness audit, story execution contracts, retrieval plans, and implementation readiness pack.
