@@ -2,7 +2,7 @@
 
 ## Working Agreements
 
-- Treat this repository as a repo-local framework for BA/Product requirements work in AI PODs, usable from Codex, Kilo Code, or the CLI.
+- Treat this repository as a repo-local framework for BA/Product requirements work in AI PODs, usable from Codex, Kilo Code, Claude (Claude Code or Claude Desktop), or the CLI.
 - Keep the source of truth in versionable files under `workspaces/[PROJECT_ID]/`; memory indexes are retrieval aids only.
 - Preserve traceability from raw input to requirements, gaps, decisions, specs, backlog, acceptance criteria, tests, and changes.
 - Prefer small repo-local agents/skills with progressive disclosure: concise entry instructions, deeper references, reusable templates, and deterministic scripts when possible.
@@ -86,4 +86,4 @@ Execution rule:
 ## Verification
 
 - Run `python -m unittest discover -s tests` after changing Sentinel runtime code.
-- If `python` is unavailable, use the bundled Codex Python runtime.
+- If `python` is unavailable, use the bundled Codex Py

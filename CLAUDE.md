@@ -1,0 +1,88 @@
+# CLAUDE.md - Ignite Sentinel vNext
+
+Instrucciones para sesiones de Claude (Cowork, Claude Code o similar) operando sobre este repositorio. Complementa, no reemplaza, a `AGENTS.md`: leer ambos antes de tocar nada.
+
+## Qué es este proyecto
+
+Framework repo-local y local-first para que un BA/Product madure requerimientos crudos de cliente hasta convertirlos en artefactos trazables: discovery, gaps, project brief, PRD, specs, backlog, test cases y trazabilidad. No es un generador de documentos: es un sistema de maduración de requerimientos con lifecycle gobernado.
+
+## Orden de lectura al iniciar una sesión
+
+1. `AGENTS.md` (reglas operativas y working agreements).
+2. `docs/evolution/00-baseline-2026-06-10.md` (estado validado del repo).
+3. `docs/evolution/01-roadmap.md` y `02-backlog-mejoras.md` (qué evolucionar y en qué orden).
+4. `user_guide/00-user-guide.md` y `01-command-reference.md` para uso del CLI.
+
+Nota: los handoffs históricos (`general-proyecto.md`, `ignite_vnext_final_handoff.md`) viven fuera del repo, en la carpeta personal de handoffs del usuario. No forman parte del proyecto ni deben versionarse; ante conflicto con ellos, prevalece el código actual.
+
+## Comandos esenciales
+
+Desde la raíz del repo:
+
+```text
+python -m sentinel /doctor
+python -m sentinel /init PROJECT_ID
+python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
+python -m sentinel /gaps | /resolve-gaps | /maturity | /brief | /context-request
+python -m sentinel /sync | /reindex | /retrieve
+python -m sentinel /specs | /backlog | /quality | /trace | /health | /validate
+python -m sentinel /status PROJECT_ID | /export PROJECT_ID
+```
+
+Fallback Windows sin Python en PATH: `.\installers\sentinel.ps1 /COMMAND PROJECT_ID`.
+
+## Chat commands en Claude
+
+Este repo incluye el adapter `.claude/commands/` con un slash command por comando Sentinel (`/init`, `/ingest`, `/gaps`, etc.) más `/sentinel` como forma genérica. En Claude Code (VS Code o CLI) se invocan directamente desde el chat; cada comando ejecuta el CLI desde la raíz del repo y resume artefactos generados, gaps y próximo paso.
+
+Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash commands nativos):
+
+- Si el usuario escribe un comando estilo `/COMMAND PROJECT_ID [OPTIONS]`, `sentinel /COMMAND ...` o `ignite /COMMAND ...`, ejecutar `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]` desde la raíz del repo.
+- Si el usuario describe la situación en lenguaje natural, mapear la intención al flujo correcto: input nuevo de cliente → `/init` + `/ingest` + `/status`; respuestas a gaps → `/resolve-gaps` + `/maturity` + `/status`; contexto de dominio actualizado → `/sync` + `/reindex` + `/health`; handoff downstream → `/specs` + `/backlog` + `/quality` + `/trace` + `/health` + `/validate` cuando los gates lo permitan.
+- Nunca editar artefactos generados a mano: siempre mutar vía CLI.
+- Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.
+- Tras cada comando, resumir resultado, artefactos generados y próximo paso recomendado.
+
+Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes.
+
+## Verificación obligatoria al cambiar runtime
+
+```text
+python -m unittest discover -s tests
+python -m sentinel /doctor
+```
+
+Nota de entorno: en sandboxes sin `lancedb` instalado, `/doctor` y 2 tests de doctor fallan por dependencia faltante, no por bugs. Instalar con `pip install lancedb` o validar en la máquina del usuario. Los otros 15 tests deben pasar siempre.
+
+## Reglas no negociables (resumen de AGENTS.md)
+
+- SSoT: archivos versionables bajo `workspaces/[PROJECT_ID]/`. La memoria LanceDB/JSON es ayuda reconstruible, nunca autoridad.
+- Local-first privacy: nada de contenido de cliente/código a servicios externos, embeddings remotos ni MCP remotos sin aprobación explícita.
+- No inventar: faltantes se expresan como `GAP-*`, `[PENDING INPUT]` o `[PENDING DOMAIN CONTEXT]`.
+- Mutar artefactos generados solo vía comandos Sentinel, nunca editando outputs downstream a mano.
+- `main` limpio: sin workspaces reales, datos de cliente ni outputs de prueba. Cambios vía branch + PR; no asumir push directo a `main`.
+- Al evolucionar el framework, mantener alineados juntos: runtime (`sentinel/`), tests, skills Codex (`.codex/skills/`), agentes/comandos Kilo (`.kilo/`), `kilo.jsonc`, README, `user_guide/` y `/doctor`.
+- De documentos confidenciales solo se extraen patrones genéricos; jamás persistir nombres de cliente, sistemas, endpoints o datos identificables en artefactos versionados.
+- Explicaciones de comportamiento del framework preferentemente en español.
+
+## Estructura clave
+
+```text
+sentinel/          runtime Python (cli, discovery, generation, memory, sync, health, validation, protocols...)
+tests/             unittest suite (17 tests)
+.codex/ .kilo/     adapters Codex y Kilo Code
+user_guide/        documentación de usuario (00-12)
+input/             staging local de inputs (no versionado)
+workspaces/        workspaces por proyecto (solo _template versionado)
+docs/evolution/    baseline, roadmap y backlog de mejoras del framework
+installers/        launchers PowerShell
+```
+
+## Cómo trabajar una mejora del framework
+
+1. Elegir un ítem `IMP-*` de `docs/evolution/02-backlog-mejoras.md` (respetando prioridades del roadmap).
+2. Crear branch de trabajo desde `main`.
+3. Implementar tocando runtime + tests + adapters + docs según aplique.
+4. Correr suite de tests y `/doctor`; smoke test de lifecycle si cambió runtime.
+5. Actualizar el estado del ítem en `02-backlog-mejoras.md`.
+6. Abrir PR; no mergear sin revisión.
