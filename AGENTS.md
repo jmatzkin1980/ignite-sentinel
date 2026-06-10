@@ -69,7 +69,7 @@ Accepted forms:
 Execution rule:
 
 - Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
-- If `python` is not available, use the configured or bundled Python runtime when visible in the environment.
+- If `python` is not available, use the configured or bundled Python runtime when visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]` on Windows.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
 - `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
 - `/resolve-gaps PROJECT_ID --source PATH` processes structured client/domain answers and safely closes only confirmed or not-applicable gaps.

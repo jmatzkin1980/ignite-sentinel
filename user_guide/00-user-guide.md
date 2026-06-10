@@ -268,6 +268,18 @@ Terminal fallback:
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
+Portable launcher fallback when a laptop does not expose a valid `python` command:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
+```
+
+On Unix-like shells:
+
+```sh
+sh installers/sentinel.sh /COMMAND PROJECT_ID [OPTIONS]
+```
+
 ## Workspace Shape
 
 ```text

@@ -21,6 +21,12 @@ Run from the repository root:
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
+If `python` is unavailable or resolves to an invalid Windows alias, use the repo-local launcher:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
+```
+
 Sentinel applies preflight and postflight protocol guards automatically. Mutating commands refresh trace views and record `06_traceability/command_protocol_log.md`.
 
 Summarize the result and generated artifact paths.

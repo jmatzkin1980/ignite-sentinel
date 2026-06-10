@@ -129,4 +129,10 @@ python -m sentinel /doctor
 python -m unittest discover -s tests
 ```
 
+On Windows machines without a valid `python` command, use:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+```
+
 Confirm no real project workspace is staged.

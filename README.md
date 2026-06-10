@@ -21,13 +21,26 @@ python -m pip install -e .
 python -m sentinel /doctor
 ```
 
+On Windows laptops where `python` is not exposed in `PATH`, use the repo-local launcher. It tries `SENTINEL_PYTHON`, `.venv`, `python`, `py`, and the Codex Desktop bundled runtime when visible:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /init PROJECT_ID
+```
+
+On Unix-like shells:
+
+```sh
+sh installers/sentinel.sh /doctor
+```
+
 Then open the repo root in VS Code:
 
 ```powershell
 code .
 ```
 
-For Kilo Code, make sure the extension can see `.kilo/agents/`, `.kilo/commands/`, and `kilo.jsonc`. For Codex, make sure `.codex/skills/` and `AGENTS.md` are visible from the opened folder.
+For Kilo Code, make sure the extension can see `.kilo/agents/`, `.kilo/commands/`, and `kilo.jsonc`. For Codex in VS Code or Codex Desktop, make sure `.codex/skills/`, `.codex/hooks/`, and `AGENTS.md` are visible from the opened folder.
 
 Kilo Code chat:
 

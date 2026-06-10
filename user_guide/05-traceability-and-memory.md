@@ -59,6 +59,12 @@ LanceDB is a Python dependency. It does not require a separate database server f
 python -m sentinel /doctor
 ```
 
+If `python` is not available globally, verify through the portable launcher:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+```
+
 The doctor command checks both import availability and a local open/create probe.
 
 It stores chunk rows with fields aligned to the BA Local Brain model:

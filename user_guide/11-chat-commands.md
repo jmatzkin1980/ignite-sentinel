@@ -25,6 +25,13 @@ python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
 ```
 
+If the machine does not expose a valid `python`, use the repo-local launcher:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /init PROJECT_ID
+```
+
 If `/doctor` reports missing Python dependencies, run:
 
 ```powershell
@@ -109,6 +116,12 @@ The repo also includes instructions in `AGENTS.md` and the `sentinel-command-rou
 
 ```powershell
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
+```
+
+When `python` is unavailable in Codex Desktop or VS Code, the router may use:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
 ```
 
 If `/init PROJECT_ID` is intercepted by Codex itself, resend:

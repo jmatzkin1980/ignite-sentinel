@@ -43,7 +43,12 @@ python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 
 For `/doctor`, omit `PROJECT_ID`.
 
-3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible.
+3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
+```
+
 4. Return a concise summary of the CLI result and point to generated artifacts.
 
 The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md`.
