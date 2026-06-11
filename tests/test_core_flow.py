@@ -451,6 +451,27 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
             if story["status"] == "ready":
                 self.assertEqual(story["readiness_score"], 1.0)
 
+    def test_maturity_and_status_expose_quantified_metrics(self) -> None:
+        from sentinel.maturity import evaluate
+        from sentinel.status import project_status
+
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "METR"]), 0)
+        self.assertEqual(main(["ingest", "METR", "--source", str(fixture)]), 0)
+        first = evaluate("METR")
+        metrics = first["metrics"]
+        for key in ("gap_total", "gap_closure_rate", "open_gaps_by_severity", "maturity_score"):
+            self.assertIn(key, metrics)
+        self.assertGreaterEqual(metrics["maturity_score"], 0.0)
+        self.assertLessEqual(metrics["maturity_score"], 1.0)
+        self.assertEqual(main(["specs", "METR"]), 0)
+        second = evaluate("METR")
+        self.assertIn("trend_vs_previous_run", second["metrics"])
+        self.assertIn("prd.md", second["metrics"]["artifact_evidence_scores"])
+        status = project_status("METR")
+        self.assertIn("maturity_metrics", status)
+        self.assertIn("maturity_score", status["maturity_metrics"])
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"

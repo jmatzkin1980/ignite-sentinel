@@ -19,3 +19,4 @@ Use this skill before specs or backlog generation.
 - Critical and high open gaps block downstream generation.
 - Maturity is a gate, not a writing exercise.
 - Prefer concise gap remediation questions over speculative completion.
+- `/maturity` returns a `metrics` block (IMP-008): `gap_closure_rate`, `open_gaps_by_severity`, `artifact_evidence_scores`, combined `maturity_score` and `trend_vs_previous_run`. Summarize the score and trend to the user along with readiness, and recommend gap resolution when the trend is flat or negative.
