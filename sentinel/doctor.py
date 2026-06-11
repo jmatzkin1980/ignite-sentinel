@@ -97,6 +97,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         memory_dependency_check(),
         lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
+        mcp_dependency_check(),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
     warnings = [check for check in checks if check["status"] == "WARN"]
@@ -172,6 +173,22 @@ def claude_command_checks(root: Path) -> list[dict[str, str]]:
         path_check(root, f".claude/commands/{command}.md", f"Claude slash command: /{command}")
         for command in REQUIRED_CLAUDE_COMMANDS
     ]
+
+
+def mcp_dependency_check() -> dict[str, str]:
+    found = importlib.util.find_spec("mcp") is not None
+    if found:
+        detail = package_detail("mcp") + "; expose the lifecycle to MCP clients with `python -m sentinel.mcp`"
+    else:
+        detail = (
+            "not installed; chat adapters and CLI remain fully functional. "
+            "Enable the local stdio MCP server with `python -m pip install -e .[mcp]`."
+        )
+    return {
+        "name": "optional dependency: mcp (local stdio server)",
+        "status": "PASS" if found else "WARN",
+        "detail": detail,
+    }
 
 
 def memory_dependency_check() -> dict[str, str]:
