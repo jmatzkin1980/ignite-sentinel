@@ -41,8 +41,15 @@ def validate_project(project_id: str) -> dict[str, object]:
 
     findings.extend(validate_semantic_artifacts(project_id, base, graph))
 
+    semantic_quality, quality_warnings = semantic_quality_report(base)
+
     verdict = "VALID" if not findings else "INVALID"
-    return {"verdict": verdict, "findings": findings}
+    return {
+        "verdict": verdict,
+        "findings": findings,
+        "semantic_quality": semantic_quality,
+        "warnings": quality_warnings,
+    }
 
 
 def resolve_path(base: Path, path_value: str) -> Path:
@@ -110,3 +117,65 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
         if not resolution_log.exists():
             findings.append("Closed gaps exist without gap_resolution_log.md.")
     return findings
+
+
+PENDING_MARKERS = ("[PENDING INPUT]", "[PENDING DOMAIN CONTEXT]")
+
+EVIDENCE_MARKERS = (
+    "| P-E",
+    "| FR-E",
+    "(confirm baseline)",
+    "Evidence that triggers the question:",
+    "Evidencia que dispara la pregunta:",
+)
+
+
+def score_artifact_text(text: str) -> dict[str, object]:
+    """Deterministic semantic-quality score: evidence signals vs pending placeholders.
+
+    This is a heuristic for visibility, not a gate. A low score means the
+    artifact is mostly scaffolding and needs more discovery evidence.
+    """
+    pending = sum(text.count(marker) for marker in PENDING_MARKERS)
+    evidence = sum(text.count(marker) for marker in EVIDENCE_MARKERS)
+    total = pending + evidence
+    score = round(evidence / total, 3) if total else 0.0
+    if evidence and score >= 0.5:
+        classification = "evidence-backed"
+    elif evidence:
+        classification = "mixed"
+    else:
+        classification = "scaffolding"
+    return {
+        "pending_markers": pending,
+        "evidence_signals": evidence,
+        "score": score,
+        "classification": classification,
+    }
+
+
+def semantic_quality_report(base: Path) -> tuple[dict[str, dict[str, object]], list[str]]:
+    """Score generated artifacts and emit non-blocking warnings for scaffolding."""
+    targets = {
+        "project-brief.md": base / "02_requirements" / "project-brief.md",
+        "prd.md": base / "03_specs" / "prd.md",
+        "specs.md": base / "03_specs" / "specs.md",
+    }
+    report: dict[str, dict[str, object]] = {}
+    warnings: list[str] = []
+    for name, path in targets.items():
+        if not path.exists():
+            continue
+        result = score_artifact_text(path.read_text(encoding="utf-8"))
+        report[name] = result
+        if result["classification"] == "scaffolding":
+            warnings.append(
+                f"{name} has no evidence-backed signals ({result['pending_markers']} pending markers): "
+                "it is mostly scaffolding. Resolve gaps and re-run /specs before downstream handoff."
+            )
+        elif result["classification"] == "mixed":
+            warnings.append(
+                f"{name} is partially evidence-backed (score {result['score']}): "
+                f"{result['pending_markers']} pending markers remain."
+            )
+    return report, warnings

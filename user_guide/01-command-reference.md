@@ -312,6 +312,9 @@ Checks:
 - duplicate IDs
 - missing artifact paths
 - edges pointing to missing nodes
+- expected semantic sections in PRD, specs, and stories
+
+Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. Each artifact is classified as `evidence-backed`, `mixed`, or `scaffolding`, with `warnings` describing what to improve. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
 
 Returns non-zero when invalid.
 

@@ -397,6 +397,29 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("no requirement-like statements were extracted", prd)
         self.assertIn("| KPI-01 | Primary business or operational outcome. | `[PENDING INPUT]`", prd)
 
+    def test_validate_scores_semantic_quality_of_artifacts(self) -> None:
+        from sentinel.validation import score_artifact_text, validate_project
+
+        scaffolding = "| KPI-01 | outcome | `[PENDING INPUT]` | `[PENDING INPUT]` |\n[PENDING DOMAIN CONTEXT]"
+        backed = '| P-E1 | "The main users are support leads." |\n| FR-E01 | "They want a dashboard." |\n30% (confirm baseline)'
+        self.assertEqual(score_artifact_text(scaffolding)["classification"], "scaffolding")
+        self.assertEqual(score_artifact_text(backed)["classification"], "evidence-backed")
+        mixed = scaffolding + "\n" + '| FR-E01 | "statement" |'
+        self.assertEqual(score_artifact_text(mixed)["classification"], "mixed")
+
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "SEMQ"]), 0)
+        self.assertEqual(main(["ingest", "SEMQ", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "SEMQ"]), 0)
+        self.assertEqual(main(["specs", "SEMQ"]), 0)
+        report = validate_project("SEMQ")
+        self.assertIn("semantic_quality", report)
+        self.assertIn("prd.md", report["semantic_quality"])
+        prd_quality = report["semantic_quality"]["prd.md"]
+        self.assertGreater(prd_quality["evidence_signals"], 0)
+        self.assertIn(prd_quality["classification"], {"evidence-backed", "mixed"})
+        self.assertEqual(main(["validate", "SEMQ"]), 0)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
