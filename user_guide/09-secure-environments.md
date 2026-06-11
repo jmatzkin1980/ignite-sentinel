@@ -70,3 +70,12 @@ Run CLI commands manually in the VS Code terminal and use the extension only to 
 - Keep `main` clean so a fresh download of the repo never includes client or workflow test data.
 - Use dedicated project branches for execution in laptops or VDIs, and avoid merging those branches into `main` when they contain client artifacts.
 
+## Degraded Memory Mode (No LanceDB)
+
+Some corporate laptops and client VDIs do not allow installing native packages such as `lancedb`. This is a fully supported first-class scenario, not an error:
+
+- The entire lifecycle (`/init` ... `/validate`) works without LanceDB.
+- `ContextBroker` automatically runs in deterministic `json-hybrid` mode: indexing and `/retrieve` use the local JSON memory with hash embeddings.
+- `/doctor` reports `memory dependency: lancedb (optional)` as `WARN`, and the verdict stays `PASS`.
+- What you lose is vector-similarity quality in `/retrieve`; lexical retrieval and all traceability remain intact.
+- When the environment allows it, enable the vector layer with `python -m pip install -e .[memory]` and run `/reindex PROJECT_ID` to rebuild project memory.

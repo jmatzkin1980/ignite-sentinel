@@ -88,10 +88,10 @@ python -m sentinel /health PROJECT_ID
 python -m sentinel /validate PROJECT_ID
 ```
 
-`/doctor` verifies Python, required dependencies such as LanceDB, repo-local Kilo/Codex/Claude adapter files, write access, and a local LanceDB open/create probe. If LanceDB is missing, install repo dependencies in the active Python environment:
+`/doctor` verifies Python, repo-local Kilo/Codex/Claude adapter files, write access, and the optional LanceDB memory layer. LanceDB is optional: without it, Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports a WARN instead of failing. To enable vector retrieval where the environment allows it:
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e .[memory]
 python -m sentinel /doctor
 ```
 

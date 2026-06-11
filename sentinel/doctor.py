@@ -131,7 +131,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *codex_skill_checks(root),
         *kilo_command_checks(root),
         *claude_command_checks(root),
-        required_dependency_check("lancedb"),
+        memory_dependency_check(),
         lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
     ]
@@ -211,12 +211,19 @@ def claude_command_checks(root: Path) -> list[dict[str, str]]:
     ]
 
 
-def required_dependency_check(module_name: str) -> dict[str, str]:
-    found = importlib.util.find_spec(module_name) is not None
-    detail = package_detail(module_name) if found else "not installed; run `python -m pip install -e .` from the repo root"
+def memory_dependency_check() -> dict[str, str]:
+    found = importlib.util.find_spec("lancedb") is not None
+    if found:
+        detail = package_detail("lancedb")
+    else:
+        detail = (
+            "not installed; deterministic JSON memory fallback is active. "
+            "Vector retrieval is degraded but the full lifecycle works. "
+            "Enable with `python -m pip install -e .[memory]` when the environment allows it."
+        )
     return {
-        "name": f"required dependency: {module_name}",
-        "status": "PASS" if found else "FAIL",
+        "name": "memory dependency: lancedb (optional)",
+        "status": "PASS" if found else "WARN",
         "detail": detail,
     }
 
@@ -225,8 +232,8 @@ def lancedb_smoke_check() -> dict[str, str]:
     if importlib.util.find_spec("lancedb") is None:
         return {
             "name": "LanceDB local open/create",
-            "status": "FAIL",
-            "detail": "lancedb is not installed",
+            "status": "WARN",
+            "detail": "lancedb is not installed; ContextBroker runs in deterministic json-hybrid mode",
         }
     try:
         import lancedb  # type: ignore

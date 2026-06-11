@@ -7,12 +7,13 @@ name = "ignite-sentinel"
 version = "0.1.0"
 description = "Repo-local BA/Product requirements operating framework for AI PODs."
 requires-python = ">=3.10"
-dependencies = [
-  "lancedb"
-]
+dependencies = []
 
 [project.optional-dependencies]
 memory = [
+  "lancedb"
+]
+embeddings = [
   "sentence-transformers"
 ]
 
