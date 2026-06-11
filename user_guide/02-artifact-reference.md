@@ -122,7 +122,7 @@ This document is designed to be shared with client or domain stakeholders. It in
 
 - project metadata and document version;
 - response instructions;
-- one human-friendly section per gap with ID, title, lens, severity, description, rationale, question, example answer, and blank response fields;
+- one human-friendly section per gap framed as elicitation (IMP-022): ID, title, lens, severity, description, **why it matters (risk if left open)**, **what answering it unblocks** (the downstream brief/PRD/spec section that consumes the answer), the question, the **expected response format**, an example answer, and blank response fields;
 - a framework trace table with lens, severity, status, parent, question, source consulted, detected trigger, and `Origin` (`checklist` for deterministic gaps; `agent` for gaps contributed through `/annotate`, IMP-021).
 
 When the answered document returns, save it under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` and run `/resolve-gaps PROJECT_ID --source PATH`.
@@ -437,6 +437,8 @@ Examples:
 - `quality_context_request.md`
 - `frontend_context_request.md`
 - `backend_context_request.md`
+
+Each request's "Lens Checks To Cover" section frames every lens check as elicitation (IMP-022): besides the check description and its `why`, it states what answering it **unblocks** downstream and the **expected format** of a closing answer — the same three factors surfaced per gap in `gaps.md`.
 
 ### `exports/`
 

@@ -910,11 +910,17 @@ def render_gap_response_section(gap: dict[str, str], req_id: str, language: str 
 Descripción breve:
 {description_for_gap(gap, language)}
 {evidence_block}
-Por qué lo preguntamos:
+Por qué importa (riesgo si queda abierto):
 {why_gap_matters(gap_id, language)}
+
+Qué desbloquea esta respuesta:
+{unblocks_for_gap(gap_id, language)}
 
 Pregunta:
 {gap.get('question') or question_for_gap(gap_id, language)}
+
+Formato de respuesta esperado:
+{expected_format_for_gap(gap_id, language)}
 
 Ejemplo de respuesta útil:
 {example_response_for_gap(gap_id, language)}
@@ -936,11 +942,17 @@ Respuesta del cliente / dominio:
 Brief description:
 {gap['description']}
 {evidence_block}
-Why we are asking:
+Why it matters (risk if left open):
 {why_gap_matters(gap_id)}
+
+What answering this unblocks:
+{unblocks_for_gap(gap_id)}
 
 Question:
 {gap.get('question') or question_for_gap(gap_id)}
+
+Expected response format:
+{expected_format_for_gap(gap_id)}
 
 Example of a useful answer:
 {example_response_for_gap(gap_id)}
@@ -1162,6 +1174,145 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-QUALITY-HANDOFF": "Critical tests: high risk, normal risk, stale source data, missing permissions, empty queue, and regression of existing filters.",
     }
     return examples.get(gap_id, "A useful answer names the decision, owner/source, evidence, and whether the answer is confirmed or pending.")
+
+
+# --- IMP-022: gaps as elicitation, not as statement ---------------------------
+#
+# A gap question is far more answerable when the client/domain also sees WHY it
+# matters (risk if left open), WHAT it unblocks (the downstream brief/PRD/spec
+# section that consumes the answer), and the EXPECTED FORMAT of a closing answer.
+# `why_gap_matters` already covers the first factor; the two functions below add
+# the other two. The gap->section mapping inverts what lived implicitly in the
+# "PRD Coverage Readiness" and "Backlog Readiness Signals" tables (maturity.py)
+# and moves it to the gap's origin. These render in both gaps.md response
+# sections and the domain context-request packs. The trace table is unchanged,
+# so render_gaps -> parse_gap_rows stays a clean roundtrip.
+
+
+def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
+    """What downstream brief/PRD/spec section the gap's answer unblocks."""
+    if language == "es":
+        unblocks = {
+            "GAP-OBJECTIVE": "Sección 1 del brief (identidad y objetivo) y el problem statement del PRD; todo lo downstream optimiza hacia esto.",
+            "GAP-USERS": "Sección 2 del brief (actores) y las personas del PRD; condiciona journeys, permisos y criterios de aceptación.",
+            "GAP-SCOPE": "Los límites de alcance del brief y el alcance/no-objetivos del PRD; evita que specs y backlog absorban trabajo no previsto.",
+            "GAP-ACCEPTANCE": "Los criterios de aceptación del PRD, las ACs de specs y los test cases de Calidad.",
+            "GAP-QUALITY": "Los NFRs del PRD y la estrategia de handoff/testing de Calidad.",
+            "GAP-METRIC-SOURCE": "Los KPIs del brief y la sección de NFRs/KPIs y medición del PRD.",
+            "GAP-TECH-DATA-SOURCE": "La sección 5 del brief (técnica) y los boundaries de sistema y ownership de datos de specs.",
+            "GAP-TECH-NFR": "Los NFRs del PRD y la sección de restricciones operativas de specs.",
+            "GAP-DESIGN-FLOW": "La sección 4 del brief (diseño), los flujos UX de specs y el context pack de Diseño.",
+            "GAP-DESIGN-STATES": "Los estados UX de specs y la cobertura de casos borde de Calidad.",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "El context pack de Diseño y el alcance del prototipo.",
+            "GAP-PRODUCT-ASIS-TOBE": "La sección 3 del brief (as-is/to-be) y el slicing del backlog.",
+            "GAP-BUSINESS-RULES": "Los FRs/ACs del PRD, las reglas de negocio de specs y los casos borde de Calidad.",
+            "GAP-FRONTEND-SURFACE": "La superficie frontend de specs y el context pack Frontend / historias del backlog.",
+            "GAP-BACKEND-SURFACE": "La superficie backend de specs y el context pack Backend / historias del backlog.",
+            "GAP-TECH-DEEP-DIVE-INPUT": "El context pack de Tecnología y la arquitectura de solución (SAD).",
+            "GAP-GOVERNANCE-CONSTRAINTS": "La sección 6 del brief (gobernanza) y la sección de gobernanza del PRD.",
+            "GAP-DELIVERY-READINESS": "El plan de ejecución del PRD y la secuencia/rollout del backlog.",
+            "GAP-BACKLOG-SLICING-READINESS": "El primer slice de valor y los límites de slicing del backlog.",
+            "GAP-BACKLOG-ENABLERS": "Los enablers transversales del backlog.",
+            "GAP-QUALITY-HANDOFF": "Los test cases y el coverage map de Calidad.",
+            "GAP-PRD-PERSONA-DETAIL": "La sección de Personas del PRD.",
+            "GAP-PRD-FR-AC": "La sección de Requerimientos Funcionales del PRD (FRs con criterios de aceptación).",
+            "GAP-PRD-NFR-KPI": "La sección de NFRs y KPIs del PRD.",
+            "GAP-PRD-DEPENDENCIES-ROADMAP": "El plan de ejecución del PRD (dependencias, MVP, roadmap).",
+            "GAP-PRD-GLOSSARY-GOVERNANCE": "La sección de Gobernanza del PRD (glosario, restricciones, audit trail).",
+        }
+        return unblocks.get(gap_id, "Una sección downstream de brief/PRD/spec que hoy no tiene evidencia confirmada para consumir.")
+    unblocks = {
+        "GAP-OBJECTIVE": "Brief section 1 (identity & objective) and the PRD problem statement; everything downstream optimizes toward this.",
+        "GAP-USERS": "Brief section 2 (actors) and PRD personas; it drives journeys, permissions, and acceptance criteria.",
+        "GAP-SCOPE": "Brief scope boundaries and PRD scope/non-goals; it keeps specs and backlog from absorbing unintended work.",
+        "GAP-ACCEPTANCE": "PRD acceptance criteria, specs ACs, and Quality test cases.",
+        "GAP-QUALITY": "PRD NFRs and the Quality handoff/test strategy.",
+        "GAP-METRIC-SOURCE": "Brief KPIs and the PRD NFRs/KPIs and measurement section.",
+        "GAP-TECH-DATA-SOURCE": "Brief section 5 (technical) and the specs system boundaries and data ownership.",
+        "GAP-TECH-NFR": "PRD NFRs and the specs operational-constraints section.",
+        "GAP-DESIGN-FLOW": "Brief section 4 (design), specs UX flows, and the Design context pack.",
+        "GAP-DESIGN-STATES": "Specs UX states and Quality edge-case coverage.",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "The Design context pack and the prototype scope.",
+        "GAP-PRODUCT-ASIS-TOBE": "Brief section 3 (as-is/to-be) and backlog slicing.",
+        "GAP-BUSINESS-RULES": "PRD functional requirements/ACs, specs business rules, and Quality edge cases.",
+        "GAP-FRONTEND-SURFACE": "The specs frontend surface and the Frontend context pack / backlog stories.",
+        "GAP-BACKEND-SURFACE": "The specs backend surface and the Backend context pack / backlog stories.",
+        "GAP-TECH-DEEP-DIVE-INPUT": "The Technology context pack and the solution architecture (SAD).",
+        "GAP-GOVERNANCE-CONSTRAINTS": "Brief section 6 (governance) and the PRD governance section.",
+        "GAP-DELIVERY-READINESS": "The PRD execution plan and backlog sequencing/rollout.",
+        "GAP-BACKLOG-SLICING-READINESS": "The backlog's first value slice and slice boundaries.",
+        "GAP-BACKLOG-ENABLERS": "The backlog's cross-cutting enablers.",
+        "GAP-QUALITY-HANDOFF": "Quality test cases and the coverage map.",
+        "GAP-PRD-PERSONA-DETAIL": "The PRD Personas section.",
+        "GAP-PRD-FR-AC": "The PRD Functional Requirements section (FRs with acceptance criteria).",
+        "GAP-PRD-NFR-KPI": "The PRD NFRs and KPIs section.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "The PRD Execution Plan (dependencies, MVP, roadmap).",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "The PRD Governance section (glossary, constraints, audit trail).",
+    }
+    return unblocks.get(gap_id, "A downstream brief/PRD/spec section that currently has no confirmed evidence to consume.")
+
+
+def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
+    """The shape of an answer that closes the gap (distinct from a worked example)."""
+    if language == "es":
+        formats = {
+            "GAP-OBJECTIVE": "Una frase que nombre el resultado de negocio (no la feature) y cómo se reconoce el éxito.",
+            "GAP-USERS": "Lista de actores primarios/secundarios con rol e indicando si usan u operan la capacidad.",
+            "GAP-SCOPE": "Bullets de in-scope vs out-of-scope y qué debe seguir funcionando.",
+            "GAP-ACCEPTANCE": "Uno o más enunciados Dado/Cuando/Entonces con condiciones observables.",
+            "GAP-QUALITY": "Expectativas de calidad como bullets: áreas de riesgo, profundidad de pruebas y evidencia requerida.",
+            "GAP-METRIC-SOURCE": "Nombre de la métrica + fuente/owner del baseline + valor objetivo + ventana de medición.",
+            "GAP-TECH-DATA-SOURCE": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
+            "GAP-TECH-NFR": "NFRs nombrados con umbrales concretos (latencia, retención, disponibilidad) y cómo se observan.",
+            "GAP-DESIGN-FLOW": "Punto de entrada y journey paso a paso hasta la(s) pantalla(s) afectada(s).",
+            "GAP-DESIGN-STATES": "Los estados de carga, vacío, error y recuperación de la superficie.",
+            "GAP-DESIGN-PROTOTYPE-INPUT": "La decisión/flujo/interacción que el prototipo debe validar.",
+            "GAP-PRODUCT-ASIS-TOBE": "Comportamiento actual vs objetivo, expresado como delta.",
+            "GAP-BUSINESS-RULES": "Enunciados de regla con umbrales y manejo de excepciones.",
+            "GAP-FRONTEND-SURFACE": "Superficie(s) afectada(s), estados, validaciones, copy y eventos de analytics.",
+            "GAP-BACKEND-SURFACE": "Capacidades, contratos, persistencia/source of truth y comportamiento ante fallas.",
+            "GAP-TECH-DEEP-DIVE-INPUT": "Repositorios/componentes, endpoints y source of truth a inspeccionar.",
+            "GAP-GOVERNANCE-CONSTRAINTS": "Restricciones nombradas de seguridad/privacidad/compliance/auditoría que aplican.",
+            "GAP-DELIVERY-READINESS": "Dependencias con owners, ambientes, fechas y enfoque de rollout.",
+            "GAP-BACKLOG-SLICING-READINESS": "El primer slice de valor más qué se difiere y dónde no conviene cortar.",
+            "GAP-BACKLOG-ENABLERS": "Cada enabler con el boundary de capacidad que soporta y la evidencia objetiva de completitud.",
+            "GAP-QUALITY-HANDOFF": "Flujos críticos, casos borde, datos de prueba y expectativas de evidencia.",
+            "GAP-PRD-PERSONA-DETAIL": "Por persona: objetivo, dolores, frecuencia y habilidad.",
+            "GAP-PRD-FR-AC": "FR-NN con su criterio de aceptación trazable (Dado/Cuando/Entonces) y prioridad.",
+            "GAP-PRD-NFR-KPI": "NFR/KPI con target, método de medición y ventana temporal.",
+            "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencias con owner y fases del roadmap.",
+            "GAP-PRD-GLOSSARY-GOVERNANCE": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+        }
+        return formats.get(gap_id, "Una decisión más owner/fuente, evidencia y si está confirmada o pendiente.")
+    formats = {
+        "GAP-OBJECTIVE": "One sentence naming the business outcome (not the feature) and how success is recognized.",
+        "GAP-USERS": "List of primary/secondary actors with role and whether they use or operate the capability.",
+        "GAP-SCOPE": "In-scope vs out-of-scope bullets and what must keep working.",
+        "GAP-ACCEPTANCE": "One or more Given/When/Then statements with observable conditions.",
+        "GAP-QUALITY": "Quality expectations as bullets: risk areas, test depth, and required evidence.",
+        "GAP-METRIC-SOURCE": "Metric name + baseline source/owner + target value + measurement window.",
+        "GAP-TECH-DATA-SOURCE": "Systems/endpoints involved, source of truth, and owning team.",
+        "GAP-TECH-NFR": "Named NFRs with concrete thresholds (latency, retention, availability) and how they are observed.",
+        "GAP-DESIGN-FLOW": "Entry point and step-by-step journey to the affected screen(s).",
+        "GAP-DESIGN-STATES": "The loading, empty, error, and recovery states for the surface.",
+        "GAP-DESIGN-PROTOTYPE-INPUT": "The decision/flow/interaction the prototype must validate.",
+        "GAP-PRODUCT-ASIS-TOBE": "Current behavior vs target behavior, stated as a delta.",
+        "GAP-BUSINESS-RULES": "Rule statements with thresholds and exception handling.",
+        "GAP-FRONTEND-SURFACE": "Affected surface(s), states, validations, copy, and analytics events.",
+        "GAP-BACKEND-SURFACE": "Capabilities, contracts, persistence/source of truth, and failure behavior.",
+        "GAP-TECH-DEEP-DIVE-INPUT": "Repositories/components, endpoints, and source of truth to inspect.",
+        "GAP-GOVERNANCE-CONSTRAINTS": "Named security/privacy/compliance/audit constraints that apply.",
+        "GAP-DELIVERY-READINESS": "Dependencies with owners, environments, dates, and rollout approach.",
+        "GAP-BACKLOG-SLICING-READINESS": "The first value slice plus what can be deferred and where not to split.",
+        "GAP-BACKLOG-ENABLERS": "Each enabler with the capability boundary it supports and objective completion evidence.",
+        "GAP-QUALITY-HANDOFF": "Critical flows, edge cases, test data, and evidence expectations.",
+        "GAP-PRD-PERSONA-DETAIL": "Per persona: goal, pains, usage frequency, and proficiency.",
+        "GAP-PRD-FR-AC": "FR-NN with its traceable acceptance criterion (Given/When/Then) and priority.",
+        "GAP-PRD-NFR-KPI": "NFR/KPI with target, measurement method, and timeframe.",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencies with owner, and roadmap phases.",
+        "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    }
+    return formats.get(gap_id, "A decision plus owner/source, evidence, and whether it is confirmed or pending.")
 
 
 def render_decisions(project_id: str, text: str, req_id: str) -> str:

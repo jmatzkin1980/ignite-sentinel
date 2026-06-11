@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .discovery import expected_format_for_gap, unblocks_for_gap
 from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
@@ -20,11 +21,19 @@ def lens_checks_section(domain: str, language: str) -> str:
     checks = lens_checks_for_lens(lens)
     if not checks:
         return "- (sin checks definidos para este lente)" if language == "es" else "- (no checks defined for this lens)"
+    if language == "es":
+        why_label, unblocks_label, format_label = "Por qué importa", "Desbloquea", "Formato esperado"
+    else:
+        why_label, unblocks_label, format_label = "Why it matters", "Unblocks", "Expected format"
     lines = []
     for check in checks:
+        gap_id = check["id"]
         why = check.get("why")
-        suffix = f" — {why}" if why else ""
-        lines.append(f"- `{check['id']}` ({check['severity']}): {check['description']}{suffix}")
+        lines.append(f"- `{gap_id}` ({check['severity']}): {check['description']}")
+        if why:
+            lines.append(f"  - {why_label}: {why}")
+        lines.append(f"  - {unblocks_label}: {unblocks_for_gap(gap_id, language)}")
+        lines.append(f"  - {format_label}: {expected_format_for_gap(gap_id, language)}")
     return "\n".join(lines)
 
 
