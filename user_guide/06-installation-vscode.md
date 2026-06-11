@@ -13,9 +13,9 @@ Required:
 - Python 3.10 or newer available as `python`, `py`, `.venv`, `SENTINEL_PYTHON`, the Codex Desktop bundled runtime, or another approved local runtime.
 - The Python package dependencies from `pyproject.toml`.
 
-Required for LanceDB memory:
+Optional for vector memory (recommended when the environment allows it):
 
-- `lancedb` installed in the same Python environment used to run `python -m sentinel`.
+- `lancedb` installed in the same Python environment used to run `python -m sentinel` (`pip install -e .[memory]`). Without it, Sentinel runs in deterministic `json-hybrid` memory mode.
 
 Optional:
 
@@ -121,10 +121,10 @@ python -m sentinel --help
 python -m sentinel /doctor
 ```
 
-No global package install is required if the laptop already has the dependencies available in the active Python environment. If `/doctor` reports `required dependency: lancedb` as `FAIL`, install the repo locally:
+No global package install is required: the core lifecycle has no mandatory third-party dependencies. If `/doctor` reports `memory dependency: lancedb (optional)` as `WARN` and your environment allows installs, enable the vector memory layer:
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e .[memory]
 python -m sentinel /doctor
 ```
 
@@ -168,7 +168,7 @@ Ignite works through repo-local files:
 2. Open the folder itself in VS Code, not only a subfolder.
 3. Open Kilo Code chat, Codex in VS Code, or Codex Desktop.
 4. Run `/doctor` in Kilo or `sentinel /doctor` in Codex.
-5. If LanceDB fails, ask a technical teammate to run `python -m pip install -e .` or use the approved local installer.
+5. If LanceDB cannot be installed (locked-down VDI), continue anyway: Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports WARN, not FAIL. To enable vector retrieval later: `python -m pip install -e .[memory]`.
 6. Run `/init DEMO_PROJECT` in Kilo or `sentinel /init DEMO_PROJECT` in Codex.
 7. Try `/status DEMO_PROJECT` in Kilo or `sentinel /status DEMO_PROJECT` in Codex.
 8. If slash commands are intercepted, use `sentinel /status DEMO_PROJECT`, `.\installers\sentinel.ps1 /status DEMO_PROJECT`, or the terminal fallback.
@@ -177,10 +177,10 @@ Ignite works through repo-local files:
 
 ### `No module named lancedb`
 
-Install the repo dependencies in the active Python environment:
+This is not an error: Sentinel keeps working in `json-hybrid` mode. To enable vector retrieval:
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e .[memory]
 ```
 
 Then rerun:

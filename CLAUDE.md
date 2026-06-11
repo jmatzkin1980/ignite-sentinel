@@ -52,7 +52,7 @@ python -m unittest discover -s tests
 python -m sentinel /doctor
 ```
 
-Nota de entorno: en sandboxes sin `lancedb` instalado, `/doctor` y 2 tests de doctor fallan por dependencia faltante, no por bugs. Instalar con `pip install lancedb` o validar en la máquina del usuario. Los otros 15 tests deben pasar siempre.
+Nota de entorno: `lancedb` es opcional (IMP-013). Sin él, el framework opera en modo degradado `json-hybrid`, `/doctor` da WARN (no FAIL) y la suite completa debe pasar igual. Habilitar retrieval vectorial con `pip install -e .[memory]` cuando el entorno lo permita.
 
 ## Reglas no negociables (resumen de AGENTS.md)
 

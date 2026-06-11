@@ -341,6 +341,38 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("Evidence that triggers the question:", gaps_md)
         self.assertIn("Detected Trigger", gaps_md)
 
+    def test_doctor_degrades_to_warn_without_lancedb(self) -> None:
+        from unittest import mock
+        import sentinel.doctor as doctor_module
+
+        real_find_spec = doctor_module.importlib.util.find_spec
+
+        def fake_find_spec(name, *args, **kwargs):
+            if name == "lancedb":
+                return None
+            return real_find_spec(name, *args, **kwargs)
+
+        with mock.patch.object(doctor_module.importlib.util, "find_spec", side_effect=fake_find_spec):
+            report = run_doctor(ROOT.parent)
+        checks = {check["name"]: check for check in report["checks"]}
+        self.assertEqual(report["verdict"], "PASS")
+        self.assertEqual(checks["memory dependency: lancedb (optional)"]["status"], "WARN")
+        self.assertIn("json", checks["memory dependency: lancedb (optional)"]["detail"].lower())
+        self.assertEqual(checks["LanceDB local open/create"]["status"], "WARN")
+
+    def test_context_broker_falls_back_to_json_without_lancedb(self) -> None:
+        import sys
+        from unittest import mock
+
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        with mock.patch.dict(sys.modules, {"lancedb": None}):
+            self.assertEqual(main(["init", "NOLANCE"]), 0)
+            self.assertEqual(main(["ingest", "NOLANCE", "--source", str(fixture)]), 0)
+            broker = ContextBroker("NOLANCE")
+            self.assertEqual(broker.backend, "json-hybrid")
+            results = broker.retrieve("SLA risk", "discovery")
+            self.assertTrue(results)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
