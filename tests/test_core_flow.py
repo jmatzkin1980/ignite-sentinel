@@ -588,6 +588,45 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn('"relation": "triggers_regeneration"', graph)
         self.assertEqual(main(["validate", "REGEN"]), 0)
 
+    def test_command_adapters_in_sync_with_manifest(self) -> None:
+        from sentinel.adapters import manifest_command_names, out_of_sync
+
+        names = manifest_command_names()
+        self.assertEqual(len(names), 20)
+        self.assertIn("sentinel", names)
+        self.assertEqual(out_of_sync(ROOT.parent), [])
+
+    def test_skills_materialized_in_standard_directories(self) -> None:
+        from sentinel.adapters import skills_out_of_sync
+
+        self.assertEqual(skills_out_of_sync(ROOT.parent), [])
+        for surface in (".agents/skills", ".claude/skills"):
+            skill = ROOT.parent / surface / "sentinel-discovery" / "SKILL.md"
+            self.assertTrue(skill.exists(), f"missing {surface} skill mirror")
+
+    def test_mcp_server_exposes_lifecycle_tools(self) -> None:
+        from sentinel.mcp import describe_tools, run_cli
+
+        names = {tool["name"] for tool in describe_tools()}
+        self.assertEqual(len(names), 18)
+        for expected in ("sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate"):
+            self.assertIn(expected, names)
+
+        result = run_cli(["init", "MCPX"])
+        self.assertEqual(result["exit_code"], 0)
+        self.assertIn("workspace", result["output"])
+        blocked = run_cli(["specs", "MCPX"])
+        self.assertNotEqual(blocked["exit_code"], 0)
+        self.assertIn("error", blocked)
+
+        import importlib.util
+        if importlib.util.find_spec("mcp") is not None:
+            import asyncio
+            from sentinel.mcp import build_server
+
+            tools = asyncio.new_event_loop().run_until_complete(build_server().list_tools())
+            self.assertEqual(len(tools), 18)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"

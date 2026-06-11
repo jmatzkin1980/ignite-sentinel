@@ -88,3 +88,31 @@ Claude maps the intent to the right lifecycle sequence, runs the CLI, and summar
 ## Memory
 
 Claude uses the same local memory layer as the other adapters. `/ingest`, `/sync`, and `/reindex` keep `workspaces/[PROJECT_ID]/memory.lancedb/` populated, while `/retrieve` builds focused context packs for the active workflow. Versionable workspace files remain the source of truth.
+
+## Local MCP Server (Optional)
+
+Sentinel can also expose the lifecycle as MCP tools over stdio, so Claude Desktop, Claude Code, or any MCP client can call commands directly (no chat-command parsing). It is 100% local: stdio transport, no network, same gates and command protocol.
+
+Enable and run:
+
+```powershell
+python -m pip install -e .[mcp]
+python -m sentinel.mcp --describe   # list the 18 tools
+python -m sentinel.mcp              # start the stdio server
+```
+
+Claude Desktop / Claude Code configuration:
+
+```json
+{
+  "mcpServers": {
+    "ignite-sentinel": {
+      "command": "python",
+      "args": ["-m", "sentinel.mcp"],
+      "cwd": "C:/path/to/ignite-sentinel"
+    }
+  }
+}
+```
+
+Tools are named `sentinel_init`, `sentinel_ingest`, `sentinel_maturity`, etc. Gate violations return structured errors with the failing reason, so the client can recommend the right prior step. Without the optional `mcp` package, everything else (chat adapters, CLI) keeps working and `/doctor` reports a WARN.

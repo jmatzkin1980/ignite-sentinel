@@ -183,9 +183,10 @@ The repository also includes:
 - Keep project privacy local-only by default: no remote MCP, external vector database, or external embedding service for client/project content.
 - Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `PRD`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
-- Use Codex skills in `.codex/skills/` for progressive disclosure.
+- Use Codex skills in `.codex/skills/` for progressive disclosure; they are mirrored into the Agent Skills standard directories (`.agents/skills/`, `.claude/skills/`) so any SKILL.md-compatible tool can read them.
 - Use Kilo Code agents in `.kilo/agents/` and slash workflows in `.kilo/commands/` when Codex is unavailable.
 - Use Claude slash commands in `.claude/commands/` and `CLAUDE.md` routing when working from Claude Code or Claude Desktop.
+- Optionally expose the lifecycle to any MCP client with the local stdio server: `pip install -e .[mcp]` and `python -m sentinel.mcp` (see the Claude adapter guide).
 
 ## Verification
 

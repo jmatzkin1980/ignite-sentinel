@@ -16,6 +16,9 @@ memory = [
 embeddings = [
   "sentence-transformers"
 ]
+mcp = [
+  "mcp"
+]
 
 [project.scripts]
 sentinel = "sentinel.cli:main"

@@ -9,6 +9,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from .adapters import manifest_command_names
+
 
 REQUIRED_COMMANDS = [
     "doctor",
@@ -47,51 +49,9 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-sync",
 ]
 
-REQUIRED_CLAUDE_COMMANDS = [
-    "backlog",
-    "brief",
-    "context-request",
-    "doctor",
-    "export",
-    "gaps",
-    "health",
-    "ingest",
-    "init",
-    "maturity",
-    "quality",
-    "reindex",
-    "resolve-gaps",
-    "retrieve",
-    "sentinel",
-    "specs",
-    "status",
-    "sync",
-    "trace",
-    "validate",
-]
+REQUIRED_CLAUDE_COMMANDS = manifest_command_names()
 
-REQUIRED_KILO_COMMANDS = [
-    "backlog",
-    "brief",
-    "context-request",
-    "doctor",
-    "export",
-    "gaps",
-    "health",
-    "ingest",
-    "init",
-    "maturity",
-    "quality",
-    "reindex",
-    "resolve-gaps",
-    "retrieve",
-    "sentinel",
-    "specs",
-    "status",
-    "sync",
-    "trace",
-    "validate",
-]
+REQUIRED_KILO_COMMANDS = manifest_command_names()
 
 
 def run_doctor(root: Path | None = None) -> dict[str, Any]:
@@ -101,12 +61,15 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "sentinel", "core runtime"),
         path_check(root, "AGENTS.md", "Codex Desktop and agent instructions"),
         path_check(root, "README.md", "repository quick start"),
-        path_check(root, ".codex/skills", "Codex skills adapter"),
+        path_check(root, ".codex/skills", "Codex skills adapter (canonical)"),
+        path_check(root, ".agents/skills", "Agent Skills standard directory"),
+        path_check(root, ".claude/skills", "Claude Code skills directory"),
         path_check(root, ".codex/hooks", "Codex hooks adapter"),
         path_check(root, ".kilo/agents", "Kilo Code agents adapter"),
         path_check(root, ".kilo/commands", "Kilo Code slash commands"),
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
+        path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
         path_check(root, "user_guide/06-installation-vscode.md", "VS Code portable installation guide"),
@@ -134,6 +97,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         memory_dependency_check(),
         lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
+        mcp_dependency_check(),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
     warnings = [check for check in checks if check["status"] == "WARN"]
@@ -209,6 +173,22 @@ def claude_command_checks(root: Path) -> list[dict[str, str]]:
         path_check(root, f".claude/commands/{command}.md", f"Claude slash command: /{command}")
         for command in REQUIRED_CLAUDE_COMMANDS
     ]
+
+
+def mcp_dependency_check() -> dict[str, str]:
+    found = importlib.util.find_spec("mcp") is not None
+    if found:
+        detail = package_detail("mcp") + "; expose the lifecycle to MCP clients with `python -m sentinel.mcp`"
+    else:
+        detail = (
+            "not installed; chat adapters and CLI remain fully functional. "
+            "Enable the local stdio MCP server with `python -m pip install -e .[mcp]`."
+        )
+    return {
+        "name": "optional dependency: mcp (local stdio server)",
+        "status": "PASS" if found else "WARN",
+        "detail": detail,
+    }
 
 
 def memory_dependency_check() -> dict[str, str]:
