@@ -1,0 +1,73 @@
+"""Lens knowledge registry (IMP-033).
+
+Single declarative, versionable source for the lens knowledge that used to be
+hardcoded in ``discovery.py::detect_gaps()``. Each lens lives in
+``sentinel/lenses/<lens>.json`` and the team (business, product, design,
+quality, technology, compliance, delivery) can add or tune checks there without
+touching Python. The deterministic checklist (``detect_gaps``), the
+context-request render, and future agentic skills (IMP-021/022/023) all read
+this same source, so they can never diverge.
+
+Local-first: plain JSON, no third-party parser, no network.
+
+Check schema (per entry in a lens file's ``checks`` array):
+- id: stable GAP-* id.
+- severity: critical | high | medium | low.
+- description: English statement of what is missing.
+- rule: how the check fires.
+    - "absent_tokens": fires when NONE of ``tokens`` appear in the evidence.
+    - "mention_without_counterpart": fires when a surface is mentioned
+      (``triggers``) but its counterpart detail (``counterparts``) is absent;
+      anchors the question to the detected mention.
+    - "metric_without_source": fires when a quantitative metric is present but
+      none of ``suppressors`` (source/baseline words) appear.
+- evidence_scope: which text the rule reads — source | technical | design |
+  quality | frontend | all.
+- why (optional): the field experience that motivates the check (team notes).
+"""
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+from pathlib import Path
+
+LENSES_DIR = Path(__file__).resolve().parent / "lenses"
+
+# Deterministic load order keeps gap emission stable. Lens files not listed
+# here are appended alphabetically, so a brand-new lens still loads.
+LENS_ORDER = ("business", "product", "quality", "technical", "compliance", "delivery", "design")
+
+VALID_RULES = {"absent_tokens", "mention_without_counterpart", "metric_without_source"}
+VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
+
+
+def load_lens_checks(lenses_dir: Path | str | None = None) -> list[dict]:
+    """Return the flat, ordered list of lens checks (each tagged with ``lens``)."""
+    directory = Path(lenses_dir) if lenses_dir is not None else LENSES_DIR
+    return _load_cached(str(directory))
+
+
+@lru_cache(maxsize=8)
+def _load_cached(directory: str) -> tuple:
+    path = Path(directory)
+    by_name = {f.stem: f for f in sorted(path.glob("*.json"))}
+    ordered_names = [n for n in LENS_ORDER if n in by_name]
+    ordered_names += [n for n in sorted(by_name) if n not in LENS_ORDER]
+    checks: list[dict] = []
+    for name in ordered_names:
+        data = json.loads(by_name[name].read_text(encoding="utf-8"))
+        lens = data.get("lens", name)
+        for raw in data.get("checks", []):
+            entry = dict(raw)
+            entry["lens"] = lens
+            checks.append(entry)
+    return tuple(checks)
+
+
+def lens_checks_for_lens(lens: str, lenses_dir: Path | str | None = None) -> list[dict]:
+    """All checks belonging to a given lens (business/product/.../design)."""
+    return [c for c in load_lens_checks(lenses_dir) if c.get("lens") == lens]
+
+
+def clear_cache() -> None:
+    _load_cached.cache_clear()

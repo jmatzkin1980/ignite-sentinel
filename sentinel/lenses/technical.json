@@ -1,0 +1,174 @@
+{
+  "lens": "technical",
+  "description": "Lente Tecnico: fuentes de datos, NFR, superficies frontend/backend, deep-dive de arquitectura y enablers.",
+  "checks": [
+    {
+      "id": "GAP-TECH-DATA-SOURCE",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "technical",
+      "description": "Data source, integration, or system ownership is not explicit in source or technology context.",
+      "tokens": [
+        "data",
+        "dato",
+        "source",
+        "fuente",
+        "api",
+        "integration",
+        "integracion",
+        "database",
+        "crm",
+        "endpoint"
+      ],
+      "why": "Sin fuente de datos ni ownership no se puede definir el source of truth."
+    },
+    {
+      "id": "GAP-TECH-NFR",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "technical",
+      "description": "Performance, security, observability, or operational constraints are not explicit.",
+      "tokens": [
+        "performance",
+        "seguridad",
+        "security",
+        "observability",
+        "observabilidad",
+        "sla",
+        "timeout",
+        "audit",
+        "compliance"
+      ],
+      "why": "Las NFR tecnicas condicionan arquitectura; nombrarlas sin definirlas no alcanza (ver IMP-021)."
+    },
+    {
+      "id": "GAP-BACKLOG-ENABLERS",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "all",
+      "description": "Cross-cutting enablers are not explicit enough: implementation work that must be built in advance across frontend/backend or architecture surfaces must be tied to confirmed project functionality and boundary.",
+      "tokens": [
+        "enabler",
+        "habilitador",
+        "sad",
+        "architecture",
+        "arquitectura",
+        "as-is",
+        "to-be",
+        "frontend",
+        "backend",
+        "prototype",
+        "prototipo",
+        "auth",
+        "permiso",
+        "permission",
+        "database",
+        "base de datos",
+        "query",
+        "api",
+        "endpoint",
+        "integration",
+        "audit",
+        "observability",
+        "observabilidad"
+      ],
+      "why": "Los enablers validos son trabajo concreto previo atado a funcionalidad confirmada."
+    },
+    {
+      "id": "GAP-FRONTEND-SURFACE",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "frontend",
+      "description": "Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear.",
+      "triggers": [
+        "frontend",
+        "pantalla",
+        "screen",
+        "dashboard",
+        "portal",
+        " ui ",
+        "web",
+        "app"
+      ],
+      "counterparts": [
+        "validation",
+        "validacion",
+        "validación",
+        "copy",
+        "role",
+        " rol ",
+        "permiso",
+        "binding",
+        "component",
+        "componente"
+      ],
+      "why": "Mencionar una pantalla no dice sus estados, validaciones ni bindings: la contracara ausente dispara la pregunta."
+    },
+    {
+      "id": "GAP-BACKEND-SURFACE",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "technical",
+      "description": "Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.",
+      "triggers": [
+        "backend",
+        "api",
+        "endpoint",
+        "service",
+        "servicio",
+        "integration",
+        "integracion",
+        "integración",
+        "sync",
+        "sincroniza"
+      ],
+      "counterparts": [
+        "contract",
+        "contrato",
+        "persist",
+        "database",
+        "base de datos",
+        "failure",
+        "falla",
+        "retry",
+        "reintento",
+        "timeout",
+        "idempot",
+        "error handling",
+        "manejo de errores"
+      ],
+      "why": "Una integracion mencionada sin contratos ni comportamiento ante fallas es media verdad."
+    },
+    {
+      "id": "GAP-TECH-DEEP-DIVE-INPUT",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "technical",
+      "description": "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.",
+      "triggers": [
+        "api",
+        "endpoint",
+        "integration",
+        "integracion",
+        "integración",
+        "system",
+        "sistema",
+        "platform",
+        "plataforma",
+        "service",
+        "servicio"
+      ],
+      "counterparts": [
+        "repo",
+        "repository",
+        "arquitectura",
+        "architecture",
+        "source of truth",
+        "diagrama",
+        "diagram",
+        " sad "
+      ],
+      "why": "Tecnologia no puede analizar arquitectura sin repos, source of truth ni diagramas."
+    }
+  ]
+}

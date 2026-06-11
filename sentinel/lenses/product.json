@@ -1,0 +1,79 @@
+{
+  "lens": "product",
+  "description": "Lente de Producto: alcance, as-is/to-be, slicing de backlog y FRs con criterios.",
+  "checks": [
+    {
+      "id": "GAP-SCOPE",
+      "severity": "critical",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Scope boundaries are not explicit.",
+      "tokens": [
+        "alcance",
+        "scope",
+        "in scope",
+        "out of scope"
+      ],
+      "why": "Sin limites de alcance, todo entra y nada se puede comprometer."
+    },
+    {
+      "id": "GAP-PRODUCT-ASIS-TOBE",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Current state and target state are not both explicit enough to compare impact.",
+      "tokens": [
+        "as-is",
+        "to-be",
+        "situacion actual",
+        "situación actual",
+        "proceso actual",
+        "proceso ideal",
+        "estado actual",
+        "estado futuro"
+      ],
+      "why": "Sin as-is/to-be no se puede medir el impacto del cambio ni proteger lo que no debe romperse."
+    },
+    {
+      "id": "GAP-BACKLOG-SLICING-READINESS",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear.",
+      "tokens": [
+        "slice",
+        "slicing",
+        "vertical",
+        "historia",
+        "story",
+        "epica",
+        "epic",
+        "workflow",
+        "path",
+        "variante",
+        "variant",
+        "mvp"
+      ],
+      "why": "Las senales de slicing definen el primer corte de valor; si faltan, el backlog nace generico."
+    },
+    {
+      "id": "GAP-PRD-FR-AC",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Functional requirements are not decomposed with source-backed acceptance criteria.",
+      "tokens": [
+        "fr-",
+        "requerimiento funcional",
+        "functional requirement",
+        "acceptance criteria",
+        "criterios de aceptacion",
+        "criterios de aceptación",
+        "given",
+        "when",
+        "then"
+      ],
+      "why": "Sin FRs con criterios la generacion de specs cae en scaffolding."
+    }
+  ]
+}

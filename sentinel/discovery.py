@@ -4,6 +4,7 @@ import re
 import shutil
 from pathlib import Path
 
+from .lens_registry import load_lens_checks
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
 from .traceability import add_edge, add_node
@@ -211,82 +212,57 @@ def extract_metric_signals(text: str, limit: int = 5) -> list[dict[str, str]]:
     return results
 
 
-def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[str, str]]:
+def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=None) -> list[dict[str, str]]:
+    """Detect gaps by applying the declarative lens checklist (IMP-033).
+
+    The lens knowledge (checks, severities, tokens, inquisitive rules) lives in
+    ``sentinel/lenses/*.json`` via :mod:`sentinel.lens_registry`, not hardcoded
+    here. Each check declares a ``rule`` that decides how it fires; behavior is
+    identical to the previous in-code checklist. ``lenses_dir`` overrides the
+    source directory (used by tests to add a check without touching Python).
+    """
     lowered = text.lower()
     context = context or {}
     tech_evidence = " ".join([text, context.get("technical", "")]).lower()
     design_evidence = " ".join([text, context.get("design", "")]).lower()
     quality_evidence = " ".join([text, context.get("quality", "")]).lower()
     frontend_evidence = " ".join([text, context.get("design", ""), context.get("technical", "")]).lower()
-    checks = [
-        ("GAP-OBJECTIVE", "business", "high", "Business objective or expected outcome is not explicit.", lowered, ("objetivo", "objective", "outcome", "resultado", "goal", "purpose", "proposito", "propósito", "aim")),
-        ("GAP-USERS", "business", "high", "Target users or personas are not explicit.", lowered, ("usuario", "user", "persona", "actor")),
-        ("GAP-SCOPE", "product", "critical", "Scope boundaries are not explicit.", lowered, ("alcance", "scope", "in scope", "out of scope")),
-        ("GAP-ACCEPTANCE", "quality", "critical", "Acceptance criteria or success conditions are missing.", lowered, ("criterio", "acceptance", "success", "done")),
-        ("GAP-QUALITY", "quality", "medium", "Quality or testability expectations are not explicit.", quality_evidence, ("test", "quality", "calidad", "qa")),
-        ("GAP-TECH-DATA-SOURCE", "technical", "medium", "Data source, integration, or system ownership is not explicit in source or technology context.", tech_evidence, ("data", "dato", "source", "fuente", "api", "integration", "integracion", "database", "crm", "endpoint")),
-        ("GAP-TECH-NFR", "technical", "medium", "Performance, security, observability, or operational constraints are not explicit.", tech_evidence, ("performance", "seguridad", "security", "observability", "observabilidad", "sla", "timeout", "audit", "compliance")),
-        ("GAP-PRODUCT-ASIS-TOBE", "product", "medium", "Current state and target state are not both explicit enough to compare impact.", lowered, ("as-is", "to-be", "situacion actual", "situación actual", "proceso actual", "proceso ideal", "estado actual", "estado futuro")),
-        ("GAP-BUSINESS-RULES", "business", "medium", "Business rules, exclusions, or decision rules are not explicit enough for downstream slicing.", lowered, ("regla", "rule", "validacion", "validación", "condicion", "condición", "exclusion", "exclusión")),
-        ("GAP-GOVERNANCE-CONSTRAINTS", "compliance", "medium", "Governance, security, privacy, compliance, or operational restrictions are not explicit.", lowered, ("seguridad", "security", "privacidad", "privacy", "compliance", "normativa", "restriccion", "restricción", "gobernanza")),
-        ("GAP-DELIVERY-READINESS", "delivery", "medium", "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.", lowered, ("dependencia", "dependency", "ambiente", "environment", "deadline", "fecha", "timeline", "owner", "responsable", "rollout")),
-        ("GAP-BACKLOG-SLICING-READINESS", "product", "medium", "Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear.", lowered, ("slice", "slicing", "vertical", "historia", "story", "epica", "epic", "workflow", "path", "variante", "variant", "mvp")),
-        ("GAP-BACKLOG-ENABLERS", "technical", "medium", "Cross-cutting enablers are not explicit enough: implementation work that must be built in advance across frontend/backend or architecture surfaces must be tied to confirmed project functionality and boundary.", " ".join([lowered, tech_evidence, design_evidence, quality_evidence]), ("enabler", "habilitador", "sad", "architecture", "arquitectura", "as-is", "to-be", "frontend", "backend", "prototype", "prototipo", "auth", "permiso", "permission", "database", "base de datos", "query", "api", "endpoint", "integration", "audit", "observability", "observabilidad")),
-        ("GAP-QUALITY-HANDOFF", "quality", "medium", "Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.", quality_evidence, ("test", "quality", "calidad", "qa", "happy path", "edge", "borde", "regression", "regresion", "evidencia", "data")),
-        ("GAP-PRD-PERSONA-DETAIL", "business", "medium", "Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear.", lowered, ("pain", "dolor", "goal", "objetivo", "frecuencia", "frequency", "proficiency", "habilidad", "perfil")),
-        ("GAP-PRD-FR-AC", "product", "medium", "Functional requirements are not decomposed with source-backed acceptance criteria.", lowered, ("fr-", "requerimiento funcional", "functional requirement", "acceptance criteria", "criterios de aceptacion", "criterios de aceptación", "given", "when", "then")),
-        ("GAP-PRD-NFR-KPI", "quality", "medium", "NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance.", lowered, ("nfr", "non functional", "no funcional", "kpi", "target", "measurement", "medicion", "medición", "timeframe", "baseline")),
-        ("GAP-PRD-DEPENDENCIES-ROADMAP", "delivery", "medium", "Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning.", lowered, ("mvp", "roadmap", "dependencia", "dependency", "owner", "responsable", "nice-to-have", "fase", "phase")),
-        ("GAP-PRD-GLOSSARY-GOVERNANCE", "compliance", "medium", "Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.", lowered, ("glosario", "glossary", "restriccion", "restricción", "mandatory", "audit", "auditoria", "governance", "gobernanza", "pending input")),
-    ]
-    gaps = [
-        {"id": gap_id, "lens": lens, "severity": severity, "description": description}
-        for gap_id, lens, severity, description, evidence, tokens in checks
-        if not any(token in evidence for token in tokens)
-    ]
-    # Inquisitive tier (IMP-015): a surface mentioned in the evidence does not
-    # answer the question about that surface. These gaps only close when the
-    # counterpart information is described; a bare mention anchors the question
-    # to the input instead of suppressing it.
-    inquisitive_rules = [
-        ("GAP-DESIGN-FLOW", "design", "medium", "User journey, screen flow, or interaction model is not explicit in source or design context.", design_evidence,
-         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
-         ("journey", "flow", "flujo", "navigation", "navegacion", "navegación", "wireframe", "mock", "prototype", "prototipo", "recorrido")),
-        ("GAP-DESIGN-STATES", "design", "medium", "Required UI states for loading, empty, error, and recovery are not explicit.", design_evidence,
-         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
-         ("loading", "empty", "error state", "estado de error", "vacío", "vacio", "spinner", "skeleton", "ui states", "estados de ui", "recovery")),
-        ("GAP-DESIGN-PROTOTYPE-INPUT", "design", "medium", "The requirement does not make clear what Design must prototype or validate in user flows.", design_evidence,
-         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
-         ("prototype", "prototipo", "wireframe", "figma", "mock", "maqueta")),
-        ("GAP-FRONTEND-SURFACE", "technical", "medium", "Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear.", frontend_evidence,
-         ("frontend", "pantalla", "screen", "dashboard", "portal", " ui ", "web", "app"),
-         ("validation", "validacion", "validación", "copy", "role", " rol ", "permiso", "binding", "component", "componente")),
-        ("GAP-BACKEND-SURFACE", "technical", "medium", "Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.", tech_evidence,
-         ("backend", "api", "endpoint", "service", "servicio", "integration", "integracion", "integración", "sync", "sincroniza"),
-         ("contract", "contrato", "persist", "database", "base de datos", "failure", "falla", "retry", "reintento", "timeout", "idempot", "error handling", "manejo de errores")),
-        ("GAP-TECH-DEEP-DIVE-INPUT", "technical", "medium", "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.", tech_evidence,
-         ("api", "endpoint", "integration", "integracion", "integración", "system", "sistema", "platform", "plataforma", "service", "servicio"),
-         ("repo", "repository", "arquitectura", "architecture", "source of truth", "diagrama", "diagram", " sad ")),
-    ]
-    for gap_id, lens, severity, description, evidence, triggers, counterparts in inquisitive_rules:
-        if any(token in evidence for token in counterparts):
-            continue
-        gap = {"id": gap_id, "lens": lens, "severity": severity, "description": description}
-        mention = next((token.strip() for token in triggers if token in evidence), None)
-        if mention:
-            gap["evidence_mention"] = mention
-        gaps.append(gap)
-    metric_match = METRIC_RE.search(text)
-    if metric_match and not any(token in lowered for token in ("source", "fuente", "baseline", "medido", "measured")):
-        gaps.append(
-            {
-                "id": "GAP-METRIC-SOURCE",
-                "lens": "business",
-                "severity": "high",
-                "description": "Quantitative metric appears without an explicit source or baseline.",
-                "evidence_mention": metric_match.group(0),
-            }
-        )
+    scopes = {
+        "source": lowered,
+        "technical": tech_evidence,
+        "design": design_evidence,
+        "quality": quality_evidence,
+        "frontend": frontend_evidence,
+        "all": " ".join([lowered, tech_evidence, design_evidence, quality_evidence]),
+    }
+    gaps: list[dict[str, str]] = []
+    for check in load_lens_checks(lenses_dir):
+        rule = check.get("rule")
+        evidence = scopes.get(check.get("evidence_scope", "source"), lowered)
+        gap = {
+            "id": check["id"],
+            "lens": check["lens"],
+            "severity": check["severity"],
+            "description": check["description"],
+        }
+        if rule == "absent_tokens":
+            if not any(token in evidence for token in check.get("tokens", ())):
+                gaps.append(gap)
+        elif rule == "mention_without_counterpart":
+            # Inquisitive tier (IMP-015): a surface is mentioned but its
+            # counterpart detail is absent; a bare mention anchors the question
+            # to the input instead of suppressing it.
+            if any(token in evidence for token in check.get("counterparts", ())):
+                continue
+            mention = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
+            if mention:
+                gap["evidence_mention"] = mention
+            gaps.append(gap)
+        elif rule == "metric_without_source":
+            metric_match = METRIC_RE.search(text)
+            if metric_match and not any(token in evidence for token in check.get("suppressors", ())):
+                gap["evidence_mention"] = metric_match.group(0)
+                gaps.append(gap)
     return gaps
 
 
