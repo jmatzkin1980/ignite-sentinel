@@ -40,4 +40,24 @@ Objetivo: fortalecer sync, staleness y cierre seguro de gaps en proyectos largos
 Objetivo: bajar la fricción para usuarios nuevos y entornos restringidos.
 
 - IMP-012 Experiencia chat-first refinada: mapeo de intención en lenguaje natural a secuencias de comandos, con ejemplos en guías y adapters.
-- IMP-014 Adapter/guía para Claude (Cowork/Claude Code) como tercer en
+- IMP-014 Adapter/guía para Claude (Cowork/Claude Code) como tercer entorno soportado junto a Codex y Kilo.
+
+Nota: el objetivo de adopción es que cualquier BA/PM pueda clonar el repo y usarlo en su propio proyecto, por lo que el onboarding agnóstico (IMP-004) y las guías para usuarios que no conocen el framework son parte del criterio de "sólido y robusto".
+
+## Horizonte 4 — Alineación con estándares de agentes AI (2026)
+
+Objetivo: que Ignite deje de mantener un adapter artesanal por IDE y se apoye en los estándares que la industria consolidó (Agent Skills/SKILL.md, AGENTS.md, MCP, evals con answer keys), reduciendo mantenimiento y ampliando compatibilidad a cualquier herramienta que los lea.
+
+- IMP-020 Eval harness de discovery (puede adelantarse a Horizonte 1 junto a IMP-016: es cómo se mide IMP-015).
+- IMP-017 Servidor MCP local stdio: un solo punto de integración para todos los clientes MCP, local-first.
+- IMP-019 Fuente única de adapters de comandos con generador y test de sincronía.
+- IMP-018 Skills convergidas al estándar Agent Skills (`.agents/skills/` + `.claude/skills/`).
+
+Regla de interacción con otros horizontes: IMP-020 conviene ejecutarlo junto con IMP-016 (Horizonte 1); IMP-017/018/019 pueden esperar a que Horizonte 1 demuestre valor, porque reducen costo de mantenimiento pero no mejoran el corazón del framework.
+
+## Reglas de gestión del roadmap
+
+- No iniciar Horizonte 1 sin cerrar el criterio de salida de Horizonte 0.
+- Dentro de un horizonte el orden es sugerido, no estricto; entre horizontes sí.
+- Todo ítem se trabaja en branch propio con PR; el estado se actualiza en `02-backlog-mejoras.md`.
+- Si un ítem revela trabajo nuevo, se agrega como `IMP-*` nuevo, no se infla el ítem en curso.
