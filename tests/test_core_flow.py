@@ -472,6 +472,122 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("maturity_metrics", status)
         self.assertIn("maturity_score", status["maturity_metrics"])
 
+    def test_backlog_goes_stale_when_domain_context_changes(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "STALE"]), 0)
+        self.assertEqual(main(["ingest", "STALE", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "STALE"]), 0)
+        self.assertEqual(main(["specs", "STALE"]), 0)
+        self.assertEqual(main(["backlog", "STALE"]), 0)
+        self.assertEqual(main(["health", "STALE"]), 0)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "CLEAN")
+
+        tech_dir = self.temp / "workspaces" / "STALE" / "00_raw" / "02_technology_context"
+        tech_dir.mkdir(parents=True, exist_ok=True)
+        (tech_dir / "architecture-update.md").write_text(
+            "New architecture note: the risk service moves to an event-driven contract.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["health", "STALE"]), 0)
+        report = (self.temp / "workspaces" / "STALE" / "06_traceability" / "health_report.md").read_text(encoding="utf-8")
+        self.assertIn("Domain context changed after backlog generation", report)
+        self.assertIn("Technology", report)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "DIRTY")
+        self.assertNotEqual(main(["backlog", "STALE"]), 0)
+
+        self.assertEqual(main(["reindex", "STALE"]), 0)
+        self.assertEqual(main(["maturity", "STALE"]), 0)
+        self.assertEqual(main(["backlog", "STALE"]), 0)
+        self.assertEqual(main(["health", "STALE"]), 0)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "CLEAN")
+
+    def test_gap_resolution_distinguishes_intermediate_states(self) -> None:
+        fixture = ROOT / "fixtures" / "incomplete_requirement.md"
+        self.assertEqual(main(["init", "NUAN"]), 0)
+        self.assertEqual(main(["ingest", "NUAN", "--source", str(fixture)]), 0)
+        response = self.temp / "respuestas.md"
+        response.write_text(
+            """### GAP-USERS
+
+- Answer: Primary users are operations analysts; supervisors only review weekly summaries.
+- Owner / source: Client product owner
+- Evidence or reference: kickoff notes
+- Decision status: confirmed
+
+### GAP-OBJECTIVE
+
+- Answer: Reduce manual review effort for the operations team before the daily standup.
+- Owner / source: Client sponsor
+- Evidence or reference: email thread
+- Decision status: pending
+
+### GAP-SCOPE
+
+- Answer: TBD
+- Owner / source: Client PM
+- Evidence or reference:
+- Decision status: confirmed
+
+### GAP-ACCEPTANCE
+
+- Answer: We will define something later with QA probably.
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+""",
+            encoding="utf-8",
+        )
+        from sentinel.gap_resolution import resolve_gaps
+
+        result = resolve_gaps("NUAN", response)
+        self.assertIn("GAP-USERS", result["closed"])
+        self.assertIn("GAP-OBJECTIVE", result["answered"])
+        self.assertIn("GAP-SCOPE", result["partially_closed"])
+        self.assertIn("GAP-ACCEPTANCE", result["partially_closed"])
+        self.assertNotIn("GAP-SCOPE", result["closed"])
+        counts = result["gap_counts"]
+        self.assertGreaterEqual(counts["answered"], 1)
+        self.assertGreater(counts["blocking_open"], 0)
+        gaps_md = (self.temp / "workspaces" / "NUAN" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertIn("ANSWERED", gaps_md)
+        report_files = list((self.temp / "workspaces" / "NUAN" / "07_changes" / "00_client_responses").glob("*report*.md"))
+        report_text = report_files[0].read_text(encoding="utf-8")
+        self.assertIn("Answered (Awaiting Confirmation)", report_text)
+        self.assertIn("confirmed-but-vague", report_text)
+        self.assertNotEqual(main(["specs", "NUAN"]), 0)
+
+    def test_regeneration_records_visible_diff(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        change = ROOT / "fixtures" / "change_request.md"
+        self.assertEqual(main(["init", "REGEN"]), 0)
+        self.assertEqual(main(["ingest", "REGEN", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "REGEN"]), 0)
+        self.assertEqual(main(["specs", "REGEN"]), 0)
+        regen_dir = self.temp / "workspaces" / "REGEN" / "07_changes" / "04_regeneration"
+        self.assertFalse(regen_dir.exists())  # first generation: no diff
+
+        self.assertEqual(main(["sync", "REGEN", "--source", str(change), "--note", "client follow-up"]), 0)
+        raw_dir = self.temp / "workspaces" / "REGEN" / "00_raw" / "00_client_requirement"
+        (raw_dir / "follow-up-note.md").write_text(
+            "The client confirms the dashboard must also flag SLA breach risk by queue before standup.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["maturity", "REGEN"]), 0)
+        self.assertEqual(main(["specs", "REGEN"]), 0)
+        diffs = sorted(regen_dir.glob("*.md"))
+        self.assertTrue(diffs)
+        diff_text = diffs[0].read_text(encoding="utf-8")
+        self.assertIn("Regeneration Diff", diff_text)
+        self.assertIn("Triggering change: `CHG-001`", diff_text)
+        self.assertIn("Lines added:", diff_text)
+        graph = (self.temp / "workspaces" / "REGEN" / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+        self.assertIn('"type": "regeneration_diff"', graph)
+        self.assertIn('"relation": "triggers_regeneration"', graph)
+        self.assertEqual(main(["validate", "REGEN"]), 0)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
@@ -538,7 +654,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertEqual(main(["resolve-gaps", "ACME", "--source", str(response)]), 0)
         gaps = (self.temp / "workspaces" / "ACME" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         self.assertIn("| GAP-USERS | business | high | CLOSED |", gaps)
-        self.assertIn("| GAP-SCOPE | product | critical | PARTIALLY_CLOSED |", gaps)
+        self.assertIn("| GAP-SCOPE | product | critical | ANSWERED |", gaps)
         self.assertEqual(main(["maturity", "ACME"]), 0)
         report = (self.temp / "workspaces" / "ACME" / "01_discovery" / "requirement_maturity_report.md").read_text(encoding="utf-8")
         self.assertIn("`BLOCKED`", report)

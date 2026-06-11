@@ -456,3 +456,7 @@ This is a local retrieval index and fallback. It is not the source of truth.
 ## Context Pack Scoring
 
 `specs_generation.json` exposes `coverage_map` and `coverage_score`: how many PRD retrieval sections found supporting evidence in local memory (`none`/`weak`/`strong` per section). `implementation_readiness.json` exposes a per-story `readiness_score` (1.0 means no pending context or execution fields) and a `summary` block (`stories_ready`, `avg_readiness_score`, `pending_context_by_domain`). Downstream agents can filter or prioritize stories by score instead of parsing prose.
+
+## Regeneration Diffs
+
+When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.

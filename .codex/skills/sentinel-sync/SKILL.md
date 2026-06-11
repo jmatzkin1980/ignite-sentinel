@@ -35,3 +35,4 @@ The Sentinel command protocol records each sync in `workspaces/PROJECT_ID/06_tra
 - Every change must create a `CHG` node and impact report.
 - Do not mark downstream artifacts healthy until impact has been reviewed.
 - If source files and memory disagree, trust source files and run `/reindex`.
+- Regeneration visibility (IMP-011): when `/specs` or `/backlog` regenerate an existing artifact with different content, a human-readable diff record is written under `07_changes/04_regeneration/` (sections added/removed, line counts, triggering `CHG` id), traced in the graph as `regeneration_diff` with a `triggers_regeneration` edge and indexed in memory. Point the user to it when summarizing what changed after a sync.

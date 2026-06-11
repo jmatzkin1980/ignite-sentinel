@@ -306,14 +306,16 @@ def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
             counts["open"] += 1
             if severity in {"critical", "high"}:
                 counts["blocking_open"] += 1
-        elif status in {"PARTIALLY_CLOSED", "ANSWERED"}:
+        elif status == "ANSWERED":
+            counts["answered"] += 1
+            if severity in {"critical", "high"}:
+                counts["blocking_open"] += 1
+        elif status == "PARTIALLY_CLOSED":
             counts["partially_closed"] += 1
             if severity in {"critical", "high"}:
                 counts["blocking_open"] += 1
         elif status == "CLOSED":
             counts["closed"] += 1
-        elif status == "ANSWERED":
-            counts["answered"] += 1
     return counts
 
 
@@ -367,7 +369,7 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
 def readiness_stage_for_counts(counts: dict[str, int]) -> str:
     if counts.get("blocking_open", 0):
         return "CLIENT_RESPONSE_NEEDED"
-    if counts.get("open", 0) or counts.get("partially_closed", 0):
+    if counts.get("open", 0) or counts.get("partially_closed", 0) or counts.get("answered", 0):
         return "DOMAIN_RESPONSE_NEEDED"
     return "READY_FOR_PROJECT_BRIEF"
 

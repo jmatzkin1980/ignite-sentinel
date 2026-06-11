@@ -33,6 +33,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "decision": "DEC",
         "impact_report": "DEC",
         "gap_resolution_report": "DEC",
+        "regeneration_diff": "DEC",
         "identity_seed_bank": "SEED",
         "identity_seed": "SEED",
         "discovery_log": "DISC",

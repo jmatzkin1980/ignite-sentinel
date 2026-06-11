@@ -29,6 +29,15 @@ def add_node(
     domain: str = "product",
 ) -> str:
     graph = load_graph(project_id)
+    # Upsert: regenerating an artifact at the same path with the same type keeps
+    # its stable trace ID instead of accumulating duplicate nodes (IMP-009).
+    for node in graph["nodes"]:
+        if node.get("type") == artifact_type and node.get("path") == str(path.as_posix()):
+            node["title"] = title
+            node["status"] = status
+            node["domain"] = domain
+            save_graph(project_id, graph)
+            return node["id"]
     node_id = next_id(prefix, existing_ids(graph))
     graph["nodes"].append(
         {
