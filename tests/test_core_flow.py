@@ -373,6 +373,30 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
             results = broker.retrieve("SLA risk", "discovery")
             self.assertTrue(results)
 
+    def test_prd_extracts_evidence_backed_personas_frs_and_kpis(self) -> None:
+        fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"
+        self.assertEqual(main(["init", "EXTR"]), 0)
+        self.assertEqual(main(["ingest", "EXTR", "--source", str(fixture)]), 0)
+        from sentinel.generation import render_prd
+
+        raw = fixture.read_text(encoding="utf-8")
+        prd = render_prd("EXTR", raw, {"prd_sections": {}}, "requirements.md", "en", raw)
+        self.assertIn("Evidence-Backed Personas", prd)
+        self.assertIn('"The main users are the support team leads."', prd)
+        self.assertIn("Evidence-Backed Functional Statements", prd)
+        self.assertIn('"They want to see ticket volume, resolution time, and backlog ageing in one screen."', prd)
+        self.assertIn("30% (confirm baseline)", prd)
+        self.assertIn("`REQ-001`", prd)
+
+    def test_prd_keeps_pending_input_without_extraction_evidence(self) -> None:
+        from sentinel.generation import render_prd
+
+        empty = "Nothing concrete here at all for extraction purposes."
+        prd = render_prd("EMPTYX", empty, {"prd_sections": {}}, "requirements.md", "en", empty)
+        self.assertIn("no persona evidence was extracted", prd)
+        self.assertIn("no requirement-like statements were extracted", prd)
+        self.assertIn("| KPI-01 | Primary business or operational outcome. | `[PENDING INPUT]`", prd)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"

@@ -4,6 +4,7 @@ from hashlib import sha256
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
+from .discovery import extract_personas, extract_functional_signals, extract_metric_signals
 from .maturity import evaluate
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path, write_json
@@ -186,6 +187,13 @@ def generate_specs(project_id: str) -> dict[str, str]:
     brief_path = base / "02_requirements" / "project-brief.md"
     source_path = brief_path if brief_path.exists() else req_path
     req_text = source_path.read_text(encoding="utf-8")
+    raw_dir = base / "00_raw" / "00_client_requirement"
+    raw_parts = []
+    if raw_dir.exists():
+        for raw_file in sorted(raw_dir.glob("*")):
+            if raw_file.is_file() and raw_file.suffix.lower() in {".md", ".txt"}:
+                raw_parts.append(raw_file.read_text(encoding="utf-8", errors="ignore"))
+    evidence_text = "\n\n".join(raw_parts) or req_text
     context = get_multi_domain_context(req_text, project_id)
     generation_context = build_specs_generation_context(project_id, req_text)
     context["prd_sections"] = generation_context["sections"]
@@ -193,7 +201,7 @@ def generate_specs(project_id: str) -> dict[str, str]:
     language = str(state.get("project_language", "es")).lower()
     prd_path = base / "03_specs" / "prd.md"
     specs_path = base / "03_specs" / "specs.md"
-    prd_path.write_text(render_prd(project_id, req_text, context, source_path.name, language), encoding="utf-8")
+    prd_path.write_text(render_prd(project_id, req_text, context, source_path.name, language, evidence_text), encoding="utf-8")
     specs_path.write_text(render_specs(project_id, req_text, context, source_path.name), encoding="utf-8")
     prd_id = add_node(project_id, "PRD", "prd", prd_path, "Human-readable PRD", domain="product")
     spec_id = add_node(project_id, "SPEC", "spec", specs_path, "AI-friendly specification", domain="product")
@@ -941,13 +949,13 @@ def build_specs_generation_context(project_id: str, req_text: str) -> dict[str, 
     return pack
 
 
-def render_prd(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str) -> str:
+def render_prd(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str, evidence_text: str = "") -> str:
     if language == "en":
-        return render_prd_full(project_id, req_text, context, source_name, "en")
-    return render_prd_full(project_id, req_text, context, source_name, "es")
+        return render_prd_full(project_id, req_text, context, source_name, "en", evidence_text)
+    return render_prd_full(project_id, req_text, context, source_name, "es", evidence_text)
 
 
-def render_prd_full(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str) -> str:
+def render_prd_full(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str, evidence_text: str = "") -> str:
     english = language == "en"
     section_context = render_prd_section_context(context)
     title = "Executive Summary And Problem Statement" if english else "Resumen ejecutivo y planteamiento del problema"
@@ -961,6 +969,49 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     execution = "Execution Plan" if english else "Execution Plan"
     governance = "Governance" if english else "Governance"
     pending = "[PENDING INPUT]"
+    evidence_source = evidence_text or req_text
+    extracted_personas = extract_personas(evidence_source)
+    extracted_frs = extract_functional_signals(evidence_source)
+    extracted_metrics = extract_metric_signals(evidence_source)
+    personas_evidence_title = "Evidence-Backed Personas" if english else "Personas con evidencia del input"
+    fr_evidence_title = "Evidence-Backed Functional Statements" if english else "Declaraciones funcionales con evidencia del input"
+    if extracted_personas:
+        persona_rows = "\n".join(
+            f'| P-E{i + 1} | "{row["evidence"]}" | `REQ-001` |' for i, row in enumerate(extracted_personas)
+        )
+        personas_evidence_block = (
+            f"### {personas_evidence_title}\n\n"
+            "| ID | Evidence From Source | Source |\n| --- | --- | --- |\n"
+            f"{persona_rows}\n"
+        )
+    else:
+        personas_evidence_block = (
+            f"### {personas_evidence_title}\n\n"
+            f"`{pending}` - no persona evidence was extracted from the source input; see `GAP-USERS` and `GAP-PRD-PERSONA-DETAIL`.\n"
+        )
+    if extracted_frs:
+        fr_rows = "\n".join(
+            f'| FR-E{i + 1:02d} | "{row["statement"]}" | `REQ-001` |' for i, row in enumerate(extracted_frs)
+        )
+        fr_evidence_block = (
+            f"### {fr_evidence_title}\n\n"
+            "| ID | Statement (verbatim evidence) | Source |\n| --- | --- | --- |\n"
+            f"{fr_rows}\n"
+        )
+    else:
+        fr_evidence_block = (
+            f"### {fr_evidence_title}\n\n"
+            f"`{pending}` - no requirement-like statements were extracted from the source input; see `GAP-PRD-FR-AC`.\n"
+        )
+    if extracted_metrics:
+        metric = extracted_metrics[0]
+        kpi_primary_row = (
+            f'| KPI-01 | "{metric["evidence"]}" | {metric["metric"]} (confirm baseline) | `{pending}` | `{pending}` | `REQ-001`, `GAP-METRIC-SOURCE` |'
+        )
+    else:
+        kpi_primary_row = (
+            f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | `GAP-METRIC-SOURCE` |"
+        )
     return f"""# PRD - {project_id}
 
 # {project_id} - Strategic Foundation
@@ -1001,6 +1052,7 @@ This PRD expands the mature discovery brief into a human-readable product docume
 
 ## 3. {personas}
 
+{personas_evidence_block}
 ### Primary Personas
 
 | ID | Attribute | Value |
@@ -1031,6 +1083,7 @@ This PRD expands the mature discovery brief into a human-readable product docume
 | FR-04 | The user-facing experience shall cover affected journeys, states, validations, and copy constraints. | Must Have | `GAP-DESIGN-FLOW`, `GAP-DESIGN-STATES`, `GAP-FRONTEND-SURFACE` |
 | FR-05 | The system shall preserve traceability from requirement to acceptance criteria and tests. | Must Have | `GAP-ACCEPTANCE`, `GAP-QUALITY-HANDOFF` |
 
+{fr_evidence_block}
 **FR-01 Acceptance Criteria:**
 
 - Given the primary user has valid context and inputs, When they execute the primary workflow, Then the expected business outcome is achieved and traceable to `REQ-001`.
@@ -1069,7 +1122,7 @@ This PRD expands the mature discovery brief into a human-readable product docume
 
 | KPI ID | Description | Target | Measurement Method | Timeframe | Source |
 | --- | --- | --- | --- | --- | --- |
-| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | `GAP-METRIC-SOURCE` |
+{kpi_primary_row}
 | KPI-02 | Quality or risk reduction outcome. | `{pending}` | QA evidence / operational monitoring. | `{pending}` | `GAP-QUALITY-HANDOFF` |
 | KPI-03 | Compatibility or non-regression outcome. | 0 known regressions unless otherwise defined. | Regression suite / release evidence. | Release validation. | `GAP-SCOPE` |
 
