@@ -420,6 +420,37 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn(prd_quality["classification"], {"evidence-backed", "mixed"})
         self.assertEqual(main(["validate", "SEMQ"]), 0)
 
+    def test_context_packs_include_scoring_and_coverage(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "SCOR"]), 0)
+        self.assertEqual(main(["ingest", "SCOR", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "SCOR"]), 0)
+        self.assertEqual(main(["specs", "SCOR"]), 0)
+        self.assertEqual(main(["backlog", "SCOR"]), 0)
+        specs_pack = json.loads(
+            (self.temp / "workspaces" / "SCOR" / "08_context_packs" / "specs_generation.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("coverage_map", specs_pack)
+        self.assertIn("coverage_score", specs_pack)
+        self.assertGreaterEqual(specs_pack["coverage_score"], 0.0)
+        self.assertLessEqual(specs_pack["coverage_score"], 1.0)
+        for payload in specs_pack["sections"].values():
+            self.assertIn(payload["evidence_strength"], {"none", "weak", "strong"})
+            self.assertEqual(payload["result_count"], len(payload["results"]))
+        readiness = json.loads(
+            (self.temp / "workspaces" / "SCOR" / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("summary", readiness)
+        summary = readiness["summary"]
+        self.assertEqual(summary["stories_total"], len(readiness["stories"]))
+        self.assertEqual(summary["stories_ready"] + summary["stories_needing_context"], summary["stories_total"])
+        for story in readiness["stories"]:
+            self.assertIn("readiness_score", story)
+            self.assertGreaterEqual(story["readiness_score"], 0.0)
+            self.assertLessEqual(story["readiness_score"], 1.0)
+            if story["status"] == "ready":
+                self.assertEqual(story["readiness_score"], 1.0)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"

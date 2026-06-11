@@ -453,3 +453,6 @@ JSON fallback and metadata:
 
 This is a local retrieval index and fallback. It is not the source of truth.
 
+## Context Pack Scoring
+
+`specs_generation.json` exposes `coverage_map` and `coverage_score`: how many PRD retrieval sections found supporting evidence in local memory (`none`/`weak`/`strong` per section). `implementation_readiness.json` exposes a per-story `readiness_score` (1.0 means no pending context or execution fields) and a `summary` block (`stories_ready`, `avg_readiness_score`, `pending_context_by_domain`). Downstream agents can filter or prioritize stories by score instead of parsing prose.
