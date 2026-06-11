@@ -123,7 +123,7 @@ This document is designed to be shared with client or domain stakeholders. It in
 - project metadata and document version;
 - response instructions;
 - one human-friendly section per gap with ID, title, lens, severity, description, rationale, question, example answer, and blank response fields;
-- a framework trace table with lens, severity, status, parent, question, and source consulted.
+- a framework trace table with lens, severity, status, parent, question, source consulted, detected trigger, and `Origin` (`checklist` for deterministic gaps; `agent` for gaps contributed through `/annotate`, IMP-021).
 
 When the answered document returns, save it under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` and run `/resolve-gaps PROJECT_ID --source PATH`.
 
@@ -143,6 +143,10 @@ Important severities:
 - `high`
 - `medium`
 - `low`
+
+### `agent_annotation_log.md` and `annotations/`
+
+Sanctioned record of agentic discovery analysis contributed through `/annotate` (IMP-021). Each entry lists the merged semantic gaps with their lens, severity, question, and the verbatim evidence quote the agent cited, plus reported ambiguities and implicit assumptions. The raw analysis JSON is archived under `01_discovery/annotations/`. These gaps carry `origin: agent` in `gaps.md` and an `agent_annotation` traceability node linked from the raw input to the gap report. Source files remain the authority: the agent proposes with evidence; the runtime validates and persists.
 
 ### `decisions.md`
 

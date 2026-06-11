@@ -23,7 +23,7 @@ Desde la raíz del repo:
 python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
-python -m sentinel /gaps | /resolve-gaps | /maturity | /brief | /context-request
+python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /maturity | /brief | /context-request
 python -m sentinel /sync | /reindex | /retrieve
 python -m sentinel /specs | /backlog | /quality | /trace | /health | /validate
 python -m sentinel /status PROJECT_ID | /export PROJECT_ID

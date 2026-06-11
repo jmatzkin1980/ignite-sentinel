@@ -1,0 +1,51 @@
+{
+  "_comment": "IMP-021 demonstration input: the structured semantic analysis an agent produces after reading requirement.md. Each gap cites a verbatim quote that the lexical checklist treated as a suppressing keyword. Applying this via /annotate moves target_recall from 0.00 to 1.00 for this fixture without the runtime inventing anything.",
+  "gaps": [
+    {
+      "id": "GAP-TECH-NFR",
+      "lens": "technical",
+      "severity": "high",
+      "question": "What concrete performance, security, and availability targets must the solution meet (e.g. p95 latency, auth model, uptime)?",
+      "evidence": "Security and performance are important to us",
+      "description": "Non-functional needs are named but no measurable target, constraint, or method is given."
+    },
+    {
+      "id": "GAP-GOVERNANCE-CONSTRAINTS",
+      "lens": "compliance",
+      "severity": "high",
+      "question": "Which specific compliance, privacy, audit, or data-retention obligations apply, and what do they require of the workflow?",
+      "evidence": "the solution must respect our compliance obligations",
+      "description": "Compliance is asserted but the actual obligations and their implications are undefined."
+    },
+    {
+      "id": "GAP-BUSINESS-RULES",
+      "lens": "business",
+      "severity": "high",
+      "question": "What are the exact approval-threshold rules, tiers, exceptions, and fallbacks the system must apply?",
+      "evidence": "There are business rules around approval thresholds that the system should apply.",
+      "description": "Business rules are referenced generically; the thresholds and decision logic are not specified."
+    },
+    {
+      "id": "GAP-QUALITY",
+      "lens": "quality",
+      "severity": "medium",
+      "question": "What does 'reliable' mean here in testable terms — error budget, negative paths, data conditions, and required evidence?",
+      "evidence": "Quality matters, so the tool has to be reliable.",
+      "description": "Quality is asserted but no testable expectation, risk scenario, or evidence bar is defined."
+    },
+    {
+      "id": "GAP-ACCEPTANCE",
+      "lens": "quality",
+      "severity": "high",
+      "question": "What observable, measurable conditions define 'approvers are happy' so completion can be verified objectively?",
+      "evidence": "We will consider the project successful once approvers are happy with it.",
+      "description": "Success is defined subjectively; there are no observable acceptance conditions."
+    }
+  ],
+  "ambiguities": [
+    "'cut the average approval time in half' lacks a baseline and measurement source."
+  ],
+  "assumptions": [
+    "The workflow is internal to the finance team; no external party participates in approvals."
+  ]
+}

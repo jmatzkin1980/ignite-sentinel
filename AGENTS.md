@@ -48,6 +48,7 @@ Accepted forms:
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
 - `/gaps PROJECT_ID`
+- `/annotate PROJECT_ID --source ANALYSIS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
@@ -72,6 +73,7 @@ Execution rule:
 - If `python` is not available, use the configured or bundled Python runtime when visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]` on Windows.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
 - `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
+- `/annotate PROJECT_ID --source ANALYSIS.json` merges an agentic semantic analysis of the raw input into gaps: each proposed gap needs a declared lens, a valid severity, and a verbatim evidence quote. The runtime validates and tags them `origin: agent`; ungrounded gaps are rejected.
 - `/resolve-gaps PROJECT_ID --source PATH` processes structured client/domain answers and safely closes only confirmed or not-applicable gaps.
 - `/brief PROJECT_ID` refreshes `02_requirements/project-brief.md` from mature discovery evidence.
 - `/context-request PROJECT_ID --domain DOMAIN` creates a domain-specific request under `08_context_packs/requests/`.

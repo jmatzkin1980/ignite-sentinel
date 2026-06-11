@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .doctor import run_doctor
 from .context_requests import generate_context_request
+from .discovery import apply_annotation
 from .discovery import ingest
 from .discovery import regenerate_gaps
 from .export import export_artifact
@@ -38,6 +39,7 @@ COMMANDS = {
     "validate",
     "reindex",
     "gaps",
+    "annotate",
     "brief",
     "resolve-gaps",
     "context-request",
@@ -89,6 +91,10 @@ def main(argv: list[str] | None = None) -> int:
     resolve_p = sub.add_parser("resolve-gaps")
     resolve_p.add_argument("project_id")
     resolve_p.add_argument("--source", required=True)
+
+    annotate_p = sub.add_parser("annotate")
+    annotate_p.add_argument("project_id")
+    annotate_p.add_argument("--source", required=True)
 
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
@@ -166,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "resolve-gaps":
             result = resolve_gaps(args.project_id, Path(args.source))
+            print_json(result)
+        elif args.command == "annotate":
+            result = apply_annotation(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "maturity":
             result = evaluate(args.project_id)
