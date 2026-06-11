@@ -47,10 +47,22 @@ Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previ
 
 ## Verificación obligatoria al cambiar runtime
 
+Forma recomendada (resuelve el intérprete solo y corre los tres pasos):
+
+```powershell
+.\verify.ps1            # tests + /doctor + evals
+.\verify.ps1 -SkipEvals # solo tests + /doctor
+```
+
+Equivalente manual:
+
 ```text
 python -m unittest discover -s tests
 python -m sentinel /doctor
+python tests/evals/run_discovery_evals.py
 ```
+
+Nota de entorno (Windows — `python` no encontrado / abre Microsoft Store): es el alias stub de App Execution Aliases; `python` real no está en el PATH. Soluciones, en orden: (1) usar el launcher `py` en vez de `python` (`py -m unittest discover -s tests`); (2) usar `.\verify.ps1`, que prueba `.venv`, `python` y `py` automáticamente; (3) crear venv una vez (`py -m venv .venv` y `.\.venv\Scripts\python -m pip install -e .`), que `verify.ps1` e `installers\sentinel.ps1` detectan; (4) apagar los alias en Configuración > Aplicaciones > Alias de ejecución de aplicaciones (`python.exe`, `python3.exe`) o reinstalar Python desde python.org con "Add to PATH". Nunca asumir que `python` falla por un problema del repo: primero descartar el alias.
 
 Nota de entorno: `lancedb` es opcional (IMP-013). Sin él, el framework opera en modo degradado `json-hybrid`, `/doctor` da WARN (no FAIL) y la suite completa debe pasar igual. Habilitar retrieval vectorial con `pip install -e .[memory]` cuando el entorno lo permita.
 
