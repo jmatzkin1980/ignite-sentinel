@@ -2,6 +2,12 @@
   "version": 1,
   "commands": [
     {
+      "name": "annotate",
+      "description": "Merge an agentic semantic analysis of the raw input into discovery gaps (origin: agent).",
+      "kilo_agent": "sentinel-discovery",
+      "body": "# Ignite Annotate\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/annotate PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with the agent's structured semantic analysis of the raw input: a `gaps` array (each gap has `id`, `lens`, `severity`, `question`, and a verbatim `evidence` quote from the raw input), plus optional `ambiguities` and `assumptions`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /annotate PROJECT_ID --source PATH\n```\n\nThe runtime validates each proposed gap (declared lens, severity range, and an evidence quote found verbatim in the raw input), tags them `origin: agent`, merges them into `01_discovery/gaps.md`, and records traceability. Summarize merged and skipped gap IDs plus updated gap counts."
+    },
+    {
       "name": "backlog",
       "description": "Generate traceable epics, user stories, and acceptance criteria.",
       "kilo_agent": "sentinel-backlog",

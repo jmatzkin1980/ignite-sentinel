@@ -122,6 +122,45 @@ Output:
 
 Use this before sharing gaps with a client or domain owner.
 
+## `annotate`
+
+Merge an agentic semantic analysis of the raw input into discovery gaps (IMP-021). The deterministic checklist decides gaps by token presence/absence and therefore misses what is *named but not defined* (a reassuring keyword like "security is important" suppresses the gap). The agent operating Sentinel is the only component that reads meaning; `/annotate` is its sanctioned channel — it proposes, the runtime validates and persists.
+
+```powershell
+python -m sentinel /annotate PROJECT_ID --source path\to\analysis.json
+```
+
+The `--source` file is JSON with the agent's structured analysis:
+
+```json
+{
+  "gaps": [
+    {
+      "id": "GAP-TECH-NFR",
+      "lens": "technical",
+      "severity": "high",
+      "question": "What concrete performance and security targets must the solution meet?",
+      "evidence": "Security and performance are important to us",
+      "description": "Non-functional needs are named but never quantified."
+    }
+  ],
+  "ambiguities": ["..."],
+  "assumptions": ["..."]
+}
+```
+
+The runtime validates each gap and rejects the whole annotation with a clear error if any gap: has a malformed `id` (not `GAP-*`), names a lens that is not declared in `sentinel/lenses/`, has a severity outside `critical|high|medium|low`, lacks a `question`, or whose `evidence` quote is not found verbatim in the raw input (the agent cites; it never invents — invariant #3).
+
+On success the gaps are tagged `origin: agent`, merged into `01_discovery/gaps.md` (the trace table gains an `Origin` column), and traced. They then flow through the normal `/resolve-gaps` → `/maturity` → gate lifecycle exactly like checklist gaps.
+
+Outputs:
+
+- updated `01_discovery/gaps.md` (with `Origin` column)
+- `01_discovery/agent_annotation_log.md` (auditable record with citations, ambiguities, assumptions)
+- copied source under `01_discovery/annotations/`
+- `agent_annotation` traceability node linked from the raw input and to the gap report
+- `gap_counts.agent_origin` in `state.json` (visible in `/status`)
+
 ## `resolve-gaps`
 
 Process an answered `gaps.md` or equivalent Markdown file.

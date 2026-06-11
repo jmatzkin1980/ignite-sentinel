@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from pathlib import Path
 
-from .lens_registry import load_lens_checks
+from .lens_registry import known_lenses, load_lens_checks
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
-from .traceability import add_edge, add_node
+from .traceability import add_edge, add_node, load_graph
 from .workspace import ensure_workspace, load_config, update_state, workspace_path
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))", re.I)
@@ -314,6 +315,8 @@ def parse_gap_rows(text: str) -> list[dict[str, str]]:
             }
             if len(cells) >= 9 and cells[8] not in {"", "N/A"}:
                 gap["evidence_mention"] = cells[8]
+            if len(cells) >= 10 and cells[9] not in {"", "N/A"}:
+                gap["origin"] = cells[9]
             gaps.append(gap)
     return gaps
 
@@ -348,6 +351,296 @@ def readiness_stage_for_counts(counts: dict[str, int]) -> str:
     if counts.get("open", 0) or counts.get("partially_closed", 0) or counts.get("answered", 0):
         return "DOMAIN_RESPONSE_NEEDED"
     return "READY_FOR_PROJECT_BRIEF"
+
+
+# --- IMP-021: agentic analysis protocol (/annotate) ---------------------------
+#
+# The lexical checklist (detect_gaps) reaches a ceiling: a single token present
+# in the input suppresses a whole gap even when the substance is missing. The
+# agent operating the framework is the only component with semantic capability,
+# but "never edit artifacts by hand" left it no sanctioned channel. /annotate is
+# that channel: the agent proposes semantic gaps WITH a verbatim evidence quote;
+# the runtime validates (schema, declared lens, severity range, citation must be
+# real), tags them `origin: agent`, merges them into gaps.md, and records
+# traceability. The runtime stays the authority; the agent never writes directly.
+# Invariants honored: evidence-or-silence (#3, the quote must exist in the raw
+# input — the agent cites, never invents), lens identity (#1, lens validated
+# against the same knowledge base as detect_gaps), BA-in-control (#5, gaps enter
+# the normal resolve/maturity/gate lifecycle).
+
+GAP_ID_RE = re.compile(r"^GAP-[A-Z0-9-]+$")
+
+
+class AnnotationError(RuntimeError):
+    """Raised when an agentic annotation fails validation (IMP-021)."""
+
+
+def _normalize_for_match(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def raw_input_text(base: Path) -> str:
+    """Concatenate the raw client input copied into 00_raw/ (top level only)."""
+    raw_dir = base / "00_raw"
+    chunks: list[str] = []
+    if raw_dir.exists():
+        for path in sorted(raw_dir.glob("*.md")) + sorted(raw_dir.glob("*.txt")):
+            chunks.append(path.read_text(encoding="utf-8"))
+    return "\n\n".join(chunks)
+
+
+def load_agent_annotation(source: Path) -> dict:
+    raw = source.read_text(encoding="utf-8")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise AnnotationError(f"Annotation source is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise AnnotationError("Annotation must be a JSON object with a 'gaps' array.")
+    return data
+
+
+def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None) -> list[dict[str, str]]:
+    """Validate the agent's structured analysis; reject anything ungrounded.
+
+    Returns normalized gap dicts ready to merge into gaps.md. Raises
+    :class:`AnnotationError` with a clear message on the first violation.
+    """
+    gaps_in = data.get("gaps")
+    if not isinstance(gaps_in, list) or not gaps_in:
+        raise AnnotationError("Annotation must contain a non-empty 'gaps' array.")
+    valid_lenses = known_lenses(lenses_dir)
+    valid_severities = {"critical", "high", "medium", "low"}
+    haystack = _normalize_for_match(raw_text)
+    validated: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(gaps_in, start=1):
+        if not isinstance(item, dict):
+            raise AnnotationError(f"Gap #{index} must be an object.")
+        gap_id = str(item.get("id", "")).strip().upper()
+        if not GAP_ID_RE.match(gap_id):
+            raise AnnotationError(
+                f"Gap #{index} has an invalid id '{item.get('id')}': must match ^GAP-[A-Z0-9-]+$."
+            )
+        if gap_id in seen:
+            raise AnnotationError(f"Duplicate gap id within the annotation: {gap_id}.")
+        seen.add(gap_id)
+        lens = str(item.get("lens", "")).strip().lower()
+        if lens not in valid_lenses:
+            raise AnnotationError(
+                f"{gap_id}: lens '{item.get('lens')}' is not a declared lens "
+                f"({', '.join(sorted(valid_lenses))})."
+            )
+        severity = str(item.get("severity", "")).strip().lower()
+        if severity not in valid_severities:
+            raise AnnotationError(
+                f"{gap_id}: severity '{item.get('severity')}' must be one of "
+                f"{', '.join(sorted(valid_severities))}."
+            )
+        question = str(item.get("question", "")).strip()
+        if not question:
+            raise AnnotationError(f"{gap_id}: a 'question' is required.")
+        evidence = str(item.get("evidence", "")).strip()
+        if not evidence:
+            raise AnnotationError(
+                f"{gap_id}: a verbatim 'evidence' quote from the raw input is required "
+                "(evidence or explicit silence — invariant #3)."
+            )
+        if _normalize_for_match(evidence) not in haystack:
+            raise AnnotationError(
+                f"{gap_id}: the evidence quote is not found verbatim in the raw input. "
+                "An agent must cite real text, never invent it."
+            )
+        description = str(item.get("description", "")).strip() or question
+        validated.append(
+            {
+                "id": gap_id,
+                "lens": lens,
+                "severity": severity,
+                "status": "OPEN",
+                "description": description,
+                "question": question,
+                "evidence_mention": evidence if len(evidence) <= 160 else evidence[:157] + "...",
+                "origin": "agent",
+            }
+        )
+    return validated
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _unique_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    counter = 2
+    while True:
+        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def _annotation_project_language(project_id: str, base: Path) -> str:
+    language = load_config(project_id).get("project_language", "auto")
+    state_file = base / "state.json"
+    if state_file.exists():
+        try:
+            language = json.loads(state_file.read_text(encoding="utf-8")).get("project_language", language)
+        except (ValueError, OSError):
+            pass
+    return str(language if language in {"es", "en"} else "en")
+
+
+def render_annotation_log_entry(
+    label: str,
+    merged: list[dict[str, str]],
+    skipped: list[str],
+    data: dict,
+) -> str:
+    gap_rows = "\n".join(
+        f"| `{gap['id']}` | `{gap['lens']}` | {gap['severity']} | {gap['question']} | {gap.get('evidence_mention', '')} |"
+        for gap in merged
+    ) or "| N/A | N/A | N/A | No new gaps merged (all duplicates). | N/A |"
+    ambiguities = _string_list(data.get("ambiguities"))
+    assumptions = _string_list(data.get("assumptions"))
+    ambiguity_block = "\n".join(f"- {item}" for item in ambiguities) or "- None reported."
+    assumption_block = "\n".join(f"- {item}" for item in assumptions) or "- None reported."
+    skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
+    return f"""## Annotation: {label}
+
+Origin: `agent`. The runtime validated each gap (declared lens, severity range, and a verbatim evidence citation) before merging.
+
+### Merged Semantic Gaps
+
+| Gap ID | Lens | Severity | Question | Evidence Cited |
+| --- | --- | --- | --- | --- |
+{gap_rows}
+
+Skipped (already present in gaps.md): {skipped_block}
+
+### Ambiguities Reported
+
+{ambiguity_block}
+
+### Implicit Assumptions Reported
+
+{assumption_block}
+"""
+
+
+def write_annotation_log(
+    log_path: Path,
+    project_id: str,
+    label: str,
+    merged: list[dict[str, str]],
+    skipped: list[str],
+    data: dict,
+) -> None:
+    if not log_path.exists():
+        log_path.write_text(
+            f"""# Agent Annotation Log - {project_id}
+
+Sanctioned record of agentic (`origin: agent`) discovery analysis (IMP-021).
+Each entry below was validated and merged by the runtime; source files remain
+the authority. The agent proposes with evidence; it never writes artifacts by hand.
+
+""",
+            encoding="utf-8",
+        )
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(render_annotation_log_entry(label, merged, skipped, data) + "\n")
+
+
+def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
+    """Validate, merge, and trace an agentic annotation of the raw input (IMP-021)."""
+    base = workspace_path(project_id)
+    if not base.exists():
+        raise RuntimeError(f"Workspace not found: {project_id}")
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot annotate before /ingest creates 01_discovery/gaps.md.")
+
+    raw_text = raw_input_text(base)
+    if not raw_text.strip():
+        raise RuntimeError("No raw input found under 00_raw/ to ground the annotation against.")
+
+    data = load_agent_annotation(source)
+    agent_gaps = validate_agent_gaps(data, raw_text)
+
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
+    existing_ids = {gap["id"] for gap in real_existing}
+    req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
+
+    merged_new: list[dict[str, str]] = []
+    skipped: list[str] = []
+    for gap in agent_gaps:
+        if gap["id"] in existing_ids:
+            skipped.append(gap["id"])
+            continue
+        merged_new.append(gap)
+        existing_ids.add(gap["id"])
+
+    merged = real_existing + merged_new
+    language = _annotation_project_language(project_id, base)
+    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+
+    annotations_dir = base / "01_discovery" / "annotations"
+    annotations_dir.mkdir(parents=True, exist_ok=True)
+    stored = _unique_path(annotations_dir / f"{source.stem}.json")
+    shutil.copyfile(source, stored)
+
+    log_path = base / "01_discovery" / "agent_annotation_log.md"
+    write_annotation_log(log_path, project_id, source.stem, merged_new, skipped, data)
+
+    graph_nodes = load_graph(project_id).get("nodes", [])
+    annotation_id = add_node(
+        project_id,
+        "DISC",
+        "agent_annotation",
+        log_path,
+        f"Agent annotation: {source.stem}",
+        domain="product",
+    )
+    for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
+        add_edge(project_id, raw_node["id"], annotation_id, "annotated_by")
+    for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
+        add_edge(project_id, annotation_id, gap_node["id"], "raises")
+
+    broker = ContextBroker(project_id)
+    broker.index_artifact(
+        annotation_id,
+        "agent_annotation",
+        log_path,
+        log_path.read_text(encoding="utf-8"),
+        trace_ids=[annotation_id],
+    )
+    mark_source_processed(project_id, source, "agent_annotated", annotation_id)
+
+    counts = count_gaps(merged)
+    counts["agent_origin"] = sum(1 for gap in merged if gap.get("origin") == "agent")
+    updates: dict[str, object] = {
+        "gap_counts": counts,
+        "readiness_stage": readiness_stage_for_counts(counts),
+        "last_annotation_id": annotation_id,
+    }
+    if counts.get("blocking_open", 0):
+        updates["health"] = "DIRTY"
+    update_state(project_id, **updates)
+
+    return {
+        "project_id": project_id,
+        "annotation_id": annotation_id,
+        "path": str(gaps_path.as_posix()),
+        "annotation_log": str(log_path.as_posix()),
+        "merged": [gap["id"] for gap in merged_new],
+        "skipped_duplicates": skipped,
+        "gap_counts": counts,
+    }
 
 
 def render_requirement(project_id: str, req_text: str, raw_id: str) -> str:
@@ -444,8 +737,8 @@ def source_consulted_text(language: str) -> str:
 
 def none_gap_row(language: str) -> str:
     if language == "es":
-        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A |"
-    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A |"
+        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A | checklist |"
+    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist |"
 
 
 def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
@@ -483,7 +776,7 @@ def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, langua
         response_sections = no_gaps_text(language)
 
     rows = "\n".join(
-        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {question_for_gap(gap['id'], language)} | {source_consulted_text(language)} | {gap.get('evidence_mention') or 'N/A'} |"
+        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {gap.get('question') or question_for_gap(gap['id'], language)} | {source_consulted_text(language)} | {gap.get('evidence_mention') or 'N/A'} | {gap.get('origin', 'checklist')} |"
         for gap in gaps
     )
     if not rows:
@@ -520,8 +813,8 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Trazabilidad de resolución
@@ -561,8 +854,8 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Resolution Trace
@@ -621,7 +914,7 @@ Por qué lo preguntamos:
 {why_gap_matters(gap_id, language)}
 
 Pregunta:
-{question_for_gap(gap_id, language)}
+{gap.get('question') or question_for_gap(gap_id, language)}
 
 Ejemplo de respuesta útil:
 {example_response_for_gap(gap_id, language)}
@@ -647,7 +940,7 @@ Why we are asking:
 {why_gap_matters(gap_id)}
 
 Question:
-{question_for_gap(gap_id)}
+{gap.get('question') or question_for_gap(gap_id)}
 
 Example of a useful answer:
 {example_response_for_gap(gap_id)}

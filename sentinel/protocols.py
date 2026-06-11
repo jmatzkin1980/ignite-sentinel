@@ -15,6 +15,7 @@ MUTATING_COMMANDS = {
     "quality",
     "reindex",
     "gaps",
+    "annotate",
     "brief",
     "resolve-gaps",
     "context-request",

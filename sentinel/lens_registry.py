@@ -69,5 +69,16 @@ def lens_checks_for_lens(lens: str, lenses_dir: Path | str | None = None) -> lis
     return [c for c in load_lens_checks(lenses_dir) if c.get("lens") == lens]
 
 
+def known_lenses(lenses_dir: Path | str | None = None) -> set[str]:
+    """Set of lens names declared in the lens knowledge base.
+
+    Single source for validating lens names supplied by agentic input
+    (IMP-021 ``/annotate``): an agent gap whose lens is not declared here is
+    rejected, so the runtime stays the authority and lens identity (invariant
+    #1) is never bypassed.
+    """
+    return {check["lens"] for check in load_lens_checks(lenses_dir)}
+
+
 def clear_cache() -> None:
     _load_cached.cache_clear()

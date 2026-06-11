@@ -27,6 +27,7 @@ REQUIRED_COMMANDS = [
     "validate",
     "reindex",
     "gaps",
+    "annotate",
     "resolve-gaps",
     "brief",
     "context-request",
@@ -35,6 +36,7 @@ REQUIRED_COMMANDS = [
 ]
 
 REQUIRED_CODEX_SKILLS = [
+    "sentinel-annotate",
     "sentinel-backlog",
     "sentinel-command-router",
     "sentinel-discovery",

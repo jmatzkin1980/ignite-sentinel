@@ -4,10 +4,14 @@
   "type": "object",
   "required": ["id", "severity", "status", "parent_id", "description"],
   "properties": {
-    "id": { "type": "string" },
+    "id": { "type": "string", "pattern": "^GAP-[A-Z0-9-]+$" },
     "severity": { "enum": ["critical", "high", "medium", "low"] },
     "status": { "enum": ["OPEN", "ANSWERED", "PARTIALLY_CLOSED", "CLOSED", "SUPERSEDED", "NEW_REQUIREMENT", "NEW_GAP"] },
     "parent_id": { "type": "string" },
-    "description": { "type": "string" }
+    "description": { "type": "string" },
+    "lens": { "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"] },
+    "origin": { "enum": ["checklist", "agent", "challenge"], "default": "checklist" },
+    "question": { "type": "string" },
+    "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." }
   }
 }

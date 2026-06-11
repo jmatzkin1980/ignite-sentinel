@@ -70,9 +70,10 @@ def brief_section_status(brief_md: str) -> dict:
     return status
 
 
-def run_fixture(fixture_dir: Path) -> dict:
+def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
+    annotation = fixture_dir / "annotation.json"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
 
     old_cwd = Path.cwd()
@@ -84,6 +85,12 @@ def run_fixture(fixture_dir: Path) -> dict:
                 assert main(["ingest", project_id, "--source", str(requirement)]) == 0, (
                     f"ingest failed for {fixture_dir.name}"
                 )
+                # IMP-021: optionally apply the agent's stored semantic analysis
+                # so target_recall reflects the agentic pass, not the lexical one.
+                if apply_annotation and annotation.exists():
+                    assert main(["annotate", project_id, "--source", str(annotation)]) == 0, (
+                        f"annotate failed for {fixture_dir.name}"
+                    )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
             fired = set(GAP_HEADING.findall((ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")))
@@ -138,6 +145,15 @@ def run_all() -> int:
         return 1
     results = [run_fixture(d) for d in fixture_dirs]
 
+    # IMP-021 progress: re-run fixtures that carry an agent annotation through
+    # the /annotate pass. Additive metric; the lexical baseline above is
+    # untouched so prior baselines never regress.
+    annotated_results = [
+        run_fixture(d, apply_annotation=True) if (d / "annotation.json").exists() else r
+        for d, r in zip(fixture_dirs, results)
+    ]
+    annotated_fixtures = sum(1 for d in fixture_dirs if (d / "annotation.json").exists())
+
     report = {
         "date": date.today().isoformat(),
         "fixtures": results,
@@ -146,6 +162,10 @@ def run_all() -> int:
             "baseline_ok": all(r["baseline_ok"] for r in results),
             "avg_recall_must_fire": round(sum(r["recall_must_fire"] for r in results) / len(results), 3),
             "avg_target_recall": round(sum(r["target_recall"] for r in results) / len(results), 3),
+            "avg_target_recall_with_annotations": round(
+                sum(r["target_recall"] for r in annotated_results) / len(annotated_results), 3
+            ),
+            "annotated_fixtures": annotated_fixtures,
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
@@ -174,7 +194,9 @@ def run_all() -> int:
     s = report["summary"]
     print(
         f"Summary: baseline_ok={s['baseline_ok']} avg_recall={s['avg_recall_must_fire']:.2f} "
-        f"avg_target_recall={s['avg_target_recall']:.2f} (IMP-015/021 progress) "
+        f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
+        f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
+        f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress)"
     )
     print(f"Report: {out}")

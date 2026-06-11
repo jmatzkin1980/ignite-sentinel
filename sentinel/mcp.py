@@ -53,6 +53,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("trace", "Generate the traceability matrix and graph.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
     ("validate", "Validate structure plus non-blocking semantic quality scores.", ["project_id"]),
+    ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
 ]
 
 
@@ -186,6 +187,10 @@ def build_server():
     @server.tool(name="sentinel_validate", description=TOOL_SPECS[17][1])
     def sentinel_validate(project_id: str) -> dict:
         return run_cli(["validate", project_id])
+
+    @server.tool(name="sentinel_annotate", description=TOOL_SPECS[18][1])
+    def sentinel_annotate(project_id: str, source: str) -> dict:
+        return run_cli(["annotate", project_id, "--source", source])
 
     return server
 
