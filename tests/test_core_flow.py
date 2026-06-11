@@ -472,6 +472,38 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("maturity_metrics", status)
         self.assertIn("maturity_score", status["maturity_metrics"])
 
+    def test_backlog_goes_stale_when_domain_context_changes(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "STALE"]), 0)
+        self.assertEqual(main(["ingest", "STALE", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "STALE"]), 0)
+        self.assertEqual(main(["specs", "STALE"]), 0)
+        self.assertEqual(main(["backlog", "STALE"]), 0)
+        self.assertEqual(main(["health", "STALE"]), 0)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "CLEAN")
+
+        tech_dir = self.temp / "workspaces" / "STALE" / "00_raw" / "02_technology_context"
+        tech_dir.mkdir(parents=True, exist_ok=True)
+        (tech_dir / "architecture-update.md").write_text(
+            "New architecture note: the risk service moves to an event-driven contract.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["health", "STALE"]), 0)
+        report = (self.temp / "workspaces" / "STALE" / "06_traceability" / "health_report.md").read_text(encoding="utf-8")
+        self.assertIn("Domain context changed after backlog generation", report)
+        self.assertIn("Technology", report)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "DIRTY")
+        self.assertNotEqual(main(["backlog", "STALE"]), 0)
+
+        self.assertEqual(main(["reindex", "STALE"]), 0)
+        self.assertEqual(main(["maturity", "STALE"]), 0)
+        self.assertEqual(main(["backlog", "STALE"]), 0)
+        self.assertEqual(main(["health", "STALE"]), 0)
+        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "CLEAN")
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"

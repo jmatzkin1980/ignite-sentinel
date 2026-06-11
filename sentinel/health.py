@@ -89,8 +89,14 @@ def domain_context_freshness_findings(project_id: str, base) -> list[str]:
     current = domain_context_snapshot(project_id)
     if current.get("aggregate_hash") == snapshot.get("aggregate_hash"):
         return []
+    changed_domains = sorted(
+        domain
+        for domain, payload in current.get("domains", {}).items()
+        if payload.get("aggregate_hash") != snapshot.get("domains", {}).get(domain, {}).get("aggregate_hash")
+    )
+    detail = f" Changed domains: {', '.join(changed_domains)}." if changed_domains else ""
     return [
-        "Domain context changed after backlog generation; run /reindex and /backlog before implementation handoff."
+        "Domain context changed after backlog generation; run /reindex and /backlog before implementation handoff." + detail
     ]
 
 
