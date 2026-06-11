@@ -29,5 +29,13 @@
     "GAP-DESIGN-FLOW",
     "GAP-FRONTEND-SURFACE"
   ],
-  "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]"
+  "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]",
+  "brief": {
+    "target_populated": [
+      "1",
+      "2",
+      "3"
+    ],
+    "rationale": "Sections 1 (objective: reduce weekly-review prep time, 30% target), 2 (actor: support team leads) and 3 (scope: read-only dashboard for current quarter, editing out of scope) have confirmed evidence yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
+  }
 }

@@ -29,5 +29,13 @@
     "GAP-BACKEND-SURFACE",
     "GAP-TECH-DEEP-DIVE-INPUT"
   ],
-  "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]"
+  "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]",
+  "brief": {
+    "target_populated": [
+      "1",
+      "2",
+      "3"
+    ],
+    "rationale": "Sections 1 (objective), 2 (users) and 3 (scope) are confirmed in the requirement (see must_not_fire) yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
+  }
 }
