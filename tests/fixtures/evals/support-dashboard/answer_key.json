@@ -1,0 +1,24 @@
+{
+  "fixture": "support-dashboard",
+  "language": "en",
+  "deliberate_omissions": [
+    "How the dashboard is accessed and who is authorized",
+    "Where ticket data comes from and how metrics are calculated",
+    "Acceptance criteria and quality expectations",
+    "UI states for loading, empty, and error",
+    "Baseline and measurement method for the 30% preparation-effort claim"
+  ],
+  "must_fire": [
+    "GAP-ACCEPTANCE",
+    "GAP-DESIGN-STATES",
+    "GAP-GOVERNANCE-CONSTRAINTS",
+    "GAP-METRIC-SOURCE",
+    "GAP-QUALITY",
+    "GAP-TECH-DATA-SOURCE",
+    "GAP-TECH-NFR"
+  ],
+  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE"],
+  "known_false_positives": [],
+  "target_fire": ["GAP-DESIGN-FLOW", "GAP-FRONTEND-SURFACE"],
+  "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask."
+}

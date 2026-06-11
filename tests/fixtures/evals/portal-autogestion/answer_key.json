@@ -1,0 +1,24 @@
+{
+  "fixture": "portal-autogestion",
+  "language": "es",
+  "deliberate_omissions": [
+    "Roles, permisos y autenticacion de clientes finales",
+    "Requisitos no funcionales: volumen de reclamos, disponibilidad, datos personales",
+    "Criterios de aceptacion y expectativas de prueba",
+    "Origen de datos del reclamo y sistema donde vive hoy",
+    "Estados de UI: carga, vacio, error, reintento de adjuntos"
+  ],
+  "must_fire": [
+    "GAP-ACCEPTANCE",
+    "GAP-DELIVERY-READINESS",
+    "GAP-DESIGN-FLOW",
+    "GAP-GOVERNANCE-CONSTRAINTS",
+    "GAP-QUALITY",
+    "GAP-TECH-DATA-SOURCE",
+    "GAP-TECH-NFR"
+  ],
+  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE"],
+  "known_false_positives": [],
+  "target_fire": ["GAP-DESIGN-STATES", "GAP-FRONTEND-SURFACE"],
+  "target_fire_rationale": "La palabra 'estado' (consulta de estado) suprime los checks de estados de UI y superficie frontend, pero los estados de carga/vacio/error y el binding frontend no estan descriptos."
+}
