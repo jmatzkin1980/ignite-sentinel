@@ -12,13 +12,23 @@
     "GAP-ACCEPTANCE",
     "GAP-DELIVERY-READINESS",
     "GAP-DESIGN-FLOW",
+    "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE",
     "GAP-GOVERNANCE-CONSTRAINTS",
     "GAP-QUALITY",
     "GAP-TECH-DATA-SOURCE",
     "GAP-TECH-NFR"
   ],
-  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE"],
+  "must_not_fire": [
+    "GAP-OBJECTIVE",
+    "GAP-USERS",
+    "GAP-SCOPE",
+    "GAP-PRODUCT-ASIS-TOBE"
+  ],
   "known_false_positives": [],
-  "target_fire": ["GAP-DESIGN-STATES", "GAP-FRONTEND-SURFACE"],
-  "target_fire_rationale": "La palabra 'estado' (consulta de estado) suprime los checks de estados de UI y superficie frontend, pero los estados de carga/vacio/error y el binding frontend no estan descriptos."
+  "target_fire": [
+    "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE"
+  ],
+  "target_fire_rationale": "La palabra 'estado' (consulta de estado) suprime los checks de estados de UI y superficie frontend, pero los estados de carga/vacio/error y el binding frontend no estan descriptos. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]"
 }

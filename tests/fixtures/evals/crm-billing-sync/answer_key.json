@@ -10,15 +10,24 @@
   ],
   "must_fire": [
     "GAP-ACCEPTANCE",
+    "GAP-BACKEND-SURFACE",
     "GAP-BUSINESS-RULES",
     "GAP-DELIVERY-READINESS",
     "GAP-GOVERNANCE-CONSTRAINTS",
     "GAP-QUALITY",
+    "GAP-TECH-DEEP-DIVE-INPUT",
     "GAP-TECH-NFR"
   ],
-  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE"],
-  "known_false_positives": ["GAP-OBJECTIVE"],
-  "known_false_positives_rationale": "The text states 'The objective is...' but the keyword list only contains 'objetivo'/'goal'/'outcome'/'resultado', so the gap fires anyway. Documented engine bug to fix in IMP-015.",
-  "target_fire": ["GAP-BACKEND-SURFACE", "GAP-TECH-DEEP-DIVE-INPUT"],
-  "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing."
+  "must_not_fire": [
+    "GAP-OBJECTIVE",
+    "GAP-USERS",
+    "GAP-SCOPE"
+  ],
+  "known_false_positives": [],
+  "known_false_positives_rationale": "Resolved by IMP-015: 'objective'/'purpose'/'aim' added to the GAP-OBJECTIVE token list.",
+  "target_fire": [
+    "GAP-BACKEND-SURFACE",
+    "GAP-TECH-DEEP-DIVE-INPUT"
+  ],
+  "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]"
 }

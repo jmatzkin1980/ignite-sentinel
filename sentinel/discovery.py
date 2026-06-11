@@ -136,22 +136,17 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
     tech_evidence = " ".join([text, context.get("technical", "")]).lower()
     design_evidence = " ".join([text, context.get("design", "")]).lower()
     quality_evidence = " ".join([text, context.get("quality", "")]).lower()
+    frontend_evidence = " ".join([text, context.get("design", ""), context.get("technical", "")]).lower()
     checks = [
-        ("GAP-OBJECTIVE", "business", "high", "Business objective or expected outcome is not explicit.", lowered, ("objetivo", "outcome", "resultado", "goal")),
+        ("GAP-OBJECTIVE", "business", "high", "Business objective or expected outcome is not explicit.", lowered, ("objetivo", "objective", "outcome", "resultado", "goal", "purpose", "proposito", "propósito", "aim")),
         ("GAP-USERS", "business", "high", "Target users or personas are not explicit.", lowered, ("usuario", "user", "persona", "actor")),
         ("GAP-SCOPE", "product", "critical", "Scope boundaries are not explicit.", lowered, ("alcance", "scope", "in scope", "out of scope")),
         ("GAP-ACCEPTANCE", "quality", "critical", "Acceptance criteria or success conditions are missing.", lowered, ("criterio", "acceptance", "success", "done")),
         ("GAP-QUALITY", "quality", "medium", "Quality or testability expectations are not explicit.", quality_evidence, ("test", "quality", "calidad", "qa")),
         ("GAP-TECH-DATA-SOURCE", "technical", "medium", "Data source, integration, or system ownership is not explicit in source or technology context.", tech_evidence, ("data", "dato", "source", "fuente", "api", "integration", "integracion", "database", "crm", "endpoint")),
         ("GAP-TECH-NFR", "technical", "medium", "Performance, security, observability, or operational constraints are not explicit.", tech_evidence, ("performance", "seguridad", "security", "observability", "observabilidad", "sla", "timeout", "audit", "compliance")),
-        ("GAP-DESIGN-FLOW", "design", "medium", "User journey, screen flow, or interaction model is not explicit in source or design context.", design_evidence, ("flow", "flujo", "screen", "pantalla", "mock", "prototype", "journey", "wireframe", "navigation")),
-        ("GAP-DESIGN-STATES", "design", "medium", "Required UI states for loading, empty, error, and recovery are not explicit.", design_evidence, ("loading", "empty", "error", "idle", "state", "estado", "resiliencia", "recover")),
-        ("GAP-DESIGN-PROTOTYPE-INPUT", "design", "medium", "The requirement does not make clear what Design must prototype or validate in user flows.", design_evidence, ("prototype", "prototipo", "wireframe", "figma", "flujo", "journey", "pantalla", "screen", "interaction", "interaccion")),
         ("GAP-PRODUCT-ASIS-TOBE", "product", "medium", "Current state and target state are not both explicit enough to compare impact.", lowered, ("as-is", "to-be", "situacion actual", "situación actual", "proceso actual", "proceso ideal", "estado actual", "estado futuro")),
         ("GAP-BUSINESS-RULES", "business", "medium", "Business rules, exclusions, or decision rules are not explicit enough for downstream slicing.", lowered, ("regla", "rule", "validacion", "validación", "condicion", "condición", "exclusion", "exclusión")),
-        ("GAP-FRONTEND-SURFACE", "technical", "medium", "Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear.", " ".join([text, context.get("design", ""), context.get("technical", "")]).lower(), ("frontend", "front", "pantalla", "screen", "estado", "state", "copy", "role", "rol", "validacion", "validación", "api")),
-        ("GAP-BACKEND-SURFACE", "technical", "medium", "Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.", tech_evidence, ("backend", "api", "endpoint", "service", "servicio", "integration", "integracion", "persist", "database", "evento", "event", "rule", "regla")),
-        ("GAP-TECH-DEEP-DIVE-INPUT", "technical", "medium", "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.", tech_evidence, ("repo", "repository", "arquitectura", "architecture", "endpoint", "api", "event", "evento", "source of truth", "fuente", "owner", "responsable", "riesgo", "risk")),
         ("GAP-GOVERNANCE-CONSTRAINTS", "compliance", "medium", "Governance, security, privacy, compliance, or operational restrictions are not explicit.", lowered, ("seguridad", "security", "privacidad", "privacy", "compliance", "normativa", "restriccion", "restricción", "gobernanza")),
         ("GAP-DELIVERY-READINESS", "delivery", "medium", "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.", lowered, ("dependencia", "dependency", "ambiente", "environment", "deadline", "fecha", "timeline", "owner", "responsable", "rollout")),
         ("GAP-BACKLOG-SLICING-READINESS", "product", "medium", "Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear.", lowered, ("slice", "slicing", "vertical", "historia", "story", "epica", "epic", "workflow", "path", "variante", "variant", "mvp")),
@@ -168,13 +163,47 @@ def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[s
         for gap_id, lens, severity, description, evidence, tokens in checks
         if not any(token in evidence for token in tokens)
     ]
-    if METRIC_RE.search(text) and not any(token in lowered for token in ("source", "fuente", "baseline", "medido", "measured")):
+    # Inquisitive tier (IMP-015): a surface mentioned in the evidence does not
+    # answer the question about that surface. These gaps only close when the
+    # counterpart information is described; a bare mention anchors the question
+    # to the input instead of suppressing it.
+    inquisitive_rules = [
+        ("GAP-DESIGN-FLOW", "design", "medium", "User journey, screen flow, or interaction model is not explicit in source or design context.", design_evidence,
+         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
+         ("journey", "flow", "flujo", "navigation", "navegacion", "navegación", "wireframe", "mock", "prototype", "prototipo", "recorrido")),
+        ("GAP-DESIGN-STATES", "design", "medium", "Required UI states for loading, empty, error, and recovery are not explicit.", design_evidence,
+         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
+         ("loading", "empty", "error state", "estado de error", "vacío", "vacio", "spinner", "skeleton", "ui states", "estados de ui", "recovery")),
+        ("GAP-DESIGN-PROTOTYPE-INPUT", "design", "medium", "The requirement does not make clear what Design must prototype or validate in user flows.", design_evidence,
+         ("screen", "pantalla", "dashboard", "portal", " ui ", "page", "web", "app"),
+         ("prototype", "prototipo", "wireframe", "figma", "mock", "maqueta")),
+        ("GAP-FRONTEND-SURFACE", "technical", "medium", "Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear.", frontend_evidence,
+         ("frontend", "pantalla", "screen", "dashboard", "portal", " ui ", "web", "app"),
+         ("validation", "validacion", "validación", "copy", "role", " rol ", "permiso", "binding", "component", "componente")),
+        ("GAP-BACKEND-SURFACE", "technical", "medium", "Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.", tech_evidence,
+         ("backend", "api", "endpoint", "service", "servicio", "integration", "integracion", "integración", "sync", "sincroniza"),
+         ("contract", "contrato", "persist", "database", "base de datos", "failure", "falla", "retry", "reintento", "timeout", "idempot", "error handling", "manejo de errores")),
+        ("GAP-TECH-DEEP-DIVE-INPUT", "technical", "medium", "Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.", tech_evidence,
+         ("api", "endpoint", "integration", "integracion", "integración", "system", "sistema", "platform", "plataforma", "service", "servicio"),
+         ("repo", "repository", "arquitectura", "architecture", "source of truth", "diagrama", "diagram", " sad ")),
+    ]
+    for gap_id, lens, severity, description, evidence, triggers, counterparts in inquisitive_rules:
+        if any(token in evidence for token in counterparts):
+            continue
+        gap = {"id": gap_id, "lens": lens, "severity": severity, "description": description}
+        mention = next((token.strip() for token in triggers if token in evidence), None)
+        if mention:
+            gap["evidence_mention"] = mention
+        gaps.append(gap)
+    metric_match = METRIC_RE.search(text)
+    if metric_match and not any(token in lowered for token in ("source", "fuente", "baseline", "medido", "measured")):
         gaps.append(
             {
                 "id": "GAP-METRIC-SOURCE",
                 "lens": "business",
                 "severity": "high",
                 "description": "Quantitative metric appears without an explicit source or baseline.",
+                "evidence_mention": metric_match.group(0),
             }
         )
     return gaps
@@ -214,18 +243,19 @@ def parse_gap_rows(text: str) -> list[dict[str, str]]:
         if not cells or not cells[0].startswith("GAP-"):
             continue
         if len(cells) >= 8:
-            gaps.append(
-                {
-                    "id": cells[0],
-                    "lens": cells[1],
-                    "severity": cells[2],
-                    "status": cells[3],
-                    "parent": cells[4],
-                    "description": cells[5],
-                    "question": cells[6],
-                    "source": cells[7],
-                }
-            )
+            gap = {
+                "id": cells[0],
+                "lens": cells[1],
+                "severity": cells[2],
+                "status": cells[3],
+                "parent": cells[4],
+                "description": cells[5],
+                "question": cells[6],
+                "source": cells[7],
+            }
+            if len(cells) >= 9 and cells[8] not in {"", "N/A"}:
+                gap["evidence_mention"] = cells[8]
+            gaps.append(gap)
     return gaps
 
 
@@ -355,8 +385,8 @@ def source_consulted_text(language: str) -> str:
 
 def none_gap_row(language: str) -> str:
     if language == "es":
-        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. |"
-    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. |"
+        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A |"
+    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A |"
 
 
 def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
@@ -394,7 +424,7 @@ def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, langua
         response_sections = no_gaps_text(language)
 
     rows = "\n".join(
-        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {question_for_gap(gap['id'], language)} | {source_consulted_text(language)} |"
+        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {question_for_gap(gap['id'], language)} | {source_consulted_text(language)} | {gap.get('evidence_mention') or 'N/A'} |"
         for gap in gaps
     )
     if not rows:
@@ -431,8 +461,8 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Trazabilidad de resolución
@@ -472,8 +502,8 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Resolution Trace
@@ -484,9 +514,39 @@ This table is kept for Sentinel traceability and automated processing.
 """
 
 
+def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
+    mention = str(gap.get("evidence_mention", "")).strip()
+    if not mention:
+        return ""
+    if language == "es":
+        notes = {
+            "GAP-DESIGN-FLOW": f'El input menciona "{mention}" pero no describe el journey, la navegación ni el flujo de interacción alrededor.',
+            "GAP-DESIGN-STATES": f'El input menciona "{mention}" pero no describe los estados de carga, vacío, error y recuperación.',
+            "GAP-DESIGN-PROTOTYPE-INPUT": f'El input menciona "{mention}" pero no indica qué debe prototipar o validar Diseño.',
+            "GAP-FRONTEND-SURFACE": f'El input menciona "{mention}" pero no detalla validaciones, roles, copy ni binding de datos de esa superficie.',
+            "GAP-BACKEND-SURFACE": f'El input menciona "{mention}" pero no describe contratos, persistencia ni comportamiento ante fallas.',
+            "GAP-TECH-DEEP-DIVE-INPUT": f'El input menciona "{mention}" pero no aporta arquitectura, repositorios ni source of truth para profundizar.',
+            "GAP-METRIC-SOURCE": f'La métrica "{mention}" aparece sin fuente, baseline ni método de medición.',
+        }
+        return notes.get(gap["id"], f'El input menciona "{mention}" pero no describe la información faltante de este gap.')
+    notes = {
+        "GAP-DESIGN-FLOW": f'The input mentions "{mention}" but does not describe the journey, navigation, or interaction flow around it.',
+        "GAP-DESIGN-STATES": f'The input mentions "{mention}" but does not describe loading, empty, error, and recovery states.',
+        "GAP-DESIGN-PROTOTYPE-INPUT": f'The input mentions "{mention}" but does not state what Design must prototype or validate.',
+        "GAP-FRONTEND-SURFACE": f'The input mentions "{mention}" but does not detail validations, roles, copy, or data binding for that surface.',
+        "GAP-BACKEND-SURFACE": f'The input mentions "{mention}" but does not describe contracts, persistence, or failure behavior.',
+        "GAP-TECH-DEEP-DIVE-INPUT": f'The input mentions "{mention}" but provides no architecture, repository, or source-of-truth input to deepen it.',
+        "GAP-METRIC-SOURCE": f'The metric "{mention}" appears without a source, baseline, or measurement method.',
+    }
+    return notes.get(gap["id"], f'The input mentions "{mention}" but does not describe the missing information for this gap.')
+
+
 def render_gap_response_section(gap: dict[str, str], req_id: str, language: str = "en") -> str:
     gap_id = gap["id"]
     lens = gap.get("lens", lens_for_gap(gap_id))
+    evidence_note = evidence_note_for_gap(gap, language)
+    evidence_label = "Evidencia que dispara la pregunta:" if language == "es" else "Evidence that triggers the question:"
+    evidence_block = f"\n{evidence_label}\n{evidence_note}\n" if evidence_note else ""
     if language == "es":
         return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
 
@@ -497,7 +557,7 @@ def render_gap_response_section(gap: dict[str, str], req_id: str, language: str 
 
 Descripción breve:
 {description_for_gap(gap, language)}
-
+{evidence_block}
 Por qué lo preguntamos:
 {why_gap_matters(gap_id, language)}
 
@@ -523,7 +583,7 @@ Respuesta del cliente / dominio:
 
 Brief description:
 {gap['description']}
-
+{evidence_block}
 Why we are asking:
 {why_gap_matters(gap_id)}
 

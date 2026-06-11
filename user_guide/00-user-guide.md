@@ -63,6 +63,8 @@ A gap is missing, ambiguous, risky, or unverifiable information. A gap is not a 
 
 If the team does not know which user uses a screen, which endpoint exists, which metric has a baseline, which UX states are required, or which quality evidence proves completion, Sentinel marks that uncertainty as a gap.
 
+Discovery is inquisitive about what the input mentions but does not explain: naming a screen, portal, API, or integration does not answer the questions about its journey, UI states, contracts, or failure behavior. Those gaps stay open and cite the exact mention that triggered the question, so the client sees why it is being asked.
+
 Common gap statuses:
 
 - `OPEN`: still missing or unresolved.
