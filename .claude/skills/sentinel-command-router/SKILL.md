@@ -1,0 +1,88 @@
+---
+name: sentinel-command-router
+description: Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal.
+---
+
+# Sentinel Command Router
+
+Translate short chat commands into Sentinel CLI executions.
+
+## Accepted Forms
+
+- `/doctor`
+- `/init PROJECT_ID`
+- `/ingest PROJECT_ID --source PATH`
+- `/maturity PROJECT_ID`
+- `/gaps PROJECT_ID`
+- `/resolve-gaps PROJECT_ID --source PATH`
+- `/brief PROJECT_ID`
+- `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
+- `/status PROJECT_ID`
+- `/export PROJECT_ID --artifact gaps|brief|context-request --format md`
+- `/sync PROJECT_ID`
+- `/sync PROJECT_ID --source PATH --note "NOTE"`
+- `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
+- `/reindex PROJECT_ID`
+- `/specs PROJECT_ID`
+- `/backlog PROJECT_ID`
+- `/quality PROJECT_ID`
+- `/trace PROJECT_ID`
+- `/health PROJECT_ID`
+- `/validate PROJECT_ID`
+- `sentinel /COMMAND PROJECT_ID [OPTIONS]`
+- `ignite /COMMAND PROJECT_ID [OPTIONS]`
+
+## Execution
+
+1. Parse the command name, project ID, and options from the user message.
+2. Run from the repository root:
+
+```powershell
+python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
+```
+
+For `/doctor`, omit `PROJECT_ID`.
+
+3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
+```
+
+4. Return a concise summary of the CLI result and point to generated artifacts.
+
+The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md`.
+
+## Routing
+
+- `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
+- `/resolve-gaps`: use `sentinel-gap-response`.
+- `/maturity`: use `sentinel-maturity`.
+- `/brief`: use `sentinel-project-brief`.
+- `/context-request`: use `sentinel-domain-request`.
+- `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
+- `/specs`: use `sentinel-specs`.
+- `/backlog`: use `sentinel-backlog`.
+- `/quality`: use `sentinel-quality`.
+- `/health`, `/trace`, `/validate`, `/doctor`: use `sentinel-health`.
+- `/status`, `/export`: summarize the CLI result and generated artifact path.
+
+## Safety
+
+- Do not edit generated workspace artifacts by hand unless the user explicitly asks for a manual correction.
+- Do not close gaps manually when a structured client response can be processed with `/resolve-gaps`.
+- After manual edits to workspace `.md` or `.txt` artifacts, run `/reindex PROJECT_ID` so LanceDB memory matches the versionable files.
+- Before executing a task that depends on project context, prefer `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW --write-pack` over loading the whole workspace.
+- Do not commit project workspace data unless explicitly approved.
+- If a Codex UI intercepts `/init` or another slash command before it reaches the agent, tell the user to send `sentinel /init PROJECT_ID`.
+
+## Memory
+
+- Ignite Sentinel stores local retrieval memory in `workspaces/PROJECT_ID/memory.lancedb/`.
+- LanceDB is the primary backend; source files remain the source of truth.
+- `/ingest`, `/sync`, and `/reindex` keep memory available for Codex and Kilo Code workflows.
+- Privacy mode is local-only: do not route client code or project data through remote MCP or external embedding services.
+
+## Intent Mapping
+
+When the user describes a situation instead of a command, use the Intent-To-Command Map in `user_guide/11-chat-commands.md`: new input → init/ingest/status; answered gaps → resolve-gaps/maturity/status; domain updates → sync/reindex/health; downstream handoff → specs/backlog/quality/trace/health/validate when gates allow. Always close with artifacts generated, gap/health state, and next step.

@@ -88,6 +88,62 @@ def out_of_sync(root: Path | None = None) -> list[str]:
     return issues
 
 
+CANONICAL_SKILLS_DIR = ".codex/skills"
+SKILL_TARGET_DIRS = (".agents/skills", ".claude/skills")
+
+
+def skill_files(root: Path) -> list[Path]:
+    base = root / CANONICAL_SKILLS_DIR
+    return [item for item in sorted(base.rglob("*")) if item.is_file()]
+
+
+def regenerate_skills(root: Path | None = None) -> dict[str, int]:
+    """Materialize the canonical skills into the Agent Skills standard directories (IMP-018).
+
+    `.codex/skills/` is the canonical source. `.agents/skills/` (Codex, Cursor,
+    Gemini CLI and other standard readers) and `.claude/skills/` (Claude Code)
+    are generated copies; edit the canonical source and regenerate.
+    """
+    root = root or Path.cwd()
+    base = root / CANONICAL_SKILLS_DIR
+    written = {target: 0 for target in SKILL_TARGET_DIRS}
+    for item in skill_files(root):
+        relative = item.relative_to(base)
+        content = item.read_bytes()
+        for target in SKILL_TARGET_DIRS:
+            destination = root / target / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if not destination.exists() or destination.read_bytes() != content:
+                destination.write_bytes(content)
+                written[target] += 1
+    return written
+
+
+def skills_out_of_sync(root: Path | None = None) -> list[str]:
+    root = root or Path.cwd()
+    base = root / CANONICAL_SKILLS_DIR
+    issues: list[str] = []
+    for item in skill_files(root):
+        relative = item.relative_to(base)
+        for target in SKILL_TARGET_DIRS:
+            destination = root / target / relative
+            if not destination.exists():
+                issues.append(f"{target}: missing {relative.as_posix()}")
+            elif destination.read_bytes() != item.read_bytes():
+                issues.append(f"{target}: {relative.as_posix()} differs from canonical source")
+    return issues
+
+
 if __name__ == "__main__":
     result = regenerate()
-    print(json.dumps({"regenerated": result, "out_of_sync": out_of_sync()}, indent=2))
+    skills_result = regenerate_skills()
+    print(
+        json.dumps(
+            {
+                "regenerated_commands": result,
+                "regenerated_skills": skills_result,
+                "out_of_sync": out_of_sync() + skills_out_of_sync(),
+            },
+            indent=2,
+        )
+    )

@@ -151,4 +151,6 @@ Chat command definitions live in `sentinel/templates/commands_manifest.json`. Th
 python -m sentinel.adapters
 ```
 
-Never edit the generated files directly: change the manifest and regenerate. The unit suite fails if any adapter file drifts from the manifest, and `/doctor` verifies the manifest exists. When adding a lifecycle command, update the manifest, regenerate, and review the Codex command-router skill, which routes by pattern and does not need per-command files.
+Skills follow the same model: `.codex/skills/` is the canonical source and `python -m sentinel.adapters` mirrors every skill into the Agent Skills standard directories (`.agents/skills/` for Codex, Cursor, Gemini CLI and other standard readers; `.claude/skills/` for Claude Code), so one SKILL.md serves every tool that reads the open standard.
+
+Never edit the generated files directly: change the manifest (or the canonical skill) and regenerate. The unit suite fails if any adapter file drifts from the manifest, and `/doctor` verifies the manifest exists. When adding a lifecycle command, update the manifest, regenerate, and review the Codex command-router skill, which routes by pattern and does not need per-command files.
