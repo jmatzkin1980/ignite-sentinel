@@ -1,0 +1,41 @@
+{
+  "fixture": "expense-approval",
+  "language": "en",
+  "deliberate_omissions": [
+    "Reassuring buzzwords with no substance: 'security and performance are important', 'compliance obligations', 'quality matters', 'successful once approvers are happy', 'business rules around thresholds'",
+    "No real NFR targets, acceptance criteria, governance constraints, quality expectations, or business-rule definitions behind the keywords"
+  ],
+  "must_fire": [
+    "GAP-BACKEND-SURFACE",
+    "GAP-BACKLOG-ENABLERS",
+    "GAP-DELIVERY-READINESS",
+    "GAP-DESIGN-PROTOTYPE-INPUT",
+    "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE",
+    "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "GAP-PRD-FR-AC",
+    "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "GAP-PRD-NFR-KPI",
+    "GAP-PRD-PERSONA-DETAIL",
+    "GAP-PRODUCT-ASIS-TOBE",
+    "GAP-TECH-DATA-SOURCE"
+  ],
+  "must_not_fire": [
+    "GAP-OBJECTIVE",
+    "GAP-USERS",
+    "GAP-SCOPE"
+  ],
+  "known_false_positives": [],
+  "target_fire": [
+    "GAP-ACCEPTANCE",
+    "GAP-BUSINESS-RULES",
+    "GAP-GOVERNANCE-CONSTRAINTS",
+    "GAP-QUALITY",
+    "GAP-TECH-NFR"
+  ],
+  "target_fire_rationale": "Each of these gaps is genuinely unaddressed (the requirement names the topic with a reassuring keyword but defines nothing). The lexical checklist suppresses the gap because a single token is present: 'success' suppresses GAP-ACCEPTANCE, 'rule' suppresses GAP-BUSINESS-RULES, 'compliance'/'security' suppress GAP-GOVERNANCE-CONSTRAINTS, 'quality' suppresses GAP-QUALITY, 'security'/'performance' suppress GAP-TECH-NFR. target_recall is 0.00 at baseline: this is the keyword ceiling that an agentic semantic pass (IMP-021 /annotate) must break by reading meaning, not token presence.",
+  "brief": {
+    "target_populated": ["1", "2", "3"],
+    "rationale": "Sections 1 (identity/value: objective + halving approval time), 2 (business actors: finance approvers and employees) and 3 (product/scope: explicit in/out of scope) have confirmed evidence in the requirement, yet the template renderer leaves them as TBD. The IMP-024 brief compiler must populate these from evidence with citations. Sections 4-6 (design/tech/governance) have no real evidence (only suppressed buzzwords) and must stay [PENDING INPUT]. Baseline brief_target_coverage is 0.00."
+  }
+}
