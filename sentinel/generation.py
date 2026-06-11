@@ -178,6 +178,70 @@ ENABLER_CANDIDATES = [
 ]
 
 
+def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str, new_text: str) -> str | None:
+    """Record a human-readable summary of what changed when an artifact is regenerated (IMP-011).
+
+    Returns the trace node id of the diff record, or None on first generation / no change.
+    """
+    if not old_text or old_text == new_text:
+        return None
+    import difflib
+
+    def headings(text: str) -> list[str]:
+        return [line.strip() for line in text.splitlines() if line.startswith("#")]
+
+    old_sections, new_sections = headings(old_text), headings(new_text)
+    added_sections = [s for s in new_sections if s not in old_sections]
+    removed_sections = [s for s in old_sections if s not in new_sections]
+    diff = list(difflib.unified_diff(old_text.splitlines(), new_text.splitlines(), lineterm=""))
+    added_lines = sum(1 for line in diff if line.startswith("+") and not line.startswith("+++"))
+    removed_lines = sum(1 for line in diff if line.startswith("-") and not line.startswith("---"))
+
+    base = workspace_path(project_id)
+    out_dir = base / "07_changes" / "04_regeneration"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    state = read_json(state_path(project_id), {})
+    change_id = state.get("last_change_id") or "N/A"
+    existing = sorted(out_dir.glob("*.md"))
+    out_path = out_dir / f"regen-{len(existing) + 1:03d}-{artifact_label.replace('.', '-')}.md"
+
+    def section_rows(items: list[str]) -> str:
+        return "\n".join(f"- {item}" for item in items) or "- None."
+
+    out_path.write_text(
+        f"""# Regeneration Diff - {artifact_label}
+
+- Project: `{project_id}`
+- Triggering change: `{change_id}`
+- Lines added: {added_lines}
+- Lines removed: {removed_lines}
+
+## Sections Added
+
+{section_rows(added_sections)}
+
+## Sections Removed
+
+{section_rows(removed_sections)}
+
+Review this artifact against the triggering change before downstream handoff. The regenerated file is the source of truth; this diff is visibility, not authority.
+""",
+        encoding="utf-8",
+    )
+    diff_id = add_node(project_id, "DEC", "regeneration_diff", out_path, f"Regeneration diff for {artifact_label}", domain="product")
+    if change_id != "N/A":
+        add_edge(project_id, change_id, diff_id, "triggers_regeneration")
+    ContextBroker(project_id).index_artifact(
+        diff_id,
+        "regeneration_diff",
+        out_path,
+        out_path.read_text(encoding="utf-8"),
+        domain="product",
+        trace_ids=[diff_id] if change_id == "N/A" else [change_id, diff_id],
+    )
+    return diff_id
+
+
 def generate_specs(project_id: str) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
@@ -201,8 +265,12 @@ def generate_specs(project_id: str) -> dict[str, str]:
     language = str(state.get("project_language", "es")).lower()
     prd_path = base / "03_specs" / "prd.md"
     specs_path = base / "03_specs" / "specs.md"
+    previous_prd = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
+    previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
     prd_path.write_text(render_prd(project_id, req_text, context, source_path.name, language, evidence_text), encoding="utf-8")
     specs_path.write_text(render_specs(project_id, req_text, context, source_path.name), encoding="utf-8")
+    record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))
+    record_regeneration_diff(project_id, "specs.md", previous_specs, specs_path.read_text(encoding="utf-8"))
     prd_id = add_node(project_id, "PRD", "prd", prd_path, "Human-readable PRD", domain="product")
     spec_id = add_node(project_id, "SPEC", "spec", specs_path, "AI-friendly specification", domain="product")
     parent_trace_ids: list[str] = []
@@ -249,7 +317,9 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     }
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
+    previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
     epic_path.write_text(render_epic(project_id, story_specs, backlog_context), encoding="utf-8")
+    record_regeneration_diff(project_id, "EPIC-001.md", previous_epic, epic_path.read_text(encoding="utf-8"))
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
         add_edge(project_id, spec["id"], epic_id, "decomposes_to")
@@ -500,6 +570,8 @@ def domain_context_snapshot(project_id: str) -> dict[str, Any]:
             if not path.exists():
                 continue
             for item in sorted(path.rglob("*")):
+                if "04_regeneration" in item.parts:
+                    continue
                 if item.is_file() and item.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml"}:
                     text = item.read_text(encoding="utf-8")
                     digest = sha256(text.encode("utf-8")).hexdigest()

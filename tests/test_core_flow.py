@@ -559,6 +559,35 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("confirmed-but-vague", report_text)
         self.assertNotEqual(main(["specs", "NUAN"]), 0)
 
+    def test_regeneration_records_visible_diff(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        change = ROOT / "fixtures" / "change_request.md"
+        self.assertEqual(main(["init", "REGEN"]), 0)
+        self.assertEqual(main(["ingest", "REGEN", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "REGEN"]), 0)
+        self.assertEqual(main(["specs", "REGEN"]), 0)
+        regen_dir = self.temp / "workspaces" / "REGEN" / "07_changes" / "04_regeneration"
+        self.assertFalse(regen_dir.exists())  # first generation: no diff
+
+        self.assertEqual(main(["sync", "REGEN", "--source", str(change), "--note", "client follow-up"]), 0)
+        raw_dir = self.temp / "workspaces" / "REGEN" / "00_raw" / "00_client_requirement"
+        (raw_dir / "follow-up-note.md").write_text(
+            "The client confirms the dashboard must also flag SLA breach risk by queue before standup.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["maturity", "REGEN"]), 0)
+        self.assertEqual(main(["specs", "REGEN"]), 0)
+        diffs = sorted(regen_dir.glob("*.md"))
+        self.assertTrue(diffs)
+        diff_text = diffs[0].read_text(encoding="utf-8")
+        self.assertIn("Regeneration Diff", diff_text)
+        self.assertIn("Triggering change: `CHG-001`", diff_text)
+        self.assertIn("Lines added:", diff_text)
+        graph = (self.temp / "workspaces" / "REGEN" / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+        self.assertIn('"type": "regeneration_diff"', graph)
+        self.assertIn('"relation": "triggers_regeneration"', graph)
+        self.assertEqual(main(["validate", "REGEN"]), 0)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
