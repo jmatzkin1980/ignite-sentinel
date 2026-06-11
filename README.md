@@ -21,13 +21,26 @@ python -m pip install -e .
 python -m sentinel /doctor
 ```
 
+On Windows laptops where `python` is not exposed in `PATH`, use the repo-local launcher. It tries `SENTINEL_PYTHON`, `.venv`, `python`, `py`, and the Codex Desktop bundled runtime when visible:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /init PROJECT_ID
+```
+
+On Unix-like shells:
+
+```sh
+sh installers/sentinel.sh /doctor
+```
+
 Then open the repo root in VS Code:
 
 ```powershell
 code .
 ```
 
-For Kilo Code, make sure the extension can see `.kilo/agents/`, `.kilo/commands/`, and `kilo.jsonc`. For Codex, make sure `.codex/skills/` and `AGENTS.md` are visible from the opened folder.
+For Kilo Code, make sure the extension can see `.kilo/agents/`, `.kilo/commands/`, and `kilo.jsonc`. For Codex in VS Code or Codex Desktop, make sure `.codex/skills/`, `.codex/hooks/`, and `AGENTS.md` are visible from the opened folder. For Claude Code in VS Code or Claude Desktop, make sure `.claude/commands/` and `CLAUDE.md` are visible from the opened folder.
 
 Kilo Code chat:
 
@@ -46,6 +59,14 @@ Codex chat:
 ```text
 sentinel /init PROJECT_ID
 sentinel /maturity PROJECT_ID
+```
+
+Claude Code chat (VS Code or CLI):
+
+```text
+/doctor
+/init PROJECT_ID
+/ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 ```
 
 PowerShell fallback:
@@ -67,7 +88,7 @@ python -m sentinel /health PROJECT_ID
 python -m sentinel /validate PROJECT_ID
 ```
 
-`/doctor` verifies Python, required dependencies such as LanceDB, repo-local Kilo/Codex adapter files, write access, and a local LanceDB open/create probe. If LanceDB is missing, install repo dependencies in the active Python environment:
+`/doctor` verifies Python, required dependencies such as LanceDB, repo-local Kilo/Codex/Claude adapter files, write access, and a local LanceDB open/create probe. If LanceDB is missing, install repo dependencies in the active Python environment:
 
 ```powershell
 python -m pip install -e .
@@ -164,6 +185,7 @@ The repository also includes:
 - Use `sentinel.config.yaml` to tune project domains and maturity gates.
 - Use Codex skills in `.codex/skills/` for progressive disclosure.
 - Use Kilo Code agents in `.kilo/agents/` and slash workflows in `.kilo/commands/` when Codex is unavailable.
+- Use Claude slash commands in `.claude/commands/` and `CLAUDE.md` routing when working from Claude Code or Claude Desktop.
 
 ## Verification
 
@@ -180,9 +202,4 @@ python -m unittest discover -s tests
 - [Codex Skills Guide](user_guide/04-codex-skills-guide.md)
 - [Traceability And Memory](user_guide/05-traceability-and-memory.md)
 - [VS Code Portable Install](user_guide/06-installation-vscode.md)
-- [Kilo Code Adapter](user_guide/07-kilo-code-adapter.md)
-- [Codex Adapter](user_guide/08-codex-adapter.md)
-- [Secure Environments](user_guide/09-secure-environments.md)
-- [Repo And Branching Strategy](user_guide/10-repo-and-branching-strategy.md)
-- [Chat Commands](user_guide/11-chat-commands.md)
-- [Operational Scenarios](user_guide/12-scenarios.md)
+- [Kilo Code Adapter](user_guide/07-ki

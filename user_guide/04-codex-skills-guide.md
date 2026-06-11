@@ -8,6 +8,8 @@ Ignite Sentinel includes repo-local Codex skills under:
 
 Skills provide progressive disclosure. Codex sees the skill metadata first and loads the body only when the workflow applies.
 
+Skills delegate deterministic work to the same local CLI used by Kilo Code and terminal workflows. The normal command is `python -m sentinel ...`; if `python` is unavailable in Codex Desktop or VS Code, use the repo-local launcher `.\installers\sentinel.ps1 ...` from the repository root.
+
 ## Available Skills
 
 | Skill | Use When |

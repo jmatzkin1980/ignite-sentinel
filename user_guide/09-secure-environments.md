@@ -23,6 +23,12 @@ Ignite Sentinel assumes:
 python -m sentinel /doctor
 ```
 
+If `python` is not exposed globally, run the repo-local launcher instead:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+```
+
 4. Use Codex skills, Kilo agents, or the CLI.
 
 ## If Git Is Blocked
@@ -31,7 +37,7 @@ Download the repository ZIP from GitHub on an approved network, then move it int
 
 ## If Python Is Missing
 
-Ask for a portable or approved Python 3.10+ runtime. Ignite does not require admin installation, but it does require a Python interpreter.
+Ask for a portable or approved Python 3.10+ runtime. Ignite does not require admin installation, but it does require a Python interpreter. If the runtime is not named `python`, set `SENTINEL_PYTHON` to the approved executable path or use the Codex Desktop bundled runtime when visible.
 
 ## If Pip Is Blocked
 
@@ -42,7 +48,14 @@ python -m sentinel /doctor
 python -m sentinel /init PROJECT_ID
 ```
 
-The MVP core uses only the Python standard library.
+Equivalent Windows launcher form:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /init PROJECT_ID
+```
+
+The deterministic runtime is local-first, but LanceDB is a required package for the current memory check. If dependency installation is blocked, keep working from an approved Python environment that already includes the dependencies, or ask for a portable environment prepared by the team.
 
 ## If Command Execution Is Restricted In Extensions
 

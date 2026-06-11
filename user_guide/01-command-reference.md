@@ -2,11 +2,12 @@
 
 This document explains each command in the `sentinel` CLI.
 
-Commands can be invoked in three ways:
+Commands can be invoked in four ways:
 
 1. Kilo Code chat workflow: `/command PROJECT_ID [options]`
 2. Codex chat router: `sentinel /command PROJECT_ID [options]`
 3. Terminal fallback: `python -m sentinel /command PROJECT_ID [options]`
+4. Portable launcher fallback: `.\installers\sentinel.ps1 /command PROJECT_ID [options]` on Windows or `sh installers/sentinel.sh /command PROJECT_ID [options]` on Unix-like shells
 
 In Kilo Code, repo-local workflow files live in `.kilo/commands/`. In Codex, `AGENTS.md` and the `sentinel-command-router` skill define how chat commands map to the CLI.
 
@@ -27,9 +28,15 @@ Run help:
 python -m sentinel --help
 ```
 
+If `python` is unavailable or points to the Windows Microsoft Store alias, use the repo-local launcher:
+
+```powershell
+.\installers\sentinel.ps1 --help
+```
+
 ## `doctor`
 
-Check whether the repo is ready for portable VS Code usage.
+Check whether the repo is ready for portable VS Code, Kilo Code, Codex, Codex Desktop, and CLI usage.
 
 ```powershell
 python -m sentinel /doctor
@@ -39,10 +46,15 @@ Checks:
 
 - Python version
 - core runtime
-- Codex skills adapter
+- `AGENTS.md`
+- repository quick start
+- Codex skills and hooks adapter
+- required Codex skills
 - Kilo Code agents adapter
-- Kilo config
-- user guide
+- Kilo Code slash commands
+- Kilo Code repo config
+- user guide and adapter guides
+- portable installers and launchers
 - repo write access
 - required LanceDB dependency
 - optional embedding dependencies

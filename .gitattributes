@@ -1,0 +1,25 @@
+# Normalize line endings: LF in the repository, platform-appropriate on checkout.
+# This removes phantom CRLF/LF diffs between Windows and Unix environments.
+* text=auto
+
+# Explicit text types (LF in repo)
+*.py text
+*.md text
+*.json text
+*.jsonc text
+*.yaml text
+*.yml text
+*.toml text
+*.txt text
+*.sh text eol=lf
+*.ps1 text eol=crlf
+
+# Binary types: never normalize
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.7z binary
+*.lance binary

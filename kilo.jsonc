@@ -7,6 +7,7 @@
         "AGENTS.md",
         "README.md",
         "user_guide/**",
+        "installers/**",
         "sentinel/**",
         ".kilo/**",
         ".codex/**",
@@ -17,6 +18,7 @@
       "write": [
         "workspaces/**",
         "user_guide/**",
+        "installers/**",
         "sentinel/**",
         ".kilo/agents/**",
         ".kilo/commands/**",
@@ -58,6 +60,10 @@
         "python -m sentinel /trace *",
         "python -m sentinel /validate *",
         "python -m sentinel /reindex *",
+        "powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 *",
+        "pwsh -ExecutionPolicy Bypass -File installers/sentinel.ps1 *",
+        ".\\installers\\sentinel.ps1 *",
+        "sh installers/sentinel.sh *",
         "python -m unittest discover -s tests"
       ],
       "default": "ask"

@@ -1,10 +1,9 @@
 param(
-  [switch]$CreateVenv
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$SentinelArgs
 )
 
 $ErrorActionPreference = "Stop"
-
-Write-Host "Ignite Sentinel portable setup"
 
 function Resolve-SentinelPython {
   if ($env:SENTINEL_PYTHON -and (Test-Path -LiteralPath $env:SENTINEL_PYTHON)) {
@@ -51,16 +50,11 @@ function Test-SentinelPython {
 
 $python = Resolve-SentinelPython
 if (-not $python) {
-  Write-Error "Python 3.10+ was not found. Install or expose Python in PATH, set SENTINEL_PYTHON, or run from Codex Desktop with its bundled runtime visible."
+  Write-Error "Python 3.10+ was not found. Install Python, create .venv, or set SENTINEL_PYTHON to an approved python.exe."
 }
 
-if ($CreateVenv) {
-  & $python -m venv .venv
-  $venvPython = Join-Path ".venv" "Scripts\python.exe"
-  & $venvPython -m pip install -e .
-  & $venvPython -m sentinel /doctor
-} else {
-  & $python -m sentinel /doctor
+if (-not $SentinelArgs -or $SentinelArgs.Count -eq 0) {
+  $SentinelArgs = @("--help")
 }
 
-Write-Host "Ignite Sentinel is ready for repo-local VS Code, Kilo Code, Codex, and Codex Desktop usage."
+& $python -m sentinel @SentinelArgs

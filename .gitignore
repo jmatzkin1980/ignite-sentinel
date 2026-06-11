@@ -25,3 +25,12 @@ workspaces/*
 !workspaces/.gitkeep
 !workspaces/_template/
 !workspaces/_template/**
+# Archives and local tooling residue must never be committed (IMP-003)
+*.7z
+*.zip
+.sentinel_doctor_write_test
+# Personal handoff documents live outside the repo (IMP-002)
+general-proyecto.md
+ignite_vnext_final_handoff.md
+# Eval run outputs are reproducible; keep reports out of main
+tests/evals/reports/

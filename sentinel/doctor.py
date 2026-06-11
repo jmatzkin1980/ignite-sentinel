@@ -32,17 +32,91 @@ REQUIRED_COMMANDS = [
     "export",
 ]
 
+REQUIRED_CODEX_SKILLS = [
+    "sentinel-backlog",
+    "sentinel-command-router",
+    "sentinel-discovery",
+    "sentinel-domain-request",
+    "sentinel-gap-response",
+    "sentinel-health",
+    "sentinel-maturity",
+    "sentinel-privacy-local-first",
+    "sentinel-project-brief",
+    "sentinel-quality",
+    "sentinel-specs",
+    "sentinel-sync",
+]
+
+REQUIRED_CLAUDE_COMMANDS = [
+    "backlog",
+    "brief",
+    "context-request",
+    "doctor",
+    "export",
+    "gaps",
+    "health",
+    "ingest",
+    "init",
+    "maturity",
+    "quality",
+    "reindex",
+    "resolve-gaps",
+    "retrieve",
+    "sentinel",
+    "specs",
+    "status",
+    "sync",
+    "trace",
+    "validate",
+]
+
+REQUIRED_KILO_COMMANDS = [
+    "backlog",
+    "brief",
+    "context-request",
+    "doctor",
+    "export",
+    "gaps",
+    "health",
+    "ingest",
+    "init",
+    "maturity",
+    "quality",
+    "reindex",
+    "resolve-gaps",
+    "retrieve",
+    "sentinel",
+    "specs",
+    "status",
+    "sync",
+    "trace",
+    "validate",
+]
+
 
 def run_doctor(root: Path | None = None) -> dict[str, Any]:
     root = (root or Path.cwd()).resolve()
     checks = [
         python_check(),
         path_check(root, "sentinel", "core runtime"),
+        path_check(root, "AGENTS.md", "Codex Desktop and agent instructions"),
+        path_check(root, "README.md", "repository quick start"),
         path_check(root, ".codex/skills", "Codex skills adapter"),
+        path_check(root, ".codex/hooks", "Codex hooks adapter"),
         path_check(root, ".kilo/agents", "Kilo Code agents adapter"),
         path_check(root, ".kilo/commands", "Kilo Code slash commands"),
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
+        path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
+        path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
+        path_check(root, "user_guide/06-installation-vscode.md", "VS Code portable installation guide"),
+        path_check(root, "user_guide/07-kilo-code-adapter.md", "Kilo Code adapter guide"),
+        path_check(root, "user_guide/08-codex-adapter.md", "Codex adapter guide"),
+        path_check(root, "user_guide/13-claude-adapter.md", "Claude adapter guide"),
+        path_check(root, "installers/install.ps1", "Windows portable installer"),
+        path_check(root, "installers/install.sh", "Unix portable installer"),
+        path_check(root, "installers/sentinel.ps1", "Windows portable Sentinel launcher"),
+        path_check(root, "installers/sentinel.sh", "Unix portable Sentinel launcher"),
         path_check(root, "input", "input folder scaffold"),
         path_check(root, "input/client_requirement", "input client requirement scaffold"),
         path_check(root, "input/technology_context", "input technology context scaffold"),
@@ -54,6 +128,9 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "workspaces/_template/00_raw/03_design_context", "workspace design context template"),
         path_check(root, "workspaces/_template/07_changes/03_domain_updates", "workspace domain updates template"),
         write_check(root),
+        *codex_skill_checks(root),
+        *kilo_command_checks(root),
+        *claude_command_checks(root),
         required_dependency_check("lancedb"),
         lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
@@ -111,6 +188,27 @@ def optional_dependency_check(module_name: str) -> dict[str, str]:
         "status": "PASS" if found else "WARN",
         "detail": detail,
     }
+
+
+def codex_skill_checks(root: Path) -> list[dict[str, str]]:
+    return [
+        path_check(root, f".codex/skills/{skill}/SKILL.md", f"Codex skill: {skill}")
+        for skill in REQUIRED_CODEX_SKILLS
+    ]
+
+
+def kilo_command_checks(root: Path) -> list[dict[str, str]]:
+    return [
+        path_check(root, f".kilo/commands/{command}.md", f"Kilo slash command: /{command}")
+        for command in REQUIRED_KILO_COMMANDS
+    ]
+
+
+def claude_command_checks(root: Path) -> list[dict[str, str]]:
+    return [
+        path_check(root, f".claude/commands/{command}.md", f"Claude slash command: /{command}")
+        for command in REQUIRED_CLAUDE_COMMANDS
+    ]
 
 
 def required_dependency_check(module_name: str) -> dict[str, str]:

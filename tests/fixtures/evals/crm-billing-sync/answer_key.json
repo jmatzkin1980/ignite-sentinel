@@ -1,0 +1,24 @@
+{
+  "fixture": "crm-billing-sync",
+  "language": "en",
+  "deliberate_omissions": [
+    "Error handling, retries, and failure behavior of the synchronization",
+    "Volumes, frequency, and latency expectations",
+    "Authentication and authorization between systems",
+    "Field mapping ownership and conflict rules",
+    "Acceptance criteria and test expectations"
+  ],
+  "must_fire": [
+    "GAP-ACCEPTANCE",
+    "GAP-BUSINESS-RULES",
+    "GAP-DELIVERY-READINESS",
+    "GAP-GOVERNANCE-CONSTRAINTS",
+    "GAP-QUALITY",
+    "GAP-TECH-NFR"
+  ],
+  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE"],
+  "known_false_positives": ["GAP-OBJECTIVE"],
+  "known_false_positives_rationale": "The text states 'The objective is...' but the keyword list only contains 'objetivo'/'goal'/'outcome'/'resultado', so the gap fires anyway. Documented engine bug to fix in IMP-015.",
+  "target_fire": ["GAP-BACKEND-SURFACE", "GAP-TECH-DEEP-DIVE-INPUT"],
+  "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing."
+}

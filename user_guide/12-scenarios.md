@@ -37,6 +37,13 @@ Create a project called ACME_DASHBOARD, ingest the file, and tell me the next st
 
 The terminal form still exists for troubleshooting and restricted environments, but it is not the primary flow for non-technical users.
 
+If terminal troubleshooting is needed and `python` is unavailable or invalid on Windows, use:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /status ACME_DASHBOARD
+```
+
 ## Block A: Discovery Start
 
 ### Scenario A1: A Client Sends The First Requirement Package
@@ -678,6 +685,12 @@ python -m unittest discover -s tests
 python -m sentinel /doctor
 ```
 
+If `python` is unavailable on Windows, run the doctor through:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+```
+
 **How to interpret it:** Do not push framework changes if tests or `/doctor` fail. If `sentence_transformers` is missing, `/doctor` may warn while JSON fallback remains usable.
 
 ### Scenario G4: A New User Clones Or Downloads The Repo
@@ -703,7 +716,7 @@ I just opened this repository in VS Code.
 Check whether Ignite Sentinel is ready to use on this machine and tell me what to fix if anything fails.
 ```
 
-**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment or ask a technical teammate to do it. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
+**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment or ask a technical teammate to do it. If `python` is unavailable or points to an invalid Windows alias, use `.\installers\sentinel.ps1 /doctor`. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
 
 ## Choosing Between `/resolve-gaps` And `/sync`
 
@@ -727,6 +740,12 @@ If chat commands are unavailable because of environment policy or extension limi
 
 ```powershell
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
+```
+
+On Windows, the portable launcher maps to the same CLI while resolving the Python runtime:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
 ```
 
 Example:

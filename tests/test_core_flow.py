@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from sentinel.cli import main
+from sentinel.doctor import run_doctor
 from sentinel.memory import ContextBroker
 
 
@@ -288,6 +289,21 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
     def test_doctor_passes_for_repo_root(self) -> None:
         self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
         self.assertEqual(main(["/doctor", "--root", str(ROOT.parent)]), 0)
+
+    def test_doctor_checks_portable_agent_adapters(self) -> None:
+        report = run_doctor(ROOT.parent)
+        self.assertEqual(report["verdict"], "PASS")
+        check_names = {check["name"] for check in report["checks"]}
+        self.assertIn("Codex Desktop and agent instructions", check_names)
+        self.assertIn("Codex hooks adapter", check_names)
+        self.assertIn("Codex skill: sentinel-command-router", check_names)
+        self.assertIn("Kilo slash command: /sentinel", check_names)
+        self.assertIn("Claude Code and Claude Desktop instructions", check_names)
+        self.assertIn("Claude Code slash commands", check_names)
+        self.assertIn("Claude slash command: /sentinel", check_names)
+        self.assertIn("Claude adapter guide", check_names)
+        self.assertIn("Windows portable Sentinel launcher", check_names)
+        self.assertIn("Unix portable Sentinel launcher", check_names)
 
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"

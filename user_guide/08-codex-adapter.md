@@ -18,6 +18,14 @@ On a fresh clone, first validate the local runtime from Codex chat:
 sentinel /doctor
 ```
 
+Codex Desktop or VS Code terminal fallback on Windows:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+```
+
+The launcher tries `SENTINEL_PYTHON`, `.venv`, `python`, `py`, and the Codex Desktop bundled runtime when visible. This keeps the same Sentinel CLI behavior even when the laptop does not expose `python` in `PATH`.
+
 If dependencies are missing:
 
 ```powershell
@@ -120,5 +128,5 @@ If domain context changed after backlog generation, run `/reindex` and `/backlog
 
 ## If Codex Is Unavailable
 
-Use Kilo Code agents or run the CLI manually from VS Code terminal.
+Use Kilo Code agents or run the CLI manually from VS Code terminal. On Windows machines without a valid `python`, run the same commands through `.\installers\sentinel.ps1`.
 

@@ -1,9 +1,10 @@
 ---
 description: Run any Ignite Sentinel CLI command from one generic Kilo workflow.
-agent: sentinel-discovery
 ---
 
 # Ignite Sentinel Generic Command
+
+Arguments received from the user invocation: `$ARGUMENTS`
 
 Use this as a fallback when a short slash command conflicts with the chat surface.
 

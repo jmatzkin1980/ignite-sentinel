@@ -268,6 +268,18 @@ Terminal fallback:
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
+Portable launcher fallback when a laptop does not expose a valid `python` command:
+
+```powershell
+.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
+```
+
+On Unix-like shells:
+
+```sh
+sh installers/sentinel.sh /COMMAND PROJECT_ID [OPTIONS]
+```
+
 ## Workspace Shape
 
 ```text
@@ -306,6 +318,7 @@ By default:
 - [Installation And VS Code](06-installation-vscode.md): how to use Sentinel after cloning or downloading the repo.
 - [Kilo Code Adapter](07-kilo-code-adapter.md): how Kilo Code reads repo-local agents and commands.
 - [Codex Adapter](08-codex-adapter.md): how Codex reads skills and `AGENTS.md`.
+- [Claude Adapter](13-claude-adapter.md): how Claude Code and Claude Desktop read `.claude/commands/` and `CLAUDE.md`.
 - [Secure Environments](09-secure-environments.md): privacy-first operation.
 - [Repo And Branching Strategy](10-repo-and-branching-strategy.md): how to maintain the framework.
 - [Chat Commands](11-chat-commands.md): how chat commands map to CLI commands.
@@ -319,4 +332,4 @@ By default:
 - Use `/retrieve` for focused context instead of loading the whole workspace.
 - Rerun `/reindex` after manual edits to workspace artifacts or domain context.
 - Rerun `/health` and `/validate` before handoff.
-- Keep examples and framework rules agnostic: never persist client-specific facts, paths, URLs, account IDs, payloads, or identifiable wording from inspiration materials.
+- Keep examples and framework rules agnostic: never 

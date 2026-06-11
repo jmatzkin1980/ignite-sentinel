@@ -39,6 +39,15 @@ python -m sentinel /doctor
 
 Kilo agents use the same local LanceDB memory layer as Codex. `/ingest`, `/sync`, and `/reindex` keep `workspaces/[PROJECT_ID]/memory.lancedb/` populated, while `/retrieve` builds focused context packs for the active workflow.
 
+If the VS Code environment cannot resolve `python`, use the repo-local launcher from the terminal or from the generic `/sentinel` workflow when allowed:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /status PROJECT_ID
+```
+
+The launcher preserves the same CLI contract and only changes how the Python runtime is found.
+
 When Kilo generates backlog, review both:
 
 ```text
@@ -125,5 +134,12 @@ If Kilo cannot execute commands, use the VS Code terminal manually:
 python -m sentinel /doctor
 python -m sentinel /retrieve PROJECT_ID --query "topic" --workflow sync --write-pack
 python -m sentinel /health PROJECT_ID
+```
+
+If `python` is unavailable in that terminal, use:
+
+```powershell
+.\installers\sentinel.ps1 /doctor
+.\installers\sentinel.ps1 /health PROJECT_ID
 ```
 

@@ -4,6 +4,8 @@ This document describes the main workflows and when to use them. It is more proc
 
 If you are new to Sentinel, read this page together with [Escenarios Operativos](12-scenarios.md). Workflows describe the usual path; scenarios describe what to do when a concrete situation appears.
 
+The examples use `python -m sentinel` for terminal clarity. In Kilo Code chat, use `/command`; in Codex or Codex Desktop, use `sentinel /command` when a slash command is intercepted. If a laptop does not expose a valid `python`, run the same command through `.\installers\sentinel.ps1` on Windows or `sh installers/sentinel.sh` on Unix-like shells.
+
 ## Workflow 1: New Requirement
 
 This workflow starts when the team receives the first meaningful input from a client or stakeholder. The input is usually incomplete. That is expected. The point of this workflow is not to force completeness on day one, but to make incompleteness visible, structured, and actionable.

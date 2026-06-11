@@ -3,7 +3,13 @@ set -eu
 
 echo "Ignite Sentinel portable setup"
 
-PYTHON_BIN="${PYTHON:-python3}"
+if [ -n "${SENTINEL_PYTHON:-}" ]; then
+  PYTHON_BIN="$SENTINEL_PYTHON"
+elif [ -x ".venv/bin/python" ]; then
+  PYTHON_BIN=".venv/bin/python"
+else
+  PYTHON_BIN="${PYTHON:-python3}"
+fi
 
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   if command -v python >/dev/null 2>&1; then

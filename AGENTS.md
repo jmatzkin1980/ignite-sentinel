@@ -2,7 +2,7 @@
 
 ## Working Agreements
 
-- Treat this repository as a repo-local framework for BA/Product requirements work in AI PODs, usable from Codex, Kilo Code, or the CLI.
+- Treat this repository as a repo-local framework for BA/Product requirements work in AI PODs, usable from Codex, Kilo Code, Claude (Claude Code or Claude Desktop), or the CLI.
 - Keep the source of truth in versionable files under `workspaces/[PROJECT_ID]/`; memory indexes are retrieval aids only.
 - Preserve traceability from raw input to requirements, gaps, decisions, specs, backlog, acceptance criteria, tests, and changes.
 - Prefer small repo-local agents/skills with progressive disclosure: concise entry instructions, deeper references, reusable templates, and deterministic scripts when possible.
@@ -69,7 +69,7 @@ Accepted forms:
 Execution rule:
 
 - Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
-- If `python` is not available, use the configured or bundled Python runtime when visible in the environment.
+- If `python` is not available, use the configured or bundled Python runtime when visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]` on Windows.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
 - `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
 - `/resolve-gaps PROJECT_ID --source PATH` processes structured client/domain answers and safely closes only confirmed or not-applicable gaps.
@@ -86,4 +86,4 @@ Execution rule:
 ## Verification
 
 - Run `python -m unittest discover -s tests` after changing Sentinel runtime code.
-- If `python` is unavailable, use the bundled Codex Python runtime.
+- If `python` is unavailable, use the bundled Codex Py
