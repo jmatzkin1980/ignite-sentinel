@@ -14,10 +14,10 @@ cd ignite-sentinel
 python -m sentinel /doctor
 ```
 
-If `/doctor` reports missing dependencies, install the repo into the active Python environment and run the check again:
+The core lifecycle has no mandatory third-party dependencies. If `/doctor` shows the optional LanceDB memory layer as `WARN` and your environment allows installs, enable vector retrieval:
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e .[memory]
 python -m sentinel /doctor
 ```
 

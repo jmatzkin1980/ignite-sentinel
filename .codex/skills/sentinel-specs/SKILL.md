@@ -22,3 +22,4 @@ Use this skill to create the PRD and AI-friendly spec layer.
 - Do not proceed while maturity is `BLOCKED`.
 - Keep Product, Technology, Design, Quality, and Delivery signals visible.
 - PRD explains what and why for humans with traceable requirements and acceptance criteria; specs preserves the compact agent contract, retrieval plan, trace IDs, and backlog handoff cues.
+- PRD generation performs evidence-backed extraction (IMP-005): personas, requirement-like statements, and quantitative metrics are quoted verbatim from the raw client input under `00_raw/00_client_requirement/` with `REQ-001` citations. When no signal exists, sections keep `[PENDING INPUT]` instead of inventing content.

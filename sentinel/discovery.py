@@ -130,6 +130,87 @@ def extract_requirement(text: str) -> str:
     return lines[0] if lines else "Requirement to be refined."
 
 
+PERSONA_HINTS = (
+    "user", "usuario", "usuarios", "actor", "actores", "persona", "lead", "leads",
+    "analyst", "analista", "manager", "operator", "operador", "cliente", "customer",
+    "equipo", "team", "back office", "stakeholder", "supervisor",
+)
+
+REQUIREMENT_HINTS = (
+    "must", "shall", "should", "need", "want", "require", "expect",
+    "queremos", "necesit", "debe", "deber", "se requiere", "permitir", "esperamos",
+)
+
+
+def split_evidence_sentences(text: str) -> list[str]:
+    """Split raw evidence into clean sentences, dropping markdown noise."""
+    import re as _re
+
+    cleaned_lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = line.lstrip("-*>0123456789. \t")
+        if line:
+            cleaned_lines.append(line)
+    blob = " ".join(cleaned_lines)
+    parts = _re.split(r"(?<=[.!?])\s+", blob)
+    return [part.strip() for part in parts if len(part.strip()) >= 15]
+
+
+def extract_personas(text: str, limit: int = 5) -> list[dict[str, str]]:
+    """Extract persona/actor evidence sentences from raw client input."""
+    results: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sentence in split_evidence_sentences(text):
+        lowered = sentence.lower()
+        if any(hint in lowered for hint in PERSONA_HINTS):
+            key = lowered[:80]
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append({"evidence": sentence})
+            if len(results) >= limit:
+                break
+    return results
+
+
+def extract_functional_signals(text: str, limit: int = 7) -> list[dict[str, str]]:
+    """Extract requirement-like statements (modal/need language) from raw input."""
+    results: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sentence in split_evidence_sentences(text):
+        lowered = sentence.lower()
+        if any(hint in lowered for hint in REQUIREMENT_HINTS):
+            key = lowered[:80]
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append({"statement": sentence})
+            if len(results) >= limit:
+                break
+    return results
+
+
+def extract_metric_signals(text: str, limit: int = 5) -> list[dict[str, str]]:
+    """Extract quantitative metric mentions with their evidence sentence."""
+    results: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sentence in split_evidence_sentences(text):
+        match = METRIC_RE.search(sentence)
+        if not match:
+            continue
+        key = sentence.lower()[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append({"metric": match.group(0), "evidence": sentence})
+        if len(results) >= limit:
+            break
+    return results
+
+
 def detect_gaps(text: str, context: dict[str, str] | None = None) -> list[dict[str, str]]:
     lowered = text.lower()
     context = context or {}
