@@ -6,6 +6,26 @@ Chat commands are shortcuts over the same CLI. They do not create a second workf
 
 Users do not need to memorize every command. They can either type a command or explain the situation in plain language. The agent should translate the request into the right Sentinel command sequence and summarize what changed.
 
+## Intent-To-Command Map
+
+When the user describes a situation instead of typing a command, the agent should map the intent to the right lifecycle sequence. Canonical patterns:
+
+| User intent (plain language) | Command sequence | Notes |
+| --- | --- | --- |
+| "I have a new client requirement in this file" | `/init` → `/ingest` → `/status` | Summarize generated gaps and evidence triggers. |
+| "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes. |
+| "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
+| "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
+| "Technology/Design/Quality updated their context" | `/sync` → `/reindex` → `/health` | If backlog exists, expect a staleness warning naming the domain. |
+| "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
+| "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
+| "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality` classification per artifact. |
+| "Prepare the backlog for implementation handoff" | `/backlog` → `/quality` → `/trace` → `/health` → `/validate` | Only when gates allow; report `readiness_score` summary. |
+| "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
+| "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is WARN (degraded mode), not failure. |
+
+Rules for any agent surface: respect gates (never force a blocked command — explain why and recommend the prior step), mutate artifacts only through the CLI, and end every interaction with generated artifacts, gap/health state, and the recommended next step.
+
 ## Goal
 
 The intended user experience after cloning the repository and opening the repo root in VS Code is:

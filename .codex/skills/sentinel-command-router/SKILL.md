@@ -82,3 +82,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - LanceDB is the primary backend; source files remain the source of truth.
 - `/ingest`, `/sync`, and `/reindex` keep memory available for Codex and Kilo Code workflows.
 - Privacy mode is local-only: do not route client code or project data through remote MCP or external embedding services.
+
+## Intent Mapping
+
+When the user describes a situation instead of a command, use the Intent-To-Command Map in `user_guide/11-chat-commands.md`: new input → init/ingest/status; answered gaps → resolve-gaps/maturity/status; domain updates → sync/reindex/health; downstream handoff → specs/backlog/quality/trace/health/validate when gates allow. Always close with artifacts generated, gap/health state, and next step.
