@@ -1,0 +1,45 @@
+{
+  "lens": "compliance",
+  "description": "Lente de Compliance: gobernanza, seguridad, privacidad, glosario y notas de auditoria.",
+  "checks": [
+    {
+      "id": "GAP-GOVERNANCE-CONSTRAINTS",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Governance, security, privacy, compliance, or operational restrictions are not explicit.",
+      "tokens": [
+        "seguridad",
+        "security",
+        "privacidad",
+        "privacy",
+        "compliance",
+        "normativa",
+        "restriccion",
+        "restricción",
+        "gobernanza"
+      ],
+      "why": "Restricciones de gobernanza nombradas pero no definidas son riesgo latente (ver IMP-021)."
+    },
+    {
+      "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.",
+      "tokens": [
+        "glosario",
+        "glossary",
+        "restriccion",
+        "restricción",
+        "mandatory",
+        "audit",
+        "auditoria",
+        "governance",
+        "gobernanza",
+        "pending input"
+      ],
+      "why": "El PRD necesita glosario y restricciones obligatorias para ser auditable."
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "lens": "quality",
+  "description": "Lente de Calidad: aceptacion, testeabilidad, handoff de QA y NFR/KPI.",
+  "checks": [
+    {
+      "id": "GAP-ACCEPTANCE",
+      "severity": "critical",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Acceptance criteria or success conditions are missing.",
+      "tokens": [
+        "criterio",
+        "acceptance",
+        "success",
+        "done"
+      ],
+      "why": "Sin criterios de aceptacion no hay forma objetiva de declarar terminado."
+    },
+    {
+      "id": "GAP-QUALITY",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "quality",
+      "description": "Quality or testability expectations are not explicit.",
+      "tokens": [
+        "test",
+        "quality",
+        "calidad",
+        "qa"
+      ],
+      "why": "Expectativas de calidad implicitas terminan en defectos no detectados."
+    },
+    {
+      "id": "GAP-QUALITY-HANDOFF",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "quality",
+      "description": "Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear.",
+      "tokens": [
+        "test",
+        "quality",
+        "calidad",
+        "qa",
+        "happy path",
+        "edge",
+        "borde",
+        "regression",
+        "regresion",
+        "evidencia",
+        "data"
+      ],
+      "why": "El handoff a QA necesita flujos criticos y datos; sin eso la regresion queda expuesta."
+    },
+    {
+      "id": "GAP-PRD-NFR-KPI",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance.",
+      "tokens": [
+        "nfr",
+        "non functional",
+        "no funcional",
+        "kpi",
+        "target",
+        "measurement",
+        "medicion",
+        "medición",
+        "timeframe",
+        "baseline"
+      ],
+      "why": "Sin NFR/KPI medibles el PRD no gobierna performance, seguridad ni confiabilidad."
+    }
+  ]
+}

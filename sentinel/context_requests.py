@@ -2,11 +2,30 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path
 
 DOMAINS = {"technology", "design", "quality", "frontend", "backend"}
+
+
+def lens_checks_section(domain: str, language: str) -> str:
+    """Render the domain lens's checks from the declarative source (IMP-033).
+
+    Reads the same ``sentinel/lenses/*.json`` the discovery engine uses, so a
+    check added to a lens file shows up here with no Python change.
+    """
+    lens = domain_for_node(domain)
+    checks = lens_checks_for_lens(lens)
+    if not checks:
+        return "- (sin checks definidos para este lente)" if language == "es" else "- (no checks defined for this lens)"
+    lines = []
+    for check in checks:
+        why = check.get("why")
+        suffix = f" — {why}" if why else ""
+        lines.append(f"- `{check['id']}` ({check['severity']}): {check['description']}{suffix}")
+    return "\n".join(lines)
 
 
 def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
@@ -42,6 +61,7 @@ def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
 def render_context_request(project_id: str, domain: str, language: str, brief_path: Path, gaps_path: Path) -> str:
     prompts = prompts_for(domain, language)
     title = prompts["title"]
+    lens_checks = lens_checks_section(domain, language)
     if language == "es":
         return f"""# {title} - {project_id}
 
@@ -57,6 +77,10 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 ## Preguntas a responder
 
 {prompts['questions']}
+
+## Checks del lente a cubrir
+
+{lens_checks}
 
 ## Entregables esperados
 
@@ -82,6 +106,10 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 ## Questions To Answer
 
 {prompts['questions']}
+
+## Lens Checks To Cover
+
+{lens_checks}
 
 ## Expected Deliverables
 

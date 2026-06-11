@@ -1,0 +1,45 @@
+{
+  "lens": "delivery",
+  "description": "Lente de Delivery: dependencias, ambientes, owners, timing, rollout y roadmap.",
+  "checks": [
+    {
+      "id": "GAP-DELIVERY-READINESS",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Dependencies, environments, ownership, timing, or rollout constraints are not explicit.",
+      "tokens": [
+        "dependencia",
+        "dependency",
+        "ambiente",
+        "environment",
+        "deadline",
+        "fecha",
+        "timeline",
+        "owner",
+        "responsable",
+        "rollout"
+      ],
+      "why": "Sin dependencias ni owners no hay plan de entrega realista."
+    },
+    {
+      "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning.",
+      "tokens": [
+        "mvp",
+        "roadmap",
+        "dependencia",
+        "dependency",
+        "owner",
+        "responsable",
+        "nice-to-have",
+        "fase",
+        "phase"
+      ],
+      "why": "El plan de ejecucion del PRD requiere MVP, fases y owners explicitos."
+    }
+  ]
+}

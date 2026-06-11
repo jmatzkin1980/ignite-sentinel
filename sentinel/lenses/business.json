@@ -1,0 +1,91 @@
+{
+  "lens": "business",
+  "description": "Lente de Negocio: objetivo, actores, reglas de negocio, personas y metricas. Conocimiento propio del equipo BA de Ignite.",
+  "checks": [
+    {
+      "id": "GAP-OBJECTIVE",
+      "severity": "high",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Business objective or expected outcome is not explicit.",
+      "tokens": [
+        "objetivo",
+        "objective",
+        "outcome",
+        "resultado",
+        "goal",
+        "purpose",
+        "proposito",
+        "propósito",
+        "aim"
+      ],
+      "why": "Sin objetivo de negocio explicito no hay norte para priorizar ni para validar valor."
+    },
+    {
+      "id": "GAP-USERS",
+      "severity": "high",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Target users or personas are not explicit.",
+      "tokens": [
+        "usuario",
+        "user",
+        "persona",
+        "actor"
+      ],
+      "why": "Sin usuarios objetivo no se puede validar valor ni disenar el journey correcto."
+    },
+    {
+      "id": "GAP-BUSINESS-RULES",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Business rules, exclusions, or decision rules are not explicit enough for downstream slicing.",
+      "tokens": [
+        "regla",
+        "rule",
+        "validacion",
+        "validación",
+        "condicion",
+        "condición",
+        "exclusion",
+        "exclusión"
+      ],
+      "why": "Las reglas de decision determinan variantes y cortes de backlog; si faltan, el slicing es ciego."
+    },
+    {
+      "id": "GAP-PRD-PERSONA-DETAIL",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear.",
+      "tokens": [
+        "pain",
+        "dolor",
+        "goal",
+        "objetivo",
+        "frecuencia",
+        "frequency",
+        "proficiency",
+        "habilidad",
+        "perfil"
+      ],
+      "why": "El PRD necesita personas con dolor y frecuencia, no solo un nombre de rol."
+    },
+    {
+      "id": "GAP-METRIC-SOURCE",
+      "severity": "high",
+      "rule": "metric_without_source",
+      "evidence_scope": "source",
+      "description": "Quantitative metric appears without an explicit source or baseline.",
+      "suppressors": [
+        "source",
+        "fuente",
+        "baseline",
+        "medido",
+        "measured"
+      ],
+      "why": "Una metrica sin baseline ni fuente no es medible ni comprometible."
+    }
+  ]
+}

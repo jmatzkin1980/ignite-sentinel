@@ -460,3 +460,41 @@ This is a local retrieval index and fallback. It is not the source of truth.
 ## Regeneration Diffs
 
 When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.
+
+## Base de Conocimiento de Lentes (`sentinel/lenses/`)
+
+El conocimiento de los lentes (qué escruta cada lente, con qué severidad, qué tokens lo cierran y qué pregunta dispara) **no vive hardcodeado en Python**: es una fuente declarativa versionable bajo `sentinel/lenses/`, un archivo JSON por lente (`business.json`, `product.json`, `quality.json`, `technical.json`, `compliance.json`, `delivery.json`, `design.json`). El motor de discovery (`detect_gaps`) y los context-requests por dominio leen esa misma fuente, así que nunca divergen. Es 100% local: JSON puro, sin dependencias ni red (IMP-033).
+
+Cada lente tiene una lista `checks`; cada check declara:
+
+- `id`: identificador estable `GAP-*`.
+- `severity`: `critical | high | medium | low`.
+- `description`: qué falta (en inglés, como en los artefactos).
+- `rule`: cómo dispara el check.
+  - `absent_tokens`: dispara cuando **ninguno** de los `tokens` aparece en la evidencia.
+  - `mention_without_counterpart`: tier inquisitivo — dispara cuando se menciona una superficie (`triggers`) pero falta su contracara (`counterparts`); ancla la pregunta a la mención detectada.
+  - `metric_without_source`: dispara cuando hay una métrica cuantitativa pero no aparece ninguno de los `suppressors` (palabras de fuente/baseline).
+- `evidence_scope`: qué texto lee la regla — `source | technical | design | quality | frontend | all`.
+- `why` (opcional): la experiencia de campo que motiva el check; notas del equipo, se muestran en el context-request.
+
+### Cómo agregar conocimiento a un lente (sin tocar Python)
+
+1. Abrí el archivo del lente correspondiente, por ejemplo `sentinel/lenses/technical.json`.
+2. Agregá un objeto nuevo al array `checks` con los campos de arriba. Ejemplo:
+
+   ```json
+   {
+     "id": "GAP-OBSERVABILITY-RUNBOOK",
+     "severity": "medium",
+     "rule": "absent_tokens",
+     "evidence_scope": "technical",
+     "description": "Runbook and on-call ownership for the new surface are not explicit.",
+     "tokens": ["runbook", "on-call", "oncall", "guardia"],
+     "why": "Sin runbook ni owner de guardia, una falla en produccion no tiene dueno."
+   }
+   ```
+
+3. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
+4. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
+
+Regla de identidad (invariante #1 de la propuesta de evolución): el modelo de lentes es conocimiento propio del equipo de Ignite. Esta base es el lugar para volcar esa experiencia de forma revisable en PR, no para copiar checklists genéricas de otras fuentes.
