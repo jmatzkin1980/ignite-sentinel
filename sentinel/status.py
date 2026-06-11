@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .discovery import parse_gap_rows
+from .maturity import maturity_metrics
 from .workspace import read_json, state_path, workspace_path
 
 
@@ -19,6 +20,7 @@ def project_status(project_id: str) -> dict[str, object]:
         "privacy_mode": state.get("privacy_mode", "local-only"),
         "readiness_stage": state.get("readiness_stage", "DISCOVERY_RAW"),
         "gap_counts": counts,
+        "maturity_metrics": state.get("maturity_metrics") or maturity_metrics(project_id),
         "last_change_id": state.get("last_change_id"),
         "last_gap_resolution_id": state.get("last_gap_resolution_id"),
         "next_step": next_step,

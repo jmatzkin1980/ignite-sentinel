@@ -297,6 +297,10 @@ Outputs:
 - `06_traceability/health_report.md`
 - `06_traceability/health_report.json`
 
+## Maturity Metrics
+
+`/maturity` and `/status` expose a quantified `maturity_metrics` block: `gap_closure_rate`, `open_gaps_by_severity`, per-artifact `artifact_evidence_scores` (same scoring as `/validate`), a combined `maturity_score` (0.0–1.0), and `trend_vs_previous_run` comparing consecutive `/maturity` runs. Use the trend to see whether new evidence is actually maturing the requirement.
+
 ## `validate`
 
 Validate workspace structure and graph integrity.

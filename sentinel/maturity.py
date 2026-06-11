@@ -3,9 +3,55 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .discovery import parse_gap_rows
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
+
+
+def maturity_metrics(project_id: str) -> dict[str, object]:
+    """Quantified maturity: gap closure by severity plus evidence scores of generated artifacts."""
+    from .validation import score_artifact_text
+
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
+    open_by_severity: dict[str, int] = {}
+    closed = 0
+    for gap in gaps:
+        status = str(gap.get("status", "OPEN")).upper()
+        severity = str(gap.get("severity", "unknown")).lower()
+        if status == "CLOSED":
+            closed += 1
+        else:
+            open_by_severity[severity] = open_by_severity.get(severity, 0) + 1
+    total = len(gaps)
+    gap_closure_rate = round(closed / total, 3) if total else 1.0
+
+    artifact_scores: dict[str, float] = {}
+    targets = {
+        "project-brief.md": base / "02_requirements" / "project-brief.md",
+        "prd.md": base / "03_specs" / "prd.md",
+        "specs.md": base / "03_specs" / "specs.md",
+    }
+    for name, path in targets.items():
+        if path.exists():
+            artifact_scores[name] = float(score_artifact_text(path.read_text(encoding="utf-8"))["score"])
+    evidence_score = round(sum(artifact_scores.values()) / len(artifact_scores), 3) if artifact_scores else None
+
+    if evidence_score is None:
+        maturity_score = gap_closure_rate
+    else:
+        maturity_score = round((gap_closure_rate + evidence_score) / 2, 3)
+    return {
+        "gap_total": total,
+        "gaps_closed": closed,
+        "gap_closure_rate": gap_closure_rate,
+        "open_gaps_by_severity": open_by_severity,
+        "artifact_evidence_scores": artifact_scores,
+        "evidence_score": evidence_score,
+        "maturity_score": maturity_score,
+    }
 
 
 def evaluate(project_id: str) -> dict[str, object]:
@@ -30,10 +76,22 @@ def evaluate(project_id: str) -> dict[str, object]:
         report_path.read_text(encoding="utf-8"),
         trace_ids=["MATURITY-001"],
     )
-    update_state(project_id, phase="maturity_evaluated", health="CLEAN" if readiness.startswith("READY") else "DIRTY")
+    metrics = maturity_metrics(project_id)
+    previous = read_json(state_path(project_id), {}).get("maturity_metrics") or {}
+    if isinstance(previous, dict) and "maturity_score" in previous:
+        metrics["trend_vs_previous_run"] = round(
+            float(metrics["maturity_score"]) - float(previous["maturity_score"]), 3
+        )
+    update_state(
+        project_id,
+        phase="maturity_evaluated",
+        health="CLEAN" if readiness.startswith("READY") else "DIRTY",
+        maturity_metrics=metrics,
+    )
     return {
         "readiness": readiness,
         "blocking_gaps": blocking_gaps,
+        "metrics": metrics,
         "report": str(report_path),
         "project_brief": str(project_brief) if project_brief else None,
     }
