@@ -142,3 +142,13 @@ Confirm no real project workspace is staged.
 - `.gitattributes` normalizes line endings (`* text=auto`, LF in the repository). If `git status` ever shows mass "modified" files with no content changes, run `git add --renormalize .` in a dedicated commit with no functional changes mixed in.
 - Archives (`*.7z`, `*.zip`) and local tooling residue (such as `.sentinel_doctor_write_test`) are git-ignored and must never be committed. If a launcher or binary genuinely belongs in the repo, add an explicit negation rule and justify it in the PR.
 - Personal handoff or context documents live outside the repository (in your personal folders). Evolution/operational memory lives in the local `docs/` folder, which is git-ignored and never published to the public repository.
+
+## Command Adapter Source Of Truth
+
+Chat command definitions live in `sentinel/templates/commands_manifest.json`. The `.kilo/commands/` and `.claude/commands/` files are generated from it:
+
+```powershell
+python -m sentinel.adapters
+```
+
+Never edit the generated files directly: change the manifest and regenerate. The unit suite fails if any adapter file drifts from the manifest, and `/doctor` verifies the manifest exists. When adding a lifecycle command, update the manifest, regenerate, and review the Codex command-router skill, which routes by pattern and does not need per-command files.

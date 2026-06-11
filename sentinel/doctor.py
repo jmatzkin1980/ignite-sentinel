@@ -9,6 +9,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from .adapters import manifest_command_names
+
 
 REQUIRED_COMMANDS = [
     "doctor",
@@ -47,51 +49,9 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-sync",
 ]
 
-REQUIRED_CLAUDE_COMMANDS = [
-    "backlog",
-    "brief",
-    "context-request",
-    "doctor",
-    "export",
-    "gaps",
-    "health",
-    "ingest",
-    "init",
-    "maturity",
-    "quality",
-    "reindex",
-    "resolve-gaps",
-    "retrieve",
-    "sentinel",
-    "specs",
-    "status",
-    "sync",
-    "trace",
-    "validate",
-]
+REQUIRED_CLAUDE_COMMANDS = manifest_command_names()
 
-REQUIRED_KILO_COMMANDS = [
-    "backlog",
-    "brief",
-    "context-request",
-    "doctor",
-    "export",
-    "gaps",
-    "health",
-    "ingest",
-    "init",
-    "maturity",
-    "quality",
-    "reindex",
-    "resolve-gaps",
-    "retrieve",
-    "sentinel",
-    "specs",
-    "status",
-    "sync",
-    "trace",
-    "validate",
-]
+REQUIRED_KILO_COMMANDS = manifest_command_names()
 
 
 def run_doctor(root: Path | None = None) -> dict[str, Any]:
@@ -107,6 +67,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, ".kilo/commands", "Kilo Code slash commands"),
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
+        path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
         path_check(root, "user_guide/06-installation-vscode.md", "VS Code portable installation guide"),

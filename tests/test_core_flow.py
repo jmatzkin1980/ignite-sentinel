@@ -588,6 +588,14 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn('"relation": "triggers_regeneration"', graph)
         self.assertEqual(main(["validate", "REGEN"]), 0)
 
+    def test_command_adapters_in_sync_with_manifest(self) -> None:
+        from sentinel.adapters import manifest_command_names, out_of_sync
+
+        names = manifest_command_names()
+        self.assertEqual(len(names), 20)
+        self.assertIn("sentinel", names)
+        self.assertEqual(out_of_sync(ROOT.parent), [])
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
