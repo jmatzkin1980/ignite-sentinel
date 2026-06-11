@@ -391,10 +391,26 @@ def build_implementation_readiness_pack(
     readiness_items = [implementation_readiness_for_story(story) for story in stories]
     blocker_count = sum(1 for item in readiness_items if item["status"] != "ready")
     verdict = "READY" if blocker_count == 0 else "PARTIAL"
+    pending_by_domain: dict[str, int] = {}
+    for item in readiness_items:
+        for blocker in item["pending"]:
+            if blocker.startswith("Pending domain context: "):
+                domain = blocker.split(": ", 1)[1]
+                pending_by_domain[domain] = pending_by_domain.get(domain, 0) + 1
+    summary = {
+        "stories_total": len(readiness_items),
+        "stories_ready": len(readiness_items) - blocker_count,
+        "stories_needing_context": blocker_count,
+        "avg_readiness_score": round(
+            sum(item["readiness_score"] for item in readiness_items) / len(readiness_items), 3
+        ) if readiness_items else 0.0,
+        "pending_context_by_domain": pending_by_domain,
+    }
     pack = {
         "project_id": project_id,
         "workflow": "implementation_readiness",
         "verdict": verdict,
+        "summary": summary,
         "generated_from": {
             "backlog_context_pack": "08_context_packs/backlog_generation.json",
             "domain_context_snapshot": backlog_context.get("domain_context_snapshot", domain_context_snapshot(project_id)),
@@ -430,11 +446,14 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
     blockers = [f"Pending domain context: {domain}" for domain in pending_domains]
     blockers.extend(f"Pending execution field: {field}" for field in pending_contract)
     status = "ready" if not blockers else "needs-context"
+    score_basis = len(required_domains_for_story(story)) + 3  # domains + execution contract fields
+    readiness_score = round(max(0.0, 1.0 - len(blockers) / score_basis), 3)
     return {
         "story_id": story["id"],
         "title": story["title"],
         "type": story["type"],
         "status": status,
+        "readiness_score": readiness_score,
         "readiness": execution.get("readiness", "Needs Domain Context"),
         "required_domains": required_domains_for_story(story),
         "pending": blockers,
@@ -944,7 +963,22 @@ def build_specs_generation_context(project_id: str, req_text: str) -> dict[str, 
                 for row in results
             ],
         }
-    pack = {"project_id": project_id, "workflow": "specs_generation", "sections": sections}
+    coverage_map: dict[str, str] = {}
+    for section, payload in sections.items():
+        count = len(payload.get("results", []))
+        payload["result_count"] = count
+        payload["evidence_strength"] = "strong" if count >= 3 else ("weak" if count else "none")
+        coverage_map[section] = payload["evidence_strength"]
+    covered = sum(1 for strength in coverage_map.values() if strength != "none")
+    pack = {
+        "project_id": project_id,
+        "workflow": "specs_generation",
+        "coverage_map": coverage_map,
+        "coverage_score": round(covered / len(coverage_map), 3) if coverage_map else 0.0,
+        "sections_total": len(coverage_map),
+        "sections_with_evidence": covered,
+        "sections": sections,
+    }
     write_json(workspace_path(project_id) / "08_context_packs" / "specs_generation.json", pack)
     return pack
 
