@@ -1315,6 +1315,43 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
     return formats.get(gap_id, "A decision plus owner/source, evidence, and whether it is confirmed or pending.")
 
 
+# --- IMP-024: gap -> brief narrative section map ------------------------------
+#
+# Structured inverse of the IMP-022 prose mapping: which of the project brief's
+# narrative sections (1-6) a gap's confirmed answer feeds. The brief compiler
+# (maturity.py) uses it to route closed-gap answers into the right section, and
+# /resolve-gaps tags resolution seeds with it. Gaps that feed PRD/specs/quality
+# rather than a brief 1-6 anchor map to None.
+#
+#   1 Identidad y Valor       4 Lente de Diseño
+#   2 Lente de Negocio        5 Lente Técnico
+#   3 Lente de Producto       6 Gobernanza y Restricciones
+
+BRIEF_SECTION_FOR_GAP = {
+    "GAP-OBJECTIVE": "1",
+    "GAP-METRIC-SOURCE": "1",
+    "GAP-USERS": "2",
+    "GAP-SCOPE": "3",
+    "GAP-PRODUCT-ASIS-TOBE": "3",
+    "GAP-BUSINESS-RULES": "3",
+    "GAP-DESIGN-FLOW": "4",
+    "GAP-DESIGN-STATES": "4",
+    "GAP-DESIGN-PROTOTYPE-INPUT": "4",
+    "GAP-TECH-DATA-SOURCE": "5",
+    "GAP-TECH-NFR": "5",
+    "GAP-TECH-DEEP-DIVE-INPUT": "5",
+    "GAP-FRONTEND-SURFACE": "5",
+    "GAP-BACKEND-SURFACE": "5",
+    "GAP-GOVERNANCE-CONSTRAINTS": "6",
+    "GAP-DELIVERY-READINESS": "6",
+}
+
+
+def brief_section_for_gap(gap_id: str) -> str | None:
+    """Which brief narrative section (1-6) a gap's confirmed answer feeds, or None."""
+    return BRIEF_SECTION_FOR_GAP.get(gap_id)
+
+
 def render_decisions(project_id: str, text: str, req_id: str) -> str:
     decision = "Confirm scope, success criteria, and implementation constraints with stakeholders."
     if "decid" in text.lower() or "decision" in text.lower():

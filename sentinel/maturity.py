@@ -3,7 +3,15 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .discovery import parse_gap_rows
+from .discovery import (
+    brief_section_for_gap,
+    extract_functional_signals,
+    extract_metric_signals,
+    extract_personas,
+    parse_gap_rows,
+    raw_input_text,
+    split_evidence_sentences,
+)
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -131,8 +139,17 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
     seeds_text = read_optional(discovery / "identity_seeds.md")
     decisions_text = read_optional(discovery / "decisions.md")
     lens_review_text = read_optional(discovery / "lens_review.md")
+    # IMP-024: compile sections 1-6 from real evidence (raw client input plus
+    # confirmed answers of closed gaps) instead of leaving template TBDs.
+    raw_text = raw_input_text(base)
+    gap_answers = parse_gap_answers(seeds_text + "\n" + decisions_text)
+    state = read_json(state_path(project_id), {})
+    language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
     brief_path.write_text(
-        render_project_brief(project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text),
+        render_project_brief(
+            project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
+            raw_text=raw_text, gap_answers=gap_answers, language=language,
+        ),
         encoding="utf-8",
     )
 
@@ -166,6 +183,166 @@ def read_optional(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
+# --- IMP-024: brief compiler helpers ------------------------------------------
+#
+# The brief's narrative sections (1-6) are compiled from real evidence with a
+# citation, never left as generic TBD. Evidence sources, in priority order:
+# confirmed answers of closed gaps (routed by brief_section_for_gap), then the
+# raw client input (objective, actors, scope, as-is/to-be, metric signals). A
+# section with no anchor evidence renders an explicit [PENDING INPUT] pointing to
+# the gap that tracks it (sections 4-6 at discovery time). No invented text: a
+# claim is either backed by a quoted evidence sentence + path, or it is pending.
+
+PENDING_INPUT = "[PENDING INPUT]"
+
+_OBJECTIVE_CUES = ("the goal", "goal is", "objetivo", "objective", "aim to", "purpose", "so that", "in order to")
+_ASIS_CUES = ("today", "currently", "right now", "hoy", "actualmente", "proceso actual", "by hand", "a mano", "manual")
+_OUT_SCOPE_CUES = ("out of scope", "out-of-scope", "fuera de alcance")
+_IN_SCOPE_CUES = ("in scope", "scope:", "scope is", "alcance")
+
+
+def parse_gap_answers(text: str) -> dict[str, dict[str, str]]:
+    """Map gap_id -> confirmed answer from the gap-resolution seed/decision tables."""
+    answers: dict[str, dict[str, str]] = {}
+    for line in text.splitlines():
+        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        if len(cells) >= 5 and cells[1].startswith("GAP-") and cells[2].upper() == "CONFIRMED":
+            gap_id = cells[1]
+            answers.setdefault(gap_id, {"statement": cells[3], "source": cells[4]})
+    return answers
+
+
+def _first_sentence_with(sentences: list[str], cues: tuple[str, ...]) -> str:
+    for sentence in sentences:
+        lowered = sentence.lower()
+        if any(cue in lowered for cue in cues):
+            return sentence
+    return ""
+
+
+def _cite(sentence: str, language: str) -> str:
+    label = "fuente" if language == "es" else "source"
+    return f'"{sentence}" _({label}: `00_raw/`)_'
+
+
+def _initiative_name(raw_text: str) -> str:
+    prefixes = ("client request:", "pedido del cliente:", "client req:", "requerimiento:")
+    for line in raw_text.splitlines():
+        line = line.strip()
+        if line.startswith("# "):
+            name = line.lstrip("# ").strip()
+            low = name.lower()
+            for pre in prefixes:
+                if low.startswith(pre):
+                    return name[len(pre):].strip()
+            return name
+    return ""
+
+
+def _gap_answer_block(gap_answers: dict[str, dict[str, str]], section: str, language: str) -> str:
+    """Render confirmed gap answers routed to a brief section, or '' if none."""
+    lines = []
+    for gap_id, payload in gap_answers.items():
+        if brief_section_for_gap(gap_id) == section:
+            src = payload.get("source", "")
+            tag = f" _(`{gap_id}` / `{src}`)_" if src else f" _(`{gap_id}`)_"
+            lines.append(f"- {payload['statement']}{tag}")
+    return "\n".join(lines)
+
+
+def _pending(section_gap: str, language: str) -> str:
+    if language == "es":
+        return f"- {PENDING_INPUT}: sin evidencia en el input; se rastrea en `{section_gap}`. Aportar en el context pack del dominio."
+    return f"- {PENDING_INPUT}: no evidence in client input yet; tracked by `{section_gap}`. Provide via the domain context pack."
+
+
+def compile_brief_sections(
+    raw_text: str, gap_answers: dict[str, dict[str, str]], req_text: str, language: str
+) -> dict[str, str]:
+    """Compile narrative sections 1-6 from evidence. Returns rendered blocks."""
+    es = language == "es"
+    sentences = split_evidence_sentences(raw_text)
+    name = _initiative_name(raw_text)
+    objective = _first_sentence_with(sentences, _OBJECTIVE_CUES)
+    personas = extract_personas(raw_text)
+    functionals = extract_functional_signals(raw_text)
+    metrics = extract_metric_signals(raw_text)
+    asis = _first_sentence_with(sentences, _ASIS_CUES)
+    in_scope = ""
+    out_scope = ""
+    for sentence in sentences:
+        low = sentence.lower()
+        if not out_scope and any(c in low for c in _OUT_SCOPE_CUES):
+            out_scope = sentence
+        elif not in_scope and any(c in low for c in _IN_SCOPE_CUES):
+            in_scope = sentence
+
+    blocks: dict[str, str] = {}
+
+    # --- Section 1: Identidad y Valor ---
+    name_line = (
+        (f"Iniciativa: {name}" if es else f"Initiative: {name}") + f" _({'fuente' if es else 'source'}: `00_raw/`)_"
+        if name else (f"Iniciativa: {primary_requirement(req_text)}" if es else f"Initiative: {primary_requirement(req_text)}")
+    )
+    pain_line = primary_requirement(req_text)
+    s1_answers = _gap_answer_block(gap_answers, "1", language)
+    if objective:
+        outcome_line = (f"- Resultado esperado: {_cite(objective, language)}" if es
+                        else f"- Expected outcome: {_cite(objective, language)}")
+    elif s1_answers:
+        outcome_line = s1_answers
+    else:
+        outcome_line = _pending("GAP-OBJECTIVE", language)
+    if metrics:
+        m = metrics[0]
+        metric_line = (f"- Métrica: `{m['metric']}` — {_cite(m['evidence'], language)}" if es
+                       else f"- Metric: `{m['metric']}` — {_cite(m['evidence'], language)}")
+    else:
+        metric_line = ("- Métrica: aún no cuantificada; baseline, fuente y target se rastrean en `GAP-METRIC-SOURCE`."
+                       if es else
+                       "- Metric: not yet quantified; baseline, source, and target tracked by `GAP-METRIC-SOURCE`.")
+    blocks["1"] = f"{name_line}\n\n{('Dolor principal' if es else 'Main pain')}:\n{pain_line}\n\n{('Resultado y métricas' if es else 'Outcome and metrics')}:\n{outcome_line}\n{metric_line}"
+
+    # --- Section 2: Lente de Negocio: Actores y Necesidades ---
+    s2_answers = _gap_answer_block(gap_answers, "2", language)
+    if personas:
+        actor_lines = "\n".join(f"- {p['evidence']} _({'fuente' if es else 'source'}: `00_raw/`)_" for p in personas)
+    elif s2_answers:
+        actor_lines = s2_answers
+    else:
+        actor_lines = _pending("GAP-USERS", language)
+    blocks["2"] = actor_lines
+
+    # --- Section 3: Lente de Producto: Proceso y Journey ---
+    s3_answers = _gap_answer_block(gap_answers, "3", language)
+    if asis:
+        asis_line = (f"- Situación actual (as-is): {_cite(asis, language)}" if es
+                     else f"- Current state (as-is): {_cite(asis, language)}")
+    else:
+        asis_line = ("- Situación actual (as-is): no descrita en el input; se rastrea en `GAP-PRODUCT-ASIS-TOBE`."
+                     if es else
+                     "- Current state (as-is): not described in client input; tracked by `GAP-PRODUCT-ASIS-TOBE`.")
+    if functionals:
+        tobe_line = (("- Proceso objetivo (to-be):\n" if es else "- Target process (to-be):\n")
+                     + "\n".join(f"  - {f['statement']} _({'fuente' if es else 'source'}: `00_raw/`)_" for f in functionals[:3]))
+    elif s3_answers:
+        tobe_line = s3_answers
+    else:
+        tobe_line = ("- Proceso objetivo (to-be): se rastrea en `GAP-PRODUCT-ASIS-TOBE`." if es
+                     else "- Target process (to-be): tracked by `GAP-PRODUCT-ASIS-TOBE`.")
+    scope_in = (f"- In scope: {_cite(in_scope, language)}" if in_scope
+                else ("- In scope: se rastrea en `GAP-SCOPE`." if es else "- In scope: tracked by `GAP-SCOPE`."))
+    scope_out = (f"- Out of scope: {_cite(out_scope, language)}" if out_scope
+                 else ("- Out of scope: se rastrea en `GAP-SCOPE`." if es else "- Out of scope: tracked by `GAP-SCOPE`."))
+    blocks["3"] = f"{asis_line}\n{tobe_line}\n{scope_in}\n{scope_out}"
+
+    # --- Sections 4-6: populated only from confirmed gap answers; else PENDING ---
+    blocks["4"] = _gap_answer_block(gap_answers, "4", language) or _pending("GAP-DESIGN-FLOW", language)
+    blocks["5"] = _gap_answer_block(gap_answers, "5", language) or _pending("GAP-TECH-DATA-SOURCE", language)
+    blocks["6"] = _gap_answer_block(gap_answers, "6", language) or _pending("GAP-GOVERNANCE-CONSTRAINTS", language)
+    return blocks
+
+
 def render_project_brief(
     project_id: str,
     req_text: str,
@@ -173,11 +350,15 @@ def render_project_brief(
     seeds_text: str,
     decisions_text: str,
     lens_review_text: str,
+    raw_text: str = "",
+    gap_answers: dict[str, dict[str, str]] | None = None,
+    language: str = "en",
 ) -> str:
     open_gaps = summarize_open_gaps(gaps_text)
     seeds = summarize_table_artifact(seeds_text, "Seed ID", max_rows=10)
     decisions = summarize_table_artifact(decisions_text, "Decision ID", max_rows=8)
     coverage = summarize_table_artifact(lens_review_text, "Lens", max_rows=6)
+    sec = compile_brief_sections(raw_text, gap_answers or {}, req_text, language)
     return f"""# Project Brief - {project_id}
 
 This brief is the mature discovery output. It reflects iterated requirement evidence and is the source handoff for PRD, specs, backlog, acceptance criteria, and tests.
@@ -186,68 +367,33 @@ Depth principle: the brief should be complete enough to guide domain work withou
 
 ## 1. Identidad y Valor
 
-### Nombre de la Iniciativa
-
-TBD from confirmed client language.
-
-### Dolor Principal
-
-{primary_requirement(req_text)}
-
-### Resultado Esperado y Metricas de Exito
-
-- Outcome: TBD from confirmed business/product evidence.
-- Metrics: include baseline, source, measurement owner, and target threshold before downstream commitment.
+{sec['1']}
 
 ## 2. Lente de Negocio: Actores y Necesidades
 
-### Actores Participantes
-
-- TBD: cliente/usuario final, operadores internos, sistemas consumidores, equipos propietarios y aprobadores.
-
-### Objetivos por Rol
-
-| Rol / Actor | Necesidad | Resultado Esperado | Fuente |
-| --- | --- | --- | --- |
-| TBD | TBD | TBD | `02_requirements/requirements.md` |
+{sec['2']}
 
 ## 3. Lente de Producto: Proceso y Journey
 
-### Situacion Actual (As-Is)
-
-- Documentar el flujo actual, puntos de dolor, sistemas/pantallas afectadas y comportamiento vigente que no debe romperse.
-
-### Proceso Ideal (To-Be)
-
-- Documentar el flujo target, nuevas capacidades, reglas funcionales, cambios de contrato y comportamiento esperado por caso.
-
-### Alcance
-
-- In scope: TBD from confirmed seeds.
-- Out of scope / non-goals: TBD from confirmed exclusions.
-- Unchanged behavior: TBD for compatibility and regression control.
+{sec['3']}
 
 ## 4. Lente de Diseno: Flujos y Resiliencia UX
 
-- User journeys / screens: TBD.
-- Interaction states: loading, empty, error, disabled, recovery, permissions, accessibility.
-- Copy and messaging: TBD, with source and approval owner.
-- Visual or image evidence: reference screenshots, diagrams, or design assets under `00_raw/03_design_context/`.
-- Sweet spot: identify affected journeys, screens, decisions, states, and UX constraints; detailed prototypes and final interaction specs belong in the design context pack.
+{sec['4']}
+
+Sweet spot: identify affected journeys, screens, decisions, states, and UX constraints; detailed prototypes and final interaction specs belong in the design context pack.
 
 ## 5. Lente Tecnico: Datos, Conectividad y Arquitectura
 
-- Systems / APIs / events: identify existing endpoints/events used, endpoints/events to create, endpoints/events to modify, and owner system/team.
-- Source of truth and ownership: TBD.
-- Data and contract depth: include key entities, critical fields, and contract direction only when needed to understand the requirement; exhaustive dictionaries, full request/response examples, schemas, and sequence diagrams belong in the technology context pack.
-- Architecture constraints: TBD.
-- Observability, security, performance, privacy, and resiliency expectations: TBD.
+{sec['5']}
+
+Data and contract depth: include key entities, critical fields, and contract direction only when needed; exhaustive dictionaries, schemas, and sequence diagrams belong in the technology context pack.
 
 ## 6. Gobernanza y Restricciones
 
-- Security / privacy / compliance: TBD.
-- Delivery dependencies, environments, approvals, rollout and dates: TBD.
-- Auditability and traceability expectations: all downstream artifacts must cite this brief and raw evidence.
+{sec['6']}
+
+Auditability and traceability expectations: all downstream artifacts must cite this brief and raw evidence.
 
 ## 7. Decisiones, Seeds e Inferencias
 

@@ -223,6 +223,8 @@ This is the crystallized handoff from iterative discovery into PRD/spec/backlog 
 - technical data, connectivity, and architecture;
 - governance, constraints, decisions, seeds, inferences, and remaining gaps.
 
+Narrative sections 1–6 are compiled from evidence, not templated (IMP-024). The compiler extracts initiative, objective, metric, actors, as-is/to-be, and scope from the raw client input and from confirmed answers of closed gaps (routed to their section by the IMP-022 gap→section map), citing the source for every claim. A sub-detail with no evidence references the gap that tracks it; a section with no anchor evidence renders an explicit `[PENDING INPUT]` pointing to its gap — never generic TBD or invented text.
+
 The brief should hit the discovery sweet spot: complete enough for Design, Technology, Frontend, Backend, and Quality to start deep analysis, but not so detailed that it becomes their final deliverable. For Technology, this usually means endpoint/event inventory, create/modify/reuse decisions, source-of-truth ownership, constraints, and risks; full request/response contracts, schemas, dictionaries, and diagrams can live in dedicated context packs.
 
 When present, `specs` uses this brief as its mature source instead of the thinner initial `requirements.md`.

@@ -6,8 +6,8 @@ brief compiler) can be measured against them and cannot regress silently:
 - The `expense-approval` fixture demonstrates the lexical ceiling: five gaps
   that are genuinely unaddressed stay suppressed because a single keyword is
   present, so its semantic target_recall is 0.00 today.
-- Every fixture's narrative brief sections (1-6) still render as TBD, so
-  brief_target_coverage is 0.00 today.
+- The narrative brief sections (1-3) are compiled from cited evidence by the
+  IMP-024 brief compiler, so brief_target_coverage is 1.00 for expense-approval.
 
 Deterministic and local-first: runs the real lifecycle in a temp dir, no
 network. Importing the eval runner here also smoke-tests its new code paths.
@@ -60,12 +60,12 @@ class ExpenseApprovalCeilingTests(unittest.TestCase):
         self.assertEqual(self.result["target_fire_detected"], [])
         self.assertEqual(self.result["target_recall"], 0.0)
 
-    def test_brief_baseline_is_uncompiled(self):
-        # Sections with confirmed evidence still render as TBD today; this is
-        # the metric IMP-024 must move to 1.0.
+    def test_brief_compiler_populates_evidence_sections(self):
+        # IMP-024: the brief compiler now populates sections 1-3 from cited
+        # evidence (objective, actors, scope), moving coverage from 0.0 to 1.0.
         self.assertEqual(self.result["brief_target_sections"], ["1", "2", "3"])
-        self.assertEqual(self.result["brief_target_populated"], [])
-        self.assertEqual(self.result["brief_target_coverage"], 0.0)
+        self.assertEqual(self.result["brief_target_populated"], ["1", "2", "3"])
+        self.assertEqual(self.result["brief_target_coverage"], 1.0)
 
 
 if __name__ == "__main__":
