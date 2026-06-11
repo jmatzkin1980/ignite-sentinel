@@ -68,8 +68,8 @@ Discovery is inquisitive about what the input mentions but does not explain: nam
 Common gap statuses:
 
 - `OPEN`: still missing or unresolved.
-- `ANSWERED`: an answer exists, but it has not been accepted as a decision.
-- `PARTIALLY_CLOSED`: some useful information arrived, but not enough to fully resolve the gap.
+- `ANSWERED`: a substantive answer exists with decision still pending confirmation; severe gaps in this state keep blocking specs/backlog.
+- `PARTIALLY_CLOSED`: some information arrived but it is not enough — including vague answers (`TBD`, deferrals) even when marked as confirmed; the resolution report explains why with a note.
 - `CLOSED`: structured evidence is sufficient to close the gap.
 
 This matters because downstream artifacts should not hide uncertainty. A PRD, spec, backlog, or test plan should expose unresolved assumptions rather than inventing them away.

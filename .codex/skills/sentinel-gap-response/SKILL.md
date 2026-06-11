@@ -32,3 +32,4 @@ python -m sentinel /status PROJECT_ID
 - Do not rewrite client answers into confirmed seeds unless the response is structurally confirmed.
 - New information that is not mapped to an existing gap should be handled as follow-up input with `/sync` or a new explicit gap.
 - Preserve `CHG`, `SEED`, and `DEC` trace links created by the command.
+- Gap closure nuances (IMP-010): a substantive answer with `pending` decision becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague/deferred answer (`TBD`, `depende`, short non-answers) never closes a gap even if marked `confirmed` — it stays `PARTIALLY_CLOSED` with a `resolution_note` asking for specifics. Only substantive + confirmed/not-applicable closes. Explain these states to the user when summarizing /resolve-gaps.

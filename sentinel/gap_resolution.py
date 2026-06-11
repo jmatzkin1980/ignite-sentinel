@@ -12,6 +12,15 @@ from .workspace import read_json, state_path, update_state, utc_now, workspace_p
 
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
 PENDING_STATUSES = {"pendiente", "pending", "en revision", "en revisión", "to confirm", "tbd"}
+VAGUE_ANSWERS = {"tbd", "n/a", "na", "?", "no se", "no sé", "no sabemos", "depende", "to be defined", "pendiente", "lo vemos", "veremos"}
+
+
+def is_substantive_answer(answer: str) -> bool:
+    """An answer is substantive when it carries usable content, not a deferral."""
+    normalized = re.sub(r"\s+", " ", answer.strip().lower()).strip(".")
+    if not normalized or normalized in VAGUE_ANSWERS:
+        return False
+    return len(normalized) >= 15
 
 
 def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
@@ -75,6 +84,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "gap_resolution_report_id": report_id,
         "path": str(report_path.as_posix()),
         "closed": [item["id"] for item in resolution_results["closed"]],
+        "answered": [item["id"] for item in resolution_results["answered"]],
         "partially_closed": [item["id"] for item in resolution_results["partially_closed"]],
         "open": [item["id"] for item in resolution_results["open"]],
         "gap_counts": resolution_results["counts"],
@@ -107,6 +117,7 @@ def extract_field(block: str, labels: tuple[str, ...]) -> str:
 
 def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[str, str]]) -> dict[str, object]:
     closed: list[dict[str, str]] = []
+    answered: list[dict[str, str]] = []
     partially_closed: list[dict[str, str]] = []
     open_gaps: list[dict[str, str]] = []
     updated: list[dict[str, str]] = []
@@ -119,11 +130,23 @@ def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[st
         gap["owner"] = response.get("owner", "")
         gap["evidence"] = response.get("evidence", "")
         gap["decision_status"] = response.get("decision_status", "")
-        if answer and decision in CONFIRMED_STATUSES:
+        substantive = is_substantive_answer(answer)
+        if answer and decision in CONFIRMED_STATUSES and substantive:
             gap["status"] = "CLOSED"
             closed.append(gap)
+        elif answer and decision in CONFIRMED_STATUSES:
+            # Confirmed but the answer itself is vague/deferred: do not close silently.
+            gap["status"] = "PARTIALLY_CLOSED"
+            gap["resolution_note"] = "confirmed-but-vague: answer lacks usable content; ask for specifics"
+            partially_closed.append(gap)
+        elif answer and decision in PENDING_STATUSES and substantive:
+            # Clear answer awaiting confirmation: visible as ANSWERED, still blocking if severe.
+            gap["status"] = "ANSWERED"
+            gap["resolution_note"] = "awaiting-confirmation: substantive answer, decision still pending"
+            answered.append(gap)
         elif answer:
             gap["status"] = "PARTIALLY_CLOSED"
+            gap["resolution_note"] = "ambiguous: answer present but no recognizable decision status"
             partially_closed.append(gap)
         else:
             gap["status"] = gap.get("status", "OPEN")
@@ -132,6 +155,7 @@ def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[st
     return {
         "gaps": updated,
         "closed": closed,
+        "answered": answered,
         "partially_closed": partially_closed,
         "open": [gap for gap in updated if gap.get("status") == "OPEN"],
         "counts": count_gaps(updated),
@@ -192,6 +216,7 @@ def update_gap_report_node_status(project_id: str, counts: dict[str, int]) -> No
 
 def render_resolution_report(project_id: str, change_id: str, result: dict[str, object]) -> str:
     closed = result["closed"]
+    answered = result.get("answered", [])
     partial = result["partially_closed"]
     open_gaps = result["open"]
     return f"""# Gap Resolution Report - {project_id}
@@ -202,6 +227,10 @@ def render_resolution_report(project_id: str, change_id: str, result: dict[str, 
 ## Closed Gaps
 
 {render_resolution_rows(closed)}
+
+## Answered (Awaiting Confirmation)
+
+{render_resolution_rows(answered)}
 
 ## Partially Closed Gaps
 
@@ -216,7 +245,11 @@ def render_resolution_report(project_id: str, change_id: str, result: dict[str, 
 def render_resolution_rows(gaps: object) -> str:
     if not gaps:
         return "- None."
-    return "\n".join(f"- `{gap['id']}`: {gap.get('answer') or gap.get('description', '')}" for gap in gaps)  # type: ignore[index]
+    return "\n".join(
+        f"- `{gap['id']}`: {gap.get('answer') or gap.get('description', '')}"
+        + (f" _[{gap['resolution_note']}]_" if gap.get("resolution_note") else "")
+        for gap in gaps
+    )  # type: ignore[index]
 
 
 def append_gap_resolution_log(project_id: str, change_id: str, report_id: str, result: dict[str, object]) -> Path:

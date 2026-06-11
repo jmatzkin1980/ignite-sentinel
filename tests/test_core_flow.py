@@ -504,6 +504,61 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["health"], "CLEAN")
 
+    def test_gap_resolution_distinguishes_intermediate_states(self) -> None:
+        fixture = ROOT / "fixtures" / "incomplete_requirement.md"
+        self.assertEqual(main(["init", "NUAN"]), 0)
+        self.assertEqual(main(["ingest", "NUAN", "--source", str(fixture)]), 0)
+        response = self.temp / "respuestas.md"
+        response.write_text(
+            """### GAP-USERS
+
+- Answer: Primary users are operations analysts; supervisors only review weekly summaries.
+- Owner / source: Client product owner
+- Evidence or reference: kickoff notes
+- Decision status: confirmed
+
+### GAP-OBJECTIVE
+
+- Answer: Reduce manual review effort for the operations team before the daily standup.
+- Owner / source: Client sponsor
+- Evidence or reference: email thread
+- Decision status: pending
+
+### GAP-SCOPE
+
+- Answer: TBD
+- Owner / source: Client PM
+- Evidence or reference:
+- Decision status: confirmed
+
+### GAP-ACCEPTANCE
+
+- Answer: We will define something later with QA probably.
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+""",
+            encoding="utf-8",
+        )
+        from sentinel.gap_resolution import resolve_gaps
+
+        result = resolve_gaps("NUAN", response)
+        self.assertIn("GAP-USERS", result["closed"])
+        self.assertIn("GAP-OBJECTIVE", result["answered"])
+        self.assertIn("GAP-SCOPE", result["partially_closed"])
+        self.assertIn("GAP-ACCEPTANCE", result["partially_closed"])
+        self.assertNotIn("GAP-SCOPE", result["closed"])
+        counts = result["gap_counts"]
+        self.assertGreaterEqual(counts["answered"], 1)
+        self.assertGreater(counts["blocking_open"], 0)
+        gaps_md = (self.temp / "workspaces" / "NUAN" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertIn("ANSWERED", gaps_md)
+        report_files = list((self.temp / "workspaces" / "NUAN" / "07_changes" / "00_client_responses").glob("*report*.md"))
+        report_text = report_files[0].read_text(encoding="utf-8")
+        self.assertIn("Answered (Awaiting Confirmation)", report_text)
+        self.assertIn("confirmed-but-vague", report_text)
+        self.assertNotEqual(main(["specs", "NUAN"]), 0)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
@@ -570,7 +625,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertEqual(main(["resolve-gaps", "ACME", "--source", str(response)]), 0)
         gaps = (self.temp / "workspaces" / "ACME" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         self.assertIn("| GAP-USERS | business | high | CLOSED |", gaps)
-        self.assertIn("| GAP-SCOPE | product | critical | PARTIALLY_CLOSED |", gaps)
+        self.assertIn("| GAP-SCOPE | product | critical | ANSWERED |", gaps)
         self.assertEqual(main(["maturity", "ACME"]), 0)
         report = (self.temp / "workspaces" / "ACME" / "01_discovery" / "requirement_maturity_report.md").read_text(encoding="utf-8")
         self.assertIn("`BLOCKED`", report)
