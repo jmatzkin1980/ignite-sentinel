@@ -10,15 +10,24 @@
   ],
   "must_fire": [
     "GAP-ACCEPTANCE",
+    "GAP-DESIGN-FLOW",
     "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE",
     "GAP-GOVERNANCE-CONSTRAINTS",
     "GAP-METRIC-SOURCE",
     "GAP-QUALITY",
     "GAP-TECH-DATA-SOURCE",
     "GAP-TECH-NFR"
   ],
-  "must_not_fire": ["GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE"],
+  "must_not_fire": [
+    "GAP-OBJECTIVE",
+    "GAP-USERS",
+    "GAP-SCOPE"
+  ],
   "known_false_positives": [],
-  "target_fire": ["GAP-DESIGN-FLOW", "GAP-FRONTEND-SURFACE"],
-  "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask."
+  "target_fire": [
+    "GAP-DESIGN-FLOW",
+    "GAP-FRONTEND-SURFACE"
+  ],
+  "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]"
 }

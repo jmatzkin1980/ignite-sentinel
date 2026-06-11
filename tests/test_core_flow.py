@@ -305,6 +305,42 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertIn("Windows portable Sentinel launcher", check_names)
         self.assertIn("Unix portable Sentinel launcher", check_names)
 
+    def test_inquisitive_discovery_anchors_questions_to_evidence(self) -> None:
+        from sentinel.discovery import detect_gaps
+
+        text = (
+            "The goal is to reduce review time. Users are support leads. "
+            "Scope: one read-only screen with case data from the existing API."
+        )
+        gaps = {gap["id"]: gap for gap in detect_gaps(text)}
+        self.assertIn("GAP-DESIGN-FLOW", gaps)
+        self.assertEqual(gaps["GAP-DESIGN-FLOW"].get("evidence_mention"), "screen")
+        self.assertIn("GAP-BACKEND-SURFACE", gaps)
+        self.assertEqual(gaps["GAP-BACKEND-SURFACE"].get("evidence_mention"), "api")
+        described = (
+            text + " The journey covers navigation from the queue to the detail view. "
+            "Loading, empty, and error states are specified. The API contract documents "
+            "failure behavior and retry rules. Architecture and repository notes are attached."
+        )
+        described_gaps = {gap["id"] for gap in detect_gaps(described)}
+        self.assertNotIn("GAP-DESIGN-FLOW", described_gaps)
+        self.assertNotIn("GAP-BACKEND-SURFACE", described_gaps)
+        self.assertNotIn("GAP-TECH-DEEP-DIVE-INPUT", described_gaps)
+
+    def test_objective_in_english_does_not_raise_objective_gap(self) -> None:
+        from sentinel.discovery import detect_gaps
+
+        gaps = {gap["id"] for gap in detect_gaps("The objective is that billing always has current data.")}
+        self.assertNotIn("GAP-OBJECTIVE", gaps)
+
+    def test_gaps_document_renders_evidence_trigger(self) -> None:
+        fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"
+        self.assertEqual(main(["init", "EVID"]), 0)
+        self.assertEqual(main(["ingest", "EVID", "--source", str(fixture)]), 0)
+        gaps_md = (self.temp / "workspaces" / "EVID" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertIn("Evidence that triggers the question:", gaps_md)
+        self.assertIn("Detected Trigger", gaps_md)
+
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
         checklist = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "references" / "requirement-maturity-gap-checklist.md"
