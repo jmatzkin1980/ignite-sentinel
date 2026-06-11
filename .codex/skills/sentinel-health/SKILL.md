@@ -19,3 +19,4 @@ Use this skill as the final gate for any Sentinel workflow.
 - Health is based on versionable artifacts and deterministic checks.
 - LanceDB or fallback memory cannot override source files.
 - Metrics without explicit source or baseline are findings.
+- `/validate` also emits a non-blocking `semantic_quality` block (IMP-006): per-artifact score and classification (`evidence-backed` / `mixed` / `scaffolding`) for brief, PRD, and specs, plus `warnings`. Use it to decide whether downstream handoff content is mature, separate from structural validity.
