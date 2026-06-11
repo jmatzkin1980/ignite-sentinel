@@ -29,6 +29,8 @@ workspaces/*
 *.7z
 *.zip
 .sentinel_doctor_write_test
+# Local evolution/operational memory: not published to the public repo
+docs/
 # Personal handoff documents live outside the repo (IMP-002)
 general-proyecto.md
 ignite_vnext_final_handoff.md

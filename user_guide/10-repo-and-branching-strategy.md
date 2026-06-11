@@ -141,4 +141,4 @@ Confirm no real project workspace is staged.
 
 - `.gitattributes` normalizes line endings (`* text=auto`, LF in the repository). If `git status` ever shows mass "modified" files with no content changes, run `git add --renormalize .` in a dedicated commit with no functional changes mixed in.
 - Archives (`*.7z`, `*.zip`) and local tooling residue (such as `.sentinel_doctor_write_test`) are git-ignored and must never be committed. If a launcher or binary genuinely belongs in the repo, add an explicit negation rule and justify it in the PR.
-- Personal handoff or context documents live outside the repository (in your personal folders). The in-repo operational memory is `docs/evolution/`.
+- Personal handoff or context documents live outside the repository (in your personal folders). Evolution/operational memory lives in the local `docs/` folder, which is git-ignored and never published to the public repository.

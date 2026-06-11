@@ -9,7 +9,7 @@ Framework repo-local y local-first para que un BA/Product madure requerimientos 
 ## Orden de lectura al iniciar una sesión
 
 1. `AGENTS.md` (reglas operativas y working agreements).
-2. `docs/evolution/00-baseline-2026-06-10.md` (estado validado del repo).
+2. `docs/evolution/00-baseline-2026-06-10.md` (estado validado del repo; carpeta local git-ignored — si no existe, pedirla al usuario).
 3. `docs/evolution/01-roadmap.md` y `02-backlog-mejoras.md` (qué evolucionar y en qué orden).
 4. `user_guide/00-user-guide.md` y `01-command-reference.md` para uso del CLI.
 
@@ -74,7 +74,7 @@ tests/             unittest suite (17 tests)
 user_guide/        documentación de usuario (00-12)
 input/             staging local de inputs (no versionado)
 workspaces/        workspaces por proyecto (solo _template versionado)
-docs/evolution/    baseline, roadmap y backlog de mejoras del framework
+docs/evolution/    memoria operativa local (baseline, roadmap, backlog) — git-ignored, NO se publica
 installers/        launchers PowerShell
 ```
 
