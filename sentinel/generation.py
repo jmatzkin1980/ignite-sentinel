@@ -7,10 +7,10 @@ from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
-from .maturity import evaluate, parse_gap_answers
+from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
 from .traceability import add_edge, add_node, nodes_by_type, upsert_node
-from .workspace import read_json, state_path, update_state, workspace_path, write_json
+from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
 
 PRD_SECTION_QUERIES = {
@@ -247,11 +247,12 @@ Review this artifact against the triggering change before downstream handoff. Th
     return diff_id
 
 
-def generate_specs(project_id: str) -> dict[str, str]:
+def generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
         raise RuntimeError("Cannot generate specs while requirement maturity is BLOCKED.")
     base = workspace_path(project_id)
+    config = load_config(project_id)
     req_path = base / "02_requirements" / "requirements.md"
     brief_path = base / "02_requirements" / "project-brief.md"
     source_path = brief_path if brief_path.exists() else req_path
@@ -279,6 +280,23 @@ def generate_specs(project_id: str) -> dict[str, str]:
     previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
     prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
     prd_path.write_text(render_prd_compositions(project_id, prd_text), encoding="utf-8")
+    prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
+    specs_gate = config.get("specs_gate", {}) if isinstance(config.get("specs_gate", {}), dict) else {}
+    specs_threshold = float(specs_gate.get("threshold", 0.75))
+    specs_strict = bool(specs_gate.get("strict", False))
+    below_specs_threshold = float(prd_readiness["coverage_score"]) < specs_threshold
+    specs_warnings = prd_gate_warnings(prd_readiness, language) if below_specs_threshold else []
+    if specs_strict and below_specs_threshold:
+        update_state(
+            project_id,
+            phase="specs_below_threshold",
+            readiness_stage="SPECS_BELOW_THRESHOLD",
+            health="DIRTY",
+            prd_section_readiness=prd_readiness,
+            specs_gate={"threshold": specs_threshold, "strict": specs_strict, "below_threshold": below_specs_threshold},
+            specs_gate_warnings=specs_warnings,
+        )
+        raise RuntimeError("Cannot complete /specs while PRD section readiness is below specs_gate threshold.")
     spec_units = write_spec_units(project_id, context, source_path.name)
     specs_path.write_text(render_specs(project_id, req_text, context, source_path.name, spec_units), encoding="utf-8")
     record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))
@@ -337,8 +355,25 @@ def generate_specs(project_id: str) -> dict[str, str]:
             unit_path.read_text(encoding="utf-8"),
             trace_ids=unit_trace_ids,
         )
-    update_state(project_id, phase="specs_completed", health="CLEAN")
-    return {"prd_id": prd_id, "spec_id": spec_id, "prd_path": str(prd_path), "path": str(specs_path)}
+    gate_result = {"threshold": specs_threshold, "strict": specs_strict, "below_threshold": below_specs_threshold}
+    update_state(
+        project_id,
+        phase="specs_completed",
+        health="CLEAN",
+        readiness_stage="READY_FOR_BACKLOG",
+        prd_section_readiness=prd_readiness,
+        specs_gate=gate_result,
+        specs_gate_warnings=specs_warnings,
+    )
+    return {
+        "prd_id": prd_id,
+        "spec_id": spec_id,
+        "prd_path": str(prd_path),
+        "path": str(specs_path),
+        "prd_section_readiness": prd_readiness,
+        "warnings": specs_warnings,
+        "specs_gate": gate_result,
+    }
 
 
 def read_artifact_text(path: Path) -> str:

@@ -291,6 +291,16 @@ Output:
 
 The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. Its core narrative sections are compiled from source evidence, confirmed gap answers, EARS rows, decisions, and local-memory retrieval; unsupported details remain `[PENDING INPUT]` with the relevant `GAP-*`. The spec stays compact for agents: `specs.md` is the index and handoff contract, while `03_specs/units/SPEC-U-NNN.md` carries bounded evidence-backed execution units with trace IDs, EARS IDs, and source anchors. The context pack records the focused memory retrieval used during generation.
 
+Per-section PRD readiness and soft gate (IMP-041): `/specs` reports `prd_section_readiness` for numbered PRD sections 1-13 with `populated`/`pending`, `coverage_score`, evidence citation counts, and feeding gaps for poor sections. The same block appears in `/maturity` and `/status` under `maturity_metrics` once `prd.md` exists. The gate is non-blocking by default: below the configured threshold it returns `warnings` and `specs_gate.below_threshold=true`, but still completes. Opt-in strict mode in workspace config blocks completion with readiness stage `SPECS_BELOW_THRESHOLD`:
+
+```yaml
+specs_gate:
+  threshold: 0.75
+  strict: true
+```
+
+Default gates are not hardened without opt-in.
+
 ## `compose`
 
 Merge validated agent-authored narrative blocks into the generated PRD.
