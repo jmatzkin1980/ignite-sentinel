@@ -148,6 +148,10 @@ Important severities:
 
 Sanctioned record of agentic discovery analysis contributed through `/annotate` (IMP-021). Each entry lists the merged semantic gaps with their lens, severity, question, and the verbatim evidence quote the agent cited, plus reported ambiguities and implicit assumptions. The raw analysis JSON is archived under `01_discovery/annotations/`. These gaps carry `origin: agent` in `gaps.md` and an `agent_annotation` traceability node linked from the raw input to the gap report. Source files remain the authority: the agent proposes with evidence; the runtime validates and persists.
 
+### `challenge_report.md`
+
+Versionable record of the advanced-elicitation pass contributed through `/challenge` (IMP-023). Groups the merged findings by lens, showing the technique that surfaced each one (pre-mortem, role-play, assumption inversion), plus the imagined failure modes and inverted assumptions the agent reported. These gaps carry `origin: challenge` in `gaps.md` and a `challenge_report` traceability node linked from the raw input to the gap report. Like `/annotate`, findings are validated against the raw input before merging — the agent proposes with evidence; the runtime is the authority. The raw analysis JSON is archived under `01_discovery/challenges/`.
+
 ### `decisions.md`
 
 Pending or captured decisions that affect the requirement.

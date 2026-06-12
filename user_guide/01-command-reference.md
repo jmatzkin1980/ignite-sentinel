@@ -161,6 +161,26 @@ Outputs:
 - `agent_annotation` traceability node linked from the raw input and to the gap report
 - `gap_counts.agent_origin` in `state.json` (visible in `/status`)
 
+## `challenge`
+
+Run advanced elicitation (IMP-023) and merge the findings as gaps with `origin: challenge`.
+
+```powershell
+python -m sentinel /challenge PROJECT_ID --source PATH
+```
+
+`/challenge` materializes "understanding what is not being said". The agent first runs three techniques over the maturing requirement, per lens (invariant #1): pre-mortem ("the project failed at 6 months — what did we fail to ask?"), role-play by lens (operator, auditor, attacker...), and assumption inversion. The findings go in a JSON `--source` file shaped like `/annotate` (a `gaps` array with `id`, `lens`, `severity`, `question`, verbatim `evidence`, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.
+
+Validation is identical to `/annotate` (declared lens, severity range, verbatim evidence — never invented). On success the gaps are tagged `origin: challenge`, merged into `gaps.md`, and a traced, indexed `01_discovery/challenge_report.md` is written grouping findings by lens with the technique that surfaced each one.
+
+Outputs:
+
+- updated `01_discovery/gaps.md` (gaps with `origin: challenge`)
+- `01_discovery/challenge_report.md` (findings by lens + technique, pre-mortem and inverted assumptions)
+- copied source under `01_discovery/challenges/`
+- `challenge_report` traceability node linked from the raw input and to the gap report
+- `gap_counts.challenge_origin` in `state.json` (visible in `/status`)
+
 ## `resolve-gaps`
 
 Process an answered `gaps.md` or equivalent Markdown file.
