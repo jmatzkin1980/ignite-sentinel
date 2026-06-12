@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .discovery import (
     BRIEF_SECTION_FOR_GAP,
+    PRD_SECTION_FOR_GAP,
     brief_section_for_gap,
     extract_functional_signals,
     extract_metric_signals,
@@ -40,6 +41,37 @@ _BRIEF_SECTION_TITLES = {
 _GAPS_FOR_BRIEF_SECTION: dict[str, list[str]] = {}
 for _gap, _sec in BRIEF_SECTION_FOR_GAP.items():
     _GAPS_FOR_BRIEF_SECTION.setdefault(_sec, []).append(_gap)
+
+_PRD_SECTION_RE = re.compile(r"^## (\d+)\.", re.M)
+_PRD_TRACKED_SECTIONS = tuple(str(i) for i in range(1, 14))
+_PRD_PENDING_MARKERS = (
+    "[PENDING INPUT]",
+    "GAP-PRD-",
+    "GAP-METRIC-SOURCE",
+    "GAP-TECH-",
+    "GAP-DESIGN-",
+    "GAP-QUALITY",
+    "GAP-DELIVERY",
+    "GAP-GOVERNANCE",
+)
+_PRD_SECTION_TITLES = {
+    "1": "Executive Summary / Problem",
+    "2": "Scope",
+    "3": "Users And Personas",
+    "4": "Functional Requirements",
+    "5": "Non-Functional Requirements",
+    "6": "Business Success Criteria (KPIs)",
+    "7": "Jobs To Be Done",
+    "8": "Dependency Map",
+    "9": "Risks And Assumptions",
+    "10": "MVP, Roadmap, And Rollout",
+    "11": "Mandatory Constraints",
+    "12": "Suggested Or Assigned Team",
+    "13": "Glossary",
+}
+_GAPS_FOR_PRD_SECTION: dict[str, list[str]] = {}
+for _gap, _sec in PRD_SECTION_FOR_GAP.items():
+    _GAPS_FOR_PRD_SECTION.setdefault(_sec, []).append(_gap)
 
 
 def brief_section_readiness(brief_text: str) -> dict[str, object]:
@@ -87,6 +119,73 @@ def brief_gate_warnings(readiness: dict[str, object], language: str = "en") -> l
             warnings.append(f"Sección {poor['section']} ({poor['title']}) sin evidencia suficiente; alimentarla vía {gaps}.")
         else:
             warnings.append(f"Section {poor['section']} ({poor['title']}) lacks enough evidence; feed it via {gaps}.")
+    return warnings
+
+
+def prd_section_readiness(prd_text: str) -> dict[str, object]:
+    """Classify numbered PRD sections as populated/pending and score coverage."""
+    bodies: dict[str, list[str]] = {}
+    current = None
+    for line in prd_text.splitlines():
+        match = _PRD_SECTION_RE.match(line)
+        if match:
+            current = match.group(1)
+            bodies.setdefault(current, [])
+        elif line.startswith("# ") and current is not None:
+            current = None
+        elif current is not None:
+            bodies[current].append(line)
+    sections: dict[str, dict[str, object]] = {}
+    poor: list[dict[str, object]] = []
+    populated = 0
+    for sec in _PRD_TRACKED_SECTIONS:
+        body = "\n".join(bodies.get(sec, []))
+        is_pending = (not body.strip()) or any(marker in body for marker in _PRD_PENDING_MARKERS)
+        citations = count_prd_evidence_citations(body)
+        status = "pending" if is_pending else "populated"
+        sections[sec] = {"status": status, "evidence_citations": citations}
+        if is_pending:
+            feeding = sorted(_GAPS_FOR_PRD_SECTION.get(sec, []))
+            sections[sec]["feeding_gaps"] = feeding
+            poor.append({"section": sec, "title": _PRD_SECTION_TITLES[sec], "feeding_gaps": feeding})
+        else:
+            populated += 1
+    coverage_score = round(populated / len(_PRD_TRACKED_SECTIONS), 3)
+    return {
+        "coverage_score": coverage_score,
+        "sections_populated": populated,
+        "sections_total": len(_PRD_TRACKED_SECTIONS),
+        "sections": sections,
+        "poor_sections": poor,
+    }
+
+
+def count_prd_evidence_citations(body: str) -> int:
+    citation_patterns = (
+        r"`REQ-[A-Z0-9-]+`",
+        r"`REQ-\d+`",
+        r"`CHG-\d+`",
+        r"`DEC-\d+`",
+        r"`GAP-[A-Z0-9-]+`",
+        r"`SPEC-[A-Z0-9-]+`",
+        r"`00_raw/`",
+        r"`identity_seeds\.md`",
+        r"`02_requirements/[^`]+`",
+        r"\(source: `[^`]+`\)",
+        r"\(fuente: `[^`]+`\)",
+    )
+    return sum(len(re.findall(pattern, body)) for pattern in citation_patterns)
+
+
+def prd_gate_warnings(readiness: dict[str, object], language: str = "en") -> list[str]:
+    """Human-readable warnings naming poor PRD sections and feeding gaps."""
+    warnings: list[str] = []
+    for poor in readiness.get("poor_sections", []):  # type: ignore[union-attr]
+        gaps = ", ".join(f"`{g}`" for g in poor["feeding_gaps"]) or ("contexto de dominio" if language == "es" else "domain context")
+        if language == "es":
+            warnings.append(f"SecciÃ³n PRD {poor['section']} ({poor['title']}) bajo umbral; alimentarla vÃ­a {gaps}.")
+        else:
+            warnings.append(f"PRD section {poor['section']} ({poor['title']}) is below threshold; feed it via {gaps}.")
     return warnings
 
 
@@ -223,6 +322,9 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
     brief_path = base / "02_requirements" / "project-brief.md"
     if brief_path.exists():
         metrics["brief_section_readiness"] = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+    prd_path = base / "03_specs" / "prd.md"
+    if prd_path.exists():
+        metrics["prd_section_readiness"] = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
     # IMP-028: maturation-cycle telemetry.
     metrics["maturation_telemetry"] = maturation_telemetry(project_id)
     return metrics

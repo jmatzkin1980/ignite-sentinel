@@ -496,6 +496,8 @@ This is a local retrieval index and fallback. It is not the source of truth.
 
 `specs_generation.json` exposes `coverage_map` and `coverage_score`: how many PRD retrieval sections found supporting evidence in local memory (`none`/`weak`/`strong` per section). `implementation_readiness.json` exposes a per-story `readiness_score` (1.0 means no pending context or execution fields) and a `summary` block (`stories_ready`, `avg_readiness_score`, `pending_context_by_domain`). Downstream agents can filter or prioritize stories by score instead of parsing prose.
 
+Once `03_specs/prd.md` exists, `/maturity` and `/status` also expose `maturity_metrics.prd_section_readiness` (IMP-041): numbered PRD sections 1-13, per-section status, evidence citation count, `coverage_score`, and feeding gaps for poor sections. `/specs` returns the same block plus `specs_gate`; strict blocking is opt-in through workspace config and reports `SPECS_BELOW_THRESHOLD` instead of silently pushing weak PRD sections downstream.
+
 ## Regeneration Diffs
 
 When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.
