@@ -1545,6 +1545,39 @@ def brief_section_for_gap(gap_id: str) -> str | None:
     return BRIEF_SECTION_FOR_GAP.get(gap_id)
 
 
+# --- IMP-039: gap -> PRD narrative section map --------------------------------
+#
+# PRD sections are broader than the brief sections and consume both discovery
+# signals and confirmed gap answers. The PRD compiler uses this map to route
+# closed-gap answers without inventing missing content.
+
+PRD_SECTION_FOR_GAP = {
+    "GAP-OBJECTIVE": "1",
+    "GAP-METRIC-SOURCE": "6",
+    "GAP-USERS": "3",
+    "GAP-PRD-PERSONA-DETAIL": "3",
+    "GAP-SCOPE": "2",
+    "GAP-PRODUCT-ASIS-TOBE": "2",
+    "GAP-BUSINESS-RULES": "4",
+    "GAP-ACCEPTANCE": "4",
+    "GAP-PRD-FR-AC": "4",
+    "GAP-QUALITY": "5",
+    "GAP-QUALITY-HANDOFF": "5",
+    "GAP-TECH-NFR": "5",
+    "GAP-PRD-NFR-KPI": "5",
+    "GAP-GOVERNANCE-CONSTRAINTS": "11",
+    "GAP-PRD-GLOSSARY-GOVERNANCE": "13",
+    "GAP-DELIVERY-READINESS": "10",
+    "GAP-PRD-DEPENDENCIES-ROADMAP": "10",
+    "GAP-PRD-ROLLOUT-ENVIRONMENTS": "10",
+}
+
+
+def prd_section_for_gap(gap_id: str) -> str | None:
+    """Which PRD section (1-13) a gap's confirmed answer feeds, or None."""
+    return PRD_SECTION_FOR_GAP.get(gap_id)
+
+
 def render_decisions(project_id: str, text: str, req_id: str) -> str:
     decision = "Confirm scope, success criteria, and implementation constraints with stakeholders."
     if "decid" in text.lower() or "decision" in text.lower():

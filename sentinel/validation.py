@@ -124,6 +124,9 @@ PENDING_MARKERS = ("[PENDING INPUT]", "[PENDING DOMAIN CONTEXT]")
 EVIDENCE_MARKERS = (
     "| P-E",
     "| FR-E",
+    "| FR-",
+    "_(source:",
+    "_(fuente:",
     "(confirm baseline)",
     "Evidence that triggers the question:",
     "Evidencia que dispara la pregunta:",
