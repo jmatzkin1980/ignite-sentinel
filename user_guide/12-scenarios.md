@@ -712,7 +712,7 @@ There is a late blocker documented at input\interactions\blocker.md.
 Register it for ACME_DASHBOARD and check whether the project should become dirty.
 ```
 
-**How to interpret it:** A blocker should not be resolved by silently editing the backlog. It should become traceable evidence and, when appropriate, degrade readiness until resolved.
+**How to interpret it:** A blocker should not be resolved by silently editing the backlog. It should become traceable evidence and, when appropriate, degrade readiness until resolved. If the change triggers a gap that had already been `CLOSED`, the impact report lists it under `Reopened Closed Gaps` and `/status` surfaces the aggregate in `maturation_telemetry.reopened_by_sync_*`; the BA decides whether to reopen, resolve again, or reject the change as out of scope.
 
 ### Scenario G3: Validate The Framework Itself
 
@@ -765,7 +765,7 @@ I just opened this repository in VS Code.
 Check whether Ignite Sentinel is ready to use on this machine and tell me what to fix if anything fails.
 ```
 
-**How to interpret it:** If LanceDB fails, install dependencies with `python -m pip install -e .` in the active environment or ask a technical teammate to do it. If `python` is unavailable or points to an invalid Windows alias, use `.\installers\sentinel.ps1 /doctor`. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
+**How to interpret it:** If LanceDB fails, Sentinel still works in `json-hybrid` mode; install `python -m pip install -e .[memory]` only when the environment allows vector memory. Semantic embeddings are a separate optional layer (`.[memory-semantic]`) and must use local model files or cache. If `python` is unavailable or points to an invalid Windows alias, use `.\installers\sentinel.ps1 /doctor`. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
 
 ## Choosing Between `/resolve-gaps` And `/sync`
 

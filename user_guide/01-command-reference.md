@@ -56,7 +56,7 @@ Checks:
 - user guide and adapter guides
 - portable installers and launchers
 - repo write access
-- required LanceDB dependency
+- optional LanceDB dependency and backend mode
 - optional embedding dependencies
 
 ## `init`
@@ -74,7 +74,7 @@ Creates:
 - `sentinel.config.yaml`
 - `00_raw/source_manifest.json`
 - empty traceability graph
-- local LanceDB memory metadata file
+- local retrieval memory metadata files (`memory.lancedb/memory.json`; LanceDB table when the optional package is available)
 
 ## `ingest`
 

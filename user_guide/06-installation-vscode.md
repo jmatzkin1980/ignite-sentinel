@@ -17,9 +17,9 @@ Optional for vector memory (recommended when the environment allows it):
 
 - `lancedb` installed in the same Python environment used to run `python -m sentinel` (`pip install -e .[memory]`). Without it, Sentinel runs in deterministic `json-hybrid` memory mode.
 
-Optional:
+Optional for semantic local retrieval:
 
-- `sentence-transformers`, only if a future local semantic embedding workflow is enabled. Sentinel currently keeps a deterministic local hash fallback.
+- `model2vec` / `sentence-transformers` through `pip install -e .[memory-semantic]`, plus a locally available multilingual model path or pre-seeded cache. Without it, Sentinel keeps the deterministic `hash_embedding` fallback.
 
 No remote MCP, external vector database, or external embedding service is required for the default local-first workflow.
 
@@ -78,7 +78,7 @@ Unix-like portable launcher:
 sh installers/sentinel.sh /doctor
 ```
 
-`/doctor` checks the runtime, repo structure, `AGENTS.md`, Codex skills and hooks, Kilo agents and slash commands, portable launchers, write access, required dependencies, and whether LanceDB can create a local table in a temporary folder.
+`/doctor` checks the runtime, repo structure, `AGENTS.md`, Codex skills and hooks, Kilo agents and slash commands, portable launchers, write access, required dependencies, optional memory dependencies, the active embedder, and whether LanceDB can create a local table in a temporary folder when installed.
 
 4. Start a workspace from chat.
 
@@ -128,6 +128,14 @@ python -m pip install -e .[memory]
 python -m sentinel /doctor
 ```
 
+If the environment allows local semantic embeddings, enable them separately and point Sentinel to an approved local model/cache:
+
+```powershell
+python -m pip install -e .[memory-semantic]
+$env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
+python -m sentinel /doctor
+```
+
 If `python` resolves to the Windows Microsoft Store alias instead of a real interpreter, prefer:
 
 ```powershell
@@ -169,9 +177,10 @@ Ignite works through repo-local files:
 3. Open Kilo Code chat, Codex in VS Code, or Codex Desktop.
 4. Run `/doctor` in Kilo or `sentinel /doctor` in Codex.
 5. If LanceDB cannot be installed (locked-down VDI), continue anyway: Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports WARN, not FAIL. To enable vector retrieval later: `python -m pip install -e .[memory]`.
-6. Run `/init DEMO_PROJECT` in Kilo or `sentinel /init DEMO_PROJECT` in Codex.
-7. Try `/status DEMO_PROJECT` in Kilo or `sentinel /status DEMO_PROJECT` in Codex.
-8. If slash commands are intercepted, use `sentinel /status DEMO_PROJECT`, `.\installers\sentinel.ps1 /status DEMO_PROJECT`, or the terminal fallback.
+6. If semantic embeddings are allowed, install `[memory-semantic]`, pre-seed the local model/cache, and run `/reindex PROJECT_ID` after enabling it.
+7. Run `/init DEMO_PROJECT` in Kilo or `sentinel /init DEMO_PROJECT` in Codex.
+8. Try `/status DEMO_PROJECT` in Kilo or `sentinel /status DEMO_PROJECT` in Codex.
+9. If slash commands are intercepted, use `sentinel /status DEMO_PROJECT`, `.\installers\sentinel.ps1 /status DEMO_PROJECT`, or the terminal fallback.
 
 ## Troubleshooting
 
