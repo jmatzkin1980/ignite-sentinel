@@ -28,6 +28,7 @@ REQUIRED_COMMANDS = [
     "reindex",
     "gaps",
     "annotate",
+    "challenge",
     "resolve-gaps",
     "brief",
     "context-request",
@@ -37,6 +38,7 @@ REQUIRED_COMMANDS = [
 
 REQUIRED_CODEX_SKILLS = [
     "sentinel-annotate",
+    "sentinel-challenge",
     "sentinel-backlog",
     "sentinel-command-router",
     "sentinel-discovery",

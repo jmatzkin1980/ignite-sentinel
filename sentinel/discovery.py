@@ -400,11 +400,12 @@ def load_agent_annotation(source: Path) -> dict:
     return data
 
 
-def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None) -> list[dict[str, str]]:
+def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None, origin: str = "agent") -> list[dict[str, str]]:
     """Validate the agent's structured analysis; reject anything ungrounded.
 
     Returns normalized gap dicts ready to merge into gaps.md. Raises
-    :class:`AnnotationError` with a clear message on the first violation.
+    :class:`AnnotationError` with a clear message on the first violation. ``origin``
+    tags the provenance (``agent`` for /annotate, ``challenge`` for /challenge).
     """
     gaps_in = data.get("gaps")
     if not isinstance(gaps_in, list) or not gaps_in:
@@ -461,7 +462,7 @@ def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None) -> list[dict
                 "description": description,
                 "question": question,
                 "evidence_mention": evidence if len(evidence) <= 160 else evidence[:157] + "...",
-                "origin": "agent",
+                "origin": origin,
             }
         )
     return validated
@@ -637,6 +638,171 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
         "annotation_id": annotation_id,
         "path": str(gaps_path.as_posix()),
         "annotation_log": str(log_path.as_posix()),
+        "merged": [gap["id"] for gap in merged_new],
+        "skipped_duplicates": skipped,
+        "gap_counts": counts,
+    }
+
+
+# --- IMP-023: advanced elicitation (/challenge) -------------------------------
+#
+# /challenge materializes "understanding what is NOT being said": the agent runs
+# BMAD-style techniques over the maturing requirement — pre-mortem ("the project
+# failed at 6 months: what did we fail to ask?"), role-play per lens (operator,
+# auditor, attacker...), and assumption inversion. Findings are NOT written
+# directly: they go through the same validation as /annotate (declared lens,
+# severity range, verbatim evidence) and are merged as gaps tagged
+# `origin: challenge`. Techniques run per lens (invariant #1), not as generic
+# personas. The runtime stays the authority; the agent proposes with evidence.
+
+CHALLENGE_TECHNIQUES = ("pre-mortem", "role-play", "assumption-inversion")
+
+
+def _technique_by_gap(data: dict) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for item in data.get("gaps", []) if isinstance(data.get("gaps"), list) else []:
+        if isinstance(item, dict):
+            gid = str(item.get("id", "")).strip().upper()
+            tech = str(item.get("technique", "")).strip()
+            if gid and tech:
+                mapping[gid] = tech
+    return mapping
+
+
+def render_challenge_report(
+    project_id: str,
+    label: str,
+    merged: list[dict[str, str]],
+    skipped: list[str],
+    data: dict,
+    language: str = "en",
+) -> str:
+    techniques = _technique_by_gap(data)
+    by_lens: dict[str, list[dict[str, str]]] = {}
+    for gap in merged:
+        by_lens.setdefault(gap["lens"], []).append(gap)
+    lens_blocks = []
+    for lens in sorted(by_lens):
+        rows = "\n".join(
+            f"| `{gap['id']}` | {gap['severity']} | {techniques.get(gap['id'], 'n/a')} | {gap['question']} | {gap.get('evidence_mention', '')} |"
+            for gap in by_lens[lens]
+        )
+        lens_blocks.append(f"### Lens: `{lens}`\n\n| Gap ID | Severity | Technique | Question | Evidence Cited |\n| --- | --- | --- | --- | --- |\n{rows}")
+    lens_section = "\n\n".join(lens_blocks) or "_No new challenge gaps merged (all duplicates)._"
+    premortem = _string_list(data.get("premortem"))
+    inverted = _string_list(data.get("assumptions_inverted"))
+    premortem_block = "\n".join(f"- {item}" for item in premortem) or "- None reported."
+    inverted_block = "\n".join(f"- {item}" for item in inverted) or "- None reported."
+    skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
+    return f"""# Challenge Report - {project_id}
+
+Source: `{label}`. Origin: `challenge`. Advanced elicitation (IMP-023): the agent
+ran pre-mortem, per-lens role-play, and assumption inversion over the maturing
+requirement. Every finding below was validated by the runtime (declared lens,
+severity range, verbatim evidence) before merging as a gap — never written by hand.
+
+## Challenge Findings By Lens
+
+{lens_section}
+
+Skipped (already present in gaps.md): {skipped_block}
+
+## Pre-Mortem (imagined failure modes)
+
+{premortem_block}
+
+## Inverted Assumptions
+
+{inverted_block}
+"""
+
+
+def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
+    """Validate, merge, and trace advanced-elicitation findings (IMP-023).
+
+    Reuses the IMP-021 validation protocol but tags gaps `origin: challenge` and
+    writes a versionable `01_discovery/challenge_report.md`.
+    """
+    base = workspace_path(project_id)
+    if not base.exists():
+        raise RuntimeError(f"Workspace not found: {project_id}")
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot challenge before /ingest creates 01_discovery/gaps.md.")
+
+    raw_text = raw_input_text(base)
+    if not raw_text.strip():
+        raise RuntimeError("No raw input found under 00_raw/ to ground the challenge against.")
+
+    data = load_agent_annotation(source)
+    challenge_gaps = validate_agent_gaps(data, raw_text, origin="challenge")
+
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
+    existing_ids = {gap["id"] for gap in real_existing}
+    req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
+
+    merged_new: list[dict[str, str]] = []
+    skipped: list[str] = []
+    for gap in challenge_gaps:
+        if gap["id"] in existing_ids:
+            skipped.append(gap["id"])
+            continue
+        merged_new.append(gap)
+        existing_ids.add(gap["id"])
+
+    merged = real_existing + merged_new
+    language = _annotation_project_language(project_id, base)
+    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+
+    challenges_dir = base / "01_discovery" / "challenges"
+    challenges_dir.mkdir(parents=True, exist_ok=True)
+    stored = _unique_path(challenges_dir / f"{source.stem}.json")
+    shutil.copyfile(source, stored)
+
+    report_path = base / "01_discovery" / "challenge_report.md"
+    report_path.write_text(render_challenge_report(project_id, source.stem, merged_new, skipped, data, language), encoding="utf-8")
+
+    graph_nodes = load_graph(project_id).get("nodes", [])
+    challenge_id = add_node(
+        project_id,
+        "DISC",
+        "challenge_report",
+        report_path,
+        f"Challenge report: {source.stem}",
+        domain="product",
+    )
+    for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
+        add_edge(project_id, raw_node["id"], challenge_id, "challenged_by")
+    for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
+        add_edge(project_id, challenge_id, gap_node["id"], "raises")
+
+    broker = ContextBroker(project_id)
+    broker.index_artifact(
+        challenge_id,
+        "challenge_report",
+        report_path,
+        report_path.read_text(encoding="utf-8"),
+        trace_ids=[challenge_id],
+    )
+    mark_source_processed(project_id, source, "challenge_applied", challenge_id)
+
+    counts = count_gaps(merged)
+    counts["challenge_origin"] = sum(1 for gap in merged if gap.get("origin") == "challenge")
+    updates: dict[str, object] = {
+        "gap_counts": counts,
+        "readiness_stage": readiness_stage_for_counts(counts),
+        "last_challenge_id": challenge_id,
+    }
+    if counts.get("blocking_open", 0):
+        updates["health"] = "DIRTY"
+    update_state(project_id, **updates)
+
+    return {
+        "project_id": project_id,
+        "challenge_id": challenge_id,
+        "path": str(gaps_path.as_posix()),
+        "challenge_report": str(report_path.as_posix()),
         "merged": [gap["id"] for gap in merged_new],
         "skipped_duplicates": skipped,
         "gap_counts": counts,
