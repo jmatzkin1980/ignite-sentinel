@@ -286,9 +286,10 @@ Output:
 
 - `03_specs/prd.md`
 - `03_specs/specs.md`
+- `03_specs/units/SPEC-U-NNN.md` when confirmed evidence supports bounded spec units
 - `08_context_packs/specs_generation.json`
 
-The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. Its core narrative sections are compiled from source evidence, confirmed gap answers, EARS rows, decisions, and local-memory retrieval; unsupported details remain `[PENDING INPUT]` with the relevant `GAP-*`. The spec stays compact for agents: it keeps trace IDs, backlog contract, progressive disclosure context map, and retrieval guidance for backlog agents. The context pack records the focused memory retrieval used during generation.
+The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. Its core narrative sections are compiled from source evidence, confirmed gap answers, EARS rows, decisions, and local-memory retrieval; unsupported details remain `[PENDING INPUT]` with the relevant `GAP-*`. The spec stays compact for agents: `specs.md` is the index and handoff contract, while `03_specs/units/SPEC-U-NNN.md` carries bounded evidence-backed execution units with trace IDs, EARS IDs, and source anchors. The context pack records the focused memory retrieval used during generation.
 
 ## `backlog`
 

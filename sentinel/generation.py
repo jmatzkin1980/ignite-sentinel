@@ -8,7 +8,7 @@ from typing import Any
 from .memory import ContextBroker, get_multi_domain_context
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers
-from .traceability import add_edge, add_node, nodes_by_type
+from .traceability import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import read_json, state_path, update_state, workspace_path, write_json
 
 
@@ -277,7 +277,8 @@ def generate_specs(project_id: str) -> dict[str, str]:
     previous_prd = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
     previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
     prd_path.write_text(render_prd(project_id, req_text, context, source_path.name, language, evidence_text), encoding="utf-8")
-    specs_path.write_text(render_specs(project_id, req_text, context, source_path.name), encoding="utf-8")
+    spec_units = write_spec_units(project_id, context, source_path.name)
+    specs_path.write_text(render_specs(project_id, req_text, context, source_path.name, spec_units), encoding="utf-8")
     record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))
     record_regeneration_diff(project_id, "specs.md", previous_specs, specs_path.read_text(encoding="utf-8"))
     prd_id = add_node(project_id, "PRD", "prd", prd_path, "Human-readable PRD", domain="product")
@@ -298,6 +299,42 @@ def generate_specs(project_id: str) -> dict[str, str]:
     broker.index_artifact(
         spec_id, "spec", specs_path, specs_path.read_text(encoding="utf-8"), trace_ids=trace_ids
     )
+    req_path_for_units = base / "02_requirements" / "requirements.md"
+    for unit in spec_units:
+        unit_id = str(unit["id"])
+        unit_path = Path(str(unit["path"]))
+        unit_node = upsert_node(
+            project_id,
+            unit_id,
+            "spec_unit",
+            unit_path,
+            str(unit["title"]),
+            status=str(unit["status"]),
+            domain="product",
+        )
+        add_edge(project_id, prd_id, unit_node, "decomposes")
+        add_edge(project_id, spec_id, unit_node, "indexes")
+        unit_trace_ids = [*trace_ids, unit_node]
+        for ears_id in unit.get("ears", []):
+            if isinstance(ears_id, str) and EARS_REQUIREMENT_ID_RE.match(ears_id):
+                ears_node = upsert_node(
+                    project_id,
+                    ears_id,
+                    "ears_requirement",
+                    req_path_for_units,
+                    f"{ears_id} normalized EARS requirement",
+                    status="confirmed",
+                    domain="product",
+                )
+                add_edge(project_id, unit_node, ears_node, "traces_to")
+                unit_trace_ids.append(ears_node)
+        broker.index_artifact(
+            unit_node,
+            "spec_unit",
+            unit_path,
+            unit_path.read_text(encoding="utf-8"),
+            trace_ids=unit_trace_ids,
+        )
     update_state(project_id, phase="specs_completed", health="CLEAN")
     return {"prd_id": prd_id, "spec_id": spec_id, "prd_path": str(prd_path), "path": str(specs_path)}
 
@@ -1552,10 +1589,127 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 """
 
 
-def render_specs(project_id: str, req_text: str, context: dict[str, object], source_name: str) -> str:
+def write_spec_units(project_id: str, context: dict[str, object], source_name: str) -> list[dict[str, object]]:
+    base = workspace_path(project_id)
+    units_dir = base / "03_specs" / "units"
+    units_dir.mkdir(parents=True, exist_ok=True)
+    units = build_spec_units(context, source_name)
+    active_paths: set[Path] = set()
+    for unit in units:
+        path = units_dir / f"{unit['id']}.md"
+        unit["path"] = path
+        path.write_text(render_spec_unit(project_id, unit), encoding="utf-8")
+        active_paths.add(path)
+    for stale in units_dir.glob("SPEC-U-*.md"):
+        if stale not in active_paths:
+            stale.unlink()
+    return units
+
+
+def build_spec_units(context: dict[str, object], source_name: str) -> list[dict[str, object]]:
+    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
+    if not isinstance(rows, list):
+        return []
+    units: list[dict[str, object]] = []
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            continue
+        ears_id = str(row.get("id", "")).strip()
+        statement = str(row.get("statement", "")).strip()
+        if not EARS_REQUIREMENT_ID_RE.match(ears_id) or not statement:
+            continue
+        unit_id = f"SPEC-U-{len(units) + 1:03d}"
+        units.append(
+            {
+                "id": unit_id,
+                "title": f"{unit_id} - {ears_id}",
+                "status": "evidence-backed",
+                "trace_ids": ["REQ-001", "PRD-001", "SPEC-001", ears_id],
+                "ears": [ears_id],
+                "sources": [
+                    "02_requirements/requirements.md#normalized-requirements-ears",
+                    f"02_requirements/{source_name}",
+                    "03_specs/prd.md#4-functional-requirements",
+                ],
+                "pattern": str(row.get("pattern", "")).strip(),
+                "statement": statement,
+                "source": str(row.get("source", "")).strip(),
+            }
+        )
+    return units
+
+
+def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
+    trace_ids = [str(item) for item in unit.get("trace_ids", []) if str(item).strip()]
+    ears_ids = [str(item) for item in unit.get("ears", []) if str(item).strip()]
+    sources = [str(item) for item in unit.get("sources", []) if str(item).strip()]
+    source_rows = "\n".join(f"| `{source}` | Pointer |" for source in sources)
+    ears_rows = "\n".join(f"| `{ears_id}` | {safe_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
+    return f"""---
+id: {unit['id']}
+status: {unit['status']}
+trace_ids:
+{frontmatter_list(trace_ids)}
+ears:
+{frontmatter_list(ears_ids)}
+sources:
+{frontmatter_list(sources)}
+---
+
+# {unit['title']}
+
+## Evidence Basis
+
+| Source | Anchor |
+| --- | --- |
+{source_rows or "| `[PENDING INPUT]` | No source anchor was available. |"}
+
+## Normalized Requirement
+
+| EARS ID | Statement |
+| --- | --- |
+{ears_rows or "| `[PENDING INPUT]` | No confirmed EARS row was available. |"}
+
+## Execution Pointer
+
+- Project: `{project_id}`
+- Pattern: `{unit.get('pattern', 'unknown')}`
+- Source answer: {unit.get('source', '`02_requirements/requirements.md`')}
+- Use this unit as the bounded execution context for backlog slicing. Retrieve domain context only for the surfaces, risks, and validation evidence needed by this statement.
+- Missing implementation detail remains a `GAP-*` or `[PENDING DOMAIN CONTEXT]`; do not infer contracts, screens, data ownership, or rollout from this unit alone.
+"""
+
+
+def render_spec_units_index(spec_units: list[dict[str, object]] | None) -> str:
+    if not spec_units:
+        return "`[PENDING INPUT]` - no evidence-backed spec units exist yet. Confirm EARS rows or source-backed functional statements before treating specs as decomposed."
+    rows = []
+    for unit in spec_units:
+        ears = ", ".join(f"`{item}`" for item in unit.get("ears", [])) or "`N/A`"
+        path = Path(str(unit.get("path", ""))).as_posix()
+        if "03_specs/" in path:
+            path = path[path.index("03_specs/") :]
+        rows.append(f"| `{unit['id']}` | {safe_cell(str(unit.get('statement', '')), 180)} | {ears} | `{path}` |")
+    return "| Unit ID | Execution Slice | EARS Trace | File |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+
+
+def render_backlog_seed_rows(spec_units: list[dict[str, object]] | None) -> str:
+    if not spec_units:
+        return "| `[PENDING INPUT]` | No evidence-backed unit exists yet. Resolve functional/acceptance evidence before deriving backlog items. | Follow-up | `GAP-PRD-FR-AC` |"
+    rows = []
+    for unit in spec_units:
+        ears = ", ".join(f"`{item}`" for item in unit.get("ears", [])) or "`N/A`"
+        rows.append(
+            f"| `{unit['id']}` | Slice the behavior described by this unit into the smallest meaningful value story. | User Story Candidate | {ears} |"
+        )
+    return "\n".join(rows)
+
+
+def render_specs(project_id: str, req_text: str, context: dict[str, object], source_name: str, spec_units: list[dict[str, object]] | None = None) -> str:
     ears_block = render_ears_requirements_table(context)
     ears_ids = ears_trace_ids(context)
     ears_trace = ", ".join(f"`{item}`" for item in ears_ids) or "`N/A`"
+    unit_index = render_spec_units_index(spec_units)
     return f"""# Specs - {project_id}
 
 ## Spec Contract
@@ -1566,6 +1720,7 @@ def render_specs(project_id: str, req_text: str, context: dict[str, object], sou
 - Trace anchors: `REQ-001`, `PRD-001`, `SPEC-001`
 - Context pack: `08_context_packs/specs_generation.json`
 - Rule: agents must retrieve focused context before expanding backlog slices. Do not reread the whole workspace unless the retrieval pack is insufficient.
+- Unit rule: execution detail lives in `03_specs/units/SPEC-U-NNN.md`; this file is the index and handoff contract.
 
 ## Requirement Snapshot
 
@@ -1585,19 +1740,9 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | Preconditions | Generic access, environment availability, broad infrastructure readiness, or vague setup are preconditions/external tasks unless tied to confirmed project functionality and implementation evidence. |
 | Privacy | Do not include sensitive client data, credentials, URLs, account IDs, or raw payloads in backlog artifacts. |
 
-## Jobs To Be Done
+## Spec Units
 
-| JTBD ID | Context | Need | Expected Result | Source |
-| --- | --- | --- | --- | --- |
-| JTBD-001 | When the target user faces the scenario in `REQ-001` | Complete the primary job | Obtain the expected business outcome | `REQ-001` |
-
-## Functional Capabilities
-
-| Capability ID | Capability | JTBD Link | Trace Source |
-| --- | --- | --- | --- |
-| CAP-001 | Deliver the primary workflow described by the mature requirement. | JTBD-001 | `REQ-001`, `FR-01` |
-| CAP-002 | Preserve explicitly unchanged behavior and compatibility constraints. | JTBD-002 | `FR-02` |
-| CAP-003 | Make acceptance and quality evidence traceable. | JTBD-003 | `FR-05` |
+{unit_index}
 
 ## Confirmed EARS Requirements
 
@@ -1623,28 +1768,25 @@ These rows are parsed from `02_requirements/requirements.md` and remain source-o
 
 ## Backlog Seeds
 
-| Seed ID | Candidate Item | Type | Trace |
+Backlog seeds are derived from evidence-backed spec units. If no unit exists, backlog agents must work from pending inputs and focused retrieval rather than fixed placeholder stories.
+
+| Source Unit | Candidate Item | Type | Trace |
 | --- | --- | --- | --- |
-| EPIC-001 | Deliver the primary value slice from `FR-01` through `FR-05`. | Epic | `SPEC-001` |
-| US-001 | Implement/enable the primary user-visible workflow. | User Story | `FR-01`, `JTBD-01` |
-| US-002 | Preserve unchanged behavior and compatibility. | User Story | `FR-02` |
-| US-003 | Integrate required data/source-of-truth signals. | User Story | `FR-03` |
-| US-004 | Cover affected UX states, validations, and copy. | User Story | `FR-04` |
-| US-005 | Produce traceable acceptance and quality evidence. | User Story | `FR-05` |
-| EPIC-002 | Cross-cutting enablers only when backed by concrete frontend/backend/auth/data/integration/audit/observability evidence tied to confirmed project functionality. | Optional Enabler Epic | `SPEC-001`, `GAP-BACKLOG-ENABLERS` |
+{render_backlog_seed_rows(spec_units)}
 
 ## Decision And Assumption Trail
 
-| ID | Type | Statement | Risk If Wrong |
+| Source | Type | Statement | Risk If Wrong |
 | --- | --- | --- | --- |
-| ASM-001 | Assumption | Any detail not present in seeds, source input, or domain context remains pending confirmation. | Downstream backlog may require rework after `/sync`. |
-| ASM-002 | Assumption | PRD generated enough FR/JTBD/NFR structure for first backlog slicing. | Stories may need refinement if PRD readiness gaps remain. |
+| Sentinel invariant | Rule | Any detail not present in seeds, source input, spec units, or domain context remains pending confirmation. | Downstream backlog may require rework after `/sync`. |
+| PRD readiness | Rule | PRD-generated FR/JTBD/NFR structure must be checked against evidence before slicing. | Stories may need refinement if PRD readiness gaps remain. |
 
 ## Traceability
 
 - Parent requirement: `REQ-001`
 - EARS requirements: {ears_trace}
 - Parent PRD: `PRD-001`
+- Spec units: {", ".join(f"`{unit['id']}`" for unit in (spec_units or [])) or "`[PENDING INPUT]`"}
 - Mature brief: `02_requirements/project-brief.md` when present
 - Context pack: `08_context_packs/specs_generation.json`
 - Downstream artifacts: epics, user stories, acceptance criteria, tests, and traceability matrix.
