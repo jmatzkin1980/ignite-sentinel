@@ -13,7 +13,7 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
 - **It matures, it doesn't fabricate.** Every downstream artifact traces back to confirmed evidence. What isn't known yet stays a visible `GAP-*` or `[PENDING INPUT]` — the framework refuses to invent scope.
 - **The lifecycle is governed, not just generated.** Gates stop you from building specs on an immature requirement or a backlog on stale context. When a command blocks, it tells you the correct previous step.
 - **The agent is a sanctioned analyst, not a free hand.** Agents can deepen discovery (`/annotate`, `/challenge`) and propose normalized requirements — but the runtime validates every contribution against a verbatim quote before it touches an artifact. You stay in control.
-- **Local-first by default.** No remote MCP, external vector database, or external embedding service for client content. Runs fully on a locked-down VDI; LanceDB is optional and degrades to a deterministic JSON mode.
+- **Local-first by default.** No remote MCP, external vector database, or external embedding service for client content. Runs fully on a locked-down VDI; LanceDB is optional and degrades to deterministic `json-hybrid`; semantic embeddings are optional local packages only.
 - **One source, every agent.** The same lifecycle is driven from Codex, Kilo Code, Claude Code/Desktop, an MCP server, or the plain CLI — adapters are generated from a single manifest, so they never drift.
 
 ## The lifecycle at a glance
@@ -30,7 +30,7 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
                 /specs ──▶ /backlog ──▶ /quality ──▶ /trace · /health · /validate
 ```
 
-Discovery is the heart. The checklist detects what's missing deterministically; the agent can then add the semantic gaps a reassuring keyword would otherwise hide (`/annotate`) and stress-test the requirement with a pre-mortem and per-lens role-play (`/challenge`). When confirmed answers come back, the framework can normalize functional ones into testable **EARS** statements and compile a project brief whose every section is either evidence-backed and cited, or explicitly pending — with a per-section readiness score telling you exactly which gaps still need answers.
+Discovery is the heart. The checklist detects what's missing deterministically; the agent can then add the semantic gaps a reassuring keyword would otherwise hide (`/annotate`) and stress-test the requirement with a pre-mortem and per-lens role-play (`/challenge`). When confirmed answers come back, the framework can normalize functional ones into testable **EARS** statements that downstream PRD/spec/backlog artifacts cite as `REQ-EARS-*`, and compile a project brief whose every section is either evidence-backed and cited, or explicitly pending — with per-section readiness and maturation telemetry telling you exactly where discovery is still stuck.
 
 ---
 
@@ -48,6 +48,14 @@ python -m sentinel /doctor
 
 ```powershell
 python -m pip install -e .[memory]
+python -m sentinel /doctor
+```
+
+Semantic embeddings are a separate optional local layer. They never call an external embedding API at runtime and require a local model path or pre-seeded cache:
+
+```powershell
+python -m pip install -e .[memory-semantic]
+$env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
 python -m sentinel /doctor
 ```
 
@@ -127,6 +135,8 @@ A requirement keeps moving after discovery. Two distinct flows handle that:
 
 Use `/resolve-gaps` for `### GAP-ID` documents; use `/sync` for everything that doesn't map to an existing gap, so new scope becomes traceable change instead of silent scope creep.
 
+If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel records it in the impact report under `Reopened Closed Gaps` and surfaces aggregate counts in `/status` under `maturation_telemetry.reopened_by_sync_*`. The runtime does not silently reopen or rewrite the closed gap; it makes the renewed uncertainty visible for BA review.
+
 ## Command Protocol
 
 Every project command runs through the same governed protocol:
@@ -140,7 +150,9 @@ This keeps execution repo-local, deterministic, and auditable across Codex, Kilo
 
 ## Local memory
 
-Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders (technology, design, quality, business, interactions). `/retrieve` builds focused context packs — progressive disclosure — before an agent executes a workflow, so it reads the exact section it needs instead of the whole workspace. The index is always reconstructible from the source files; it is never the authority.
+Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders (technology, design, quality, business, interactions). `/retrieve` builds focused context packs — progressive disclosure — before an agent executes a workflow, so it reads the exact section it needs instead of the whole workspace.
+
+When LanceDB is available, Sentinel uses local hybrid retrieval: vector search plus FTS on `text`, combined with reciprocal rank fusion. When LanceDB is unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start` / `line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. The index is always reconstructible from the source files; it is never the authority.
 
 ## Workspace layout
 
@@ -188,6 +200,8 @@ python -m unittest discover -s tests
 python -m sentinel /doctor
 python tests\evals\run_discovery_evals.py
 ```
+
+Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`, including metrics by active backend (`json-hybrid` or `lancedb-hybrid`) and golden queries across all eval fixtures.
 
 If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
 
