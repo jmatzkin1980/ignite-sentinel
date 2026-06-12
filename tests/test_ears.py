@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import os
+import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -17,6 +19,7 @@ from sentinel.cli import main
 from sentinel.discovery import parse_gap_rows
 from sentinel.ears import classify_ears, is_ears
 from sentinel.gap_resolution import resolve_gaps
+from sentinel.generation import parse_ears_requirements, render_epic, render_specs
 
 RAW = (
     "# Ops Dashboard\n\n"
@@ -80,6 +83,39 @@ class EarsResolutionTests(unittest.TestCase):
         self.assertIn(f"`{ears_gap}`", req)
         # The prose answer must NOT be normalized.
         self.assertNotIn("reviews queues every morning", req)
+
+
+class EarsDownstreamCitationTests(unittest.TestCase):
+    def test_specs_and_backlog_cite_confirmed_ears_rows(self):
+        req_text = (
+            "# Requirements\n\n"
+            "## Normalized Requirements (EARS)\n\n"
+            "| ID | Pattern | Statement | Source |\n"
+            "| --- | --- | --- | --- |\n"
+            "| REQ-EARS-001 | event | When a case breaches SLA, the system shall flag the queue. | `GAP-001` / `CHG-001` |\n"
+        )
+        ears = parse_ears_requirements(req_text)
+        self.assertEqual(ears[0]["id"], "REQ-EARS-001")
+        context = {"ears_requirements": ears, "sections": {}}
+
+        specs = render_specs("EARS", "Mature requirement", context, "requirements.md")
+        self.assertIn("## Confirmed EARS Requirements", specs)
+        self.assertIn("`REQ-EARS-001`", specs)
+        self.assertIn("cite the relevant `REQ-EARS-*` IDs", specs)
+
+        epic = render_epic("EARS", [], context)
+        self.assertIn("  - REQ-EARS-001", epic)
+        self.assertIn("## Confirmed EARS Requirements", epic)
+        self.assertIn("When a case breaches SLA", epic)
+
+    def test_requirement_schema_supports_ears_metadata(self):
+        schema = json.loads(Path("sentinel/schemas/requirement.schema.json").read_text(encoding="utf-8"))
+        pattern = schema["properties"]["id"]["pattern"]
+        self.assertIsNotNone(re.match(pattern, "REQ-001"))
+        self.assertIsNotNone(re.match(pattern, "REQ-EARS-001"))
+        ears = schema["properties"]["ears"]
+        self.assertIn("pattern", ears["required"])
+        self.assertIn("event", ears["properties"]["pattern"]["enum"])
 
 
 if __name__ == "__main__":

@@ -212,7 +212,7 @@ Outputs:
 - `07_changes/00_client_responses/[source]_gap_resolution_report.md`
 - appended `01_discovery/gap_resolution_log.md`
 - confirmed seeds and decisions when applicable
-- EARS-normalized requirements (IMP-026): when a confirmed answer is already written in EARS syntax (e.g. "When <trigger>, the system shall <response>." — ubiquitous, event, state, unwanted, or optional, in EN or ES), it is accumulated into `02_requirements/requirements.md` under "Normalized Requirements (EARS)" as `REQ-EARS-NNN` with its pattern and source. Prose answers stay as seeds/decisions; the runtime validates EARS structure and never invents it.
+- EARS-normalized requirements (IMP-026): when a confirmed answer is already written in EARS syntax (e.g. "When <trigger>, the system shall <response>." — ubiquitous, event, state, unwanted, or optional, in EN or ES), it is accumulated into `02_requirements/requirements.md` under "Normalized Requirements (EARS)" as `REQ-EARS-NNN` with its pattern and source. Prose answers stay as seeds/decisions; the runtime validates EARS structure and never invents it. `/specs` and `/backlog` cite confirmed `REQ-EARS-*` rows so downstream stories, acceptance criteria, and tests can preserve the normalized requirement IDs.
 
 ## `brief`
 

@@ -4,10 +4,24 @@
   "type": "object",
   "required": ["id", "source_ids", "status", "domains", "statement"],
   "properties": {
-    "id": { "type": "string", "pattern": "^REQ-[0-9]{3}$" },
+    "id": { "type": "string", "pattern": "^REQ-(?:[0-9]{3}|EARS-[0-9]{3})$" },
     "source_ids": { "type": "array", "items": { "type": "string" } },
     "status": { "type": "string" },
     "domains": { "type": "array", "items": { "type": "string" } },
-    "statement": { "type": "string" }
+    "statement": { "type": "string" },
+    "ears": {
+      "type": "object",
+      "required": ["pattern", "source_ids"],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": ["ubiquitous", "event", "state", "unwanted", "optional"]
+        },
+        "source_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import re
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
@@ -43,6 +44,8 @@ DOMAIN_CONTEXT_FOLDERS = {
     "Quality": ("00_raw/04_quality_context",),
     "Delivery": ("07_changes",),
 }
+
+EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
 BACKLOG_STORY_SEEDS = [
     {
@@ -261,6 +264,7 @@ def generate_specs(project_id: str) -> dict[str, str]:
     context = get_multi_domain_context(req_text, project_id)
     generation_context = build_specs_generation_context(project_id, req_text)
     context["prd_sections"] = generation_context["sections"]
+    context["ears_requirements"] = load_ears_requirements(project_id)
     state = read_json(state_path(project_id), {})
     language = str(state.get("project_language", "es")).lower()
     prd_path = base / "03_specs" / "prd.md"
@@ -447,6 +451,7 @@ def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: 
         "workflow": "backlog_generation",
         "slicing_model": "vertical_value_slices_with_spidr_lawrence_invest",
         "domain_context_snapshot": domain_snapshot,
+        "ears_requirements": load_ears_requirements(project_id),
         "sections": sections,
     }
     write_json(workspace_path(project_id) / "08_context_packs" / "backlog_generation.json", pack)
@@ -586,13 +591,85 @@ def domain_context_snapshot(project_id: str) -> dict[str, Any]:
     return {"aggregate_hash": all_hash.hexdigest(), "domains": domains}
 
 
+def load_ears_requirements(project_id: str) -> list[dict[str, str]]:
+    req_path = workspace_path(project_id) / "02_requirements" / "requirements.md"
+    if not req_path.exists():
+        return []
+    return parse_ears_requirements(req_path.read_text(encoding="utf-8"))
+
+
+def parse_ears_requirements(requirements_text: str) -> list[dict[str, str]]:
+    in_section = False
+    rows: list[dict[str, str]] = []
+    for raw_line in requirements_text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("## "):
+            in_section = line == "## Normalized Requirements (EARS)"
+            continue
+        if not in_section or not line.startswith("|"):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        if len(cells) < 4 or cells[0] in {"ID", "---"} or not EARS_REQUIREMENT_ID_RE.match(cells[0]):
+            continue
+        rows.append(
+            {
+                "id": cells[0],
+                "pattern": cells[1],
+                "statement": cells[2],
+                "source": cells[3],
+            }
+        )
+    return rows
+
+
+def ears_trace_ids(context: dict[str, object]) -> list[str]:
+    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
+    if not isinstance(rows, list):
+        return []
+    ids: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            req_id = str(row.get("id", ""))
+            if EARS_REQUIREMENT_ID_RE.match(req_id):
+                ids.append(req_id)
+    return ids
+
+
+def render_ears_requirements_table(
+    context: dict[str, object],
+    empty_text: str = "",
+) -> str:
+    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
+    if not isinstance(rows, list) or not rows:
+        return empty_text
+    rendered_rows: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        req_id = str(row.get("id", ""))
+        if not EARS_REQUIREMENT_ID_RE.match(req_id):
+            continue
+        pattern = safe_cell(str(row.get("pattern", "")), 80)
+        statement = safe_cell(str(row.get("statement", "")), 260)
+        source = safe_cell(str(row.get("source", "")), 120)
+        rendered_rows.append(f"| `{req_id}` | {pattern} | {statement} | {source} |")
+    if not rendered_rows:
+        return empty_text
+    return (
+        "| ID | EARS Pattern | Testable Statement | Source |\n"
+        "| --- | --- | --- | --- |\n"
+        + "\n".join(rendered_rows)
+    )
+
+
 def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
     domain_coverage = build_domain_context_coverage(backlog_context)
+    ears_ids = ears_trace_ids(backlog_context)
     for index, seed in enumerate(BACKLOG_STORY_SEEDS, start=1):
         story_id = f"US-{index:03d}"
         source_context = context_row_for_story(seed, backlog_context)
-        trace = ["REQ-001", "PRD-001", "SPEC-001", seed["fr"], seed["jtbd"]]
+        trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", seed["fr"], seed["jtbd"]]
         story = {
             "id": story_id,
             "type": seed["type"],
@@ -626,13 +703,14 @@ def build_cross_cutting_enabler_specs(
     if not evidence:
         return []
     domain_coverage = value_stories[0].get("domain_coverage", []) if value_stories else []
+    ears_ids = ears_trace_ids(backlog_context)
     specs: list[dict[str, Any]] = []
     start = len(value_stories) + 1
     for candidate in ENABLER_CANDIDATES:
         if not any(token in evidence for token in candidate["tokens"]):
             continue
         story_id = f"US-{start + len(specs):03d}"
-        trace = ["REQ-001", "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
+        trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
         story = {
             "id": story_id,
             "type": "cross_cutting_enabler",
@@ -1081,6 +1159,8 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     extracted_metrics = extract_metric_signals(evidence_source)
     personas_evidence_title = "Evidence-Backed Personas" if english else "Personas con evidencia del input"
     fr_evidence_title = "Evidence-Backed Functional Statements" if english else "Declaraciones funcionales con evidencia del input"
+    ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
+    ears_block = render_ears_requirements_table(context)
     if extracted_personas:
         persona_rows = "\n".join(
             f'| P-E{i + 1} | "{row["evidence"]}" | `REQ-001` |' for i, row in enumerate(extracted_personas)
@@ -1190,6 +1270,10 @@ This PRD expands the mature discovery brief into a human-readable product docume
 | FR-05 | The system shall preserve traceability from requirement to acceptance criteria and tests. | Must Have | `GAP-ACCEPTANCE`, `GAP-QUALITY-HANDOFF` |
 
 {fr_evidence_block}
+### {ears_title}
+
+{ears_block or f"`{pending}` - no confirmed EARS statements are present in `02_requirements/requirements.md`."}
+
 **FR-01 Acceptance Criteria:**
 
 - Given the primary user has valid context and inputs, When they execute the primary workflow, Then the expected business outcome is achieved and traceable to `REQ-001`.
@@ -1380,6 +1464,9 @@ This PRD expands the mature discovery brief into a human-readable product docume
 
 
 def render_specs(project_id: str, req_text: str, context: dict[str, object], source_name: str) -> str:
+    ears_block = render_ears_requirements_table(context)
+    ears_ids = ears_trace_ids(context)
+    ears_trace = ", ".join(f"`{item}`" for item in ears_ids) or "`N/A`"
     return f"""# Specs - {project_id}
 
 ## Spec Contract
@@ -1402,7 +1489,7 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | Contract Item | Rule |
 | --- | --- |
 | Source hierarchy | Workspace files win over memory. PRD/specs summarize, they do not replace source evidence. |
-| Traceability | Every epic/story/AC must cite `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD/rule where applicable. |
+| Traceability | Every epic/story/AC must cite `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD/rule where applicable. When confirmed EARS rows exist, cite the relevant `REQ-EARS-*` IDs too. |
 | Missing evidence | Keep `[PENDING INPUT]` or create/follow a `GAP-*`; do not invent. |
 | Story size | `Small` means the smallest independently meaningful, testable, useful slice. Do not split into micro-stories that no longer produce value or reduce a named risk. |
 | Cross-cutting enablers | Enablers may live in a separate epic only when they are implementation work built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. They must reduce concrete risk/dependency and have objective acceptance evidence. |
@@ -1422,6 +1509,12 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 | CAP-001 | Deliver the primary workflow described by the mature requirement. | JTBD-001 | `REQ-001`, `FR-01` |
 | CAP-002 | Preserve explicitly unchanged behavior and compatibility constraints. | JTBD-002 | `FR-02` |
 | CAP-003 | Make acceptance and quality evidence traceable. | JTBD-003 | `FR-05` |
+
+## Confirmed EARS Requirements
+
+These rows are parsed from `02_requirements/requirements.md` and remain source-of-truth there. Specs and backlog cite their `REQ-EARS-*` IDs so testable statements survive downstream handoff.
+
+{ears_block or "`[PENDING INPUT]` - no confirmed EARS statements are present in `02_requirements/requirements.md`."}
 
 ## Progressive Disclosure Context Map
 
@@ -1461,6 +1554,7 @@ The mature requirement remains authoritative in `02_requirements/{source_name}`.
 ## Traceability
 
 - Parent requirement: `REQ-001`
+- EARS requirements: {ears_trace}
 - Parent PRD: `PRD-001`
 - Mature brief: `02_requirements/project-brief.md` when present
 - Context pack: `08_context_packs/specs_generation.json`
@@ -1476,15 +1570,15 @@ def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context:
     )
     domain_coverage = stories[0].get("domain_coverage", build_domain_context_coverage(backlog_context)) if stories else build_domain_context_coverage(backlog_context)
     readiness = backlog_context.get("implementation_readiness", {})
+    ears_block = render_ears_requirements_table(backlog_context)
+    trace_frontmatter = frontmatter_list(["REQ-001", *ears_trace_ids(backlog_context), "PRD-001", "SPEC-001"])
     return f"""---
 id: EPIC-001
 project: {project_id}
 status: draft
 priority: Must Have
 trace:
-  - REQ-001
-  - PRD-001
-  - SPEC-001
+{trace_frontmatter}
 context_pack: 08_context_packs/backlog_generation.json
 slicing_model: vertical-value-slices
 ---
@@ -1505,6 +1599,12 @@ Deliver the first ordered set of vertical slices that proves the mature requirem
 | Implementation readiness | `08_context_packs/implementation_readiness.json` ({readiness.get('verdict', 'PENDING')}) |
 | Generation rule | Use focused local retrieval before slicing. Workspace files remain source of truth; memory is a retrieval aid. |
 | Privacy | Do not copy credentials, private URLs, raw payloads, account IDs, or confidential client-specific facts into backlog artifacts. |
+
+## Confirmed EARS Requirements
+
+These normalized statements come from `02_requirements/requirements.md`. Stories and acceptance criteria should preserve applicable `REQ-EARS-*` IDs when planning or testing the backlog.
+
+{ears_block or "`[PENDING INPUT]` - no confirmed EARS statements are present in `02_requirements/requirements.md`."}
 
 ## Domain Context Coverage
 
@@ -1584,6 +1684,8 @@ def render_enabler_epic(
     )
     value_rows = "\n".join(f"| `{story['id']}` | {story['title']} |" for story in value_stories)
     domain_coverage = enablers[0].get("domain_coverage", build_domain_context_coverage(backlog_context)) if enablers else build_domain_context_coverage(backlog_context)
+    ears_block = render_ears_requirements_table(backlog_context)
+    trace_frontmatter = frontmatter_list(["REQ-001", *ears_trace_ids(backlog_context), "PRD-001", "SPEC-001"])
     return f"""---
 id: EPIC-002
 project: {project_id}
@@ -1591,9 +1693,7 @@ status: draft
 priority: Must Have
 type: cross_cutting_enabler_epic
 trace:
-  - REQ-001
-  - PRD-001
-  - SPEC-001
+{trace_frontmatter}
 context_pack: 08_context_packs/backlog_generation.json
 ---
 
@@ -1606,6 +1706,10 @@ This epic exists only for implementation enablers that must be built in advance 
 ## Domain Context Coverage
 
 {render_domain_context_coverage(domain_coverage)}
+
+## Confirmed EARS Requirements
+
+{ears_block or "`[PENDING INPUT]` - no confirmed EARS statements are present in `02_requirements/requirements.md`."}
 
 ## Accepted Enabler Test
 
@@ -1790,6 +1894,8 @@ def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
         f"| {criterion['id']} | {criterion.get('classification', 'acceptance')} | Given {criterion['given']}, When {criterion['when']}, Then {criterion['then']}. |"
         for criterion in story["acceptance"]
     )
+    normalized_reqs = [item for item in story.get("trace", []) if EARS_REQUIREMENT_ID_RE.match(str(item))]
+    normalized_req_text = ", ".join(f"`{item}`" for item in normalized_reqs) or "`N/A`"
     return f"""---
 id: {story['id']}
 project: {project_id}
@@ -1814,6 +1920,7 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 | Context Type | Source |
 | --- | --- |
 | Product requirement | `REQ-001`, `PRD-001`, `SPEC-001`, `{story['fr']}`, `{story['jtbd']}` |
+| Normalized EARS requirements | {normalized_req_text} |
 | Backlog context pack | `08_context_packs/backlog_generation.json` |
 | Retrieved signal | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) |
 
