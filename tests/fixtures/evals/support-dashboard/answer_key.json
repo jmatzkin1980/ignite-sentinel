@@ -1,6 +1,7 @@
 {
   "fixture": "support-dashboard",
   "language": "en",
+  "expected_language": "en",
   "deliberate_omissions": [
     "How the dashboard is accessed and who is authorized",
     "Where ticket data comes from and how metrics are calculated",
@@ -30,11 +31,33 @@
     "GAP-FRONTEND-SURFACE"
   ],
   "target_fire_rationale": "The word 'screen' suppresses the design-flow and frontend-surface checks, but the journey, navigation, and frontend binding are genuinely undescribed. An inquisitive engine (IMP-015) should still ask. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]",
+  "expected_gap_details": {
+    "GAP-ACCEPTANCE": {
+      "lens": "quality",
+      "severity": "critical",
+      "origin": "checklist"
+    },
+    "GAP-DESIGN-FLOW": {
+      "lens": "design",
+      "severity": "medium",
+      "origin": "checklist"
+    },
+    "GAP-METRIC-SOURCE": {
+      "lens": "business",
+      "severity": "high",
+      "origin": "checklist"
+    }
+  },
   "brief": {
     "target_populated": [
       "1",
       "2",
       "3"
+    ],
+    "target_pending": [
+      "4",
+      "5",
+      "6"
     ],
     "rationale": "Sections 1 (objective: reduce weekly-review prep time, 30% target), 2 (actor: support team leads) and 3 (scope: read-only dashboard for current quarter, editing out of scope) have confirmed evidence yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },

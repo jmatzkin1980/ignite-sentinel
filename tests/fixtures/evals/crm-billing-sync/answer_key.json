@@ -1,6 +1,7 @@
 {
   "fixture": "crm-billing-sync",
   "language": "en",
+  "expected_language": "en",
   "deliberate_omissions": [
     "Error handling, retries, and failure behavior of the synchronization",
     "Volumes, frequency, and latency expectations",
@@ -30,11 +31,33 @@
     "GAP-TECH-DEEP-DIVE-INPUT"
   ],
   "target_fire_rationale": "Words like 'api', 'endpoint', and 'integration' suppress the backend-surface and tech-deep-dive checks, yet contracts, failure behavior, and architecture input are genuinely missing. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]",
+  "expected_gap_details": {
+    "GAP-ACCEPTANCE": {
+      "lens": "quality",
+      "severity": "critical",
+      "origin": "checklist"
+    },
+    "GAP-BACKEND-SURFACE": {
+      "lens": "technical",
+      "severity": "medium",
+      "origin": "checklist"
+    },
+    "GAP-TECH-DEEP-DIVE-INPUT": {
+      "lens": "technical",
+      "severity": "medium",
+      "origin": "checklist"
+    }
+  },
   "brief": {
     "target_populated": [
       "1",
       "2",
       "3"
+    ],
+    "target_pending": [
+      "4",
+      "5",
+      "6"
     ],
     "rationale": "Sections 1 (objective), 2 (users) and 3 (scope) are confirmed in the requirement (see must_not_fire) yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },

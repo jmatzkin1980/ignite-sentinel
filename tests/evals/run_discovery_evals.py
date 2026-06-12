@@ -38,6 +38,7 @@ REPORTS = REPO_ROOT / "tests" / "evals" / "reports"
 
 sys.path.insert(0, str(REPO_ROOT))
 from sentinel.cli import main  # noqa: E402
+from sentinel.discovery import parse_gap_rows  # noqa: E402
 
 GAP_HEADING = re.compile(r"^### (GAP-[A-Z-]+)", re.M)
 BRIEF_SECTION = re.compile(r"^## (\d+)\.", re.M)
@@ -93,7 +94,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                     )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
-            fired = set(GAP_HEADING.findall((ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")))
+            gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+            gap_rows = parse_gap_rows(gaps_md)
+            fired = set(GAP_HEADING.findall(gaps_md))
+            gap_details = {row["id"]: row for row in gap_rows}
+            state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
@@ -113,14 +118,55 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
 
     brief_key = key.get("brief", {})
     brief_target = [s for s in brief_key.get("target_populated", []) if s in BRIEF_TRACKED_SECTIONS]
+    brief_pending_target = [s for s in brief_key.get("target_pending", []) if s in BRIEF_TRACKED_SECTIONS]
     brief_populated = sorted(s for s, st in brief_status.items() if st == "populated")
+    brief_pending = sorted(s for s, st in brief_status.items() if st == "pending")
     brief_target_populated = sorted(s for s in brief_target if brief_status.get(s) == "populated")
+    brief_target_pending = sorted(s for s in brief_pending_target if brief_status.get(s) == "pending")
+
+    expected_language = key.get("expected_language", key.get("language"))
+    language_detected = state.get("project_language", "unknown")
+    language_mismatch = language_detected != expected_language
+
+    expected_gap_details = dict(key.get("expected_gap_details", {}))
+    if apply_annotation:
+        expected_gap_details.update(key.get("annotate", {}).get("expected_gap_details", {}))
+    gap_detail_mismatches = []
+    for gap_id, expected in expected_gap_details.items():
+        actual = gap_details.get(gap_id)
+        if not actual:
+            gap_detail_mismatches.append({"gap": gap_id, "field": "presence", "expected": "present", "actual": "missing"})
+            continue
+        for field, expected_value in expected.items():
+            actual_value = actual.get(field)
+            if actual_value != expected_value:
+                gap_detail_mismatches.append(
+                    {"gap": gap_id, "field": field, "expected": expected_value, "actual": actual_value}
+                )
+
+    origin_counts: dict[str, int] = {}
+    severity_counts: dict[str, int] = {}
+    lens_counts: dict[str, int] = {}
+    for row in gap_rows:
+        origin = row.get("origin", "checklist")
+        severity = row.get("severity", "unknown")
+        lens = row.get("lens", "unknown")
+        origin_counts[origin] = origin_counts.get(origin, 0) + 1
+        severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        lens_counts[lens] = lens_counts.get(lens, 0) + 1
 
     return {
         "fixture": fixture_dir.name,
         "language": key.get("language", "unknown"),
+        "expected_language": expected_language,
+        "detected_language": language_detected,
+        "language_mismatch": language_mismatch,
         "fired_count": len(fired),
         "fired": sorted(fired),
+        "origin_counts": origin_counts,
+        "severity_counts": severity_counts,
+        "lens_counts": lens_counts,
+        "gap_detail_mismatches": gap_detail_mismatches,
         "recall_must_fire": round(len(must_fire & fired) / len(must_fire), 3) if must_fire else 1.0,
         "missing_must_fire": missing,
         "false_positives": false_positives,
@@ -131,10 +177,22 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "target_recall": round(len(target_detected) / len(target), 3) if target else 1.0,
         "brief_sections_status": brief_status,
         "brief_sections_populated": brief_populated,
+        "brief_sections_pending": brief_pending,
         "brief_target_sections": sorted(brief_target),
         "brief_target_populated": brief_target_populated,
         "brief_target_coverage": round(len(brief_target_populated) / len(brief_target), 3) if brief_target else 1.0,
-        "baseline_ok": not missing and not new_false_positives,
+        "brief_expected_pending_sections": sorted(brief_pending_target),
+        "brief_expected_pending_matched": brief_target_pending,
+        "brief_expected_pending_coverage": (
+            round(len(brief_target_pending) / len(brief_pending_target), 3) if brief_pending_target else 1.0
+        ),
+        "baseline_ok": (
+            not missing
+            and not new_false_positives
+            and not language_mismatch
+            and not gap_detail_mismatches
+            and sorted(brief_pending_target) == brief_target_pending
+        ),
     }
 
 
@@ -167,8 +225,13 @@ def run_all() -> int:
             ),
             "annotated_fixtures": annotated_fixtures,
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
+            "avg_brief_expected_pending_coverage": round(
+                sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
+            ),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
+            "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
+            "total_gap_detail_mismatches": sum(len(r["gap_detail_mismatches"]) for r in results),
         },
     }
 
@@ -191,13 +254,25 @@ def run_all() -> int:
             print(f"         new false positive: {gap}")
         for gap in r["fixed_known_false_positives"]:
             print(f"         fixed known false positive: {gap} (update answer key)")
+        if r["language_mismatch"]:
+            print(f"         language mismatch: expected {r['expected_language']} got {r['detected_language']}")
+        for mismatch in r["gap_detail_mismatches"]:
+            print(
+                f"         gap metadata mismatch: {mismatch['gap']} {mismatch['field']} "
+                f"expected {mismatch['expected']} got {mismatch['actual']}"
+            )
+        expected_pending = set(r["brief_expected_pending_sections"])
+        matched_pending = set(r["brief_expected_pending_matched"])
+        for section in sorted(expected_pending - matched_pending):
+            print(f"         brief section expected pending but populated: {section}")
     s = report["summary"]
     print(
         f"Summary: baseline_ok={s['baseline_ok']} avg_recall={s['avg_recall_must_fire']:.2f} "
         f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
-        f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress)"
+        f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
+        f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f}"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1
