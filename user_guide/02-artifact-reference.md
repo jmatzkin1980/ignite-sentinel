@@ -475,6 +475,8 @@ This is a local retrieval index and fallback. It is not the source of truth.
 
 When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.
 
+Change impact reports created by `/sync` also include `Reopened Closed Gaps` when new evidence triggers a gap ID that had previously been closed. This is a review signal, not an automatic state mutation: the BA decides whether to reopen, resolve again, or treat the change as out of scope.
+
 ## Base de Conocimiento de Lentes (`sentinel/lenses/`)
 
 El conocimiento de los lentes (qué escruta cada lente, con qué severidad, qué tokens lo cierran y qué pregunta dispara) **no vive hardcodeado en Python**: es una fuente declarativa versionable bajo `sentinel/lenses/`, un archivo JSON por lente (`business.json`, `product.json`, `quality.json`, `technical.json`, `compliance.json`, `delivery.json`, `design.json`). El motor de discovery (`detect_gaps`) y los context-requests por dominio leen esa misma fuente, así que nunca divergen. Es 100% local: JSON puro, sin dependencias ni red (IMP-033).

@@ -365,7 +365,7 @@ Outputs:
 
 Once a project brief exists, the block also carries `brief_section_readiness` (IMP-025): each narrative brief section (1-6) as `populated`/`pending`, an overall `coverage_score`, and, for each poor section, the gaps that feed it — the same signal the soft `/brief` gate uses.
 
-It also carries `maturation_telemetry` (IMP-028): `resolve_iterations` (number of `/resolve-gaps` rounds), `closed_by_origin` and `closed_by_origin_pct` (closed gaps split by provenance: checklist vs agent vs challenge), `open_blocking_gaps`, and `oldest_blocking_age_rounds` (how many resolve rounds the oldest still-open blocking gap has survived). Use it to see where maturation is stalling.
+It also carries `maturation_telemetry` (IMP-028): `resolve_iterations` (number of `/resolve-gaps` rounds), `closed_by_origin` and `closed_by_origin_pct` (closed gaps split by gap provenance: checklist vs agent vs challenge), `closed_by_response_source` and `closed_by_response_source_pct` (closed gaps split by who supplied the answer: client, domain, or controlled inference), `reopened_by_sync_total` / `reopened_by_sync_gap_ids` (closed gaps that a later `/sync` change triggered again), `open_blocking_gaps`, and `oldest_blocking_age_rounds` (how many resolve rounds the oldest still-open blocking gap has survived). Use it to see where maturation is stalling.
 
 ## `validate`
 
@@ -399,6 +399,8 @@ python -m sentinel /sync PROJECT_ID
 ```
 
 This detects new or modified files in input and workspace context folders using `00_raw/source_manifest.json`.
+
+If a synced change triggers a gap ID that was already `CLOSED`, the impact report lists it under `Reopened Closed Gaps` and `/status` exposes the aggregate in `maturation_telemetry.reopened_by_sync_*`. Sentinel does not silently change the closed gap state; it makes the renewed uncertainty explicit for BA review.
 
 Explicit file:
 

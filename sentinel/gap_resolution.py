@@ -14,6 +14,12 @@ from .workspace import read_json, state_path, update_state, utc_now, workspace_p
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
 PENDING_STATUSES = {"pendiente", "pending", "en revision", "en revisión", "to confirm", "tbd"}
 VAGUE_ANSWERS = {"tbd", "n/a", "na", "?", "no se", "no sé", "no sabemos", "depende", "to be defined", "pendiente", "lo vemos", "veremos"}
+DOMAIN_SOURCE_TOKENS = {
+    "architecture", "arquitectura", "backend", "delivery", "design", "diseño",
+    "engineering", "frontend", "platform", "quality", "qa", "security",
+    "seguridad", "technology", "tecnologia", "tecnología", "tech",
+}
+INFERENCE_SOURCE_TOKENS = {"agent", "analysis", "analisis", "análisis", "inference", "inferencia", "sentinel"}
 
 
 def is_substantive_answer(answer: str) -> bool:
@@ -43,6 +49,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
 
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
     resolution_results = apply_gap_responses(existing, responses)
+    annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     gaps_path.write_text(render_gaps(project_id, resolution_results["gaps"], req_id, language), encoding="utf-8")
 
@@ -167,6 +174,38 @@ def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[st
         "open": [gap for gap in updated if gap.get("status") == "OPEN"],
         "counts": count_gaps(updated),
     }
+
+
+def annotate_resolution_source_types(result: dict[str, object], source: Path) -> None:
+    for key in ("closed", "answered", "partially_closed"):
+        for gap in result.get(key, []):  # type: ignore[union-attr]
+            if isinstance(gap, dict):
+                gap["resolution_source_type"] = classify_resolution_source(
+                    gap.get("owner", ""),
+                    gap.get("evidence", ""),
+                    source,
+                )
+
+
+def classify_resolution_source(owner: str, evidence: str = "", source: Path | None = None) -> str:
+    text = f"{owner} {evidence} {source.as_posix() if source else ''}".lower()
+    if any(token in text for token in INFERENCE_SOURCE_TOKENS):
+        return "inference"
+    if any(token in text for token in DOMAIN_SOURCE_TOKENS):
+        return "domain"
+    return "client"
+
+
+def closed_resolution_source_counts(result: dict[str, object]) -> dict[str, int]:
+    counts = {"client": 0, "domain": 0, "inference": 0}
+    for gap in result.get("closed", []):  # type: ignore[union-attr]
+        if not isinstance(gap, dict):
+            continue
+        source_type = str(gap.get("resolution_source_type", "client"))
+        if source_type not in counts:
+            source_type = "client"
+        counts[source_type] += 1
+    return counts
 
 
 def normalize_status(value: str) -> str:
@@ -307,6 +346,7 @@ def render_resolution_rows(gaps: object) -> str:
     return "\n".join(
         f"- `{gap['id']}`: {gap.get('answer') or gap.get('description', '')}"
         + (f" _[{gap['resolution_note']}]_" if gap.get("resolution_note") else "")
+        + (f" _(source: {gap['resolution_source_type']})_" if gap.get("resolution_source_type") else "")
         for gap in gaps
     )  # type: ignore[index]
 
@@ -317,14 +357,15 @@ def append_gap_resolution_log(project_id: str, change_id: str, report_id: str, r
         path.write_text(
             f"""# Gap Resolution Log - {project_id}
 
-| Timestamp | Change ID | Report ID | Closed | Partial | Open |
-| --- | --- | --- | ---: | ---: | ---: |
+| Timestamp | Change ID | Report ID | Closed | Partial | Open | Client Closed | Domain Closed | Inference Closed |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 """,
             encoding="utf-8",
         )
+    source_counts = closed_resolution_source_counts(result)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(
-            f"| {utc_now()} | `{change_id}` | `{report_id}` | {len(result['closed'])} | {len(result['partially_closed'])} | {len(result['open'])} |\n"
+            f"| {utc_now()} | `{change_id}` | `{report_id}` | {len(result['closed'])} | {len(result['partially_closed'])} | {len(result['open'])} | {source_counts['client']} | {source_counts['domain']} | {source_counts['inference']} |\n"
         )
     return path
 

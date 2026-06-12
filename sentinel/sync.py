@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from .discovery import detect_gaps
+from .discovery import detect_gaps, parse_gap_rows
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
 from .traceability import add_edge, add_node, children_of, count_by_type, load_graph
@@ -27,8 +27,9 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         add_edge(project_id, change_id, node_id, "may_impact")
 
     gaps = detect_gaps(text)
+    reopened = reopened_closed_gap_ids(base, gaps)
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
-    impact_path.write_text(render_impact(project_id, change_id, affected, gaps, note, blast_radius), encoding="utf-8")
+    impact_path.write_text(render_impact(project_id, change_id, affected, gaps, note, blast_radius, reopened), encoding="utf-8")
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
     add_edge(project_id, change_id, impact_id, "produces")
 
@@ -41,7 +42,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         impact_path.read_text(encoding="utf-8"),
         trace_ids=[change_id, impact_id],
     )
-    metabolism_path = append_metabolism_log(project_id, change_id, source, affected, gaps, note)
+    metabolism_path = append_metabolism_log(project_id, change_id, source, affected, gaps, note, reopened)
     broker.index_artifact(
         "METABOLISM-LOG",
         "metabolism_log",
@@ -66,6 +67,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "path": str(target.as_posix()),
         "affected": affected,
         "gaps": gaps,
+        "reopened_gaps": reopened,
     }
 
 
@@ -126,6 +128,16 @@ def summarize_impact(project_id: str, affected: list[str]) -> dict[str, object]:
     }
 
 
+def reopened_closed_gap_ids(base: Path, detected_gaps: list[dict[str, str]]) -> list[str]:
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists() or not detected_gaps:
+        return []
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    closed = {gap["id"] for gap in existing if str(gap.get("status", "")).upper() == "CLOSED"}
+    detected = {gap["id"] for gap in detected_gaps}
+    return sorted(closed & detected)
+
+
 def change_target_dir(base: Path, source: Path) -> Path:
     normalized = source.as_posix().lower()
     if "technology_context" in normalized or "design_context" in normalized or "quality_context" in normalized:
@@ -160,6 +172,7 @@ def append_metabolism_log(
     affected: list[str],
     gaps: list[dict[str, str]],
     note: str,
+    reopened: list[str] | None = None,
 ) -> Path:
     path = workspace_path(project_id) / "07_changes" / "metabolism_log.md"
     if not path.exists():
@@ -175,6 +188,7 @@ Every sync event records the evolution of project knowledge. Source files remain
         )
     health_signal = "DIRTY" if gaps else "CLEAN"
     event_type = "GAP_OR_CHANGE_INPUT"
+    reopened = reopened or []
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"| {utc_now()} | `{change_id}` | `{source.as_posix()}` | {event_type} | {health_signal} |\n")
         handle.write("\n")
@@ -187,6 +201,9 @@ Every sync event records the evolution of project knowledge. Source files remain
                 handle.write(f"  - `{gap['id']}` ({gap['severity']}): {gap['description']}\n")
         else:
             handle.write("- New or unresolved gaps: None detected by deterministic scan.\n")
+        handle.write(
+            f"- Reopened closed gaps: {', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n"
+        )
         handle.write("- Required action: review impacted requirements, PRD/specs, backlog, quality, and traceability before marking the change applied.\n\n")
     return path
 
@@ -198,6 +215,7 @@ def render_impact(
     gaps: list[dict[str, str]],
     note: str,
     blast_radius: dict[str, object] | None = None,
+    reopened: list[str] | None = None,
 ) -> str:
     affected_rows = "\n".join(f"- `{node_id}`" for node_id in affected) or "- No existing downstream nodes found."
     gap_rows = "\n".join(
@@ -205,8 +223,10 @@ def render_impact(
     ) or "- No new deterministic gaps detected."
     note_text = note or "No operator note provided."
     blast_radius = blast_radius or {"count": len(affected), "by_type": {}}
+    reopened = reopened or []
     by_type = blast_radius.get("by_type", {})
     blast_rows = "\n".join(f"| {node_type} | {count} |" for node_type, count in by_type.items()) or "| none | 0 |"
+    reopened_rows = "\n".join(f"- `{gap_id}`" for gap_id in reopened) or "- None."
     return f"""# Change Impact Report - {project_id}
 
 - Change: `{change_id}`
@@ -229,6 +249,11 @@ def render_impact(
 ## New Gaps Detected In Change Input
 
 {gap_rows}
+
+## Reopened Closed Gaps
+
+- Reopened closed gaps: {len(reopened)}
+{reopened_rows}
 
 ## Required BA Action
 
