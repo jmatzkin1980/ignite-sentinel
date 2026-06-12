@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from pathlib import Path
 import re
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
-from .discovery import extract_personas, extract_functional_signals, extract_metric_signals
-from .maturity import evaluate
+from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
+from .maturity import evaluate, parse_gap_answers
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path, write_json
 
@@ -254,10 +255,10 @@ def generate_specs(project_id: str) -> dict[str, str]:
     brief_path = base / "02_requirements" / "project-brief.md"
     source_path = brief_path if brief_path.exists() else req_path
     req_text = source_path.read_text(encoding="utf-8")
-    raw_dir = base / "00_raw" / "00_client_requirement"
+    raw_dir = base / "00_raw"
     raw_parts = []
     if raw_dir.exists():
-        for raw_file in sorted(raw_dir.glob("*")):
+        for raw_file in sorted(raw_dir.rglob("*")):
             if raw_file.is_file() and raw_file.suffix.lower() in {".md", ".txt"}:
                 raw_parts.append(raw_file.read_text(encoding="utf-8", errors="ignore"))
     evidence_text = "\n\n".join(raw_parts) or req_text
@@ -265,6 +266,10 @@ def generate_specs(project_id: str) -> dict[str, str]:
     generation_context = build_specs_generation_context(project_id, req_text)
     context["prd_sections"] = generation_context["sections"]
     context["ears_requirements"] = load_ears_requirements(project_id)
+    seed_text = read_artifact_text(base / "01_discovery" / "identity_seeds.md")
+    decision_text = read_artifact_text(base / "01_discovery" / "decisions.md")
+    context["gap_answers"] = parse_gap_answers(seed_text + "\n" + decision_text)
+    context["raw_text"] = evidence_text
     state = read_json(state_path(project_id), {})
     language = str(state.get("project_language", "es")).lower()
     prd_path = base / "03_specs" / "prd.md"
@@ -295,6 +300,10 @@ def generate_specs(project_id: str) -> dict[str, str]:
     )
     update_state(project_id, phase="specs_completed", health="CLEAN")
     return {"prd_id": prd_id, "spec_id": spec_id, "prd_path": str(prd_path), "path": str(specs_path)}
+
+
+def read_artifact_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def generate_backlog(project_id: str) -> dict[str, str]:
@@ -1139,6 +1148,146 @@ def render_prd(project_id: str, req_text: str, context: dict[str, object], sourc
     return render_prd_full(project_id, req_text, context, source_name, "es", evidence_text)
 
 
+def compile_prd_sections(
+    project_id: str,
+    req_text: str,
+    context: dict[str, object],
+    language: str,
+    evidence_text: str = "",
+) -> dict[str, str]:
+    """Compile PRD sections from evidence, confirmed gap answers, and EARS rows."""
+    english = language == "en"
+    pending = "[PENDING INPUT]"
+    raw_text = str(context.get("raw_text") or evidence_text or "")
+    evidence_source = raw_text or req_text
+    sentences = split_evidence_sentences(evidence_source)
+    gap_answers = context.get("gap_answers", {})
+    if not isinstance(gap_answers, dict):
+        gap_answers = {}
+
+    objective = first_sentence_with(sentences, ("objective", "goal", "objetivo", "bajar", "reduce", "cut", "modernize"))
+    scope_in = first_sentence_with(sentences, ("in scope", "scope:", "alcance", "primera version"))
+    scope_out = first_sentence_with(sentences, ("out of scope", "fuera de alcance"))
+    current = first_sentence_with(sentences, ("today", "currently", "hoy", "actual", "by hand", "a mano", "telefonico"))
+    personas = extract_personas(evidence_source)
+    functionals = extract_functional_signals(evidence_source)
+    metrics = extract_metric_signals(evidence_source)
+    ears_rows = context.get("ears_requirements", [])
+    if not isinstance(ears_rows, list):
+        ears_rows = []
+
+    def source_ref(source: str = "00_raw/") -> str:
+        label = "source" if english else "fuente"
+        return f"_({label}: `{source}`)_"
+
+    def quote(sentence: str) -> str:
+        return f'"{sentence}" {source_ref()}'
+
+    def pending_line(gap_id: str) -> str:
+        action = "resolve" if english else "resolver"
+        return f"- `{pending}` - {action} `{gap_id}` before treating this section as evidence-backed."
+
+    def confirmed_for_section(section: str, include_gap_id: bool = True) -> list[str]:
+        lines: list[str] = []
+        for gap_id, payload in gap_answers.items():
+            if not isinstance(payload, dict) or prd_section_for_gap(str(gap_id)) != section:
+                continue
+            statement = str(payload.get("statement", "")).strip()
+            source = str(payload.get("source", "")).strip()
+            if statement:
+                if include_gap_id:
+                    src = f"`{gap_id}`" + (f" / `{source}`" if source else "")
+                else:
+                    src = f"`{source}`" if source else "`identity_seeds.md`"
+                lines.append(f"- {statement} _({src})_")
+        return lines
+
+    title = project_title(evidence_source, project_id)
+    outcome_lines: list[str] = [
+        f"- {'Initiative' if english else 'Iniciativa'}: {title} {source_ref()}",
+    ]
+    if objective:
+        outcome_lines.append(f"- {'Outcome' if english else 'Resultado'}: {quote(objective)}")
+    else:
+        outcome_lines.extend(confirmed_for_section("1") or [pending_line("GAP-OBJECTIVE")])
+    if metrics:
+        metric = metrics[0]
+        outcome_lines.append(f"- KPI: `{metric['metric']}` from {quote(metric['evidence'])}")
+    sections: dict[str, str] = {"1": "\n".join(outcome_lines)}
+
+    scope_lines: list[str] = []
+    scope_lines.append(f"- {'Current state' if english else 'Estado actual'}: {quote(current)}" if current else pending_line("GAP-PRODUCT-ASIS-TOBE"))
+    scope_lines.append(f"- In scope: {quote(scope_in)}" if scope_in else pending_line("GAP-SCOPE"))
+    scope_lines.append(f"- Out of scope: {quote(scope_out)}" if scope_out else pending_line("GAP-SCOPE"))
+    sections["2"] = "\n".join(scope_lines)
+
+    persona_lines = [
+        f"| P-{i + 1:02d} | {row['evidence']} | `REQ-001`, `00_raw/` |"
+        for i, row in enumerate(personas)
+    ]
+    if confirmed_for_section("3"):
+        persona_lines.extend(f"| P-A{i + 1:02d} | {line.lstrip('- ')} | `identity_seeds.md` |" for i, line in enumerate(confirmed_for_section("3")))
+    if persona_lines:
+        sections["3"] = "| ID | Persona Evidence | Source |\n| --- | --- | --- |\n" + "\n".join(persona_lines)
+    else:
+        sections["3"] = pending_line("GAP-USERS")
+
+    fr_rows: list[str] = []
+    for i, row in enumerate(functionals, start=1):
+        fr_rows.append(f"| FR-{i:02d} | {row['statement']} | Must Have | `REQ-001`, `00_raw/` |")
+    for row in ears_rows:
+        if isinstance(row, dict):
+            req_id = str(row.get("id", "")).strip()
+            statement = str(row.get("statement", "")).strip()
+            if req_id and statement:
+                fr_rows.append(f"| FR-E{len(fr_rows) + 1:02d} | {statement} | Must Have | `{req_id}` |")
+    for line in confirmed_for_section("4"):
+        fr_rows.append(f"| FR-A{len(fr_rows) + 1:02d} | {line.lstrip('- ')} | Must Have | `identity_seeds.md` |")
+    if fr_rows:
+        sections["4"] = "| ID | Requirement | Priority | Source |\n| --- | --- | --- | --- |\n" + "\n".join(fr_rows)
+    else:
+        sections["4"] = pending_line("GAP-PRD-FR-AC")
+
+    quality_lines = confirmed_for_section("5")
+    sections["5"] = "\n".join(quality_lines) if quality_lines else "\n".join(
+        [
+            pending_line("GAP-PRD-NFR-KPI"),
+            pending_line("GAP-TECH-NFR"),
+        ]
+    )
+
+    if metrics:
+        kpi_rows = []
+        for i, metric in enumerate(metrics, start=1):
+            kpi_rows.append(
+                f"| KPI-{i:02d} | {metric['evidence']} | {metric['metric']} | Confirmed evidence or gap response | `REQ-001`, `00_raw/` |"
+            )
+        for line in confirmed_for_section("6", include_gap_id=False):
+            kpi_rows.append(f"| KPI-A{len(kpi_rows) + 1:02d} | {line.lstrip('- ')} | Confirmed | Confirmed response | `identity_seeds.md` |")
+        sections["6"] = "| KPI ID | Description | Target | Measurement Method | Source |\n| --- | --- | --- | --- | --- |\n" + "\n".join(kpi_rows)
+    else:
+        kpi_lines = confirmed_for_section("6")
+        sections["6"] = "\n".join(kpi_lines) if kpi_lines else pending_line("GAP-METRIC-SOURCE")
+
+    return sections
+
+
+def first_sentence_with(sentences: list[str], cues: tuple[str, ...]) -> str:
+    for sentence in sentences:
+        lowered = sentence.lower()
+        if any(cue in lowered for cue in cues):
+            return sentence
+    return ""
+
+
+def project_title(text: str, fallback: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            return stripped.lstrip("#").strip()
+    return fallback
+
+
 def render_prd_full(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str, evidence_text: str = "") -> str:
     english = language == "en"
     section_context = render_prd_section_context(context)
@@ -1149,7 +1298,7 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     fr_title = "Functional Requirements" if english else "Requerimientos funcionales"
     nfr_title = "Non-Functional Requirements" if english else "Requerimientos no funcionales"
     kpi_title = "Business Success Criteria (KPIs)" if english else "Criterios de exito del negocio (KPIs)"
-    jtbd_title = "JTBD Traceability" if english else "JTBD Traceability"
+    jtbd_title = "Jobs Traceability" if english else "Trazabilidad de trabajos"
     execution = "Execution Plan" if english else "Execution Plan"
     governance = "Governance" if english else "Governance"
     pending = "[PENDING INPUT]"
@@ -1161,6 +1310,7 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     fr_evidence_title = "Evidence-Backed Functional Statements" if english else "Declaraciones funcionales con evidencia del input"
     ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
     ears_block = render_ears_requirements_table(context)
+    compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text)
     if extracted_personas:
         persona_rows = "\n".join(
             f'| P-E{i + 1} | "{row["evidence"]}" | `REQ-001` |' for i, row in enumerate(extracted_personas)
@@ -1213,108 +1363,47 @@ This PRD expands the mature discovery brief into a human-readable product docume
 
 ### Problem / Pain
 
-{bounded_text(req_text, 1800)}
+{compiled['1']}
 
 ### Expected Outcome
 
-| ID | Outcome | Source |
-| --- | --- | --- |
-| OUT-001 | Deliver the primary business or operational result described by the mature requirement. | `REQ-001`, `project-brief.md` |
-| OUT-002 | Keep any missing metric, owner, or baseline explicit as `{pending}`. | `GAP-PRD-NFR-KPI` |
+The outcome above is compiled from source evidence. Any missing outcome or measurement detail remains tracked in discovery gaps rather than invented here.
 
 ## 2. {scope}
 
 ### In Scope
 
-- Functional capabilities required to satisfy `OUT-001`.
-- Existing behavior that must be preserved and made testable.
-- Product, technology, design, quality, governance, and delivery constraints recovered through local memory.
+{compiled['2']}
 
 ### Out of Scope
 
-- Any item not backed by the brief, confirmed seeds, decisions, or retrieved domain context.
-- Detailed implementation contracts that belong in technology/design/quality context packs.
-- Sensitive client data, credentials, URLs, payloads, or identifiers in generated PRD/spec artifacts.
+Items not backed by the brief, confirmed seeds, decisions, or retrieved domain context stay outside the PRD scope until a traced `/sync` or gap-resolution event confirms them.
 
 ## 3. {personas}
 
-{personas_evidence_block}
-### Primary Personas
-
-| ID | Attribute | Value |
-| --- | --- | --- |
-| P-01 | Name/Role | Primary user or operator from `GAP-USERS` / `identity_seeds.md`; `{pending}` if not confirmed. |
-| P-01 | Goals | Complete the primary job and obtain the expected outcome. |
-| P-01 | Pain Points | Current pain from source requirement; keep unconfirmed pains as `{pending}`. |
-| P-01 | Technical Proficiency | `{pending} - GAP-PRD-PERSONA-DETAIL` |
-| P-01 | Usage Frequency | `{pending} - GAP-PRD-PERSONA-DETAIL` |
-
-### Secondary Personas
-
-| ID | Attribute | Value |
-| --- | --- | --- |
-| P-02 | Name/Role | Secondary actor, impacted team, or system owner. |
-| P-02 | Goals | Support, approve, operate, consume, or audit the capability. |
-| P-02 | Pain Points | `{pending} - GAP-PRD-PERSONA-DETAIL` |
+{compiled['3']}
 
 # {project_id} - {core}
 
 ## 4. {fr_title}
 
-| ID | Requirement | Priority | Source |
-| --- | --- | --- | --- |
-| FR-01 | The system shall deliver the primary end-to-end capability described by the mature requirement. | Must Have | `REQ-001`, `project-brief.md` |
-| FR-02 | The system shall preserve explicitly unchanged behavior and compatibility constraints. | Must Have | `GAP-SCOPE`, `GAP-PRODUCT-ASIS-TOBE` |
-| FR-03 | The system shall expose or consume the required data/integration signals identified by Technology context. | Must Have | `GAP-TECH-DATA-SOURCE`, `GAP-BACKEND-SURFACE` |
-| FR-04 | The user-facing experience shall cover affected journeys, states, validations, and copy constraints. | Must Have | `GAP-DESIGN-FLOW`, `GAP-DESIGN-STATES`, `GAP-FRONTEND-SURFACE` |
-| FR-05 | The system shall preserve traceability from requirement to acceptance criteria and tests. | Must Have | `GAP-ACCEPTANCE`, `GAP-QUALITY-HANDOFF` |
+{compiled['4']}
 
-{fr_evidence_block}
 ### {ears_title}
 
-{ears_block or f"`{pending}` - no confirmed EARS statements are present in `02_requirements/requirements.md`."}
+{ears_block or "No confirmed EARS rows are present yet; functional requirements above remain sourced from confirmed discovery evidence."}
 
-**FR-01 Acceptance Criteria:**
+### FR-01 Acceptance Criteria
 
-- Given the primary user has valid context and inputs, When they execute the primary workflow, Then the expected business outcome is achieved and traceable to `REQ-001`.
-- Given required information is missing or invalid, When the user attempts the workflow, Then the system presents the confirmed recoverable behavior or records `{pending}`.
-
-**FR-02 Acceptance Criteria:**
-
-- Given existing behavior is marked as unchanged, When regression tests run, Then unchanged behavior remains compatible.
-- Given an out-of-scope request appears, When backlog is generated, Then it is excluded or marked as a change/gap.
-
-**FR-03 Acceptance Criteria:**
-
-- Given a required upstream/downstream dependency is available, When the system requests or emits data, Then the source of truth and owner are traceable.
-- Given integration data is unavailable, stale, or malformed, When the system handles the case, Then the failure behavior follows confirmed quality and technology context.
-
-**FR-04 Acceptance Criteria:**
-
-- Given the user enters an affected surface or journey, When the relevant state occurs, Then loading, empty, error, disabled, success, permission, and recovery states are handled as confirmed or flagged.
-- Given copy or messaging changes are required, When UI is rendered, Then approved copy is used and unchanged messages remain unchanged.
-
-**FR-05 Acceptance Criteria:**
-
-- Given a story is derived from this PRD, When QA reviews it, Then it cites `REQ-001`, `PRD-001`, `SPEC-001`, FR ID, and acceptance criteria.
+Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers, or functional evidence above. Criteria that are still missing remain visible in discovery gaps and must not be invented in this PRD.
 
 ## 5. {nfr_title}
 
-| ID | Category | Requirement | Target | Source |
-| --- | --- | --- | --- | --- |
-| NFR-01 | Security/Privacy | Respect confirmed security, privacy, and compliance constraints. | `{pending}` if no target/source exists. | `GAP-GOVERNANCE-CONSTRAINTS` |
-| NFR-02 | Reliability | Define expected behavior for external failures, missing data, retries, or recovery. | `{pending}` | `GAP-TECH-NFR`, `GAP-QUALITY-HANDOFF` |
-| NFR-03 | Compatibility | Preserve confirmed existing contracts and behavior. | No breaking change unless explicitly approved. | `GAP-SCOPE` |
-| NFR-04 | Observability/Auditability | Ensure logs, metrics, audit records, and trace evidence meet governance needs. | `{pending}` | `GAP-PRD-NFR-KPI` |
-| NFR-05 | Performance | Meet confirmed latency, throughput, or volume expectations. | `{pending}` | `GAP-TECH-NFR` |
+{compiled['5']}
 
 ## 6. {kpi_title}
 
-| KPI ID | Description | Target | Measurement Method | Timeframe | Source |
-| --- | --- | --- | --- | --- | --- |
-{kpi_primary_row}
-| KPI-02 | Quality or risk reduction outcome. | `{pending}` | QA evidence / operational monitoring. | `{pending}` | `GAP-QUALITY-HANDOFF` |
-| KPI-03 | Compatibility or non-regression outcome. | 0 known regressions unless otherwise defined. | Regression suite / release evidence. | Release validation. | `GAP-SCOPE` |
+{compiled['6']}
 
 # {project_id} - {jtbd_title}
 

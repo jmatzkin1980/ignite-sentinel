@@ -288,7 +288,7 @@ Output:
 - `03_specs/specs.md`
 - `08_context_packs/specs_generation.json`
 
-The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. The spec stays compact for agents: it keeps trace IDs, backlog contract, progressive disclosure context map, and retrieval guidance for backlog agents. The context pack records the focused memory retrieval used during generation.
+The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. Its core narrative sections are compiled from source evidence, confirmed gap answers, EARS rows, decisions, and local-memory retrieval; unsupported details remain `[PENDING INPUT]` with the relevant `GAP-*`. The spec stays compact for agents: it keeps trace IDs, backlog contract, progressive disclosure context map, and retrieval guidance for backlog agents. The context pack records the focused memory retrieval used during generation.
 
 ## `backlog`
 
@@ -384,7 +384,7 @@ Checks:
 - edges pointing to missing nodes
 - expected semantic sections in PRD, specs, and stories
 
-Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. Each artifact is classified as `evidence-backed`, `mixed`, or `scaffolding`, with `warnings` describing what to improve. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
+Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, EARS rows, source citations, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. A PRD compiled from real evidence should classify as `evidence-backed` or `mixed`; `scaffolding` means the artifact is still mostly structure or pending content. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
 
 Returns non-zero when invalid.
 

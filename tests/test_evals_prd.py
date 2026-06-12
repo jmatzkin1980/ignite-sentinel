@@ -1,8 +1,8 @@
-"""Regression guards for IMP-038 PRD/specs eval baselines.
+"""Regression guards for PRD/specs eval baselines.
 
-The eval runner now reaches phase 2 (`/specs`) and records two baselines:
-PRD target-section coverage and fixed specs scaffolding. These tests make the
-new metrics falsable without changing generation behavior yet.
+The eval runner reaches phase 2 (`/specs`) and records PRD target-section
+coverage plus fixed specs scaffolding. IMP-039 should lift PRD coverage while
+IMP-042 will address specs scaffolding.
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ class PrdAndSpecsEvalTests(unittest.TestCase):
     def test_phase_two_baseline_is_recorded(self):
         self.assertTrue(self.result["baseline_ok"])
         self.assertEqual(self.result["prd_target_sections"], ["1", "3", "4", "6"])
-        self.assertLess(self.result["prd_target_coverage"], 1.0)
+        self.assertEqual(self.result["prd_target_coverage"], 1.0)
         self.assertGreater(self.result["specs_scaffolding_count"], 0)
         self.assertIn("CAP-001", self.result["specs_scaffolding_ids"])
 

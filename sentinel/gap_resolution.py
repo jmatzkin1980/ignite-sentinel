@@ -4,7 +4,7 @@ import re
 import shutil
 from pathlib import Path
 
-from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, readiness_stage_for_counts, render_gaps
+from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
 from .ears import classify_ears
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
@@ -230,11 +230,12 @@ def materialize_resolution_seeds(project_id: str, closed: list[dict[str, str]], 
         # IMP-024: tag each confirmed answer with the brief section it feeds, so
         # the brief compiler can route it (synergy with the IMP-022 gap→section map).
         handle.write("\n## Gap Resolution Seeds\n\n")
-        handle.write("| Seed ID | Gap ID | Status | Statement | Source | Brief Section |\n")
-        handle.write("| --- | --- | --- | --- | --- | --- |\n")
+        handle.write("| Seed ID | Gap ID | Status | Statement | Source | Brief Section | PRD Section |\n")
+        handle.write("| --- | --- | --- | --- | --- | --- | --- |\n")
         for index, gap in enumerate(closed, start=1):
-            section = brief_section_for_gap(gap["id"]) or "-"
-            handle.write(f"| AUTO-SEED-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` | {section} |\n")
+            brief_section = brief_section_for_gap(gap["id"]) or "-"
+            prd_section = prd_section_for_gap(gap["id"]) or "-"
+            handle.write(f"| AUTO-SEED-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` | {brief_section} | {prd_section} |\n")
     seed_ids = []
     for gap in closed:
         seed_id = add_node(project_id, "SEED", "identity_seed", path, f"Confirmed answer for {gap['id']}", status="confirmed", domain=gap.get("lens", "product"))

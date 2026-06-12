@@ -1,4 +1,4 @@
-"""Discovery, brief, PRD, and specs eval harness (IMP-020, IMP-027, IMP-038).
+"""Discovery, brief, PRD, and specs eval harness (IMP-020, IMP-027, IMP-039).
 
 Runs the Sentinel lifecycle over synthetic fixtures with answer keys and
 measures gap detection quality plus project-brief, PRD, and specs evidence
@@ -12,7 +12,7 @@ Two progress metrics travel with the baseline (neither fails the build):
   evidence but the template renderer leaves as TBD; the IMP-024 brief compiler
   must populate them. 0.00 at baseline.
 - prd_target_coverage: PRD narrative sections that have confirmed evidence
-  and should be compiled from it in IMP-039. Low at IMP-038 baseline.
+  and should be compiled from it in IMP-039.
 - specs_scaffolding_count: fixed scaffold IDs in specs.md that IMP-042 should
   remove by decomposing specs into evidence-backed units.
 
@@ -375,7 +375,7 @@ def run_all() -> int:
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
-        f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-038 baseline) "
+        f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "
         f"ears_eligible_not_normalized={s['total_ears_eligible_not_normalized']} "
         f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f}"
     )

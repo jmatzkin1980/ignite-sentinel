@@ -595,11 +595,11 @@ Second section paragraph.
 
         raw = fixture.read_text(encoding="utf-8")
         prd = render_prd("EXTR", raw, {"prd_sections": {}}, "requirements.md", "en", raw)
-        self.assertIn("Evidence-Backed Personas", prd)
-        self.assertIn('"The main users are the support team leads."', prd)
-        self.assertIn("Evidence-Backed Functional Statements", prd)
-        self.assertIn('"They want to see ticket volume, resolution time, and backlog ageing in one screen."', prd)
-        self.assertIn("30% (confirm baseline)", prd)
+        self.assertIn("Persona Evidence", prd)
+        self.assertIn("The main users are the support team leads.", prd)
+        self.assertIn("Functional Requirements", prd)
+        self.assertIn("They want to see ticket volume, resolution time, and backlog ageing in one screen.", prd)
+        self.assertIn("30%", prd)
         self.assertIn("`REQ-001`", prd)
 
     def test_prd_keeps_pending_input_without_extraction_evidence(self) -> None:
@@ -607,9 +607,9 @@ Second section paragraph.
 
         empty = "Nothing concrete here at all for extraction purposes."
         prd = render_prd("EMPTYX", empty, {"prd_sections": {}}, "requirements.md", "en", empty)
-        self.assertIn("no persona evidence was extracted", prd)
-        self.assertIn("no requirement-like statements were extracted", prd)
-        self.assertIn("| KPI-01 | Primary business or operational outcome. | `[PENDING INPUT]`", prd)
+        self.assertIn("resolve `GAP-USERS`", prd)
+        self.assertIn("resolve `GAP-PRD-FR-AC`", prd)
+        self.assertIn("resolve `GAP-METRIC-SOURCE`", prd)
 
     def test_validate_scores_semantic_quality_of_artifacts(self) -> None:
         from sentinel.validation import score_artifact_text, validate_project
