@@ -1,28 +1,32 @@
-# Discovery Eval Fixtures (IMP-016, IMP-027)
+# Discovery Eval Fixtures (IMP-016, IMP-027, IMP-038)
 
-Synthetic client requirements with deliberate, cataloged omissions. All content is invented; no real client data. They serve as the answer-key benchmark for discovery gap-detection and project-brief coverage (run by `tests/evals/run_discovery_evals.py`, IMP-020/IMP-027).
+Synthetic client requirements with deliberate, cataloged omissions. All content is invented; no real client data. They serve as the answer-key benchmark for discovery gap detection, project-brief coverage, PRD coverage, specs scaffolding, and retrieval.
 
 Each fixture folder contains:
 
-- `requirement.md` — the synthetic raw client requirement.
-- `answer_key.json` — the expected detection behavior:
-  - `must_fire`: gaps the current engine must detect (regression guard).
+- `requirement.md`: synthetic raw client requirement.
+- `gap_responses.md` (optional, IMP-038): synthetic confirmed answers used only to close blocking gaps so the eval can reach `/specs` through the real lifecycle. Do not use these to hide discovery omissions; they are phase-2 enablement data.
+- `answer_key.json`: expected detection behavior:
+  - `must_fire`: gaps the current engine must detect.
   - `must_not_fire`: information explicitly covered in the text; firing one is a false positive.
-  - `known_false_positives`: documented current engine bugs (fire today, should not). When fixed, move them out and update the key.
-  - `target_fire`: gaps an inquisitive/semantic engine should detect but the current keyword-suppression logic misses. `target_recall` is the progress metric (IMP-015, then IMP-021): 0.00 at baseline, should grow.
-  - `expected_language`: detected project language expected after `/ingest`.
-  - `expected_gap_details`: selected gap metadata that must remain stable (`lens`, `severity`, `origin`). This catches regressions where the right gap ID fires from the wrong lens, with wrong severity, or via the wrong discovery source.
-  - `annotate.expected_gap_details`: metadata expectations that apply only when the fixture also runs through `/annotate`.
-  - `brief` (IMP-027): brief-coverage answer key.
-    - `target_populated`: narrative brief sections (1-6) that have confirmed evidence in the requirement and the IMP-024 brief compiler must populate with citations. `brief_target_coverage` is the progress metric: 0.00 at baseline (the template renderer leaves them as TBD), should reach 1.00 once compiled.
-    - `target_pending`: narrative brief sections (1-6) that must stay explicitly pending because discovery does not yet have enough evidence. This protects the "evidence or silence" invariant.
-    - `rationale`: why those sections are expected and which stay `[PENDING INPUT]`.
-  - `golden_queries` (IMP-032): retrieval answer key. Each query declares an `id`, natural-language `query`, `workflow`, `expected_artifacts`, `kind` (`same-language` or `cross-lingual`), and `rationale`.
+  - `known_false_positives`: documented current engine bugs. When fixed, move them out and update the key.
+  - `target_fire`: gaps an inquisitive/semantic engine should detect but keyword suppression can miss. `target_recall` is a progress metric.
+  - `expected_language`: project language expected after `/ingest`.
+  - `expected_gap_details`: selected stable gap metadata (`lens`, `severity`, `origin`).
+  - `annotate.expected_gap_details`: metadata expectations only when the fixture runs through `/annotate`.
+  - `brief` (IMP-027): brief coverage answer key.
+    - `target_populated`: narrative brief sections 1-6 that have confirmed evidence and must populate with citations.
+    - `target_pending`: narrative brief sections 1-6 that must stay explicitly pending because evidence is missing.
+    - `rationale`: why those sections are expected.
+  - `prd` (IMP-038): PRD coverage answer key.
+    - `target_populated`: numbered PRD sections that have enough confirmed evidence and should eventually be compiled from evidence by IMP-039.
+    - `rationale`: why those PRD sections are expected to become evidence-backed.
+  - `golden_queries` (IMP-032): retrieval answer key with query, workflow, expected artifacts, kind, and rationale.
 
-The runner runs `init → ingest → brief` per fixture and classifies each section 1-6 as `populated` (no template marker) or `pending`.
+The runner executes `init -> ingest -> resolve-gaps (when gap_responses.md exists) -> brief -> specs` per fixture. It classifies brief sections 1-6 and PRD sections 1-13 as `populated` or `pending`, then counts fixed scaffolding IDs in `specs.md` (`JTBD-001`, `CAP-001..003`, `US-001..005`, `ASM-001/002`). IMP-038 intentionally records a low PRD baseline and high specs scaffolding baseline so IMP-039/042 can move them with falsifiable evidence.
 
-`tests/test_evals_retrieval.py` runs `init → ingest` per fixture, scores golden queries with recall@5 and MRR, and writes `tests/evals/reports/retrieval_eval_<date>.json`. The report includes per-fixture backend metadata plus `summary.by_backend` so `json-hybrid` and `lancedb-hybrid` runs can be compared without making LanceDB mandatory.
+`tests/test_evals_retrieval.py` runs `init -> ingest` per fixture, scores golden queries with recall@5 and MRR, and writes `tests/evals/reports/retrieval_eval_<date>.json`. The report includes per-fixture backend metadata plus `summary.by_backend` so `json-hybrid` and `lancedb-hybrid` runs can be compared without making LanceDB mandatory.
 
-The keyword ceiling, made explicit by `expense-approval`: a single token present in the text suppresses a whole gap even when the substance is missing (`success` suppresses GAP-ACCEPTANCE, `compliance`/`security` suppress governance/NFR, `rule` suppresses business rules, `quality` suppresses quality). Such reassuring-but-empty requirements drive `target_recall` to 0.00 — the gap an agentic semantic pass (IMP-021 `/annotate`) must close.
+The keyword ceiling, made explicit by `expense-approval`: a single token present in the text suppresses a whole gap even when the substance is missing (`success` suppresses GAP-ACCEPTANCE, `compliance`/`security` suppress governance/NFR, `rule` suppresses business rules, `quality` suppresses quality). Such reassuring-but-empty requirements drive `target_recall` to 0.00 until the agentic semantic pass (`/annotate`) contributes validated gaps.
 
-When adding a fixture: write the requirement with explicit coverage of some areas and deliberate omission of others, run the eval harness, inspect what fires, which brief sections populate, and which retrieval queries hit, then record the key empirically. Keep one fixture per domain pattern (dashboard, integration, portal, approval-workflow, ...) and at least one non-English fixture.
+When adding a fixture: write the requirement with explicit coverage of some areas and deliberate omission of others, run the eval harness, inspect what fires, which brief/PRD sections populate, which specs scaffolding remains, and which retrieval queries hit, then record the key empirically. Keep one fixture per domain pattern and at least one non-English fixture.

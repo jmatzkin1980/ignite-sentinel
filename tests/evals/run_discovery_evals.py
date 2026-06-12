@@ -1,7 +1,8 @@
-"""Discovery gap-detection and brief-coverage eval harness (IMP-020, IMP-027).
+"""Discovery, brief, PRD, and specs eval harness (IMP-020, IMP-027, IMP-038).
 
 Runs the Sentinel lifecycle over synthetic fixtures with answer keys and
-measures gap detection quality plus project-brief evidence coverage.
+measures gap detection quality plus project-brief, PRD, and specs evidence
+coverage.
 Local-first and deterministic: no network, no external services.
 
 Two progress metrics travel with the baseline (neither fails the build):
@@ -10,6 +11,10 @@ Two progress metrics travel with the baseline (neither fails the build):
 - brief_target_coverage: narrative brief sections (1-6) that have confirmed
   evidence but the template renderer leaves as TBD; the IMP-024 brief compiler
   must populate them. 0.00 at baseline.
+- prd_target_coverage: PRD narrative sections that have confirmed evidence
+  and should be compiled from it in IMP-039. Low at IMP-038 baseline.
+- specs_scaffolding_count: fixed scaffold IDs in specs.md that IMP-042 should
+  remove by decomposing specs into evidence-backed units.
 
 Usage, from the repository root:
 
@@ -51,6 +56,28 @@ BRIEF_PENDING_MARKERS = (
     "Documentar el",
     "Documentar la",
 )
+PRD_SECTION = re.compile(r"^## (\d+)\.", re.M)
+PRD_TRACKED_SECTIONS = tuple(str(item) for item in range(1, 14))
+PRD_PENDING_MARKERS = (
+    "[PENDING INPUT]",
+    "PENDING INPUT",
+    "TBD",
+    "GAP-PRD-",
+    "GAP-METRIC-SOURCE",
+)
+SPECS_SCAFFOLDING_IDS = (
+    "JTBD-001",
+    "CAP-001",
+    "CAP-002",
+    "CAP-003",
+    "US-001",
+    "US-002",
+    "US-003",
+    "US-004",
+    "US-005",
+    "ASM-001",
+    "ASM-002",
+)
 
 
 def brief_section_status(brief_md: str) -> dict:
@@ -71,10 +98,34 @@ def brief_section_status(brief_md: str) -> dict:
     return status
 
 
+def prd_section_status(prd_md: str) -> dict:
+    sections: dict = {}
+    current = None
+    for line in prd_md.splitlines():
+        match = PRD_SECTION.match(line)
+        if match:
+            current = match.group(1)
+            sections.setdefault(current, [])
+        elif current is not None:
+            sections[current].append(line)
+    status = {}
+    for sec in PRD_TRACKED_SECTIONS:
+        body = "\n".join(sections.get(sec, []))
+        is_pending = (not body.strip()) or any(marker in body for marker in PRD_PENDING_MARKERS)
+        status[sec] = "pending" if is_pending else "populated"
+    return status
+
+
+def specs_scaffolding(specs_md: str) -> dict[str, object]:
+    found = sorted({item for item in SPECS_SCAFFOLDING_IDS if re.search(rf"\b{re.escape(item)}\b", specs_md)})
+    return {"ids": found, "count": len(found)}
+
+
 def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
     annotation = fixture_dir / "annotation.json"
+    gap_responses = fixture_dir / "gap_responses.md"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
 
     old_cwd = Path.cwd()
@@ -92,7 +143,13 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                     assert main(["annotate", project_id, "--source", str(annotation)]) == 0, (
                         f"annotate failed for {fixture_dir.name}"
                     )
+                if gap_responses.exists() and not apply_annotation:
+                    assert main(["resolve-gaps", project_id, "--source", str(gap_responses)]) == 0, (
+                        f"resolve-gaps failed for {fixture_dir.name}"
+                    )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
+                if not apply_annotation:
+                    assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -102,6 +159,13 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
+            if apply_annotation:
+                prd_status = {section: "pending" for section in PRD_TRACKED_SECTIONS}
+                specs_scaffold = {"ids": [], "count": 0}
+            else:
+                prd_status = prd_section_status((ws / "03_specs" / "prd.md").read_text(encoding="utf-8"))
+                specs_text = (ws / "03_specs" / "specs.md").read_text(encoding="utf-8")
+                specs_scaffold = specs_scaffolding(specs_text)
         finally:
             os.chdir(old_cwd)
 
@@ -123,6 +187,12 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     brief_pending = sorted(s for s, st in brief_status.items() if st == "pending")
     brief_target_populated = sorted(s for s in brief_target if brief_status.get(s) == "populated")
     brief_target_pending = sorted(s for s in brief_pending_target if brief_status.get(s) == "pending")
+
+    prd_key = key.get("prd", {})
+    prd_target = [str(s) for s in prd_key.get("target_populated", []) if str(s) in PRD_TRACKED_SECTIONS]
+    prd_populated = sorted(s for s, st in prd_status.items() if st == "populated")
+    prd_pending = sorted(s for s, st in prd_status.items() if st == "pending")
+    prd_target_populated = sorted(s for s in prd_target if prd_status.get(s) == "populated")
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -186,12 +256,21 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "brief_expected_pending_coverage": (
             round(len(brief_target_pending) / len(brief_pending_target), 3) if brief_pending_target else 1.0
         ),
+        "prd_sections_status": prd_status,
+        "prd_sections_populated": prd_populated,
+        "prd_sections_pending": prd_pending,
+        "prd_target_sections": sorted(prd_target),
+        "prd_target_populated": prd_target_populated,
+        "prd_target_coverage": round(len(prd_target_populated) / len(prd_target), 3) if prd_target else 1.0,
+        "specs_scaffolding_ids": specs_scaffold["ids"],
+        "specs_scaffolding_count": specs_scaffold["count"],
         "baseline_ok": (
             not missing
             and not new_false_positives
             and not language_mismatch
             and not gap_detail_mismatches
             and sorted(brief_pending_target) == brief_target_pending
+            and bool(specs_scaffold["ids"])
         ),
     }
 
@@ -228,6 +307,9 @@ def run_all() -> int:
             "avg_brief_expected_pending_coverage": round(
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
             ),
+            "avg_prd_target_coverage": round(sum(r["prd_target_coverage"] for r in results) / len(results), 3),
+            "avg_specs_scaffolding": round(sum(r["specs_scaffolding_count"] for r in results) / len(results), 3),
+            "total_specs_scaffolding": sum(r["specs_scaffolding_count"] for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
             "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
@@ -246,6 +328,8 @@ def run_all() -> int:
             f"  [{status}] {r['fixture']:24s} recall={r['recall_must_fire']:.2f} "
             f"target={len(r['target_fire_detected'])}/{r['target_fire_total']} "
             f"brief={len(r['brief_target_populated'])}/{len(r['brief_target_sections'])} "
+            f"prd={len(r['prd_target_populated'])}/{len(r['prd_target_sections'])} "
+            f"spec_scaffold={r['specs_scaffolding_count']} "
             f"new_fp={len(r['new_false_positives'])}"
         )
         for gap in r["missing_must_fire"]:
@@ -272,7 +356,9 @@ def run_all() -> int:
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
-        f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f}"
+        f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
+        f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-038 baseline) "
+        f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f}"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

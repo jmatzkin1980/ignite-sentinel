@@ -61,6 +61,10 @@
     ],
     "rationale": "Sections 1 (objective), 2 (users) and 3 (scope) are confirmed in the requirement (see must_not_fire) yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },
+  "prd": {
+    "target_populated": ["1", "3", "4"],
+    "rationale": "The PRD should eventually compile executive problem/outcome, personas, and functional requirements from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
+  },
   "golden_queries": [
     {
       "id": "GQ-CRM-OBJECTIVE",

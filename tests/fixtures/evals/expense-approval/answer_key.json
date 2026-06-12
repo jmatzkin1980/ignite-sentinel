@@ -86,6 +86,10 @@
     "target_pending": ["4", "5", "6"],
     "rationale": "Sections 1 (identity/value: objective + halving approval time), 2 (business actors: finance approvers and employees) and 3 (product/scope: explicit in/out of scope) have confirmed evidence in the requirement, yet the template renderer leaves them as TBD. The IMP-024 brief compiler must populate these from evidence with citations. Sections 4-6 (design/tech/governance) have no real evidence (only suppressed buzzwords) and must stay [PENDING INPUT]. Baseline brief_target_coverage is 0.00."
   },
+  "prd": {
+    "target_populated": ["1", "3", "4"],
+    "rationale": "The PRD should eventually compile executive problem/outcome, personas, and functional requirements from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
+  },
   "golden_queries": [
     {
       "id": "GQ-EXPENSE-OBJECTIVE",
