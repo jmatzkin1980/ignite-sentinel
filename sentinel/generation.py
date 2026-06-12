@@ -247,6 +247,214 @@ Review this artifact against the triggering change before downstream handoff. Th
     return diff_id
 
 
+def spec_unit_snapshot(base: Path) -> dict[str, dict[str, Any]]:
+    units_dir = base / "03_specs" / "units"
+    if not units_dir.exists():
+        return {}
+    snapshot: dict[str, dict[str, Any]] = {}
+    for path in sorted(units_dir.glob("SPEC-U-*.md")):
+        text = path.read_text(encoding="utf-8")
+        unit_id = path.stem
+        snapshot[unit_id] = {
+            "id": unit_id,
+            "path": path,
+            "text": text,
+            "frontmatter": parse_spec_unit_frontmatter(text),
+        }
+    return snapshot
+
+
+def parse_spec_unit_frontmatter(text: str) -> dict[str, Any]:
+    if not text.startswith("---\n"):
+        return {}
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    data: dict[str, Any] = {}
+    current_key = ""
+    for raw_line in parts[1].splitlines():
+        if not raw_line.strip():
+            continue
+        if raw_line.startswith("  - ") and current_key:
+            values = data.setdefault(current_key, [])
+            if isinstance(values, list):
+                values.append(raw_line[4:].strip())
+            continue
+        if ":" in raw_line:
+            key, value = raw_line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            data[key] = [] if value == "" else value
+            current_key = key
+    return data
+
+
+def record_spec_unit_delta(
+    project_id: str,
+    previous_units: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not previous_units:
+        return None
+    base = workspace_path(project_id)
+    current_snapshot = spec_unit_snapshot(base)
+    all_ids = sorted(set(previous_units) | set(current_snapshot))
+    entries: list[dict[str, Any]] = []
+    for unit_id in all_ids:
+        previous = previous_units.get(unit_id)
+        current = current_snapshot.get(unit_id)
+        if previous and not current:
+            status = "REMOVED"
+        elif current and not previous:
+            status = "ADDED"
+        elif previous and current and previous["text"] != current["text"]:
+            status = "MODIFIED"
+        else:
+            status = "UNCHANGED"
+        entries.append(spec_unit_delta_entry(unit_id, status, previous, current))
+    changed = [entry for entry in entries if entry["status"] != "UNCHANGED"]
+    path, delta_id = write_spec_unit_delta_report(project_id, entries, changed)
+    update_implementation_readiness_stale_units(project_id, changed, path)
+    update_state(
+        project_id,
+        stale_spec_units=changed,
+        last_spec_unit_delta_id=delta_id,
+        last_spec_unit_delta_path=str(path.as_posix()),
+    )
+    return {"path": path, "delta_id": delta_id, "entries": entries, "changed": changed}
+
+
+def spec_unit_delta_entry(
+    unit_id: str,
+    status: str,
+    previous: dict[str, Any] | None,
+    current: dict[str, Any] | None,
+) -> dict[str, Any]:
+    previous_fm = previous.get("frontmatter", {}) if previous else {}
+    current_fm = current.get("frontmatter", {}) if current else {}
+    frontmatter_changes = changed_frontmatter_fields(previous_fm, current_fm)
+    return {
+        "unit_id": unit_id,
+        "status": status,
+        "path": spec_unit_relative_path(current or previous),
+        "frontmatter_changes": frontmatter_changes,
+        "previous_ears": previous_fm.get("ears", []) if previous_fm else [],
+        "current_ears": current_fm.get("ears", []) if current_fm else [],
+        "previous_sources": previous_fm.get("sources", []) if previous_fm else [],
+        "current_sources": current_fm.get("sources", []) if current_fm else [],
+    }
+
+
+def changed_frontmatter_fields(previous: dict[str, Any], current: dict[str, Any]) -> list[str]:
+    keys = sorted(set(previous) | set(current))
+    return [key for key in keys if previous.get(key) != current.get(key)]
+
+
+def spec_unit_relative_path(unit: dict[str, Any] | None) -> str:
+    if not unit:
+        return ""
+    path = Path(str(unit.get("path", ""))).as_posix()
+    if "03_specs/" in path:
+        return path[path.index("03_specs/") :]
+    return path
+
+
+def write_spec_unit_delta_report(
+    project_id: str,
+    entries: list[dict[str, Any]],
+    changed: list[dict[str, Any]],
+) -> tuple[Path, str]:
+    base = workspace_path(project_id)
+    out_dir = base / "07_changes" / "04_regeneration"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    state = read_json(state_path(project_id), {})
+    change_id = state.get("last_change_id") or "N/A"
+    existing = sorted(out_dir.glob("*.md"))
+    path = out_dir / f"regen-{len(existing) + 1:03d}-spec-units-delta.md"
+
+    def rows(items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "| N/A | N/A | N/A | N/A | N/A | N/A |"
+        rendered = []
+        for item in items:
+            rendered.append(
+                "| {unit} | {status} | {frontmatter} | {ears} | {sources} | `{path}` |".format(
+                    unit=f"`{item['unit_id']}`",
+                    status=item["status"],
+                    frontmatter=", ".join(f"`{field}`" for field in item["frontmatter_changes"]) or "none",
+                    ears=delta_value(item["previous_ears"], item["current_ears"]),
+                    sources=delta_value(item["previous_sources"], item["current_sources"]),
+                    path=item["path"],
+                )
+            )
+        return "\n".join(rendered)
+
+    path.write_text(
+        f"""# Spec Unit Delta - {project_id}
+
+- Project: `{project_id}`
+- Triggering change: `{change_id}`
+- Changed units: {len(changed)}
+- Total units compared: {len(entries)}
+
+## Changed Units
+
+| Unit | Status | Frontmatter Changes | EARS Delta | Source Pointer Delta | Path |
+| --- | --- | --- | --- | --- | --- |
+{rows(changed)}
+
+## Full Unit Status
+
+| Unit | Status | Frontmatter Changes | EARS Delta | Source Pointer Delta | Path |
+| --- | --- | --- | --- | --- | --- |
+{rows(entries)}
+
+Use this report to decide which backlog stories or implementation readiness entries need review after regenerating specs. Workspace artifacts remain the source of truth.
+""",
+        encoding="utf-8",
+    )
+    delta_id = add_node(project_id, "DEC", "regeneration_diff", path, "Spec unit regeneration delta", domain="product")
+    if change_id != "N/A":
+        add_edge(project_id, change_id, delta_id, "triggers_regeneration")
+    ContextBroker(project_id).index_artifact(
+        delta_id,
+        "regeneration_diff",
+        path,
+        path.read_text(encoding="utf-8"),
+        domain="product",
+        trace_ids=[delta_id] if change_id == "N/A" else [change_id, delta_id],
+    )
+    return path, delta_id
+
+
+def delta_value(previous: Any, current: Any) -> str:
+    previous_values = previous if isinstance(previous, list) else ([] if previous in (None, "") else [str(previous)])
+    current_values = current if isinstance(current, list) else ([] if current in (None, "") else [str(current)])
+    if previous_values == current_values:
+        return ", ".join(f"`{item}`" for item in current_values) or "none"
+    old = ", ".join(f"`{item}`" for item in previous_values) or "none"
+    new = ", ".join(f"`{item}`" for item in current_values) or "none"
+    return f"{old} -> {new}"
+
+
+def update_implementation_readiness_stale_units(project_id: str, changed: list[dict[str, Any]], delta_path: Path) -> None:
+    path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
+    if not path.exists():
+        return
+    pack = read_json(path, {})
+    if not isinstance(pack, dict):
+        return
+    pack["stale_spec_units"] = [
+        {
+            "unit_id": item["unit_id"],
+            "status": item["status"],
+            "path": item["path"],
+            "delta_report": delta_path.relative_to(workspace_path(project_id)).as_posix(),
+        }
+        for item in changed
+    ]
+    write_json(path, pack)
+
+
 def generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
@@ -278,6 +486,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
     specs_path = base / "03_specs" / "specs.md"
     previous_prd = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
     previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
+    previous_spec_units = spec_unit_snapshot(base)
     prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
     prd_path.write_text(render_prd_compositions(project_id, prd_text), encoding="utf-8")
     prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
@@ -298,6 +507,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
         )
         raise RuntimeError("Cannot complete /specs while PRD section readiness is below specs_gate threshold.")
     spec_units = write_spec_units(project_id, context, source_path.name)
+    spec_unit_delta = record_spec_unit_delta(project_id, previous_spec_units)
     specs_path.write_text(render_specs(project_id, req_text, context, source_path.name, spec_units), encoding="utf-8")
     record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))
     record_regeneration_diff(project_id, "specs.md", previous_specs, specs_path.read_text(encoding="utf-8"))
@@ -373,6 +583,10 @@ def generate_specs(project_id: str) -> dict[str, object]:
         "prd_section_readiness": prd_readiness,
         "warnings": specs_warnings,
         "specs_gate": gate_result,
+        "spec_unit_delta": {
+            "path": str(spec_unit_delta["path"].as_posix()),
+            "changed": spec_unit_delta["changed"],
+        } if spec_unit_delta else None,
     }
 
 
@@ -579,6 +793,8 @@ def build_implementation_readiness_pack(
         },
         "stories": readiness_items,
     }
+    state = read_json(state_path(project_id), {})
+    pack["stale_spec_units"] = state.get("stale_spec_units", [])
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
     write_json(path, pack)
     ContextBroker(project_id).index_artifact(
