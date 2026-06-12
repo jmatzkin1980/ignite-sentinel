@@ -40,6 +40,24 @@
         "phase"
       ],
       "why": "El plan de ejecucion del PRD requiere MVP, fases y owners explicitos."
+    },
+    {
+      "id": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning.",
+      "tokens": [
+        "rollout",
+        "deployment",
+        "despliegue",
+        "ambiente",
+        "environment",
+        "feature flag",
+        "release plan",
+        "plan de salida"
+      ],
+      "why": "El PRD necesita saber como y donde sale el cambio para evitar que specs y backlog inventen secuencia, ambientes o restricciones de release."
     }
   ]
 }
