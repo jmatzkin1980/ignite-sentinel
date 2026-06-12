@@ -194,6 +194,13 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     prd_pending = sorted(s for s, st in prd_status.items() if st == "pending")
     prd_target_populated = sorted(s for s in prd_target if prd_status.get(s) == "populated")
 
+    ears_key = key.get("ears", {})
+    expected_ears_eligible = sorted(ears_key.get("expected_eligible_not_normalized", []))
+    ears_eligible_not_normalized = sorted(
+        row["id"] for row in gap_rows if "EARS-eligible" in str(row.get("resolution_note", ""))
+    )
+    ears_eligible_mismatch = ears_eligible_not_normalized != expected_ears_eligible
+
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
     language_mismatch = language_detected != expected_language
@@ -262,6 +269,9 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "prd_target_sections": sorted(prd_target),
         "prd_target_populated": prd_target_populated,
         "prd_target_coverage": round(len(prd_target_populated) / len(prd_target), 3) if prd_target else 1.0,
+        "ears_expected_eligible_not_normalized": expected_ears_eligible,
+        "ears_eligible_not_normalized": ears_eligible_not_normalized,
+        "ears_eligible_mismatch": ears_eligible_mismatch,
         "specs_scaffolding_ids": specs_scaffold["ids"],
         "specs_scaffolding_count": specs_scaffold["count"],
         "baseline_ok": (
@@ -269,6 +279,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             and not new_false_positives
             and not language_mismatch
             and not gap_detail_mismatches
+            and not ears_eligible_mismatch
             and sorted(brief_pending_target) == brief_target_pending
             and bool(specs_scaffold["ids"])
         ),
@@ -308,6 +319,8 @@ def run_all() -> int:
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
             ),
             "avg_prd_target_coverage": round(sum(r["prd_target_coverage"] for r in results) / len(results), 3),
+            "total_ears_eligible_not_normalized": sum(len(r["ears_eligible_not_normalized"]) for r in results),
+            "total_ears_eligible_mismatches": sum(1 for r in results if r["ears_eligible_mismatch"]),
             "avg_specs_scaffolding": round(sum(r["specs_scaffolding_count"] for r in results) / len(results), 3),
             "total_specs_scaffolding": sum(r["specs_scaffolding_count"] for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
@@ -345,6 +358,11 @@ def run_all() -> int:
                 f"         gap metadata mismatch: {mismatch['gap']} {mismatch['field']} "
                 f"expected {mismatch['expected']} got {mismatch['actual']}"
             )
+        if r["ears_eligible_mismatch"]:
+            print(
+                "         EARS eligible mismatch: expected "
+                f"{r['ears_expected_eligible_not_normalized']} got {r['ears_eligible_not_normalized']}"
+            )
         expected_pending = set(r["brief_expected_pending_sections"])
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
@@ -358,6 +376,7 @@ def run_all() -> int:
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-038 baseline) "
+        f"ears_eligible_not_normalized={s['total_ears_eligible_not_normalized']} "
         f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f}"
     )
     print(f"Report: {out}")

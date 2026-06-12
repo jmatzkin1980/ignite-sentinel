@@ -20,6 +20,8 @@ DOMAIN_SOURCE_TOKENS = {
     "seguridad", "technology", "tecnologia", "tecnología", "tech",
 }
 INFERENCE_SOURCE_TOKENS = {"agent", "analysis", "analisis", "análisis", "inference", "inferencia", "sentinel"}
+EARS_ELIGIBLE_GAP_IDS = {"GAP-ACCEPTANCE", "GAP-BUSINESS-RULES", "GAP-PRD-FR-AC"}
+EARS_ELIGIBLE_NOTE = "EARS-eligible, not normalized: confirmed prose answer needs BA-approved EARS rewrite"
 
 
 def is_substantive_answer(answer: str) -> bool:
@@ -28,6 +30,10 @@ def is_substantive_answer(answer: str) -> bool:
     if not normalized or normalized in VAGUE_ANSWERS:
         return False
     return len(normalized) >= 15
+
+
+def is_ears_eligible_gap(gap_id: str) -> bool:
+    return gap_id in EARS_ELIGIBLE_GAP_IDS
 
 
 def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
@@ -147,6 +153,8 @@ def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[st
         substantive = is_substantive_answer(answer)
         if answer and decision in CONFIRMED_STATUSES and substantive:
             gap["status"] = "CLOSED"
+            if is_ears_eligible_gap(gap["id"]) and not classify_ears(answer):
+                gap["resolution_note"] = EARS_ELIGIBLE_NOTE
             closed.append(gap)
         elif answer and decision in CONFIRMED_STATUSES:
             # Confirmed but the answer itself is vague/deferred: do not close silently.

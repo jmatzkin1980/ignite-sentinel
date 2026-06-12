@@ -317,6 +317,8 @@ def parse_gap_rows(text: str) -> list[dict[str, str]]:
                 gap["evidence_mention"] = cells[8]
             if len(cells) >= 10 and cells[9] not in {"", "N/A"}:
                 gap["origin"] = cells[9]
+            if len(cells) >= 11 and cells[10] not in {"", "N/A"}:
+                gap["resolution_note"] = cells[10]
             gaps.append(gap)
     return gaps
 
@@ -907,6 +909,24 @@ def none_gap_row(language: str) -> str:
     return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist |"
 
 
+def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
+    cells = [
+        gap["id"],
+        gap.get("lens", lens_for_gap(gap["id"])),
+        gap["severity"],
+        gap.get("status", "OPEN"),
+        f"`{req_id}`",
+        description_for_gap(gap, language),
+        gap.get("question") or question_for_gap(gap["id"], language),
+        source_consulted_text(language),
+        gap.get("evidence_mention") or "N/A",
+        gap.get("origin", "checklist"),
+    ]
+    if gap.get("resolution_note"):
+        cells.append(gap["resolution_note"])
+    return "| " + " | ".join(cells) + " |"
+
+
 def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
     if language != "es":
         return gap["description"]
@@ -941,10 +961,7 @@ def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, langua
     if not response_sections:
         response_sections = no_gaps_text(language)
 
-    rows = "\n".join(
-        f"| {gap['id']} | {gap.get('lens', lens_for_gap(gap['id']))} | {gap['severity']} | {gap.get('status', 'OPEN')} | `{req_id}` | {description_for_gap(gap, language)} | {gap.get('question') or question_for_gap(gap['id'], language)} | {source_consulted_text(language)} | {gap.get('evidence_mention') or 'N/A'} | {gap.get('origin', 'checklist')} |"
-        for gap in gaps
-    )
+    rows = "\n".join(gap_trace_row(gap, req_id, language) for gap in gaps)
     if not rows:
         rows = none_gap_row(language)
     if language == "es":
@@ -979,8 +996,8 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Trazabilidad de resolución
@@ -1020,8 +1037,8 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Resolution Trace
@@ -1433,7 +1450,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-OBJECTIVE": "Una frase que nombre el resultado de negocio (no la feature) y cómo se reconoce el éxito.",
             "GAP-USERS": "Lista de actores primarios/secundarios con rol e indicando si usan u operan la capacidad.",
             "GAP-SCOPE": "Bullets de in-scope vs out-of-scope y qué debe seguir funcionando.",
-            "GAP-ACCEPTANCE": "Uno o más enunciados Dado/Cuando/Entonces con condiciones observables.",
+            "GAP-ACCEPTANCE": "Uno o más enunciados EARS o Dado/Cuando/Entonces con condiciones observables. Ejemplo EARS: Cuando ocurre <disparador>, el sistema debe <respuesta observable>.",
             "GAP-QUALITY": "Expectativas de calidad como bullets: áreas de riesgo, profundidad de pruebas y evidencia requerida.",
             "GAP-METRIC-SOURCE": "Nombre de la métrica + fuente/owner del baseline + valor objetivo + ventana de medición.",
             "GAP-TECH-DATA-SOURCE": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
@@ -1442,7 +1459,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-DESIGN-STATES": "Los estados de carga, vacío, error y recuperación de la superficie.",
             "GAP-DESIGN-PROTOTYPE-INPUT": "La decisión/flujo/interacción que el prototipo debe validar.",
             "GAP-PRODUCT-ASIS-TOBE": "Comportamiento actual vs objetivo, expresado como delta.",
-            "GAP-BUSINESS-RULES": "Enunciados de regla con umbrales y manejo de excepciones.",
+            "GAP-BUSINESS-RULES": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
             "GAP-FRONTEND-SURFACE": "Superficie(s) afectada(s), estados, validaciones, copy y eventos de analytics.",
             "GAP-BACKEND-SURFACE": "Capacidades, contratos, persistencia/source of truth y comportamiento ante fallas.",
             "GAP-TECH-DEEP-DIVE-INPUT": "Repositorios/componentes, endpoints y source of truth a inspeccionar.",
@@ -1452,7 +1469,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-BACKLOG-ENABLERS": "Cada enabler con el boundary de capacidad que soporta y la evidencia objetiva de completitud.",
             "GAP-QUALITY-HANDOFF": "Flujos críticos, casos borde, datos de prueba y expectativas de evidencia.",
             "GAP-PRD-PERSONA-DETAIL": "Por persona: objetivo, dolores, frecuencia y habilidad.",
-            "GAP-PRD-FR-AC": "FR-NN con su criterio de aceptación trazable (Dado/Cuando/Entonces) y prioridad.",
+            "GAP-PRD-FR-AC": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
             "GAP-PRD-NFR-KPI": "NFR/KPI con target, método de medición y ventana temporal.",
             "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencias con owner y fases del roadmap.",
             "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Ambientes objetivo, estrategia de rollout, restricciones de release y criterio de rollback.",
@@ -1463,7 +1480,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-OBJECTIVE": "One sentence naming the business outcome (not the feature) and how success is recognized.",
         "GAP-USERS": "List of primary/secondary actors with role and whether they use or operate the capability.",
         "GAP-SCOPE": "In-scope vs out-of-scope bullets and what must keep working.",
-        "GAP-ACCEPTANCE": "One or more Given/When/Then statements with observable conditions.",
+        "GAP-ACCEPTANCE": "One or more EARS or Given/When/Then statements with observable conditions. EARS example: When <trigger>, the system shall <observable response>.",
         "GAP-QUALITY": "Quality expectations as bullets: risk areas, test depth, and required evidence.",
         "GAP-METRIC-SOURCE": "Metric name + baseline source/owner + target value + measurement window.",
         "GAP-TECH-DATA-SOURCE": "Systems/endpoints involved, source of truth, and owning team.",
@@ -1472,7 +1489,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-DESIGN-STATES": "The loading, empty, error, and recovery states for the surface.",
         "GAP-DESIGN-PROTOTYPE-INPUT": "The decision/flow/interaction the prototype must validate.",
         "GAP-PRODUCT-ASIS-TOBE": "Current behavior vs target behavior, stated as a delta.",
-        "GAP-BUSINESS-RULES": "Rule statements with thresholds and exception handling.",
+        "GAP-BUSINESS-RULES": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
         "GAP-FRONTEND-SURFACE": "Affected surface(s), states, validations, copy, and analytics events.",
         "GAP-BACKEND-SURFACE": "Capabilities, contracts, persistence/source of truth, and failure behavior.",
         "GAP-TECH-DEEP-DIVE-INPUT": "Repositories/components, endpoints, and source of truth to inspect.",
@@ -1482,7 +1499,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-BACKLOG-ENABLERS": "Each enabler with the capability boundary it supports and objective completion evidence.",
         "GAP-QUALITY-HANDOFF": "Critical flows, edge cases, test data, and evidence expectations.",
         "GAP-PRD-PERSONA-DETAIL": "Per persona: goal, pains, usage frequency, and proficiency.",
-        "GAP-PRD-FR-AC": "FR-NN with its traceable acceptance criterion (Given/When/Then) and priority.",
+        "GAP-PRD-FR-AC": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
         "GAP-PRD-NFR-KPI": "NFR/KPI with target, measurement method, and timeframe.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencies with owner, and roadmap phases.",
         "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Target environments, rollout strategy, release constraints, and rollback criterion.",

@@ -57,6 +57,8 @@ python -m sentinel /maturity PROJECT_ID
 python -m sentinel /status PROJECT_ID
 ```
 
+For functional or business-rule gaps, the expected format now points stakeholders toward EARS-shaped answers. A confirmed EARS answer is accumulated into `02_requirements/requirements.md` as `REQ-EARS-*`. A confirmed prose answer still closes the gap when it is substantive, but Sentinel marks it `EARS-eligible, not normalized` and `/status` counts it so the BA or agent can propose a separate EARS rewrite for confirmation.
+
 When maturity reaches `READY_FOR_SPECS`, Sentinel also materializes:
 
 ```text
