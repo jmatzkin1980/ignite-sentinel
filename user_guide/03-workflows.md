@@ -268,7 +268,7 @@ Hand off only when:
 
 Use retrieval when the workspace has more context than an agent should load at once. This is Sentinel's progressive disclosure mechanism: retrieve the smallest useful slice, keep source hashes, and preserve why each result was returned.
 
-Use when Codex or Kilo needs focused context without loading the entire workspace. This is a read-only progressive disclosure step; it queries local LanceDB memory and can write a reusable context pack.
+Use when Codex or Kilo needs focused context without loading the entire workspace. This is a read-only progressive disclosure step; it queries local retrieval memory (`lancedb-hybrid` when available, deterministic `json-hybrid` otherwise) and can write a reusable context pack.
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "acceptance criteria and SLA risk" --workflow backlog --limit 5

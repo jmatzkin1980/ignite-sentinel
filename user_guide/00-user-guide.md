@@ -227,7 +227,7 @@ Beyond the deterministic checklist, the agent operating the framework can contri
 /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
 
-Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed. When a confirmed answer is written in EARS syntax ("When <trigger>, the system shall <response>." and the other four patterns, EN or ES), it is also accumulated into `requirements.md` as a testable `REQ-EARS-*` statement (IMP-026).
+Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed. When a confirmed answer is written in EARS syntax ("When <trigger>, the system shall <response>." and the other four patterns, EN or ES), it is also accumulated into `requirements.md` as a testable `REQ-EARS-*` statement. Generated PRD/spec/backlog artifacts cite those `REQ-EARS-*` IDs so the normalized requirements survive downstream planning and testing.
 
 ### 5. Check Maturity
 
@@ -235,7 +235,7 @@ Sentinel automatically closes only gaps with confirmed structured answers. If an
 /maturity PROJECT_ID
 ```
 
-If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief. `/maturity` and `/status` also report per-section brief readiness and maturation telemetry (how many resolve rounds ran, how gaps closed by provenance, the oldest blocking gap) so you can see where maturation is stalling (IMP-025, IMP-028).
+If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief. `/maturity` and `/status` also report per-section brief readiness and maturation telemetry: how many resolve rounds ran, how gaps closed by provenance and by answer source (`client`, `domain`, `inference`), which closed gaps were triggered again by `/sync`, and the oldest blocking-gap age in rounds.
 
 ### 6. Generate The Project Brief
 
@@ -345,4 +345,4 @@ By default:
 - Use `/retrieve` for focused context instead of loading the whole workspace.
 - Rerun `/reindex` after manual edits to workspace artifacts or domain context.
 - Rerun `/health` and `/validate` before handoff.
-- Keep examples and framework rules agnostic: never 
+- Keep examples and framework rules agnostic: never persist client names, private system names, URLs, account IDs, raw payloads, or identifiable business facts.

@@ -74,8 +74,9 @@ It stores chunk rows with fields aligned to the BA Local Brain model:
 
 ```text
 project_id, id, chunk_id, type, title, content, domain, iteration, status,
-file_path, trace_ids, source_hash, section_path, language, confidence,
-sensitivity, metadata, indexed_at, vector
+file_path, trace_ids, source_hash, chunking_version, section_path,
+line_start, line_end, language, confidence, sensitivity, metadata,
+indexed_at, embedder, embedding_version, vector
 ```
 
 Chunks are heading-aware. Each result carries `section_path` plus approximate `line_start` and `line_end` anchors so agents can open the source section instead of treating retrieval output as authority. Markdown tables are kept whole inside a chunk; Sentinel avoids splitting a table across multiple chunks.
@@ -99,6 +100,7 @@ The memory layer stores:
 - trace edges
 - local vectors for hybrid retrieval
 - artifact hashes, language, sensitivity, confidence, status, trace IDs, and source metadata
+- active embedder metadata and chunking version
 
 Each indexed chunk records the active local embedder:
 
@@ -183,7 +185,7 @@ python -m sentinel /reindex PROJECT_ID
 python -m sentinel /reindex PROJECT_ID --full
 ```
 
-By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, embedder version, and chunking version, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
+By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, `embedding_version`, and `chunking_version`, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
 
 If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
 
