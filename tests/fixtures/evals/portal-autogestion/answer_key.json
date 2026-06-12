@@ -1,6 +1,7 @@
 {
   "fixture": "portal-autogestion",
   "language": "es",
+  "expected_language": "es",
   "deliberate_omissions": [
     "Roles, permisos y autenticacion de clientes finales",
     "Requisitos no funcionales: volumen de reclamos, disponibilidad, datos personales",
@@ -31,11 +32,33 @@
     "GAP-FRONTEND-SURFACE"
   ],
   "target_fire_rationale": "La palabra 'estado' (consulta de estado) suprime los checks de estados de UI y superficie frontend, pero los estados de carga/vacio/error y el binding frontend no estan descriptos. [IMP-015: detected since 2026-06-11 via mention-without-counterpart rules; kept here as the progress metric and promoted to must_fire as regression guard.]",
+  "expected_gap_details": {
+    "GAP-ACCEPTANCE": {
+      "lens": "quality",
+      "severity": "critical",
+      "origin": "checklist"
+    },
+    "GAP-DESIGN-STATES": {
+      "lens": "design",
+      "severity": "medium",
+      "origin": "checklist"
+    },
+    "GAP-FRONTEND-SURFACE": {
+      "lens": "technical",
+      "severity": "medium",
+      "origin": "checklist"
+    }
+  },
   "brief": {
     "target_populated": [
       "1",
       "2",
       "3"
+    ],
+    "target_pending": [
+      "4",
+      "5",
+      "6"
     ],
     "rationale": "Secciones 1 (objetivo: bajar volumen de llamadas), 2 (actores: clientes finales y equipo de atencion) y 3 (alcance explicito + as-is/to-be telefonico->digital) tienen evidencia confirmada pero se renderizan como TBD. IMP-024 debe poblarlas con citas; secciones 4-6 quedan [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },

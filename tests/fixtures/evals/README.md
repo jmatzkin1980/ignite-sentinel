@@ -10,8 +10,12 @@ Each fixture folder contains:
   - `must_not_fire`: information explicitly covered in the text; firing one is a false positive.
   - `known_false_positives`: documented current engine bugs (fire today, should not). When fixed, move them out and update the key.
   - `target_fire`: gaps an inquisitive/semantic engine should detect but the current keyword-suppression logic misses. `target_recall` is the progress metric (IMP-015, then IMP-021): 0.00 at baseline, should grow.
+  - `expected_language`: detected project language expected after `/ingest`.
+  - `expected_gap_details`: selected gap metadata that must remain stable (`lens`, `severity`, `origin`). This catches regressions where the right gap ID fires from the wrong lens, with wrong severity, or via the wrong discovery source.
+  - `annotate.expected_gap_details`: metadata expectations that apply only when the fixture also runs through `/annotate`.
   - `brief` (IMP-027): brief-coverage answer key.
     - `target_populated`: narrative brief sections (1-6) that have confirmed evidence in the requirement and the IMP-024 brief compiler must populate with citations. `brief_target_coverage` is the progress metric: 0.00 at baseline (the template renderer leaves them as TBD), should reach 1.00 once compiled.
+    - `target_pending`: narrative brief sections (1-6) that must stay explicitly pending because discovery does not yet have enough evidence. This protects the "evidence or silence" invariant.
     - `rationale`: why those sections are expected and which stay `[PENDING INPUT]`.
   - `golden_queries` (IMP-032): retrieval answer key. Each query declares an `id`, natural-language `query`, `workflow`, `expected_artifacts`, `kind` (`same-language` or `cross-lingual`), and `rationale`.
 

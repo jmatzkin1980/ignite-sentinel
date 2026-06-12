@@ -67,6 +67,32 @@ class ExpenseApprovalCeilingTests(unittest.TestCase):
         self.assertEqual(self.result["brief_target_populated"], ["1", "2", "3"])
         self.assertEqual(self.result["brief_target_coverage"], 1.0)
 
+    def test_brief_keeps_unsupported_sections_pending(self):
+        # The eval should protect both sides of "evidence or silence":
+        # confirmed sections populate, unsupported sections remain pending.
+        self.assertEqual(self.result["brief_expected_pending_sections"], ["4", "5", "6"])
+        self.assertEqual(self.result["brief_expected_pending_matched"], ["4", "5", "6"])
+        self.assertEqual(self.result["brief_expected_pending_coverage"], 1.0)
+
+    def test_detected_language_and_gap_metadata_match_answer_key(self):
+        self.assertEqual(self.result["detected_language"], "en")
+        self.assertEqual(self.result["gap_detail_mismatches"], [])
+        self.assertGreaterEqual(self.result["origin_counts"].get("checklist", 0), 1)
+
+
+class AnnotatedDiscoveryEvalTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        runner = _load_runner()
+        cls.result = runner.run_fixture(FIXTURES / "expense-approval", apply_annotation=True)
+
+    def test_annotation_closes_semantic_target_recall_with_agent_origin(self):
+        self.assertEqual(self.result["target_fire_total"], 5)
+        self.assertEqual(len(self.result["target_fire_detected"]), 5)
+        self.assertEqual(self.result["target_recall"], 1.0)
+        self.assertEqual(self.result["gap_detail_mismatches"], [])
+        self.assertGreaterEqual(self.result["origin_counts"].get("agent", 0), 5)
+
 
 if __name__ == "__main__":
     unittest.main()
