@@ -90,6 +90,50 @@ def brief_gate_warnings(readiness: dict[str, object], language: str = "en") -> l
     return warnings
 
 
+# --- IMP-028: maturation-cycle telemetry --------------------------------------
+#
+# Visibility into where maturation stalls: how many /resolve-gaps rounds ran, how
+# closed gaps split by provenance (checklist vs agent vs challenge), and how long
+# the oldest blocking gap has survived (in resolve rounds). All fields are optional
+# and additive — existing workspaces are unaffected.
+
+def maturation_telemetry(project_id: str) -> dict[str, object]:
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
+    log_path = base / "01_discovery" / "gap_resolution_log.md"
+    iterations = 0
+    if log_path.exists():
+        iterations = sum(
+            1 for line in log_path.read_text(encoding="utf-8").splitlines()
+            if line.startswith("| ") and "CHG-" in line
+        )
+    closed_by_origin: dict[str, int] = {}
+    closed_total = 0
+    open_blocking = 0
+    for gap in gaps:
+        status = str(gap.get("status", "OPEN")).upper()
+        severity = str(gap.get("severity", "")).lower()
+        origin = str(gap.get("origin", "checklist")).strip() or "checklist"
+        if status == "CLOSED":
+            closed_total += 1
+            closed_by_origin[origin] = closed_by_origin.get(origin, 0) + 1
+        elif status in {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"} and severity in {"critical", "high"}:
+            open_blocking += 1
+    closed_by_origin_pct = {
+        origin: round(count / closed_total, 3) for origin, count in closed_by_origin.items()
+    } if closed_total else {}
+    return {
+        "resolve_iterations": iterations,
+        "closed_total": closed_total,
+        "closed_by_origin": closed_by_origin,
+        "closed_by_origin_pct": closed_by_origin_pct,
+        "open_blocking_gaps": open_blocking,
+        # Age proxy: a still-open blocking gap has survived every resolve round.
+        "oldest_blocking_age_rounds": iterations if open_blocking else 0,
+    }
+
+
 def maturity_metrics(project_id: str) -> dict[str, object]:
     """Quantified maturity: gap closure by severity plus evidence scores of generated artifacts."""
     from .validation import score_artifact_text
@@ -137,6 +181,8 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
     brief_path = base / "02_requirements" / "project-brief.md"
     if brief_path.exists():
         metrics["brief_section_readiness"] = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+    # IMP-028: maturation-cycle telemetry.
+    metrics["maturation_telemetry"] = maturation_telemetry(project_id)
     return metrics
 
 
