@@ -38,5 +38,31 @@
       "3"
     ],
     "rationale": "Secciones 1 (objetivo: bajar volumen de llamadas), 2 (actores: clientes finales y equipo de atencion) y 3 (alcance explicito + as-is/to-be telefonico->digital) tienen evidencia confirmada pero se renderizan como TBD. IMP-024 debe poblarlas con citas; secciones 4-6 quedan [PENDING INPUT]. Baseline brief_target_coverage 0.00."
-  }
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-PORTAL-OBJETIVO",
+      "query": "cual es el objetivo del portal de autogestion de reclamos",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "El requisito dice que el objetivo es bajar el volumen de llamadas."
+    },
+    {
+      "id": "GQ-PORTAL-ALCANCE",
+      "query": "que incluye la primera version y que queda fuera de alcance",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "Alta de reclamo, consulta de estado y adjuntos estan dentro; chat y push fuera."
+    },
+    {
+      "id": "GQ-PORTAL-XLING-USERS",
+      "query": "who are the users of the self service claims portal",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual EN query over ES content for clientes finales and equipo de atencion."
+    }
+  ]
 }

@@ -13,9 +13,12 @@ Each fixture folder contains:
   - `brief` (IMP-027): brief-coverage answer key.
     - `target_populated`: narrative brief sections (1-6) that have confirmed evidence in the requirement and the IMP-024 brief compiler must populate with citations. `brief_target_coverage` is the progress metric: 0.00 at baseline (the template renderer leaves them as TBD), should reach 1.00 once compiled.
     - `rationale`: why those sections are expected and which stay `[PENDING INPUT]`.
+  - `golden_queries` (IMP-032): retrieval answer key. Each query declares an `id`, natural-language `query`, `workflow`, `expected_artifacts`, `kind` (`same-language` or `cross-lingual`), and `rationale`.
 
 The runner runs `init → ingest → brief` per fixture and classifies each section 1-6 as `populated` (no template marker) or `pending`.
 
+`tests/test_evals_retrieval.py` runs `init → ingest` per fixture, scores golden queries with recall@5 and MRR, and writes `tests/evals/reports/retrieval_eval_<date>.json`. The report includes per-fixture backend metadata plus `summary.by_backend` so `json-hybrid` and `lancedb-hybrid` runs can be compared without making LanceDB mandatory.
+
 The keyword ceiling, made explicit by `expense-approval`: a single token present in the text suppresses a whole gap even when the substance is missing (`success` suppresses GAP-ACCEPTANCE, `compliance`/`security` suppress governance/NFR, `rule` suppresses business rules, `quality` suppresses quality). Such reassuring-but-empty requirements drive `target_recall` to 0.00 — the gap an agentic semantic pass (IMP-021 `/annotate`) must close.
 
-When adding a fixture: write the requirement with explicit coverage of some areas and deliberate omission of others, run the eval harness, inspect what fires and which brief sections populate, and record the key empirically. Keep one fixture per domain pattern (dashboard, integration, portal, approval-workflow, ...) and at least one non-English fixture.
+When adding a fixture: write the requirement with explicit coverage of some areas and deliberate omission of others, run the eval harness, inspect what fires, which brief sections populate, and which retrieval queries hit, then record the key empirically. Keep one fixture per domain pattern (dashboard, integration, portal, approval-workflow, ...) and at least one non-English fixture.

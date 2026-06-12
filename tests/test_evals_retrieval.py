@@ -56,6 +56,9 @@ def _run_fixture(fixture_dir: Path) -> dict | None:
                 assert main(["init", project_id]) == 0
                 assert main(["ingest", project_id, "--source", str(fixture_dir / "requirement.md")]) == 0
                 broker = ContextBroker(project_id)
+                backend = broker.backend
+                backend_degradation_reason = broker.lancedb_degraded_reason or None
+                fts_ready = broker.fts_ready
                 scored = [_score_query(broker, gq) for gq in golden]
         finally:
             os.chdir(old_cwd)
@@ -67,11 +70,27 @@ def _run_fixture(fixture_dir: Path) -> dict | None:
     same = [s for s in scored if s["kind"] == "same-language"]
     return {
         "fixture": fixture_dir.name,
+        "backend": backend,
+        "backend_degradation_reason": backend_degradation_reason,
+        "fts_ready": fts_ready,
         "queries": scored,
         "recall_same_language": _recall("same-language"),
         "recall_cross_lingual": _recall("cross-lingual"),
         "mrr_same_language": round(sum(s["mrr"] for s in same) / len(same), 3) if same else 1.0,
     }
+
+
+def _backend_summary(results: list[dict]) -> dict[str, dict[str, float | int]]:
+    summary: dict[str, dict[str, float | int]] = {}
+    for backend in sorted({row["backend"] for row in results}):
+        rows = [row for row in results if row["backend"] == backend]
+        summary[backend] = {
+            "fixtures": len(rows),
+            "avg_recall_same_language": round(sum(row["recall_same_language"] for row in rows) / len(rows), 3),
+            "avg_recall_cross_lingual": round(sum(row["recall_cross_lingual"] for row in rows) / len(rows), 3),
+            "avg_mrr_same_language": round(sum(row["mrr_same_language"] for row in rows) / len(rows), 3),
+        }
+    return summary
 
 
 class RetrievalEvalTests(unittest.TestCase):
@@ -91,6 +110,7 @@ class RetrievalEvalTests(unittest.TestCase):
                 "avg_recall_same_language": round(sum(r["recall_same_language"] for r in cls.results) / len(cls.results), 3) if cls.results else 1.0,
                 "avg_recall_cross_lingual": round(sum(r["recall_cross_lingual"] for r in cls.results) / len(cls.results), 3) if cls.results else 0.0,
                 "avg_mrr_same_language": round(sum(r["mrr_same_language"] for r in cls.results) / len(cls.results), 3) if cls.results else 1.0,
+                "by_backend": _backend_summary(cls.results),
             },
         }
         (REPORTS / f"retrieval_eval_{report['date']}.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -98,10 +118,19 @@ class RetrievalEvalTests(unittest.TestCase):
 
     def test_has_golden_queries(self):
         self.assertTrue(self.results, "no fixtures with golden_queries found")
+        self.assertGreaterEqual(len(self.results), 4, "all eval fixtures should define golden_queries")
 
     def test_same_language_retrieval_meets_baseline(self):
         # Same-language golden queries must retrieve their target artifact in top-5.
         self.assertGreaterEqual(self.report["summary"]["avg_recall_same_language"], 0.5)
+
+    def test_report_compares_backend_metrics(self):
+        by_backend = self.report["summary"]["by_backend"]
+        self.assertTrue(by_backend, "retrieval report should include per-backend metrics")
+        for backend, metrics in by_backend.items():
+            self.assertIn(backend, {"json-hybrid", "lancedb-hybrid"})
+            self.assertGreaterEqual(metrics["fixtures"], 1)
+            self.assertIn("avg_mrr_same_language", metrics)
 
     def test_cross_lingual_is_recorded_as_progress_metric(self):
         # In hash fallback this is only recorded; with semantic embeddings it is the IMP-029 gate.

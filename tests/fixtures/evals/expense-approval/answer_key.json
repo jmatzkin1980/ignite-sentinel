@@ -37,5 +37,31 @@
   "brief": {
     "target_populated": ["1", "2", "3"],
     "rationale": "Sections 1 (identity/value: objective + halving approval time), 2 (business actors: finance approvers and employees) and 3 (product/scope: explicit in/out of scope) have confirmed evidence in the requirement, yet the template renderer leaves them as TBD. The IMP-024 brief compiler must populate these from evidence with citations. Sections 4-6 (design/tech/governance) have no real evidence (only suppressed buzzwords) and must stay [PENDING INPUT]. Baseline brief_target_coverage is 0.00."
-  }
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-EXPENSE-OBJECTIVE",
+      "query": "what business outcome should the expense approval workflow achieve",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "The requirement names cutting average approval time in half as the objective."
+    },
+    {
+      "id": "GQ-EXPENSE-SCOPE",
+      "query": "what is in scope for first release and what is out of scope",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "Submitting, routing, and notifying are in scope; card reconciliation and accounting posting are out."
+    },
+    {
+      "id": "GQ-EXPENSE-XLING-USERS",
+      "query": "quienes aprueban y quienes cargan los gastos",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual ES query over EN content for finance approvers and employees."
+    }
+  ]
 }
