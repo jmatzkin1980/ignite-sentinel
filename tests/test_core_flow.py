@@ -372,6 +372,73 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
             self.assertEqual(broker.backend, "json-hybrid")
             results = broker.retrieve("SLA risk", "discovery")
             self.assertTrue(results)
+            self.assertEqual(broker.embedder_status.level, "hash")
+            self.assertFalse(broker.embedder_status.semantic)
+
+    def test_doctor_reports_semantic_embedder_fallback_as_warn(self) -> None:
+        from unittest import mock
+        import sentinel.doctor as doctor_module
+
+        with mock.patch.object(
+            doctor_module,
+            "active_embedder_status",
+            return_value={
+                "name": "hash_embedding",
+                "level": "hash",
+                "version": "hash_embedding:v1:128",
+                "dimensions": 128,
+                "detail": "deterministic local hash fallback",
+                "semantic": False,
+            },
+        ):
+            report = run_doctor(ROOT.parent)
+        checks = {check["name"]: check for check in report["checks"]}
+        self.assertEqual(report["verdict"], "PASS")
+        self.assertEqual(checks["memory embedder: semantic local (optional)"]["status"], "WARN")
+        self.assertIn("hash_embedding fallback", checks["memory embedder: semantic local (optional)"]["detail"])
+
+    def test_context_broker_uses_semantic_embedder_for_cross_lingual_json_retrieval(self) -> None:
+        import sys
+        from unittest import mock
+        import sentinel.memory as memory_module
+
+        class FakeSemanticEmbedder:
+            status = memory_module.EmbedderStatus(
+                name="fake-semantic",
+                level="model2vec",
+                version="fake-semantic:test",
+                dimensions=3,
+                detail="test semantic embedder",
+                semantic=True,
+            )
+
+            def embed(self, text: str) -> list[float]:
+                normalized = text.lower()
+                metric_terms = ("metric", "metrica", "success", "exito", "target", "objetivo", "30%")
+                user_terms = ("users", "usuarios", "leads")
+                dashboard_terms = ("dashboard", "tablero")
+                return [
+                    1.0 if any(term in normalized for term in metric_terms) else 0.0,
+                    1.0 if any(term in normalized for term in user_terms) else 0.0,
+                    1.0 if any(term in normalized for term in dashboard_terms) else 0.0,
+                ]
+
+        fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"
+        with (
+            mock.patch.dict(sys.modules, {"lancedb": None}),
+            mock.patch.object(memory_module, "detect_embedder", return_value=FakeSemanticEmbedder()),
+        ):
+            self.assertEqual(main(["init", "SEMANTIC"]), 0)
+            self.assertEqual(main(["ingest", "SEMANTIC", "--source", str(fixture)]), 0)
+            broker = ContextBroker("SEMANTIC")
+            results = broker.retrieve("cual es la metrica de exito y el objetivo del tablero", "specs")
+        self.assertTrue(
+            any(
+                "requirement.md" in row.get("source_path", "") or "gaps.md" in row.get("source_path", "")
+                for row in results
+            )
+        )
+        self.assertIn("local semantic embedding match", results[0]["why_retrieved"])
 
     def test_prd_extracts_evidence_backed_personas_frs_and_kpis(self) -> None:
         fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"

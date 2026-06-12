@@ -3,9 +3,11 @@ from __future__ import annotations
 import math
 import re
 import json
+import os
 from hashlib import blake2b, sha256
 from collections import Counter
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,8 @@ from .workspace import graph_path, memory_path, read_json, write_json, workspace
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 VECTOR_DIMENSIONS = 128
+DEFAULT_MODEL2VEC_MODEL = "minishlab/potion-multilingual-128M"
+DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CONTEXT_FOLDERS = {
     "00_raw/00_client_requirement": ("raw_context", "product"),
     "00_raw/01_business_context": ("business_context", "business"),
@@ -54,6 +58,139 @@ def hash_embedding(text: str, dimensions: int = VECTOR_DIMENSIONS) -> list[float
     return [round(value / norm, 6) for value in vector]
 
 
+@dataclass(frozen=True)
+class EmbedderStatus:
+    name: str
+    level: str
+    version: str
+    dimensions: int
+    detail: str
+    semantic: bool
+
+
+class Embedder:
+    """Local-only embedding abstraction with deterministic fallback."""
+
+    status = EmbedderStatus(
+        name="hash_embedding",
+        level="hash",
+        version=f"hash_embedding:v1:{VECTOR_DIMENSIONS}",
+        dimensions=VECTOR_DIMENSIONS,
+        detail="deterministic local hash fallback",
+        semantic=False,
+    )
+
+    def embed(self, text: str) -> list[float]:
+        return hash_embedding(text, self.status.dimensions)
+
+
+class HashEmbedder(Embedder):
+    pass
+
+
+class Model2VecEmbedder(Embedder):
+    def __init__(self, model: Any, model_ref: str):
+        self.model = model
+        dimensions = len(self.embed("dimension probe"))
+        self.status = EmbedderStatus(
+            name="model2vec",
+            level="model2vec",
+            version=f"model2vec:{model_ref}",
+            dimensions=dimensions,
+            detail=f"local model2vec model: {model_ref}",
+            semantic=True,
+        )
+
+    def embed(self, text: str) -> list[float]:
+        return normalize_embedding(self.model.encode([text])[0])
+
+
+class SentenceTransformersEmbedder(Embedder):
+    def __init__(self, model: Any, model_ref: str):
+        self.model = model
+        dimensions = len(self.embed("dimension probe"))
+        self.status = EmbedderStatus(
+            name="sentence-transformers",
+            level="sentence-transformers",
+            version=f"sentence-transformers:{model_ref}",
+            dimensions=dimensions,
+            detail=f"local sentence-transformers model: {model_ref}",
+            semantic=True,
+        )
+
+    def embed(self, text: str) -> list[float]:
+        return normalize_embedding(self.model.encode([text])[0])
+
+
+def normalize_embedding(values: Any) -> list[float]:
+    vector = [float(value) for value in values]
+    norm = math.sqrt(sum(value * value for value in vector))
+    if not norm:
+        return [0.0 for _ in vector]
+    return [round(value / norm, 6) for value in vector]
+
+
+def embedding_cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    return sum(left * right for left, right in zip(a, b))
+
+
+def _looks_local_model_ref(model_ref: str) -> bool:
+    path = Path(model_ref).expanduser()
+    if path.exists():
+        return True
+    # Hugging Face cache IDs are allowed only when the library can enforce
+    # local-files-only loading; no runtime download is attempted by Sentinel.
+    return not any(marker in model_ref.lower() for marker in ("http://", "https://"))
+
+
+def detect_embedder() -> Embedder:
+    model2vec_ref = os.environ.get("SENTINEL_MODEL2VEC_MODEL", DEFAULT_MODEL2VEC_MODEL)
+    if _looks_local_model_ref(model2vec_ref):
+        try:
+            from model2vec import StaticModel  # type: ignore
+
+            try:
+                model = StaticModel.from_pretrained(model2vec_ref, local_files_only=True)
+            except TypeError:
+                if not Path(model2vec_ref).expanduser().exists():
+                    raise RuntimeError("model2vec local_files_only is unavailable and model ref is not a local path")
+                model = StaticModel.from_pretrained(model2vec_ref)
+            return Model2VecEmbedder(model, model2vec_ref)
+        except Exception:
+            pass
+
+    st_ref = os.environ.get("SENTINEL_SENTENCE_TRANSFORMERS_MODEL", DEFAULT_SENTENCE_TRANSFORMERS_MODEL)
+    if _looks_local_model_ref(st_ref):
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+
+            try:
+                model = SentenceTransformer(st_ref, local_files_only=True)
+            except TypeError:
+                if not Path(st_ref).expanduser().exists():
+                    raise RuntimeError("sentence-transformers local_files_only is unavailable and model ref is not a local path")
+                model = SentenceTransformer(st_ref)
+            return SentenceTransformersEmbedder(model, st_ref)
+        except Exception:
+            pass
+
+    return HashEmbedder()
+
+
+def active_embedder_status() -> dict[str, Any]:
+    status = detect_embedder().status
+    return {
+        "name": status.name,
+        "level": status.level,
+        "version": status.version,
+        "dimensions": status.dimensions,
+        "detail": status.detail,
+        "semantic": status.semantic,
+    }
+
+
 class ContextBroker:
     """Local-first retrieval broker backed by LanceDB when available.
 
@@ -71,6 +208,8 @@ class ContextBroker:
         self._lancedb = None
         self._table = None
         self.backend = "json-hybrid"
+        self.embedder = detect_embedder()
+        self.embedder_status = self.embedder.status
         self._connect_lancedb()
 
     def _connect_lancedb(self) -> None:
@@ -109,7 +248,9 @@ class ContextBroker:
                             "text": "bootstrap",
                             "content": "bootstrap",
                             "status": "inactive",
-                            "vector": hash_embedding("bootstrap"),
+                            "embedder": self.embedder_status.name,
+                            "embedding_version": self.embedder_status.version,
+                            "vector": self.embedder.embed("bootstrap"),
                         }
                     ],
                     mode="overwrite",
@@ -151,6 +292,8 @@ class ContextBroker:
             "trace_ids": trace_ids,
             "iteration": iteration,
             "metadata": metadata,
+            "embedder": self.embedder_status.name,
+            "embedding_version": self.embedder_status.version,
             "language": language,
             "confidence": confidence,
             "sensitivity": sensitivity,
@@ -174,6 +317,7 @@ class ContextBroker:
                     "content": chunk_text,
                     "summary": chunk_text[:180],
                     "status": "active",
+                    "embedding": self.embedder.embed(chunk_text),
                 }
             )
         write_json(self.path, self.data)
@@ -212,7 +356,9 @@ class ContextBroker:
                     "text": chunk["text"],
                     "content": chunk["content"],
                     "status": chunk["status"],
-                    "vector": hash_embedding(chunk["text"]),
+                    "embedder": chunk.get("embedder", self.embedder_status.name),
+                    "embedding_version": chunk.get("embedding_version", self.embedder_status.version),
+                    "vector": chunk.get("embedding") or self.embedder.embed(chunk["text"]),
                 }
             )
         try:
@@ -253,6 +399,7 @@ class ContextBroker:
         vector_candidates = self._lancedb_candidates(query, limit=max(limit * 4, 20))
         query_tokens = set(tokenize(query))
         query_vector = text_vector(query)
+        query_embedding = self.embedder.embed(query)
         scored = []
         for chunk in self.data.get("chunks", []):
             if artifact_type and chunk.get("artifact_type") != artifact_type:
@@ -275,11 +422,25 @@ class ContextBroker:
             lexical = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
             semantic = cosine(query_vector, text_vector(text))
             vector = vector_candidates.get(chunk["chunk_id"], 0.0)
+            local_embedding = 0.0
+            if self.embedder_status.semantic and chunk.get("embedding_version") == self.embedder_status.version:
+                local_embedding = embedding_cosine(query_embedding, chunk.get("embedding", []))
             workflow_boost = 0.05 if workflow.lower() in text.lower() else 0.0
-            score = lexical + semantic + vector + workflow_boost
+            score = lexical + semantic + vector + local_embedding + workflow_boost
             if score > 0:
                 row = {"score": round(score, 4), **chunk}
-                row["why_retrieved"] = why_retrieved(lexical, semantic, vector, workflow_boost, artifact_type, domain, trace_id)
+                row.pop("embedding", None)
+                row["why_retrieved"] = why_retrieved(
+                    lexical,
+                    semantic,
+                    vector,
+                    local_embedding,
+                    workflow_boost,
+                    artifact_type,
+                    domain,
+                    trace_id,
+                    self.embedder_status.name,
+                )
                 if summary_only:
                     row["text"] = row["summary"]
                     row["content"] = row["summary"]
@@ -293,7 +454,7 @@ class ContextBroker:
         if self._table is None:
             return {}
         try:
-            rows = self._table.search(hash_embedding(query)).limit(limit).to_list()
+            rows = self._table.search(self.embedder.embed(query)).limit(limit).to_list()
         except Exception:
             return {}
         candidates: dict[str, float] = {}
@@ -340,6 +501,12 @@ class ContextBroker:
             "workflow": workflow,
             "query": query,
             "backend": self.backend,
+            "embedder": {
+                "name": self.embedder_status.name,
+                "level": self.embedder_status.level,
+                "version": self.embedder_status.version,
+                "dimensions": self.embedder_status.dimensions,
+            },
             "filters": {
                 "artifact_type": artifact_type,
                 "domain": domain,
@@ -494,10 +661,12 @@ def why_retrieved(
     lexical: float,
     semantic: float,
     vector: float,
+    local_embedding: float,
     workflow_boost: float,
     artifact_type: str | None,
     domain: str | None,
     trace_id: str | None,
+    embedder_name: str = "hash_embedding",
 ) -> str:
     reasons = []
     if lexical:
@@ -505,7 +674,9 @@ def why_retrieved(
     if semantic:
         reasons.append("local semantic similarity")
     if vector:
-        reasons.append("LanceDB/hash vector match")
+        reasons.append(f"LanceDB/{embedder_name} vector match")
+    if local_embedding:
+        reasons.append(f"local semantic embedding match ({embedder_name})")
     if workflow_boost:
         reasons.append("workflow hint")
     if artifact_type:

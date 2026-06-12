@@ -3,9 +3,9 @@
 Makes the memory architecture falsifiable: per fixture, golden queries map a
 natural-language query to the artifact(s) that should be retrieved. We score
 recall@5 and MRR over the active backend (json-hybrid by default; lancedb when
-installed). Same-language queries must retrieve their target; cross-lingual
-ES↔EN queries are a progress metric (expected to fail with the non-semantic hash
-embedding — the falsifiable target IMP-029 must move above 0), never a hard fail.
+installed). Same-language queries must retrieve their target. Cross-lingual
+ES/EN queries are a progress metric in hash fallback mode and become a hard
+gate when a semantic local embedder is active.
 
 A JSON report is written under tests/evals/reports/ each run.
 """
@@ -77,11 +77,15 @@ def _run_fixture(fixture_dir: Path) -> dict | None:
 class RetrievalEvalTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        from sentinel.memory import active_embedder_status
+
+        cls.embedder_status = active_embedder_status()
         cls.results = [r for d in sorted(FIXTURES.iterdir()) if (d / "answer_key.json").exists()
                        for r in [_run_fixture(d)] if r]
         REPORTS.mkdir(parents=True, exist_ok=True)
         report = {
             "date": date.today().isoformat(),
+            "embedder": cls.embedder_status,
             "fixtures": cls.results,
             "summary": {
                 "avg_recall_same_language": round(sum(r["recall_same_language"] for r in cls.results) / len(cls.results), 3) if cls.results else 1.0,
@@ -100,8 +104,14 @@ class RetrievalEvalTests(unittest.TestCase):
         self.assertGreaterEqual(self.report["summary"]["avg_recall_same_language"], 0.5)
 
     def test_cross_lingual_is_recorded_as_progress_metric(self):
-        # Recorded, never asserted to pass: it is the IMP-029 falsifiable target.
+        # In hash fallback this is only recorded; with semantic embeddings it is the IMP-029 gate.
         self.assertIsInstance(self.report["summary"]["avg_recall_cross_lingual"], float)
+        if self.embedder_status.get("semantic"):
+            self.assertGreater(
+                self.report["summary"]["avg_recall_cross_lingual"],
+                0.0,
+                "semantic embedder is active but cross-lingual golden retrieval did not improve",
+            )
 
 
 if __name__ == "__main__":

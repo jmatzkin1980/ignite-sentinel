@@ -13,7 +13,12 @@ dependencies = []
 memory = [
   "lancedb"
 ]
+memory-semantic = [
+  "model2vec",
+  "sentence-transformers"
+]
 embeddings = [
+  "model2vec",
   "sentence-transformers"
 ]
 mcp = [
