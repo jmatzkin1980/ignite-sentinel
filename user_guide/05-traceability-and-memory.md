@@ -53,6 +53,8 @@ The main LanceDB table is:
 ba_memory
 ```
 
+When LanceDB is available, Sentinel keeps a local full-text index on `text` and combines native FTS ranks with vector ranks using reciprocal rank fusion. The JSON memory remains the audit and fallback layer.
+
 LanceDB is a Python dependency. It does not require a separate database server for Sentinel's default workflow. The package must be installed in the same Python environment that runs `python -m sentinel`. You can verify this with:
 
 ```powershell
@@ -66,6 +68,7 @@ If `python` is not available globally, verify through the portable launcher:
 ```
 
 The doctor command checks both import availability and a local open/create probe.
+It also reports the active memory backend and any degradation cause. `/health` includes the same backend/degradation fields in `health_report.json` without marking the project dirty merely because LanceDB is unavailable.
 
 It stores chunk rows with fields aligned to the BA Local Brain model:
 
@@ -122,6 +125,7 @@ python -m sentinel /retrieve PROJECT_ID --query "..." --workflow discovery --sta
 ```
 
 Each result includes `why_retrieved`, based on local lexical match, local semantic similarity, LanceDB/hash vector match, and explicit filters such as domain, trace ID, or artifact type.
+With LanceDB enabled, `why_retrieved` includes native retrieval ranks such as `vector_rank` and `fts_rank` when they contributed to the result.
 
 `/ingest`, `/sync`, and `/reindex` populate memory. The indexed workspace context folders are:
 

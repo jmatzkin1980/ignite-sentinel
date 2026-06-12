@@ -208,6 +208,8 @@ class ContextBroker:
         self._lancedb = None
         self._table = None
         self.backend = "json-hybrid"
+        self.lancedb_degraded_reason = ""
+        self.fts_ready = False
         self.embedder = detect_embedder()
         self.embedder_status = self.embedder.status
         self._connect_lancedb()
@@ -255,11 +257,32 @@ class ContextBroker:
                     ],
                     mode="overwrite",
                 )
+            self._ensure_fts_index()
             self.backend = "lancedb-hybrid"
-        except Exception:
+        except Exception as exc:
             self._lancedb = None
             self._table = None
             self.backend = "json-hybrid"
+            self.lancedb_degraded_reason = f"{type(exc).__name__}: {exc}"
+
+    def _degrade_lancedb(self, exc: Exception) -> None:
+        self._table = None
+        self.backend = "json-hybrid"
+        self.lancedb_degraded_reason = f"{type(exc).__name__}: {exc}"
+
+    def _ensure_fts_index(self) -> None:
+        if self._table is None:
+            return
+        try:
+            self._table.create_fts_index("text", replace=False)
+            self.fts_ready = True
+        except Exception as exc:
+            message = str(exc).lower()
+            if "already exists" in message or "already been created" in message:
+                self.fts_ready = True
+                return
+            self.fts_ready = False
+            self.lancedb_degraded_reason = f"FTS index unavailable: {type(exc).__name__}: {exc}"
 
     def index_artifact(
         self,
@@ -362,19 +385,15 @@ class ContextBroker:
                 }
             )
         try:
-            existing = self._table.to_list()
-            retained = [
-                row
-                for row in existing
-                if row.get("artifact_id") != artifact_id
-                and row.get("chunk_id") != "__bootstrap__"
-                and row.get("project_id") == self.project_id
-            ]
-            all_rows = retained + rows
-            if all_rows:
-                self._table = self._lancedb.create_table(self.table_name, data=all_rows, mode="overwrite")
-        except Exception:
-            self.backend = "json-hybrid"
+            self._table.delete(
+                f"project_id = '{lancedb_literal(self.project_id)}' "
+                f"AND artifact_id = '{lancedb_literal(artifact_id)}'"
+            )
+            if rows:
+                self._table.add(rows)
+                self._ensure_fts_index()
+        except Exception as exc:
+            self._degrade_lancedb(exc)
 
     def index_trace_edges(self, edges: list[dict[str, Any]]) -> None:
         self.data["trace_edges"] = edges
@@ -396,7 +415,17 @@ class ContextBroker:
         max_chars: int | None = None,
         summary_only: bool = False,
     ) -> list[dict[str, Any]]:
-        vector_candidates = self._lancedb_candidates(query, limit=max(limit * 4, 20))
+        lancedb_candidates = self._lancedb_candidates(
+            query,
+            limit=max(limit * 4, 20),
+            artifact_type=artifact_type,
+            domain=domain,
+            iteration_min=iteration_min,
+            status=status,
+            language=language,
+            sensitivity=sensitivity,
+            section=section,
+        )
         query_tokens = set(tokenize(query))
         query_vector = text_vector(query)
         query_embedding = self.embedder.embed(query)
@@ -419,20 +448,20 @@ class ContextBroker:
             if section and section.lower() not in str(chunk.get("section_path", "")).lower():
                 continue
             text = chunk["text"]
-            lexical = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
-            semantic = cosine(query_vector, text_vector(text))
-            vector = vector_candidates.get(chunk["chunk_id"], 0.0)
+            overlap = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
+            lexical = max(overlap, cosine(query_vector, text_vector(text)))
+            lancedb_signal = lancedb_candidates.get(chunk["chunk_id"], {})
+            vector = float(lancedb_signal.get("score", 0.0))
             local_embedding = 0.0
             if self.embedder_status.semantic and chunk.get("embedding_version") == self.embedder_status.version:
                 local_embedding = embedding_cosine(query_embedding, chunk.get("embedding", []))
             workflow_boost = 0.05 if workflow.lower() in text.lower() else 0.0
-            score = lexical + semantic + vector + local_embedding + workflow_boost
+            score = lexical + vector + local_embedding + workflow_boost
             if score > 0:
                 row = {"score": round(score, 4), **chunk}
                 row.pop("embedding", None)
                 row["why_retrieved"] = why_retrieved(
                     lexical,
-                    semantic,
                     vector,
                     local_embedding,
                     workflow_boost,
@@ -440,6 +469,8 @@ class ContextBroker:
                     domain,
                     trace_id,
                     self.embedder_status.name,
+                    lancedb_signal.get("vector_rank"),
+                    lancedb_signal.get("fts_rank"),
                 )
                 if summary_only:
                     row["text"] = row["summary"]
@@ -450,19 +481,58 @@ class ContextBroker:
             results = apply_char_budget(results, max_chars)
         return results
 
-    def _lancedb_candidates(self, query: str, limit: int) -> dict[str, float]:
+    def _lancedb_candidates(
+        self,
+        query: str,
+        limit: int,
+        artifact_type: str | None = None,
+        domain: str | None = None,
+        iteration_min: int = 1,
+        status: str | None = None,
+        language: str | None = None,
+        sensitivity: str | None = None,
+        section: str | None = None,
+    ) -> dict[str, dict[str, float | int]]:
         if self._table is None:
             return {}
+        where = lancedb_where(
+            self.project_id,
+            artifact_type=artifact_type,
+            domain=domain,
+            iteration_min=iteration_min,
+            status=status,
+            language=language,
+            sensitivity=sensitivity,
+            section=section,
+        )
+        candidates: dict[str, dict[str, float | int]] = {}
         try:
-            rows = self._table.search(self.embedder.embed(query)).limit(limit).to_list()
-        except Exception:
-            return {}
-        candidates: dict[str, float] = {}
-        for row in rows:
-            if row.get("project_id") != self.project_id or row.get("status") != "active":
-                continue
-            distance = float(row.get("_distance", 1.0))
-            candidates[row["chunk_id"]] = max(0.0, 1.0 - distance)
+            rows = self._table.search(self.embedder.embed(query)).where(where, prefilter=True).limit(limit).to_list()
+            for rank, row in enumerate(rows, start=1):
+                if row.get("project_id") != self.project_id or row.get("status") != "active":
+                    continue
+                chunk_id = row["chunk_id"]
+                candidates.setdefault(chunk_id, {"score": 0.0})
+                candidates[chunk_id]["vector_rank"] = rank
+                candidates[chunk_id]["score"] = float(candidates[chunk_id]["score"]) + reciprocal_rank(rank)
+        except Exception as exc:
+            self.lancedb_degraded_reason = f"vector search unavailable: {type(exc).__name__}: {exc}"
+
+        if self.fts_ready:
+            try:
+                rows = self._table.search(query, query_type="fts").where(where, prefilter=True).limit(limit).to_list()
+                for rank, row in enumerate(rows, start=1):
+                    if row.get("project_id") != self.project_id or row.get("status") != "active":
+                        continue
+                    chunk_id = row["chunk_id"]
+                    candidates.setdefault(chunk_id, {"score": 0.0})
+                    candidates[chunk_id]["fts_rank"] = rank
+                    candidates[chunk_id]["score"] = float(candidates[chunk_id]["score"]) + reciprocal_rank(rank)
+            except Exception as exc:
+                self.lancedb_degraded_reason = f"FTS search unavailable: {type(exc).__name__}: {exc}"
+
+        for payload in candidates.values():
+            payload["score"] = round(float(payload.get("score", 0.0)) * 10, 6)
         return candidates
 
     def build_context_pack(
@@ -501,6 +571,7 @@ class ContextBroker:
             "workflow": workflow,
             "query": query,
             "backend": self.backend,
+            "backend_degradation_reason": self.lancedb_degraded_reason or None,
             "embedder": {
                 "name": self.embedder_status.name,
                 "level": self.embedder_status.level,
@@ -652,6 +723,42 @@ def content_hash(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
 
 
+def lancedb_literal(value: str) -> str:
+    return value.replace("'", "''")
+
+
+def lancedb_where(
+    project_id: str,
+    artifact_type: str | None = None,
+    domain: str | None = None,
+    iteration_min: int = 1,
+    status: str | None = None,
+    language: str | None = None,
+    sensitivity: str | None = None,
+    section: str | None = None,
+) -> str:
+    clauses = [
+        f"project_id = '{lancedb_literal(project_id)}'",
+        f"status = '{lancedb_literal(status or 'active')}'",
+        f"iteration >= {int(iteration_min)}",
+    ]
+    if artifact_type:
+        clauses.append(f"artifact_type = '{lancedb_literal(artifact_type)}'")
+    if domain:
+        clauses.append(f"domain = '{lancedb_literal(domain)}'")
+    if language:
+        clauses.append(f"language = '{lancedb_literal(language)}'")
+    if sensitivity:
+        clauses.append(f"sensitivity = '{lancedb_literal(sensitivity)}'")
+    if section:
+        clauses.append(f"section_path LIKE '%{lancedb_literal(section)}%'")
+    return " AND ".join(clauses)
+
+
+def reciprocal_rank(rank: int, k: int = 60) -> float:
+    return 1.0 / (k + rank)
+
+
 def section_path_for_chunk(text: str) -> str:
     headings = [line.strip("# ").strip() for line in text.splitlines() if line.startswith("#")]
     return " > ".join(headings[:3]) if headings else ""
@@ -659,7 +766,6 @@ def section_path_for_chunk(text: str) -> str:
 
 def why_retrieved(
     lexical: float,
-    semantic: float,
     vector: float,
     local_embedding: float,
     workflow_boost: float,
@@ -667,14 +773,20 @@ def why_retrieved(
     domain: str | None,
     trace_id: str | None,
     embedder_name: str = "hash_embedding",
+    vector_rank: float | int | None = None,
+    fts_rank: float | int | None = None,
 ) -> str:
     reasons = []
     if lexical:
         reasons.append("lexical match")
-    if semantic:
-        reasons.append("local semantic similarity")
     if vector:
-        reasons.append(f"LanceDB/{embedder_name} vector match")
+        rank_bits = []
+        if vector_rank:
+            rank_bits.append(f"vector_rank={int(vector_rank)}")
+        if fts_rank:
+            rank_bits.append(f"fts_rank={int(fts_rank)}")
+        suffix = f" ({', '.join(rank_bits)})" if rank_bits else ""
+        reasons.append(f"LanceDB RRF match via {embedder_name}{suffix}")
     if local_embedding:
         reasons.append(f"local semantic embedding match ({embedder_name})")
     if workflow_boost:

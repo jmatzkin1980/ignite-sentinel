@@ -32,7 +32,8 @@ def run_health(project_id: str) -> dict[str, object]:
         if METRIC_RE.search(text) and not re.search(r"(source|fuente|baseline|measured|medido)", text, re.I):
             findings.append(f"Metric without explicit source detected in {path.name}.")
 
-    memory = ContextBroker(project_id).data
+    broker = ContextBroker(project_id)
+    memory = broker.data
     indexed_paths = {item["source_path"] for item in memory.get("artifacts", [])}
     for node in graph.get("nodes", []):
         if node.get("path") and node["path"] not in indexed_paths and node["type"] not in {"acceptance_criteria"}:
@@ -56,9 +57,23 @@ def run_health(project_id: str) -> dict[str, object]:
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
     report_path.write_text(render_health(project_id, verdict, findings), encoding="utf-8")
-    write_json(base / "06_traceability" / "health_report.json", {"verdict": verdict, "findings": findings})
+    write_json(
+        base / "06_traceability" / "health_report.json",
+        {
+            "verdict": verdict,
+            "findings": findings,
+            "memory_backend": broker.backend,
+            "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
+        },
+    )
     update_state(project_id, health=verdict)
-    return {"verdict": verdict, "findings": findings, "memory": str(memory_path(project_id))}
+    return {
+        "verdict": verdict,
+        "findings": findings,
+        "memory": str(memory_path(project_id)),
+        "memory_backend": broker.backend,
+        "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
+    }
 
 
 def render_health(project_id: str, verdict: str, findings: list[str]) -> str:
