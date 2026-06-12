@@ -18,6 +18,7 @@ from sentinel.discovery import parse_gap_rows
 from sentinel.gap_resolution import resolve_gaps
 from sentinel.maturity import maturation_telemetry
 from sentinel.status import project_status
+from sentinel.sync import sync_change
 
 RAW = "# Ops Dashboard\n\nWe need a dashboard for the operations team to see queue risk.\n"
 
@@ -41,12 +42,12 @@ class TelemetryTests(unittest.TestCase):
         gaps = parse_gap_rows((self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8"))
         return [g["id"] for g in gaps if g["id"] != "NONE"]
 
-    def _answer(self, gap_id, name):
+    def _answer(self, gap_id, name, owner="Ops"):
         path = self.temp / f"{name}.md"
         path.write_text(
             f"### {gap_id} - x\n"
             f"- Answer: The operations lead confirmed this scope and ownership in the workshop.\n"
-            f"- Owner / source: Ops\n- Evidence or reference: Workshop\n- Decision status: confirmed\n",
+            f"- Owner / source: {owner}\n- Evidence or reference: Workshop\n- Decision status: confirmed\n",
             encoding="utf-8",
         )
         return path
@@ -70,6 +71,33 @@ class TelemetryTests(unittest.TestCase):
         status = project_status("TEL")
         self.assertIn("maturation_telemetry", status["maturity_metrics"])
         self.assertEqual(status["maturity_metrics"]["maturation_telemetry"]["resolve_iterations"], 1)
+
+    def test_closed_split_by_client_domain_and_inference_source(self):
+        ids = self._gap_ids()
+        self.assertGreaterEqual(len(ids), 3)
+        resolve_gaps("TEL", self._answer(ids[0], "client", owner="Client product owner"))
+        resolve_gaps("TEL", self._answer(ids[1], "domain", owner="Technology architect"))
+        resolve_gaps("TEL", self._answer(ids[2], "inference", owner="Sentinel inference"))
+
+        tel = maturation_telemetry("TEL")
+        self.assertEqual(tel["closed_by_response_source"]["client"], 1)
+        self.assertEqual(tel["closed_by_response_source"]["domain"], 1)
+        self.assertEqual(tel["closed_by_response_source"]["inference"], 1)
+        self.assertEqual(tel["closed_by_response_source_pct"]["client"], 0.333)
+
+    def test_sync_reports_reopened_closed_gaps(self):
+        ids = self._gap_ids()
+        self.assertIn("GAP-USERS", ids)
+        resolve_gaps("TEL", self._answer("GAP-USERS", "users", owner="Client product owner"))
+
+        change = self.temp / "late-change.md"
+        change.write_text("We need a dashboard for queue risk. Acceptance remains undefined.", encoding="utf-8")
+        result = sync_change("TEL", change, "late clarification")
+        self.assertIn("GAP-USERS", result["reopened_gaps"])
+
+        tel = maturation_telemetry("TEL")
+        self.assertEqual(tel["reopened_by_sync_total"], 1)
+        self.assertIn("GAP-USERS", tel["reopened_by_sync_gap_ids"])
 
 
 if __name__ == "__main__":

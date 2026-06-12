@@ -103,11 +103,17 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
     log_path = base / "01_discovery" / "gap_resolution_log.md"
     iterations = 0
+    closed_by_response_source = {"client": 0, "domain": 0, "inference": 0}
     if log_path.exists():
-        iterations = sum(
-            1 for line in log_path.read_text(encoding="utf-8").splitlines()
-            if line.startswith("| ") and "CHG-" in line
-        )
+        for line in log_path.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("| ") or "CHG-" not in line:
+                continue
+            iterations += 1
+            cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+            if len(cells) >= 9:
+                closed_by_response_source["client"] += parse_int(cells[6])
+                closed_by_response_source["domain"] += parse_int(cells[7])
+                closed_by_response_source["inference"] += parse_int(cells[8])
     closed_by_origin: dict[str, int] = {}
     closed_total = 0
     open_blocking = 0
@@ -123,15 +129,46 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
     closed_by_origin_pct = {
         origin: round(count / closed_total, 3) for origin, count in closed_by_origin.items()
     } if closed_total else {}
+    response_source_total = sum(closed_by_response_source.values())
+    closed_by_response_source_pct = {
+        source: round(count / response_source_total, 3)
+        for source, count in closed_by_response_source.items()
+        if count
+    } if response_source_total else {}
+    reopened_ids = reopened_gap_ids_from_sync_reports(base)
     return {
         "resolve_iterations": iterations,
         "closed_total": closed_total,
         "closed_by_origin": closed_by_origin,
         "closed_by_origin_pct": closed_by_origin_pct,
+        "closed_by_response_source": closed_by_response_source,
+        "closed_by_response_source_pct": closed_by_response_source_pct,
+        "reopened_by_sync_total": len(reopened_ids),
+        "reopened_by_sync_gap_ids": reopened_ids,
         "open_blocking_gaps": open_blocking,
         # Age proxy: a still-open blocking gap has survived every resolve round.
         "oldest_blocking_age_rounds": iterations if open_blocking else 0,
     }
+
+
+def parse_int(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def reopened_gap_ids_from_sync_reports(base: Path) -> list[str]:
+    ids: list[str] = []
+    for path in sorted((base / "07_changes").rglob("*_impact_report.md")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        section = text.split("## Reopened Closed Gaps", 1)
+        if len(section) < 2:
+            continue
+        body = section[1].split("\n## ", 1)[0]
+        for match in re.finditer(r"`(GAP-[A-Z0-9-]+)`", body):
+            ids.append(match.group(1))
+    return sorted(set(ids))
 
 
 def maturity_metrics(project_id: str) -> dict[str, object]:
