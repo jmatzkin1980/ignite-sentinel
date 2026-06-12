@@ -17,6 +17,7 @@ from .generation import generate_backlog, generate_specs
 from .health import run_health
 from .maturity import evaluate, generate_project_brief
 from .memory import ContextBroker, reindex_workspace
+from .prd import apply_prd_composition
 from .protocols import postflight_command, preflight_command
 from .quality import generate_quality
 from .status import project_status
@@ -42,6 +43,7 @@ COMMANDS = {
     "gaps",
     "annotate",
     "challenge",
+    "compose",
     "brief",
     "resolve-gaps",
     "context-request",
@@ -101,6 +103,10 @@ def main(argv: list[str] | None = None) -> int:
     challenge_p = sub.add_parser("challenge")
     challenge_p.add_argument("project_id")
     challenge_p.add_argument("--source", required=True)
+
+    compose_p = sub.add_parser("compose")
+    compose_p.add_argument("project_id")
+    compose_p.add_argument("--source", required=True)
 
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
@@ -187,6 +193,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "challenge":
             result = apply_challenge(args.project_id, Path(args.source))
+            print_json(result)
+        elif args.command == "compose":
+            result = apply_prd_composition(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "maturity":
             result = evaluate(args.project_id)

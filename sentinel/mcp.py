@@ -55,6 +55,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("validate", "Validate structure plus non-blocking semantic quality scores.", ["project_id"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, and assumption inversion; writes challenge_report.md.", ["project_id", "source"]),
+    ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
 ]
 
 
@@ -196,6 +197,10 @@ def build_server():
     @server.tool(name="sentinel_challenge", description=TOOL_SPECS[19][1])
     def sentinel_challenge(project_id: str, source: str) -> dict:
         return run_cli(["challenge", project_id, "--source", source])
+
+    @server.tool(name="sentinel_compose", description=TOOL_SPECS[20][1])
+    def sentinel_compose(project_id: str, source: str) -> dict:
+        return run_cli(["compose", project_id, "--source", source])
 
     return server
 

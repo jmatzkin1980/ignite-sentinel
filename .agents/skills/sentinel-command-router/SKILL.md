@@ -24,6 +24,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID`
+- `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
@@ -62,6 +63,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/context-request`: use `sentinel-domain-request`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
 - `/specs`: use `sentinel-specs`.
+- `/compose`: use `sentinel-compose`.
 - `/backlog`: use `sentinel-backlog`.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/doctor`: use `sentinel-health`.

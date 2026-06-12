@@ -23,6 +23,8 @@ def project_status(project_id: str) -> dict[str, object]:
         "maturity_metrics": maturity_metrics(project_id),
         "last_change_id": state.get("last_change_id"),
         "last_gap_resolution_id": state.get("last_gap_resolution_id"),
+        "prd_composition_count": state.get("prd_composition_count", 0),
+        "last_prd_composition_id": state.get("last_prd_composition_id"),
         "next_step": next_step,
     }
 

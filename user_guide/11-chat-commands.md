@@ -22,6 +22,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality` classification per artifact. |
+| "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` → `/quality` → `/trace` → `/health` → `/validate` | Only when gates allow; report `readiness_score` summary. |
 | "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
 | "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is WARN (degraded mode), not failure. |
@@ -93,6 +94,7 @@ Use these directly in Kilo chat:
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery
 /reindex PROJECT_ID
 /specs PROJECT_ID
+/compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
 /quality PROJECT_ID
 /trace PROJECT_ID
@@ -167,6 +169,11 @@ If something blocks the workflow, explain the blocker and the next action.
 ```
 
 ```text
+For PROJECT_ID, merge the PRD composition draft in input\interactions\prd-composition.json.
+Reject anything that is not backed by verbatim local evidence.
+```
+
+```text
 For PROJECT_ID, generate backlog and implementation readiness.
 Then tell me which stories still need domain context.
 ```
@@ -190,6 +197,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /status PROJECT_ID
 /health PROJECT_ID
 /specs PROJECT_ID
+/compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
 /quality PROJECT_ID
 /trace PROJECT_ID

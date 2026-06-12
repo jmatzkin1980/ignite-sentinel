@@ -14,6 +14,12 @@
       "body": "# Ignite Challenge\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/challenge PROJECT_ID --source PATH\n```\n\nFirst run advanced elicitation over the maturing requirement, per lens (invariant #1): pre-mortem (\"the project failed at 6 months — what did we fail to ask?\"), role-play by lens (operator, auditor, attacker...), and assumption inversion. Capture findings in a JSON `--source` file: a `gaps` array (each gap has `id`, `lens`, `severity`, `question`, a verbatim `evidence` quote from the raw input, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /challenge PROJECT_ID --source PATH\n```\n\nThe runtime validates each finding exactly like `/annotate` (declared lens, severity range, verbatim evidence), tags them `origin: challenge`, merges them into `01_discovery/gaps.md`, and writes a traced, indexed `01_discovery/challenge_report.md`. Summarize merged and skipped gap IDs plus updated gap counts."
     },
     {
+      "name": "compose",
+      "description": "Merge validated agent-authored PRD narrative blocks with verbatim local citations.",
+      "kilo_agent": "sentinel-specs",
+      "body": "# Ignite Compose\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/compose PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with `blocks[]`; each block targets an existing PRD section and each paragraph declares verbatim `citations[]` from local source-of-truth evidence.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /compose PROJECT_ID --source PATH\n```\n\nThe runtime validates section existence, rejects narrative over pending PRD sections, checks every citation verbatim against local evidence, archives the source under `03_specs/compositions/`, merges valid blocks with `origin: agent`, and reports rejected blocks with reasons. Summarize accepted/rejected block IDs and the composition report path."
+    },
+    {
       "name": "backlog",
       "description": "Generate traceable epics, user stories, and acceptance criteria.",
       "kilo_agent": "sentinel-backlog",
