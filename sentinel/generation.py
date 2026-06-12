@@ -8,6 +8,7 @@ from typing import Any
 from .memory import ContextBroker, get_multi_domain_context
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers
+from .prd import render_prd_compositions
 from .traceability import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import read_json, state_path, update_state, workspace_path, write_json
 
@@ -276,7 +277,8 @@ def generate_specs(project_id: str) -> dict[str, str]:
     specs_path = base / "03_specs" / "specs.md"
     previous_prd = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
     previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
-    prd_path.write_text(render_prd(project_id, req_text, context, source_path.name, language, evidence_text), encoding="utf-8")
+    prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
+    prd_path.write_text(render_prd_compositions(project_id, prd_text), encoding="utf-8")
     spec_units = write_spec_units(project_id, context, source_path.name)
     specs_path.write_text(render_specs(project_id, req_text, context, source_path.name, spec_units), encoding="utf-8")
     record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))

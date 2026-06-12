@@ -291,6 +291,26 @@ Output:
 
 The PRD explains the what and why for business and human reviewers, including personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependencies, roadmap, governance, and audit trail. Its core narrative sections are compiled from source evidence, confirmed gap answers, EARS rows, decisions, and local-memory retrieval; unsupported details remain `[PENDING INPUT]` with the relevant `GAP-*`. The spec stays compact for agents: `specs.md` is the index and handoff contract, while `03_specs/units/SPEC-U-NNN.md` carries bounded evidence-backed execution units with trace IDs, EARS IDs, and source anchors. The context pack records the focused memory retrieval used during generation.
 
+## `compose`
+
+Merge validated agent-authored narrative blocks into the generated PRD.
+
+```powershell
+python -m sentinel /compose PROJECT_ID --source path\to\composition.json
+```
+
+Run this only after `/specs` has created `03_specs/prd.md`. The source file is JSON with `blocks[]`; each block names a PRD section and one or more paragraphs, and every paragraph must include citations copied verbatim from local source-of-truth evidence (`00_raw/`, `01_discovery/`, `02_requirements/`, or `07_changes/`). Sentinel rejects blocks that target a pending section, cite text that is not found verbatim, or try to narrate unresolved pending markers.
+
+Outputs:
+
+- updated `03_specs/prd.md` with an `Agent Composition` subsection carrying `Origin: agent`
+- archived source under `03_specs/compositions/`
+- `03_specs/compositions/accepted_blocks.json`
+- `03_specs/compositions/composition_report.md`
+- traceability node and edge from the generated PRD to the composition event
+
+If `/specs` is regenerated later, Sentinel reapplies only still-valid accepted blocks and writes `03_specs/compositions/regeneration_report.md` when stored blocks are kept or discarded. `/compose` does not harden gates by default; it is a falsable enrichment path for evidence-backed narrative, not permission to fill unknown scope.
+
 ## `backlog`
 
 Generate initial epic, user stories, acceptance criteria, and agent-oriented backlog contracts.

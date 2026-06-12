@@ -17,6 +17,7 @@ MUTATING_COMMANDS = {
     "gaps",
     "annotate",
     "challenge",
+    "compose",
     "brief",
     "resolve-gaps",
     "context-request",

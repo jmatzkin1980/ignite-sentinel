@@ -103,6 +103,7 @@ Downstream, once the brief is mature:
 ```powershell
 python -m sentinel /context-request ACME_DASHBOARD --domain technology
 python -m sentinel /specs ACME_DASHBOARD
+python -m sentinel /compose ACME_DASHBOARD --source input\interactions\prd-composition.json   # optional: cited PRD narrative
 python -m sentinel /backlog ACME_DASHBOARD
 python -m sentinel /quality ACME_DASHBOARD
 python -m sentinel /trace ACME_DASHBOARD
@@ -137,6 +138,8 @@ Use `/resolve-gaps` for `### GAP-ID` documents; use `/sync` for everything that 
 
 If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel records it in the impact report under `Reopened Closed Gaps` and surfaces aggregate counts in `/status` under `maturation_telemetry.reopened_by_sync_*`. The runtime does not silently reopen or rewrite the closed gap; it makes the renewed uncertainty visible for BA review.
 
+After `/specs`, agents may enrich the PRD through `/compose` by submitting JSON blocks with paragraph-level verbatim citations from local source-of-truth evidence. Accepted blocks are marked `Origin: agent`; pending sections and unsupported citations are rejected instead of being filled by narrative guesswork.
+
 ## Command Protocol
 
 Every project command runs through the same governed protocol:
@@ -163,7 +166,7 @@ workspaces/PROJECT_ID/
     03_design_context/      04_quality_context/   05_interactions/
   01_discovery/               # gaps.md, seeds, lens review, annotation & challenge reports
   02_requirements/            # requirements.md (+ EARS), project-brief.md
-  03_specs/                   # prd.md, specs.md
+  03_specs/                   # prd.md, specs.md, optional composition reports
   04_backlog/                 # epics, user stories, acceptance criteria
   05_quality/                 # test cases, backlog readiness audit
   06_traceability/            # graph, matrix, command protocol log

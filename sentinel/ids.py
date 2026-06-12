@@ -42,6 +42,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "project_brief": "REQ",
         "ears_requirement": "REQ",
         "prd": "PRD",
+        "prd_composition": "PRD",
         "spec": "SPEC",
         "spec_unit": "SPEC",
         "epic": "EPIC",
