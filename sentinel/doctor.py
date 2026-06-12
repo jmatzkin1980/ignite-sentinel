@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .adapters import manifest_command_names
-from .memory import active_embedder_status
+from .memory import ContextBroker, active_embedder_status
 
 
 REQUIRED_COMMANDS = [
@@ -102,6 +102,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         memory_dependency_check(),
         semantic_embedder_check(),
         lancedb_smoke_check(),
+        memory_backend_mode_check(),
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
     ]
@@ -271,6 +272,35 @@ def lancedb_smoke_check() -> dict[str, str]:
             "status": "FAIL",
             "detail": str(exc),
         }
+
+
+def memory_backend_mode_check() -> dict[str, str]:
+    if importlib.util.find_spec("lancedb") is None:
+        return {
+            "name": "memory backend mode",
+            "status": "WARN",
+            "detail": "json-hybrid; degradation cause: lancedb is not installed",
+        }
+    old_cwd = Path.cwd()
+    with tempfile.TemporaryDirectory(prefix="sentinel_memory_backend_doctor_") as temp_dir:
+        try:
+            os.chdir(temp_dir)
+            broker = ContextBroker("DOCTOR_MEMORY")
+            if broker.lancedb_degraded_reason:
+                return {
+                    "name": "memory backend mode",
+                    "status": "WARN",
+                    "detail": f"{broker.backend}; degradation cause: {broker.lancedb_degraded_reason}",
+                }
+            return {
+                "name": "memory backend mode",
+                "status": "PASS",
+                "detail": f"{broker.backend}; FTS index {'active' if broker.fts_ready else 'unavailable'}",
+            }
+        except Exception as exc:
+            return {"name": "memory backend mode", "status": "WARN", "detail": str(exc)}
+        finally:
+            os.chdir(old_cwd)
 
 
 def package_detail(module_name: str) -> str:

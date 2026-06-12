@@ -76,7 +76,8 @@ Some corporate laptops and client VDIs do not allow installing native packages s
 
 - The entire lifecycle (`/init` ... `/validate`) works without LanceDB.
 - `ContextBroker` automatically runs in deterministic `json-hybrid` mode: indexing and `/retrieve` use the local JSON memory with hash embeddings.
-- `/doctor` reports `memory dependency: lancedb (optional)` as `WARN`, and the verdict stays `PASS`.
+- `/doctor` reports `memory dependency: lancedb (optional)` and `memory backend mode` as `WARN`, with the degradation cause, and the verdict stays `PASS`.
+- `/health` includes `memory_backend` and `memory_backend_degradation_reason` in `health_report.json`; this alone does not make the project `DIRTY`.
 - What you lose is vector-similarity quality in `/retrieve`; lexical retrieval and all traceability remain intact.
 - When the environment allows it, enable the vector layer with `python -m pip install -e .[memory]` and run `/reindex PROJECT_ID` to rebuild project memory.
 

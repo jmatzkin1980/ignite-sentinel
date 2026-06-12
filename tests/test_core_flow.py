@@ -370,10 +370,110 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
             self.assertEqual(main(["ingest", "NOLANCE", "--source", str(fixture)]), 0)
             broker = ContextBroker("NOLANCE")
             self.assertEqual(broker.backend, "json-hybrid")
+            self.assertIn("ModuleNotFoundError", broker.lancedb_degraded_reason)
             results = broker.retrieve("SLA risk", "discovery")
             self.assertTrue(results)
             self.assertEqual(broker.embedder_status.level, "hash")
             self.assertFalse(broker.embedder_status.semantic)
+
+    def test_lancedb_upsert_is_incremental_without_table_overwrite(self) -> None:
+        import sentinel.memory as memory_module
+
+        class FakeTable:
+            def __init__(self) -> None:
+                self.deleted: list[str] = []
+                self.added: list[list[dict]] = []
+                self.indexed = False
+
+            def delete(self, where: str):
+                self.deleted.append(where)
+
+            def add(self, rows):
+                self.added.append(rows)
+
+            def create_fts_index(self, *args, **kwargs):
+                self.indexed = True
+
+        class NoOverwriteDb:
+            def create_table(self, *args, **kwargs):
+                raise AssertionError("upsert must not recreate the LanceDB table")
+
+        broker = object.__new__(ContextBroker)
+        broker.project_id = "UPS"
+        broker._table = FakeTable()
+        broker._lancedb = NoOverwriteDb()
+        broker.backend = "lancedb-hybrid"
+        broker.lancedb_degraded_reason = ""
+        broker.fts_ready = False
+        broker.embedder_status = memory_module.EmbedderStatus(
+            name="hash_embedding",
+            level="hash",
+            version="hash_embedding:v1:128",
+            dimensions=128,
+            detail="deterministic local hash fallback",
+            semantic=False,
+        )
+        broker.embedder = memory_module.HashEmbedder()
+        broker.data = {
+            "chunks": [
+                {
+                    "project_id": "UPS",
+                    "artifact_id": "ART-1",
+                    "artifact_type": "raw_context",
+                    "id": "ART-1",
+                    "type": "raw_context",
+                    "title": "artifact",
+                    "source_path": "artifact.md",
+                    "file_path": "artifact.md",
+                    "domain": "product",
+                    "trace_ids": ["ART-1"],
+                    "iteration": 1,
+                    "metadata": {},
+                    "source_hash": "abc",
+                    "section_path": "",
+                    "language": "unknown",
+                    "confidence": "unknown",
+                    "sensitivity": "internal",
+                    "indexed_at": "2026-06-12T00:00:00+00:00",
+                    "summary": "hello",
+                    "text": "hello",
+                    "content": "hello",
+                    "status": "active",
+                    "embedder": "hash_embedding",
+                    "embedding_version": "hash_embedding:v1:128",
+                    "embedding": [1.0] + [0.0] * 127,
+                    "chunk_id": "ART-1::chunk-001",
+                }
+            ]
+        }
+
+        broker._upsert_lancedb_chunks("ART-1")
+
+        self.assertEqual(len(broker._table.deleted), 1)
+        self.assertIn("artifact_id = 'ART-1'", broker._table.deleted[0])
+        self.assertEqual(len(broker._table.added), 1)
+        self.assertEqual(broker._table.added[0][0]["chunk_id"], "ART-1::chunk-001")
+        self.assertTrue(broker._table.indexed)
+        self.assertEqual(broker.backend, "lancedb-hybrid")
+
+    def test_health_reports_memory_backend_degradation_without_dirty_finding(self) -> None:
+        from unittest import mock
+        import sentinel.health as health_module
+
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "MEMHEALTH"]), 0)
+        self.assertEqual(main(["ingest", "MEMHEALTH", "--source", str(fixture)]), 0)
+
+        real_broker = ContextBroker("MEMHEALTH")
+        real_broker.backend = "json-hybrid"
+        real_broker.lancedb_degraded_reason = "test degradation"
+
+        with mock.patch.object(health_module, "ContextBroker", return_value=real_broker):
+            result = health_module.run_health("MEMHEALTH")
+
+        self.assertEqual(result["memory_backend"], "json-hybrid")
+        self.assertEqual(result["memory_backend_degradation_reason"], "test degradation")
+        self.assertNotIn("test degradation", " ".join(result["findings"]))
 
     def test_doctor_reports_semantic_embedder_fallback_as_warn(self) -> None:
         from unittest import mock
