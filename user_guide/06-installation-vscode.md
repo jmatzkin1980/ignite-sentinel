@@ -227,9 +227,9 @@ Ingest them for PROJECT_ID, regenerate gaps, and tell me the next recommended st
 Run this checklist end to end whenever you set up Sentinel on a new machine, or after framework changes that touch the runtime, to confirm the cloned repo works from scratch:
 
 1. `git clone <REPO_URL>` (or download and unzip) into a fresh folder.
-2. `cd ignite-sentinel` and run `python -m sentinel /doctor`.
+2. `cd ignite-sentinel` and run `python -m sentinel /doctor` (on Windows, use `py` or `.\verify.ps1` if `python` opens the Microsoft Store).
 3. If dependencies are missing: `python -m pip install -e .` and re-run `/doctor` until `PASS`.
-4. `python -m unittest discover -s tests` — all tests must pass.
+4. Run the full verification — the recommended one step resolves the interpreter and runs tests, `/doctor`, and evals: `.\verify.ps1` (or manually `python -m unittest discover -s tests`). All tests must pass. If a change added a command or skill, run `python -m sentinel.adapters` first.
 5. Smoke lifecycle with a synthetic input (never client data on `main`):
    - `python -m sentinel /init SMOKE`
    - `python -m sentinel /ingest SMOKE --source input/client_requirement/your-test-note.md`
@@ -238,4 +238,4 @@ Run this checklist end to end whenever you set up Sentinel on a new machine, or 
 6. Open the repo root in VS Code and confirm your agent surface sees its adapter: `.kilo/` for Kilo Code, `.codex/` and `AGENTS.md` for Codex, `.claude/` and `CLAUDE.md` for Claude.
 7. Delete the smoke workspace before committing anything.
 
-Last verified run: 2026-06-10, clean copy, Python 3.10, 17 tests OK, `/doctor` PASS, gates verified (`/specs` blocked on BLOCKED maturity, `/backlog` blocked on DIRTY health).
+Last full clean-copy run on record: 2026-06-10 (Python 3.10, 17 tests OK, `/doctor` PASS, gates verified). The suite has grown substantially since with the Horizonte 5 work (discovery, brief compiler, elicitation, EARS, telemetry, retrieval evals), so the current expected count is higher — run `.\verify.ps1` for the live result rather than matching a fixed number.
