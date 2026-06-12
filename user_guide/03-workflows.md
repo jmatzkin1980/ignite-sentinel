@@ -31,6 +31,15 @@ python -m sentinel /gaps PROJECT_ID
 python -m sentinel /maturity PROJECT_ID
 ```
 
+Optionally, deepen discovery beyond the deterministic checklist before resolving gaps. The agent operating the framework can propose semantic gaps it read in the raw input, or stress-test the requirement, and the runtime validates each finding against a verbatim quote before merging:
+
+```powershell
+python -m sentinel /annotate PROJECT_ID --source input\interactions\analysis.json
+python -m sentinel /challenge PROJECT_ID --source input\interactions\findings.json
+```
+
+`/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`). Both keep the runtime as the authority — the agent cites, it never invents — and the merged gaps flow through `/resolve-gaps` like any other.
+
 If maturity is `BLOCKED`, review:
 
 ```text

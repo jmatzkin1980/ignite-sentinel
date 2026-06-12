@@ -43,6 +43,8 @@ python -m sentinel /doctor
 /init PROJECT_ID
 /ingest PROJECT_ID --source PATH
 /gaps PROJECT_ID
+/annotate PROJECT_ID --source PATH
+/challenge PROJECT_ID --source PATH
 /resolve-gaps PROJECT_ID --source PATH
 /maturity PROJECT_ID
 /brief PROJECT_ID

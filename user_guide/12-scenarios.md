@@ -14,28 +14,20 @@ All scenarios share the same rule: the source of truth lives in `workspaces/[PRO
 
 ## How To Use These Scenarios From Chat
 
-Each scenario includes a chat-first command.
+There are three ways to drive Sentinel, in order of preference for non-technical users:
 
-For Kilo Code, use the slash command directly:
+1. **Plain language in chat (recommended).** Just describe your situation; the agent maps it to the right commands. This is the primary flow — you do not need to memorize anything.
 
-```text
-/status ACME_DASHBOARD
-```
+   ```text
+   I have a new client requirement at input\client_requirement\initial-request.md.
+   Create a project called ACME_DASHBOARD, ingest the file, and tell me the next step.
+   ```
 
-For Codex, use the `sentinel` prefix if the slash command is intercepted:
+2. **A specific slash command** when you already know exactly what you want to run. In Kilo Code use the slash command directly (`/status ACME_DASHBOARD`); in Codex add the `sentinel` prefix if the slash command is intercepted (`sentinel /status ACME_DASHBOARD`).
 
-```text
-sentinel /status ACME_DASHBOARD
-```
+3. **The terminal** only for troubleshooting or restricted environments (see "Terminal Fallback" at the end). Not the primary flow for non-technical users.
 
-If you do not know the exact command, explain the situation in plain language. For example:
-
-```text
-I have a new client requirement at input\client_requirement\initial-request.md.
-Create a project called ACME_DASHBOARD, ingest the file, and tell me the next step.
-```
-
-The terminal form still exists for troubleshooting and restricted environments, but it is not the primary flow for non-technical users.
+Each scenario below shows all three. Start with the plain-language version; the command and terminal forms are there if you need precision or your chat extension is unavailable.
 
 If terminal troubleshooting is needed and `python` is unavailable or invalid on Windows, use:
 
@@ -160,6 +152,60 @@ Generate the client-friendly gap document for ACME_DASHBOARD and tell me where i
 
 **How to interpret it:** This file is both human-friendly and machine-processable. A stakeholder can answer under each `### GAP-ID`, and Sentinel can later process those answers with `/resolve-gaps`.
 
+### Scenario A4: The Agent Spotted Gaps The Checklist Missed
+
+**Context:** While reading the raw requirement, the agent (or you) notices missing information that the automatic checklist did not flag — often because a reassuring keyword is present ("security is important", "there are business rules") even though the substance is undefined. You want those gaps captured properly, not lost.
+
+**In chat, plain language (recommended):**
+
+```text
+Read the raw requirement for ACME_DASHBOARD and add the gaps you find that the
+checklist missed, citing the exact text from the input for each one.
+```
+
+The agent prepares a small analysis file and runs the command for you. If you want to run it yourself once the analysis file exists:
+
+```text
+/annotate ACME_DASHBOARD --source input\interactions\analysis.json   (Kilo)
+sentinel /annotate ACME_DASHBOARD --source input\interactions\analysis.json   (Codex)
+```
+
+**What Sentinel does:** Validates every proposed gap against the raw input — it must quote real text, name a declared lens, and use a valid severity — then merges the valid ones into `gaps.md` tagged `origin: agent`. Anything without a verbatim quote is rejected. The agent proposes; the runtime never invents.
+
+**Main outputs:**
+
+- updated `01_discovery/gaps.md` (new gaps carry `origin: agent`)
+- `01_discovery/agent_annotation_log.md` (auditable record with citations)
+
+**How to interpret it:** These gaps behave like any other — share them in `gaps.md` and resolve them with `/resolve-gaps`. The point is that nothing real gets silently dropped just because a keyword was present.
+
+### Scenario A5: Stress-Test The Requirement Before Committing
+
+**Context:** The requirement looks reasonable, but you want to pressure-test what is *not* being said before producing a brief — imagine how it could fail and what nobody asked.
+
+**In chat, plain language (recommended):**
+
+```text
+Run a pre-mortem on ACME_DASHBOARD: imagine the project failed six months after
+launch and tell me what we failed to ask, per lens. Capture the findings as gaps.
+```
+
+If you prefer the exact command (after the agent writes the findings file):
+
+```text
+/challenge ACME_DASHBOARD --source input\interactions\findings.json   (Kilo)
+sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json   (Codex)
+```
+
+**What Sentinel does:** The agent runs three techniques per lens — pre-mortem, role-play (operator, auditor, attacker...), and assumption inversion. Each finding is validated against the raw input exactly like `/annotate`, merged as a gap tagged `origin: challenge`, and summarized in a versionable report.
+
+**Main outputs:**
+
+- updated `01_discovery/gaps.md` (gaps with `origin: challenge`)
+- `01_discovery/challenge_report.md` (findings grouped by lens and technique, plus imagined failures and inverted assumptions)
+
+**How to interpret it:** This is how you surface the risks a client never states. The findings enter the normal `/resolve-gaps` → `/maturity` flow, so the challenge becomes traceable evidence, not a lost conversation.
+
 ## Block B: Gap Resolution And Maturity
 
 ### Scenario B1: The Client Returns Answered Gaps
@@ -198,7 +244,7 @@ Process the answers for ACME_DASHBOARD, check maturity, and tell me what remains
 - updated `01_discovery/gaps.md`
 - updated `01_discovery/requirement_maturity_report.md`
 
-**How to interpret it:** `CLOSED` means the answer can be used as confirmed truth. `PARTIALLY_CLOSED` means useful information arrived, but not enough to unblock maturity if the gap is critical or high severity.
+**How to interpret it:** `CLOSED` means the answer can be used as confirmed truth. `PARTIALLY_CLOSED` means useful information arrived, but not enough to unblock maturity if the gap is critical or high severity. Tip: when a confirmed answer to a functional gap is written in EARS form ("When <trigger>, the system shall <response>." and the other four patterns, in English or Spanish), Sentinel also records it as a testable `REQ-EARS-*` statement in `requirements.md`, so specs and backlog inherit precise, parseable requirements instead of prose.
 
 ### Scenario B2: The Gap Response Adds New Scope
 
@@ -257,14 +303,14 @@ Check whether ACME_DASHBOARD is mature enough for specs.
 If it is ready, generate or refresh the project brief.
 ```
 
-**What Sentinel does:** Evaluates gap status and materializes or refreshes `02_requirements/project-brief.md` from requirements, gaps, seeds, decisions, lens review, and available domain context.
+**What Sentinel does:** Evaluates gap status and compiles `02_requirements/project-brief.md` section by section from real evidence (requirements, closed-gap answers, seeds, decisions, raw input), citing the source for each claim; sections with no evidence stay as explicit `[PENDING INPUT]` instead of invented text. It also reports per-section readiness: how many of the six narrative sections are evidence-backed, and which gaps would fill the weak ones.
 
 **Main outputs:**
 
 - `01_discovery/requirement_maturity_report.md`
 - `02_requirements/project-brief.md`
 
-**How to interpret it:** The brief closes discovery. It should be clear enough for PRD/specs/backlog and for Technology or Design to deepen their own context packs. It should not pretend to contain every implementation-level contract.
+**How to interpret it:** Read the `brief_section_readiness` and warnings in the output: if a section is still poor, the message names the gaps that feed it, so you know exactly what to ask for next. By default a low-coverage brief is generated with a warning (not blocked); a team can opt into a strict mode (workspace config `brief_gate`) that holds the brief back until coverage improves. `/status` and `/maturity` also show maturation telemetry — how many resolve rounds ran and how the oldest blocking gap is aging — so you can see where things are stuck. The brief should be clear enough for PRD/specs/backlog and for Technology or Design to deepen their own context packs, without pretending to contain every implementation-level contract.
 
 ## Block C: Domain Context Requests
 
@@ -678,18 +724,21 @@ Register it for ACME_DASHBOARD and check whether the project should become dirty
 Run the Sentinel framework verification suite and doctor check, then summarize failures or warnings.
 ```
 
-**For maintainers in a terminal:**
+**For maintainers in a terminal:** the recommended one-step verification resolves the Python interpreter on its own and runs tests, `/doctor`, and evals:
+
+```powershell
+.\verify.ps1
+```
+
+Equivalent manual steps (use `py` instead of `python` if `python` opens the Microsoft Store on Windows):
 
 ```powershell
 python -m unittest discover -s tests
 python -m sentinel /doctor
+python tests\evals\run_discovery_evals.py
 ```
 
-If `python` is unavailable on Windows, run the doctor through:
-
-```powershell
-.\installers\sentinel.ps1 /doctor
-```
+If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify.
 
 **How to interpret it:** Do not push framework changes if tests or `/doctor` fail. If `sentence_transformers` is missing, `/doctor` may warn while JSON fallback remains usable.
 

@@ -208,7 +208,18 @@ Sentinel copies the input to the workspace, creates initial requirements, gaps, 
 /gaps PROJECT_ID
 ```
 
-`01_discovery/gaps.md` is designed for humans. Each gap has an ID, description, question, answer example, owner/source fields, evidence fields, and decision status. It can be shared with a client or domain owner without requiring them to understand the framework internals.
+`01_discovery/gaps.md` is designed for humans. Each gap is framed as elicitation (IMP-022): besides the question, it states why it matters (the risk if left open), what answering it unblocks (the downstream brief/PRD/spec section that consumes the answer), the expected response format, an example answer, owner/source fields, evidence fields, and decision status. It can be shared with a client or domain owner without requiring them to understand the framework internals.
+
+### 3b. (Optional) Deepen Discovery With The Agent
+
+Beyond the deterministic checklist, the agent operating the framework can contribute gaps it reads semantically — gaps a reassuring keyword would otherwise suppress:
+
+```text
+/annotate PROJECT_ID --source analysis.json
+/challenge PROJECT_ID --source findings.json
+```
+
+`/annotate` merges semantic gaps the agent found while reading the raw input; `/challenge` runs advanced elicitation (pre-mortem, per-lens role-play, assumption inversion) and writes a `challenge_report.md`. Both validate every finding against a verbatim quote from the raw input before merging (the agent proposes with evidence; the runtime never invents), tagging them `origin: agent` / `origin: challenge`. The merged gaps then flow through `/resolve-gaps` like any other.
 
 ### 4. Resolve Structured Gap Answers
 
@@ -216,7 +227,7 @@ Sentinel copies the input to the workspace, creates initial requirements, gaps, 
 /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
 
-Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed.
+Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed. When a confirmed answer is written in EARS syntax ("When <trigger>, the system shall <response>." and the other four patterns, EN or ES), it is also accumulated into `requirements.md` as a testable `REQ-EARS-*` statement (IMP-026).
 
 ### 5. Check Maturity
 
@@ -224,7 +235,7 @@ Sentinel automatically closes only gaps with confirmed structured answers. If an
 /maturity PROJECT_ID
 ```
 
-If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief.
+If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief. `/maturity` and `/status` also report per-section brief readiness and maturation telemetry (how many resolve rounds ran, how gaps closed by provenance, the oldest blocking gap) so you can see where maturation is stalling (IMP-025, IMP-028).
 
 ### 6. Generate The Project Brief
 
