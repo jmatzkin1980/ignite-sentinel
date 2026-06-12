@@ -62,12 +62,10 @@
         "non functional",
         "no funcional",
         "kpi",
-        "target",
         "measurement",
         "medicion",
         "medición",
-        "timeframe",
-        "baseline"
+        "timeframe"
       ],
       "why": "Sin NFR/KPI medibles el PRD no gobierna performance, seguridad ni confiabilidad."
     }

@@ -1138,6 +1138,7 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "Requerimientos funcionales y criterios de aceptacion",
         "GAP-PRD-NFR-KPI": "NFRs, KPIs y medicion",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencias y roadmap",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout y ambientes",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario y gobernanza",
     }
     prd_titles_en = {
@@ -1145,6 +1146,7 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "Functional Requirements And ACs",
         "GAP-PRD-NFR-KPI": "NFRs, KPIs, And Measurement",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencies And Roadmap",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout And Environments",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary And Governance",
     }
     if language == "es" and gap_id in prd_titles_es:
@@ -1208,6 +1210,7 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "El PRD debe listar requerimientos funcionales con criterios de aceptacion trazables para que backlog y QA no inventen alcance.",
         "GAP-PRD-NFR-KPI": "NFRs y KPIs con targets, metodo de medicion y ventana temporal permiten validar valor y calidad objetivamente.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencias, owners, MVP y roadmap sostienen la planificacion y evitan historias bloqueadas por supuestos.",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout, ambientes y restricciones de release evitan que specs y backlog inventen secuencia o condiciones de salida.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario, restricciones mandatorias, pending inputs y audit trail preservan entendimiento compartido y trazabilidad.",
     }
     prd_reasons_en = {
@@ -1215,6 +1218,7 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "The PRD must list functional requirements with traceable acceptance criteria so backlog and QA do not invent scope.",
         "GAP-PRD-NFR-KPI": "NFRs and KPIs with targets, measurement method, and timeframe make value and quality objectively verifiable.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "Dependencies, owners, MVP, and roadmap support planning and prevent stories from being blocked by assumptions.",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout, environments, and release constraints prevent specs and backlog from inventing sequencing or exit conditions.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary, mandatory constraints, pending inputs, and audit trail preserve shared understanding and traceability.",
     }
     if language == "es" and gap_id in prd_reasons_es:
@@ -1278,6 +1282,7 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "FR-01: el sistema debe listar elementos pendientes. AC: Given existen pendientes, When el operador consulta, Then ve ID, estado, responsable y fecha con fuente trazable.",
         "GAP-PRD-NFR-KPI": "NFR: auditoria disponible por 2 anios. KPI: 0 operaciones incorrectas, medido por incidentes post-release diarios durante el primer mes.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: consulta, regla principal y auditoria. Dependencias: servicio X owner Equipo A, copy owner Diseno, credenciales owner Seguridad. Fase 2: reportes.",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout: feature flag primero en ambiente staging, luego piloto con supervisores. Produccion requiere ventana aprobada y plan de rollback.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glosario: 'estado grisado' significa no operable. Restriccion: no exponer datos sensibles en logs. Pending input: owner de metrica.",
     }
     prd_examples_en = {
@@ -1285,6 +1290,7 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "FR-01: the system must list pending items. AC: Given pending items exist, When the operator opens the list, Then ID, status, owner, and date are visible with source trace.",
         "GAP-PRD-NFR-KPI": "NFR: audit records available for 2 years. KPI: 0 incorrect operations, measured through daily post-release incidents during month one.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP: query, main rule, and audit. Dependencies: service X owner Team A, copy owner Design, credentials owner Security. Phase 2: reporting.",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Rollout: feature flag first in staging, then pilot with supervisors. Production requires approved window and rollback plan.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary: 'disabled state' means not operable. Constraint: do not expose sensitive data in logs. Pending input: metric owner.",
     }
     if language == "es" and gap_id in prd_examples_es:
@@ -1384,6 +1390,7 @@ def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-PRD-FR-AC": "La sección de Requerimientos Funcionales del PRD (FRs con criterios de aceptación).",
             "GAP-PRD-NFR-KPI": "La sección de NFRs y KPIs del PRD.",
             "GAP-PRD-DEPENDENCIES-ROADMAP": "El plan de ejecución del PRD (dependencias, MVP, roadmap).",
+            "GAP-PRD-ROLLOUT-ENVIRONMENTS": "El plan de ejecución del PRD (rollout, ambientes y restricciones de release).",
             "GAP-PRD-GLOSSARY-GOVERNANCE": "La sección de Gobernanza del PRD (glosario, restricciones, audit trail).",
         }
         return unblocks.get(gap_id, "Una sección downstream de brief/PRD/spec que hoy no tiene evidencia confirmada para consumir.")
@@ -1413,6 +1420,7 @@ def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "The PRD Functional Requirements section (FRs with acceptance criteria).",
         "GAP-PRD-NFR-KPI": "The PRD NFRs and KPIs section.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "The PRD Execution Plan (dependencies, MVP, roadmap).",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "The PRD Execution Plan (rollout, environments, and release constraints).",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "The PRD Governance section (glossary, constraints, audit trail).",
     }
     return unblocks.get(gap_id, "A downstream brief/PRD/spec section that currently has no confirmed evidence to consume.")
@@ -1447,6 +1455,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-PRD-FR-AC": "FR-NN con su criterio de aceptación trazable (Dado/Cuando/Entonces) y prioridad.",
             "GAP-PRD-NFR-KPI": "NFR/KPI con target, método de medición y ventana temporal.",
             "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencias con owner y fases del roadmap.",
+            "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Ambientes objetivo, estrategia de rollout, restricciones de release y criterio de rollback.",
             "GAP-PRD-GLOSSARY-GOVERNANCE": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
         }
         return formats.get(gap_id, "Una decisión más owner/fuente, evidencia y si está confirmada o pendiente.")
@@ -1476,6 +1485,7 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "FR-NN with its traceable acceptance criterion (Given/When/Then) and priority.",
         "GAP-PRD-NFR-KPI": "NFR/KPI with target, measurement method, and timeframe.",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencies with owner, and roadmap phases.",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Target environments, rollout strategy, release constraints, and rollback criterion.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary terms, mandatory constraints, and pending inputs with owner.",
     }
     return formats.get(gap_id, "A decision plus owner/source, evidence, and whether it is confirmed or pending.")
@@ -1905,6 +1915,7 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-TECH-DEEP-DIVE-INPUT": "¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?",
             "GAP-GOVERNANCE-CONSTRAINTS": "¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?",
             "GAP-DELIVERY-READINESS": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+            "GAP-PRD-ROLLOUT-ENVIRONMENTS": "¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?",
             "GAP-BACKLOG-SLICING-READINESS": "¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?",
             "GAP-BACKLOG-ENABLERS": "¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?",
             "GAP-QUALITY-HANDOFF": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
@@ -1929,6 +1940,7 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-TECH-DEEP-DIVE-INPUT": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?",
         "GAP-GOVERNANCE-CONSTRAINTS": "Which security, privacy, compliance, audit, or operational restrictions must be respected?",
         "GAP-DELIVERY-READINESS": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+        "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?",
         "GAP-BACKLOG-SLICING-READINESS": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?",
         "GAP-BACKLOG-ENABLERS": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?",
         "GAP-QUALITY-HANDOFF": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",

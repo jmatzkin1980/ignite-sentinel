@@ -481,6 +481,8 @@ Change impact reports created by `/sync` also include `Reopened Closed Gaps` whe
 
 El conocimiento de los lentes (qué escruta cada lente, con qué severidad, qué tokens lo cierran y qué pregunta dispara) **no vive hardcodeado en Python**: es una fuente declarativa versionable bajo `sentinel/lenses/`, un archivo JSON por lente (`business.json`, `product.json`, `quality.json`, `technical.json`, `compliance.json`, `delivery.json`, `design.json`). El motor de discovery (`detect_gaps`) y los context-requests por dominio leen esa misma fuente, así que nunca divergen. Es 100% local: JSON puro, sin dependencias ni red (IMP-033).
 
+IMP-046 agrega una regla práctica para checks "grado PRD": un token tranquilizador no debe cerrar una pregunta si no trae detalle consumible por PRD/specs. Por ejemplo, `goal/objective` no alcanza para cerrar detalle de personas si faltan dolor, frecuencia o proficiencia; una métrica o target no alcanza para cerrar NFR/KPI si faltan método de medición y ventana; y un plan de ejecución necesita rollout, ambientes o restricciones de release explícitas.
+
 Cada lente tiene una lista `checks`; cada check declara:
 
 - `id`: identificador estable `GAP-*`.
@@ -512,5 +514,7 @@ Cada lente tiene una lista `checks`; cada check declara:
 
 3. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
 4. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
+
+Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`must_not_fire`) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean.
 
 Regla de identidad (invariante #1 de la propuesta de evolución): el modelo de lentes es conocimiento propio del equipo de Ignite. Esta base es el lugar para volcar esa experiencia de forma revisable en PR, no para copiar checklists genéricas de otras fuentes.
