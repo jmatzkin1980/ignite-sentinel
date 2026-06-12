@@ -83,7 +83,7 @@
       "name": "reindex",
       "description": "Rebuild Ignite local memory after artifact updates.",
       "kilo_agent": "sentinel-sync",
-      "body": "# Ignite Reindex\n\nParse `PROJECT_ID` from:\n\n```text\n/reindex PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /reindex PROJECT_ID\n```\n\nThis rebuilds local LanceDB memory from versionable workspace artifacts, traceability nodes, and context folders.\n\nSummarize indexed artifacts and chunks."
+      "body": "# Ignite Reindex\n\nParse `PROJECT_ID` and optional `--full` from:\n\n```text\n/reindex PROJECT_ID\n/reindex PROJECT_ID --full\n```\n\nRun:\n\n```powershell\npython -m sentinel /reindex PROJECT_ID\npython -m sentinel /reindex PROJECT_ID --full\n```\n\nThis refreshes local memory from versionable workspace artifacts, traceability nodes, and context folders. By default it skips unchanged artifacts by `source_hash`, embedder, and chunking version; `--full` forces re-chunking and re-embedding.\n\nSummarize indexed, skipped, and embedded counts."
     },
     {
       "name": "resolve-gaps",

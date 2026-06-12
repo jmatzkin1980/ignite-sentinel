@@ -16,6 +16,7 @@ from .workspace import graph_path, memory_path, read_json, write_json, workspace
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 VECTOR_DIMENSIONS = 128
+CHUNKING_VERSION = "heading-table:v1"
 DEFAULT_MODEL2VEC_MODEL = "minishlab/potion-multilingual-128M"
 DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CONTEXT_FOLDERS = {
@@ -241,7 +242,10 @@ class ContextBroker:
                             "iteration": 1,
                             "metadata": "{}",
                             "source_hash": content_hash("bootstrap"),
+                            "chunking_version": CHUNKING_VERSION,
                             "section_path": "",
+                            "line_start": 1,
+                            "line_end": 1,
                             "language": "unknown",
                             "confidence": "unknown",
                             "sensitivity": "internal",
@@ -295,13 +299,16 @@ class ContextBroker:
         title: str | None = None,
         iteration: int = 1,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
+        skip_unchanged: bool = False,
+    ) -> bool:
         trace_ids = trace_ids or [artifact_id]
         metadata = metadata or {}
         language = metadata.get("language", "unknown")
         confidence = metadata.get("confidence", "unknown")
         sensitivity = metadata.get("sensitivity", "internal")
         source_hash = content_hash(text)
+        if skip_unchanged and self.artifact_is_current(artifact_id, source_hash):
+            return False
         artifact = {
             "project_id": self.project_id,
             "artifact_id": artifact_id,
@@ -317,6 +324,7 @@ class ContextBroker:
             "metadata": metadata,
             "embedder": self.embedder_status.name,
             "embedding_version": self.embedder_status.version,
+            "chunking_version": CHUNKING_VERSION,
             "language": language,
             "confidence": confidence,
             "sensitivity": sensitivity,
@@ -330,12 +338,15 @@ class ContextBroker:
         self.data["chunks"] = [
             chunk for chunk in self.data["chunks"] if chunk["artifact_id"] != artifact_id
         ]
-        for index, chunk_text in enumerate(chunk_texts(text)):
+        for index, chunk in enumerate(chunk_records(text)):
+            chunk_text = chunk["text"]
             self.data["chunks"].append(
                 {
                     **artifact,
                     "chunk_id": f"{artifact_id}::chunk-{index + 1:03d}",
-                    "section_path": section_path_for_chunk(chunk_text),
+                    "section_path": chunk["section_path"],
+                    "line_start": chunk["line_start"],
+                    "line_end": chunk["line_end"],
                     "text": chunk_text,
                     "content": chunk_text,
                     "summary": chunk_text[:180],
@@ -346,6 +357,18 @@ class ContextBroker:
         write_json(self.path, self.data)
         write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": self.data["artifacts"]})
         self._upsert_lancedb_chunks(artifact_id)
+        return True
+
+    def artifact_is_current(self, artifact_id: str, source_hash: str) -> bool:
+        for artifact in self.data.get("artifacts", []):
+            if artifact.get("artifact_id") != artifact_id:
+                continue
+            return (
+                artifact.get("source_hash") == source_hash
+                and artifact.get("embedding_version") == self.embedder_status.version
+                and artifact.get("chunking_version") == CHUNKING_VERSION
+            )
+        return False
 
     def _upsert_lancedb_chunks(self, artifact_id: str) -> None:
         if self._table is None:
@@ -370,7 +393,10 @@ class ContextBroker:
                     "iteration": int(chunk.get("iteration", 1)),
                     "metadata": json.dumps(chunk.get("metadata", {}), ensure_ascii=False),
                     "source_hash": chunk.get("source_hash", ""),
+                    "chunking_version": chunk.get("chunking_version", CHUNKING_VERSION),
                     "section_path": chunk.get("section_path", ""),
+                    "line_start": int(chunk.get("line_start", 0)),
+                    "line_end": int(chunk.get("line_end", 0)),
                     "language": chunk.get("language", "unknown"),
                     "confidence": chunk.get("confidence", "unknown"),
                     "sensitivity": chunk.get("sensitivity", "internal"),
@@ -600,10 +626,11 @@ class ContextBroker:
         return pack
 
 
-def reindex_workspace(project_id: str) -> dict[str, Any]:
+def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     graph = read_json(graph_path(project_id), {"nodes": [], "edges": []})
     broker = ContextBroker(project_id)
     indexed = []
+    skipped = []
     for node in graph.get("nodes", []):
         path_value = node.get("path")
         if not path_value:
@@ -613,18 +640,32 @@ def reindex_workspace(project_id: str) -> dict[str, Any]:
             path = Path.cwd() / path
         if not path.exists() or path.suffix.lower() != ".md":
             continue
-        broker.index_artifact(
+        changed = broker.index_artifact(
             node["id"],
             node.get("type", "artifact"),
             path,
             path.read_text(encoding="utf-8"),
             domain=node.get("domain", "product"),
             trace_ids=[node["id"]],
+            skip_unchanged=not full,
         )
-        indexed.append(node["id"])
-    indexed.extend(index_context_folders(project_id, broker))
+        if changed:
+            indexed.append(node["id"])
+        else:
+            skipped.append(node["id"])
+    context_result = index_context_folders(project_id, broker, full=full)
+    indexed.extend(context_result["indexed"])
+    skipped.extend(context_result["skipped"])
     broker.index_trace_edges(graph.get("edges", []))
-    return {"project_id": project_id, "indexed": indexed, "count": len(indexed)}
+    return {
+        "project_id": project_id,
+        "indexed": indexed,
+        "skipped": skipped,
+        "count": len(indexed),
+        "embedded_count": len(indexed),
+        "skipped_count": len(skipped),
+        "full": full,
+    }
 
 
 def init_lancedb(project_id: str) -> dict[str, str]:
@@ -685,10 +726,11 @@ def get_multi_domain_context(query: str, project_id: str, iteration_min: int = 1
     }
 
 
-def index_context_folders(project_id: str, broker: ContextBroker | None = None) -> list[str]:
+def index_context_folders(project_id: str, broker: ContextBroker | None = None, full: bool = False) -> dict[str, list[str]]:
     broker = broker or ContextBroker(project_id)
     base = workspace_path(project_id)
     indexed: list[str] = []
+    skipped: list[str] = []
     for relative, (artifact_type, domain) in CONTEXT_FOLDERS.items():
         folder = base / relative
         if not folder.exists():
@@ -697,16 +739,20 @@ def index_context_folders(project_id: str, broker: ContextBroker | None = None) 
             if path.suffix.lower() not in {".md", ".txt"} or not path.is_file():
                 continue
             artifact_id = context_artifact_id(project_id, path)
-            broker.index_artifact(
+            changed = broker.index_artifact(
                 artifact_id,
                 artifact_type,
                 path,
                 path.read_text(encoding="utf-8"),
                 domain=domain,
                 trace_ids=[artifact_id],
+                skip_unchanged=not full,
             )
-            indexed.append(artifact_id)
-    return indexed
+            if changed:
+                indexed.append(artifact_id)
+            else:
+                skipped.append(artifact_id)
+    return {"indexed": indexed, "skipped": skipped}
 
 
 def context_artifact_id(project_id: str, path: Path) -> str:
@@ -761,7 +807,7 @@ def reciprocal_rank(rank: int, k: int = 60) -> float:
 
 def section_path_for_chunk(text: str) -> str:
     headings = [line.strip("# ").strip() for line in text.splitlines() if line.startswith("#")]
-    return " > ".join(headings[:3]) if headings else ""
+    return " > ".join(headings[-3:]) if headings else ""
 
 
 def why_retrieved(
@@ -817,15 +863,122 @@ def apply_char_budget(results: list[dict[str, Any]], max_chars: int) -> list[dic
 
 
 def chunk_texts(text: str, max_chars: int = 900) -> list[str]:
-    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
-    chunks: list[str] = []
-    current = ""
-    for paragraph in paragraphs or [text]:
-        if len(current) + len(paragraph) + 2 > max_chars and current:
-            chunks.append(current)
-            current = paragraph
-        else:
-            current = f"{current}\n\n{paragraph}".strip()
+    return [chunk["text"] for chunk in chunk_records(text, max_chars=max_chars)]
+
+
+def chunk_records(text: str, max_chars: int = 900, overlap_ratio: float = 0.12) -> list[dict[str, Any]]:
+    blocks = markdown_blocks(text)
+    chunks: list[dict[str, Any]] = []
+    current: list[dict[str, Any]] = []
+    current_chars = 0
+    heading_stack: list[str] = []
+    overlap_chars = int(max_chars * overlap_ratio)
+
+    def flush() -> None:
+        nonlocal current, current_chars
+        if not current:
+            return
+        chunk_text = "\n\n".join(block["text"] for block in current).strip()
+        section_path = next((block.get("section_path", "") for block in reversed(current) if block.get("section_path")), "")
+        chunks.append(
+            {
+                "text": chunk_text,
+                "section_path": section_path or section_path_for_chunk(chunk_text),
+                "line_start": min(block["line_start"] for block in current),
+                "line_end": max(block["line_end"] for block in current),
+            }
+        )
+        overlap = prose_overlap_block(current, overlap_chars)
+        current = [overlap] if overlap else []
+        current_chars = len(overlap["text"]) if overlap else 0
+
+    for block in blocks:
+        heading = markdown_heading(block["text"])
+        if heading:
+            level, title = heading
+            heading_stack = heading_stack[: level - 1]
+            heading_stack.append(title)
+            if current:
+                flush()
+                current = []
+                current_chars = 0
+
+        block_section = " > ".join(heading_stack)
+        block["section_path"] = block_section
+        separator = 2 if current else 0
+        if current and current_chars + separator + len(block["text"]) > max_chars:
+            flush()
+        current.append(block)
+        current_chars += separator + len(block["text"])
+        if block["kind"] == "table" and len(block["text"]) > max_chars:
+            flush()
+            current = []
+            current_chars = 0
+
     if current:
-        chunks.append(current)
+        flush()
     return chunks
+
+
+def markdown_blocks(text: str) -> list[dict[str, Any]]:
+    lines = text.splitlines()
+    blocks: list[dict[str, Any]] = []
+    index = 0
+    while index < len(lines):
+        while index < len(lines) and not lines[index].strip():
+            index += 1
+        if index >= len(lines):
+            break
+        start = index
+        if is_table_line(lines[index]):
+            while index < len(lines) and (is_table_line(lines[index]) or is_table_separator(lines[index])):
+                index += 1
+            kind = "table"
+        else:
+            index += 1
+            while index < len(lines) and lines[index].strip() and not is_table_line(lines[index]):
+                if markdown_heading(lines[index]):
+                    break
+                index += 1
+            kind = "heading" if markdown_heading(lines[start]) else "prose"
+        block_text = "\n".join(lines[start:index]).strip()
+        if block_text:
+            blocks.append({"text": block_text, "line_start": start + 1, "line_end": index, "kind": kind})
+    return blocks
+
+
+def markdown_heading(text: str) -> tuple[int, str] | None:
+    first = text.splitlines()[0].strip() if text.strip() else ""
+    match = re.match(r"^(#{1,6})\s+(.+)$", first)
+    if not match:
+        return None
+    return len(match.group(1)), match.group(2).strip()
+
+
+def is_table_line(line: str) -> bool:
+    stripped = line.strip()
+    return stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2
+
+
+def is_table_separator(line: str) -> bool:
+    stripped = line.strip()
+    return bool(re.match(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$", stripped))
+
+
+def prose_overlap_block(blocks: list[dict[str, Any]], max_chars: int) -> dict[str, Any] | None:
+    if max_chars <= 0:
+        return None
+    for block in reversed(blocks):
+        if block.get("kind") != "prose":
+            continue
+        text = block["text"]
+        if len(text) > max_chars:
+            text = text[-max_chars:].lstrip()
+        return {
+            "text": text,
+            "line_start": block["line_start"],
+            "line_end": block["line_end"],
+            "kind": "overlap",
+            "section_path": block.get("section_path", ""),
+        }
+    return None
