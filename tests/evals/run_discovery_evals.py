@@ -13,8 +13,8 @@ Two progress metrics travel with the baseline (neither fails the build):
   must populate them. 0.00 at baseline.
 - prd_target_coverage: PRD narrative sections that have confirmed evidence
   and should be compiled from it in IMP-039.
-- specs_scaffolding_count: fixed scaffold IDs in specs.md that IMP-042 should
-  remove by decomposing specs into evidence-backed units.
+- specs_scaffolding_count: fixed scaffold IDs in specs.md. IMP-042 keeps this
+  at zero by decomposing specs into evidence-backed units.
 
 Usage, from the repository root:
 
@@ -281,7 +281,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             and not gap_detail_mismatches
             and not ears_eligible_mismatch
             and sorted(brief_pending_target) == brief_target_pending
-            and bool(specs_scaffold["ids"])
+            and not specs_scaffold["ids"]
         ),
     }
 
@@ -377,7 +377,7 @@ def run_all() -> int:
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "
         f"ears_eligible_not_normalized={s['total_ears_eligible_not_normalized']} "
-        f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f}"
+        f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f} (IMP-042 spec units)"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

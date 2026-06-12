@@ -53,6 +53,40 @@ def add_node(
     return node_id
 
 
+def upsert_node(
+    project_id: str,
+    node_id: str,
+    artifact_type: str,
+    path: Path,
+    title: str,
+    status: str = "active",
+    domain: str = "product",
+) -> str:
+    graph = load_graph(project_id)
+    path_value = str(path.as_posix())
+    for node in graph["nodes"]:
+        if node.get("id") == node_id:
+            node["type"] = artifact_type
+            node["path"] = path_value
+            node["title"] = title
+            node["status"] = status
+            node["domain"] = domain
+            save_graph(project_id, graph)
+            return node_id
+    graph["nodes"].append(
+        {
+            "id": node_id,
+            "type": artifact_type,
+            "path": path_value,
+            "title": title,
+            "status": status,
+            "domain": domain,
+        }
+    )
+    save_graph(project_id, graph)
+    return node_id
+
+
 def add_edge(project_id: str, source_id: str, target_id: str, relation: str) -> None:
     graph = load_graph(project_id)
     edge = {"from": source_id, "to": target_id, "relation": relation}
