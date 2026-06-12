@@ -37,5 +37,31 @@
       "3"
     ],
     "rationale": "Sections 1 (objective: reduce weekly-review prep time, 30% target), 2 (actor: support team leads) and 3 (scope: read-only dashboard for current quarter, editing out of scope) have confirmed evidence yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
-  }
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-METRIC",
+      "query": "what is the success metric and target for the dashboard",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "The 30% preparation-effort target is the success metric; a same-language query should retrieve the requirement/gap chunk."
+    },
+    {
+      "id": "GQ-USERS",
+      "query": "who are the users of the dashboard",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "Support team leads are the actors; same-language retrieval must surface the requirement evidence."
+    },
+    {
+      "id": "GQ-XLING-METRIC",
+      "query": "cual es la metrica de exito y el objetivo del tablero",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual ES query over EN content. Expected to FAIL with the hash embedding (no semantics); this is the falsifiable target IMP-029 must move above 0."
+    }
+  ]
 }
