@@ -37,5 +37,31 @@
       "3"
     ],
     "rationale": "Sections 1 (objective), 2 (users) and 3 (scope) are confirmed in the requirement (see must_not_fire) yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
-  }
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-CRM-OBJECTIVE",
+      "query": "what is the objective of syncing CRM customer records into billing",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "The requirement states billing should always work with current customer information."
+    },
+    {
+      "id": "GQ-CRM-SCOPE",
+      "query": "which data is in scope and what stays out of scope",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "Customer master data is in scope; product catalog and pricing are explicitly out of scope."
+    },
+    {
+      "id": "GQ-CRM-XLING-USERS",
+      "query": "quienes son los usuarios afectados por la sincronizacion",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual ES query over EN content for finance back office/account manager actors."
+    }
+  ]
 }
