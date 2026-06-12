@@ -95,6 +95,20 @@ The memory layer stores:
 - local vectors for hybrid retrieval
 - artifact hashes, language, sensitivity, confidence, status, trace IDs, and source metadata
 
+Each indexed chunk records the active local embedder:
+
+```text
+embedder, embedding_version
+```
+
+Sentinel auto-detects local embedders in this order:
+
+1. `model2vec` with a local multilingual static model.
+2. `sentence-transformers` with a local multilingual model.
+3. deterministic `hash_embedding` fallback.
+
+The semantic levels are optional. Runtime retrieval never calls an external embedding API and never downloads a model. If a semantic package or model is unavailable, Sentinel keeps using deterministic local hash embeddings and the JSON hybrid fallback remains fully supported.
+
 It is used by:
 
 ```powershell
@@ -140,6 +154,7 @@ workspaces/[PROJECT_ID]/08_context_packs/sync.json
 ```
 
 Each pack stores the query, filters, backend, source hashes, and retrieved rows so a downstream agent can audit the context used.
+It also records the active embedder name, level, version, and dimensions so reviewers can tell whether a retrieval snapshot used semantic local embeddings or deterministic hash fallback.
 
 `/backlog` creates two built-in context packs:
 
@@ -175,7 +190,8 @@ Sentinel is local-first by default:
 
 - `privacy_mode: local-only`
 - LanceDB is local under the project workspace.
-- Hash embeddings are deterministic and local.
+- Semantic embeddings, when enabled, run only from local packages and locally available model files or cache.
+- Hash embeddings are deterministic and local, and remain the first-class fallback for restricted environments.
 - Do not use remote MCP, external vector databases, or external embedding APIs for client/project data unless explicitly approved outside this framework.
 - Do not persist source paths, client names, system names, URLs, account IDs, raw payloads, private business facts, or identifiable wording from inspiration materials into framework memory, docs, skills, tests, or generated examples.
 

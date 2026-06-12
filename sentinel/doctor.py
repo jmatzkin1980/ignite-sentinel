@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .adapters import manifest_command_names
+from .memory import active_embedder_status
 
 
 REQUIRED_COMMANDS = [
@@ -99,6 +100,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *kilo_command_checks(root),
         *claude_command_checks(root),
         memory_dependency_check(),
+        semantic_embedder_check(),
         lancedb_smoke_check(),
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
@@ -209,6 +211,29 @@ def memory_dependency_check() -> dict[str, str]:
         "name": "memory dependency: lancedb (optional)",
         "status": "PASS" if found else "WARN",
         "detail": detail,
+    }
+
+
+def semantic_embedder_check() -> dict[str, str]:
+    status = active_embedder_status()
+    if status["semantic"]:
+        return {
+            "name": "memory embedder: semantic local (optional)",
+            "status": "PASS",
+            "detail": (
+                f"{status['level']} active; dimensions={status['dimensions']}; "
+                f"version={status['version']}"
+            ),
+        }
+    return {
+        "name": "memory embedder: semantic local (optional)",
+        "status": "WARN",
+        "detail": (
+            "semantic embedder not active; deterministic hash_embedding fallback is active. "
+            "Install optional local models with `python -m pip install -e .[memory-semantic]` "
+            "and pre-seed the model cache or set SENTINEL_MODEL2VEC_MODEL / "
+            "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+        ),
     }
 
 

@@ -55,7 +55,7 @@ Equivalent Windows launcher form:
 .\installers\sentinel.ps1 /init PROJECT_ID
 ```
 
-The deterministic runtime is local-first, but LanceDB is a required package for the current memory check. If dependency installation is blocked, keep working from an approved Python environment that already includes the dependencies, or ask for a portable environment prepared by the team.
+The deterministic runtime is local-first and has no mandatory third-party package for the core lifecycle. If dependency installation is blocked, keep working in fallback mode or ask for a portable environment prepared by the team.
 
 ## If Command Execution Is Restricted In Extensions
 
@@ -79,3 +79,27 @@ Some corporate laptops and client VDIs do not allow installing native packages s
 - `/doctor` reports `memory dependency: lancedb (optional)` as `WARN`, and the verdict stays `PASS`.
 - What you lose is vector-similarity quality in `/retrieve`; lexical retrieval and all traceability remain intact.
 - When the environment allows it, enable the vector layer with `python -m pip install -e .[memory]` and run `/reindex PROJECT_ID` to rebuild project memory.
+
+## Optional Semantic Embeddings
+
+Semantic embeddings are optional and local-only. They improve paraphrase and ES/EN retrieval when the environment allows local model packages:
+
+```powershell
+python -m pip install -e .[memory-semantic]
+```
+
+Sentinel attempts local embedders in this order:
+
+- `model2vec` with a local multilingual static model.
+- `sentence-transformers` with a local multilingual model.
+- deterministic `hash_embedding` fallback.
+
+Runtime Sentinel does not download models. For air-gapped environments, prepare the Python environment and model cache on an approved machine, transfer it through the approved channel, then point Sentinel to the local model path when needed:
+
+```powershell
+$env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
+$env:SENTINEL_SENTENCE_TRANSFORMERS_MODEL="C:\approved-models\multilingual-e5-small"
+python -m sentinel /doctor
+```
+
+If no semantic model is available, `/doctor` reports the semantic embedder as `WARN`, keeps the overall verdict `PASS`, and retrieval continues with deterministic hash fallback. Run `/reindex PROJECT_ID` after enabling a semantic embedder so existing chunks are rebuilt with the new `embedder` and `embedding_version` metadata.
