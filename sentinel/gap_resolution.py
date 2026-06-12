@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, readiness_stage_for_counts, render_gaps
+from .ears import classify_ears
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .traceability import add_edge, add_node, load_graph, save_graph
@@ -58,6 +59,12 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     decision_ids = materialize_resolution_decisions(project_id, resolution_results["closed"], change_id)
     for node_id in seed_ids + decision_ids:
         add_edge(project_id, change_id, node_id, "confirms")
+
+    # IMP-026: confirmed answers already written in EARS syntax are normalized
+    # into requirements.md as testable statements. Prose answers stay as prose.
+    ears_ids = materialize_ears_requirements(project_id, resolution_results["closed"], change_id)
+    for node_id in ears_ids:
+        add_edge(project_id, change_id, node_id, "normalizes")
 
     update_gap_report_node_status(project_id, resolution_results["counts"])
 
@@ -206,6 +213,55 @@ def materialize_resolution_decisions(project_id: str, closed: list[dict[str, str
         decision_id = add_node(project_id, "DEC", "decision", path, f"Confirmed decision for {gap['id']}", status="confirmed", domain=gap.get("lens", "product"))
         decision_ids.append(decision_id)
     return decision_ids
+
+
+def _count_existing_ears(text: str) -> int:
+    return len(re.findall(r"REQ-EARS-\d+", text))
+
+
+def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]], change_id: str) -> list[str]:
+    """Normalize confirmed EARS-shaped answers into requirements.md (IMP-026).
+
+    Only answers already written in valid EARS syntax are accumulated; prose
+    answers stay as seeds/decisions. The agent proposes; the runtime validates
+    structure (never invents). Returns the traceability node ids created.
+    """
+    candidates: list[tuple[dict[str, str], str, str]] = []
+    for gap in closed:
+        answer = (gap.get("answer") or "").strip()
+        pattern = classify_ears(answer)
+        if pattern:
+            candidates.append((gap, answer, pattern))
+    if not candidates:
+        return []
+    path = workspace_path(project_id) / "02_requirements" / "requirements.md"
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    start_index = _count_existing_ears(text)
+    lines: list[str] = []
+    if "## Normalized Requirements (EARS)" not in text:
+        lines.append("\n## Normalized Requirements (EARS)\n")
+        lines.append(
+            "Testable statements normalized from confirmed functional answers (IMP-026). "
+            "Specs and backlog cite these by `REQ-EARS-*`; prose answers stay as seeds/decisions/gaps.\n"
+        )
+        lines.append("| ID | Pattern | Statement | Source |")
+        lines.append("| --- | --- | --- | --- |")
+    node_ids: list[str] = []
+    for offset, (gap, answer, pattern) in enumerate(candidates, start=1):
+        req_id = f"REQ-EARS-{start_index + offset:03d}"
+        lines.append(f"| {req_id} | {pattern} | {answer} | `{gap['id']}` / `{change_id}` |")
+        node_ids.append(
+            add_node(
+                project_id, "REQ", "ears_requirement", path,
+                f"{req_id} ({pattern}) from {gap['id']}",
+                status="confirmed", domain=gap.get("lens", "product"),
+            )
+        )
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+    return node_ids
 
 
 def update_gap_report_node_status(project_id: str, counts: dict[str, int]) -> None:
