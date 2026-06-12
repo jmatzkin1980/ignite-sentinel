@@ -15,7 +15,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I have a new client requirement in this file" | `/init` → `/ingest` → `/status` | Summarize generated gaps and evidence triggers. |
 | "I read the requirement and spotted gaps the checklist missed" | `/annotate --source analysis.json` → `/status` | Agent proposes semantic gaps with verbatim citations; runtime tags them `origin: agent` and merges. |
 | "Stress-test the requirement — what are we not asking?" / "run a pre-mortem" | `/challenge --source findings.json` → `/status` | Agent runs pre-mortem, per-lens role-play, and assumption inversion; runtime validates and merges findings as `origin: challenge` plus a `challenge_report.md`. |
-| "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes. |
+| "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes; for functional prose answers, mention any `EARS-eligible, not normalized` count and propose a BA-confirmed EARS rewrite. |
 | "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
 | "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
 | "Technology/Design/Quality updated their context" | `/sync` → `/reindex` → `/health` | If backlog exists, expect a staleness warning naming the domain. |
@@ -117,6 +117,8 @@ Create PROJECT_ID, ingest the file, and tell me what gaps were found.
 The client answered gaps in input\interactions\answered-gaps.md.
 Process the answers, check maturity, and tell me whether we can generate the brief.
 ```
+
+For functional gaps, if `/status` reports `ears_eligible_not_normalized_total`, propose EARS statements separately and wait for BA confirmation before treating them as normalized requirements.
 
 ```text
 Technology updated context files for PROJECT_ID.

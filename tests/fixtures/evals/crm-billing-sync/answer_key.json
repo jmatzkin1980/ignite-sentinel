@@ -71,6 +71,10 @@
     "target_populated": ["1", "3", "4"],
     "rationale": "The PRD should eventually compile executive problem/outcome, personas, and functional requirements from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
   },
+  "ears": {
+    "expected_eligible_not_normalized": ["GAP-ACCEPTANCE"],
+    "rationale": "The synthetic acceptance response is confirmed prose, not strict EARS. IMP-047 must mark it as EARS-eligible without automatic normalization."
+  },
   "golden_queries": [
     {
       "id": "GQ-CRM-OBJECTIVE",

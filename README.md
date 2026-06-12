@@ -123,7 +123,7 @@ A requirement keeps moving after discovery. Two distinct flows handle that:
   python -m sentinel /maturity ACME_DASHBOARD
   ```
 
-  Confirmed answers become seeds and decisions; functional answers written in EARS syntax also become testable `REQ-EARS-*` statements in `requirements.md`, and generated specs/backlog artifacts cite those IDs downstream.
+  Confirmed answers become seeds and decisions; functional answers written in EARS syntax also become testable `REQ-EARS-*` statements in `requirements.md`, and generated specs/backlog artifacts cite those IDs downstream. Confirmed functional prose is marked `EARS-eligible, not normalized` and counted in `/status` so the BA or agent can propose a separate EARS rewrite for confirmation.
 
 - **New or unmapped information** — meeting notes, email, a demo comment, a late blocker:
 

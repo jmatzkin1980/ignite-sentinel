@@ -117,6 +117,7 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
     closed_by_origin: dict[str, int] = {}
     closed_total = 0
     open_blocking = 0
+    ears_eligible_not_normalized: list[str] = []
     for gap in gaps:
         status = str(gap.get("status", "OPEN")).upper()
         severity = str(gap.get("severity", "")).lower()
@@ -124,6 +125,8 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
         if status == "CLOSED":
             closed_total += 1
             closed_by_origin[origin] = closed_by_origin.get(origin, 0) + 1
+            if "EARS-eligible" in str(gap.get("resolution_note", "")):
+                ears_eligible_not_normalized.append(gap["id"])
         elif status in {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"} and severity in {"critical", "high"}:
             open_blocking += 1
     closed_by_origin_pct = {
@@ -145,6 +148,8 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
         "closed_by_response_source_pct": closed_by_response_source_pct,
         "reopened_by_sync_total": len(reopened_ids),
         "reopened_by_sync_gap_ids": reopened_ids,
+        "ears_eligible_not_normalized_total": len(ears_eligible_not_normalized),
+        "ears_eligible_not_normalized_gap_ids": sorted(set(ears_eligible_not_normalized)),
         "open_blocking_gaps": open_blocking,
         # Age proxy: a still-open blocking gap has survived every resolve round.
         "oldest_blocking_age_rounds": iterations if open_blocking else 0,

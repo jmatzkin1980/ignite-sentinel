@@ -72,6 +72,10 @@
     "target_populated": ["1", "3", "4"],
     "rationale": "El PRD deberia compilar problema/resultado, personas y requerimientos funcionales desde evidencia confirmada en vez de prosa de plantilla. IMP-038 registra la baseline actual baja."
   },
+  "ears": {
+    "expected_eligible_not_normalized": ["GAP-ACCEPTANCE"],
+    "rationale": "La respuesta sintetica de aceptacion esta confirmada en prosa, no en EARS estricto. IMP-047 debe marcarla como EARS-eligible sin normalizacion automatica."
+  },
   "golden_queries": [
     {
       "id": "GQ-PORTAL-OBJETIVO",
