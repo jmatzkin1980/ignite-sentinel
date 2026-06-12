@@ -207,6 +207,8 @@ Output:
 
 Use after blocking gaps are resolved or explicitly accepted as non-blocking.
 
+Per-section readiness and soft gate (IMP-025): `/brief` reports `brief_section_readiness` — each narrative section (1-6) as `populated`/`pending`, an overall `coverage_score`, and the gaps that feed each poor section. The same block appears in `/maturity` and `/status` (under `maturity_metrics`). The gate is non-blocking by default: below the coverage threshold it emits `warnings` naming the poor sections and the gaps that would populate them. Opt-in strict mode (workspace config `brief_gate: { "threshold": 0.5, "strict": true }`) instead blocks the advance to `READY_FOR_SPECS` (readiness stage `BRIEF_BELOW_THRESHOLD`) until coverage improves. Default gates are not hardened without opt-in.
+
 ## `context-request`
 
 Generate a domain-specific request for deeper analysis.

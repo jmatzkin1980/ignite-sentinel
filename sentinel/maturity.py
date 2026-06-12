@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from .discovery import (
+    BRIEF_SECTION_FOR_GAP,
     brief_section_for_gap,
     extract_functional_signals,
     extract_metric_signals,
@@ -15,6 +16,78 @@ from .discovery import (
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
+
+
+# --- IMP-025: per-section brief readiness + soft /brief gate ------------------
+#
+# A quantified "definition of ready" for discovery: which narrative brief
+# sections (1-6) are evidence-backed vs still pending, the overall coverage
+# score, and — for each poor section — the gaps that feed it (inverse of the
+# IMP-024 gap→section map). Exposed in /maturity and /status (via maturity_metrics)
+# and used by the soft /brief gate.
+
+_BRIEF_SECTION_RE = re.compile(r"^## (\d+)\.", re.M)
+_BRIEF_TRACKED_SECTIONS = ("1", "2", "3", "4", "5", "6")
+_BRIEF_PENDING_MARKERS = ("[PENDING INPUT]", "TBD", "PENDING DOMAIN", "No structured evidence", "Documentar el", "Documentar la")
+_BRIEF_SECTION_TITLES = {
+    "1": "Identidad y Valor",
+    "2": "Lente de Negocio (actores)",
+    "3": "Lente de Producto (proceso/journey)",
+    "4": "Lente de Diseño",
+    "5": "Lente Técnico",
+    "6": "Gobernanza y Restricciones",
+}
+_GAPS_FOR_BRIEF_SECTION: dict[str, list[str]] = {}
+for _gap, _sec in BRIEF_SECTION_FOR_GAP.items():
+    _GAPS_FOR_BRIEF_SECTION.setdefault(_sec, []).append(_gap)
+
+
+def brief_section_readiness(brief_text: str) -> dict[str, object]:
+    """Classify narrative sections 1-6 as populated/pending and score coverage."""
+    bodies: dict[str, list[str]] = {}
+    current = None
+    for line in brief_text.splitlines():
+        match = _BRIEF_SECTION_RE.match(line)
+        if match:
+            current = match.group(1)
+            bodies.setdefault(current, [])
+        elif current is not None:
+            bodies[current].append(line)
+    sections: dict[str, dict[str, object]] = {}
+    poor: list[dict[str, object]] = []
+    populated = 0
+    for sec in _BRIEF_TRACKED_SECTIONS:
+        body = "\n".join(bodies.get(sec, []))
+        is_pending = (not body.strip()) or any(marker in body for marker in _BRIEF_PENDING_MARKERS)
+        citations = body.count("00_raw/") + body.count("`GAP-") + body.count("`CHG-")
+        status = "pending" if is_pending else "populated"
+        sections[sec] = {"status": status, "evidence_citations": citations}
+        if is_pending:
+            feeding = sorted(_GAPS_FOR_BRIEF_SECTION.get(sec, []))
+            sections[sec]["feeding_gaps"] = feeding
+            poor.append({"section": sec, "title": _BRIEF_SECTION_TITLES[sec], "feeding_gaps": feeding})
+        else:
+            populated += 1
+    coverage_score = round(populated / len(_BRIEF_TRACKED_SECTIONS), 3)
+    return {
+        "coverage_score": coverage_score,
+        "sections_populated": populated,
+        "sections_total": len(_BRIEF_TRACKED_SECTIONS),
+        "sections": sections,
+        "poor_sections": poor,
+    }
+
+
+def brief_gate_warnings(readiness: dict[str, object], language: str = "en") -> list[str]:
+    """Human-readable warnings naming poor sections and the gaps that feed them."""
+    warnings: list[str] = []
+    for poor in readiness.get("poor_sections", []):  # type: ignore[union-attr]
+        gaps = ", ".join(f"`{g}`" for g in poor["feeding_gaps"]) or ("contexto de dominio" if language == "es" else "domain context")
+        if language == "es":
+            warnings.append(f"Sección {poor['section']} ({poor['title']}) sin evidencia suficiente; alimentarla vía {gaps}.")
+        else:
+            warnings.append(f"Section {poor['section']} ({poor['title']}) lacks enough evidence; feed it via {gaps}.")
+    return warnings
 
 
 def maturity_metrics(project_id: str) -> dict[str, object]:
@@ -51,7 +124,7 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
         maturity_score = gap_closure_rate
     else:
         maturity_score = round((gap_closure_rate + evidence_score) / 2, 3)
-    return {
+    metrics: dict[str, object] = {
         "gap_total": total,
         "gaps_closed": closed,
         "gap_closure_rate": gap_closure_rate,
@@ -60,6 +133,11 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
         "evidence_score": evidence_score,
         "maturity_score": maturity_score,
     }
+    # IMP-025: per-section brief readiness once a brief exists.
+    brief_path = base / "02_requirements" / "project-brief.md"
+    if brief_path.exists():
+        metrics["brief_section_readiness"] = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+    return metrics
 
 
 def evaluate(project_id: str) -> dict[str, object]:
@@ -114,8 +192,31 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     req_text = requirements_path.read_text(encoding="utf-8")
     gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
     brief_path = materialize_project_brief(project_id, req_text, gaps_text)
+    # IMP-025: soft readiness gate. Default warns; opt-in strict mode blocks the
+    # advance to READY_FOR_SPECS when section coverage is below threshold.
+    config = load_config(project_id)
+    gate = config.get("brief_gate", {}) if isinstance(config.get("brief_gate", {}), dict) else {}
+    threshold = float(gate.get("threshold", 0.5))
+    strict = bool(gate.get("strict", False))
+    language = config.get("project_language") if config.get("project_language") in {"es", "en"} else "en"
+    readiness = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+    below = float(readiness["coverage_score"]) < threshold
+    warnings = brief_gate_warnings(readiness, language) if below else []
+    result = {
+        "project_id": project_id,
+        "project_brief": str(brief_path),
+        "path": str(brief_path),
+        "brief_section_readiness": readiness,
+        "warnings": warnings,
+        "brief_gate": {"threshold": threshold, "strict": strict, "below_threshold": below},
+    }
+    if strict and below:
+        update_state(project_id, phase="brief_below_threshold", readiness_stage="BRIEF_BELOW_THRESHOLD")
+        result["blocked"] = True
+        return result
     update_state(project_id, phase="brief_completed", readiness_stage="READY_FOR_SPECS", health="CLEAN")
-    return {"project_id": project_id, "project_brief": str(brief_path), "path": str(brief_path)}
+    result["blocked"] = False
+    return result
 
 
 def parse_blocking_gaps(text: str, blocking_severities: set[str]) -> list[str]:
