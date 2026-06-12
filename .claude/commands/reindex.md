@@ -6,18 +6,20 @@ description: Rebuild Ignite local memory after artifact updates.
 
 Arguments received from the user invocation: `$ARGUMENTS`
 
-Parse `PROJECT_ID` from:
+Parse `PROJECT_ID` and optional `--full` from:
 
 ```text
 /reindex PROJECT_ID
+/reindex PROJECT_ID --full
 ```
 
 Run:
 
 ```powershell
 python -m sentinel /reindex PROJECT_ID
+python -m sentinel /reindex PROJECT_ID --full
 ```
 
-This rebuilds local LanceDB memory from versionable workspace artifacts, traceability nodes, and context folders.
+This refreshes local memory from versionable workspace artifacts, traceability nodes, and context folders. By default it skips unchanged artifacts by `source_hash`, embedder, and chunking version; `--full` forces re-chunking and re-embedding.
 
-Summarize indexed artifacts and chunks.
+Summarize indexed, skipped, and embedded counts.

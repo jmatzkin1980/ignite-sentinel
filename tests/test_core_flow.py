@@ -475,6 +475,53 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertEqual(result["memory_backend_degradation_reason"], "test degradation")
         self.assertNotIn("test degradation", " ".join(result["findings"]))
 
+    def test_structural_chunking_keeps_tables_whole_with_line_anchors(self) -> None:
+        from sentinel.memory import chunk_records
+
+        text = """# Support Metrics
+
+Intro paragraph that is intentionally long enough to force separate chunks when the limit is small.
+
+| Metric | Target |
+| --- | --- |
+| Prep effort | 30% reduction |
+| Review time | Weekly |
+
+## Details
+
+Second section paragraph.
+"""
+        chunks = chunk_records(text, max_chars=120)
+        table_chunks = [chunk for chunk in chunks if "| Metric | Target |" in chunk["text"]]
+
+        self.assertEqual(len(table_chunks), 1)
+        self.assertIn("| Prep effort | 30% reduction |", table_chunks[0]["text"])
+        self.assertIn("| Review time | Weekly |", table_chunks[0]["text"])
+        self.assertEqual(table_chunks[0]["section_path"], "Support Metrics")
+        self.assertLessEqual(table_chunks[0]["line_start"], 5)
+        self.assertGreaterEqual(table_chunks[0]["line_end"], 8)
+
+    def test_reindex_skips_unchanged_artifacts_and_full_forces_rebuild(self) -> None:
+        from sentinel.memory import reindex_workspace
+
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "INCR"]), 0)
+        self.assertEqual(main(["ingest", "INCR", "--source", str(fixture)]), 0)
+
+        first = reindex_workspace("INCR")
+        second = reindex_workspace("INCR")
+        forced = reindex_workspace("INCR", full=True)
+
+        self.assertEqual(second["embedded_count"], 0)
+        self.assertGreater(second["skipped_count"], 0)
+        self.assertGreaterEqual(forced["embedded_count"], first["embedded_count"])
+
+    def test_reindex_full_cli_option_is_supported(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "FULLIDX"]), 0)
+        self.assertEqual(main(["ingest", "FULLIDX", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["reindex", "FULLIDX", "--full"]), 0)
+
     def test_doctor_reports_semantic_embedder_fallback_as_warn(self) -> None:
         from unittest import mock
         import sentinel.doctor as doctor_module

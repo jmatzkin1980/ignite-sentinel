@@ -112,9 +112,12 @@ def main(argv: list[str] | None = None) -> int:
     export_p.add_argument("--format", default="md", choices=["md"])
     export_p.add_argument("--domain")
 
-    for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "reindex", "gaps", "brief", "status"):
+    for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
         command = sub.add_parser(name)
         command.add_argument("project_id")
+    reindex_p = sub.add_parser("reindex")
+    reindex_p.add_argument("project_id")
+    reindex_p.add_argument("--full", action="store_true")
 
     args = parser.parse_args(argv)
     try:
@@ -223,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
             postflight_command(args.command, project_id, result)
             return 0 if result["verdict"] == "VALID" else 1
         elif args.command == "reindex":
-            result = reindex_workspace(args.project_id)
+            result = reindex_workspace(args.project_id, full=args.full)
             print_json(result)
         postflight_command(args.command, project_id, result)
         return 0

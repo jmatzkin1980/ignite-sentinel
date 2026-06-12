@@ -78,6 +78,8 @@ file_path, trace_ids, source_hash, section_path, language, confidence,
 sensitivity, metadata, indexed_at, vector
 ```
 
+Chunks are heading-aware. Each result carries `section_path` plus approximate `line_start` and `line_end` anchors so agents can open the source section instead of treating retrieval output as authority. Markdown tables are kept whole inside a chunk; Sentinel avoids splitting a table across multiple chunks.
+
 The framework also keeps a JSON hybrid fallback:
 
 ```text
@@ -178,9 +180,10 @@ Run reindex after manual edits:
 
 ```powershell
 python -m sentinel /reindex PROJECT_ID
+python -m sentinel /reindex PROJECT_ID --full
 ```
 
-This rebuilds LanceDB memory and the JSON fallback from the graph, versionable artifacts, and context folders.
+By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, embedder version, and chunking version, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
 
 If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
 

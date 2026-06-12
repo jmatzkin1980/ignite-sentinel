@@ -450,6 +450,7 @@ Rebuild local LanceDB memory from the traceability graph, versionable artifacts,
 
 ```powershell
 python -m sentinel /reindex PROJECT_ID
+python -m sentinel /reindex PROJECT_ID --full
 ```
 
-Use after manual artifact edits.
+Use after manual artifact edits. By default `/reindex` is incremental: unchanged artifacts are skipped by `source_hash`, active embedder, and chunking version. Use `--full` to force re-chunking and re-embedding of all indexed artifacts.
