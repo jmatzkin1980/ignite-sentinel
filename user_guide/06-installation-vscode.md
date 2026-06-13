@@ -238,7 +238,7 @@ Run this checklist end to end whenever you set up Sentinel on a new machine, or 
 1. `git clone <REPO_URL>` (or download and unzip) into a fresh folder.
 2. `cd ignite-sentinel` and run `python -m sentinel /doctor` (on Windows, use `py` or `.\verify.ps1` if `python` opens the Microsoft Store).
 3. If dependencies are missing: `python -m pip install -e .` and re-run `/doctor` until `PASS`.
-4. Run the full verification — the recommended one step resolves the interpreter and runs tests, `/doctor`, and evals: `.\verify.ps1` (or manually `python -m unittest discover -s tests`). All tests must pass. If a change added a command or skill, run `python -m sentinel.adapters` first.
+4. Run the full verification — the recommended one step resolves the interpreter and runs tests, `/doctor`, and evals: `.\verify.ps1` (or manually `python -m unittest discover -s tests`). The eval step includes discovery, brief, PRD, specs, and backlog answer-key checks such as no-invention and slicing baseline. All tests must pass. If a change added a command or skill, run `python -m sentinel.adapters` first.
 5. Smoke lifecycle with a synthetic input (never client data on `main`):
    - `python -m sentinel /init SMOKE`
    - `python -m sentinel /ingest SMOKE --source input/client_requirement/your-test-note.md`

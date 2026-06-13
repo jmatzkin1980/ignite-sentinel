@@ -71,6 +71,20 @@
     "target_populated": ["1", "3", "4"],
     "rationale": "The PRD should eventually compile executive problem/outcome, personas, and functional requirements from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
   },
+  "backlog": {
+    "expected_story_count": 1,
+    "expected_story_ids": ["US-001"],
+    "expected_source_units": [],
+    "expect_pending_stub": true,
+    "require_no_invented_stories": true,
+    "anchors": {
+      "require_valid": false
+    },
+    "context": {
+      "require_distinct_critical_surfaces": false
+    },
+    "rationale": "The confirmed answer is GWT prose, not EARS, so no Spec Unit is emitted and /backlog must preserve a pending stub instead of inventing value stories."
+  },
   "ears": {
     "expected_eligible_not_normalized": ["GAP-ACCEPTANCE"],
     "rationale": "The synthetic acceptance response is confirmed prose, not strict EARS. IMP-047 must mark it as EARS-eligible without automatic normalization."

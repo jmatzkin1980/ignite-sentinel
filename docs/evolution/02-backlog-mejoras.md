@@ -594,11 +594,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `cli.py`, `sync.py` o módulo nuevo, schema `implementation_feedback.schema.json`, `traceability.py`, `commands_manifest.json`, adapters regenerados, `mcp.py`, `tests/`, `user_guide/05-traceability-and-memory.md`, `user_guide/11-chat-commands.md`.
 
 ### IMP-061 — Evals/answer-keys propios del backlog
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: Discovery y Specs tienen harness, pero Backlog no tiene answer keys estructurados para falsar derivación, no-invención, slicing, contexto por historia ni anchors.
 - Alcance: extender `tests/fixtures/evals/` y `tests/evals/run_discovery_evals.py` o crear `run_backlog_evals.py` con answer keys de backlog por fixture: historias esperadas desde Spec Units, no-invención, patrón de slicing esperado, contexto/critical surfaces distintos por historia y anchors válidos. Registrar baseline en este backlog.
 - Aceptación: el runner reporta cobertura de derivación, tasa de no-invención, acierto de slicing pattern y validez de anchors; baseline documentado; integrado a `verify.ps1`; falla solo ante regresión nueva.
 - Afecta: `tests/fixtures/evals/`, `tests/evals/`, README de fixtures, `docs/evolution/02-backlog-mejoras.md`.
+- Nota 2026-06-13: implementado como extensión del runner existente `tests/evals/run_discovery_evals.py`, integrado a `verify.ps1` sin comando nuevo. Los answer keys `backlog` ahora miden `expected_story_ids`, `expected_source_units`, stub pendiente/no-invención, `expected_slicing_by_source_unit`, anchors opt-in y contexto opt-in. Baseline local: 5 fixtures OK; `ops-risk-backlog` cubre 6 historias derivadas de `SPEC-U-001`…`SPEC-U-006`; los otros 4 fixtures cubren stub `[PENDING INPUT]` sin invención; `avg_backlog_derivation_coverage=1.00`, `avg_backlog_no_invention=1.00`, `avg_backlog_slicing=1.00`, `avg_backlog_anchors=1.00`. Agregado `tests/test_backlog_eval_metrics.py` para falsar stub, historia inventada y mismatch de slicing. No toca runtime de backlog ni el modelo "Slicing Strategy"/boundary de `EPIC-002`.
 
 ---
 
@@ -606,6 +607,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-061 VERIFIED (branch `imp-061-backlog-evals`): answer-keys de backlog formalizados en los 5 fixtures, runner extendido con métricas de derivación/no-invención/slicing/anchors/contexto, baseline `avg_backlog_* = 1.00`, tests unitarios del evaluador y documentación actualizada. Sin runtime ni adapters nuevos. |
 | 2026-06-13 | Horizonte 8 "Backlog gobernado" promovido desde `docs/evolution/05-propuesta-backlog.md` (APROBADA): creados IMP-048…IMP-061 como ítems `PENDING`, con Problema/Alcance/Aceptación/Afecta y orden obligatorio de implementación. Cambio documental puro; sin runtime ni evals nuevos en este paso administrativo. |
 | 2026-06-12 | IMP-046 VERIFIED & PUSHED (branch `imp-046-prd-grade-lens-checks`): checks PRD calibrados en lentes declarativos, nuevo `GAP-PRD-ROLLOUT-ENVIRONMENTS`, dicts de elicitación EN/ES extendidos, answer keys PRD actualizadas en los 4 fixtures, `test_prd_grade_lens_checks.py` y guía de artefactos actualizada. `verify.ps1` verde (109 tests OK), doctor PASS con warnings opcionales esperados y evals sin regresión. |
 | 2026-06-12 | IMP-038 VERIFIED & PUSHED (branch `imp-038-prd-specs-evals`): eval harness extendido hasta PRD/specs, answer keys con `prd.target_populated`, respuestas sintéticas de fixture para atravesar gates reales, test `test_evals_prd.py` y baseline documentado: `avg_prd_target_coverage=0.06`, `avg_specs_scaffolding=11.00`. `verify.ps1` verde; sin cambios de runtime. |

@@ -210,7 +210,7 @@ python -m sentinel /doctor
 python tests\evals\run_discovery_evals.py
 ```
 
-Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`, including metrics by active backend (`json-hybrid` or `lancedb-hybrid`) and golden queries across all eval fixtures.
+The eval harness covers discovery, brief, PRD, specs, and backlog. Backlog answer keys check expected stories/source units, no-invention behavior, slicing-pattern baseline, and opt-in anchor/context metrics for later backlog work. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`, including metrics by active backend (`json-hybrid` or `lancedb-hybrid`) and golden queries across all eval fixtures.
 
 If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
 

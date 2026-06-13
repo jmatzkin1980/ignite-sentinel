@@ -554,4 +554,6 @@ Cada lente tiene una lista `checks`; cada check declara:
 
 Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`must_not_fire`) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean.
 
+Para cambios de backlog, usá el bloque `backlog` de los mismos answer keys. Ahí se registran historias esperadas, `SPEC-U-*` fuente, comportamiento de no-invención, patrón de slicing esperado y checks opt-in de anchors/contexto. `python tests/evals/run_discovery_evals.py` debe reportar cobertura de derivación, no-invención y slicing sin regresiones antes de abrir PR.
+
 Regla de identidad (invariante #1 de la propuesta de evolución): el modelo de lentes es conocimiento propio del equipo de Ignite. Esta base es el lugar para volcar esa experiencia de forma revisable en PR, no para copiar checklists genéricas de otras fuentes.
