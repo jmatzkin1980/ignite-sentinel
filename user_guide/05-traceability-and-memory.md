@@ -168,12 +168,12 @@ It also records the active embedder name, level, version, and dimensions so revi
 
 `/specs` and `/backlog` read section-level plans from `sentinel/retrieval_plans/specs_generation.json` and `sentinel/retrieval_plans/backlog_generation.json`. Each section declares the base query, optional domain/filter constraints, result limit, character budget, summary budget, source sections to prefer, and associated lenses. Sentinel composes the query with vocabulary from those lenses and selects source context by declared sections or relevance instead of blindly appending the start of a large artifact.
 
-Generated packs preserve the plan metadata per section: `query`, `domain`, `filters`, `limit`, `budget_chars`, `summary_chars`, `lenses`, `source_sections`, and each result's `read_plan`. To tune retrieval for a section, edit the JSON plan and rerun the command; no Python change is required.
+Generated packs preserve the plan metadata per section: `query`, `domain`, `filters`, `limit`, `budget_chars`, `summary_chars`, `lenses`, `source_sections`, and each result's `read_plan`. Backlog story execution contracts propagate confirmed signal anchors as `execution_contract.<signal>.anchor`, so downstream agents can open the exact cited source range before planning or editing. To tune retrieval for a section, edit the JSON plan and rerun the command; no Python change is required.
 
 `/backlog` creates two built-in context packs:
 
 - `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories. It keeps aggregate `sections` plus `per_story.US-NNN` mini-contexts for Spec Unit-derived stories.
-- `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, execution contract, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
+- `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, execution contract with anchors, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
 
 Use context packs when:
 

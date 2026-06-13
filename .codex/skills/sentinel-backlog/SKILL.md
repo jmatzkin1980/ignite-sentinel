@@ -12,7 +12,7 @@ Use this skill to generate execution-ready backlog artifacts.
 1. Run `python -m sentinel /maturity PROJECT_ID`.
 2. Run `python -m sentinel /backlog PROJECT_ID`.
 3. Review `workspaces/PROJECT_ID/08_context_packs/backlog_generation.json` to confirm focused local retrieval was used globally and under `per_story.US-NNN` for each Spec Unit-derived story.
-4. Review `workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json` to confirm each story has required domains, pending execution context, execution contract, retrieval plan, validation contract, dependencies, and freshness snapshot.
+4. Review `workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json` to confirm each story has required domains, pending execution context, execution contract with anchors, retrieval plan, validation contract, dependencies, and freshness snapshot.
 5. Review `workspaces/PROJECT_ID/04_backlog/EPIC-001.md` as the primary backlog artifact. It contains the epic, domain context coverage, story map, slicing rationale, retrieved context summary, agent execution contracts, retrieval plans, and embedded stories.
 6. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
 7. Run `python -m sentinel /quality PROJECT_ID`.
@@ -36,7 +36,7 @@ Use this skill to generate execution-ready backlog artifacts.
   - Lawrence-style reduction: isolate the smallest useful variation first, then add workflow steps, edge cases, performance, external dependency, or discovery stories.
 - Each story should include description, narrative, slicing pattern, dependencies, in/out of scope, context used, acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 - Each epic/story should include `Domain Context Coverage` for Product, Technology, Design, Quality, and Delivery so humans and agents can see which domain evidence was used and what remains pending. Story coverage is computed from that story's mini-context; the global pack remains an aggregate index.
-- Each story may include an `Agent Execution Contract` derived from retrieved context: agent profile, command hints, critical surfaces, design match, engineering practices, autonomy limits, blast radius, validation contract, and parallelization/sequencing notes.
+- Each story may include an `Agent Execution Contract` derived from retrieved context: agent profile, command hints, critical surfaces, design match, engineering practices, autonomy limits, blast radius, validation contract, and parallelization/sequencing notes. Confirmed context signals should include anchors (`source_path`, `section_path`, `line_start`, `line_end`) so agents can open the exact source range.
 - Each story must include a `Retrieval Plan For Execution Agents` so planners, implementers, and testers know which focused `/retrieve` queries to run before touching code or tests.
 - Treat `implementation_readiness.json` as the handoff contract for downstream agents. If it reports `needs-context`, resolve missing domain context upstream or rerun `/reindex` and `/backlog` after domain owners update their files.
 - If `/health` reports that domain context changed after backlog generation, do not hand off implementation from the stale backlog. Run `/reindex` and `/backlog` first.

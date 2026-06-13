@@ -575,11 +575,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Nota 2026-06-13: implementado mini-contexto por historia en `build_backlog_story_specs`: cada `US-NNN` derivada de `SPEC-U-*` ejecuta el plan declarativo `backlog_generation` con query enriquecida por su unidad, guarda el resultado bajo `08_context_packs/backlog_generation.json#per_story.US-NNN`, y calcula desde ahí `domain_coverage` y `execution_contract`. El pack global mantiene `sections` y `domain_context_coverage` agregados. `implementation_readiness.json` ahora incluye `execution_contract`, `context_pack` y `context_pack_section` por historia. El runner de evals copia fixtures de contexto de dominio a carpetas `00_raw/*_context` antes de `/ingest`, y `ops-risk-backlog` valida `critical_surfaces` distintos para al menos dos Spec Units. Tests y docs actualizados; adapters regenerados desde `python -m sentinel.adapters`. No se modificó el modelo de slicing ni el boundary de `EPIC-002`.
 
 ### IMP-058 — Propagar anchors (`read_plan`) al contrato y al handoff por historia
-- Estado: PENDING
+- Estado: DONE
 - Problema: los anchors existen en `backlog_generation.json`, pero no llegan al `execution_contract`, al `US-NNN.md` ni a `implementation_readiness.json`.
 - Alcance: propagar `source_path`, `section_path`, `line_start` y `line_end` de cada evidencia usada por historia al contrato, render de historia y handoff JSON, como campos aditivos compatibles con consumidores actuales.
 - Aceptación: el `execution_contract` y `implementation_readiness.json` incluyen anchors válidos por superficie citada; un test abre el archivo y verifica que el rango contiene la sección citada; consumidores actuales intactos; suite y evals sin regresión.
 - Afecta: `sentinel/generation.py`, `tests/`, `user_guide/02-artifact-reference.md`, `user_guide/05-traceability-and-memory.md`.
+- Nota 2026-06-13: implementado como campos aditivos `anchor` dentro de las señales confirmadas del `execution_contract` (`commands`, `critical_surfaces`, `design_match`, `engineering_practices` cuando hay evidencia recuperada). Cada anchor propaga `source_path`, `section_path`, `line_start` y `line_end` desde `read_plan`; `US-NNN.md` renderiza el puntero inline y `implementation_readiness.json` lo conserva dentro del contrato completo. El fixture `ops-risk-backlog` activa `anchors.require_valid`; `tests/test_backlog_dynamic_derivation.py` abre el archivo citado y verifica que el rango contiene la evidencia de la superficie crítica. Docs y skill `sentinel-backlog` actualizadas; adapters regenerados. Campos existentes (`status`, `source`, `summary`) quedan intactos.
 
 ### IMP-059 — Canal agéntico de refinamiento del backlog
 - Estado: PENDING

@@ -72,8 +72,8 @@
       "SPEC-U-006": "Quality Evidence / Traceability"
     },
     "anchors": {
-      "require_valid": false,
-      "rationale": "IMP-058 will flip this to true once per-story anchors are propagated."
+      "require_valid": true,
+      "rationale": "IMP-058 propagates per-story read_plan anchors into execution_contract and implementation_readiness.json."
     },
     "context": {
       "require_distinct_critical_surfaces": true,
