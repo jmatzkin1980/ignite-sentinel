@@ -1,0 +1,75 @@
+{
+  "fixture": "ops-risk-backlog",
+  "language": "en",
+  "expected_language": "en",
+  "deliberate_omissions": [
+    "Technology context and implementation surfaces",
+    "Design states beyond the read-only dashboard",
+    "Quality evidence beyond the confirmed EARS acceptance rounds"
+  ],
+  "must_fire": [
+    "GAP-ACCEPTANCE",
+    "GAP-DESIGN-FLOW",
+    "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE",
+    "GAP-GOVERNANCE-CONSTRAINTS",
+    "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "GAP-PRD-FR-AC",
+    "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "GAP-PRD-NFR-KPI",
+    "GAP-PRD-PERSONA-DETAIL",
+    "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "GAP-QUALITY",
+    "GAP-TECH-DATA-SOURCE",
+    "GAP-TECH-NFR"
+  ],
+  "must_not_fire": [
+    "GAP-OBJECTIVE",
+    "GAP-USERS",
+    "GAP-SCOPE"
+  ],
+  "known_false_positives": [],
+  "target_fire": [
+    "GAP-DESIGN-FLOW",
+    "GAP-FRONTEND-SURFACE"
+  ],
+  "expected_gap_details": {
+    "GAP-ACCEPTANCE": {
+      "lens": "quality",
+      "severity": "critical",
+      "origin": "checklist"
+    }
+  },
+  "brief": {
+    "target_populated": ["1", "2", "3"],
+    "target_pending": ["4", "5", "6"],
+    "rationale": "The objective, users, and scope are present; design/technical/quality detail remains pending."
+  },
+  "prd": {
+    "target_populated": ["1", "3", "4"],
+    "rationale": "The PRD has enough confirmed evidence for problem, personas, and functional requirements; detailed KPI source/method remains pending."
+  },
+  "backlog": {
+    "expected_story_count": 6,
+    "expected_source_units": [
+      "SPEC-U-001",
+      "SPEC-U-002",
+      "SPEC-U-003",
+      "SPEC-U-004",
+      "SPEC-U-005",
+      "SPEC-U-006"
+    ],
+    "require_spec_unit_trace": true,
+    "rationale": "IMP-048 must derive one value story per confirmed Spec Unit instead of the previous fixed five-story seed."
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-RISK-METRIC",
+      "query": "what metric measures operations preparation improvement",
+      "workflow": "specs",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "The requirement states the 30 percent preparation reduction metric."
+    }
+  ]
+}

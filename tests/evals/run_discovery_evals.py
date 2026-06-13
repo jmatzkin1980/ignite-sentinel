@@ -126,6 +126,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     requirement = fixture_dir / "requirement.md"
     annotation = fixture_dir / "annotation.json"
     gap_responses = fixture_dir / "gap_responses.md"
+    gap_response_rounds = fixture_dir / "gap_response_rounds"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
 
     old_cwd = Path.cwd()
@@ -143,13 +144,20 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                     assert main(["annotate", project_id, "--source", str(annotation)]) == 0, (
                         f"annotate failed for {fixture_dir.name}"
                     )
-                if gap_responses.exists() and not apply_annotation:
-                    assert main(["resolve-gaps", project_id, "--source", str(gap_responses)]) == 0, (
-                        f"resolve-gaps failed for {fixture_dir.name}"
-                    )
+                if not apply_annotation:
+                    response_sources = []
+                    if gap_responses.exists():
+                        response_sources.append(gap_responses)
+                    if gap_response_rounds.exists():
+                        response_sources.extend(sorted(gap_response_rounds.glob("*.md")))
+                    for response_source in response_sources:
+                        assert main(["resolve-gaps", project_id, "--source", str(response_source)]) == 0, (
+                            f"resolve-gaps failed for {fixture_dir.name}: {response_source.name}"
+                        )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
                 if not apply_annotation:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
+                    assert main(["backlog", project_id]) == 0, f"backlog failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -162,10 +170,18 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             if apply_annotation:
                 prd_status = {section: "pending" for section in PRD_TRACKED_SECTIONS}
                 specs_scaffold = {"ids": [], "count": 0}
+                backlog_derivation = {
+                    "story_count": 0,
+                    "source_units": [],
+                    "trace_unit_count": 0,
+                    "mismatches": [],
+                    "coverage": 1.0,
+                }
             else:
                 prd_status = prd_section_status((ws / "03_specs" / "prd.md").read_text(encoding="utf-8"))
                 specs_text = (ws / "03_specs" / "specs.md").read_text(encoding="utf-8")
                 specs_scaffold = specs_scaffolding(specs_text)
+                backlog_derivation = backlog_derivation_status(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -200,6 +216,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         row["id"] for row in gap_rows if "EARS-eligible" in str(row.get("resolution_note", ""))
     )
     ears_eligible_mismatch = ears_eligible_not_normalized != expected_ears_eligible
+    backlog_mismatches = backlog_derivation["mismatches"]
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -274,6 +291,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "ears_eligible_mismatch": ears_eligible_mismatch,
         "specs_scaffolding_ids": specs_scaffold["ids"],
         "specs_scaffolding_count": specs_scaffold["count"],
+        "backlog_story_count": backlog_derivation["story_count"],
+        "backlog_source_units": backlog_derivation["source_units"],
+        "backlog_trace_unit_count": backlog_derivation["trace_unit_count"],
+        "backlog_derivation_mismatches": backlog_mismatches,
+        "backlog_derivation_coverage": backlog_derivation["coverage"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -282,7 +304,56 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             and not ears_eligible_mismatch
             and sorted(brief_pending_target) == brief_target_pending
             and not specs_scaffold["ids"]
+            and not backlog_mismatches
         ),
+    }
+
+
+def backlog_derivation_status(ws: Path, key: dict) -> dict[str, object]:
+    backlog_key = key.get("backlog", {})
+    readiness_path = ws / "08_context_packs" / "implementation_readiness.json"
+    if not readiness_path.exists():
+        return {
+            "story_count": 0,
+            "source_units": [],
+            "trace_unit_count": 0,
+            "mismatches": ["implementation_readiness.json missing"],
+            "coverage": 0.0,
+        }
+    readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
+    value_stories = [story for story in readiness.get("stories", []) if story.get("type") != "cross_cutting_enabler"]
+    source_units = sorted(
+        story.get("source_unit")
+        for story in value_stories
+        if isinstance(story.get("source_unit"), str) and str(story.get("source_unit")).startswith("SPEC-U-")
+    )
+    trace_unit_count = sum(
+        1
+        for story in value_stories
+        if any(str(trace).startswith("SPEC-U-") for trace in story.get("trace", []))
+    )
+    mismatches: list[str] = []
+    expected_count = backlog_key.get("expected_story_count")
+    if expected_count is not None and len(value_stories) != int(expected_count):
+        mismatches.append(f"expected {expected_count} backlog stories, got {len(value_stories)}")
+    expected_units = sorted(str(item) for item in backlog_key.get("expected_source_units", []))
+    if expected_units and source_units != expected_units:
+        mismatches.append(f"expected source units {expected_units}, got {source_units}")
+    if backlog_key.get("require_spec_unit_trace") and trace_unit_count != len(value_stories):
+        mismatches.append(f"expected every story to trace to SPEC-U, got {trace_unit_count}/{len(value_stories)}")
+    if backlog_key.get("expect_pending_stub"):
+        story_text = "\n".join(path.read_text(encoding="utf-8") for path in sorted((ws / "04_backlog").glob("US-*.md")))
+        if "[PENDING INPUT]" not in story_text:
+            mismatches.append("expected pending backlog stub, but no [PENDING INPUT] marker was rendered")
+    coverage = round(trace_unit_count / len(value_stories), 3) if value_stories else 0.0
+    if not backlog_key:
+        coverage = 1.0
+    return {
+        "story_count": len(value_stories),
+        "source_units": source_units,
+        "trace_unit_count": trace_unit_count,
+        "mismatches": mismatches,
+        "coverage": coverage,
     }
 
 
@@ -323,6 +394,10 @@ def run_all() -> int:
             "total_ears_eligible_mismatches": sum(1 for r in results if r["ears_eligible_mismatch"]),
             "avg_specs_scaffolding": round(sum(r["specs_scaffolding_count"] for r in results) / len(results), 3),
             "total_specs_scaffolding": sum(r["specs_scaffolding_count"] for r in results),
+            "avg_backlog_derivation_coverage": round(
+                sum(r["backlog_derivation_coverage"] for r in results) / len(results), 3
+            ),
+            "total_backlog_derivation_mismatches": sum(len(r["backlog_derivation_mismatches"]) for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
             "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
@@ -343,6 +418,7 @@ def run_all() -> int:
             f"brief={len(r['brief_target_populated'])}/{len(r['brief_target_sections'])} "
             f"prd={len(r['prd_target_populated'])}/{len(r['prd_target_sections'])} "
             f"spec_scaffold={r['specs_scaffolding_count']} "
+            f"backlog_stories={r['backlog_story_count']} "
             f"new_fp={len(r['new_false_positives'])}"
         )
         for gap in r["missing_must_fire"]:
@@ -363,6 +439,8 @@ def run_all() -> int:
                 "         EARS eligible mismatch: expected "
                 f"{r['ears_expected_eligible_not_normalized']} got {r['ears_eligible_not_normalized']}"
             )
+        for mismatch in r["backlog_derivation_mismatches"]:
+            print(f"         backlog derivation mismatch: {mismatch}")
         expected_pending = set(r["brief_expected_pending_sections"])
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
@@ -377,7 +455,8 @@ def run_all() -> int:
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "
         f"ears_eligible_not_normalized={s['total_ears_eligible_not_normalized']} "
-        f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f} (IMP-042 spec units)"
+        f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f} (IMP-042 spec units) "
+        f"avg_backlog_derivation_coverage={s['avg_backlog_derivation_coverage']:.2f} (IMP-048)"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

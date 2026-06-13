@@ -21,7 +21,9 @@ Use this skill to generate execution-ready backlog artifacts.
 ## Rules
 
 - Generate vertical, value-oriented stories. Avoid layer-only frontend/backend/data stories unless the item is explicitly framed as a spike or a valid cross-cutting enabler.
-- Every story must cite `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD/rule when available.
+- Derive value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files. One evidence-backed Spec Unit should become one vertical story.
+- If no functional Spec Unit exists, keep a single `[PENDING INPUT]` backlog stub and push the issue upstream through gaps or `/specs`; do not expand the old fixed five-story scaffold.
+- Every value story must cite `REQ-001`, `PRD-001`, `SPEC-001`, its `SPEC-U-*` source unit, and applicable `REQ-EARS-*` rows when available.
 - Use progressive disclosure: retrieve focused local context for business value, functional slicing, technical dependencies, UX states, quality risks, and open uncertainty.
 - Treat domain context as living input across the whole lifecycle. Technology, Design, Quality, Delivery or other domain owners may add context files over time; `/ingest`, `/sync`, and `/reindex` make that context available for backlog retrieval.
 - Keep source of truth in workspace files. Treat memory context as retrieval evidence, not as authority over project files.

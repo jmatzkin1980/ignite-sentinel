@@ -304,7 +304,7 @@ Contains execution-oriented backlog artifacts.
 
 ### `EPIC-001.md`
 
-Primary backlog artifact generated from specs and focused local memory retrieval.
+Primary backlog artifact generated from evidence-backed Spec Units and focused local memory retrieval.
 
 Each epic file includes:
 
@@ -314,6 +314,8 @@ Each epic file includes:
 - slicing strategy based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
 - embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
+
+Sentinel derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files: one Spec Unit becomes one vertical story, and its AC evidence path cites the unit plus applicable `REQ-EARS-*` rows. When no functional Spec Unit exists, Sentinel renders one `[PENDING INPUT]` stub instead of the old fixed five-story scaffold, so missing evidence remains visible.
 
 This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
