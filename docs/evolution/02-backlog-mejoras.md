@@ -497,12 +497,115 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Aceptación: fixture completo reporta consistencia limpia; al inyectar inconsistencia sintética el warning nombra capa y corrección; no bloquea; documentado en `user_guide/01`; tests con ambos casos.
 - Afecta: `sentinel/validation.py`, tests (`test_cross_consistency.py`), `user_guide/01-command-reference.md`, skill `sentinel-health`.
 
+## Horizonte 8 — Backlog gobernado
+
+Ítems promovidos desde `docs/evolution/05-propuesta-backlog.md` (APROBADA 2026-06-13). Fuente de diseño obligatoria: propuesta 05 completa, especialmente diagnóstico de sección 1, modelo conceptual, restricciones de sección 6 y secuencia obligatoria de sección 5. Orden estricto por PR: IMP-048 → IMP-061 → IMP-049 → IMP-057 → IMP-058 → IMP-059 → IMP-050 → IMP-051 → IMP-052 → IMP-053 → IMP-056 → IMP-055 → IMP-060 → IMP-054. IMP-054 queda como frontera opcional/deferred hasta demanda downstream real.
+
+### IMP-048 — Derivación dinámica de épicas e historias desde la evidencia
+- Estado: PENDING
+- Problema: `BACKLOG_STORY_SEEDS` produce 5 historias genéricas sin importar el contenido real del PRD/specs; las AC y trazas son plantilla.
+- Alcance: reemplazar la generación basada en seeds por una derivación desde las Spec Units confirmadas (`03_specs/units/SPEC-U-NNN.md`) y sus `REQ-EARS-*`, `FR-E*`, JTBD y personas de discovery. Agrupar unidades por tema de valor/outcome/JTBD, generar una historia por slice vertical de Spec Unit coherente, derivar AC desde la unidad real y mantener intactos la tabla "Slicing Strategy", el render de historia, el `execution_contract`, AC clasificadas, DoR/DoD y el boundary de enablers (`EPIC-002`). Lo faltante queda como stub `[PENDING INPUT]` + gap, nunca como historia inventada.
+- Aceptación: con un fixture de 6 o más Spec Units, `/backlog` genera una historia por unidad, no 5 fijas; AC y trazas salen de `SPEC-U-*`/`REQ-EARS-*`; un fixture sin unidades funcionales emite stubs/gaps sin inventar; trazabilidad spec→épica→historia→AC intacta; IDs estables entre dos corridas; evals sin regresión.
+- Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/backlog_generation.json`, `tests/`, `tests/evals/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`, `user_guide/03-workflows.md`.
+
+### IMP-049 — Externalizar el modelo de slicing existente a fuente declarativa + selección por forma de unidad
+- Estado: PENDING
+- Problema: el modelo de slicing del equipo es correcto y deliberado, pero vive hardcodeado en el render del epic y la asignación SPIDR/Lawrence hereda del seed fijo en vez de derivar de la unidad.
+- Alcance: mover fielmente la tabla "Slicing Strategy" completa (INVEST con `Small` = small but valuable, Vertical slicing, SPIDR, Lawrence, small-but-valuable, agent readiness) a una fuente declarativa versionada con loader estilo `lens_registry.py`. Usar solo la taxonomía existente; no tocar ni diluir "Cross-Cutting Enabler Boundary" ni el flujo de `EPIC-002`. La derivación de IMP-048 selecciona patrón SPIDR/Lawrence según la forma de la Spec Unit y registra `slicing` + `slicing_rationale`.
+- Aceptación: el epic generado reproduce idéntica la estrategia de slicing y boundary actuales leyendo desde la fuente declarativa; una heurística puede ajustarse editando solo ese archivo; cada historia justifica su patrón; boundary de enablers intacto; suite y evals sin regresión.
+- Afecta: nueva fuente de slicing + loader, `pyproject.toml`, `sentinel/generation.py`, `tests/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`.
+
+### IMP-050 — Lifecycle de historia con estados gobernados + owner
+- Estado: PENDING
+- Problema: el runtime no modela estado de historia ni responsable; no hay seguimiento humano ni accountability por historia.
+- Alcance: agregar `status` y `owner` por historia en frontmatter de `US-NNN.md` y `state.json`, mutados solo vía CLI. Implementar `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME]` o equivalente, con estados `Draft → Ready → In Progress → In Review → Done`, más `Blocked` y `Stale`, validación de transiciones, trazabilidad y preservación entre regeneraciones.
+- Aceptación: una transición válida actualiza `US-NNN.md`, `state.json` y trazabilidad; una transición ilegal se rechaza con mensaje claro; `/backlog` preserva estados/owners existentes; sin estados asignados, comportamiento igual al actual; tests de transición y preservación.
+- Afecta: `sentinel/generation.py`, nuevo módulo o extensión de backlog status, `sentinel/cli.py`, `sentinel/workspace.py`, `sentinel/templates/commands_manifest.json`, adapters regenerados, `sentinel/mcp.py`, `sentinel/traceability.py`, `tests/`, `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `user_guide/11-chat-commands.md`.
+
+### IMP-051 — Convertir los checklists DoR/DoD ya existentes en un gate evaluable
+- Estado: PENDING
+- Problema: las historias ya renderizan Definition Of Ready y Definition Of Done, pero son checklists estáticos sin evaluación ni conexión con estado o handoff.
+- Alcance: conservar los checklists actuales y agregar evaluación por historia usando señales existentes: AC presentes y clasificadas, `readiness_score`, ausencia de `GAP-*` blocking sobre la traza, patrón de slicing y owner. DoD exige evidencia de aceptación trazada desde downstream. Reusar el patrón `config.specs_gate {threshold, strict}` como `config.backlog_gate`, default advertencia, modo estricto opt-in.
+- Aceptación: una historia incompleta no alcanza `Ready` en modo estricto y en default lista faltantes exactos; una historia completa pasa DoR; DoD solo cierra con evidencia trazada; default no bloqueante.
+- Afecta: nuevo módulo de backlog status/validación, `sentinel/maturity.py`, config de workspace, `tests/`, `user_guide/01-command-reference.md`, `user_guide/05-traceability-and-memory.md`.
+
+### IMP-052 — Rollup por épica + tablero de backlog para el BA
+- Estado: PENDING
+- Problema: el BA no tiene una vista versionable de progreso para seguimiento y accountability.
+- Alcance: computar rollup por épica (historias por estado, porcentaje `Ready`/`Done`, `avg readiness_score`, owners y blockers), emitir `04_backlog/BACKLOG.md`, exponer resumen en `/status` y agregar `/backlog-status PROJECT_ID`.
+- Aceptación: con historias en varios estados, `BACKLOG.md` y `/backlog-status` muestran rollup correcto por épica y estado; `/status` incluye resumen; el tablero se regenera sin pisar estados; tests de rollup.
+- Afecta: `sentinel/generation.py` o nuevo módulo de rollup, `sentinel/status.py`, `sentinel/cli.py`, `commands_manifest.json`, adapters regenerados, `sentinel/mcp.py`, `tests/`, `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `user_guide/11-chat-commands.md`.
+
+### IMP-053 — Plan de slice e implementación (handoff contract determinístico)
+- Estado: PENDING
+- Problema: no hay plan ordenado por épica/release que explicite enablers, paralelismo, dependencias y checkpoints; el bridge a tasking queda implícito.
+- Alcance: emitir `04_backlog/SLICE-PLAN.md` y JSON espejo en `08_context_packs/` con fase de enablers (`EPIC-002`), olas paralelizables de historias, checkpoints y handoff pack por historia (`execution_contract` + `retrieval_plan` + anchors + posición + estado DoR). Mantener vocabulario Ignite; no copiar `T001/[P]` ni ejecutar tasking.
+- Aceptación: `/backlog` o `/handoff` produce slice plan con enablers primero, olas paralelizables y checkpoints derivados de dependencias reales; handoff pack valida campos o marca `[PENDING ...]`; un agente downstream puede ordenar implementación leyendo slice plan + packs; tests de estructura y orden topológico.
+- Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/backlog_generation.json`, `tests/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`, `user_guide/03-workflows.md`.
+
+### IMP-054 — Contrato de tareas-semilla por historia (opcional / frontera de scope)
+- Estado: PENDING
+- Problema: algunos agentes downstream pueden necesitar un punto de partida de tasking más explícito, pero Ignite no debe convertirse en herramienta de tasking.
+- Alcance: agregar emisión opt-in (`/backlog --with-task-seeds` o `/handoff --task-seeds`) de un contrato mínimo de tareas-semilla por historia, trazado a AC y `critical_surfaces`, ordenado y con paralelismo indicado. No ejecuta, no estima, no gestiona tareas y documenta explícitamente el límite de scope.
+- Aceptación: con el flag, cada historia emite contrato de tareas-semilla trazado y con nota de frontera; sin flag no se emite nada; el artefacto deja claro que Ignite no ejecuta tasking.
+- Afecta: `sentinel/generation.py`, `sentinel/cli.py`, manifest/adapters si se agrega flag, `tests/`, `user_guide/02-artifact-reference.md`.
+
+### IMP-055 — Hooks de ciclo vivo: staleness por historia, pre-handoff (DoR) y privacy scan
+- Estado: PENDING
+- Problema: el ciclo vivo del backlog se gobierna a grano grueso; no hay staleness por historia, pre-handoff DoR ni privacy scan específico de backlog.
+- Alcance: agregar hooks deterministas y locales al protocolo Sentinel: marcar `Stale` solo historias afectadas por `stale_spec_units`, advertir/bloquear handoff según DoR y modo de gate, y escanear artefactos de `04_backlog/` contra identificadores sensibles, endpoints, credenciales o datos privados antes de escribir.
+- Aceptación: `/sync` que cambia una Spec Unit marca `Stale` solo historias derivadas; handoff sin DoR advierte o bloquea según modo; un artefacto de backlog con dato sensible inyectado se detecta y bloquea; sin novedades, comportamiento intacto; tests verdes.
+- Afecta: `sentinel/protocols.py`, `sentinel/sync.py`, `sentinel/health.py`, `sentinel/generation.py`, `tests/`, `user_guide/05-traceability-and-memory.md`, `user_guide/09-secure-environments.md`.
+
+### IMP-056 — `/quality` verifica el cumplimiento del modelo INVEST/SPIDR que hoy es solo guía
+- Estado: PENDING
+- Problema: el modelo INVEST/SPIDR/Lawrence ya existe como guía, pero `/quality` no verifica si una historia lo cumple; el `backlog_readiness_audit.md` tiene verdict/status hardcodeados.
+- Alcance: extender `/quality` para puntuar solo el modelo vigente: slice vertical e independiente, `Small` como small but valuable, AC presentes/clasificadas y derivadas de la unidad, trazabilidad `SPEC-U`/`REQ-EARS`/épica y cobertura de AC. Poblar `05_quality/backlog_readiness_audit.md` con evaluación real por historia y warnings no bloqueantes que alimenten DoR.
+- Aceptación: `/quality` reporta score INVEST y cobertura de AC por historia con verdict/status dinámicos; distingue historia bien sliceada de técnica sin comportamiento; warnings se reflejan en DoR; no bloquea por default; tests de niveles.
+- Afecta: `sentinel/quality.py`, `sentinel/validation.py`, `tests/`, skill `sentinel-quality`, `user_guide/01-command-reference.md`.
+
+### IMP-057 — Contexto y cobertura de dominio por historia/Spec Unit
+- Estado: PENDING
+- Problema: `build_backlog_story_specs` asigna el mismo `domain_coverage` y `execution_contract` a todas las historias desde el pack global del epic.
+- Alcance: que cada historia derivada de su Spec Unit arme mini-contexto focalizado con `ContextBroker.retrieve`, planes declarativos y query de su unidad, manteniendo el pack global como índice agregado. Computar `execution_contract` y `domain_coverage` por historia, respetando budgets, `summary_only`, local-first y fallback `json-hybrid`.
+- Aceptación: en un fixture con al menos dos Spec Units de dominios distintos, dos historias obtienen `critical_surfaces`/`domain_coverage` distintos y acordes a su unidad; pack global conserva cobertura agregada; budgets respetados; evals de retrieval y suite sin regresión; modo `json-hybrid` intacto.
+- Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/backlog_generation.json`, `08_context_packs/`, `tests/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`, `user_guide/05-traceability-and-memory.md`.
+
+### IMP-058 — Propagar anchors (`read_plan`) al contrato y al handoff por historia
+- Estado: PENDING
+- Problema: los anchors existen en `backlog_generation.json`, pero no llegan al `execution_contract`, al `US-NNN.md` ni a `implementation_readiness.json`.
+- Alcance: propagar `source_path`, `section_path`, `line_start` y `line_end` de cada evidencia usada por historia al contrato, render de historia y handoff JSON, como campos aditivos compatibles con consumidores actuales.
+- Aceptación: el `execution_contract` y `implementation_readiness.json` incluyen anchors válidos por superficie citada; un test abre el archivo y verifica que el rango contiene la sección citada; consumidores actuales intactos; suite y evals sin regresión.
+- Afecta: `sentinel/generation.py`, `tests/`, `user_guide/02-artifact-reference.md`, `user_guide/05-traceability-and-memory.md`.
+
+### IMP-059 — Canal agéntico de refinamiento del backlog
+- Estado: PENDING
+- Problema: el backlog no tiene canal sancionado para propuestas agénticas de slicing, historias o enablers; el criterio queda en chat.
+- Alcance: nuevo comando + skill, por ejemplo `/refine-backlog PROJECT_ID --source ANALYSIS.json`, que recibe propuestas estructuradas con cita textual verbatim local. Reusar validación de `/compose`: validar existencia, rechazar unidades `[PENDING]`, verificar citas, archivar source en `04_backlog/refinements/`, mergear con `origin: agent`, trazar y respetar boundary de enablers.
+- Aceptación: una propuesta válida se mergea con `origin: agent` y trazabilidad; una inválida se rechaza con razón clara; historias/enablers refinados respetan lifecycle y gates; el modelo SPIDR/Lawrence/INVEST no se altera; suite y evals sin regresión.
+- Afecta: nuevo módulo o extensión de `generation.py`, `cli.py`, schema `backlog_refinement.schema.json`, `commands_manifest.json`, adapters regenerados, `mcp.py`, skill `sentinel-backlog-refine`, `traceability.py`, `tests/`, `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `user_guide/11-chat-commands.md`.
+
+### IMP-060 — Loop de feedback downstream → backlog
+- Estado: PENDING
+- Problema: cuando implementación descubre dependencias, gaps, AC inválidas o superficies no contempladas, no hay canal sancionado que vuelva al backlog.
+- Alcance: agregar canal de feedback de implementación, por ejemplo `/implementation-feedback PROJECT_ID --source FINDINGS.json` o modo especializado de `/sync`, donde cada hallazgo declara tipo, historia/AC afectada y evidencia. El runtime convierte hallazgos en `GAP-*` o `CHG` trazados ligados a historia, puede marcar `Stale` o bloquear DoD, y no permite reescritura directa del backlog.
+- Aceptación: feedback estructurado produce gaps/CHG ligados a la historia correcta y, si corresponde, la marca `Stale` y bloquea DoD; downstream solo abre gaps/decisiones, no reescribe historias; sin feedback, comportamiento idéntico; tests verdes.
+- Afecta: `cli.py`, `sync.py` o módulo nuevo, schema `implementation_feedback.schema.json`, `traceability.py`, `commands_manifest.json`, adapters regenerados, `mcp.py`, `tests/`, `user_guide/05-traceability-and-memory.md`, `user_guide/11-chat-commands.md`.
+
+### IMP-061 — Evals/answer-keys propios del backlog
+- Estado: PENDING
+- Problema: Discovery y Specs tienen harness, pero Backlog no tiene answer keys estructurados para falsar derivación, no-invención, slicing, contexto por historia ni anchors.
+- Alcance: extender `tests/fixtures/evals/` y `tests/evals/run_discovery_evals.py` o crear `run_backlog_evals.py` con answer keys de backlog por fixture: historias esperadas desde Spec Units, no-invención, patrón de slicing esperado, contexto/critical surfaces distintos por historia y anchors válidos. Registrar baseline en este backlog.
+- Aceptación: el runner reporta cobertura de derivación, tasa de no-invención, acierto de slicing pattern y validez de anchors; baseline documentado; integrado a `verify.ps1`; falla solo ante regresión nueva.
+- Afecta: `tests/fixtures/evals/`, `tests/evals/`, README de fixtures, `docs/evolution/02-backlog-mejoras.md`.
+
 ---
 
 ## Registro de cambios del backlog
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | Horizonte 8 "Backlog gobernado" promovido desde `docs/evolution/05-propuesta-backlog.md` (APROBADA): creados IMP-048…IMP-061 como ítems `PENDING`, con Problema/Alcance/Aceptación/Afecta y orden obligatorio de implementación. Cambio documental puro; sin runtime ni evals nuevos en este paso administrativo. |
 | 2026-06-12 | IMP-046 VERIFIED & PUSHED (branch `imp-046-prd-grade-lens-checks`): checks PRD calibrados en lentes declarativos, nuevo `GAP-PRD-ROLLOUT-ENVIRONMENTS`, dicts de elicitación EN/ES extendidos, answer keys PRD actualizadas en los 4 fixtures, `test_prd_grade_lens_checks.py` y guía de artefactos actualizada. `verify.ps1` verde (109 tests OK), doctor PASS con warnings opcionales esperados y evals sin regresión. |
 | 2026-06-12 | IMP-038 VERIFIED & PUSHED (branch `imp-038-prd-specs-evals`): eval harness extendido hasta PRD/specs, answer keys con `prd.target_populated`, respuestas sintéticas de fixture para atravesar gates reales, test `test_evals_prd.py` y baseline documentado: `avg_prd_target_coverage=0.06`, `avg_specs_scaffolding=11.00`. `verify.ps1` verde; sin cambios de runtime. |
 | 2026-06-12 | Horizonte 8 promovido desde `docs/evolution/04-propuesta-prd-specs.md` (APROBADA): creados IMP-038…IMP-047 como "Fase PRD/Specs y preparación upstream", todos `PENDING`, con Problema/Alcance/Aceptación/Afecta/Depende/Prioridad y orden obligatorio de implementación. Cambio documental puro; sin runtime ni evals nuevos en este paso administrativo. |
