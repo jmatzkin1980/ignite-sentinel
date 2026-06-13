@@ -32,6 +32,8 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
 
 Discovery is the heart. The checklist detects what's missing deterministically; the agent can then add the semantic gaps a reassuring keyword would otherwise hide (`/annotate`) and stress-test the requirement with a pre-mortem and per-lens role-play (`/challenge`). When confirmed answers come back, the framework can normalize functional ones into testable **EARS** statements that downstream PRD/spec/backlog artifacts cite as `REQ-EARS-*`, and compile a project brief whose every section is either evidence-backed and cited, or explicitly pending — with per-section readiness and maturation telemetry telling you exactly where discovery is still stuck.
 
+Downstream generation stays progressively disclosed. `/specs` creates a human PRD plus a compact spec index and bounded `SPEC-U-*` units when confirmed EARS evidence exists. `/backlog` consumes focused context packs instead of rereading the whole workspace. The retrieval plans that drive those packs live in `sentinel/retrieval_plans/*.json`, and each retrieved result carries a `read_plan` (`source_path`, `section_path`, line anchors) so an agent can jump from summary to source.
+
 ---
 
 ## Quick Start
@@ -140,6 +142,8 @@ If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel re
 
 After `/specs`, agents may enrich the PRD through `/compose` by submitting JSON blocks with paragraph-level verbatim citations from local source-of-truth evidence. Accepted blocks are marked `Origin: agent`; pending sections and unsupported citations are rejected instead of being filled by narrative guesswork.
 
+When `/specs` is regenerated after changes, Sentinel writes unit-level deltas for `SPEC-U-*` files and propagates stale-unit hints into implementation readiness. Review those deltas before handing existing backlog work to implementation agents.
+
 `/validate` keeps structural validity separate from maturity signals. It returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings for scaffolding content, missing EARS/spec-unit continuity, dangling spec-unit source pointers, or PRD/spec drift. Use those warnings as corrective guidance, not as hardened gates.
 
 ## Command Protocol
@@ -157,7 +161,7 @@ This keeps execution repo-local, deterministic, and auditable across Codex, Kilo
 
 Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders (technology, design, quality, business, interactions). `/retrieve` builds focused context packs — progressive disclosure — before an agent executes a workflow, so it reads the exact section it needs instead of the whole workspace.
 
-When LanceDB is available, Sentinel uses local hybrid retrieval: vector search plus FTS on `text`, combined with reciprocal rank fusion. When LanceDB is unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start` / `line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. The index is always reconstructible from the source files; it is never the authority.
+When LanceDB is available, Sentinel uses local hybrid retrieval: vector search plus FTS on `text`, combined with reciprocal rank fusion. When LanceDB is unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start` / `line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Generated context packs preserve those anchors as `read_plan`; the index is always reconstructible from the source files and is never the authority.
 
 ## Workspace layout
 
@@ -168,7 +172,7 @@ workspaces/PROJECT_ID/
     03_design_context/      04_quality_context/   05_interactions/
   01_discovery/               # gaps.md, seeds, lens review, annotation & challenge reports
   02_requirements/            # requirements.md (+ EARS), project-brief.md
-  03_specs/                   # prd.md, specs.md, optional composition reports
+  03_specs/                   # prd.md, specs.md, SPEC-U units, optional composition reports
   04_backlog/                 # epics, user stories, acceptance criteria
   05_quality/                 # test cases, backlog readiness audit
   06_traceability/            # graph, matrix, command protocol log
