@@ -347,6 +347,26 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
+## `refine-backlog`
+
+Merge validated agent-authored backlog refinement proposals into the generated backlog.
+
+```powershell
+python -m sentinel /refine-backlog PROJECT_ID --source path\to\backlog-refinement.json
+```
+
+Run this only after `/backlog` has created `04_backlog/EPIC-001.md`. The source file is JSON with `proposals[]`; each proposal declares a kind (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), target stories or source units as applicable, a recommendation, rationale, and citations copied verbatim from local source-of-truth evidence. Sentinel rejects proposals that target unknown or pending stub stories, cite text that is not found verbatim, use pending Spec Units as grounding evidence, or try to promote loose preconditions into cross-cutting enablers.
+
+Outputs:
+
+- updated `04_backlog/EPIC-001.md` and targeted `04_backlog/US-NNN.md` files with an `Agent Backlog Refinements` section carrying `Origin: agent`
+- archived source under `04_backlog/refinements/`
+- `04_backlog/refinements/accepted_refinements.json`
+- `04_backlog/refinements/refinement_report.md`
+- traceability node and edges from epic/story/spec-unit context to the refinement event
+
+`/refine-backlog` is a governed review channel, not an automatic rewrite. Accepted proposals preserve the existing INVEST, vertical slicing, SPIDR, Lawrence, and `EPIC-002` enabler-boundary model; the BA still decides whether a future backlog regeneration or manual upstream evidence change should act on the proposal.
+
 ## `quality`
 
 Generate quality/test-case coverage from user stories.

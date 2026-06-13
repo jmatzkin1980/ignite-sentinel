@@ -107,6 +107,7 @@ python -m sentinel /context-request ACME_DASHBOARD --domain technology
 python -m sentinel /specs ACME_DASHBOARD
 python -m sentinel /compose ACME_DASHBOARD --source input\interactions\prd-composition.json   # optional: cited PRD narrative
 python -m sentinel /backlog ACME_DASHBOARD
+python -m sentinel /refine-backlog ACME_DASHBOARD --source input\interactions\backlog-refinement.json   # optional: cited backlog proposals
 python -m sentinel /quality ACME_DASHBOARD
 python -m sentinel /trace ACME_DASHBOARD
 python -m sentinel /health ACME_DASHBOARD
@@ -143,6 +144,8 @@ If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel re
 After `/specs`, agents may enrich the PRD through `/compose` by submitting JSON blocks with paragraph-level verbatim citations from local source-of-truth evidence. Accepted blocks are marked `Origin: agent`; pending sections and unsupported citations are rejected instead of being filled by narrative guesswork.
 
 When `/specs` is regenerated after changes, Sentinel writes unit-level deltas for `SPEC-U-*` files and propagates stale-unit hints into implementation readiness. Review those deltas before handing existing backlog work to implementation agents.
+
+After `/backlog`, agents may submit governed refinement proposals through `/refine-backlog`. The JSON source must cite local evidence verbatim and can propose reslicing, split/merge candidates, missing stories, or concrete enabler candidates for BA review. Accepted proposals are marked `Origin: agent` under `04_backlog/refinements/` and appended to the epic/story as proposals only; Sentinel does not rewrite the slicing model or invent backlog scope.
 
 `/validate` keeps structural validity separate from maturity signals. It returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings for scaffolding content, missing EARS/spec-unit continuity, dangling spec-unit source pointers, or PRD/spec drift. Use those warnings as corrective guidance, not as hardened gates.
 

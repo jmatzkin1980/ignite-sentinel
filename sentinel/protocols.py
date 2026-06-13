@@ -18,6 +18,7 @@ MUTATING_COMMANDS = {
     "annotate",
     "challenge",
     "compose",
+    "refine-backlog",
     "brief",
     "resolve-gaps",
     "context-request",
@@ -43,7 +44,7 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if command in {"specs", "backlog"} and phase == "initialized":
         raise RuntimeError("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
-    if command in {"backlog", "quality"} and health == "DIRTY":
+    if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
         raise RuntimeError(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
 
     if command == "quality" and not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
