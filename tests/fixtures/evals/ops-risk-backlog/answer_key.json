@@ -95,6 +95,15 @@
     "expect_dod_missing": true,
     "rationale": "IMP-050 validates governed story lifecycle mutation through /story-status and persisted state/frontmatter; IMP-051 validates persisted DoR/DoD gate results, with DoR passed for a context-backed story and DoD pending until acceptance evidence is attached."
   },
+  "backlog_rollup": {
+    "expected_stories_total": 10,
+    "expected_status_counts": {
+      "Ready": 1,
+      "Done": 0
+    },
+    "must_contain": ["# Backlog Board -", "### Ready", "`US-004`", "Ops BA"],
+    "rationale": "IMP-052 validates the BA-facing backlog board and persisted rollup after governed story status changes, including concrete EPIC-002 enabler stories when they are materialized as backlog items."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

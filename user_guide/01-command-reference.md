@@ -335,6 +335,7 @@ Outputs:
 
 - `04_backlog/EPIC-001.md`
 - `04_backlog/US-001.md`
+- `04_backlog/BACKLOG.md`
 - optional `04_backlog/EPIC-002-cross-cutting-enablers.md`
 - `08_context_packs/backlog_generation.json`
 - `08_context_packs/implementation_readiness.json`
@@ -347,6 +348,25 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
+`/backlog` also refreshes `04_backlog/BACKLOG.md`, a BA-facing board with summary counts, rollup by epic, status lanes, owners, readiness scores, and blockers. The board is generated from governed workspace artifacts; never edit it by hand.
+
+## `backlog-status`
+
+Generate or refresh the BA-facing backlog board and rollup.
+
+```powershell
+python -m sentinel /backlog-status PROJECT_ID
+```
+
+Run this after `/backlog` has created story files, or after reviewing lifecycle changes. Sentinel reads `state.json#story_lifecycle`, `state.json#story_gates`, `04_backlog/US-NNN.md`, and `08_context_packs/implementation_readiness.json`, then writes `04_backlog/BACKLOG.md` and persists the current `backlog_rollup` summary in `state.json`.
+
+Outputs:
+
+- `04_backlog/BACKLOG.md`
+- `state.json#backlog_rollup`
+
+`/backlog-status` does not change story status, owner, DoR/DoD evidence, slicing rationale, or the EPIC-002 enabler boundary. It only materializes the review view from existing source-of-truth artifacts.
+
 ## `story-status`
 
 Update a governed story lifecycle status and owner.
@@ -356,7 +376,7 @@ python -m sentinel /story-status PROJECT_ID --story US-001 --set Ready --owner "
 python -m sentinel /story-status PROJECT_ID --story US-001 --set Done --evidence path\to\acceptance-evidence.md
 ```
 
-Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, evaluates DoR/DoD gates, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter, lifecycle section and checklists, appends `04_backlog/status_log.md`, and records traceability plus the command protocol log.
+Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, evaluates DoR/DoD gates, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter, lifecycle section and checklists, appends `04_backlog/status_log.md`, refreshes `04_backlog/BACKLOG.md`, and records traceability plus the command protocol log.
 
 `/story-status` is the only supported mutation path for story status or owner. `/backlog` preserves existing status/owner values when it regenerates stories and writes DoR/DoD results into `implementation_readiness.json` plus `state.json#story_gates`.
 

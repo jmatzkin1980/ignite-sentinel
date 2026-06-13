@@ -9,6 +9,7 @@ from .backlog_gates import (
     register_acceptance_evidence,
     update_story_gate_state,
 )
+from .backlog_rollup import backlog_status
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
@@ -133,6 +134,7 @@ def update_story_status(
     story_node = story_node_id(project_id, story_id)
     if story_node:
         add_edge(project_id, change_id, story_node, "updates_story_status")
+    board = backlog_status(project_id)
 
     return {
         "story_id": story_id,
@@ -143,6 +145,7 @@ def update_story_status(
         "dod": gate_result["dod"],
         "warnings": transition_warnings(next_status, gate_result),
         "evidence": evidence_record,
+        "backlog_board": board["path"],
         "change_id": change_id,
         "path": str(story_path.as_posix()),
     }

@@ -22,6 +22,7 @@ REQUIRED_COMMANDS = [
     "maturity",
     "specs",
     "backlog",
+    "backlog-status",
     "quality",
     "health",
     "trace",

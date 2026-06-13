@@ -12,6 +12,7 @@ MUTATING_COMMANDS = {
     "sync",
     "specs",
     "backlog",
+    "backlog-status",
     "quality",
     "reindex",
     "gaps",

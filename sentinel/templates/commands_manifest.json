@@ -26,6 +26,12 @@
       "body": "# Ignite Backlog\n\nParse `PROJECT_ID` from:\n\n```text\n/backlog PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /backlog PROJECT_ID\n```\n\nSummarize generated epic, story, and acceptance criteria IDs."
     },
     {
+      "name": "backlog-status",
+      "description": "Generate the BA-facing backlog board and rollup by epic/status.",
+      "kilo_agent": "sentinel-backlog",
+      "body": "# Ignite Backlog Status\n\nParse `PROJECT_ID` from:\n\n```text\n/backlog-status PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /backlog-status PROJECT_ID\n```\n\nThe runtime reads governed story lifecycle state, DoR/DoD gates, and implementation readiness, writes `04_backlog/BACKLOG.md`, and returns the rollup by epic and status. Summarize total stories, Ready/Done percentages, owners, blockers, and the board path."
+    },
+    {
       "name": "refine-backlog",
       "description": "Merge validated agent-authored backlog refinement proposals with verbatim local citations.",
       "kilo_agent": "sentinel-backlog",
