@@ -10,6 +10,7 @@ from .discovery import extract_personas, extract_functional_signals, extract_met
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
+from .slicing_model import load_slicing_model
 from .traceability import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
@@ -917,6 +918,8 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "blast_radius": execution.get("blast_radius", []),
         "trace": story.get("trace", []),
         "source_unit": story.get("source_unit", "[PENDING INPUT]"),
+        "slicing": story.get("slicing", "[PENDING INPUT]"),
+        "slicing_rationale": story.get("slicing_rationale", "[PENDING INPUT]"),
     }
 
 
@@ -1044,8 +1047,9 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
     specs: list[dict[str, Any]] = []
     domain_coverage = build_domain_context_coverage(backlog_context)
     spec_units = read_spec_units(project_id)
+    slicing_model = load_slicing_model()
     if not spec_units:
-        story = pending_backlog_story(domain_coverage, backlog_context)
+        story = pending_backlog_story(domain_coverage, backlog_context, slicing_model)
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
         return [story]
     for index, unit in enumerate(spec_units, start=1):
@@ -1055,6 +1059,7 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
         statement = str(unit.get("statement", "")).strip()
         title = title_for_spec_unit_story(unit)
         goal = goal_for_spec_unit(unit)
+        slicing_decision = slicing_decision_for_spec_unit(unit, slicing_model)
         story = {
             "id": story_id,
             "type": "value_story",
@@ -1062,7 +1067,8 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
             "label": "Spec Unit",
             "fr": str(unit.get("id", "SPEC-U-PENDING")),
             "jtbd": ", ".join(str(item) for item in unit.get("ears", [])) or "[PENDING INPUT]",
-            "slicing": "Workflow Step / Happy Path",
+            "slicing": slicing_decision["slicing"],
+            "slicing_rationale": slicing_decision["rationale"],
             "description": f"Entrega el comportamiento confirmado en `{unit.get('id', 'SPEC-U-PENDING')}` como un slice vertical trazable.",
             "goal": goal,
             "benefit": "la capacidad confirmada se puede planificar, implementar y validar sin reinterpretar el PRD o inventar alcance",
@@ -1080,7 +1086,12 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
     return specs
 
 
-def pending_backlog_story(domain_coverage: list[dict[str, str]], backlog_context: dict[str, Any]) -> dict[str, Any]:
+def pending_backlog_story(
+    domain_coverage: list[dict[str, str]],
+    backlog_context: dict[str, Any],
+    slicing_model: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    decision = slicing_fallback_decision(slicing_model or load_slicing_model())
     story = {
         "id": "US-001",
         "type": "pending_input_stub",
@@ -1088,7 +1099,8 @@ def pending_backlog_story(domain_coverage: list[dict[str, str]], backlog_context
         "label": "Pending",
         "fr": "[PENDING INPUT]",
         "jtbd": "[PENDING INPUT]",
-        "slicing": "Workflow Step / Happy Path",
+        "slicing": decision["slicing"],
+        "slicing_rationale": "[PENDING INPUT] No confirmed Spec Unit exists, so the fallback slicing pattern is retained until evidence can select a more specific SPIDR/Lawrence path.",
         "description": "No evidence-backed `SPEC-U-*` unit exists yet, so Sentinel preserves the missing input instead of creating placeholder stories.",
         "goal": "confirmar Spec Units funcionales trazables antes de derivar historias de valor",
         "benefit": "el backlog no inventa alcance y el BA puede resolver los gaps que desbloquean slicing",
@@ -1124,6 +1136,38 @@ def goal_for_spec_unit(unit: dict[str, Any]) -> str:
     if statement:
         return statement
     return f"implementar el comportamiento confirmado en {unit.get('id', 'SPEC-U-PENDING')}"
+
+
+def slicing_decision_for_spec_unit(unit: dict[str, Any], slicing_model: dict[str, Any] | None = None) -> dict[str, str]:
+    model = slicing_model or load_slicing_model()
+    text = " ".join(str(unit.get(key, "")) for key in ("statement", "pattern", "title")).lower()
+    for pattern in model.get("patterns", []):
+        tokens = [str(token).lower() for token in pattern.get("tokens", [])]
+        if tokens and any(token in text for token in tokens):
+            unit_id = str(unit.get("id", "SPEC-U-PENDING"))
+            return {
+                "slicing": str(pattern["slicing"]),
+                "slicing_pattern_id": str(pattern["id"]),
+                "rationale": f"{unit_id}: {pattern['rationale']}",
+            }
+    return slicing_fallback_decision(model, unit)
+
+
+def slicing_fallback_decision(
+    slicing_model: dict[str, Any],
+    unit: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    fallback = next(
+        pattern
+        for pattern in slicing_model.get("patterns", [])
+        if pattern.get("slicing") == "Workflow Step / Happy Path"
+    )
+    prefix = f"{unit.get('id', 'SPEC-U-PENDING')}: " if unit else ""
+    return {
+        "slicing": str(fallback["slicing"]),
+        "slicing_pattern_id": str(fallback["id"]),
+        "rationale": f"{prefix}{fallback['rationale']}",
+    }
 
 
 def domain_for_spec_unit(unit: dict[str, Any]) -> str:
@@ -2318,6 +2362,7 @@ def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context:
     readiness = backlog_context.get("implementation_readiness", {})
     ears_block = render_ears_requirements_table(backlog_context)
     trace_frontmatter = frontmatter_list(["REQ-001", *ears_trace_ids(backlog_context), "PRD-001", "SPEC-001"])
+    slicing_model = load_slicing_model()
     return f"""---
 id: EPIC-001
 project: {project_id}
@@ -2376,16 +2421,7 @@ Backlog generation consumes living domain context when Technology, Design, Quali
 
 ## Slicing Strategy
 
-| Heuristic | How Sentinel Applies It |
-| --- | --- |
-| Product Backlog transparency | Items stay ordered, explicit and inspectable against the product goal. |
-| INVEST | Stories must be independent enough to plan, valuable, small enough for a sprint-sized increment, and testable. |
-| Vertical slicing | Prefer slices that cross user experience, behavior, data, and validation. Avoid frontend-only/backend-only stories as the default. |
-| SPIDR | Use Spikes for uncertainty, Paths for alternate flows, Interfaces for surfaces, Data for source variations, Rules for business constraints. |
-| Lawrence patterns | Reduce variation to the smallest useful version first, then add workflow steps, edge cases, performance or external dependency work. |
-| Small but valuable | Do not split below the value boundary. A small story must still be independently meaningful, testable, and useful. |
-| Cross-cutting enablers | Only create enabler backlog when implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. Generic environment or accessibility setup is a precondition, not an enabler story. |
-| Agent readiness | Give downstream agents bounded context, domain evidence, autonomy limits, validation contract, non-goals, dependencies, blast radius and stop conditions. |
+{render_slicing_strategy_table(slicing_model)}
 
 ## Story Map
 
@@ -2395,9 +2431,7 @@ Backlog generation consumes living domain context when Technology, Design, Quali
 
 ## Cross-Cutting Enabler Boundary
 
-Use a separate enabler epic only when the work is specifically required to support project functionality across multiple stories, epics, FRs, or implementation surfaces. Valid enablers name the capability boundary they support, the risk or dependency they reduce, the reason they must be built earlier, and the objective evidence that proves completion.
-
-Reject loose items such as "make an internal tool accessible", generic environment setup, broad infrastructure hardening, or unspecified backend/frontend preparation unless they are tied to this project's confirmed functionality and have implementation evidence.
+{render_enabler_boundary(slicing_model)}
 
 ## Retrieved Context Summary
 
@@ -2415,6 +2449,19 @@ Reject loose items such as "make an internal tool accessible", generic environme
 - [ ] No story is only a technical layer unless marked as a spike/scaffolding exception.
 - [ ] The epic can be handed to planning, implementation and test agents without loading the entire workspace.
 """
+
+
+def render_slicing_strategy_table(slicing_model: dict[str, Any]) -> str:
+    rows = [
+        f"| {row['heuristic']} | {row['applies']} |"
+        for row in slicing_model.get("strategy_rows", [])
+    ]
+    return "| Heuristic | How Sentinel Applies It |\n| --- | --- |\n" + "\n".join(rows)
+
+
+def render_enabler_boundary(slicing_model: dict[str, Any]) -> str:
+    paragraphs = slicing_model.get("enabler_boundary", {}).get("paragraphs", [])
+    return "\n\n".join(str(item) for item in paragraphs)
 
 
 def render_enabler_epic(
@@ -2502,6 +2549,8 @@ I want {story['goal'].lower()},
 So that {story['benefit'].lower()}
 
 **Slicing Pattern:** {story['slicing']}
+
+**Slicing Rationale:** {story.get('slicing_rationale', '[PENDING INPUT]')}
 
 **Type:** {story['type']}
 
@@ -2685,6 +2734,7 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 ## Functional Slice
 
 - Slicing pattern: {story['slicing']}.
+- Slicing rationale: {story.get('slicing_rationale', '[PENDING INPUT]')}.
 - Story type: {story['type']}.
 - Dependencies: {', '.join(story['dependencies']) or 'None'}.
 - Enables: {', '.join(story.get('enables', [])) or 'N/A'}.
