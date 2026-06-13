@@ -24,6 +24,8 @@ Rules:
 - Derive value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files. One evidence-backed Spec Unit should become one vertical story.
 - If no functional Spec Unit exists, keep a single `[PENDING INPUT]` backlog stub and push the issue upstream through gaps or `/specs`; do not expand a fixed placeholder story list.
 - Every value story must trace to an epic, `SPEC-U-*`, spec index, PRD, requirement, `REQ-EARS-*`, and acceptance criteria when available.
+- Treat `sentinel/slicing/backlog_slicing_model.json` as the declarative source for the existing INVEST, vertical slicing, SPIDR, Lawrence, small-but-valuable and enabler-boundary model.
+- Review each story's `Slicing Pattern` and `Slicing Rationale`; the runtime selects them from that model according to the shape of the Spec Unit.
 - Use living domain context from Technology, Design, Quality, Delivery, and Product folders through local retrieval. Do not invent missing commands, files, design tokens, regression suites, data contracts, or blast-radius boundaries.
 - Keep `[PENDING DOMAIN CONTEXT]` visible when a domain contract is missing.
 - Include `Domain Context Coverage`, `Agent Execution Contract`, and `Retrieval Plan For Execution Agents` in stories.

@@ -341,6 +341,8 @@ Outputs:
 
 `/backlog` derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files. Each evidence-backed Spec Unit becomes one vertical story with AC and trace IDs derived from that unit and its `REQ-EARS-*` rows. If no functional Spec Unit exists yet, Sentinel emits a single `[PENDING INPUT]` stub that points to the gaps blocking backlog slicing instead of generating placeholder scope.
 
+The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json`. That file preserves the framework's existing INVEST, vertical slicing, SPIDR, Lawrence and enabler-boundary guidance, and it drives each story's `Slicing Pattern` plus `Slicing Rationale`.
+
 `/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage`, derive `Agent Execution Contract` sections, and create a story-level retrieval plan for downstream execution agents. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.

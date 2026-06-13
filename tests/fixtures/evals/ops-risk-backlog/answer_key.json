@@ -70,12 +70,12 @@
     "require_spec_unit_trace": true,
     "require_no_invented_stories": true,
     "expected_slicing_by_source_unit": {
-      "SPEC-U-001": "Workflow Step / Happy Path",
-      "SPEC-U-002": "Workflow Step / Happy Path",
-      "SPEC-U-003": "Workflow Step / Happy Path",
-      "SPEC-U-004": "Workflow Step / Happy Path",
-      "SPEC-U-005": "Workflow Step / Happy Path",
-      "SPEC-U-006": "Workflow Step / Happy Path"
+      "SPEC-U-001": "Data / External Dependency",
+      "SPEC-U-002": "Rules / Regression Slice",
+      "SPEC-U-003": "Interface / UX State",
+      "SPEC-U-004": "Data / External Dependency",
+      "SPEC-U-005": "Data / External Dependency",
+      "SPEC-U-006": "Quality Evidence / Traceability"
     },
     "anchors": {
       "require_valid": false,

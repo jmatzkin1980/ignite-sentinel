@@ -169,6 +169,7 @@ Creates:
 - `US-00x.md` story mirrors for traceability and quality tooling
 - one value story per confirmed `SPEC-U-*` unit, or a `[PENDING INPUT]` stub when no evidence-backed unit exists
 - user stories with domain context coverage, agent execution contracts, and retrieval plans
+- story-level `Slicing Pattern` and `Slicing Rationale` selected from `sentinel/slicing/backlog_slicing_model.json`
 - acceptance criteria with fail-to-pass, pass-to-pass, and evidence classifications
 - `08_context_packs/backlog_generation.json`
 - `08_context_packs/implementation_readiness.json`
@@ -178,6 +179,7 @@ Rules:
 
 - prefer vertical, value-oriented stories;
 - derive story scope from confirmed `03_specs/units/SPEC-U-NNN.md` files; do not expand a fixed placeholder story list;
+- preserve the declarative INVEST/SPIDR/Lawrence slicing model and the separate cross-cutting enabler boundary;
 - keep `[PENDING DOMAIN CONTEXT]` visible instead of inventing missing implementation detail;
 - create a cross-cutting enabler epic only for concrete implementation work that must be built in advance to support confirmed project functionality;
 - rerun `/reindex` and `/backlog` if domain context changes after backlog generation.

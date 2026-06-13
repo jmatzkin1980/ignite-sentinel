@@ -311,11 +311,13 @@ Each epic file includes:
 - YAML frontmatter for machine routing and Git-friendly review;
 - epic outcome, source and retrieval summary;
 - domain context coverage for Product, Technology, Design, Quality, and Delivery;
-- slicing strategy based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
+- slicing strategy loaded from `sentinel/slicing/backlog_slicing_model.json`, based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
 - embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 
 Sentinel derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files: one Spec Unit becomes one vertical story, and its AC evidence path cites the unit plus applicable `REQ-EARS-*` rows. When no functional Spec Unit exists, Sentinel renders one `[PENDING INPUT]` stub instead of the old fixed five-story scaffold, so missing evidence remains visible.
+
+Each story records both `Slicing Pattern` and `Slicing Rationale`. The pattern is selected from the existing declarative slicing catalog according to the shape of the Spec Unit, without changing the cross-cutting enabler boundary.
 
 This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
