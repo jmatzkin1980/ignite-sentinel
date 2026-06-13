@@ -603,10 +603,23 @@ def story_status_eval(ws: Path, key: dict) -> dict[str, object]:
     expected_owner = str(status_key.get("owner", ""))
     state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
     lifecycle = state.get("story_lifecycle", {}).get(story_id, {})
+    gate = state.get("story_gates", {}).get(story_id, {})
     if lifecycle.get("status") != expected_status:
         mismatches.append(f"expected {story_id} status {expected_status}, got {lifecycle.get('status')}")
     if expected_owner and lifecycle.get("owner") != expected_owner:
         mismatches.append(f"expected {story_id} owner {expected_owner}, got {lifecycle.get('owner')}")
+    if status_key.get("expect_dor_missing"):
+        dor = gate.get("dor", {}) if isinstance(gate, dict) else {}
+        if dor.get("passed") is not False or not dor.get("missing"):
+            mismatches.append(f"expected {story_id} DoR gate to persist missing items")
+    if status_key.get("expect_dor_passed"):
+        dor = gate.get("dor", {}) if isinstance(gate, dict) else {}
+        if dor.get("passed") is not True:
+            mismatches.append(f"expected {story_id} DoR gate to pass")
+    if status_key.get("expect_dod_missing"):
+        dod = gate.get("dod", {}) if isinstance(gate, dict) else {}
+        if dod.get("passed") is not False or not dod.get("missing"):
+            mismatches.append(f"expected {story_id} DoD gate to persist missing items")
     story_path = ws / "04_backlog" / f"{story_id}.md"
     if not story_path.exists():
         mismatches.append(f"{story_id}.md missing")

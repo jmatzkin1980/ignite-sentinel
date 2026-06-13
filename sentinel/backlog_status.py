@@ -4,6 +4,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .backlog_gates import (
+    evaluate_story_gates,
+    register_acceptance_evidence,
+    update_story_gate_state,
+)
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
@@ -78,7 +83,13 @@ def apply_lifecycle_to_stories(project_id: str, stories: list[dict[str, Any]]) -
     return merged
 
 
-def update_story_status(project_id: str, story_id: str, status: str, owner: str | None = None) -> dict[str, object]:
+def update_story_status(
+    project_id: str,
+    story_id: str,
+    status: str,
+    owner: str | None = None,
+    evidence: Path | None = None,
+) -> dict[str, object]:
     story_id = normalize_story_id(story_id)
     next_status = normalize_story_status(status)
     base = workspace_path(project_id)
@@ -92,6 +103,13 @@ def update_story_status(project_id: str, story_id: str, status: str, owner: str 
         raise StoryStatusError(f"Illegal story transition: {current_status} -> {next_status}.")
 
     next_owner = current["owner"] if owner is None else str(owner).strip()
+    evidence_record = register_acceptance_evidence(project_id, story_id, evidence) if evidence else None
+    gate_result = evaluate_story_gates(project_id, story_for_gate(project_id, story_id, next_owner))
+    if next_status == "Ready" and gate_result["strict"] and not gate_result["dor"]["passed"]:
+        raise StoryStatusError("DoR gate blocks Ready: " + "; ".join(gate_result["dor"]["missing"]))
+    if next_status == "Done" and gate_result["strict"] and not gate_result["dod"]["passed"]:
+        raise StoryStatusError("DoD gate blocks Done: " + "; ".join(gate_result["dod"]["missing"]))
+
     lifecycle = story_lifecycle_state(project_id)
     lifecycle[story_id] = {
         "status": next_status,
@@ -100,6 +118,8 @@ def update_story_status(project_id: str, story_id: str, status: str, owner: str 
     }
     update_state(project_id, story_lifecycle=lifecycle, last_story_status_update=story_id)
     update_story_frontmatter(story_path, next_status, next_owner)
+    update_story_gate_state(project_id, story_id, gate_result)
+    update_story_gate_sections(story_path, gate_result)
     append_status_log(project_id, story_id, current_status, next_status, next_owner)
     change_id = add_node(
         project_id,
@@ -119,9 +139,82 @@ def update_story_status(project_id: str, story_id: str, status: str, owner: str 
         "previous_status": current_status,
         "status": next_status,
         "owner": next_owner,
+        "dor": gate_result["dor"],
+        "dod": gate_result["dod"],
+        "warnings": transition_warnings(next_status, gate_result),
+        "evidence": evidence_record,
         "change_id": change_id,
         "path": str(story_path.as_posix()),
     }
+
+
+def transition_warnings(status: str, gate_result: dict[str, Any]) -> list[str]:
+    if status == "Ready" and not gate_result["dor"]["passed"]:
+        return [f"DoR missing: {item}" for item in gate_result["dor"]["missing"]]
+    if status == "Done" and not gate_result["dod"]["passed"]:
+        return [f"DoD missing: {item}" for item in gate_result["dod"]["missing"]]
+    return []
+
+
+def story_for_gate(project_id: str, story_id: str, owner: str) -> dict[str, Any]:
+    readiness = readiness_item_for_story(project_id, story_id)
+    story_path = workspace_path(project_id) / "04_backlog" / f"{story_id}.md"
+    text = story_path.read_text(encoding="utf-8")
+    return {
+        "id": story_id,
+        "owner": owner,
+        "acceptance": acceptance_from_story_markdown(text),
+        "trace": readiness.get("trace", trace_from_frontmatter(text)),
+        "slicing": readiness.get("slicing", slicing_from_story_markdown(text)),
+        "readiness": readiness.get("readiness", ""),
+        "readiness_score": readiness.get("readiness_score", 0.0),
+    }
+
+
+def readiness_item_for_story(project_id: str, story_id: str) -> dict[str, Any]:
+    path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
+    pack = read_json(path, {})
+    for item in pack.get("stories", []) if isinstance(pack, dict) else []:
+        if item.get("story_id") == story_id:
+            return item
+    return {}
+
+
+def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    for line in text.splitlines():
+        if not line.startswith("| AC-"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) >= 2:
+            items.append({"id": cells[0], "classification": cells[1]})
+    return items
+
+
+def trace_from_frontmatter(text: str) -> list[str]:
+    if not text.startswith("---\n"):
+        return []
+    end = text.find("\n---", 4)
+    if end == -1:
+        return []
+    values: list[str] = []
+    in_trace = False
+    for raw in text[4:end].splitlines():
+        if raw.startswith("trace:"):
+            in_trace = True
+            continue
+        if in_trace and raw.startswith("  - "):
+            values.append(raw[4:].strip())
+        elif in_trace and raw and not raw.startswith(" "):
+            break
+    return values
+
+
+def slicing_from_story_markdown(text: str) -> str:
+    for line in text.splitlines():
+        if line.startswith("- Slicing pattern:"):
+            return line.split(":", 1)[1].strip().rstrip(".")
+    return ""
 
 
 def normalize_story_id(value: str) -> str:
@@ -185,6 +278,51 @@ def update_story_lifecycle_section(text: str, status: str, owner: str) -> str:
     if marker not in text:
         return text
     return text.replace(marker, "\n" + replacement + marker, 1)
+
+
+def update_story_gate_sections(path: Path, gate_result: dict[str, Any]) -> None:
+    text = path.read_text(encoding="utf-8")
+    dor = gate_result.get("dor", {})
+    dod = gate_result.get("dod", {})
+    readiness = (
+        "## Readiness Checklist\n\n"
+        f"- {gate_checkbox(dor, 'slicing_pattern_assigned')} JTBD link is present.\n"
+        f"- {gate_checkbox(dor, 'no_blocking_trace_gaps')} Source requirement, PRD, spec, FR and context pack links are present.\n"
+        f"- {gate_checkbox(dor, 'acceptance_criteria_classified')} Acceptance criteria are testable.\n"
+        f"- {gate_checkbox(dor, 'readiness_score')} Required technology/design/quality context is cited or explicitly marked as pending.\n\n"
+        f"{render_gate_missing_block('DoR', dor)}"
+    )
+    done = (
+        "## Done Checklist\n\n"
+        f"- {gate_checkbox(dod, 'acceptance_evidence_traced')} Downstream acceptance evidence is traced.\n"
+        f"- {gate_checkbox(dod, 'ready_gate_passed')} DoR remains satisfied at closure time.\n\n"
+        f"{render_gate_missing_block('DoD', dod)}"
+    )
+    text = replace_section(text, "## Readiness Checklist", readiness)
+    text = replace_section(text, "## Done Checklist", done)
+    path.write_text(text, encoding="utf-8")
+
+
+def replace_section(text: str, heading: str, replacement: str) -> str:
+    pattern = re.compile(rf"{re.escape(heading)}\n\n.*?(?=\n## |\Z)", re.DOTALL)
+    if pattern.search(text):
+        return pattern.sub(replacement, text, count=1)
+    return text.rstrip() + "\n\n" + replacement + "\n"
+
+
+def gate_checkbox(gate: dict[str, Any], key: str) -> str:
+    for item in gate.get("items", []) if isinstance(gate, dict) else []:
+        if item.get("key") == key:
+            return "[x]" if item.get("passed") else "[ ]"
+    return "[ ]"
+
+
+def render_gate_missing_block(label: str, gate: dict[str, Any]) -> str:
+    missing = gate.get("missing", []) if isinstance(gate, dict) else []
+    if not missing:
+        return f"**{label} Gate:** Passed."
+    rows = "\n".join(f"- {item}" for item in missing)
+    return f"**{label} Gate Missing Items:**\n{rows}"
 
 
 def append_status_log(project_id: str, story_id: str, previous: str, status: str, owner: str) -> Path:

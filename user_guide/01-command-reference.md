@@ -353,11 +353,22 @@ Update a governed story lifecycle status and owner.
 
 ```powershell
 python -m sentinel /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
+python -m sentinel /story-status PROJECT_ID --story US-001 --set Done --evidence path\to\acceptance-evidence.md
 ```
 
-Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter and lifecycle section, appends `04_backlog/status_log.md`, and records traceability plus the command protocol log.
+Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, evaluates DoR/DoD gates, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter, lifecycle section and checklists, appends `04_backlog/status_log.md`, and records traceability plus the command protocol log.
 
-`/story-status` is the only supported mutation path for story status or owner. `/backlog` preserves existing status/owner values when it regenerates stories. DoR/DoD evaluation and strict readiness blocking are intentionally handled by later backlog gates; this command only governs the lifecycle state machine.
+`/story-status` is the only supported mutation path for story status or owner. `/backlog` preserves existing status/owner values when it regenerates stories and writes DoR/DoD results into `implementation_readiness.json` plus `state.json#story_gates`.
+
+`backlog_gate` follows the existing soft-gate pattern:
+
+```yaml
+backlog_gate:
+  threshold: 1.0
+  strict: false
+```
+
+Default mode is non-blocking: moving to `Ready` or `Done` returns warnings naming the missing checklist items. Opt-in strict mode blocks `Ready` when DoR is incomplete and blocks `Done` when DoD lacks traced acceptance evidence. Use `--evidence PATH` to copy a local downstream evidence file under `04_backlog/acceptance_evidence/` and link it to the story in traceability.
 
 ## `refine-backlog`
 

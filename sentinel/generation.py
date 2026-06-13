@@ -8,6 +8,7 @@ from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
 from .backlog_status import apply_lifecycle_to_stories
+from .backlog_gates import evaluate_story_gates, update_story_gate_state
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
@@ -837,7 +838,17 @@ def build_implementation_readiness_pack(
     stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
 ) -> dict[str, Any]:
-    readiness_items = [implementation_readiness_for_story(story) for story in stories]
+    readiness_items: list[dict[str, Any]] = []
+    for story in stories:
+        item = implementation_readiness_for_story(story)
+        gate_result = evaluate_story_gates(project_id, story, item)
+        item["dor"] = gate_result["dor"]
+        item["dod"] = gate_result["dod"]
+        item["backlog_gate"] = {"threshold": gate_result["threshold"], "strict": gate_result["strict"]}
+        story["dor"] = gate_result["dor"]
+        story["dod"] = gate_result["dod"]
+        update_story_gate_state(project_id, str(story["id"]), gate_result)
+        readiness_items.append(item)
     blocker_count = sum(1 for item in readiness_items if item["status"] != "ready")
     verdict = "READY" if blocker_count == 0 else "PARTIAL"
     pending_by_domain: dict[str, int] = {}
@@ -2667,6 +2678,8 @@ def render_story_section(story: dict[str, Any]) -> str:
     dependencies = ", ".join(story["dependencies"]) or "None"
     acceptance = "\n\n".join(render_gherkin_criterion(item) for item in story["acceptance"])
     owner = story.get("owner") or "[UNASSIGNED]"
+    dor = story.get("dor", {})
+    dod = story.get("dod", {})
     return f"""### {story['id']} - {story['title']} [Label: {story['label']}]
 
 **Description:** {story['description']}
@@ -2719,19 +2732,38 @@ So that {story['benefit'].lower()}
 {acceptance}
 
 **Definition Of Ready:**
-- [ ] Product, design, technology and quality context is cited or explicitly pending.
-- [ ] Dependencies are known and do not hide a layer-only prerequisite.
-- [ ] Acceptance criteria are testable without reading the full workspace.
-- [ ] Open gaps or assumptions are visible before planning.
+- {gate_checkbox(dor, 'readiness_score')} Product, design, technology and quality context is cited or explicitly pending.
+- {gate_checkbox(dor, 'slicing_pattern_assigned')} Dependencies are known and do not hide a layer-only prerequisite.
+- {gate_checkbox(dor, 'acceptance_criteria_classified')} Acceptance criteria are testable without reading the full workspace.
+- {gate_checkbox(dor, 'no_blocking_trace_gaps')} Open gaps or assumptions are visible before planning.
+
+{render_gate_missing_block('DoR', dor)}
 
 **Definition Of Done:**
-- [ ] Code and artifact review completed.
-- [ ] Happy, validation and failure/recovery paths verified.
-- [ ] Trace IDs remain visible in implementation notes, tests or evidence.
-- [ ] No unrelated scope was added during implementation.
+- {gate_checkbox(dod, 'acceptance_evidence_traced')} Code and artifact review completed.
+- {gate_checkbox(dod, 'acceptance_evidence_traced')} Happy, validation and failure/recovery paths verified.
+- {gate_checkbox(dod, 'acceptance_evidence_traced')} Trace IDs remain visible in implementation notes, tests or evidence.
+- {gate_checkbox(dod, 'ready_gate_passed')} No unrelated scope was added during implementation.
+
+{render_gate_missing_block('DoD', dod)}
 
 **Traceability:** {", ".join(story['trace'])}
 """
+
+
+def gate_checkbox(gate: dict[str, Any], key: str) -> str:
+    for item in gate.get("items", []) if isinstance(gate, dict) else []:
+        if item.get("key") == key:
+            return "[x]" if item.get("passed") else "[ ]"
+    return "[ ]"
+
+
+def render_gate_missing_block(label: str, gate: dict[str, Any]) -> str:
+    missing = gate.get("missing", []) if isinstance(gate, dict) else []
+    if not missing:
+        return f"**{label} Gate:** Passed."
+    rows = "\n".join(f"- {item}" for item in missing)
+    return f"**{label} Gate Missing Items:**\n{rows}"
 
 
 def render_gherkin_criterion(criterion: dict[str, str]) -> str:
@@ -2837,6 +2869,8 @@ def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
     )
     normalized_reqs = [item for item in story.get("trace", []) if EARS_REQUIREMENT_ID_RE.match(str(item))]
     normalized_req_text = ", ".join(f"`{item}`" for item in normalized_reqs) or "`N/A`"
+    dor = story.get("dor", {})
+    dod = story.get("dod", {})
     return f"""---
 id: {story['id']}
 project: {project_id}
@@ -2902,10 +2936,19 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 
 ## Readiness Checklist
 
-- [ ] JTBD link is present.
-- [ ] Source requirement, PRD, spec, FR and context pack links are present.
-- [ ] Acceptance criteria are testable.
-- [ ] Required technology/design/quality context is cited or explicitly marked as pending.
+- {gate_checkbox(dor, 'slicing_pattern_assigned')} JTBD link is present.
+- {gate_checkbox(dor, 'no_blocking_trace_gaps')} Source requirement, PRD, spec, FR and context pack links are present.
+- {gate_checkbox(dor, 'acceptance_criteria_classified')} Acceptance criteria are testable.
+- {gate_checkbox(dor, 'readiness_score')} Required technology/design/quality context is cited or explicitly marked as pending.
+
+{render_gate_missing_block('DoR', dor)}
+
+## Done Checklist
+
+- {gate_checkbox(dod, 'acceptance_evidence_traced')} Downstream acceptance evidence is traced.
+- {gate_checkbox(dod, 'ready_gate_passed')} DoR remains satisfied at closure time.
+
+{render_gate_missing_block('DoD', dod)}
 """
 
 

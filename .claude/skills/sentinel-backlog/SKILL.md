@@ -15,7 +15,7 @@ Use this skill to generate execution-ready backlog artifacts.
 4. Review `workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json` to confirm each story has required domains, pending execution context, execution contract with anchors, retrieval plan, validation contract, dependencies, and freshness snapshot.
 5. Review `workspaces/PROJECT_ID/04_backlog/EPIC-001.md` as the primary backlog artifact. It contains the epic, domain context coverage, story map, slicing rationale, retrieved context summary, agent execution contracts, retrieval plans, and embedded stories.
 6. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
-7. When status or owner changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME"`.
+7. When status, owner, or Done evidence changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
 8. Run `python -m sentinel /quality PROJECT_ID`.
 9. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
 
@@ -36,7 +36,7 @@ Use this skill to generate execution-ready backlog artifacts.
   - SPIDR: Spikes, Paths, Interfaces, Data, Rules.
   - Lawrence-style reduction: isolate the smallest useful variation first, then add workflow steps, edge cases, performance, external dependency, or discovery stories.
 - Each story should include description, narrative, slicing pattern, dependencies, in/out of scope, context used, acceptance criteria, Definition of Ready, Definition of Done, and traceability.
-- Story lifecycle fields (`status`, `owner`) are governed workspace state. Update them only via `/story-status`; never edit `US-NNN.md` or `state.json` by hand.
+- Story lifecycle fields (`status`, `owner`) and DoR/DoD gate evidence are governed workspace state. Update them only via `/story-status`; never edit `US-NNN.md`, `state.json`, or acceptance evidence records by hand. Default `backlog_gate` warnings do not block; strict mode is opt-in.
 - Each epic/story should include `Domain Context Coverage` for Product, Technology, Design, Quality, and Delivery so humans and agents can see which domain evidence was used and what remains pending. Story coverage is computed from that story's mini-context; the global pack remains an aggregate index.
 - Each story may include an `Agent Execution Contract` derived from retrieved context: agent profile, command hints, critical surfaces, design match, engineering practices, autonomy limits, blast radius, validation contract, and parallelization/sequencing notes. Confirmed context signals should include anchors (`source_path`, `section_path`, `line_start`, `line_end`) so agents can open the exact source range.
 - Each story must include a `Retrieval Plan For Execution Agents` so planners, implementers, and testers know which focused `/retrieve` queries to run before touching code or tests.

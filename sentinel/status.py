@@ -25,8 +25,30 @@ def project_status(project_id: str) -> dict[str, object]:
         "last_gap_resolution_id": state.get("last_gap_resolution_id"),
         "prd_composition_count": state.get("prd_composition_count", 0),
         "last_prd_composition_id": state.get("last_prd_composition_id"),
+        "story_gates": summarize_story_gates(state.get("story_gates", {})),
         "next_step": next_step,
     }
+
+
+def summarize_story_gates(gates: object) -> dict[str, object]:
+    if not isinstance(gates, dict):
+        return {"stories": {}, "warnings": []}
+    warnings: list[str] = []
+    stories: dict[str, object] = {}
+    for story_id, gate in sorted(gates.items()):
+        if not isinstance(gate, dict):
+            continue
+        dor_missing = gate.get("dor", {}).get("missing", []) if isinstance(gate.get("dor"), dict) else []
+        dod_missing = gate.get("dod", {}).get("missing", []) if isinstance(gate.get("dod"), dict) else []
+        stories[story_id] = {
+            "dor_passed": gate.get("dor", {}).get("passed", False) if isinstance(gate.get("dor"), dict) else False,
+            "dod_passed": gate.get("dod", {}).get("passed", False) if isinstance(gate.get("dod"), dict) else False,
+            "dor_missing": dor_missing,
+            "dod_missing": dod_missing,
+        }
+        warnings.extend(f"{story_id} DoR: {item}" for item in dor_missing)
+        warnings.extend(f"{story_id} DoD: {item}" for item in dod_missing)
+    return {"stories": stories, "warnings": warnings}
 
 
 def count_gap_rows(gaps: list[dict[str, str]]) -> dict[str, int]:
