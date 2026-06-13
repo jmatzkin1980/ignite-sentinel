@@ -501,6 +501,12 @@ class ContextBroker:
                 if summary_only:
                     row["text"] = row["summary"]
                     row["content"] = row["summary"]
+                row["read_plan"] = {
+                    "source_path": row.get("source_path", row.get("file_path", "")),
+                    "section_path": row.get("section_path", ""),
+                    "line_start": int(row.get("line_start", 0) or 0),
+                    "line_end": int(row.get("line_end", 0) or 0),
+                }
                 scored.append(row)
         results = sorted(scored, key=lambda row: row["score"], reverse=True)[:limit]
         if max_chars is not None:

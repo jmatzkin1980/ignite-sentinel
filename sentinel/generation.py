@@ -9,35 +9,10 @@ from .memory import ContextBroker, get_multi_domain_context
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
+from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .traceability import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
-
-PRD_SECTION_QUERIES = {
-    "strategic_foundation": "problem outcome scope personas pain success metrics",
-    "personas": "users personas actors goals pain points proficiency frequency impacted teams",
-    "functional_requirements": "functional requirements acceptance criteria given when then business rules priority",
-    "nfr_kpi": "non functional requirements security privacy reliability auditability kpi target measurement baseline timeframe",
-    "jtbd_traceability": "jobs to be done jtbd emotional social traceability functional requirements",
-    "execution_plan": "dependencies owners mvp roadmap rollout environments team delivery",
-    "governance": "constraints compliance privacy glossary pending inputs decisions assumptions audit trail",
-    "backlog_handoff": "epics user stories slicing acceptance criteria traceability progressive disclosure",
-}
-
-BACKLOG_CONTEXT_QUERIES = {
-    "epic_value": ("business outcome scope mvp kpi users product goal", None),
-    "functional_slicing": ("functional requirements acceptance criteria given when then business rules jtbd", "product"),
-    "technical_dependencies": ("architecture integrations dependencies data ownership contracts failure behavior nfr", "technical"),
-    "ux_states": ("journey screens states validations copy accessibility empty loading error success permission", "design"),
-    "quality_risks": ("acceptance testability edge cases regression security privacy auditability evidence", "quality"),
-    "open_uncertainty": ("pending input gaps assumptions decisions dependencies roadmap blockers", None),
-    "enabler_boundary": ("SAD architecture as-is to-be frontend backend prototype enabler foundation cross-cutting precondition", None),
-    "execution_commands": ("build test lint typecheck migration docker boot environment commands", "technical"),
-    "critical_surfaces": ("files routes modules components database schema api contract tests critical surfaces blast radius", None),
-    "engineering_practices": ("handbook coding standards architecture decision adr error handling logging conventions", "technical"),
-    "design_match": ("figma prototype component tokens design system visual states interaction accessibility", "design"),
-    "regression_contract": ("test suite regression fail-to-pass pass-to-pass test data automation quality gate evidence", "quality"),
-}
 
 DOMAIN_CONTEXT_FOLDERS = {
     "Product": ("00_raw/00_client_requirement", "00_raw/01_business_context", "00_raw/05_interactions", "07_changes"),
@@ -712,32 +687,55 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     }
 
 
-def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: str) -> dict[str, Any]:
+def build_backlog_generation_context(
+    project_id: str,
+    spec_text: str,
+    prd_text: str,
+    retrieval_plans_dir: Path | str | None = None,
+    plan_override: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     broker = ContextBroker(project_id)
-    source_text = f"{spec_text[:1600]}\n\n{prd_text[:1600]}"
+    plan = load_retrieval_plan("backlog_generation", retrieval_plans_dir, plan_override)
+    source_documents = {"specs.md": spec_text, "prd.md": prd_text}
     sections: dict[str, Any] = {}
-    for section, (query, domain) in BACKLOG_CONTEXT_QUERIES.items():
+    for section, retrieval in plan["sections"].items():
+        query = str(retrieval["query"])
+        domain = retrieval.get("domain")
+        filters = dict(retrieval.get("filters", {}))
+        source_context = select_source_context(source_documents, retrieval)
         results = broker.retrieve(
-            f"{query}\n\n{source_text}",
+            compose_plan_query(retrieval, source_context),
             "backlog_generation",
-            limit=4,
+            limit=int(retrieval["limit"]),
             domain=domain,
-            max_chars=1800,
+            artifact_type=filters.get("artifact_type"),
+            status=filters.get("status"),
+            language=filters.get("language"),
+            sensitivity=filters.get("sensitivity"),
+            section=filters.get("section"),
+            max_chars=int(retrieval["budget_chars"]),
             summary_only=True,
         )
         sections[section] = {
             "query": query,
             "domain": domain or "any",
+            "filters": filters,
+            "limit": retrieval["limit"],
+            "budget_chars": retrieval["budget_chars"],
+            "summary_chars": retrieval["summary_chars"],
+            "lenses": retrieval["lenses"],
+            "source_sections": retrieval["source_sections"],
             "results": [
                 {
                     "artifact_id": row.get("artifact_id", "N/A"),
                     "artifact_type": row.get("artifact_type", "artifact"),
                     "domain": row.get("domain", "unknown"),
                     "section_path": row.get("section_path", ""),
-                    "summary": row.get("summary", row.get("text", ""))[:260],
+                    "summary": row.get("summary", row.get("text", ""))[: int(retrieval["summary_chars"])],
                     "why_retrieved": row.get("why_retrieved", ""),
                     "trace_ids": row.get("trace_ids", []),
                     "source_hash": row.get("source_hash", ""),
+                    "read_plan": row.get("read_plan", read_plan_for_row(row)),
                 }
                 for row in results
             ],
@@ -746,6 +744,7 @@ def build_backlog_generation_context(project_id: str, spec_text: str, prd_text: 
     pack = {
         "project_id": project_id,
         "workflow": "backlog_generation",
+        "retrieval_plan": {"workflow": plan["workflow"], "version": plan["version"]},
         "slicing_model": "vertical_value_slices_with_spidr_lawrence_invest",
         "domain_context_snapshot": domain_snapshot,
         "ears_requirements": load_ears_requirements(project_id),
@@ -806,6 +805,15 @@ def build_implementation_readiness_pack(
         trace_ids=[story["id"] for story in stories] or ["IMPL-READINESS"],
     )
     return pack
+
+
+def read_plan_for_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_path": row.get("source_path", row.get("file_path", "")),
+        "section_path": row.get("section_path", ""),
+        "line_start": int(row.get("line_start", 0) or 0),
+        "line_end": int(row.get("line_end", 0) or 0),
+    }
 
 
 def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
@@ -1386,28 +1394,53 @@ def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list
     ]
 
 
-def build_specs_generation_context(project_id: str, req_text: str) -> dict[str, Any]:
+def build_specs_generation_context(
+    project_id: str,
+    req_text: str,
+    retrieval_plans_dir: Path | str | None = None,
+    plan_override: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     broker = ContextBroker(project_id)
+    plan = load_retrieval_plan("specs_generation", retrieval_plans_dir, plan_override)
+    source_documents = {"requirements-context": req_text}
     sections: dict[str, Any] = {}
-    for section, query in PRD_SECTION_QUERIES.items():
+    for section, retrieval in plan["sections"].items():
+        query = str(retrieval["query"])
+        filters = dict(retrieval.get("filters", {}))
+        source_context = select_source_context(source_documents, retrieval)
         results = broker.retrieve(
-            f"{query}\n\n{req_text[:1200]}",
+            compose_plan_query(retrieval, source_context),
             "specs_generation",
-            limit=5,
-            max_chars=2200,
+            limit=int(retrieval["limit"]),
+            domain=retrieval.get("domain"),
+            artifact_type=filters.get("artifact_type"),
+            status=filters.get("status"),
+            language=filters.get("language"),
+            sensitivity=filters.get("sensitivity"),
+            section=filters.get("section"),
+            max_chars=int(retrieval["budget_chars"]),
             summary_only=True,
         )
         sections[section] = {
             "query": query,
+            "domain": retrieval.get("domain") or "any",
+            "filters": filters,
+            "limit": retrieval["limit"],
+            "budget_chars": retrieval["budget_chars"],
+            "summary_chars": retrieval["summary_chars"],
+            "lenses": retrieval["lenses"],
+            "source_sections": retrieval["source_sections"],
             "results": [
                 {
                     "artifact_id": row.get("artifact_id", "N/A"),
                     "artifact_type": row.get("artifact_type", "artifact"),
                     "domain": row.get("domain", "unknown"),
                     "section_path": row.get("section_path", ""),
-                    "summary": row.get("summary", row.get("text", ""))[:240],
+                    "summary": row.get("summary", row.get("text", ""))[: int(retrieval["summary_chars"])],
                     "why_retrieved": row.get("why_retrieved", ""),
                     "trace_ids": row.get("trace_ids", []),
+                    "source_hash": row.get("source_hash", ""),
+                    "read_plan": row.get("read_plan", read_plan_for_row(row)),
                 }
                 for row in results
             ],
@@ -1422,6 +1455,7 @@ def build_specs_generation_context(project_id: str, req_text: str) -> dict[str, 
     pack = {
         "project_id": project_id,
         "workflow": "specs_generation",
+        "retrieval_plan": {"workflow": plan["workflow"], "version": plan["version"]},
         "coverage_map": coverage_map,
         "coverage_score": round(covered / len(coverage_map), 3) if coverage_map else 0.0,
         "sections_total": len(coverage_map),

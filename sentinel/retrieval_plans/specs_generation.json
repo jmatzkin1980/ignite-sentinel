@@ -1,0 +1,65 @@
+{
+  "workflow": "specs_generation",
+  "version": 1,
+  "default_limit": 5,
+  "default_budget_chars": 2200,
+  "default_summary_chars": 240,
+  "sections": {
+    "strategic_foundation": {
+      "query": "problem outcome scope personas pain success metrics",
+      "domain": null,
+      "filters": {},
+      "lenses": ["business", "product"],
+      "source_sections": ["Identidad", "Executive Summary", "Problem", "Scope"]
+    },
+    "personas": {
+      "query": "users personas actors goals pain points proficiency frequency impacted teams",
+      "domain": null,
+      "filters": {},
+      "lenses": ["business", "product", "design"],
+      "source_sections": ["Usuarios", "Users", "Personas"]
+    },
+    "functional_requirements": {
+      "query": "functional requirements acceptance criteria given when then business rules priority",
+      "domain": null,
+      "filters": {},
+      "lenses": ["product", "quality"],
+      "source_sections": ["Functional Requirements", "Requerimientos funcionales", "Normalized Requirements"]
+    },
+    "nfr_kpi": {
+      "query": "non functional requirements security privacy reliability auditability kpi target measurement baseline timeframe",
+      "domain": null,
+      "filters": {},
+      "lenses": ["technical", "quality", "compliance", "business"],
+      "source_sections": ["Non-Functional", "KPI", "Metric", "Lente Tecnico"]
+    },
+    "jtbd_traceability": {
+      "query": "jobs to be done jtbd emotional social traceability functional requirements",
+      "domain": null,
+      "filters": {},
+      "lenses": ["business", "product"],
+      "source_sections": ["Jobs", "Traceability", "Trazabilidad"]
+    },
+    "execution_plan": {
+      "query": "dependencies owners mvp roadmap rollout environments team delivery",
+      "domain": null,
+      "filters": {},
+      "lenses": ["delivery", "technical"],
+      "source_sections": ["Dependency", "Roadmap", "Delivery"]
+    },
+    "governance": {
+      "query": "constraints compliance privacy glossary pending inputs decisions assumptions audit trail",
+      "domain": null,
+      "filters": {},
+      "lenses": ["compliance", "delivery"],
+      "source_sections": ["Governance", "Constraints", "Decisions"]
+    },
+    "backlog_handoff": {
+      "query": "epics user stories slicing acceptance criteria traceability progressive disclosure",
+      "domain": null,
+      "filters": {},
+      "lenses": ["product", "quality", "delivery"],
+      "source_sections": ["Backlog", "Acceptance", "Traceability"]
+    }
+  }
+}
