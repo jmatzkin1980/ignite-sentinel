@@ -82,6 +82,11 @@
     },
     "rationale": "IMP-048 must derive one value story per confirmed Spec Unit instead of the previous fixed five-story seed."
   },
+  "backlog_refinement": {
+    "expected_accepted": ["BREF-OPS-001"],
+    "expect_origin_agent": true,
+    "rationale": "IMP-059 validates an agentic backlog refinement with verbatim local citations and renders it as origin agent."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

@@ -177,6 +177,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 if not apply_annotation:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
                     assert main(["backlog", project_id]) == 0, f"backlog failed for {fixture_dir.name}"
+                    refinement_source = fixture_dir / "backlog_refinement.json"
+                    if refinement_source.exists():
+                        assert main(["refine-backlog", project_id, "--source", str(refinement_source)]) == 0, (
+                            f"refine-backlog failed for {fixture_dir.name}"
+                        )
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -207,6 +212,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 specs_text = (ws / "03_specs" / "specs.md").read_text(encoding="utf-8")
                 specs_scaffold = specs_scaffolding(specs_text)
                 backlog_derivation = backlog_derivation_status(ws, key)
+            backlog_refinement = backlog_refinement_status(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -242,6 +248,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     )
     ears_eligible_mismatch = ears_eligible_not_normalized != expected_ears_eligible
     backlog_mismatches = backlog_derivation["mismatches"]
+    backlog_mismatches.extend(backlog_refinement["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -327,6 +334,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "backlog_slicing_accuracy": backlog_derivation["slicing_accuracy"],
         "backlog_anchor_validity": backlog_derivation["anchor_validity"],
         "backlog_context_distinctness": backlog_derivation["context_distinctness"],
+        "backlog_refinement_ok": backlog_refinement["ok"],
+        "backlog_refinement_mismatches": backlog_refinement["mismatches"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -545,6 +554,26 @@ def backlog_context_status(value_stories: list[dict], backlog_key: dict) -> tupl
             round(distinct / expected_min, 3) if expected_min else 1.0
         )
     return [], 1.0
+
+
+def backlog_refinement_status(ws: Path, key: dict) -> dict[str, object]:
+    refinement_key = key.get("backlog_refinement", {})
+    if not refinement_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    report_path = ws / "04_backlog" / "refinements" / "refinement_report.md"
+    accepted_path = ws / "04_backlog" / "refinements" / "accepted_refinements.json"
+    if not report_path.exists():
+        return {"ok": False, "mismatches": ["refinement_report.md missing"]}
+    accepted = json.loads(accepted_path.read_text(encoding="utf-8")) if accepted_path.exists() else []
+    accepted_ids = sorted(str(item.get("id", "")) for item in accepted if item.get("id"))
+    expected = sorted(str(item) for item in refinement_key.get("expected_accepted", []))
+    if expected and accepted_ids != expected:
+        mismatches.append(f"expected accepted refinements {expected}, got {accepted_ids}")
+    epic_text = (ws / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+    if refinement_key.get("expect_origin_agent") and "Origin: agent" not in epic_text:
+        mismatches.append("expected Origin: agent refinement section in EPIC-001.md")
+    return {"ok": not mismatches, "mismatches": mismatches}
 
 
 def run_all() -> int:

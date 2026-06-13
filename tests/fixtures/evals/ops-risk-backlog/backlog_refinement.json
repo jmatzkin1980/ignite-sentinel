@@ -1,0 +1,17 @@
+{
+  "proposals": [
+    {
+      "id": "BREF-OPS-001",
+      "kind": "reslice",
+      "target_stories": ["US-004"],
+      "source_units": ["SPEC-U-004"],
+      "slicing_pattern": "Data / External Dependency",
+      "recommendation": "Keep the stale-data story focused on the freshness dependency and warning state before expanding additional outage variants.",
+      "rationale": "The cited EARS requirement names stale risk data as a separate state, and the technology context names a distinct warning surface.",
+      "citations": [
+        "While risk data is stale, the system shall show a stale data warning.",
+        "When risk data is stale, the dashboard implementation must route the warning through `src/risk/StaleDataBanner.tsx` and `RiskMetricsFreshnessService`."
+      ]
+    }
+  ]
+}

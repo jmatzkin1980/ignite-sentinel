@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .doctor import run_doctor
+from .backlog_refinement import apply_backlog_refinement
 from .context_requests import generate_context_request
 from .discovery import apply_annotation
 from .discovery import apply_challenge
@@ -44,6 +45,7 @@ COMMANDS = {
     "annotate",
     "challenge",
     "compose",
+    "refine-backlog",
     "brief",
     "resolve-gaps",
     "context-request",
@@ -107,6 +109,10 @@ def main(argv: list[str] | None = None) -> int:
     compose_p = sub.add_parser("compose")
     compose_p.add_argument("project_id")
     compose_p.add_argument("--source", required=True)
+
+    refine_backlog_p = sub.add_parser("refine-backlog")
+    refine_backlog_p.add_argument("project_id")
+    refine_backlog_p.add_argument("--source", required=True)
 
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
@@ -196,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "compose":
             result = apply_prd_composition(args.project_id, Path(args.source))
+            print_json(result)
+        elif args.command == "refine-backlog":
+            result = apply_backlog_refinement(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "maturity":
             result = evaluate(args.project_id)

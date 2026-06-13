@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ignite Sentinel Backlog Refinement",
+  "type": "object",
+  "required": ["proposals"],
+  "additionalProperties": false,
+  "properties": {
+    "proposals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "recommendation", "rationale", "citations"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["reslice", "split-story", "merge-stories", "missing-story", "enabler-candidate"]
+          },
+          "target_story": { "type": "string" },
+          "target_stories": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "source_unit": { "type": "string" },
+          "source_units": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "slicing_pattern": { "type": "string" },
+          "recommendation": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "citations": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "enables_stories": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "supports_boundary": { "type": "string" },
+          "risk_reduced": { "type": "string" },
+          "objective_evidence": { "type": "string" }
+        }
+      }
+    }
+  }
+}
