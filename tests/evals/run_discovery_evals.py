@@ -227,6 +227,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 backlog_derivation = backlog_derivation_status(ws, key)
             backlog_refinement = backlog_refinement_status(ws, key)
             story_status = story_status_eval(ws, key)
+            backlog_rollup = backlog_rollup_eval(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -264,6 +265,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches = backlog_derivation["mismatches"]
     backlog_mismatches.extend(backlog_refinement["mismatches"])
     backlog_mismatches.extend(story_status["mismatches"])
+    backlog_mismatches.extend(backlog_rollup["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -629,6 +631,30 @@ def story_status_eval(ws: Path, key: dict) -> dict[str, object]:
             mismatches.append(f"{story_id}.md missing status frontmatter {expected_status}")
         if expected_owner and f'owner: "{expected_owner}"' not in text:
             mismatches.append(f"{story_id}.md missing owner frontmatter {expected_owner}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def backlog_rollup_eval(ws: Path, key: dict) -> dict[str, object]:
+    rollup_key = key.get("backlog_rollup", {})
+    if not rollup_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    board_path = ws / "04_backlog" / "BACKLOG.md"
+    if not board_path.exists():
+        mismatches.append("BACKLOG.md missing")
+        return {"ok": False, "mismatches": mismatches}
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    summary = state.get("backlog_rollup", {})
+    for status, expected in rollup_key.get("expected_status_counts", {}).items():
+        actual = summary.get("status_counts", {}).get(status)
+        if actual != expected:
+            mismatches.append(f"expected backlog rollup {status}={expected}, got {actual}")
+    if "expected_stories_total" in rollup_key and summary.get("stories_total") != rollup_key["expected_stories_total"]:
+        mismatches.append(f"expected backlog rollup stories_total={rollup_key['expected_stories_total']}, got {summary.get('stories_total')}")
+    text = board_path.read_text(encoding="utf-8")
+    for expected_text in rollup_key.get("must_contain", []):
+        if str(expected_text) not in text:
+            mismatches.append(f"BACKLOG.md missing expected text: {expected_text}")
     return {"ok": not mismatches, "mismatches": mismatches}
 
 

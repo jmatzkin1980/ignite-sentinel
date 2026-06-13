@@ -39,7 +39,7 @@
 
 When the user sends an Ignite-style chat command, parse it as a request to run the Sentinel CLI from the repository root.
 
-When the user explains a situation without a command, infer the likely Sentinel workflow. Examples: new client input usually maps to `/init`, `/ingest`, and `/status`; answered gaps map to `/resolve-gaps`, `/maturity`, and `/status`; updated domain context maps to `/reindex` and `/health`; backlog handoff maps to `/backlog`, `/quality`, `/trace`, `/health`, and `/validate` when gates allow it.
+When the user explains a situation without a command, infer the likely Sentinel workflow. Examples: new client input usually maps to `/init`, `/ingest`, and `/status`; answered gaps map to `/resolve-gaps`, `/maturity`, and `/status`; updated domain context maps to `/reindex` and `/health`; backlog handoff maps to `/backlog`, `/backlog-status`, `/quality`, `/trace`, `/health`, and `/validate` when gates allow it.
 
 Accepted forms:
 
@@ -60,6 +60,7 @@ Accepted forms:
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID`
 - `/backlog PROJECT_ID`
+- `/backlog-status PROJECT_ID`
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]`
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json`
 - `/quality PROJECT_ID`
@@ -84,6 +85,7 @@ Execution rule:
 - Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
 - Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.
 - `/backlog`, `/refine-backlog`, and `/quality` are blocked while project health is `DIRTY`; use `/maturity`, `/sync`, `/health`, `/retrieve`, and gap resolution evidence before forcing downstream execution.
+- `/backlog-status PROJECT_ID` refreshes `04_backlog/BACKLOG.md` from governed story files, lifecycle state, DoR/DoD gates, and implementation readiness. The board is a generated BA review view, not a second source of truth; never edit it by hand.
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]` is the only supported way to mutate story lifecycle fields and attach downstream acceptance evidence for DoD. It updates `state.json`, `US-NNN.md`, DoR/DoD checklists, traceability, and command protocol anchors. Default `backlog_gate` warnings do not block; strict mode is opt-in. Never edit story status/owner/gate evidence by hand.
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json` accepts structured agent proposals only after `/backlog`; every proposal needs verbatim local citations and is merged as an `origin: agent` review overlay, never as automatic story/enabler rewrite.
 - Keep privacy local-only: no remote MCP, external vector databases, or external embeddings for client/project content unless explicitly approved outside this framework.

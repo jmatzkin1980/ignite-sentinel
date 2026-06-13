@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .backlog_rollup import backlog_status
 from .discovery import parse_gap_rows
 from .maturity import maturity_metrics
 from .workspace import read_json, state_path, workspace_path
@@ -26,6 +27,7 @@ def project_status(project_id: str) -> dict[str, object]:
         "prd_composition_count": state.get("prd_composition_count", 0),
         "last_prd_composition_id": state.get("last_prd_composition_id"),
         "story_gates": summarize_story_gates(state.get("story_gates", {})),
+        "backlog_rollup": backlog_status(project_id, write=False)["summary"],
         "next_step": next_step,
     }
 

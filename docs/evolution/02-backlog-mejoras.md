@@ -534,11 +534,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Nota 2026-06-13: implementado `sentinel/backlog_gates.py` con evaluación DoR/DoD por historia, `config.backlog_gate {threshold, strict}` blando por default, persistencia en `state.json#story_gates`, render `[x]/[ ]` de checklists existentes y campos `dor`/`dod` en `implementation_readiness.json`. `/story-status` ahora devuelve warnings de gate, bloquea `Ready`/`Done` solo con strict opt-in y acepta `--evidence PATH` para registrar evidencia local trazada (`story_acceptance_evidence` + edge `acceptance_evidence_for`). Tests cubren default no bloqueante, strict block, DoR passing con contexto de dominio y DoD con evidencia; eval `ops-risk-backlog` valida DoR/DoD persistidos.
 
 ### IMP-052 — Rollup por épica + tablero de backlog para el BA
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: el BA no tiene una vista versionable de progreso para seguimiento y accountability.
 - Alcance: computar rollup por épica (historias por estado, porcentaje `Ready`/`Done`, `avg readiness_score`, owners y blockers), emitir `04_backlog/BACKLOG.md`, exponer resumen en `/status` y agregar `/backlog-status PROJECT_ID`.
 - Aceptación: con historias en varios estados, `BACKLOG.md` y `/backlog-status` muestran rollup correcto por épica y estado; `/status` incluye resumen; el tablero se regenera sin pisar estados; tests de rollup.
 - Afecta: `sentinel/generation.py` o nuevo módulo de rollup, `sentinel/status.py`, `sentinel/cli.py`, `commands_manifest.json`, adapters regenerados, `sentinel/mcp.py`, `tests/`, `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `user_guide/11-chat-commands.md`.
+- Nota 2026-06-13: implementado `sentinel/backlog_rollup.py` y comando `/backlog-status PROJECT_ID` para generar `04_backlog/BACKLOG.md` desde `state.json#story_lifecycle`, `state.json#story_gates`, `04_backlog/US-NNN.md` e `implementation_readiness.json`. `/backlog` y `/story-status` refrescan el tablero, `/status` expone `backlog_rollup`, MCP y adapters quedan alineados, y el board cuenta historias por estado/épica, incluyendo `EPIC-002` cuando hay enablers concretos materializados. Tests cubren rollup, status y surfaces; eval `ops-risk-backlog` valida tablero/estado persistido tras mover `US-004` a `Ready`. El tablero es vista generada, no SSoT editable.
 
 ### IMP-053 — Plan de slice e implementación (handoff contract determinístico)
 - Estado: PENDING
@@ -613,6 +614,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-052 VERIFIED (branch `imp-052-backlog-rollup`): agregado `/backlog-status`, `04_backlog/BACKLOG.md`, rollup por épica/estado/owners/blockers, resumen en `/status`, refresh automático desde `/backlog` y `/story-status`, MCP/adapters/docs actualizados y eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-051 VERIFIED (branch `imp-051-dor-dod-gates`): DoR/DoD evaluable sobre los checklists existentes, `backlog_gate` blando/strict opt-in, warnings en `/story-status` y `/status`, bloqueo estricto de Ready/Done, evidencia local `--evidence` para DoD con trazabilidad, handoff JSON y eval `ops-risk-backlog` ampliados. |
 | 2026-06-13 | IMP-050 VERIFIED (branch `imp-050-story-lifecycle`): agregado `/story-status` con máquina de estados gobernada, owner en `state.json`/frontmatter, status log, trazabilidad y preservación por `/backlog`; eval `ops-risk-backlog` valida `US-004 → Ready`. DoR/DoD estricto queda para IMP-051. |
 | 2026-06-13 | IMP-059 VERIFIED (branch `imp-059-backlog-refine`): agregado `/refine-backlog` como canal agéntico sancionado para propuestas citadas de reslicing/split/merge/missing story/enabler candidate. Source archivado, accepted/report, overlay `origin: agent`, trazabilidad y eval fixture `ops-risk-backlog`; el modelo de slicing y boundary `EPIC-002` quedan preservados. |

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .doctor import run_doctor
 from .backlog_refinement import apply_backlog_refinement
+from .backlog_rollup import backlog_status
 from .backlog_status import update_story_status
 from .context_requests import generate_context_request
 from .discovery import apply_annotation
@@ -37,6 +38,7 @@ COMMANDS = {
     "maturity",
     "specs",
     "backlog",
+    "backlog-status",
     "quality",
     "health",
     "trace",
@@ -133,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     export_p.add_argument("--format", default="md", choices=["md"])
     export_p.add_argument("--domain")
 
-    for name in ("maturity", "specs", "backlog", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
+    for name in ("maturity", "specs", "backlog", "backlog-status", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
         command = sub.add_parser(name)
         command.add_argument("project_id")
     reindex_p = sub.add_parser("reindex")
@@ -244,6 +246,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "backlog":
             result = generate_backlog(args.project_id)
+            print_json(result)
+        elif args.command == "backlog-status":
+            result = backlog_status(args.project_id)
             print_json(result)
         elif args.command == "quality":
             result = generate_quality(args.project_id)

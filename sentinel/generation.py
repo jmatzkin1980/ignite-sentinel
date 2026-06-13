@@ -9,6 +9,7 @@ from typing import Any
 from .memory import ContextBroker, get_multi_domain_context
 from .backlog_status import apply_lifecycle_to_stories
 from .backlog_gates import evaluate_story_gates, update_story_gate_state
+from .backlog_rollup import backlog_status
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
@@ -746,6 +747,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
             domain=story_spec["domain"],
             trace_ids=[epic_id, story_id, ac_id, *story_spec["trace"]],
         )
+    board = backlog_status(project_id)
     update_state(
         project_id,
         phase="backlog_completed",
@@ -760,6 +762,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         "story_count": str(len(story_ids)),
         "epic_count": str(len(epic_ids)),
         "implementation_readiness": str(base / "08_context_packs" / "implementation_readiness.json"),
+        "backlog_board": board["path"],
     }
 
 

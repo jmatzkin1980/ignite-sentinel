@@ -25,7 +25,7 @@ python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
 python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /maturity | /brief | /context-request
 python -m sentinel /sync | /reindex | /retrieve
-python -m sentinel /specs | /backlog | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /quality | /trace | /health | /validate
+python -m sentinel /specs | /backlog | /backlog-status | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /quality | /trace | /health | /validate
 python -m sentinel /status PROJECT_ID | /export PROJECT_ID
 ```
 
@@ -38,12 +38,12 @@ Este repo incluye el adapter `.claude/commands/` con un slash command por comand
 Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash commands nativos):
 
 - Si el usuario escribe un comando estilo `/COMMAND PROJECT_ID [OPTIONS]`, `sentinel /COMMAND ...` o `ignite /COMMAND ...`, ejecutar `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]` desde la raíz del repo.
-- Si el usuario describe la situación en lenguaje natural, mapear la intención al flujo correcto (tabla completa en `user_guide/11-chat-commands.md`, sección Intent-To-Command Map): input nuevo de cliente → `/init` + `/ingest` + `/status`; respuestas a gaps → `/resolve-gaps` + `/maturity` + `/status`; contexto de dominio actualizado → `/sync` + `/reindex` + `/health`; handoff downstream → `/specs` + `/backlog` + `/quality` + `/trace` + `/health` + `/validate` cuando los gates lo permitan.
+- Si el usuario describe la situación en lenguaje natural, mapear la intención al flujo correcto (tabla completa en `user_guide/11-chat-commands.md`, sección Intent-To-Command Map): input nuevo de cliente → `/init` + `/ingest` + `/status`; respuestas a gaps → `/resolve-gaps` + `/maturity` + `/status`; contexto de dominio actualizado → `/sync` + `/reindex` + `/health`; handoff downstream → `/specs` + `/backlog` + `/backlog-status` + `/quality` + `/trace` + `/health` + `/validate` cuando los gates lo permitan.
 - Nunca editar artefactos generados a mano: siempre mutar vía CLI.
 - Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.
 - Tras cada comando, resumir resultado, artefactos generados y próximo paso recomendado.
 
-Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog`, `/refine-backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes. `/story-status` es el único canal para estado/owner de historias y evidencia local de DoD; evalúa DoR/DoD con `backlog_gate` blando por default y strict opt-in. No editar `US-NNN.md`, `state.json` ni evidencia de gate a mano. `/refine-backlog` solo acepta propuestas agénticas citadas y las registra como overlay `origin: agent`; no reescribe historias ni el boundary de enablers.
+Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog`, `/refine-backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes. `/story-status` es el único canal para estado/owner de historias y evidencia local de DoD; evalúa DoR/DoD con `backlog_gate` blando por default y strict opt-in. `/backlog-status` regenera `04_backlog/BACKLOG.md` como tablero BA desde estado gobernado/readiness; no editar `BACKLOG.md`, `US-NNN.md`, `state.json` ni evidencia de gate a mano. `/refine-backlog` solo acepta propuestas agénticas citadas y las registra como overlay `origin: agent`; no reescribe historias ni el boundary de enablers.
 
 ## Verificación obligatoria al cambiar runtime
 
