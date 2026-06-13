@@ -140,6 +140,8 @@ If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel re
 
 After `/specs`, agents may enrich the PRD through `/compose` by submitting JSON blocks with paragraph-level verbatim citations from local source-of-truth evidence. Accepted blocks are marked `Origin: agent`; pending sections and unsupported citations are rejected instead of being filled by narrative guesswork.
 
+`/validate` keeps structural validity separate from maturity signals. It returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings for scaffolding content, missing EARS/spec-unit continuity, dangling spec-unit source pointers, or PRD/spec drift. Use those warnings as corrective guidance, not as hardened gates.
+
 ## Command Protocol
 
 Every project command runs through the same governed protocol:

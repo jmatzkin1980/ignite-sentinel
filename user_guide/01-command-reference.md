@@ -417,6 +417,8 @@ Checks:
 
 Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, EARS rows, source citations, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. A PRD compiled from real evidence should classify as `evidence-backed` or `mixed`; `scaffolding` means the artifact is still mostly structure or pending content. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
 
+Cross-artifact consistency (non-blocking): the report also includes `cross_artifact_consistency`. It checks that populated brief sections flow into mapped PRD sections, confirmed `REQ-EARS-*` rows appear in `specs.md` and `03_specs/units/SPEC-U-NNN.md`, extracted `FR-E*` rows have at least one spec-unit layer to carry the detail, spec units do not cite missing EARS IDs, and unit source pointers resolve to existing files or Markdown sections. Each warning names `layer`, `artifact`, and `suggested_command` (usually `python -m sentinel /specs PROJECT_ID`). These warnings are added to `warnings`, but they never change `verdict`; structural validity remains separate.
+
 Returns non-zero when invalid.
 
 ## `sync`

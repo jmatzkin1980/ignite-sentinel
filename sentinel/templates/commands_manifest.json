@@ -135,9 +135,9 @@
     },
     {
       "name": "validate",
-      "description": "Validate Ignite workspace structure, IDs, and traceability graph integrity.",
+      "description": "Validate Ignite workspace structure, graph integrity, semantic quality, and cross-artifact consistency.",
       "kilo_agent": "sentinel-health",
-      "body": "# Ignite Validate\n\nParse `PROJECT_ID` from:\n\n```text\n/validate PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /validate PROJECT_ID\n```\n\nReport whether the workspace is structurally valid."
+      "body": "# Ignite Validate\n\nParse `PROJECT_ID` from:\n\n```text\n/validate PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /validate PROJECT_ID\n```\n\nReport whether the workspace is structurally valid. Also summarize non-blocking `semantic_quality` and `cross_artifact_consistency` warnings, naming the affected layer, artifact, and suggested corrective command when present."
     }
   ]
 }

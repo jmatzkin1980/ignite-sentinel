@@ -21,7 +21,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Technology/Design/Quality updated their context" | `/sync` → `/reindex` → `/health` | If backlog exists, expect a staleness warning naming the domain. |
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
-| "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality` classification per artifact plus any `prd_section_readiness` / `specs_gate` warnings. |
+| "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` → `/quality` → `/trace` → `/health` → `/validate` | Only when gates allow; report `readiness_score` summary. |
 | "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
