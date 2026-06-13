@@ -141,6 +141,7 @@ workspaces/PROJECT_ID/04_backlog/
 workspaces/PROJECT_ID/05_quality/
 workspaces/PROJECT_ID/08_context_packs/backlog_generation.json
 workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json
+workspaces/PROJECT_ID/08_context_packs/slice_plan.json
 ```
 
 The primary backlog output is one Markdown file per epic, starting with:
@@ -156,6 +157,8 @@ Backlog value stories are derived from confirmed `SPEC-U-*` files produced by `/
 Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; its queries come from `sentinel/retrieval_plans/backlog_generation.json` and each result carries `read_plan` source anchors. The pack keeps the aggregate retrieval view and a `per_story.US-NNN` mini-context for each Spec Unit-derived story, so one story can cite a stale-data surface while another cites a metrics-outage surface. Confirmed execution signals in each story carry an `anchor` with `source_path`, `section_path`, `line_start`, and `line_end`, and the `US-NNN.md` render shows that pointer inline. Source workspace files remain authoritative if memory disagrees.
 
 Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, execution contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time. If specs were regenerated after backlog creation, `stale_spec_units` names changed `SPEC-U-*` units so reviewers can focus only on affected slices.
+
+`04_backlog/SLICE-PLAN.md` and `08_context_packs/slice_plan.json` add the ordered handoff view: concrete `EPIC-002` enablers first, then implementation waves that can be planned in parallel after prerequisites, with checkpoints and per-story handoff packs. This is still backlog governance, not tasking; downstream agents consume the plan to decide what to retrieve and plan next.
 
 Technology, Design, Quality, Delivery and other domains can keep enriching their context files throughout the lifecycle. After those files are ingested, synced, or reindexed, downstream backlog generation can cite them. If a domain contract is missing, Sentinel keeps `[PENDING DOMAIN CONTEXT]` visible instead of inventing commands, files, design tokens, regression suites, or blast-radius boundaries.
 
@@ -177,6 +180,7 @@ When reviewing the backlog, check:
 - agent execution contracts include autonomy limits, blast radius, validation contract, and sequencing notes without inventing missing domain context;
 - each story includes a retrieval plan for downstream execution agents;
 - `implementation_readiness.json` is present and does not hide missing domain context;
+- `SLICE-PLAN.md` and `slice_plan.json` sequence enablers, waves, checkpoints and per-story handoff packs without creating task IDs;
 - acceptance criteria separate `fail-to-pass`, `pass-to-pass`, and evidence expectations;
 - `EPIC-002-cross-cutting-enablers.md` appears only when concrete frontend/backend/architecture/auth/data/integration/audit/observability work must be built in advance to support confirmed functionality inside the project boundary;
 - generic setup or phrases like "make an internal tool accessible" are treated as preconditions/external tasks, not backlog enablers;

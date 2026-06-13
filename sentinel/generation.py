@@ -15,6 +15,7 @@ from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_sectio
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slicing_model import load_slicing_model
+from .slice_plan import generate_slice_plan
 from .traceability import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
@@ -653,9 +654,14 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     all_story_specs = [*story_specs, *enabler_specs]
     apply_lifecycle_to_stories(project_id, all_story_specs)
     readiness_pack = build_implementation_readiness_pack(project_id, all_story_specs, backlog_context)
+    slice_plan = generate_slice_plan(project_id, all_story_specs, readiness_pack)
     backlog_context["implementation_readiness"] = {
         "path": "08_context_packs/implementation_readiness.json",
         "verdict": readiness_pack["verdict"],
+    }
+    backlog_context["slice_plan"] = {
+        "path": "04_backlog/SLICE-PLAN.md",
+        "json_path": "08_context_packs/slice_plan.json",
     }
     write_json(base / "08_context_packs" / "backlog_generation.json", backlog_context)
 
@@ -763,6 +769,8 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         "epic_count": str(len(epic_ids)),
         "implementation_readiness": str(base / "08_context_packs" / "implementation_readiness.json"),
         "backlog_board": board["path"],
+        "slice_plan": slice_plan["path"],
+        "slice_plan_json": slice_plan["json_path"],
     }
 
 

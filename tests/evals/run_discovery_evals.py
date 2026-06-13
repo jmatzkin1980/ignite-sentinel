@@ -228,6 +228,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             backlog_refinement = backlog_refinement_status(ws, key)
             story_status = story_status_eval(ws, key)
             backlog_rollup = backlog_rollup_eval(ws, key)
+            slice_plan = slice_plan_eval(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -266,6 +267,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(backlog_refinement["mismatches"])
     backlog_mismatches.extend(story_status["mismatches"])
     backlog_mismatches.extend(backlog_rollup["mismatches"])
+    backlog_mismatches.extend(slice_plan["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -655,6 +657,50 @@ def backlog_rollup_eval(ws: Path, key: dict) -> dict[str, object]:
     for expected_text in rollup_key.get("must_contain", []):
         if str(expected_text) not in text:
             mismatches.append(f"BACKLOG.md missing expected text: {expected_text}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def slice_plan_eval(ws: Path, key: dict) -> dict[str, object]:
+    plan_key = key.get("slice_plan", {})
+    if not plan_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    md_path = ws / "04_backlog" / "SLICE-PLAN.md"
+    json_path = ws / "08_context_packs" / "slice_plan.json"
+    if not md_path.exists():
+        mismatches.append("SLICE-PLAN.md missing")
+    if not json_path.exists():
+        mismatches.append("slice_plan.json missing")
+    if mismatches:
+        return {"ok": False, "mismatches": mismatches}
+    plan = json.loads(json_path.read_text(encoding="utf-8"))
+    summary = plan.get("summary", {})
+    if "expected_stories_total" in plan_key and summary.get("stories_total") != plan_key["expected_stories_total"]:
+        mismatches.append(f"expected slice plan stories_total={plan_key['expected_stories_total']}, got {summary.get('stories_total')}")
+    if "expected_enablers_min" in plan_key and summary.get("enablers_total", 0) < plan_key["expected_enablers_min"]:
+        mismatches.append(f"expected at least {plan_key['expected_enablers_min']} enablers, got {summary.get('enablers_total')}")
+    phases = plan.get("phases", {})
+    enabler_ids = [item.get("story_id") for item in phases.get("enabler_phase", [])]
+    if plan_key.get("require_enablers_first") and summary.get("enablers_total", 0):
+        for story_id, pack in plan.get("handoff_packs", {}).items():
+            if pack.get("position", {}).get("phase") == "implementation":
+                prerequisites = set(pack.get("position", {}).get("prerequisites", []))
+                if not prerequisites.intersection(enabler_ids):
+                    mismatches.append(f"expected {story_id} to carry enabler prerequisite in slice plan")
+                    break
+    for story_id in plan_key.get("expected_handoff_packs", []):
+        pack = plan.get("handoff_packs", {}).get(story_id)
+        if not pack:
+            mismatches.append(f"slice plan missing handoff pack for {story_id}")
+            continue
+        if not pack.get("retrieval_plan"):
+            mismatches.append(f"slice plan handoff pack for {story_id} missing retrieval_plan")
+        if "position" not in pack:
+            mismatches.append(f"slice plan handoff pack for {story_id} missing position")
+    text = md_path.read_text(encoding="utf-8")
+    for expected_text in plan_key.get("must_contain", []):
+        if str(expected_text) not in text:
+            mismatches.append(f"SLICE-PLAN.md missing expected text: {expected_text}")
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
