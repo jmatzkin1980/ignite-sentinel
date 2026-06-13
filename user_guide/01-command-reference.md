@@ -347,6 +347,18 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
+## `story-status`
+
+Update a governed story lifecycle status and owner.
+
+```powershell
+python -m sentinel /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
+```
+
+Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter and lifecycle section, appends `04_backlog/status_log.md`, and records traceability plus the command protocol log.
+
+`/story-status` is the only supported mutation path for story status or owner. `/backlog` preserves existing status/owner values when it regenerates stories. DoR/DoD evaluation and strict readiness blocking are intentionally handled by later backlog gates; this command only governs the lifecycle state machine.
+
 ## `refine-backlog`
 
 Merge validated agent-authored backlog refinement proposals into the generated backlog.

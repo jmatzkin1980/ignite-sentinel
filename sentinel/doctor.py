@@ -32,6 +32,7 @@ REQUIRED_COMMANDS = [
     "challenge",
     "compose",
     "refine-backlog",
+    "story-status",
     "resolve-gaps",
     "brief",
     "context-request",
