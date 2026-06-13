@@ -24,6 +24,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` → `/quality` → `/trace` → `/health` → `/validate` | Only when gates allow; report `readiness_score` summary. |
+| "Assign this story / move it to Ready" | `/story-status --story US-NNN --set STATE --owner NAME` → `/trace` | Never edit `US-NNN.md` or `state.json` by hand. |
 | "Review these agent backlog slicing/enabler proposals" | `/refine-backlog --source backlog-refinement.json` → `/trace` | Only after `/backlog`; every proposal must cite verbatim local evidence and remains a governed proposal. |
 | "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
 | "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is WARN (degraded mode), not failure. |
@@ -97,6 +98,7 @@ Use these directly in Kilo chat:
 /specs PROJECT_ID
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
+/story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /refine-backlog PROJECT_ID --source input\interactions\backlog-refinement.json
 /quality PROJECT_ID
 /trace PROJECT_ID
@@ -201,6 +203,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /specs PROJECT_ID
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
+/story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /refine-backlog PROJECT_ID --source input\interactions\backlog-refinement.json
 /quality PROJECT_ID
 /trace PROJECT_ID

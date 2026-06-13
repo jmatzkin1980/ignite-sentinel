@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
+from .backlog_status import apply_lifecycle_to_stories
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
@@ -648,6 +649,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     story_specs = build_backlog_story_specs(project_id, backlog_context)
     enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
     all_story_specs = [*story_specs, *enabler_specs]
+    apply_lifecycle_to_stories(project_id, all_story_specs)
     readiness_pack = build_implementation_readiness_pack(project_id, all_story_specs, backlog_context)
     backlog_context["implementation_readiness"] = {
         "path": "08_context_packs/implementation_readiness.json",
@@ -911,6 +913,8 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "title": story["title"],
         "type": story["type"],
         "status": status,
+        "story_status": story.get("status", "Draft"),
+        "owner": story.get("owner", ""),
         "readiness_score": readiness_score,
         "readiness": execution.get("readiness", "Needs Domain Context"),
         "required_domains": required_domains_for_story(story),
@@ -2662,9 +2666,12 @@ An item belongs here only when all checks pass:
 def render_story_section(story: dict[str, Any]) -> str:
     dependencies = ", ".join(story["dependencies"]) or "None"
     acceptance = "\n\n".join(render_gherkin_criterion(item) for item in story["acceptance"])
+    owner = story.get("owner") or "[UNASSIGNED]"
     return f"""### {story['id']} - {story['title']} [Label: {story['label']}]
 
 **Description:** {story['description']}
+
+**Lifecycle:** {story.get('status', 'Draft')} / {owner}
 
 **Narrative:**
 As a target user,
@@ -2834,7 +2841,8 @@ def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
 id: {story['id']}
 project: {project_id}
 parent_epic: {epic_id}
-status: draft
+status: {story.get('status', 'Draft')}
+owner: "{story.get('owner', '')}"
 label: {story['label']}
 type: {story['type']}
 trace:
@@ -2879,6 +2887,12 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 - Enables: {', '.join(story.get('enables', [])) or 'N/A'}.
 - This story must deliver user-observable value or explicit quality evidence, not an isolated implementation layer.
 - Missing context remains `[PENDING INPUT]` and should be resolved upstream through gaps, `/sync`, or domain context packs.
+
+## Lifecycle
+
+- Status: {story.get('status', 'Draft')}.
+- Owner: {story.get('owner') or '[UNASSIGNED]'}.
+- Update only via `/story-status {project_id} --story {story['id']} --set STATE [--owner NAME]`.
 
 ## Acceptance Criteria
 

@@ -182,6 +182,19 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                         assert main(["refine-backlog", project_id, "--source", str(refinement_source)]) == 0, (
                             f"refine-backlog failed for {fixture_dir.name}"
                         )
+                    story_status_key = key.get("story_status", {})
+                    if story_status_key:
+                        command = [
+                            "story-status",
+                            project_id,
+                            "--story",
+                            str(story_status_key["story"]),
+                            "--set",
+                            str(story_status_key["set"]),
+                        ]
+                        if story_status_key.get("owner"):
+                            command.extend(["--owner", str(story_status_key["owner"])])
+                        assert main(command) == 0, f"story-status failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -213,6 +226,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 specs_scaffold = specs_scaffolding(specs_text)
                 backlog_derivation = backlog_derivation_status(ws, key)
             backlog_refinement = backlog_refinement_status(ws, key)
+            story_status = story_status_eval(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -249,6 +263,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     ears_eligible_mismatch = ears_eligible_not_normalized != expected_ears_eligible
     backlog_mismatches = backlog_derivation["mismatches"]
     backlog_mismatches.extend(backlog_refinement["mismatches"])
+    backlog_mismatches.extend(story_status["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -336,6 +351,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "backlog_context_distinctness": backlog_derivation["context_distinctness"],
         "backlog_refinement_ok": backlog_refinement["ok"],
         "backlog_refinement_mismatches": backlog_refinement["mismatches"],
+        "story_status_ok": story_status["ok"],
+        "story_status_mismatches": story_status["mismatches"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -573,6 +590,32 @@ def backlog_refinement_status(ws: Path, key: dict) -> dict[str, object]:
     epic_text = (ws / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
     if refinement_key.get("expect_origin_agent") and "Origin: agent" not in epic_text:
         mismatches.append("expected Origin: agent refinement section in EPIC-001.md")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def story_status_eval(ws: Path, key: dict) -> dict[str, object]:
+    status_key = key.get("story_status", {})
+    if not status_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    story_id = str(status_key.get("story", ""))
+    expected_status = str(status_key.get("set", ""))
+    expected_owner = str(status_key.get("owner", ""))
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    lifecycle = state.get("story_lifecycle", {}).get(story_id, {})
+    if lifecycle.get("status") != expected_status:
+        mismatches.append(f"expected {story_id} status {expected_status}, got {lifecycle.get('status')}")
+    if expected_owner and lifecycle.get("owner") != expected_owner:
+        mismatches.append(f"expected {story_id} owner {expected_owner}, got {lifecycle.get('owner')}")
+    story_path = ws / "04_backlog" / f"{story_id}.md"
+    if not story_path.exists():
+        mismatches.append(f"{story_id}.md missing")
+    else:
+        text = story_path.read_text(encoding="utf-8")
+        if f"status: {expected_status}" not in text:
+            mismatches.append(f"{story_id}.md missing status frontmatter {expected_status}")
+        if expected_owner and f'owner: "{expected_owner}"' not in text:
+            mismatches.append(f"{story_id}.md missing owner frontmatter {expected_owner}")
     return {"ok": not mismatches, "mismatches": mismatches}
 
 

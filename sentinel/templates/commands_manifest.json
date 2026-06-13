@@ -32,6 +32,12 @@
       "body": "# Ignite Refine Backlog\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/refine-backlog PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with `proposals[]`. Each proposal declares a kind (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), target stories or source units as applicable, a recommendation, rationale, and verbatim `citations[]` from local source-of-truth evidence.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /refine-backlog PROJECT_ID --source PATH\n```\n\nThe runtime validates story/unit existence, rejects pending units, checks every citation verbatim, archives the source under `04_backlog/refinements/`, merges valid proposals with `origin: agent`, renders a governed refinement section in the backlog, and reports rejected proposals with reasons. Summarize accepted/rejected proposal IDs and the refinement report path."
     },
     {
+      "name": "story-status",
+      "description": "Update governed backlog story lifecycle status and owner.",
+      "kilo_agent": "sentinel-backlog",
+      "body": "# Ignite Story Status\n\nParse `PROJECT_ID`, `--story US-NNN`, `--set STATE`, and optional `--owner NAME` from:\n\n```text\n/story-status PROJECT_ID --story US-001 --set Ready --owner \"Team A\"\n```\n\nAllowed states: `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, `Stale`. The runtime validates legal transitions, updates `state.json`, updates the story frontmatter, records traceability, and writes the command protocol log. Do not edit `US-NNN.md` or `state.json` by hand.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner \"NAME\"\n```\n\nSummarize the previous status, new status, owner, story path, and change ID."
+    },
+    {
       "name": "brief",
       "description": "Generate or refresh the mature Ignite Sentinel project brief.",
       "kilo_agent": "sentinel-maturity",

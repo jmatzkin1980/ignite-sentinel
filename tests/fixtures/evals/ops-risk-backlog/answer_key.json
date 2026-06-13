@@ -87,6 +87,12 @@
     "expect_origin_agent": true,
     "rationale": "IMP-059 validates an agentic backlog refinement with verbatim local citations and renders it as origin agent."
   },
+  "story_status": {
+    "story": "US-004",
+    "set": "Ready",
+    "owner": "Ops BA",
+    "rationale": "IMP-050 validates governed story lifecycle mutation through /story-status and persisted state/frontmatter."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

@@ -19,6 +19,7 @@ MUTATING_COMMANDS = {
     "challenge",
     "compose",
     "refine-backlog",
+    "story-status",
     "brief",
     "resolve-gaps",
     "context-request",

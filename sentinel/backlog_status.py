@@ -1,0 +1,203 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import Any
+
+from .traceability import add_edge, add_node, nodes_by_type
+from .workspace import read_json, state_path, update_state, utc_now, workspace_path
+
+
+class StoryStatusError(RuntimeError):
+    """Raised when a story lifecycle update cannot be applied."""
+
+
+STORY_STATUSES = ("Draft", "Ready", "In Progress", "In Review", "Done", "Blocked", "Stale")
+STATUS_ALIASES = {status.lower(): status for status in STORY_STATUSES}
+STATUS_ALIASES.update({status.lower().replace(" ", "-"): status for status in STORY_STATUSES})
+
+LEGAL_TRANSITIONS = {
+    "Draft": {"Ready", "Blocked", "Stale"},
+    "Ready": {"Draft", "In Progress", "Blocked", "Stale"},
+    "In Progress": {"In Review", "Blocked", "Stale"},
+    "In Review": {"In Progress", "Done", "Blocked", "Stale"},
+    "Done": {"Stale"},
+    "Blocked": {"Draft", "Ready", "In Progress", "Stale"},
+    "Stale": {"Draft", "Ready", "Blocked"},
+}
+
+
+def normalize_story_status(value: str) -> str:
+    status = STATUS_ALIASES.get(str(value).strip().lower())
+    if not status:
+        raise StoryStatusError(f"Invalid story status '{value}'. Allowed: {', '.join(STORY_STATUSES)}.")
+    return status
+
+
+def story_lifecycle_state(project_id: str) -> dict[str, dict[str, str]]:
+    state = read_json(state_path(project_id), {})
+    lifecycle = state.get("story_lifecycle", {})
+    return lifecycle if isinstance(lifecycle, dict) else {}
+
+
+def lifecycle_for_story(project_id: str, story_id: str) -> dict[str, str]:
+    lifecycle = story_lifecycle_state(project_id)
+    current = lifecycle.get(story_id, {})
+    return {
+        "status": normalize_story_status(str(current.get("status", "Draft"))),
+        "owner": str(current.get("owner", "")).strip(),
+    }
+
+
+def apply_lifecycle_to_stories(project_id: str, stories: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    lifecycle = story_lifecycle_state(project_id)
+    active_ids = {str(story["id"]) for story in stories}
+    merged: dict[str, dict[str, str]] = {}
+    for story in stories:
+        story_id = str(story["id"])
+        previous = lifecycle.get(story_id, {})
+        try:
+            status = normalize_story_status(str(previous.get("status", "Draft")))
+        except StoryStatusError:
+            status = "Draft"
+        owner = str(previous.get("owner", "")).strip()
+        story["status"] = status
+        story["owner"] = owner
+        merged[story_id] = {"status": status, "owner": owner}
+    for story_id, previous in lifecycle.items():
+        if story_id not in active_ids:
+            continue
+        merged.setdefault(
+            story_id,
+            {
+                "status": str(previous.get("status", "Draft")),
+                "owner": str(previous.get("owner", "")).strip(),
+            },
+        )
+    update_state(project_id, story_lifecycle=merged)
+    return merged
+
+
+def update_story_status(project_id: str, story_id: str, status: str, owner: str | None = None) -> dict[str, object]:
+    story_id = normalize_story_id(story_id)
+    next_status = normalize_story_status(status)
+    base = workspace_path(project_id)
+    story_path = base / "04_backlog" / f"{story_id}.md"
+    if not story_path.exists():
+        raise StoryStatusError(f"Story does not exist: {story_id}. Run /backlog before /story-status.")
+
+    current = lifecycle_for_story(project_id, story_id)
+    current_status = current["status"]
+    if next_status != current_status and next_status not in LEGAL_TRANSITIONS[current_status]:
+        raise StoryStatusError(f"Illegal story transition: {current_status} -> {next_status}.")
+
+    next_owner = current["owner"] if owner is None else str(owner).strip()
+    lifecycle = story_lifecycle_state(project_id)
+    lifecycle[story_id] = {
+        "status": next_status,
+        "owner": next_owner,
+        "updated_at": utc_now(),
+    }
+    update_state(project_id, story_lifecycle=lifecycle, last_story_status_update=story_id)
+    update_story_frontmatter(story_path, next_status, next_owner)
+    append_status_log(project_id, story_id, current_status, next_status, next_owner)
+    change_id = add_node(
+        project_id,
+        "CHG",
+        "story_status_change",
+        base / "04_backlog" / "status_log.md",
+        f"{story_id} {current_status} -> {next_status}",
+        status="applied",
+        domain="delivery",
+    )
+    story_node = story_node_id(project_id, story_id)
+    if story_node:
+        add_edge(project_id, change_id, story_node, "updates_story_status")
+
+    return {
+        "story_id": story_id,
+        "previous_status": current_status,
+        "status": next_status,
+        "owner": next_owner,
+        "change_id": change_id,
+        "path": str(story_path.as_posix()),
+    }
+
+
+def normalize_story_id(value: str) -> str:
+    candidate = str(value).strip().upper()
+    if not re.fullmatch(r"US-\d{3}", candidate):
+        raise StoryStatusError("story must use the US-NNN format.")
+    return candidate
+
+
+def story_node_id(project_id: str, story_id: str) -> str:
+    expected = f"04_backlog/{story_id}.md"
+    for node in nodes_by_type(project_id, "user_story"):
+        path = str(node.get("path", ""))
+        if path.endswith(expected):
+            return str(node.get("id", ""))
+    return ""
+
+
+def update_story_frontmatter(path: Path, status: str, owner: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        raise StoryStatusError(f"Story frontmatter not found: {path.name}")
+    end = text.find("\n---", 4)
+    if end == -1:
+        raise StoryStatusError(f"Story frontmatter not closed: {path.name}")
+    frontmatter = text[4:end].splitlines()
+    body = text[end:]
+    updated = upsert_frontmatter_key(upsert_frontmatter_key(frontmatter, "status", status), "owner", owner)
+    rendered = "---\n" + "\n".join(updated) + body
+    rendered = update_story_lifecycle_section(rendered, status, owner)
+    path.write_text(rendered, encoding="utf-8")
+
+
+def upsert_frontmatter_key(lines: list[str], key: str, value: str) -> list[str]:
+    rendered = f'{key}: "{value}"' if key == "owner" else f"{key}: {value}"
+    for index, line in enumerate(lines):
+        if line.startswith(f"{key}:"):
+            result = list(lines)
+            result[index] = rendered
+            return result
+    result = list(lines)
+    insert_at = 0
+    for index, line in enumerate(result):
+        if line.startswith("status:"):
+            insert_at = index + 1
+            break
+    result.insert(insert_at, rendered)
+    return result
+
+
+def update_story_lifecycle_section(text: str, status: str, owner: str) -> str:
+    replacement = (
+        "## Lifecycle\n\n"
+        f"- Status: {status}.\n"
+        f"- Owner: {owner or '[UNASSIGNED]'}.\n"
+    )
+    pattern = re.compile(r"## Lifecycle\n\n- Status: .*?\n- Owner: .*?\n", re.DOTALL)
+    if pattern.search(text):
+        return pattern.sub(replacement, text, count=1)
+    marker = "\n## Acceptance Criteria\n"
+    if marker not in text:
+        return text
+    return text.replace(marker, "\n" + replacement + marker, 1)
+
+
+def append_status_log(project_id: str, story_id: str, previous: str, status: str, owner: str) -> Path:
+    path = workspace_path(project_id) / "04_backlog" / "status_log.md"
+    timestamp = utc_now()
+    if path.exists():
+        text = path.read_text(encoding="utf-8").rstrip()
+    else:
+        text = (
+            f"# Story Status Log - {project_id}\n\n"
+            "| Timestamp | Story | From | To | Owner |\n"
+            "| --- | --- | --- | --- | --- |"
+        )
+    row = f"| {timestamp} | `{story_id}` | {previous} | {status} | {owner or 'N/A'} |"
+    path.write_text(text + "\n" + row + "\n", encoding="utf-8")
+    return path

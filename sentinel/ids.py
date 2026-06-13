@@ -44,6 +44,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "prd": "PRD",
         "prd_composition": "PRD",
         "backlog_refinement": "CHG",
+        "story_status_change": "CHG",
         "spec": "SPEC",
         "spec_unit": "SPEC",
         "epic": "EPIC",
