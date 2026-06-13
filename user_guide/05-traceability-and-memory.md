@@ -172,8 +172,8 @@ Generated packs preserve the plan metadata per section: `query`, `domain`, `filt
 
 `/backlog` creates two built-in context packs:
 
-- `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories.
-- `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
+- `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories. It keeps aggregate `sections` plus `per_story.US-NNN` mini-contexts for Spec Unit-derived stories.
+- `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, execution contract, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
 
 Use context packs when:
 

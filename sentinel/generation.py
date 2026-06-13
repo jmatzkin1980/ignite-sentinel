@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
 import re
@@ -652,6 +653,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         "path": "08_context_packs/implementation_readiness.json",
         "verdict": readiness_pack["verdict"],
     }
+    write_json(base / "08_context_packs" / "backlog_generation.json", backlog_context)
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
     previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
@@ -820,7 +822,10 @@ def build_backlog_generation_context(
         "domain_context_snapshot": domain_snapshot,
         "ears_requirements": load_ears_requirements(project_id),
         "sections": sections,
+        "domain_context_coverage": [],
+        "per_story": {},
     }
+    pack["domain_context_coverage"] = build_domain_context_coverage(pack)
     write_json(workspace_path(project_id) / "08_context_packs" / "backlog_generation.json", pack)
     return pack
 
@@ -913,6 +918,7 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "dependencies": story.get("dependencies", []),
         "enables": story.get("enables", []),
         "parallelization": execution.get("parallelization", ""),
+        "execution_contract": execution,
         "retrieval_plan": execution.get("retrieval_plan", []),
         "validation": execution.get("validation", {}),
         "blast_radius": execution.get("blast_radius", []),
@@ -920,6 +926,8 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "source_unit": story.get("source_unit", "[PENDING INPUT]"),
         "slicing": story.get("slicing", "[PENDING INPUT]"),
         "slicing_rationale": story.get("slicing_rationale", "[PENDING INPUT]"),
+        "context_pack": story.get("context_pack", "08_context_packs/backlog_generation.json"),
+        "context_pack_section": story.get("context_pack_section", ""),
     }
 
 
@@ -1045,15 +1053,21 @@ def render_ears_requirements_table(
 
 def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
-    domain_coverage = build_domain_context_coverage(backlog_context)
+    global_domain_coverage = build_domain_context_coverage(backlog_context)
+    backlog_context["domain_context_coverage"] = global_domain_coverage
     spec_units = read_spec_units(project_id)
     slicing_model = load_slicing_model()
     if not spec_units:
-        story = pending_backlog_story(domain_coverage, backlog_context, slicing_model)
-        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        story = pending_backlog_story(global_domain_coverage, backlog_context, slicing_model)
+        story["context_pack"] = "08_context_packs/backlog_generation.json"
+        story["context_pack_section"] = "sections"
+        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, global_domain_coverage)
         return [story]
     for index, unit in enumerate(spec_units, start=1):
         story_id = f"US-{index:03d}"
+        story_context = build_story_backlog_context(project_id, story_id, unit, backlog_context)
+        domain_coverage = build_domain_context_coverage(story_context)
+        backlog_context.setdefault("per_story", {})[story_id] = story_context
         source_context = context_row_for_spec_unit(unit)
         trace = trace_ids_for_spec_unit(unit)
         statement = str(unit.get("statement", "")).strip()
@@ -1076,14 +1090,110 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
             "trace": trace,
             "context": source_context,
             "domain_coverage": domain_coverage,
+            "context_pack": "08_context_packs/backlog_generation.json",
+            "context_pack_section": f"per_story.{story_id}",
             "dependencies": [],
             "enables": [],
             "acceptance": acceptance_criteria_for_spec_unit_story(story_id, unit, statement),
             "source_unit": str(unit.get("id", "")),
         }
-        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        story["execution_contract"] = build_agent_execution_contract(story, story_context, domain_coverage)
         specs.append(story)
     return specs
+
+
+def build_story_backlog_context(
+    project_id: str,
+    story_id: str,
+    unit: dict[str, Any],
+    backlog_context: dict[str, Any],
+) -> dict[str, Any]:
+    broker = ContextBroker(project_id)
+    plan = load_retrieval_plan("backlog_generation")
+    unit_context = spec_unit_query_context(story_id, unit)
+    sections: dict[str, Any] = {}
+    for section, retrieval in plan["sections"].items():
+        domain = retrieval.get("domain")
+        filters = dict(retrieval.get("filters", {}))
+        query = compose_plan_query(retrieval, unit_context)
+        retrieval_domain = "technical" if section == "critical_surfaces" and domain is None else domain
+        results = broker.retrieve(
+            query,
+            "backlog_generation_story",
+            limit=int(retrieval["limit"]),
+            domain=retrieval_domain,
+            artifact_type=filters.get("artifact_type"),
+            status=filters.get("status"),
+            language=filters.get("language"),
+            sensitivity=filters.get("sensitivity"),
+            section=filters.get("section"),
+            max_chars=int(retrieval["budget_chars"]),
+            summary_only=True,
+        )
+        if not results and retrieval_domain != domain:
+            results = broker.retrieve(
+                query,
+                "backlog_generation_story",
+                limit=int(retrieval["limit"]),
+                domain=domain,
+                artifact_type=filters.get("artifact_type"),
+                status=filters.get("status"),
+                language=filters.get("language"),
+                sensitivity=filters.get("sensitivity"),
+                section=filters.get("section"),
+                max_chars=int(retrieval["budget_chars"]),
+                summary_only=True,
+            )
+        sections[section] = {
+            "query": query,
+            "domain": retrieval_domain or "any",
+            "filters": filters,
+            "limit": retrieval["limit"],
+            "budget_chars": retrieval["budget_chars"],
+            "summary_chars": retrieval["summary_chars"],
+            "lenses": retrieval["lenses"],
+            "source_sections": retrieval["source_sections"],
+            "results": [
+                {
+                    "artifact_id": row.get("artifact_id", "N/A"),
+                    "artifact_type": row.get("artifact_type", "artifact"),
+                    "domain": row.get("domain", "unknown"),
+                    "section_path": row.get("section_path", ""),
+                    "summary": row.get("summary", row.get("text", ""))[: int(retrieval["summary_chars"])],
+                    "why_retrieved": row.get("why_retrieved", ""),
+                    "trace_ids": row.get("trace_ids", []),
+                    "source_hash": row.get("source_hash", ""),
+                    "read_plan": row.get("read_plan", read_plan_for_row(row)),
+                }
+                for row in results
+            ],
+        }
+    story_context = {
+        "story_id": story_id,
+        "source_unit": str(unit.get("id", "SPEC-U-PENDING")),
+        "workflow": "backlog_generation_story",
+        "retrieval_plan": deepcopy(backlog_context.get("retrieval_plan", {})),
+        "slicing_model": backlog_context.get("slicing_model", "vertical_value_slices_with_spidr_lawrence_invest"),
+        "domain_context_snapshot": deepcopy(
+            backlog_context.get("domain_context_snapshot", domain_context_snapshot(project_id))
+        ),
+        "sections": sections,
+    }
+    story_context["domain_context_coverage"] = build_domain_context_coverage(story_context)
+    return story_context
+
+
+def spec_unit_query_context(story_id: str, unit: dict[str, Any]) -> str:
+    parts = [
+        f"Story: {story_id}",
+        f"Spec Unit: {unit.get('id', 'SPEC-U-PENDING')}",
+        f"Title: {unit.get('title', '')}",
+        f"Statement: {unit.get('statement', '')}",
+        f"EARS: {', '.join(str(item) for item in unit.get('ears', []))}",
+        f"Slicing Pattern: {unit.get('slicing', '')}",
+        f"Trace: {', '.join(str(item) for item in unit.get('trace', []))}",
+    ]
+    return "\n".join(part for part in parts if part.strip())
 
 
 def pending_backlog_story(

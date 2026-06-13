@@ -375,7 +375,7 @@ It records which local memory chunks were consulted for:
 - regression contract;
 - open uncertainty.
 
-This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace.
+This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace. The top-level `sections` block is the aggregate backlog view; `domain_context_coverage` summarizes that global coverage. When value stories are derived from `SPEC-U-*` files, the `per_story` block stores `US-NNN` mini-contexts built from the story's Spec Unit statement and the same declarative retrieval sections, so `critical_surfaces`, design signals, quality signals, and coverage can differ by story.
 
 Its section queries come from `sentinel/retrieval_plans/backlog_generation.json`, with the same per-result `read_plan` anchors used by `/retrieve` and `/specs`.
 
@@ -389,6 +389,7 @@ It records, per story:
 - story type, title, dependencies, enabler links, and trace IDs;
 - required domains such as Product, Technology, Design, Quality, or Delivery;
 - pending execution context that must be resolved before implementation;
+- full `execution_contract` used by the story handoff;
 - retrieval plan with focused queries and workflow labels;
 - validation contract: fail-to-pass, pass-to-pass, and evidence expectations;
 - blast-radius boundaries and parallelization notes.

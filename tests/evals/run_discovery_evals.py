@@ -34,6 +34,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 from datetime import date
@@ -87,6 +88,14 @@ BACKLOG_LEGACY_SEED_TITLES = (
     "Cubrir estados de experiencia y validaciones",
     "Producir evidencia de aceptacion y trazabilidad",
 )
+
+EVAL_CONTEXT_FOLDERS = {
+    "technology": "00_raw/02_technology_context",
+    "design": "00_raw/03_design_context",
+    "quality": "00_raw/04_quality_context",
+    "business": "00_raw/01_business_context",
+    "interactions": "00_raw/05_interactions",
+}
 
 
 def brief_section_status(brief_md: str) -> dict:
@@ -144,6 +153,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         try:
             with contextlib.redirect_stdout(io.StringIO()):
                 assert main(["init", project_id]) == 0, f"init failed for {fixture_dir.name}"
+                copy_fixture_domain_context(fixture_dir, Path(temp) / "workspaces" / project_id)
                 assert main(["ingest", project_id, "--source", str(requirement)]) == 0, (
                     f"ingest failed for {fixture_dir.name}"
                 )
@@ -330,6 +340,25 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     }
 
 
+def copy_fixture_domain_context(fixture_dir: Path, workspace: Path) -> None:
+    context_root = fixture_dir / "domain_context"
+    if not context_root.exists():
+        return
+    for domain, target_relative in EVAL_CONTEXT_FOLDERS.items():
+        source_dir = context_root / domain
+        if not source_dir.exists():
+            continue
+        target_dir = workspace / target_relative
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for source in sorted(source_dir.rglob("*")):
+            if not source.is_file() or source.suffix.lower() not in {".md", ".txt"}:
+                continue
+            relative = source.relative_to(source_dir)
+            target = target_dir / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+
+
 def backlog_derivation_status(ws: Path, key: dict) -> dict[str, object]:
     backlog_key = key.get("backlog", {})
     readiness_path = ws / "08_context_packs" / "implementation_readiness.json"
@@ -349,7 +378,11 @@ def backlog_derivation_status(ws: Path, key: dict) -> dict[str, object]:
         }
     readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
     value_stories = [story for story in readiness.get("stories", []) if story.get("type") != "cross_cutting_enabler"]
-    story_ids = sorted(str(story.get("id", "")) for story in value_stories if story.get("id"))
+    story_ids = sorted(
+        str(story.get("story_id", story.get("id", "")))
+        for story in value_stories
+        if story.get("story_id") or story.get("id")
+    )
     source_units = sorted(
         story.get("source_unit")
         for story in value_stories

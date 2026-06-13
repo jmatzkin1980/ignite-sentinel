@@ -343,9 +343,9 @@ Outputs:
 
 The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json`. That file preserves the framework's existing INVEST, vertical slicing, SPIDR, Lawrence and enabler-boundary guidance, and it drives each story's `Slicing Pattern` plus `Slicing Rationale`.
 
-`/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage`, derive `Agent Execution Contract` sections, and create a story-level retrieval plan for downstream execution agents. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
+`/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage`, derive `Agent Execution Contract` sections, and create a story-level retrieval plan for downstream execution agents. The aggregate context remains in `backlog_generation.json`, while each value story also gets a `per_story.US-NNN` mini-context built from its `SPEC-U-*` statement and the same declarative retrieval plan. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
 
-`implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
+`implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
 ## `quality`
 
