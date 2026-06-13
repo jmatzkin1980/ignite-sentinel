@@ -427,9 +427,10 @@ Generate the PRD and agent-friendly specs for ACME_DASHBOARD from the mature pro
 
 - `03_specs/prd.md`
 - `03_specs/specs.md`
+- `03_specs/units/SPEC-U-NNN.md` when confirmed EARS requirements exist
 - `08_context_packs/specs_generation.json`
 
-**How to interpret it:** The PRD explains what should be built and why. The spec acts as an operational contract for agents and a traceable bridge into backlog.
+**How to interpret it:** The PRD explains what should be built and why. `specs.md` acts as the compact operational contract and index for agents. `SPEC-U-*` files are the bounded, evidence-backed execution units. `specs_generation.json` records the declarative retrieval plan and `read_plan` source anchors used during generation.
 
 ### Scenario D2: Generate Backlog With Execution Readiness
 

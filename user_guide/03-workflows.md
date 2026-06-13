@@ -115,10 +115,11 @@ Review:
 workspaces/PROJECT_ID/02_requirements/project-brief.md
 workspaces/PROJECT_ID/03_specs/prd.md
 workspaces/PROJECT_ID/03_specs/specs.md
+workspaces/PROJECT_ID/03_specs/units/SPEC-U-NNN.md
 workspaces/PROJECT_ID/08_context_packs/specs_generation.json
 ```
 
-`prd.md` is the complete what/why narrative for humans and business reviewers, including personas, FRs with ACs, NFRs, KPIs, JTBD traceability, execution planning, and governance. `specs.md` is the compact agent contract: it keeps trace IDs, retrieved context signals, backlog seeds, and the retrieval plan that backlog agents should use before slicing epics and stories. `specs_generation.json` shows the local memory context used to draft each major PRD/spec section.
+`prd.md` is the complete what/why narrative for humans and business reviewers, including personas, FRs with ACs, NFRs, KPIs, JTBD traceability, execution planning, and governance. `specs.md` is the compact agent contract and index: it keeps trace IDs, retrieved context signals, backlog seeds, and the retrieval plan that backlog agents should use before slicing epics and stories. When confirmed EARS rows exist, `03_specs/units/SPEC-U-NNN.md` files carry bounded execution context with source anchors. `specs_generation.json` shows the declarative retrieval plan section, focused local memory context, and `read_plan` anchors used to draft each major PRD/spec section.
 
 ## Workflow 3: Backlog Generation
 
@@ -150,9 +151,9 @@ workspaces/PROJECT_ID/04_backlog/EPIC-001.md
 
 That epic file contains the domain context coverage, story map, agent execution contracts, retrieval plans, and the user stories. Sentinel also creates `US-00x.md` mirrors so traceability and quality tooling can link to each story as an individual node.
 
-Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; source workspace files remain authoritative if memory disagrees.
+Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; its queries come from `sentinel/retrieval_plans/backlog_generation.json` and each result carries `read_plan` source anchors. Source workspace files remain authoritative if memory disagrees.
 
-Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time.
+Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time. If specs were regenerated after backlog creation, `stale_spec_units` names changed `SPEC-U-*` units so reviewers can focus only on affected slices.
 
 Technology, Design, Quality, Delivery and other domains can keep enriching their context files throughout the lifecycle. After those files are ingested, synced, or reindexed, downstream backlog generation can cite them. If a domain contract is missing, Sentinel keeps `[PENDING DOMAIN CONTEXT]` visible instead of inventing commands, files, design tokens, regression suites, or blast-radius boundaries.
 
