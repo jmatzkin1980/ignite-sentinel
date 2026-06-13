@@ -151,6 +151,8 @@ workspaces/PROJECT_ID/04_backlog/EPIC-001.md
 
 That epic file contains the domain context coverage, story map, agent execution contracts, retrieval plans, and the user stories. Sentinel also creates `US-00x.md` mirrors so traceability and quality tooling can link to each story as an individual node.
 
+Backlog value stories are derived from confirmed `SPEC-U-*` files produced by `/specs`. If six confirmed EARS statements create six Spec Units, `/backlog` creates six value stories. If `/specs` has no evidence-backed functional unit, `/backlog` keeps the missing evidence visible as a `[PENDING INPUT]` stub and points reviewers back to the blocking gaps rather than inventing a placeholder backlog.
+
 Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; its queries come from `sentinel/retrieval_plans/backlog_generation.json` and each result carries `read_plan` source anchors. Source workspace files remain authoritative if memory disagrees.
 
 Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time. If specs were regenerated after backlog creation, `stale_spec_units` names changed `SPEC-U-*` units so reviewers can focus only on affected slices.
@@ -168,7 +170,7 @@ Then continue with quality, trace, health, and validation.
 
 When reviewing the backlog, check:
 
-- every story cites `REQ-001`, `PRD-001`, `SPEC-001`, and an FR/JTBD;
+- every value story cites `REQ-001`, `PRD-001`, `SPEC-001`, and a `SPEC-U-*` unit or remains explicitly pending;
 - stories are vertical value slices, not isolated frontend/backend/data tasks;
 - `Small` means small but still valuable: avoid micro-stories that cannot be accepted independently;
 - domain context coverage makes Technology, Design, Quality and Delivery evidence visible or explicitly pending;

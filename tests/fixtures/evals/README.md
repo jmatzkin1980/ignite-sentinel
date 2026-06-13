@@ -6,6 +6,7 @@ Each fixture folder contains:
 
 - `requirement.md`: synthetic raw client requirement.
 - `gap_responses.md` (optional, IMP-038): synthetic confirmed answers used only to close blocking gaps so the eval can reach `/specs` through the real lifecycle. Do not use these to hide discovery omissions; they are phase-2 enablement data.
+- `gap_response_rounds/*.md` (optional, IMP-048): multiple synthetic response rounds applied in sorted order when one fixture needs several confirmed EARS rows and therefore several `SPEC-U-*` units.
 - `answer_key.json`: expected detection behavior:
   - `must_fire`: gaps the current engine must detect.
   - `must_not_fire`: information explicitly covered in the text; firing one is a false positive.
@@ -22,8 +23,9 @@ Each fixture folder contains:
     - `target_populated`: numbered PRD sections that have enough confirmed evidence and should eventually be compiled from evidence by IMP-039.
     - `rationale`: why those PRD sections are expected to become evidence-backed.
   - `golden_queries` (IMP-032): retrieval answer key with query, workflow, expected artifacts, kind, and rationale.
+  - `backlog` (IMP-048): backlog derivation answer key with expected story count, expected `SPEC-U-*` source units, and whether every generated story must trace to a Spec Unit.
 
-The runner executes `init -> ingest -> resolve-gaps (when gap_responses.md exists) -> brief -> specs` per fixture. It classifies brief sections 1-6 and PRD sections 1-13 as `populated` or `pending`, then counts fixed scaffolding IDs in `specs.md` (`JTBD-001`, `CAP-001..003`, `US-001..005`, `ASM-001/002`). IMP-038 intentionally records a low PRD baseline and high specs scaffolding baseline so IMP-039/042 can move them with falsifiable evidence.
+The runner executes `init -> ingest -> resolve-gaps (when gap_responses.md or gap_response_rounds/*.md exist) -> brief -> specs -> backlog` per fixture. It classifies brief sections 1-6 and PRD sections 1-13 as `populated` or `pending`, counts fixed scaffolding IDs in `specs.md` (`JTBD-001`, `CAP-001..003`, `US-001..005`, `ASM-001/002`), and checks backlog derivation against `SPEC-U-*` answer keys. IMP-038 intentionally recorded a low PRD baseline and high specs scaffolding baseline so IMP-039/042 could move them with falsifiable evidence; IMP-048 adds story derivation coverage.
 
 `tests/test_evals_retrieval.py` runs `init -> ingest` per fixture, scores golden queries with recall@5 and MRR, and writes `tests/evals/reports/retrieval_eval_<date>.json`. The report includes per-fixture backend metadata plus `summary.by_backend` so `json-hybrid` and `lancedb-hybrid` runs can be compared without making LanceDB mandatory.
 

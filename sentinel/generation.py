@@ -264,6 +264,66 @@ def parse_spec_unit_frontmatter(text: str) -> dict[str, Any]:
     return data
 
 
+def read_spec_units(project_id: str) -> list[dict[str, Any]]:
+    base = workspace_path(project_id)
+    units_dir = base / "03_specs" / "units"
+    units: list[dict[str, Any]] = []
+    for path in sorted(units_dir.glob("SPEC-U-*.md")) if units_dir.exists() else []:
+        text = path.read_text(encoding="utf-8")
+        frontmatter = parse_spec_unit_frontmatter(text)
+        unit_id = str(frontmatter.get("id", path.stem)).strip()
+        if not re.match(r"^SPEC-U-\d{3}$", unit_id):
+            continue
+        status = str(frontmatter.get("status", "")).strip().lower()
+        if status and status not in {"evidence-backed", "confirmed", "ready"}:
+            continue
+        units.append(
+            {
+                "id": unit_id,
+                "title": spec_unit_title(text, unit_id),
+                "status": status or "evidence-backed",
+                "path": path,
+                "relative_path": path.relative_to(base).as_posix(),
+                "trace_ids": [str(item) for item in frontmatter.get("trace_ids", []) if str(item).strip()],
+                "ears": [str(item) for item in frontmatter.get("ears", []) if str(item).strip()],
+                "sources": [str(item) for item in frontmatter.get("sources", []) if str(item).strip()],
+                "statement": spec_unit_statement(text),
+                "pattern": spec_unit_pattern(text),
+            }
+        )
+    return units
+
+
+def spec_unit_title(text: str, fallback: str) -> str:
+    for line in text.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip() or fallback
+    return fallback
+
+
+def spec_unit_statement(text: str) -> str:
+    in_requirement = False
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("## "):
+            in_requirement = line == "## Normalized Requirement"
+            continue
+        if not in_requirement or not line.startswith("|"):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        if len(cells) < 2 or cells[0] in {"EARS ID", "---"}:
+            continue
+        return cells[1]
+    return ""
+
+
+def spec_unit_pattern(text: str) -> str:
+    for line in text.splitlines():
+        if line.startswith("- Pattern:"):
+            return line.split(":", 1)[1].strip().strip("`")
+    return ""
+
+
 def record_spec_unit_delta(
     project_id: str,
     previous_units: dict[str, dict[str, Any]],
@@ -602,14 +662,19 @@ def generate_backlog(project_id: str) -> dict[str, str]:
 
     story_ids: list[str] = []
     acceptance_ids: list[str] = []
+    active_story_paths: set[Path] = set()
     for index, story_spec in enumerate(story_specs, start=1):
         story_path = base / "04_backlog" / f"US-{index:03d}.md"
         story_path.write_text(render_story(project_id, epic_id, story_spec), encoding="utf-8")
+        active_story_paths.add(story_path)
         story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
         story_ids.append(story_id)
         add_edge(project_id, epic_id, story_id, "contains")
         for spec in specs:
             add_edge(project_id, spec["id"], story_id, "decomposes_to")
+        for trace_id in story_spec.get("trace", []):
+            if re.match(r"^SPEC-U-\d{3}$", str(trace_id)):
+                add_edge(project_id, str(trace_id), story_id, "decomposes_to")
 
         ac_id = add_node(project_id, "AC", "acceptance_criteria", story_path, f"Acceptance criteria for {story_id}", domain="quality")
         acceptance_ids.append(ac_id)
@@ -636,6 +701,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         for index, enabler_spec in enumerate(enabler_specs, start=len(story_specs) + 1):
             story_path = base / "04_backlog" / f"US-{index:03d}.md"
             story_path.write_text(render_story(project_id, enabler_epic_id, enabler_spec), encoding="utf-8")
+            active_story_paths.add(story_path)
             story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
             story_ids.append(story_id)
             add_edge(project_id, enabler_epic_id, story_id, "contains")
@@ -654,6 +720,10 @@ def generate_backlog(project_id: str) -> dict[str, str]:
             domain="technical",
             trace_ids=[enabler_epic_id, *[item["id"] for item in enabler_specs]],
         )
+
+    for stale_story_path in (base / "04_backlog").glob("US-*.md"):
+        if stale_story_path not in active_story_paths:
+            stale_story_path.unlink()
 
     broker = ContextBroker(project_id)
     broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])
@@ -846,6 +916,7 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "validation": execution.get("validation", {}),
         "blast_radius": execution.get("blast_radius", []),
         "trace": story.get("trace", []),
+        "source_unit": story.get("source_unit", "[PENDING INPUT]"),
     }
 
 
@@ -972,33 +1043,120 @@ def render_ears_requirements_table(
 def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
     domain_coverage = build_domain_context_coverage(backlog_context)
-    ears_ids = ears_trace_ids(backlog_context)
-    for index, seed in enumerate(BACKLOG_STORY_SEEDS, start=1):
+    spec_units = read_spec_units(project_id)
+    if not spec_units:
+        story = pending_backlog_story(domain_coverage, backlog_context)
+        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        return [story]
+    for index, unit in enumerate(spec_units, start=1):
         story_id = f"US-{index:03d}"
-        source_context = context_row_for_story(seed, backlog_context)
-        trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", seed["fr"], seed["jtbd"]]
+        source_context = context_row_for_spec_unit(unit)
+        trace = trace_ids_for_spec_unit(unit)
+        statement = str(unit.get("statement", "")).strip()
+        title = title_for_spec_unit_story(unit)
+        goal = goal_for_spec_unit(unit)
         story = {
             "id": story_id,
-            "type": seed["type"],
-            "title": seed["title"],
-            "label": seed["label"],
-            "fr": seed["fr"],
-            "jtbd": seed["jtbd"],
-            "slicing": seed["slicing"],
-            "description": seed["description"],
-            "goal": seed["goal"],
-            "benefit": seed["benefit"],
-            "domain": story_domain(seed["fr"]),
+            "type": "value_story",
+            "title": title,
+            "label": "Spec Unit",
+            "fr": str(unit.get("id", "SPEC-U-PENDING")),
+            "jtbd": ", ".join(str(item) for item in unit.get("ears", [])) or "[PENDING INPUT]",
+            "slicing": "Workflow Step / Happy Path",
+            "description": f"Entrega el comportamiento confirmado en `{unit.get('id', 'SPEC-U-PENDING')}` como un slice vertical trazable.",
+            "goal": goal,
+            "benefit": "la capacidad confirmada se puede planificar, implementar y validar sin reinterpretar el PRD o inventar alcance",
+            "domain": domain_for_spec_unit(unit),
             "trace": trace,
             "context": source_context,
             "domain_coverage": domain_coverage,
-            "dependencies": story_dependencies(index),
+            "dependencies": [],
             "enables": [],
-            "acceptance": acceptance_criteria_for_story(story_id, seed),
+            "acceptance": acceptance_criteria_for_spec_unit_story(story_id, unit, statement),
+            "source_unit": str(unit.get("id", "")),
         }
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
         specs.append(story)
     return specs
+
+
+def pending_backlog_story(domain_coverage: list[dict[str, str]], backlog_context: dict[str, Any]) -> dict[str, Any]:
+    story = {
+        "id": "US-001",
+        "type": "pending_input_stub",
+        "title": "[PENDING INPUT] Confirm evidence-backed Spec Units before slicing backlog",
+        "label": "Pending",
+        "fr": "[PENDING INPUT]",
+        "jtbd": "[PENDING INPUT]",
+        "slicing": "Workflow Step / Happy Path",
+        "description": "No evidence-backed `SPEC-U-*` unit exists yet, so Sentinel preserves the missing input instead of creating placeholder stories.",
+        "goal": "confirmar Spec Units funcionales trazables antes de derivar historias de valor",
+        "benefit": "el backlog no inventa alcance y el BA puede resolver los gaps que desbloquean slicing",
+        "domain": "functional",
+        "trace": ["REQ-001", "PRD-001", "SPEC-001", "GAP-PRD-FR-AC", "GAP-BACKLOG-SLICING-READINESS"],
+        "context": {
+            "need": "spec_units",
+            "artifact_id": "03_specs/units/",
+            "artifact_type": "pending",
+            "summary": "[PENDING INPUT] No evidence-backed Spec Units were found. Resolve functional/EARS evidence and rerun /specs before deriving backlog stories.",
+        },
+        "domain_coverage": domain_coverage,
+        "dependencies": [],
+        "enables": [],
+        "acceptance": acceptance_criteria_for_pending_story("US-001"),
+    }
+    return story
+
+
+def title_for_spec_unit_story(unit: dict[str, Any]) -> str:
+    unit_id = str(unit.get("id", "SPEC-U-PENDING"))
+    statement = str(unit.get("statement", "")).strip()
+    if statement:
+        cleaned = re.sub(r"^(When|While|If|Where|The system shall|Cuando|Mientras|Si|Donde)\s+", "", statement, flags=re.I)
+        cleaned = cleaned.rstrip(".")
+        return f"{unit_id} - {safe_cell(cleaned, 96)}"
+    raw_title = str(unit.get("title", unit_id)).strip()
+    return f"{unit_id} - {safe_cell(raw_title, 96)}"
+
+
+def goal_for_spec_unit(unit: dict[str, Any]) -> str:
+    statement = str(unit.get("statement", "")).strip()
+    if statement:
+        return statement
+    return f"implementar el comportamiento confirmado en {unit.get('id', 'SPEC-U-PENDING')}"
+
+
+def domain_for_spec_unit(unit: dict[str, Any]) -> str:
+    text = " ".join(str(unit.get(key, "")) for key in ("statement", "pattern", "title")).lower()
+    if any(token in text for token in ("api", "integration", "integracion", "data", "database", "contract", "service", "backend")):
+        return "technical"
+    if any(token in text for token in ("screen", "ui", "ux", "journey", "pantalla", "interfaz", "form")):
+        return "design"
+    if any(token in text for token in ("test", "quality", "evidence", "regression", "acceptance")):
+        return "quality"
+    return "functional"
+
+
+def context_row_for_spec_unit(unit: dict[str, Any]) -> dict[str, str]:
+    return {
+        "need": "spec_unit",
+        "artifact_id": str(unit.get("id", "SPEC-U-PENDING")),
+        "artifact_type": "spec_unit",
+        "summary": safe_cell(str(unit.get("statement") or unit.get("title") or "[PENDING INPUT]"), 260),
+    }
+
+
+def trace_ids_for_spec_unit(unit: dict[str, Any]) -> list[str]:
+    trace = ["REQ-001", "PRD-001", "SPEC-001", str(unit.get("id", "SPEC-U-PENDING"))]
+    trace.extend(str(item) for item in unit.get("trace_ids", []) if str(item).strip())
+    trace.extend(str(item) for item in unit.get("ears", []) if str(item).strip())
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in trace:
+        if item and item not in seen:
+            ordered.append(item)
+            seen.add(item)
+    return ordered
 
 
 def build_cross_cutting_enabler_specs(
@@ -1006,6 +1164,9 @@ def build_cross_cutting_enabler_specs(
     value_stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    enabled_value_stories = [story for story in value_stories if story.get("type") == "value_story"]
+    if not enabled_value_stories:
+        return []
     evidence = cross_cutting_enabler_evidence(project_id)
     if not evidence:
         return []
@@ -1039,7 +1200,7 @@ def build_cross_cutting_enabler_specs(
             },
             "domain_coverage": domain_coverage,
             "dependencies": [],
-            "enables": [story["id"] for story in value_stories if story["type"] == "value_story"],
+            "enables": [story["id"] for story in enabled_value_stories],
             "acceptance": acceptance_criteria_for_enabler(story_id, candidate),
         }
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
@@ -1308,6 +1469,73 @@ def context_row_for_story(seed: dict[str, str], backlog_context: dict[str, Any])
         "artifact_type": "pending",
         "summary": "[PENDING INPUT] No focused context retrieved for this story. Use /retrieve before implementation.",
     }
+
+
+def acceptance_criteria_for_spec_unit_story(
+    story_id: str,
+    unit: dict[str, Any],
+    statement: str,
+) -> list[dict[str, str]]:
+    base = story_id.replace("US-", "AC-")
+    unit_id = str(unit.get("id", "SPEC-U-PENDING"))
+    ears_ids = ", ".join(str(item) for item in unit.get("ears", []) if str(item).strip()) or "[PENDING INPUT]"
+    behavior = statement or f"el comportamiento confirmado en {unit_id}"
+    return [
+        {
+            "id": f"{base}-01",
+            "name": "Spec Unit Happy Path",
+            "classification": "fail-to-pass",
+            "given": f"`{unit_id}` esta confirmado y sus fuentes estan disponibles",
+            "when": behavior,
+            "then": "el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia",
+        },
+        {
+            "id": f"{base}-02",
+            "name": "Spec Unit Validation Path",
+            "classification": "fail-to-pass",
+            "given": f"una precondicion, dato o regla requerida por `{unit_id}` no se cumple",
+            "when": "el usuario o sistema intenta completar el slice",
+            "then": "el avance riesgoso se bloquea o queda recuperable sin registrar exito falso",
+        },
+        {
+            "id": f"{base}-03",
+            "name": "Failure And Recovery Path",
+            "classification": "fail-to-pass",
+            "given": "una dependencia, dato, permiso o estado externo citado por la unidad no esta disponible",
+            "when": "el sistema intenta completar el slice",
+            "then": "la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad",
+        },
+        {
+            "id": f"{base}-04",
+            "name": "Regression Path",
+            "classification": "pass-to-pass",
+            "given": "existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia",
+            "when": "se valida el incremento junto con la regresion definida por Quality o el repositorio",
+            "then": "las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado",
+        },
+        {
+            "id": f"{base}-05",
+            "name": "Quality Evidence Path",
+            "classification": "evidence",
+            "given": "Quality revisa la historia para aceptacion o automatizacion",
+            "when": "consulta criterios, alcance, dependencias y trazas",
+            "then": f"encuentra {unit_id}, {ears_ids}, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable",
+        },
+    ]
+
+
+def acceptance_criteria_for_pending_story(story_id: str) -> list[dict[str, str]]:
+    base = story_id.replace("US-", "AC-")
+    return [
+        {
+            "id": f"{base}-01",
+            "name": "Pending Spec Unit Evidence",
+            "classification": "evidence",
+            "given": "no existe una Spec Unit funcional confirmada",
+            "when": "Sentinel genera el backlog",
+            "then": "la historia permanece como `[PENDING INPUT]` y apunta a los gaps que desbloquean slicing, sin inventar alcance",
+        }
+    ]
 
 
 def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[dict[str, str]]:
@@ -2105,7 +2333,7 @@ slicing_model: vertical-value-slices
 
 ## Outcome
 
-Deliver the first ordered set of vertical slices that proves the mature requirement can create user and business value while preserving traceability for downstream AI planning, implementation, and testing agents.
+Deliver the first ordered set of vertical slices derived from evidence-backed Spec Units, proving the mature requirement can create user and business value while preserving traceability for downstream AI planning, implementation, and testing agents.
 
 ## Source And Retrieval
 
@@ -2134,7 +2362,7 @@ Backlog generation consumes living domain context when Technology, Design, Quali
 
 ### In Scope
 
-- End-to-end functional slices derived from `FR-01` through `FR-05`.
+- End-to-end functional slices derived from confirmed `SPEC-U-*` units.
 - Acceptance criteria in declarative Given/When/Then form.
 - Agent execution contracts derived from retrieved domain context, or explicit pending markers when context is missing.
 - Dependencies, assumptions, readiness and done checks visible to humans and AI agents.
@@ -2181,7 +2409,7 @@ Reject loose items such as "make an internal tool accessible", generic environme
 
 ## Epic Readiness Checklist
 
-- [ ] Each story is traceable to `REQ-001`, `PRD-001`, `SPEC-001`, and at least one FR/JTBD.
+- [ ] Each story is traceable to `REQ-001`, `PRD-001`, `SPEC-001`, and at least one confirmed `SPEC-U-*` or explicit `[PENDING INPUT]` gap.
 - [ ] Each story has declarative acceptance criteria with happy, validation, failure/recovery and quality evidence paths.
 - [ ] Dependencies and pending context are explicit.
 - [ ] No story is only a technical layer unless marked as a spike/scaffolding exception.

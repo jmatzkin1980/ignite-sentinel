@@ -111,7 +111,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("Pass-to-Pass", epic_text)
         self.assertIn("[PENDING DOMAIN CONTEXT]", epic_text)
         self.assertFalse((self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-002-cross-cutting-enablers.md").exists())
-        self.assertIn("US-005", epic_text)
+        self.assertIn("SPEC-U", epic_text)
         self.assertIn("backlog_generation.json", epic_text)
         self.assertIn("implementation_readiness.json", epic_text)
         self.assertEqual(main(["quality", "NOVA"]), 0)
@@ -124,8 +124,8 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn('"type": "user_story"', graph)
         self.assertIn('"type": "acceptance_criteria"', graph)
         self.assertIn('"type": "test_case"', graph)
-        self.assertIn('"id": "US-005"', graph)
-        self.assertIn('"id": "TC-005"', graph)
+        self.assertIn('"id": "US-001"', graph)
+        self.assertIn('"id": "TC-001"', graph)
         story = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
         self.assertIn("Acceptance Criteria", story)
         self.assertIn("AC-001-01", story)
@@ -157,6 +157,16 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         )
         self.assertEqual(main(["init", "ENABLE"]), 0)
         self.assertEqual(main(["ingest", "ENABLE", "--source", str(source)]), 0)
+        answer = self.temp / "input" / "client_requirement" / "enabler-answers.md"
+        answer.write_text(
+            "### GAP-PRD-FR-AC\n"
+            "- Answer: When authorized users open the risk dashboard, the system shall show one high-risk case.\n"
+            "- Owner / source: Client workshop\n"
+            "- Evidence or reference: Synthetic EARS response for enabler boundary test\n"
+            "- Decision status: confirmed\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["resolve-gaps", "ENABLE", "--source", str(answer)]), 0)
         self.assertEqual(main(["maturity", "ENABLE"]), 0)
         self.assertEqual(main(["specs", "ENABLE"]), 0)
         self.assertEqual(main(["backlog", "ENABLE"]), 0)
