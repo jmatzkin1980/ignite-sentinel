@@ -3,25 +3,20 @@
   "language": "en",
   "expected_language": "en",
   "deliberate_omissions": [
-    "Technology context and implementation surfaces",
-    "Design states beyond the read-only dashboard",
-    "Quality evidence beyond the confirmed EARS acceptance rounds"
+    "Detailed delivery roadmap",
+    "Governance constraints",
+    "Design flow beyond the read-only dashboard"
   ],
   "must_fire": [
     "GAP-ACCEPTANCE",
     "GAP-DESIGN-FLOW",
-    "GAP-DESIGN-STATES",
-    "GAP-FRONTEND-SURFACE",
     "GAP-GOVERNANCE-CONSTRAINTS",
     "GAP-PRD-DEPENDENCIES-ROADMAP",
     "GAP-PRD-FR-AC",
     "GAP-PRD-GLOSSARY-GOVERNANCE",
     "GAP-PRD-NFR-KPI",
     "GAP-PRD-PERSONA-DETAIL",
-    "GAP-PRD-ROLLOUT-ENVIRONMENTS",
-    "GAP-QUALITY",
-    "GAP-TECH-DATA-SOURCE",
-    "GAP-TECH-NFR"
+    "GAP-PRD-ROLLOUT-ENVIRONMENTS"
   ],
   "must_not_fire": [
     "GAP-OBJECTIVE",
@@ -30,8 +25,7 @@
   ],
   "known_false_positives": [],
   "target_fire": [
-    "GAP-DESIGN-FLOW",
-    "GAP-FRONTEND-SURFACE"
+    "GAP-DESIGN-FLOW"
   ],
   "expected_gap_details": {
     "GAP-ACCEPTANCE": {
@@ -43,7 +37,7 @@
   "brief": {
     "target_populated": ["1", "2", "3"],
     "target_pending": ["4", "5", "6"],
-    "rationale": "The objective, users, and scope are present; design/technical/quality detail remains pending."
+    "rationale": "The objective, users, scope, and selected domain context are present; delivery/governance detail remains pending."
   },
   "prd": {
     "target_populated": ["1", "3", "4"],
@@ -82,8 +76,9 @@
       "rationale": "IMP-058 will flip this to true once per-story anchors are propagated."
     },
     "context": {
-      "require_distinct_critical_surfaces": false,
-      "rationale": "IMP-057 will flip this to true once retrieval runs per story instead of at epic level."
+      "require_distinct_critical_surfaces": true,
+      "min_distinct_critical_surfaces": 2,
+      "rationale": "IMP-057 retrieves context per story so technology/design/quality signals can differ by Spec Unit."
     },
     "rationale": "IMP-048 must derive one value story per confirmed Spec Unit instead of the previous fixed five-story seed."
   },

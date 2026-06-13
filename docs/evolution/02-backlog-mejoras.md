@@ -567,11 +567,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/quality.py`, `sentinel/validation.py`, `tests/`, skill `sentinel-quality`, `user_guide/01-command-reference.md`.
 
 ### IMP-057 — Contexto y cobertura de dominio por historia/Spec Unit
-- Estado: PENDING
+- Estado: DONE
 - Problema: `build_backlog_story_specs` asigna el mismo `domain_coverage` y `execution_contract` a todas las historias desde el pack global del epic.
 - Alcance: que cada historia derivada de su Spec Unit arme mini-contexto focalizado con `ContextBroker.retrieve`, planes declarativos y query de su unidad, manteniendo el pack global como índice agregado. Computar `execution_contract` y `domain_coverage` por historia, respetando budgets, `summary_only`, local-first y fallback `json-hybrid`.
 - Aceptación: en un fixture con al menos dos Spec Units de dominios distintos, dos historias obtienen `critical_surfaces`/`domain_coverage` distintos y acordes a su unidad; pack global conserva cobertura agregada; budgets respetados; evals de retrieval y suite sin regresión; modo `json-hybrid` intacto.
 - Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/backlog_generation.json`, `08_context_packs/`, `tests/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`, `user_guide/05-traceability-and-memory.md`.
+- Nota 2026-06-13: implementado mini-contexto por historia en `build_backlog_story_specs`: cada `US-NNN` derivada de `SPEC-U-*` ejecuta el plan declarativo `backlog_generation` con query enriquecida por su unidad, guarda el resultado bajo `08_context_packs/backlog_generation.json#per_story.US-NNN`, y calcula desde ahí `domain_coverage` y `execution_contract`. El pack global mantiene `sections` y `domain_context_coverage` agregados. `implementation_readiness.json` ahora incluye `execution_contract`, `context_pack` y `context_pack_section` por historia. El runner de evals copia fixtures de contexto de dominio a carpetas `00_raw/*_context` antes de `/ingest`, y `ops-risk-backlog` valida `critical_surfaces` distintos para al menos dos Spec Units. Tests y docs actualizados; adapters regenerados desde `python -m sentinel.adapters`. No se modificó el modelo de slicing ni el boundary de `EPIC-002`.
 
 ### IMP-058 — Propagar anchors (`read_plan`) al contrato y al handoff por historia
 - Estado: PENDING

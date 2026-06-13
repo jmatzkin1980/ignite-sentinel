@@ -97,6 +97,55 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
         self.assertIn({"from": "SPEC-U-001", "to": "US-001", "relation": "decomposes_to"}, graph["edges"])
         self.assertIn({"from": "SPEC-U-006", "to": "US-006", "relation": "decomposes_to"}, graph["edges"])
 
+    def test_backlog_execution_context_is_retrieved_per_story(self):
+        project_id = "STORYCTX"
+        self.assertEqual(main(["init", project_id]), 0)
+        workspace = self.temp / "workspaces" / project_id
+        tech_context = workspace / "00_raw" / "02_technology_context"
+        tech_context.mkdir(parents=True, exist_ok=True)
+        (tech_context / "stale-data.md").write_text(
+            "# Stale Data Context\n\n"
+            "Spec Unit: SPEC-U-004\n\n"
+            "While risk data is stale, the critical surfaces are "
+            "`src/risk/StaleDataBanner.tsx` and `RiskMetricsFreshnessService`.\n",
+            encoding="utf-8",
+        )
+        (tech_context / "metrics-service-unavailable.md").write_text(
+            "# Metrics Service Unavailable Context\n\n"
+            "Spec Unit: SPEC-U-005\n\n"
+            "If the metrics service is unavailable, the critical surfaces are "
+            "`src/risk/MetricsGateway.ts` and `RiskStatusFallback`.\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
+        for index, statement in enumerate(EARS_STATEMENTS, start=1):
+            self._resolve_acceptance_with(project_id, statement, index)
+        self.assertEqual(main(["brief", project_id]), 0)
+        self.assertEqual(main(["specs", project_id]), 0)
+        self.assertEqual(main(["backlog", project_id]), 0)
+
+        backlog_context = json.loads(
+            (workspace / "08_context_packs" / "backlog_generation.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("US-004", backlog_context["per_story"])
+        self.assertIn("US-005", backlog_context["per_story"])
+        self.assertIn("domain_context_coverage", backlog_context)
+
+        readiness = json.loads(
+            (workspace / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8")
+        )
+        stories = {story["story_id"]: story for story in readiness["stories"] if story["type"] == "value_story"}
+        stale_surface = stories["US-004"]["execution_contract"]["critical_surfaces"]["summary"]
+        outage_surface = stories["US-005"]["execution_contract"]["critical_surfaces"]["summary"]
+        self.assertIn("StaleDataBanner", stale_surface)
+        self.assertIn("MetricsGateway", outage_surface)
+        self.assertNotEqual(
+            stories["US-004"]["execution_contract"]["critical_surfaces"],
+            stories["US-005"]["execution_contract"]["critical_surfaces"],
+        )
+        self.assertEqual(stories["US-004"]["context_pack_section"], "per_story.US-004")
+        self.assertEqual(stories["US-005"]["context_pack_section"], "per_story.US-005")
+
     def test_backlog_without_spec_units_keeps_pending_stub_instead_of_fixed_seeds(self):
         project_id = "PENDINGBACKLOG"
         self.assertEqual(main(["init", project_id]), 0)
