@@ -60,7 +60,7 @@ Accepted forms:
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID`
 - `/backlog PROJECT_ID`
-- `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME]`
+- `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]`
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
@@ -84,7 +84,7 @@ Execution rule:
 - Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
 - Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.
 - `/backlog`, `/refine-backlog`, and `/quality` are blocked while project health is `DIRTY`; use `/maturity`, `/sync`, `/health`, `/retrieve`, and gap resolution evidence before forcing downstream execution.
-- `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME]` is the only supported way to mutate story lifecycle fields; it updates `state.json`, `US-NNN.md`, traceability, and command protocol anchors. Never edit story status/owner by hand.
+- `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]` is the only supported way to mutate story lifecycle fields and attach downstream acceptance evidence for DoD. It updates `state.json`, `US-NNN.md`, DoR/DoD checklists, traceability, and command protocol anchors. Default `backlog_gate` warnings do not block; strict mode is opt-in. Never edit story status/owner/gate evidence by hand.
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json` accepts structured agent proposals only after `/backlog`; every proposal needs verbatim local citations and is merged as an `origin: agent` review overlay, never as automatic story/enabler rewrite.
 - Keep privacy local-only: no remote MCP, external vector databases, or external embeddings for client/project content unless explicitly approved outside this framework.
 - If a Codex surface intercepts a native slash command before it reaches the agent, ask the user to send the same request as `sentinel /COMMAND PROJECT_ID`.

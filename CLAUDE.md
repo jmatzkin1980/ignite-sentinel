@@ -25,7 +25,7 @@ python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
 python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /maturity | /brief | /context-request
 python -m sentinel /sync | /reindex | /retrieve
-python -m sentinel /specs | /backlog | /story-status --story US-NNN --set STATE | /refine-backlog --source FILE | /quality | /trace | /health | /validate
+python -m sentinel /specs | /backlog | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /quality | /trace | /health | /validate
 python -m sentinel /status PROJECT_ID | /export PROJECT_ID
 ```
 
@@ -43,7 +43,7 @@ Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash
 - Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.
 - Tras cada comando, resumir resultado, artefactos generados y próximo paso recomendado.
 
-Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog`, `/refine-backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes. `/story-status` es el único canal para estado/owner de historias; no editar `US-NNN.md` ni `state.json` a mano. `/refine-backlog` solo acepta propuestas agénticas citadas y las registra como overlay `origin: agent`; no reescribe historias ni el boundary de enablers.
+Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog`, `/refine-backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes. `/story-status` es el único canal para estado/owner de historias y evidencia local de DoD; evalúa DoR/DoD con `backlog_gate` blando por default y strict opt-in. No editar `US-NNN.md`, `state.json` ni evidencia de gate a mano. `/refine-backlog` solo acepta propuestas agénticas citadas y las registra como overlay `origin: agent`; no reescribe historias ni el boundary de enablers.
 
 ## Verificación obligatoria al cambiar runtime
 

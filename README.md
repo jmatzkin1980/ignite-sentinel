@@ -108,6 +108,7 @@ python -m sentinel /specs ACME_DASHBOARD
 python -m sentinel /compose ACME_DASHBOARD --source input\interactions\prd-composition.json   # optional: cited PRD narrative
 python -m sentinel /backlog ACME_DASHBOARD
 python -m sentinel /story-status ACME_DASHBOARD --story US-001 --set Ready --owner "Delivery Lead"
+python -m sentinel /story-status ACME_DASHBOARD --story US-001 --set Done --evidence input\interactions\us-001-evidence.md
 python -m sentinel /refine-backlog ACME_DASHBOARD --source input\interactions\backlog-refinement.json   # optional: cited backlog proposals
 python -m sentinel /quality ACME_DASHBOARD
 python -m sentinel /trace ACME_DASHBOARD
@@ -148,7 +149,7 @@ When `/specs` is regenerated after changes, Sentinel writes unit-level deltas fo
 
 After `/backlog`, agents may submit governed refinement proposals through `/refine-backlog`. The JSON source must cite local evidence verbatim and can propose reslicing, split/merge candidates, missing stories, or concrete enabler candidates for BA review. Accepted proposals are marked `Origin: agent` under `04_backlog/refinements/` and appended to the epic/story as proposals only; Sentinel does not rewrite the slicing model or invent backlog scope.
 
-Story lifecycle is governed through `/story-status`, not manual edits. The command moves a `US-NNN` through `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, or `Stale`, assigns an owner, updates `state.json` plus story frontmatter, and records traceability. `/backlog` preserves those status/owner values across regeneration.
+Story lifecycle is governed through `/story-status`, not manual edits. The command moves a `US-NNN` through `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, or `Stale`, assigns an owner, evaluates DoR/DoD gates, updates `state.json` plus story frontmatter/checklists, and records traceability. `/backlog` preserves status/owner values across regeneration and keeps DoR/DoD visible in `implementation_readiness.json`. By default `backlog_gate` warns; opt-in strict mode blocks `Ready`/`Done` until missing items are resolved. Use `--evidence PATH` to attach local downstream acceptance evidence before closing `Done`.
 
 `/validate` keeps structural validity separate from maturity signals. It returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings for scaffolding content, missing EARS/spec-unit continuity, dangling spec-unit source pointers, or PRD/spec drift. Use those warnings as corrective guidance, not as hardened gates.
 

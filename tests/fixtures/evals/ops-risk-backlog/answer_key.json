@@ -91,7 +91,9 @@
     "story": "US-004",
     "set": "Ready",
     "owner": "Ops BA",
-    "rationale": "IMP-050 validates governed story lifecycle mutation through /story-status and persisted state/frontmatter."
+    "expect_dor_passed": true,
+    "expect_dod_missing": true,
+    "rationale": "IMP-050 validates governed story lifecycle mutation through /story-status and persisted state/frontmatter; IMP-051 validates persisted DoR/DoD gate results, with DoR passed for a context-backed story and DoD pending until acceptance evidence is attached."
   },
   "golden_queries": [
     {

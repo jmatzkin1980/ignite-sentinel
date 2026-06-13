@@ -121,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     story_status_p.add_argument("--story", required=True)
     story_status_p.add_argument("--set", required=True, dest="status")
     story_status_p.add_argument("--owner")
+    story_status_p.add_argument("--evidence")
 
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
@@ -215,7 +216,13 @@ def main(argv: list[str] | None = None) -> int:
             result = apply_backlog_refinement(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "story-status":
-            result = update_story_status(args.project_id, args.story, args.status, args.owner)
+            result = update_story_status(
+                args.project_id,
+                args.story,
+                args.status,
+                args.owner,
+                Path(args.evidence) if args.evidence else None,
+            )
             print_json(result)
         elif args.command == "maturity":
             result = evaluate(args.project_id)

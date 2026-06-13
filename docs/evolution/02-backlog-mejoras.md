@@ -426,7 +426,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/lenses/*.json`, `sentinel/discovery.py`, `tests/fixtures/evals/*/answer_key.json`, tests, `user_guide/02-artifact-reference.md`.
 
 ### IMP-047 — Elicitación orientada a EARS en gaps funcionales
-- Estado: PENDING
+- Estado: VERIFIED
 - Prioridad: 3
 - Depende de: IMP-046. Reusa IMP-022 (`expected_format_for_gap`), IMP-026 (`sentinel/ears.py`, `materialize_ears_requirements`) y skill `sentinel-gap-response`.
 - Problema: IMP-026 solo normaliza a `REQ-EARS-*` las respuestas confirmadas que ya llegaron escritas en sintaxis EARS; las respuestas en prosa no generan statements. Sin elicitación orientada a EARS, las spec units de IMP-042 quedan sin insumo en proyectos reales.
@@ -531,6 +531,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Alcance: conservar los checklists actuales y agregar evaluación por historia usando señales existentes: AC presentes y clasificadas, `readiness_score`, ausencia de `GAP-*` blocking sobre la traza, patrón de slicing y owner. DoD exige evidencia de aceptación trazada desde downstream. Reusar el patrón `config.specs_gate {threshold, strict}` como `config.backlog_gate`, default advertencia, modo estricto opt-in.
 - Aceptación: una historia incompleta no alcanza `Ready` en modo estricto y en default lista faltantes exactos; una historia completa pasa DoR; DoD solo cierra con evidencia trazada; default no bloqueante.
 - Afecta: nuevo módulo de backlog status/validación, `sentinel/maturity.py`, config de workspace, `tests/`, `user_guide/01-command-reference.md`, `user_guide/05-traceability-and-memory.md`.
+- Nota 2026-06-13: implementado `sentinel/backlog_gates.py` con evaluación DoR/DoD por historia, `config.backlog_gate {threshold, strict}` blando por default, persistencia en `state.json#story_gates`, render `[x]/[ ]` de checklists existentes y campos `dor`/`dod` en `implementation_readiness.json`. `/story-status` ahora devuelve warnings de gate, bloquea `Ready`/`Done` solo con strict opt-in y acepta `--evidence PATH` para registrar evidencia local trazada (`story_acceptance_evidence` + edge `acceptance_evidence_for`). Tests cubren default no bloqueante, strict block, DoR passing con contexto de dominio y DoD con evidencia; eval `ops-risk-backlog` valida DoR/DoD persistidos.
 
 ### IMP-052 — Rollup por épica + tablero de backlog para el BA
 - Estado: PENDING
@@ -612,6 +613,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-051 VERIFIED (branch `imp-051-dor-dod-gates`): DoR/DoD evaluable sobre los checklists existentes, `backlog_gate` blando/strict opt-in, warnings en `/story-status` y `/status`, bloqueo estricto de Ready/Done, evidencia local `--evidence` para DoD con trazabilidad, handoff JSON y eval `ops-risk-backlog` ampliados. |
 | 2026-06-13 | IMP-050 VERIFIED (branch `imp-050-story-lifecycle`): agregado `/story-status` con máquina de estados gobernada, owner en `state.json`/frontmatter, status log, trazabilidad y preservación por `/backlog`; eval `ops-risk-backlog` valida `US-004 → Ready`. DoR/DoD estricto queda para IMP-051. |
 | 2026-06-13 | IMP-059 VERIFIED (branch `imp-059-backlog-refine`): agregado `/refine-backlog` como canal agéntico sancionado para propuestas citadas de reslicing/split/merge/missing story/enabler candidate. Source archivado, accepted/report, overlay `origin: agent`, trazabilidad y eval fixture `ops-risk-backlog`; el modelo de slicing y boundary `EPIC-002` quedan preservados. |
 | 2026-06-13 | IMP-049 VERIFIED (branch `imp-049-slicing-model`): modelo de slicing externalizado a `sentinel/slicing/backlog_slicing_model.json`, loader con override, selección de patrón/rationale por Spec Unit, answer-key de backlog actualizado y docs/skills alineadas. Tabla "Slicing Strategy" y boundary de `EPIC-002` preservados. |

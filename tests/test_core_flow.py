@@ -876,6 +876,8 @@ Second section paragraph.
         self.assertIn("project_language: auto", config)
         self.assertIn("privacy_mode: local-only", config)
         self.assertIn("auto_close_rule: confirmed_structured", config)
+        self.assertIn("backlog_gate:", config)
+        self.assertIn("strict: false", config)
         self.assertTrue((workspace / "00_raw" / "02_technology_context").is_dir())
         self.assertTrue((workspace / "00_raw" / "03_design_context").is_dir())
         self.assertTrue((workspace / "07_changes" / "03_domain_updates").is_dir())

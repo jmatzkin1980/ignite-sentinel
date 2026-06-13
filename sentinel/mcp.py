@@ -57,7 +57,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, and assumption inversion; writes challenge_report.md.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
     ("refine_backlog", "Merge validated agent-authored backlog refinement proposals; every proposal cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
-    ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine.", ["project_id", "story", "status"]),
+    ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
 ]
 
 
@@ -209,10 +209,12 @@ def build_server():
         return run_cli(["refine-backlog", project_id, "--source", source])
 
     @server.tool(name="sentinel_story_status", description=TOOL_SPECS[22][1])
-    def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "") -> dict:
+    def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "") -> dict:
         arguments = ["story-status", project_id, "--story", story, "--set", status]
         if owner:
             arguments += ["--owner", owner]
+        if evidence:
+            arguments += ["--evidence", evidence]
         return run_cli(arguments)
 
     return server

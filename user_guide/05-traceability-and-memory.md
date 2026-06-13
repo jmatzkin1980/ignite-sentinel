@@ -31,6 +31,8 @@ Outputs:
 - `traceability_matrix.md`
 - `traceability_graph.md`
 
+Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates `story_status_change` nodes linked with `updates_story_status`. When the command receives `--evidence PATH`, Sentinel copies that local file into `04_backlog/acceptance_evidence/`, creates a `story_acceptance_evidence` node, links it to the story with `acceptance_evidence_for`, and lets the DoD gate consume that trace. Sentinel records the evidence; it does not execute downstream tests.
+
 ## Memory Layer
 
 Memory lives at:
