@@ -1,8 +1,8 @@
-"""Discovery, brief, PRD, and specs eval harness (IMP-020, IMP-027, IMP-039).
+"""Discovery, brief, PRD, specs, and backlog eval harness.
 
 Runs the Sentinel lifecycle over synthetic fixtures with answer keys and
-measures gap detection quality plus project-brief, PRD, and specs evidence
-coverage.
+measures gap detection quality plus project-brief, PRD, specs, and backlog
+evidence coverage.
 Local-first and deterministic: no network, no external services.
 
 Two progress metrics travel with the baseline (neither fails the build):
@@ -15,6 +15,8 @@ Two progress metrics travel with the baseline (neither fails the build):
   and should be compiled from it in IMP-039.
 - specs_scaffolding_count: fixed scaffold IDs in specs.md. IMP-042 keeps this
   at zero by decomposing specs into evidence-backed units.
+- backlog metrics: derivation from Spec Units, no-invention, slicing pattern
+  baseline, and future per-story anchor/context checks (IMP-061).
 
 Usage, from the repository root:
 
@@ -77,6 +79,13 @@ SPECS_SCAFFOLDING_IDS = (
     "US-005",
     "ASM-001",
     "ASM-002",
+)
+BACKLOG_LEGACY_SEED_TITLES = (
+    "Habilitar el flujo principal de valor",
+    "Preservar comportamiento existente y compatibilidad",
+    "Conectar datos e integraciones necesarias",
+    "Cubrir estados de experiencia y validaciones",
+    "Producir evidencia de aceptacion y trazabilidad",
 )
 
 
@@ -172,10 +181,16 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 specs_scaffold = {"ids": [], "count": 0}
                 backlog_derivation = {
                     "story_count": 0,
+                    "story_ids": [],
                     "source_units": [],
                     "trace_unit_count": 0,
                     "mismatches": [],
                     "coverage": 1.0,
+                    "no_invention_rate": 1.0,
+                    "invented_story_count": 0,
+                    "slicing_accuracy": 1.0,
+                    "anchor_validity": 1.0,
+                    "context_distinctness": 1.0,
                 }
             else:
                 prd_status = prd_section_status((ws / "03_specs" / "prd.md").read_text(encoding="utf-8"))
@@ -292,10 +307,16 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "specs_scaffolding_ids": specs_scaffold["ids"],
         "specs_scaffolding_count": specs_scaffold["count"],
         "backlog_story_count": backlog_derivation["story_count"],
+        "backlog_story_ids": backlog_derivation["story_ids"],
         "backlog_source_units": backlog_derivation["source_units"],
         "backlog_trace_unit_count": backlog_derivation["trace_unit_count"],
         "backlog_derivation_mismatches": backlog_mismatches,
         "backlog_derivation_coverage": backlog_derivation["coverage"],
+        "backlog_no_invention_rate": backlog_derivation["no_invention_rate"],
+        "backlog_invented_story_count": backlog_derivation["invented_story_count"],
+        "backlog_slicing_accuracy": backlog_derivation["slicing_accuracy"],
+        "backlog_anchor_validity": backlog_derivation["anchor_validity"],
+        "backlog_context_distinctness": backlog_derivation["context_distinctness"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -315,13 +336,20 @@ def backlog_derivation_status(ws: Path, key: dict) -> dict[str, object]:
     if not readiness_path.exists():
         return {
             "story_count": 0,
+            "story_ids": [],
             "source_units": [],
             "trace_unit_count": 0,
             "mismatches": ["implementation_readiness.json missing"],
             "coverage": 0.0,
+            "no_invention_rate": 0.0,
+            "invented_story_count": 0,
+            "slicing_accuracy": 0.0,
+            "anchor_validity": 0.0,
+            "context_distinctness": 0.0,
         }
     readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
     value_stories = [story for story in readiness.get("stories", []) if story.get("type") != "cross_cutting_enabler"]
+    story_ids = sorted(str(story.get("id", "")) for story in value_stories if story.get("id"))
     source_units = sorted(
         story.get("source_unit")
         for story in value_stories
@@ -332,29 +360,158 @@ def backlog_derivation_status(ws: Path, key: dict) -> dict[str, object]:
         for story in value_stories
         if any(str(trace).startswith("SPEC-U-") for trace in story.get("trace", []))
     )
+    story_files = sorted((ws / "04_backlog").glob("US-*.md"))
+    story_ids_from_files = [path.stem for path in story_files]
+    story_text_by_id = {path.stem: path.read_text(encoding="utf-8") for path in story_files}
+    story_text = "\n".join(story_text_by_id.values())
+    if not story_ids:
+        story_ids = story_ids_from_files
     mismatches: list[str] = []
     expected_count = backlog_key.get("expected_story_count")
     if expected_count is not None and len(value_stories) != int(expected_count):
         mismatches.append(f"expected {expected_count} backlog stories, got {len(value_stories)}")
+    expected_story_ids = sorted(str(item) for item in backlog_key.get("expected_story_ids", []))
+    if expected_story_ids and story_ids != expected_story_ids:
+        mismatches.append(f"expected story ids {expected_story_ids}, got {story_ids}")
     expected_units = sorted(str(item) for item in backlog_key.get("expected_source_units", []))
     if expected_units and source_units != expected_units:
         mismatches.append(f"expected source units {expected_units}, got {source_units}")
     if backlog_key.get("require_spec_unit_trace") and trace_unit_count != len(value_stories):
         mismatches.append(f"expected every story to trace to SPEC-U, got {trace_unit_count}/{len(value_stories)}")
     if backlog_key.get("expect_pending_stub"):
-        story_text = "\n".join(path.read_text(encoding="utf-8") for path in sorted((ws / "04_backlog").glob("US-*.md")))
+        if len(value_stories) != 1:
+            mismatches.append(f"expected one pending backlog stub, got {len(value_stories)} stories")
+        if value_stories and value_stories[0].get("type") != "pending_input_stub":
+            mismatches.append(f"expected pending_input_stub, got {value_stories[0].get('type')}")
         if "[PENDING INPUT]" not in story_text:
             mismatches.append("expected pending backlog stub, but no [PENDING INPUT] marker was rendered")
+    legacy_hits = sorted(title for title in BACKLOG_LEGACY_SEED_TITLES if title in story_text)
+    if legacy_hits:
+        mismatches.append(f"legacy seed titles rendered: {legacy_hits}")
+    invented_stories = [
+        story
+        for story in value_stories
+        if story.get("type") == "value_story" and not str(story.get("source_unit", "")).startswith("SPEC-U-")
+    ]
+    if backlog_key.get("require_no_invented_stories", bool(backlog_key)) and invented_stories:
+        mismatches.append(
+            "value stories without SPEC-U source_unit: "
+            + ", ".join(str(story.get("id", "[unknown]")) for story in invented_stories)
+        )
+    slicing_mismatches = slicing_pattern_mismatches(value_stories, story_text_by_id, backlog_key)
+    mismatches.extend(slicing_mismatches)
+    anchor_mismatches, anchor_validity = backlog_anchor_status(ws, value_stories, backlog_key)
+    mismatches.extend(anchor_mismatches)
+    context_mismatches, context_distinctness = backlog_context_status(value_stories, backlog_key)
+    mismatches.extend(context_mismatches)
     coverage = round(trace_unit_count / len(value_stories), 3) if value_stories else 0.0
     if not backlog_key:
         coverage = 1.0
+    elif backlog_key.get("expect_pending_stub") and not expected_units:
+        coverage = 1.0 if not mismatches else 0.0
+    no_invention_rate = (
+        round((len(value_stories) - len(invented_stories)) / len(value_stories), 3) if value_stories else 1.0
+    )
+    expected_slicing = backlog_key.get("expected_slicing_by_source_unit", {})
+    slicing_accuracy = 1.0
+    if expected_slicing:
+        slicing_accuracy = round((len(expected_slicing) - len(slicing_mismatches)) / len(expected_slicing), 3)
     return {
         "story_count": len(value_stories),
+        "story_ids": story_ids,
         "source_units": source_units,
         "trace_unit_count": trace_unit_count,
         "mismatches": mismatches,
         "coverage": coverage,
+        "no_invention_rate": no_invention_rate,
+        "invented_story_count": len(invented_stories),
+        "slicing_accuracy": slicing_accuracy,
+        "anchor_validity": anchor_validity,
+        "context_distinctness": context_distinctness,
     }
+
+
+def slicing_pattern_mismatches(
+    value_stories: list[dict],
+    story_text_by_id: dict[str, str],
+    backlog_key: dict,
+) -> list[str]:
+    expected = {str(k): str(v) for k, v in backlog_key.get("expected_slicing_by_source_unit", {}).items()}
+    if not expected:
+        return []
+    by_unit = {}
+    for index, story in enumerate(value_stories, start=1):
+        unit = str(story.get("source_unit", ""))
+        if not unit.startswith("SPEC-U-"):
+            continue
+        slicing = str(story.get("slicing", ""))
+        if not slicing:
+            story_id = str(story.get("id") or f"US-{index:03d}")
+            match = re.search(r"^(?:\*\*Slicing Pattern:\*\*|- Slicing pattern:) (.+?)(?:\.)?$", story_text_by_id.get(story_id, ""), re.M)
+            slicing = match.group(1).strip() if match else ""
+        by_unit[unit] = slicing
+    mismatches = []
+    for unit, expected_slicing in sorted(expected.items()):
+        actual = by_unit.get(unit)
+        if actual != expected_slicing:
+            mismatches.append(f"expected slicing {expected_slicing!r} for {unit}, got {actual!r}")
+    return mismatches
+
+
+def collect_anchor_candidates(value: object) -> list[dict]:
+    anchors: list[dict] = []
+    if isinstance(value, dict):
+        if {"source_path", "line_start", "line_end"}.issubset(value):
+            anchors.append(value)
+        for item in value.values():
+            anchors.extend(collect_anchor_candidates(item))
+    elif isinstance(value, list):
+        for item in value:
+            anchors.extend(collect_anchor_candidates(item))
+    return anchors
+
+
+def backlog_anchor_status(ws: Path, value_stories: list[dict], backlog_key: dict) -> tuple[list[str], float]:
+    anchor_key = backlog_key.get("anchors", {})
+    if not anchor_key.get("require_valid"):
+        return [], 1.0
+    anchors = []
+    for story in value_stories:
+        anchors.extend(collect_anchor_candidates(story.get("execution_contract", {})))
+    if not anchors:
+        return ["expected valid backlog anchors, got none"], 0.0
+    mismatches = []
+    valid = 0
+    for anchor in anchors:
+        source_path = ws / str(anchor.get("source_path", ""))
+        line_start = int(anchor.get("line_start", 0) or 0)
+        line_end = int(anchor.get("line_end", 0) or 0)
+        if not source_path.exists():
+            mismatches.append(f"anchor source missing: {anchor.get('source_path')}")
+            continue
+        lines = source_path.read_text(encoding="utf-8").splitlines()
+        if line_start < 1 or line_end < line_start or line_end > len(lines):
+            mismatches.append(f"anchor line range invalid: {anchor.get('source_path')}:{line_start}-{line_end}")
+            continue
+        valid += 1
+    return mismatches, round(valid / len(anchors), 3)
+
+
+def backlog_context_status(value_stories: list[dict], backlog_key: dict) -> tuple[list[str], float]:
+    context_key = backlog_key.get("context", {})
+    if not context_key.get("require_distinct_critical_surfaces"):
+        return [], 1.0
+    surfaces = {
+        json.dumps(story.get("execution_contract", {}).get("critical_surfaces", {}), sort_keys=True)
+        for story in value_stories
+    }
+    expected_min = int(context_key.get("min_distinct_critical_surfaces", len(value_stories)))
+    distinct = len(surfaces)
+    if distinct < expected_min:
+        return [f"expected at least {expected_min} distinct critical surface contexts, got {distinct}"], (
+            round(distinct / expected_min, 3) if expected_min else 1.0
+        )
+    return [], 1.0
 
 
 def run_all() -> int:
@@ -397,7 +554,20 @@ def run_all() -> int:
             "avg_backlog_derivation_coverage": round(
                 sum(r["backlog_derivation_coverage"] for r in results) / len(results), 3
             ),
+            "avg_backlog_no_invention_rate": round(
+                sum(r["backlog_no_invention_rate"] for r in results) / len(results), 3
+            ),
+            "avg_backlog_slicing_accuracy": round(
+                sum(r["backlog_slicing_accuracy"] for r in results) / len(results), 3
+            ),
+            "avg_backlog_anchor_validity": round(
+                sum(r["backlog_anchor_validity"] for r in results) / len(results), 3
+            ),
+            "avg_backlog_context_distinctness": round(
+                sum(r["backlog_context_distinctness"] for r in results) / len(results), 3
+            ),
             "total_backlog_derivation_mismatches": sum(len(r["backlog_derivation_mismatches"]) for r in results),
+            "total_backlog_invented_stories": sum(r["backlog_invented_story_count"] for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
             "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
@@ -419,6 +589,8 @@ def run_all() -> int:
             f"prd={len(r['prd_target_populated'])}/{len(r['prd_target_sections'])} "
             f"spec_scaffold={r['specs_scaffolding_count']} "
             f"backlog_stories={r['backlog_story_count']} "
+            f"backlog_no_invent={r['backlog_no_invention_rate']:.2f} "
+            f"backlog_slicing={r['backlog_slicing_accuracy']:.2f} "
             f"new_fp={len(r['new_false_positives'])}"
         )
         for gap in r["missing_must_fire"]:
@@ -456,7 +628,10 @@ def run_all() -> int:
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "
         f"ears_eligible_not_normalized={s['total_ears_eligible_not_normalized']} "
         f"avg_specs_scaffolding={s['avg_specs_scaffolding']:.2f} (IMP-042 spec units) "
-        f"avg_backlog_derivation_coverage={s['avg_backlog_derivation_coverage']:.2f} (IMP-048)"
+        f"avg_backlog_derivation_coverage={s['avg_backlog_derivation_coverage']:.2f} (IMP-048) "
+        f"avg_backlog_no_invention={s['avg_backlog_no_invention_rate']:.2f} "
+        f"avg_backlog_slicing={s['avg_backlog_slicing_accuracy']:.2f} "
+        f"avg_backlog_anchors={s['avg_backlog_anchor_validity']:.2f} (IMP-061)"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1
