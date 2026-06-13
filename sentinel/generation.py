@@ -1456,7 +1456,7 @@ def coverage_status(coverage: list[dict[str, str]], domain: str) -> str:
     return "Pending"
 
 
-def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str) -> dict[str, str]:
+def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str) -> dict[str, Any]:
     row = first_context_result(sections, keys)
     if not row:
         return {"status": "Pending", "source": "[PENDING DOMAIN CONTEXT]", "summary": pending}
@@ -1464,10 +1464,23 @@ def context_signal(sections: dict[str, Any], keys: tuple[str, ...], pending: str
         "status": "Confirmed",
         "source": evidence_label(row),
         "summary": str(row.get("summary", "Context retrieved"))[:320],
+        "anchor": anchor_for_context_row(row),
     }
 
 
-def design_signal_for_story(story: dict[str, Any], sections: dict[str, Any]) -> dict[str, str]:
+def anchor_for_context_row(row: dict[str, Any]) -> dict[str, Any]:
+    read_plan = row.get("read_plan", {})
+    if not isinstance(read_plan, dict):
+        read_plan = read_plan_for_row(row)
+    return {
+        "source_path": str(read_plan.get("source_path", row.get("source_path", row.get("file_path", "")))),
+        "section_path": str(read_plan.get("section_path", row.get("section_path", ""))),
+        "line_start": int(read_plan.get("line_start", row.get("line_start", 0)) or 0),
+        "line_end": int(read_plan.get("line_end", row.get("line_end", 0)) or 0),
+    }
+
+
+def design_signal_for_story(story: dict[str, Any], sections: dict[str, Any]) -> dict[str, Any]:
     if story.get("domain") != "design" and story.get("label") != "Enabler":
         return {"status": "Not Applicable", "source": "N/A", "summary": "No direct design execution contract is required for this story unless design context later marks it as impacted."}
     return context_signal(sections, ("design_match", "ux_states"), "[PENDING DESIGN CONTEXT] Provide prototype, UX states, components, tokens, accessibility or interaction rules.")
@@ -2781,11 +2794,27 @@ def render_execution_retrieval_plan(plan: list[dict[str, str]]) -> str:
 {rows}"""
 
 
-def render_context_signal_inline(signal: dict[str, str]) -> str:
+def render_context_signal_inline(signal: dict[str, Any]) -> str:
     status = signal.get("status", "Pending")
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
     summary = safe_cell(signal.get("summary", ""), 220)
+    anchor = render_anchor_inline(signal.get("anchor", {}))
+    if anchor:
+        return f"{status}: {source} - {summary} ({anchor})"
     return f"{status}: {source} - {summary}"
+
+
+def render_anchor_inline(anchor: object) -> str:
+    if not isinstance(anchor, dict):
+        return ""
+    source_path = str(anchor.get("source_path", "")).strip()
+    line_start = int(anchor.get("line_start", 0) or 0)
+    line_end = int(anchor.get("line_end", 0) or 0)
+    section_path = str(anchor.get("section_path", "")).strip()
+    if not source_path or line_start <= 0 or line_end < line_start:
+        return ""
+    location = f"{source_path}:{line_start}-{line_end}"
+    return f"Anchor: {location}; section: {safe_cell(section_path or 'N/A', 120)}"
 
 
 def render_bullet_list(items: list[str]) -> str:

@@ -143,6 +143,18 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
             stories["US-004"]["execution_contract"]["critical_surfaces"],
             stories["US-005"]["execution_contract"]["critical_surfaces"],
         )
+        stale_anchor = stories["US-004"]["execution_contract"]["critical_surfaces"]["anchor"]
+        stale_anchor_path = Path(stale_anchor["source_path"])
+        if not stale_anchor_path.is_absolute():
+            stale_anchor_path = workspace / stale_anchor_path
+        self.assertTrue(stale_anchor_path.exists())
+        anchor_lines = stale_anchor_path.read_text(encoding="utf-8").splitlines()
+        anchor_text = "\n".join(anchor_lines[stale_anchor["line_start"] - 1 : stale_anchor["line_end"]])
+        self.assertIn("StaleDataBanner", anchor_text)
+        self.assertIn("Stale Data Context", anchor_text)
+        story_markdown = (workspace / "04_backlog" / "US-004.md").read_text(encoding="utf-8")
+        self.assertIn("Anchor:", story_markdown)
+        self.assertIn("Stale Data Context", story_markdown)
         self.assertEqual(stories["US-004"]["context_pack_section"], "per_story.US-004")
         self.assertEqual(stories["US-005"]["context_pack_section"], "per_story.US-005")
 
