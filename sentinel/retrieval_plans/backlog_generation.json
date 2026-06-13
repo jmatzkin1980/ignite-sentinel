@@ -1,0 +1,93 @@
+{
+  "workflow": "backlog_generation",
+  "version": 1,
+  "default_limit": 4,
+  "default_budget_chars": 1800,
+  "default_summary_chars": 260,
+  "sections": {
+    "epic_value": {
+      "query": "business outcome scope mvp kpi users product goal",
+      "domain": null,
+      "filters": {},
+      "lenses": ["business", "product"],
+      "source_sections": ["Executive Summary", "Scope", "Business Success"]
+    },
+    "functional_slicing": {
+      "query": "functional requirements acceptance criteria given when then business rules jtbd",
+      "domain": "product",
+      "filters": {},
+      "lenses": ["product", "quality"],
+      "source_sections": ["Functional Requirements", "Spec Units", "Normalized Requirement"]
+    },
+    "technical_dependencies": {
+      "query": "architecture integrations dependencies data ownership contracts failure behavior nfr",
+      "domain": "technical",
+      "filters": {},
+      "lenses": ["technical"],
+      "source_sections": ["Dependency Map", "Non-Functional Requirements"]
+    },
+    "ux_states": {
+      "query": "journey screens states validations copy accessibility empty loading error success permission",
+      "domain": "design",
+      "filters": {},
+      "lenses": ["design", "quality"],
+      "source_sections": ["Users And Personas", "Risks And Assumptions"]
+    },
+    "quality_risks": {
+      "query": "acceptance testability edge cases regression security privacy auditability evidence",
+      "domain": "quality",
+      "filters": {},
+      "lenses": ["quality", "compliance"],
+      "source_sections": ["Acceptance", "Risks", "Functional Requirements"]
+    },
+    "open_uncertainty": {
+      "query": "pending input gaps assumptions decisions dependencies roadmap blockers",
+      "domain": null,
+      "filters": {},
+      "lenses": ["product", "delivery"],
+      "source_sections": ["Risks And Assumptions", "Mandatory Constraints"]
+    },
+    "enabler_boundary": {
+      "query": "SAD architecture as-is to-be frontend backend prototype enabler foundation cross-cutting precondition",
+      "domain": null,
+      "filters": {},
+      "lenses": ["technical", "design", "delivery"],
+      "source_sections": ["Dependency Map", "Backlog-Relevant Contract"]
+    },
+    "execution_commands": {
+      "query": "build test lint typecheck migration docker boot environment commands",
+      "domain": "technical",
+      "filters": {},
+      "lenses": ["technical", "quality"],
+      "source_sections": ["Execution Pointer", "Progressive Disclosure Context Map"]
+    },
+    "critical_surfaces": {
+      "query": "files routes modules components database schema api contract tests critical surfaces blast radius",
+      "domain": null,
+      "filters": {},
+      "lenses": ["technical", "quality"],
+      "source_sections": ["Backlog-Relevant Contract", "Dependency Map"]
+    },
+    "engineering_practices": {
+      "query": "handbook coding standards architecture decision adr error handling logging conventions",
+      "domain": "technical",
+      "filters": {},
+      "lenses": ["technical", "delivery"],
+      "source_sections": ["Mandatory Constraints", "Execution Pointer"]
+    },
+    "design_match": {
+      "query": "figma prototype component tokens design system visual states interaction accessibility",
+      "domain": "design",
+      "filters": {},
+      "lenses": ["design"],
+      "source_sections": ["Users And Personas", "Suggested Or Assigned Team"]
+    },
+    "regression_contract": {
+      "query": "test suite regression fail-to-pass pass-to-pass test data automation quality gate evidence",
+      "domain": "quality",
+      "filters": {},
+      "lenses": ["quality"],
+      "source_sections": ["Acceptance", "Traceability", "Quality"]
+    }
+  }
+}

@@ -128,7 +128,7 @@ Retrieval supports progressive-disclosure filters:
 python -m sentinel /retrieve PROJECT_ID --query "..." --workflow discovery --status active --language es --sensitivity internal --section "GAP" --max-chars 2000 --summary-only
 ```
 
-Each result includes `why_retrieved`, based on local lexical match, local semantic similarity, LanceDB/hash vector match, and explicit filters such as domain, trace ID, or artifact type.
+Each result includes `why_retrieved`, based on local lexical match, local semantic similarity, LanceDB/hash vector match, and explicit filters such as domain, trace ID, or artifact type. It also includes `read_plan` with `source_path`, `section_path`, `line_start`, and `line_end` so an agent can open the exact source section when the summary is not enough.
 With LanceDB enabled, `why_retrieved` includes native retrieval ranks such as `vector_rank` and `fts_rank` when they contributed to the result.
 
 `/ingest`, `/sync`, and `/reindex` populate memory. The indexed workspace context folders are:
@@ -163,6 +163,12 @@ workspaces/[PROJECT_ID]/08_context_packs/sync.json
 
 Each pack stores the query, filters, backend, source hashes, and retrieved rows so a downstream agent can audit the context used.
 It also records the active embedder name, level, version, and dimensions so reviewers can tell whether a retrieval snapshot used semantic local embeddings or deterministic hash fallback.
+
+## Declarative Retrieval Plans
+
+`/specs` and `/backlog` read section-level plans from `sentinel/retrieval_plans/specs_generation.json` and `sentinel/retrieval_plans/backlog_generation.json`. Each section declares the base query, optional domain/filter constraints, result limit, character budget, summary budget, source sections to prefer, and associated lenses. Sentinel composes the query with vocabulary from those lenses and selects source context by declared sections or relevance instead of blindly appending the start of a large artifact.
+
+Generated packs preserve the plan metadata per section: `query`, `domain`, `filters`, `limit`, `budget_chars`, `summary_chars`, `lenses`, `source_sections`, and each result's `read_plan`. To tune retrieval for a section, edit the JSON plan and rerun the command; no Python change is required.
 
 `/backlog` creates two built-in context packs:
 
