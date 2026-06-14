@@ -414,6 +414,27 @@ Outputs:
 
 `/refine-backlog` is a governed review channel, not an automatic rewrite. Accepted proposals preserve the existing INVEST, vertical slicing, SPIDR, Lawrence, and `EPIC-002` enabler-boundary model; the BA still decides whether a future backlog regeneration or manual upstream evidence change should act on the proposal.
 
+## `implementation-feedback`
+
+Merge structured downstream implementation findings back into backlog governance.
+
+```powershell
+python -m sentinel /implementation-feedback PROJECT_ID --source path\to\implementation-feedback.json
+```
+
+Run this only after `/backlog` has created story files. The JSON source contains `findings[]`; each finding declares a `type` (`new-dependency`, `gap`, `ac-challenge`, or `surface-not-covered`), target `story`, optional `acceptance_criteria`, `summary`, `evidence`, optional `source_units`, optional `gap_id`, `blocks_dod`, and `mark_stale`.
+
+Outputs:
+
+- archived source under `07_changes/05_implementation_feedback/`
+- `07_changes/05_implementation_feedback/feedback_report.md`
+- optional `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`
+- `state.json#implementation_feedback`
+- updated DoD gate item `implementation_feedback_resolved` for affected stories
+- traceability node and edges from the feedback event to the story, AC, and feedback gap
+
+`/implementation-feedback` does not rewrite stories, acceptance criteria, slicing rationale, or enabler boundaries. It records evidence-backed downstream feedback for BA/Product review, may mark only affected stories `Stale`, and may block `Done` through DoD. Default backlog gates still warn; strict mode blocks closure when open blocking feedback remains.
+
 ## `quality`
 
 Generate quality/test-case coverage from user stories.

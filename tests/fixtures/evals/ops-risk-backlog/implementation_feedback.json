@@ -1,0 +1,17 @@
+{
+  "findings": [
+    {
+      "id": "IFB-OPS-001",
+      "type": "gap",
+      "gap_id": "GAP-FEEDBACK-RISK-SOURCE",
+      "story": "US-001",
+      "acceptance_criteria": "AC-001-01",
+      "source_units": ["SPEC-U-001"],
+      "summary": "Implementation found that the source of the risk indicator is not covered by the story contract.",
+      "evidence": "The queue metrics implementation cannot determine whether the risk indicator comes from the metrics API or from the operational queue record.",
+      "source": "implementation test note",
+      "mark_stale": true,
+      "blocks_dod": true
+    }
+  ]
+}

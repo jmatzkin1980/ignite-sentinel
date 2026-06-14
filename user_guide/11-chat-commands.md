@@ -27,6 +27,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Show me backlog progress / the BA board" | `/backlog-status` -> `/status` | Generates `04_backlog/BACKLOG.md` from governed lifecycle, gates, and readiness data. |
 | "Assign this story / move it to Ready/Done" | `/story-status --story US-NNN --set STATE --owner NAME [--evidence PATH]` -> `/status` -> `/trace` | Never edit `US-NNN.md`, `BACKLOG.md`, or `state.json` by hand; default DoR/DoD gates warn and strict mode blocks. |
 | "Review these agent backlog slicing/enabler proposals" | `/refine-backlog --source backlog-refinement.json` → `/trace` | Only after `/backlog`; every proposal must cite verbatim local evidence and remains a governed proposal. |
+| "Implementation found a missing dependency/gap/invalid AC" | `/implementation-feedback --source implementation-feedback.json` -> `/trace` -> `/health` | Only after `/backlog`; findings are traced to existing stories/AC and can stale or block DoD, but do not rewrite scope. |
 | "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
 | "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is WARN (degraded mode), not failure. |
 
@@ -103,6 +104,7 @@ Use these directly in Kilo chat:
 /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /story-status PROJECT_ID --story US-001 --set Done --evidence input\interactions\us-001-evidence.md
 /refine-backlog PROJECT_ID --source input\interactions\backlog-refinement.json
+/implementation-feedback PROJECT_ID --source input\interactions\implementation-feedback.json
 /quality PROJECT_ID
 /trace PROJECT_ID
 /health PROJECT_ID
@@ -210,6 +212,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /story-status PROJECT_ID --story US-001 --set Done --evidence input\interactions\us-001-evidence.md
 /refine-backlog PROJECT_ID --source input\interactions\backlog-refinement.json
+/implementation-feedback PROJECT_ID --source input\interactions\implementation-feedback.json
 /quality PROJECT_ID
 /trace PROJECT_ID
 /validate PROJECT_ID

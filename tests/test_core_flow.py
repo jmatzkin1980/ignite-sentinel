@@ -828,12 +828,13 @@ Second section paragraph.
         from sentinel.adapters import manifest_command_names, out_of_sync
 
         names = manifest_command_names()
-        self.assertEqual(len(names), 26)
+        self.assertEqual(len(names), 27)
         self.assertIn("sentinel", names)
         self.assertIn("annotate", names)
         self.assertIn("challenge", names)
         self.assertIn("compose", names)
         self.assertIn("refine-backlog", names)
+        self.assertIn("implementation-feedback", names)
         self.assertIn("story-status", names)
         self.assertIn("backlog-status", names)
         self.assertEqual(out_of_sync(ROOT.parent), [])
@@ -850,8 +851,8 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 24)
-        for expected in ("sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_compose", "sentinel_refine_backlog", "sentinel_story_status", "sentinel_backlog_status"):
+        self.assertEqual(len(names), 25)
+        for expected in ("sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status"):
             self.assertIn(expected, names)
 
         result = run_cli(["init", "MCPX"])
@@ -867,7 +868,7 @@ Second section paragraph.
             from sentinel.mcp import build_server
 
             tools = asyncio.new_event_loop().run_until_complete(build_server().list_tools())
-            self.assertEqual(len(tools), 23)
+            self.assertEqual(len(tools), 24)
 
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"

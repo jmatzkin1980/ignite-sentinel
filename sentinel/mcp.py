@@ -59,6 +59,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("refine_backlog", "Merge validated agent-authored backlog refinement proposals; every proposal cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
     ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
+    ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
 ]
 
 
@@ -221,6 +222,10 @@ def build_server():
     @server.tool(name="sentinel_backlog_status", description=TOOL_SPECS[23][1])
     def sentinel_backlog_status(project_id: str) -> dict:
         return run_cli(["backlog-status", project_id])
+
+    @server.tool(name="sentinel_implementation_feedback", description=TOOL_SPECS[24][1])
+    def sentinel_implementation_feedback(project_id: str, source: str) -> dict:
+        return run_cli(["implementation-feedback", project_id, "--source", source])
 
     return server
 

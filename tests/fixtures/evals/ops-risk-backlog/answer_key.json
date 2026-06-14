@@ -134,6 +134,15 @@
     "expect_pre_handoff_warn": true,
     "rationale": "IMP-055 validates lifecycle hooks: the handoff plan exposes soft DoR warnings and /sync marks only stories derived from the changed Spec Unit as Stale."
   },
+  "implementation_feedback": {
+    "source": "implementation_feedback.json",
+    "expected_finding": "IFB-OPS-001",
+    "expected_story": "US-001",
+    "expected_gap": "GAP-FEEDBACK-RISK-SOURCE",
+    "expect_stale": true,
+    "expect_dod_item": "implementation_feedback_resolved",
+    "rationale": "IMP-060 validates the governed downstream feedback loop: implementation findings are traced to a story/AC, can open GAP-FEEDBACK records, keep only affected stories stale, and block DoD without rewriting backlog scope."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

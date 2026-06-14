@@ -298,6 +298,7 @@ def update_story_gate_sections(path: Path, gate_result: dict[str, Any]) -> None:
     done = (
         "## Done Checklist\n\n"
         f"- {gate_checkbox(dod, 'acceptance_evidence_traced')} Downstream acceptance evidence is traced.\n"
+        f"- {gate_checkbox(dod, 'implementation_feedback_resolved')} Open implementation feedback is resolved.\n"
         f"- {gate_checkbox(dod, 'ready_gate_passed')} DoR remains satisfied at closure time.\n\n"
         f"{render_gate_missing_block('DoD', dod)}"
     )

@@ -26,6 +26,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/specs PROJECT_ID`
 - `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID`
+- `/implementation-feedback PROJECT_ID --source PATH`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
 - `/health PROJECT_ID`
@@ -65,6 +66,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/specs`: use `sentinel-specs`.
 - `/compose`: use `sentinel-compose`.
 - `/backlog`: use `sentinel-backlog`.
+- `/implementation-feedback`: use `sentinel-backlog`; accepted findings are traced feedback, not direct backlog rewrites.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/doctor`: use `sentinel-health`.
 - `/status`, `/export`: summarize the CLI result and generated artifact path.

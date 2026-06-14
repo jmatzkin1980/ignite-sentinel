@@ -18,8 +18,9 @@ Use this skill to generate execution-ready backlog artifacts.
 7. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
 8. Run `python -m sentinel /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
 9. When status, owner, or Done evidence changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
-10. Run `python -m sentinel /quality PROJECT_ID`.
-11. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
+10. When downstream implementation reports a dependency, gap, invalid AC, or missing surface, run `python -m sentinel /implementation-feedback PROJECT_ID --source FINDINGS.json`.
+11. Run `python -m sentinel /quality PROJECT_ID`.
+12. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
 
 ## Rules
 
@@ -39,6 +40,7 @@ Use this skill to generate execution-ready backlog artifacts.
   - Lawrence-style reduction: isolate the smallest useful variation first, then add workflow steps, edge cases, performance, external dependency, or discovery stories.
 - Each story should include description, narrative, slicing pattern, dependencies, in/out of scope, context used, acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 - Story lifecycle fields (`status`, `owner`) and DoR/DoD gate evidence are governed workspace state. Update them only via `/story-status`; never edit `US-NNN.md`, `BACKLOG.md`, `state.json`, or acceptance evidence records by hand. Default `backlog_gate` warnings do not block; strict mode is opt-in.
+- Downstream implementation feedback must enter through `/implementation-feedback`. Accepted findings are traced `CHG`/`GAP-FEEDBACK-*` records linked to existing stories or AC, may mark affected stories `Stale`, and may block DoD through `implementation_feedback_resolved`; they never rewrite backlog scope directly.
 - Treat `04_backlog/BACKLOG.md` as a generated BA board from `/backlog`, `/story-status`, or `/backlog-status`, not as a source of truth. It rolls up current stories, including concrete EPIC-002 enabler stories when they exist, by epic and lifecycle status.
 - Each epic/story should include `Domain Context Coverage` for Product, Technology, Design, Quality, and Delivery so humans and agents can see which domain evidence was used and what remains pending. Story coverage is computed from that story's mini-context; the global pack remains an aggregate index.
 - Each story may include an `Agent Execution Contract` derived from retrieved context: agent profile, command hints, critical surfaces, design match, engineering practices, autonomy limits, blast radius, validation contract, and parallelization/sequencing notes. Confirmed context signals should include anchors (`source_path`, `section_path`, `line_start`, `line_end`) so agents can open the exact source range.
