@@ -1,5 +1,7 @@
 # Ignite Sentinel vNext
 
+> **Two audiences.** Most of this file describes how to **use** the framework — it applies to anyone who clones Ignite to mature requirements in their own project. The section **"Evolving the framework (maintainers)"** near the end applies only to contributors changing the framework itself, and those conventions do **not** constrain your own project repository or data. See [MAINTAINERS.md](MAINTAINERS.md) for the full maintainer guide.
+
 ## Working Agreements
 
 - Treat this repository as a repo-local framework for BA/Product requirements work in AI PODs, usable from Codex, Kilo Code, Claude (Claude Code or Claude Desktop), or the CLI.
@@ -16,10 +18,6 @@
 - Gaps must be human-friendly when shared with clients: include project/version context, stable gap IDs, clear questions, answer examples, owner/source, evidence, and decision status.
 - The language of generated human artifacts should follow the detected or configured project language. Spanish is the current default expectation unless project context indicates otherwise.
 - Privacy is a first-class constraint: prefer local-only operation, local files as source of truth, local LanceDB/JSON indexes as retrieval aids, and no remote MCP or external embeddings for client/code content unless explicitly approved.
-- When extracting lessons from chats, examples, prior harnesses, or confidential files, persist only generalized framework rules. Never persist source paths, client names, system names, URLs, account IDs, raw payloads, private business facts, or wording that can identify the inspiration source.
-- When improving the framework, update runtime, skills, slash commands, Kilo/Codex adapters, docs, and tests together so the cloned-repo experience remains coherent.
-- When the user provides previous framework drafts, external research, examples, or harness outputs, treat them as inspiration only: extract reusable workflow intent, templates, validation ideas, and cognitive patterns, then translate them into agnostic Sentinel rules.
-- When the user provides confidential examples, reverse-engineer only generic maturity patterns and never write client-specific names, systems, data, URLs, endpoints, business facts, or decisions into repo artifacts.
 - Discovery should not be thin extraction. It should critically pressure-test raw input through Product/BA, Technology, Design, Quality, Delivery, and Compliance lenses, turning uncertainty into explicit gaps or pending seeds.
 - Discovery should capture downstream backlog readiness signals when they are knowable: first valuable slice, workflow paths, variants, deferrable rules, meaningful story boundaries, cross-functional dependencies, and concrete enabler candidates from SAD, architecture, design, backend, frontend, integration, data, auth, audit, or observability context.
 - Treat Sentinel artifacts as living versionable snapshots. New client evidence, gap responses, Technology/Design/Quality/Delivery context, or domain updates should enter through `/ingest`, `/sync`, `/resolve-gaps`, `/context-request`, or `/reindex`, then refresh impacted artifacts with traceability instead of silently patching downstream documents.
@@ -31,6 +29,14 @@
 - Cross-cutting enablers are valid only when they are concrete implementation work that must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces inside the project boundary. Generic setup, broad hardening, environment availability, or vague accessibility/operability work are preconditions or external tasks unless tied to specific project functionality and objective completion evidence.
 - Prefer autonomous lifecycle flows that call the right skills/CLI commands and use progressive disclosure via `/retrieve` instead of loading entire workspaces.
 - If a user describes a Sentinel situation in plain language instead of providing an exact command, map the intent to the appropriate lifecycle command sequence, run it when safe, and summarize generated artifacts plus the next recommended step.
+
+## Evolving the framework (maintainers)
+
+These conventions apply only when **changing the framework itself** in this repository. They do not constrain anyone using Ignite in their own project. Full guide: [MAINTAINERS.md](MAINTAINERS.md).
+
+- When improving the framework, update runtime, skills, slash commands, Kilo/Codex adapters, docs, and tests together so the cloned-repo experience remains coherent.
+- Treat previous framework drafts, external research, examples, or harness outputs as inspiration only: extract reusable workflow intent, templates, validation ideas, and cognitive patterns, then translate them into agnostic Sentinel rules.
+- The eval harness is 100% synthetic, so evolving the framework never needs real data. When extracting lessons from chats, examples, prior harnesses, or confidential files, persist only generalized framework rules. Never persist (or write into repo artifacts) source paths, client names, system names, URLs, endpoints, account IDs, raw payloads, private business facts, or wording that can identify the inspiration source.
 - Before pushing framework changes to `main`, run the unit suite, `/doctor`, at least one lifecycle smoke test when runtime changed, inspect staged files, and scan staged diffs for sensitive/confidential terms.
 - Do not stage or commit unrelated local deletions, generated project workspaces, or user-owned files unless the user explicitly asks to manage them.
 - Prefer Spanish explanations for framework behavior unless project language or user request indicates otherwise, with concise but concrete examples of commands, artifacts, inputs, and outputs.

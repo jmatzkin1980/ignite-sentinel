@@ -2,6 +2,8 @@
 
 Instrucciones para sesiones de Claude (Cowork, Claude Code o similar) operando sobre este repositorio. Complementa, no reemplaza, a `AGENTS.md`: leer ambos antes de tocar nada.
 
+> **Audiencia: mantenedores.** Este archivo es para sesiones que **evolucionan el framework** (runtime, tests, adapters, docs). Si solo querés **usar** Ignite para madurar requerimientos en tu propio proyecto, no necesitás nada de acá: alcanzan el [README](README.md) y el [User Guide](user_guide/00-user-guide.md). Las convenciones de evolución de este repo (branches, mantener superficies sincronizadas, manejo de ejemplos/datos) viven en [MAINTAINERS.md](MAINTAINERS.md) y no condicionan tu propio repo ni tus datos.
+
 ## Qué es este proyecto
 
 Framework repo-local y local-first para que un BA/Product madure requerimientos crudos de cliente hasta convertirlos en artefactos trazables: discovery, gaps, project brief, PRD, specs, backlog, test cases y trazabilidad. No es un generador de documentos: es un sistema de maduración de requerimientos con lifecycle gobernado.
