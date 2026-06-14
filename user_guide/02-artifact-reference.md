@@ -70,9 +70,14 @@ memory:
   embedding: local-hash
 gap_resolution:
   auto_close_rule: confirmed_structured
+backlog_gate:
+  threshold: 1.0
+  strict: false
+privacy_scan:
+  mode: warn
 ```
 
-For now, the maturity gate uses `blocking_gap_severities`.
+For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict` and `privacy_scan.mode` are opt-in hardening controls: their defaults keep backlog handoff non-blocking while still surfacing warnings.
 
 `project_language` controls the language used for human-facing generated artifacts. Supported values:
 

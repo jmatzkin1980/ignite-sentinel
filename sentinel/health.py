@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from .backlog_hooks import scan_backlog_privacy
+from .backlog_hooks import evaluate_backlog_privacy
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .traceability import children_of, load_graph, parents_of
@@ -15,6 +15,7 @@ def run_health(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     graph = load_graph(project_id)
     findings: list[str] = []
+    warnings: list[str] = []
 
     for node in graph.get("nodes", []):
         if node["type"] == "user_story" and not parents_of(project_id, node["id"]):
@@ -55,17 +56,20 @@ def run_health(project_id: str) -> dict[str, object]:
             findings.append(f"{story['id']} is not linked to an epic.")
     findings.extend(domain_context_freshness_findings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
-    findings.extend(backlog_privacy_findings(project_id))
+    privacy = backlog_privacy_findings(project_id)
+    findings.extend(privacy["findings"])
+    warnings.extend(privacy["warnings"])
     findings.extend(implementation_feedback_findings(project_id))
 
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
-    report_path.write_text(render_health(project_id, verdict, findings), encoding="utf-8")
+    report_path.write_text(render_health(project_id, verdict, findings, warnings), encoding="utf-8")
     write_json(
         base / "06_traceability" / "health_report.json",
         {
             "verdict": verdict,
             "findings": findings,
+            "warnings": warnings,
             "memory_backend": broker.backend,
             "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
         },
@@ -74,14 +78,16 @@ def run_health(project_id: str) -> dict[str, object]:
     return {
         "verdict": verdict,
         "findings": findings,
+        "warnings": warnings,
         "memory": str(memory_path(project_id)),
         "memory_backend": broker.backend,
         "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
     }
 
 
-def render_health(project_id: str, verdict: str, findings: list[str]) -> str:
+def render_health(project_id: str, verdict: str, findings: list[str], warnings: list[str] | None = None) -> str:
     rows = "\n".join(f"- {finding}" for finding in findings) or "- No findings."
+    warning_rows = "\n".join(f"- {warning}" for warning in (warnings or [])) or "- No warnings."
     return f"""# Health Report - {project_id}
 
 - Verdict: `{verdict}`
@@ -89,6 +95,10 @@ def render_health(project_id: str, verdict: str, findings: list[str]) -> str:
 ## Findings
 
 {rows}
+
+## Warnings
+
+{warning_rows}
 """
 
 
@@ -130,12 +140,15 @@ def backlog_lifecycle_findings(project_id: str) -> list[str]:
     return ["Backlog contains Stale stories after source changes: " + ", ".join(stale) + "."]
 
 
-def backlog_privacy_findings(project_id: str) -> list[str]:
-    findings = scan_backlog_privacy(project_id)
-    return [
+def backlog_privacy_findings(project_id: str) -> dict[str, list[str]]:
+    result = evaluate_backlog_privacy(project_id)
+    messages = [
         f"Backlog privacy scan finding in {item['path']}:{item['line']} ({item['pattern']})."
-        for item in findings
+        for item in result["findings"]
     ]
+    if result["verdict"] == "BLOCKED":
+        return {"findings": messages, "warnings": []}
+    return {"findings": [], "warnings": messages}
 
 
 def implementation_feedback_findings(project_id: str) -> list[str]:

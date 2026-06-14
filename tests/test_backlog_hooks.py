@@ -5,6 +5,8 @@ import os
 import shutil
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 
 from sentinel.cli import main
@@ -111,11 +113,42 @@ class BacklogHooksTests(unittest.TestCase):
         )
         self.assertEqual(main(["backlog", "HOOKS"]), 1)
 
-    def test_backlog_privacy_scan_blocks_handoff_surfaces(self) -> None:
+    def test_backlog_privacy_scan_warns_by_default_without_blocking(self) -> None:
+        story_path = self.ws / "04_backlog" / "US-001.md"
+        story_path.write_text(story_path.read_text(encoding="utf-8") + "\nOwner contact: analyst@example.org\n", encoding="utf-8")
+
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            self.assertEqual(main(["quality", "HOOKS"]), 0)
+        self.assertIn("Backlog privacy scan warning", stderr.getvalue())
+
+        self.assertEqual(main(["health", "HOOKS"]), 0)
+        health = json.loads((self.ws / "06_traceability" / "health_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(health["verdict"], "CLEAN")
+        self.assertTrue(any("Backlog privacy scan finding" in warning for warning in health["warnings"]))
+
+    def test_backlog_privacy_scan_blocks_when_opted_in(self) -> None:
+        config = self.ws / "sentinel.config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "\nprivacy_scan:\n  mode: block\n", encoding="utf-8")
         story_path = self.ws / "04_backlog" / "US-001.md"
         story_path.write_text(story_path.read_text(encoding="utf-8") + "\npassword: super-secret\n", encoding="utf-8")
 
         self.assertEqual(main(["quality", "HOOKS"]), 1)
+
+    def test_backlog_privacy_scan_off_suppresses_scan(self) -> None:
+        config = self.ws / "sentinel.config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "\nprivacy_scan:\n  mode: off\n", encoding="utf-8")
+        story_path = self.ws / "04_backlog" / "US-001.md"
+        story_path.write_text(story_path.read_text(encoding="utf-8") + "\nAPI: https://private.internal.test/v1\n", encoding="utf-8")
+
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            self.assertEqual(main(["quality", "HOOKS"]), 0)
+        self.assertNotIn("Backlog privacy scan", stderr.getvalue())
+
+        self.assertEqual(main(["health", "HOOKS"]), 0)
+        health = json.loads((self.ws / "06_traceability" / "health_report.json").read_text(encoding="utf-8"))
+        self.assertFalse(any("Backlog privacy scan finding" in warning for warning in health["warnings"]))
 
 
 if __name__ == "__main__":
