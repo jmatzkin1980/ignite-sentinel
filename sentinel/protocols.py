@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from .backlog_hooks import assert_backlog_privacy_clean
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
@@ -48,6 +49,9 @@ def preflight_command(command: str, project_id: str | None) -> None:
 
     if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
         raise RuntimeError(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
+
+    if command in {"backlog", "backlog-status", "quality", "refine-backlog", "story-status"}:
+        assert_backlog_privacy_clean(project_id)
 
     if command == "quality" and not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
         raise RuntimeError("Cannot generate quality artifacts without backlog user stories.")

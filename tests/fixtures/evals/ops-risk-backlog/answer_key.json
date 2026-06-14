@@ -127,6 +127,13 @@
     "must_contain": ["INVEST/SPIDR Score", "Story Quality Checks"],
     "rationale": "IMP-056 validates that /quality evaluates the governed INVEST/SPIDR/Lawrence model per story, persists story_quality, and feeds the DoR warning surface without replacing the slicing model."
   },
+  "backlog_hooks": {
+    "sync_stale_spec_unit": "SPEC-U-001",
+    "expected_stale_story": "US-001",
+    "expected_unchanged_story": "US-002",
+    "expect_pre_handoff_warn": true,
+    "rationale": "IMP-055 validates lifecycle hooks: the handoff plan exposes soft DoR warnings and /sync marks only stories derived from the changed Spec Unit as Stale."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

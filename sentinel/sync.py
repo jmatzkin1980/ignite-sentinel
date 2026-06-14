@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from .backlog_hooks import mark_stale_stories_for_spec_units, stale_spec_units_from_change
 from .discovery import detect_gaps, parse_gap_rows
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
@@ -28,6 +29,13 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
 
     gaps = detect_gaps(text)
     reopened = reopened_closed_gap_ids(base, gaps)
+    stale_units = stale_spec_units_from_change(source, text)
+    stale_result = mark_stale_stories_for_spec_units(
+        project_id,
+        stale_units,
+        f"/sync change {change_id} touched Spec Unit source.",
+        change_id,
+    )
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
     impact_path.write_text(render_impact(project_id, change_id, affected, gaps, note, blast_radius, reopened), encoding="utf-8")
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
@@ -57,7 +65,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     update_state(
         project_id,
         phase="change_synced",
-        health="DIRTY" if gaps else "CLEAN",
+        health="DIRTY" if gaps or stale_result.get("stale_stories") else "CLEAN",
         last_change_id=change_id,
     )
     return {
@@ -68,6 +76,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "affected": affected,
         "gaps": gaps,
         "reopened_gaps": reopened,
+        "staleness": stale_result,
     }
 
 
@@ -91,7 +100,7 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync") -> dict
         update_state(
             project_id,
             phase="change_batch_synced",
-            health="DIRTY" if any(result.get("gaps") for result in results) else "CLEAN",
+            health="DIRTY" if any(result.get("gaps") or result.get("staleness", {}).get("stale_stories") for result in results) else "CLEAN",
             metrics={"changes_processed": len(results)},
         )
 

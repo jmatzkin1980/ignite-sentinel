@@ -31,7 +31,7 @@ Outputs:
 - `traceability_matrix.md`
 - `traceability_graph.md`
 
-Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates `story_status_change` nodes linked with `updates_story_status`. When the command receives `--evidence PATH`, Sentinel copies that local file into `04_backlog/acceptance_evidence/`, creates a `story_acceptance_evidence` node, links it to the story with `acceptance_evidence_for`, and lets the DoD gate consume that trace. Sentinel records the evidence; it does not execute downstream tests.
+Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates `story_status_change` nodes linked with `updates_story_status`. When the command receives `--evidence PATH`, Sentinel copies that local file into `04_backlog/acceptance_evidence/`, creates a `story_acceptance_evidence` node, links it to the story with `acceptance_evidence_for`, and lets the DoD gate consume that trace. `/sync` can also create `story_staleness` nodes when a changed `SPEC-U-*` source affects existing stories; only stories derived from that Spec Unit move to `Stale`. Sentinel records the evidence and staleness signals; it does not execute downstream tests.
 
 ## Memory Layer
 
@@ -176,7 +176,7 @@ Generated packs preserve the plan metadata per section: `query`, `domain`, `filt
 
 - `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories. It keeps aggregate `sections` plus `per_story.US-NNN` mini-contexts for Spec Unit-derived stories.
 - `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, execution contract with anchors, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
-- `08_context_packs/slice_plan.json`: deterministic handoff order with enabler phase, implementation waves, checkpoints, positions, and per-story handoff packs. It references existing execution contracts and anchors; it does not define downstream task IDs.
+- `08_context_packs/slice_plan.json`: deterministic handoff order with enabler phase, implementation waves, checkpoints, positions, per-story handoff packs, and the pre-handoff DoR gate verdict. It references existing execution contracts and anchors; it does not define downstream task IDs.
 
 Use context packs when:
 
@@ -196,7 +196,7 @@ python -m sentinel /reindex PROJECT_ID --full
 
 By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, `embedding_version`, and `chunking_version`, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
 
-If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
+If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. If `/sync` touched a `SPEC-U-*` source, `/health` also names stories currently marked `Stale`. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
 
 ## Important Rule
 

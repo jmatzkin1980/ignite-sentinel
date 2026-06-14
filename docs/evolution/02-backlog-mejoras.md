@@ -557,11 +557,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py`, `sentinel/cli.py`, manifest/adapters si se agrega flag, `tests/`, `user_guide/02-artifact-reference.md`.
 
 ### IMP-055 — Hooks de ciclo vivo: staleness por historia, pre-handoff (DoR) y privacy scan
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: el ciclo vivo del backlog se gobierna a grano grueso; no hay staleness por historia, pre-handoff DoR ni privacy scan específico de backlog.
 - Alcance: agregar hooks deterministas y locales al protocolo Sentinel: marcar `Stale` solo historias afectadas por `stale_spec_units`, advertir/bloquear handoff según DoR y modo de gate, y escanear artefactos de `04_backlog/` contra identificadores sensibles, endpoints, credenciales o datos privados antes de escribir.
 - Aceptación: `/sync` que cambia una Spec Unit marca `Stale` solo historias derivadas; handoff sin DoR advierte o bloquea según modo; un artefacto de backlog con dato sensible inyectado se detecta y bloquea; sin novedades, comportamiento intacto; tests verdes.
 - Afecta: `sentinel/protocols.py`, `sentinel/sync.py`, `sentinel/health.py`, `sentinel/generation.py`, `tests/`, `user_guide/05-traceability-and-memory.md`, `user_guide/09-secure-environments.md`.
+- Nota 2026-06-13: implementado `sentinel/backlog_hooks.py` con hooks locales y determinísticos. `/sync` detecta `SPEC-U-*` en la fuente del cambio y marca `Stale` solo las historias cuyo `implementation_readiness.json` deriva de esas unidades, actualizando `state.json#story_lifecycle`, frontmatter, `status_log.md`, board y trazabilidad `story_staleness`. `SLICE-PLAN.md`/`slice_plan.json` incluyen `pre_handoff_gate`: warning por default y bloqueo solo con `backlog_gate.strict: true`. `protocols` y `/backlog` ejecutan privacy scan de `04_backlog/` contra credenciales, auth headers, endpoints no-ejemplo, emails e identificadores privados; `/health` reporta stories stale y findings de privacidad. Tests nuevos cubren staleness selectivo, gate blando/estricto y bloqueo por dato sensible; eval `ops-risk-backlog` valida pre-handoff WARN y stale por `SPEC-U-001`.
 
 ### IMP-056 — `/quality` verifica el cumplimiento del modelo INVEST/SPIDR que hoy es solo guía
 - Estado: VERIFIED
@@ -616,6 +617,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-055 VERIFIED (branch `imp-055-lifecycle-hooks`): hooks locales de backlog para staleness por Spec Unit en `/sync`, pre-handoff DoR en `SLICE-PLAN` blando/strict opt-in, privacy scan bloqueante sobre `04_backlog/`, hallazgos en `/health` y eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-056 VERIFIED (branch `imp-056-story-quality`): `/quality` ahora puntúa story quality contra INVEST/SPIDR/Lawrence vigente, persiste `state.json#story_quality`, alimenta DoR con `story_quality_invest` y vuelve dinámico `backlog_readiness_audit.md`; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-053 VERIFIED (branch `imp-053-slice-plan`): agregado `SLICE-PLAN.md` y `slice_plan.json` como handoff determinístico de backlog, con fase de enablers, olas paralelizables, checkpoints y handoff packs por historia. Sin tasking ni cambios al modelo de slicing/EPIC-002; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-052 VERIFIED (branch `imp-052-backlog-rollup`): agregado `/backlog-status`, `04_backlog/BACKLOG.md`, rollup por épica/estado/owners/blockers, resumen en `/status`, refresh automático desde `/backlog` y `/story-status`, MCP/adapters/docs actualizados y eval `ops-risk-backlog` ampliado. |
