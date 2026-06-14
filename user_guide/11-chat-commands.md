@@ -18,7 +18,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes; for functional prose answers, mention any `EARS-eligible, not normalized` count and propose a BA-confirmed EARS rewrite. |
 | "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
 | "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
-| "Technology/Design/Quality updated their context" | `/sync` → `/reindex` → `/health` | If backlog exists, expect a staleness warning naming the domain. |
+| "Technology/Design/Quality updated their context" | `/sync` -> `/reindex` -> `/health` | If backlog exists, expect a freshness warning naming the domain; rerun `/backlog` only for material story/AC/dependency/execution changes. |
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |

@@ -124,7 +124,7 @@ workspaces/[PROJECT_ID]/08_context_packs/backlog_generation.json
 workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
 ```
 
-If domain context changed after backlog generation, run `/reindex` and `/backlog` before planning or implementing stories.
+If domain context changed after backlog generation, run `/reindex` and focused `/retrieve` before planning or implementing stories. Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 ## If Codex Is Unavailable
 

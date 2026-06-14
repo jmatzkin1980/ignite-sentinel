@@ -85,7 +85,7 @@ class TelemetryTests(unittest.TestCase):
         self.assertEqual(tel["closed_by_response_source"]["inference"], 1)
         self.assertEqual(tel["closed_by_response_source_pct"]["client"], 0.333)
 
-    def test_sync_reports_reopened_closed_gaps(self):
+    def test_sync_does_not_reopen_closed_gaps_when_workspace_context_still_answers_them(self):
         ids = self._gap_ids()
         self.assertIn("GAP-USERS", ids)
         resolve_gaps("TEL", self._answer("GAP-USERS", "users", owner="Client product owner"))
@@ -93,11 +93,11 @@ class TelemetryTests(unittest.TestCase):
         change = self.temp / "late-change.md"
         change.write_text("We need a dashboard for queue risk. Acceptance remains undefined.", encoding="utf-8")
         result = sync_change("TEL", change, "late clarification")
-        self.assertIn("GAP-USERS", result["reopened_gaps"])
+        self.assertNotIn("GAP-USERS", result["reopened_gaps"])
 
         tel = maturation_telemetry("TEL")
-        self.assertEqual(tel["reopened_by_sync_total"], 1)
-        self.assertIn("GAP-USERS", tel["reopened_by_sync_gap_ids"])
+        self.assertEqual(tel["reopened_by_sync_total"], 0)
+        self.assertNotIn("GAP-USERS", tel["reopened_by_sync_gap_ids"])
 
 
 if __name__ == "__main__":

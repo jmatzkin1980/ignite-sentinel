@@ -50,7 +50,7 @@
     },
     "GAP-METRIC-SOURCE": {
       "lens": "business",
-      "severity": "high",
+      "severity": "medium",
       "origin": "checklist"
     }
   },

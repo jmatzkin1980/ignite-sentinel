@@ -489,7 +489,7 @@ It records, per story:
 - blast-radius boundaries and parallelization notes.
 - optional `task_seed_contract` when `/backlog --with-task-seeds` was requested; default backlog generation omits it.
 
-The pack also stores a domain context snapshot hash. If Technology, Design, Quality, Delivery, or other context files change after backlog generation, `/health` reports that the backlog may be stale and should be refreshed with `/reindex` and `/backlog` before implementation handoff.
+The pack also stores a domain context snapshot hash. If Technology, Design, Quality, Delivery, or other context files change after backlog generation, `/health` reports a freshness warning. Refresh retrieval with `/reindex` before implementation handoff, and rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 If `/specs` is regenerated after this pack exists, Sentinel adds `stale_spec_units`: changed `SPEC-U-*` units with their delta status and report path. Implementation agents should treat those entries as a review signal before executing stories that cite the affected unit.
 

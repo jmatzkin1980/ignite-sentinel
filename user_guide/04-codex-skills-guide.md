@@ -182,7 +182,7 @@ Rules:
 - preserve the declarative INVEST/SPIDR/Lawrence slicing model and the separate cross-cutting enabler boundary;
 - keep `[PENDING DOMAIN CONTEXT]` visible instead of inventing missing implementation detail;
 - create a cross-cutting enabler epic only for concrete implementation work that must be built in advance to support confirmed project functionality;
-- rerun `/reindex` and `/backlog` if domain context changes after backlog generation.
+- rerun `/reindex` and use focused retrieval if domain context changes after backlog generation; rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 ### `sentinel-quality`
 

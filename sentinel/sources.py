@@ -7,7 +7,7 @@ from typing import Any
 from .workspace import read_json, utc_now, workspace_path, write_json
 
 
-TRACKED_SUFFIXES = {".md", ".txt"}
+TRACKED_SUFFIXES = {".md", ".txt", ".html", ".htm"}
 REPO_INPUT_DIRS = [
     "input/client_requirement",
     "input/business_context",

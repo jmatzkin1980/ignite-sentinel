@@ -72,7 +72,7 @@
     },
     {
       "id": "GAP-METRIC-SOURCE",
-      "severity": "high",
+      "severity": "medium",
       "rule": "metric_without_source",
       "evidence_scope": "source",
       "description": "Quantitative metric appears without an explicit source or baseline.",

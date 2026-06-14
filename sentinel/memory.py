@@ -28,6 +28,7 @@ CONTEXT_FOLDERS = {
     "00_raw/05_interactions": ("interaction_context", "product"),
     "07_changes": ("change_context", "product"),
 }
+INDEXABLE_SUFFIXES = {".md", ".txt", ".html", ".htm"}
 
 
 def tokenize(text: str) -> list[str]:
@@ -644,7 +645,7 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
         path = Path(path_value)
         if not path.is_absolute():
             path = Path.cwd() / path
-        if not path.exists() or path.suffix.lower() != ".md":
+        if not path.exists() or path.suffix.lower() not in INDEXABLE_SUFFIXES:
             continue
         changed = broker.index_artifact(
             node["id"],
@@ -742,7 +743,7 @@ def index_context_folders(project_id: str, broker: ContextBroker | None = None, 
         if not folder.exists():
             continue
         for path in sorted(folder.rglob("*")):
-            if path.suffix.lower() not in {".md", ".txt"} or not path.is_file():
+            if path.suffix.lower() not in INDEXABLE_SUFFIXES or not path.is_file():
                 continue
             artifact_id = context_artifact_id(project_id, path)
             changed = broker.index_artifact(
