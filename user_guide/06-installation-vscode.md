@@ -72,6 +72,14 @@ Windows portable launcher:
 .\installers\sentinel.ps1 /doctor
 ```
 
+If PowerShell blocks local scripts with an execution-policy error, run the same launcher explicitly through PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installers\sentinel.ps1 /doctor
+```
+
+This bypass applies only to that process invocation. It does not change the machine or user execution policy.
+
 Unix-like portable launcher:
 
 ```sh
@@ -143,6 +151,12 @@ If `python` resolves to the Windows Microsoft Store alias instead of a real inte
 ```
 
 That launcher validates candidates before using them and skips invalid aliases.
+
+If Windows blocks `.\installers\sentinel.ps1` because scripts are disabled, invoke it with a process-local bypass:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installers\sentinel.ps1 /doctor
+```
 
 ## Optional Local Venv
 
@@ -247,4 +261,4 @@ Run this checklist end to end whenever you set up Sentinel on a new machine, or 
 6. Open the repo root in VS Code and confirm your agent surface sees its adapter: `.kilo/` for Kilo Code, `.codex/` and `AGENTS.md` for Codex, `.claude/` and `CLAUDE.md` for Claude.
 7. Delete the smoke workspace before committing anything.
 
-Last full clean-copy run on record: 2026-06-10 (Python 3.10, 17 tests OK, `/doctor` PASS, gates verified). The suite has grown substantially since with the Horizonte 5 work (discovery, brief compiler, elicitation, EARS, telemetry, retrieval evals), so the current expected count is higher — run `.\verify.ps1` for the live result rather than matching a fixed number.
+Last full verification run on record: 2026-06-14 (Python 3.14.6, 159 unit tests OK, `/doctor` PASS with optional dependency warnings only, discovery evals baseline OK). Run `.\verify.ps1` for the live result rather than matching a fixed number.

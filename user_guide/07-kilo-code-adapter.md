@@ -55,7 +55,7 @@ workspaces/[PROJECT_ID]/08_context_packs/backlog_generation.json
 workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
 ```
 
-If `/health` reports that domain context changed after backlog generation, run `/reindex PROJECT_ID` and `/backlog PROJECT_ID` before handing work to implementation or test agents.
+If `/health` reports that domain context changed after backlog generation, run `/reindex PROJECT_ID` and retrieve focused context before handing work to implementation or test agents. Rerun `/backlog PROJECT_ID` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 ## Slash Workflows
 

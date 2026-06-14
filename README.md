@@ -218,7 +218,7 @@ See the [Scenarios guide](user_guide/12-scenarios.md) for situation-by-situation
 A requirement keeps moving after discovery. Two distinct flows handle that:
 
 - **Structured gap answers** — `/resolve-gaps` on an answered `gaps.md`. Confirmed answers become seeds and decisions; functional answers in EARS syntax become testable `REQ-EARS-*`; confirmed functional prose is marked `EARS-eligible, not normalized` and counted in `/status`.
-- **New or unmapped information** — `/sync` for meeting notes, email, a demo comment, a late blocker, so new scope becomes traceable change instead of silent creep. If a synced change re-triggers a `CLOSED` gap, Sentinel records it under `Reopened Closed Gaps` and surfaces counts in `/status` — it never silently reopens or rewrites it.
+- **New or unmapped information** — `/sync` for meeting notes, email, Markdown notes, HTML prototypes, a demo comment, or a late blocker, so new scope becomes traceable change instead of silent creep. If the accumulated workspace context is still not mature enough for downstream execution, Sentinel adds a governed `origin: sync` gap to `gaps.md`; if the uncertainty is already answered, it traces the change without duplicating the gap. If a synced change re-triggers a `CLOSED` gap, Sentinel records it under `Reopened Closed Gaps` and surfaces counts in `/status` — it never silently reopens or rewrites it.
 
 Other governed channels, each validated against verbatim local evidence:
 
@@ -226,6 +226,8 @@ Other governed channels, each validated against verbatim local evidence:
 - **Spec deltas** — regenerating `/specs` writes unit-level deltas for `SPEC-U-*` and propagates stale-unit hints; a `/sync` that touches a unit's source marks only the stories derived from it as `Stale`.
 - **`/refine-backlog`** — agents propose reslicing, split/merge, missing stories, or enabler candidates; accepted proposals land under `04_backlog/refinements/` as `Origin: agent` proposals only.
 - **`/implementation-feedback`** — findings are archived under `07_changes/05_implementation_feedback/`, linked as `implementation_feedback`, optionally surfaced as `GAP-FEEDBACK-*`, and can block a story's DoD.
+
+Backlog is intentionally stable after generation. Domain context updates should usually be consumed through `/reindex`, `/retrieve`, and `implementation_readiness.json`; rerun `/backlog` only when the new evidence materially changes story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 `/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings (scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift) as corrective guidance.
 
@@ -242,7 +244,7 @@ This keeps execution repo-local, deterministic, and auditable across Codex, Kilo
 
 ## Local memory
 
-Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs.
+Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders, including Markdown/Text files and HTML prototypes; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs.
 
 When LanceDB is available, Sentinel uses local hybrid retrieval (vector + FTS on `text`, combined with reciprocal rank fusion). When it's unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start`/`line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Context packs preserve those anchors as `read_plan`. The index is always reconstructible from source files and is never the authority.
 

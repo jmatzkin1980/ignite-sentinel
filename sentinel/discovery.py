@@ -11,7 +11,10 @@ from .sources import mark_source_processed
 from .traceability import add_edge, add_node, load_graph
 from .workspace import ensure_workspace, load_config, update_state, workspace_path
 
-METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))", re.I)
+METRIC_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?\s?(?:%|percent|por ciento|porcentaje)|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))",
+    re.I,
+)
 
 
 def ingest(project_id: str, source: Path) -> dict[str, str]:
@@ -20,7 +23,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     text = source.read_text(encoding="utf-8")
     language = resolve_project_language(load_config(project_id).get("project_language", "auto"), text)
     context = load_domain_context(base)
-    raw_target = base / "00_raw" / f"{source.stem}.md"
+    raw_target = base / "00_raw" / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}"
     shutil.copyfile(source, raw_target)
     mark_source_processed(project_id, source, "initial_ingested")
     mark_source_processed(project_id, raw_target, "raw_copy")
@@ -261,7 +264,13 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             gaps.append(gap)
         elif rule == "metric_without_source":
             metric_match = METRIC_RE.search(text)
-            if metric_match and not any(token in evidence for token in check.get("suppressors", ())):
+            metric_sentence = ""
+            if metric_match:
+                metric_sentence = next(
+                    (sentence for sentence in split_evidence_sentences(text) if METRIC_RE.search(sentence)),
+                    metric_match.group(0),
+                ).lower()
+            if metric_match and not any(token in metric_sentence for token in check.get("suppressors", ())):
                 gap["evidence_mention"] = metric_match.group(0)
                 gaps.append(gap)
     return gaps
@@ -386,8 +395,9 @@ def raw_input_text(base: Path) -> str:
     raw_dir = base / "00_raw"
     chunks: list[str] = []
     if raw_dir.exists():
-        for path in sorted(raw_dir.glob("*.md")) + sorted(raw_dir.glob("*.txt")):
-            chunks.append(path.read_text(encoding="utf-8"))
+        for pattern in ("*.md", "*.txt", "*.html", "*.htm"):
+            for path in sorted(raw_dir.glob(pattern)):
+                chunks.append(path.read_text(encoding="utf-8"))
     return "\n\n".join(chunks)
 
 
@@ -1913,8 +1923,9 @@ def load_domain_context(base: Path) -> dict[str, str]:
     for domain, folder in folders.items():
         chunks = []
         if folder.exists():
-            for path in sorted(folder.rglob("*.md")) + sorted(folder.rglob("*.txt")):
-                chunks.append(path.read_text(encoding="utf-8"))
+            for pattern in ("*.md", "*.txt", "*.html", "*.htm"):
+                for path in sorted(folder.rglob(pattern)):
+                    chunks.append(path.read_text(encoding="utf-8"))
         context[domain] = "\n\n".join(chunks)
     return context
 

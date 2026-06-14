@@ -196,7 +196,7 @@ python -m sentinel /reindex PROJECT_ID --full
 
 By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, `embedding_version`, and `chunking_version`, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
 
-If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. If `/sync` touched a `SPEC-U-*` source, `/health` also names stories currently marked `Stale`. If `/implementation-feedback` has open blocking findings, `/health` names the stories whose DoD is blocked. Run `/reindex` and `/backlog` before using stale backlog context for implementation handoff, and resolve feedback through BA/Product review before treating the affected story as Done.
+If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` emits a freshness warning. If `/sync` touched a `SPEC-U-*` source, `/health` also names stories currently marked `Stale`. If `/implementation-feedback` has open blocking findings, `/health` names the stories whose DoD is blocked. Run `/reindex` and focused `/retrieve` before implementation handoff, rerun `/backlog` only for material story/acceptance/dependency/execution-contract changes, and resolve feedback through BA/Product review before treating the affected story as Done.
 
 ## Important Rule
 

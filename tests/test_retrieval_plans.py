@@ -37,6 +37,11 @@ class RetrievalPlanTests(unittest.TestCase):
             "- Answer: When ticket metrics are available, the system shall flag SLA breach risk queues.\n"
             "- Owner / source: Client workshop\n"
             "- Evidence or reference: Synthetic test response\n"
+            "- Decision status: confirmed\n"
+            "### GAP-METRIC-SOURCE\n"
+            "- Answer: Baseline comes from the weekly support operations report owned by Support Ops; target is a 30 percent reduction in preparation effort measured during the first release month.\n"
+            "- Owner / source: Client workshop\n"
+            "- Evidence or reference: Synthetic test response\n"
             "- Decision status: confirmed\n",
             encoding="utf-8",
         )

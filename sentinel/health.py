@@ -54,7 +54,7 @@ def run_health(project_id: str) -> dict[str, object]:
     for story in [node for node in graph.get("nodes", []) if node.get("type") == "user_story"]:
         if not any(parent.startswith("EPIC-") for parent in parents_of(project_id, story["id"])):
             findings.append(f"{story['id']} is not linked to an epic.")
-    findings.extend(domain_context_freshness_findings(project_id, base))
+    warnings.extend(domain_context_freshness_findings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
@@ -125,7 +125,7 @@ def domain_context_freshness_findings(project_id: str, base) -> list[str]:
     )
     detail = f" Changed domains: {', '.join(changed_domains)}." if changed_domains else ""
     return [
-        "Domain context changed after backlog generation; run /reindex and /backlog before implementation handoff." + detail
+        "Domain context changed after backlog generation; run /reindex and retrieve focused context before implementation handoff. Regenerate backlog only if the change materially affects story scope, sequencing, acceptance, or execution contracts." + detail
     ]
 
 

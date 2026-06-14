@@ -167,14 +167,14 @@ If downstream planning explicitly needs a task-seed contract, run `/backlog --wi
 
 Technology, Design, Quality, Delivery and other domains can keep enriching their context files throughout the lifecycle. After those files are ingested, synced, or reindexed, downstream backlog generation can cite them. If a domain contract is missing, Sentinel keeps `[PENDING DOMAIN CONTEXT]` visible instead of inventing commands, files, design tokens, regression suites, or blast-radius boundaries.
 
-If domain context changes after backlog generation, `/health` reports the backlog as potentially stale. Rerun:
+If domain context changes after backlog generation, `/health` reports a freshness warning. Refresh memory and retrieve focused context before handoff:
 
 ```powershell
 python -m sentinel /reindex PROJECT_ID
-python -m sentinel /backlog PROJECT_ID
+python -m sentinel /retrieve PROJECT_ID --query "implementation context for affected story" --workflow implementation
 ```
 
-Then continue with quality, trace, health, and validation.
+Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts. Then continue with quality, trace, health, and validation.
 
 When reviewing the backlog, check:
 

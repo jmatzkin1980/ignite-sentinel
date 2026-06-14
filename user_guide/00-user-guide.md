@@ -2,7 +2,7 @@
 
 Ignite Sentinel vNext is a local-first framework for maturing business and product requirements inside AI PODs. It does not replace Product, Technology, Design, Quality, Delivery, or Compliance judgment. It organizes the work so raw requirements do not jump straight into implementation without context, traceability, explicit questions, and verifiable handoffs.
 
-The core idea is simple: clients and stakeholders usually bring needs in an incomplete form. The input may be a short Markdown note, screenshots, diagrams, emails, meeting notes, technical references, or a mixed bundle of partial evidence. Sentinel treats that material as initial evidence, pressure-tests it, detects gaps, records decisions, and builds mature understanding until it can produce a `project-brief.md`.
+The core idea is simple: clients and stakeholders usually bring needs in an incomplete form. The input may be a short Markdown note, Mermaid diagrams inside Markdown, HTML prototypes, screenshots curated by Design, emails, meeting notes, technical references, or a mixed bundle of partial evidence. Sentinel treats that material as initial evidence, pressure-tests it, detects gaps, records decisions, and builds mature understanding until it can produce a `project-brief.md`.
 
 That brief becomes the bridge between discovery and downstream artifacts: PRD, specs, backlog, acceptance criteria, quality artifacts, domain context requests, and execution-ready context packs for AI agents.
 
@@ -162,16 +162,16 @@ Backlog rules:
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records story readiness, required domains, pending context, retrieval queries, validation expectations, dependencies, trace IDs, blast radius, and the domain context snapshot used during backlog generation.
 
-If domain context changes after backlog generation, `/health` marks the backlog as stale. From chat, run:
+If domain context changes after backlog generation, `/health` emits a warning and names the changed domain. Backlog is meant to remain a stable development reference, so the usual handoff response is to refresh retrieval and inspect focused context:
 
 ```text
 /reindex PROJECT_ID
-/backlog PROJECT_ID
+/retrieve PROJECT_ID --query "implementation context for affected story" --workflow implementation
 ```
 
 For Codex, prefix each line with `sentinel` if needed.
 
-Then rerun quality, trace, health, and validation before implementation handoff.
+Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts. Then rerun quality, trace, health, and validation before implementation handoff.
 
 ## Basic Flow
 

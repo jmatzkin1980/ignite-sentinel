@@ -4,11 +4,18 @@ import shutil
 from pathlib import Path
 
 from .backlog_hooks import mark_stale_stories_for_spec_units, stale_spec_units_from_change
-from .discovery import detect_gaps, parse_gap_rows
+from .discovery import (
+    count_gaps,
+    detect_gaps,
+    load_domain_context,
+    parse_gap_rows,
+    readiness_stage_for_counts,
+    render_gaps,
+)
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
 from .traceability import add_edge, add_node, children_of, count_by_type, load_graph
-from .workspace import update_state, utc_now, workspace_path
+from .workspace import read_json, update_state, utc_now, workspace_path
 
 
 def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, object]:
@@ -17,7 +24,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         raise RuntimeError(f"Workspace not found: {project_id}")
 
     target_dir = change_target_dir(base, source)
-    target = unique_target(target_dir / f"{source.stem}.md")
+    target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
     shutil.copyfile(source, target)
     text = source.read_text(encoding="utf-8")
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
@@ -27,7 +34,8 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     for node_id in affected:
         add_edge(project_id, change_id, node_id, "may_impact")
 
-    gaps = detect_gaps(text)
+    gaps = detect_gaps(sync_detection_text(base, text), load_domain_context(base))
+    gap_merge = materialize_sync_gaps(project_id, gaps, change_id)
     reopened = reopened_closed_gap_ids(base, gaps)
     stale_units = stale_spec_units_from_change(source, text)
     stale_result = mark_stale_stories_for_spec_units(
@@ -37,7 +45,10 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         change_id,
     )
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
-    impact_path.write_text(render_impact(project_id, change_id, affected, gaps, note, blast_radius, reopened), encoding="utf-8")
+    impact_path.write_text(
+        render_impact(project_id, change_id, affected, gaps, note, blast_radius, reopened, gap_merge["merged"]),
+        encoding="utf-8",
+    )
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
     add_edge(project_id, change_id, impact_id, "produces")
 
@@ -65,7 +76,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     update_state(
         project_id,
         phase="change_synced",
-        health="DIRTY" if gaps or stale_result.get("stale_stories") else "CLEAN",
+        health="DIRTY" if gap_merge["merged"] or stale_result.get("stale_stories") else "CLEAN",
         last_change_id=change_id,
     )
     return {
@@ -75,6 +86,8 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "path": str(target.as_posix()),
         "affected": affected,
         "gaps": gaps,
+        "merged_gaps": gap_merge["merged"],
+        "skipped_existing_gaps": gap_merge["skipped_existing"],
         "reopened_gaps": reopened,
         "staleness": stale_result,
     }
@@ -100,7 +113,7 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync") -> dict
         update_state(
             project_id,
             phase="change_batch_synced",
-            health="DIRTY" if any(result.get("gaps") or result.get("staleness", {}).get("stale_stories") for result in results) else "CLEAN",
+            health="DIRTY" if any(result.get("merged_gaps") or result.get("staleness", {}).get("stale_stories") for result in results) else "CLEAN",
             metrics={"changes_processed": len(results)},
         )
 
@@ -125,6 +138,61 @@ def impacted_nodes(project_id: str) -> list[str]:
                 affected.append(child)
                 stack.append(child)
     return affected
+
+
+def sync_detection_text(base: Path, change_text: str) -> str:
+    """Evaluate a change against accumulated knowledge, not as an isolated note."""
+    context_paths = [
+        base / "01_discovery" / "gaps.md",
+        base / "01_discovery" / "identity_seeds.md",
+        base / "01_discovery" / "decisions.md",
+        base / "02_requirements" / "requirements.md",
+        base / "02_requirements" / "project-brief.md",
+        base / "03_specs" / "prd.md",
+        base / "03_specs" / "specs.md",
+    ]
+    chunks = [change_text]
+    for path in context_paths:
+        if path.exists():
+            chunks.append(path.read_text(encoding="utf-8"))
+    return "\n\n".join(chunks)
+
+
+def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], change_id: str) -> dict[str, list[str]]:
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists() or not detected:
+        return {"merged": [], "skipped_existing": []}
+
+    existing = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
+    existing_ids = {gap["id"] for gap in existing}
+    req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
+    merged: list[dict[str, str]] = []
+    skipped: list[str] = []
+    for gap in detected:
+        if gap["id"] in existing_ids:
+            skipped.append(gap["id"])
+            continue
+        merged_gap = {
+            **gap,
+            "status": "OPEN",
+            "origin": "sync",
+            "evidence_mention": gap.get("evidence_mention") or change_id,
+            "resolution_note": f"raised-by-sync: review change `{change_id}` before downstream execution",
+        }
+        merged.append(merged_gap)
+        existing_ids.add(gap["id"])
+
+    if not merged:
+        return {"merged": [], "skipped_existing": skipped}
+
+    language = project_language(project_id)
+    all_gaps = existing + merged
+    gaps_path.write_text(render_gaps(project_id, all_gaps, req_id, language), encoding="utf-8")
+    counts = count_gaps(all_gaps)
+    counts["sync_origin"] = sum(1 for gap in all_gaps if gap.get("origin") == "sync")
+    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
+    return {"merged": [gap["id"] for gap in merged], "skipped_existing": skipped}
 
 
 def summarize_impact(project_id: str, affected: list[str]) -> dict[str, object]:
@@ -161,6 +229,12 @@ def change_target_dir(base: Path, source: Path) -> Path:
         target = base / "07_changes" / "03_domain_updates"
     target.mkdir(parents=True, exist_ok=True)
     return target
+
+
+def project_language(project_id: str) -> str:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    language = state.get("project_language", "en")
+    return str(language if language in {"es", "en"} else "en")
 
 
 def unique_target(path: Path) -> Path:
@@ -225,6 +299,7 @@ def render_impact(
     note: str,
     blast_radius: dict[str, object] | None = None,
     reopened: list[str] | None = None,
+    merged_gaps: list[str] | None = None,
 ) -> str:
     affected_rows = "\n".join(f"- `{node_id}`" for node_id in affected) or "- No existing downstream nodes found."
     gap_rows = "\n".join(
@@ -233,9 +308,11 @@ def render_impact(
     note_text = note or "No operator note provided."
     blast_radius = blast_radius or {"count": len(affected), "by_type": {}}
     reopened = reopened or []
+    merged_gaps = merged_gaps or []
     by_type = blast_radius.get("by_type", {})
     blast_rows = "\n".join(f"| {node_type} | {count} |" for node_type, count in by_type.items()) or "| none | 0 |"
     reopened_rows = "\n".join(f"- `{gap_id}`" for gap_id in reopened) or "- None."
+    merged_gap_rows = "\n".join(f"- `{gap_id}`" for gap_id in merged_gaps) or "- None."
     return f"""# Change Impact Report - {project_id}
 
 - Change: `{change_id}`
@@ -264,7 +341,11 @@ def render_impact(
 - Reopened closed gaps: {len(reopened)}
 {reopened_rows}
 
+## Governed Gaps Added To gaps.md
+
+{merged_gap_rows}
+
 ## Required BA Action
 
-Review impacted specs, backlog, acceptance criteria, and decisions before marking the change as applied.
+Review impacted requirements, specs, backlog, acceptance criteria, context packs, and decisions. Regenerate backlog only when the change materially affects story scope, sequencing, acceptance, or execution contracts.
 """

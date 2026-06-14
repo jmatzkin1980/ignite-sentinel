@@ -40,7 +40,7 @@ If terminal troubleshooting is needed and `python` is unavailable or invalid on 
 
 ### Scenario A1: A Client Sends The First Requirement Package
 
-**Context:** The client sends the first set of information. It may be a Markdown file, business note, screenshots, diagrams, system references, or an incomplete bundle of all of those. No project workspace exists yet.
+**Context:** The client sends the first set of information. It may be a Markdown file, Mermaid diagrams, an HTML prototype, a business note, screenshots curated by Design, system references, or an incomplete bundle of all of those. No project workspace exists yet.
 
 **In VS Code chat, type:**
 
@@ -397,7 +397,7 @@ Refresh memory and check whether any downstream artifacts are stale.
 
 **What Sentinel does:** Rebuilds local memory and checks whether downstream artifacts may be stale.
 
-**How to interpret it:** If `/health` reports that domain context changed after backlog generation, rerun `/backlog` before implementation handoff. The backlog depends on living domain context.
+**How to interpret it:** If `/health` reports that domain context changed after backlog generation, first use `/reindex` and focused `/retrieve` so implementation agents consume the current context. Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
 ## Block D: Specs, Backlog, And Quality
 

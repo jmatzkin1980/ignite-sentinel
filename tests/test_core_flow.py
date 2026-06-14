@@ -238,8 +238,8 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         changed_context.write_text("New deployment command and API contract detail added after backlog generation.", encoding="utf-8")
         self.assertEqual(main(["health", "NOVA"]), 0)
         health = json.loads((self.temp / "workspaces" / "NOVA" / "06_traceability" / "health_report.json").read_text(encoding="utf-8"))
-        self.assertEqual(health["verdict"], "DIRTY")
-        self.assertIn("Domain context changed after backlog generation", " ".join(health["findings"]))
+        self.assertEqual(health["verdict"], "CLEAN")
+        self.assertIn("Domain context changed after backlog generation", " ".join(health["warnings"]))
 
     def test_sync_creates_change_impact_and_context_pack(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
@@ -303,6 +303,56 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         results = ContextBroker("NOVA").retrieve("managers export scope", "sync", artifact_type="change")
         self.assertTrue(results)
         self.assertIn("content", results[0])
+
+    def test_html_sources_are_ingested_synced_and_indexed(self) -> None:
+        html = self.temp / "prototype.html"
+        html.write_text(
+            "<html><body><h1>Risk dashboard prototype</h1><button>Filter stale queues</button></body></html>",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["init", "HTML"]), 0)
+        self.assertEqual(main(["ingest", "HTML", "--source", str(html)]), 0)
+        raw_copy = self.temp / "workspaces" / "HTML" / "00_raw" / "prototype.html"
+        self.assertTrue(raw_copy.exists())
+        self.assertEqual(main(["reindex", "HTML"]), 0)
+        results = ContextBroker("HTML").retrieve("Filter stale queues", "discovery")
+        self.assertTrue(results)
+        self.assertTrue(any("prototype.html" in row.get("source_path", "") for row in results))
+
+        update = self.temp / "input" / "design_context" / "prototype-update.html"
+        update.parent.mkdir(parents=True)
+        update.write_text("<html><body>Empty state copy for no risk queues.</body></html>", encoding="utf-8")
+        self.assertEqual(main(["sync", "HTML", "--source", str(update), "--note", "design prototype update"]), 0)
+        manifest = json.loads((self.temp / "workspaces" / "HTML" / "00_raw" / "source_manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("input/design_context/prototype-update.html", manifest["sources"])
+        synced_copy = self.temp / "workspaces" / "HTML" / "07_changes" / "03_domain_updates" / "prototype-update.html"
+        self.assertTrue(synced_copy.exists())
+
+    def test_sync_materializes_only_new_missing_gaps(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "SYNCGAP"]), 0)
+        self.assertEqual(main(["ingest", "SYNCGAP", "--source", str(fixture)]), 0)
+        before = (self.temp / "workspaces" / "SYNCGAP" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+
+        change = self.temp / "late-note.md"
+        change.write_text(
+            "New note: the dashboard should improve operational throughput by 40 percent.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["sync", "SYNCGAP", "--source", str(change), "--note", "late metric uncertainty"]), 0)
+        after = (self.temp / "workspaces" / "SYNCGAP" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertIn("| sync |", after.lower())
+        self.assertIn("GAP-METRIC-SOURCE", after)
+        self.assertGreater(after.count("GAP-METRIC-SOURCE"), before.count("GAP-METRIC-SOURCE"))
+
+        same_gap_again = self.temp / "late-note-2.md"
+        same_gap_again.write_text(
+            "Another note: the dashboard should improve operational throughput by 40 percent.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["sync", "SYNCGAP", "--source", str(same_gap_again), "--note", "duplicate uncertainty"]), 0)
+        final = (self.temp / "workspaces" / "SYNCGAP" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertEqual(final.count("GAP-METRIC-SOURCE"), after.count("GAP-METRIC-SOURCE"))
 
     def test_doctor_passes_for_repo_root(self) -> None:
         self.assertEqual(main(["doctor", "--root", str(ROOT.parent)]), 0)
@@ -708,7 +758,7 @@ Second section paragraph.
         self.assertIn("maturity_metrics", status)
         self.assertIn("maturity_score", status["maturity_metrics"])
 
-    def test_backlog_goes_stale_when_domain_context_changes(self) -> None:
+    def test_domain_context_change_warns_without_forcing_backlog_regeneration(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
         self.assertEqual(main(["init", "STALE"]), 0)
         self.assertEqual(main(["ingest", "STALE", "--source", str(fixture)]), 0)
@@ -729,13 +779,11 @@ Second section paragraph.
         report = (self.temp / "workspaces" / "STALE" / "06_traceability" / "health_report.md").read_text(encoding="utf-8")
         self.assertIn("Domain context changed after backlog generation", report)
         self.assertIn("Technology", report)
+        self.assertIn("Regenerate backlog only if the change materially affects", report)
         state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
-        self.assertEqual(state["health"], "DIRTY")
-        self.assertNotEqual(main(["backlog", "STALE"]), 0)
+        self.assertEqual(state["health"], "CLEAN")
 
         self.assertEqual(main(["reindex", "STALE"]), 0)
-        self.assertEqual(main(["maturity", "STALE"]), 0)
-        self.assertEqual(main(["backlog", "STALE"]), 0)
         self.assertEqual(main(["health", "STALE"]), 0)
         state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["health"], "CLEAN")
