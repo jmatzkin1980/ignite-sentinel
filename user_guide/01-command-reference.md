@@ -336,9 +336,11 @@ Outputs:
 - `04_backlog/EPIC-001.md`
 - `04_backlog/US-001.md`
 - `04_backlog/BACKLOG.md`
+- `04_backlog/SLICE-PLAN.md`
 - optional `04_backlog/EPIC-002-cross-cutting-enablers.md`
 - `08_context_packs/backlog_generation.json`
 - `08_context_packs/implementation_readiness.json`
+- `08_context_packs/slice_plan.json`
 
 `/backlog` derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files. Each evidence-backed Spec Unit becomes one vertical story with AC and trace IDs derived from that unit and its `REQ-EARS-*` rows. If no functional Spec Unit exists yet, Sentinel emits a single `[PENDING INPUT]` stub that points to the gaps blocking backlog slicing instead of generating placeholder scope.
 
@@ -349,6 +351,8 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
 
 `/backlog` also refreshes `04_backlog/BACKLOG.md`, a BA-facing board with summary counts, rollup by epic, status lanes, owners, readiness scores, and blockers. The board is generated from governed workspace artifacts; never edit it by hand.
+
+`/backlog` also emits `04_backlog/SLICE-PLAN.md` and `08_context_packs/slice_plan.json`. The slice plan sequences concrete `EPIC-002` enablers before dependent value stories, groups stories into parallelizable waves, defines checkpoints, and mirrors a per-story handoff pack with position, DoR/DoD state, `execution_contract`, `retrieval_plan`, anchors, validation contract, dependencies and trace IDs. This is a handoff contract, not tasking: Sentinel does not create downstream task IDs, estimates, or implementation steps.
 
 ## `backlog-status`
 

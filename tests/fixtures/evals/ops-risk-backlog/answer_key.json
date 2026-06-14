@@ -104,6 +104,14 @@
     "must_contain": ["# Backlog Board -", "### Ready", "`US-004`", "Ops BA"],
     "rationale": "IMP-052 validates the BA-facing backlog board and persisted rollup after governed story status changes, including concrete EPIC-002 enabler stories when they are materialized as backlog items."
   },
+  "slice_plan": {
+    "expected_stories_total": 10,
+    "expected_enablers_min": 1,
+    "require_enablers_first": true,
+    "expected_handoff_packs": ["US-004"],
+    "must_contain": ["# Slice Plan -", "## Phase 0 - Enablers", "## Implementation Waves", "Per-Story Handoff Packs"],
+    "rationale": "IMP-053 validates the deterministic handoff plan: concrete EPIC-002 enablers are sequenced before value-story waves and each story has a machine-readable handoff pack."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",

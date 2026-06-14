@@ -172,10 +172,11 @@ It also records the active embedder name, level, version, and dimensions so revi
 
 Generated packs preserve the plan metadata per section: `query`, `domain`, `filters`, `limit`, `budget_chars`, `summary_chars`, `lenses`, `source_sections`, and each result's `read_plan`. Backlog story execution contracts propagate confirmed signal anchors as `execution_contract.<signal>.anchor`, so downstream agents can open the exact cited source range before planning or editing. To tune retrieval for a section, edit the JSON plan and rerun the command; no Python change is required.
 
-`/backlog` creates two built-in context packs:
+`/backlog` creates three built-in context packs:
 
 - `08_context_packs/backlog_generation.json`: focused retrieval evidence used to slice epics and stories. It keeps aggregate `sections` plus `per_story.US-NNN` mini-contexts for Spec Unit-derived stories.
 - `08_context_packs/implementation_readiness.json`: story-level handoff contract for planning, implementation, and testing agents, including required domains, pending context, execution contract with anchors, retrieval queries, validation expectations, dependencies, trace IDs, and a domain context snapshot.
+- `08_context_packs/slice_plan.json`: deterministic handoff order with enabler phase, implementation waves, checkpoints, positions, and per-story handoff packs. It references existing execution contracts and anchors; it does not define downstream task IDs.
 
 Use context packs when:
 

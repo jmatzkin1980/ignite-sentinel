@@ -13,12 +13,13 @@ Use this skill to generate execution-ready backlog artifacts.
 2. Run `python -m sentinel /backlog PROJECT_ID`.
 3. Review `workspaces/PROJECT_ID/08_context_packs/backlog_generation.json` to confirm focused local retrieval was used globally and under `per_story.US-NNN` for each Spec Unit-derived story.
 4. Review `workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json` to confirm each story has required domains, pending execution context, execution contract with anchors, retrieval plan, validation contract, dependencies, and freshness snapshot.
-5. Review `workspaces/PROJECT_ID/04_backlog/EPIC-001.md` as the primary backlog artifact. It contains the epic, domain context coverage, story map, slicing rationale, retrieved context summary, agent execution contracts, retrieval plans, and embedded stories.
-6. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
-7. Run `python -m sentinel /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
-8. When status, owner, or Done evidence changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
-9. Run `python -m sentinel /quality PROJECT_ID`.
-10. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
+5. Review `workspaces/PROJECT_ID/04_backlog/SLICE-PLAN.md` and `workspaces/PROJECT_ID/08_context_packs/slice_plan.json` to confirm concrete EPIC-002 enablers, implementation waves, checkpoints, and per-story handoff packs are ordered without generating task IDs.
+6. Review `workspaces/PROJECT_ID/04_backlog/EPIC-001.md` as the primary backlog artifact. It contains the epic, domain context coverage, story map, slicing rationale, retrieved context summary, agent execution contracts, retrieval plans, and embedded stories.
+7. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
+8. Run `python -m sentinel /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
+9. When status, owner, or Done evidence changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
+10. Run `python -m sentinel /quality PROJECT_ID`.
+11. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
 
 ## Rules
 
@@ -43,6 +44,7 @@ Use this skill to generate execution-ready backlog artifacts.
 - Each story may include an `Agent Execution Contract` derived from retrieved context: agent profile, command hints, critical surfaces, design match, engineering practices, autonomy limits, blast radius, validation contract, and parallelization/sequencing notes. Confirmed context signals should include anchors (`source_path`, `section_path`, `line_start`, `line_end`) so agents can open the exact source range.
 - Each story must include a `Retrieval Plan For Execution Agents` so planners, implementers, and testers know which focused `/retrieve` queries to run before touching code or tests.
 - Treat `implementation_readiness.json` as the handoff contract for downstream agents. If it reports `needs-context`, resolve missing domain context upstream or rerun `/reindex` and `/backlog` after domain owners update their files.
+- Treat `SLICE-PLAN.md` and `08_context_packs/slice_plan.json` as the deterministic ordering layer for downstream handoff: enablers first, value-story waves next, checkpoints between waves, and per-story handoff packs with execution contract, retrieval plan and anchors. They are not tasking artifacts; do not add task IDs, estimates, or implementation steps.
 - If `/health` reports that domain context changed after backlog generation, do not hand off implementation from the stale backlog. Run `/reindex` and `/backlog` first.
 - Acceptance criteria must be declarative Given/When/Then scenarios covering happy path, validation path, failure/recovery path, regression path, and quality evidence path.
 - Classify acceptance criteria as `fail-to-pass`, `pass-to-pass`, or `evidence` so downstream Quality and implementation agents know which tests should become newly green, which existing regression must stay green, and which evidence proves completion.

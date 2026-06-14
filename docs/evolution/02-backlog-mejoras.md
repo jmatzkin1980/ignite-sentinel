@@ -542,11 +542,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Nota 2026-06-13: implementado `sentinel/backlog_rollup.py` y comando `/backlog-status PROJECT_ID` para generar `04_backlog/BACKLOG.md` desde `state.json#story_lifecycle`, `state.json#story_gates`, `04_backlog/US-NNN.md` e `implementation_readiness.json`. `/backlog` y `/story-status` refrescan el tablero, `/status` expone `backlog_rollup`, MCP y adapters quedan alineados, y el board cuenta historias por estado/épica, incluyendo `EPIC-002` cuando hay enablers concretos materializados. Tests cubren rollup, status y surfaces; eval `ops-risk-backlog` valida tablero/estado persistido tras mover `US-004` a `Ready`. El tablero es vista generada, no SSoT editable.
 
 ### IMP-053 — Plan de slice e implementación (handoff contract determinístico)
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: no hay plan ordenado por épica/release que explicite enablers, paralelismo, dependencias y checkpoints; el bridge a tasking queda implícito.
 - Alcance: emitir `04_backlog/SLICE-PLAN.md` y JSON espejo en `08_context_packs/` con fase de enablers (`EPIC-002`), olas paralelizables de historias, checkpoints y handoff pack por historia (`execution_contract` + `retrieval_plan` + anchors + posición + estado DoR). Mantener vocabulario Ignite; no copiar `T001/[P]` ni ejecutar tasking.
 - Aceptación: `/backlog` o `/handoff` produce slice plan con enablers primero, olas paralelizables y checkpoints derivados de dependencias reales; handoff pack valida campos o marca `[PENDING ...]`; un agente downstream puede ordenar implementación leyendo slice plan + packs; tests de estructura y orden topológico.
 - Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/backlog_generation.json`, `tests/`, skill `sentinel-backlog`, `user_guide/02-artifact-reference.md`, `user_guide/03-workflows.md`.
+- Nota 2026-06-13: implementado `sentinel/slice_plan.py` y wiring en `/backlog` para emitir `04_backlog/SLICE-PLAN.md` + `08_context_packs/slice_plan.json`. El plan deriva una fase de enablers concretos `EPIC-002`, olas de historias paralelizables por dependencias reales/enabler links, checkpoints y `handoff_packs.US-NNN` con posición, estado, DoR/DoD, `execution_contract`, `retrieval_plan`, anchors, validación y trazas. No introduce task IDs, estimates ni ejecución downstream. Tests cubren orden topológico/enablers primero y core flow; eval `ops-risk-backlog` valida artefactos, conteo, handoff pack y contenido mínimo. Docs y skill `sentinel-backlog` actualizadas.
 
 ### IMP-054 — Contrato de tareas-semilla por historia (opcional / frontera de scope)
 - Estado: PENDING
@@ -614,6 +615,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-053 VERIFIED (branch `imp-053-slice-plan`): agregado `SLICE-PLAN.md` y `slice_plan.json` como handoff determinístico de backlog, con fase de enablers, olas paralelizables, checkpoints y handoff packs por historia. Sin tasking ni cambios al modelo de slicing/EPIC-002; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-052 VERIFIED (branch `imp-052-backlog-rollup`): agregado `/backlog-status`, `04_backlog/BACKLOG.md`, rollup por épica/estado/owners/blockers, resumen en `/status`, refresh automático desde `/backlog` y `/story-status`, MCP/adapters/docs actualizados y eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-051 VERIFIED (branch `imp-051-dor-dod-gates`): DoR/DoD evaluable sobre los checklists existentes, `backlog_gate` blando/strict opt-in, warnings en `/story-status` y `/status`, bloqueo estricto de Ready/Done, evidencia local `--evidence` para DoD con trazabilidad, handoff JSON y eval `ops-risk-backlog` ampliados. |
 | 2026-06-13 | IMP-050 VERIFIED (branch `imp-050-story-lifecycle`): agregado `/story-status` con máquina de estados gobernada, owner en `state.json`/frontmatter, status log, trazabilidad y preservación por `/backlog`; eval `ops-risk-backlog` valida `US-004 → Ready`. DoR/DoD estricto queda para IMP-051. |

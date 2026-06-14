@@ -96,10 +96,18 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertTrue(backlog_pack.exists())
         readiness_pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "implementation_readiness.json"
         self.assertTrue(readiness_pack.exists())
+        slice_plan_md = self.temp / "workspaces" / "NOVA" / "04_backlog" / "SLICE-PLAN.md"
+        slice_plan_json = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "slice_plan.json"
+        self.assertTrue(slice_plan_md.exists())
+        self.assertTrue(slice_plan_json.exists())
         readiness = json.loads(readiness_pack.read_text(encoding="utf-8"))
         self.assertEqual(readiness["workflow"], "implementation_readiness")
         self.assertTrue(readiness["stories"])
         self.assertIn("retrieval_plan", readiness["stories"][0])
+        slice_plan = json.loads(slice_plan_json.read_text(encoding="utf-8"))
+        self.assertEqual(slice_plan["workflow"], "slice_plan")
+        self.assertIn("handoff_packs", slice_plan)
+        self.assertIn("Implementation Waves", slice_plan_md.read_text(encoding="utf-8"))
         epic_text = (self.temp / "workspaces" / "NOVA" / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
         self.assertIn("## Story Map", epic_text)
         self.assertIn("## Slicing Strategy", epic_text)
@@ -664,7 +672,11 @@ Second section paragraph.
         readiness = json.loads(
             (self.temp / "workspaces" / "SCOR" / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8")
         )
+        slice_plan = json.loads(
+            (self.temp / "workspaces" / "SCOR" / "08_context_packs" / "slice_plan.json").read_text(encoding="utf-8")
+        )
         self.assertIn("summary", readiness)
+        self.assertEqual(slice_plan["summary"]["stories_total"], len(readiness["stories"]))
         summary = readiness["summary"]
         self.assertEqual(summary["stories_total"], len(readiness["stories"]))
         self.assertEqual(summary["stories_ready"] + summary["stories_needing_context"], summary["stories_total"])
