@@ -1,22 +1,15 @@
 # Ignite Sentinel vNext
 
-**A repo-local, local-first system that matures raw client input into traceable, agent-ready requirements — governed from first note to backlog.**
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
+[![Privacy](https://img.shields.io/badge/privacy-local--first-2ea44f.svg)](#design-rules)
+[![Lifecycle](https://img.shields.io/badge/lifecycle-discovery%20%E2%86%92%20specs%20%E2%86%92%20backlog-blue.svg)](#the-lifecycle)
 
-Most tools generate documents. Ignite Sentinel does something harder: it *matures requirements*. You feed it the messy first version of a client request — a note, a screenshot, a half-formed idea — and it works the material through a governed lifecycle until it becomes a project brief, PRD, specs, backlog, quality artifacts, and a full traceability graph. Nothing is invented along the way: every claim is backed by evidence you can cite, and everything missing is made explicit as a gap, never quietly filled in.
+> A repo-local, local-first system that **matures** raw client input into traceable, agent-ready requirements — governed from first note to backlog.
+
+Most tools generate documents. Ignite Sentinel does something harder: it *matures requirements*. You feed it the messy first version of a client request — a note, a screenshot, a half-formed idea — and it works the material through a governed lifecycle until it becomes a project brief, PRD, specs, backlog, quality artifacts, and a full traceability graph. **Nothing is invented:** every claim is backed by citable evidence, and everything missing stays an explicit `GAP-*` or `[PENDING INPUT]`.
 
 The source of truth is always the versionable files under `workspaces/PROJECT_ID/`. Local memory is a retrieval aid, never the authority. No client content leaves your machine.
-
----
-
-## Why it's different
-
-- **It matures, it doesn't fabricate.** Every downstream artifact traces back to confirmed evidence. What isn't known yet stays a visible `GAP-*` or `[PENDING INPUT]` — the framework refuses to invent scope.
-- **The lifecycle is governed, not just generated.** Gates stop you from building specs on an immature requirement or a backlog on stale context. When a command blocks, it tells you the correct previous step.
-- **The agent is a sanctioned analyst, not a free hand.** Agents can deepen discovery (`/annotate`, `/challenge`) and propose normalized requirements — but the runtime validates every contribution against a verbatim quote before it touches an artifact. You stay in control.
-- **Local-first by default.** No remote MCP, external vector database, or external embedding service for client content. Runs fully on a locked-down VDI; LanceDB is optional and degrades to deterministic `json-hybrid`; semantic embeddings are optional local packages only.
-- **One source, every agent.** The same lifecycle is driven from Codex, Kilo Code, Claude Code/Desktop, an MCP server, or the plain CLI — adapters are generated from a single manifest, so they never drift.
-
-## The lifecycle at a glance
 
 ```text
   raw input ──/ingest──▶ discovery gaps ──(optional)──▶ /annotate · /challenge
@@ -30,11 +23,106 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
                 /specs ──▶ /backlog ──▶ /quality ──▶ /trace · /health · /validate
 ```
 
-Discovery is the heart. The checklist detects what's missing deterministically; the agent can then add the semantic gaps a reassuring keyword would otherwise hide (`/annotate`) and stress-test the requirement with a pre-mortem and per-lens role-play (`/challenge`). When confirmed answers come back, the framework can normalize functional ones into testable **EARS** statements that downstream PRD/spec/backlog artifacts cite as `REQ-EARS-*`, and compile a project brief whose every section is either evidence-backed and cited, or explicitly pending — with per-section readiness and maturation telemetry telling you exactly where discovery is still stuck.
+## Contents
 
-Downstream generation stays progressively disclosed. `/specs` creates a human PRD plus a compact spec index and bounded `SPEC-U-*` units when confirmed EARS evidence exists. `/backlog` derives one value story per confirmed Spec Unit instead of expanding a fixed seed list; if no functional unit exists, it renders a `[PENDING INPUT]` stub and points back to the gaps that must be resolved. Its slicing model lives in `sentinel/slicing/backlog_slicing_model.json`, preserving the existing INVEST, vertical slicing, SPIDR and Lawrence guidance while selecting and explaining a pattern per story. It also consumes focused context packs instead of rereading the whole workspace: `backlog_generation.json` keeps the aggregate retrieval view plus a `per_story.US-NNN` mini-context for each Spec Unit, and `implementation_readiness.json` carries the story execution contract used for handoff. `SLICE-PLAN.md` and `slice_plan.json` add the deterministic handoff order: concrete `EPIC-002` enablers first, then parallelizable waves, checkpoints, per-story handoff packs, and a pre-handoff DoR gate that warns by default or blocks only when `backlog_gate.strict` is enabled. When a downstream consumer explicitly needs implementation intentions, `/backlog --with-task-seeds` adds optional task-seed contracts traced to acceptance criteria and critical surfaces; default `/backlog` omits them, and even opt-in seeds never execute, estimate, assign, schedule, or manage tasks. The retrieval plans that drive those packs live in `sentinel/retrieval_plans/*.json`, and each retrieved result carries a `read_plan` (`source_path`, `section_path`, line anchors); `/backlog` propagates those anchors into story execution signals so an agent can jump from summary to the exact source range. `/quality` scores each story against the governed INVEST/SPIDR/Lawrence model, writes the dynamic `backlog_readiness_audit.md`, and feeds non-blocking DoR warnings through `state.json#story_gates`. `/implementation-feedback` lets downstream agents return structured findings about dependencies, gaps, invalid AC, or missing surfaces; Sentinel traces them to existing stories/AC, may open `GAP-FEEDBACK-*`, may mark affected stories `Stale`, and feeds DoD without rewriting backlog scope. `/backlog-status` renders the BA-facing `04_backlog/BACKLOG.md` rollup from governed story files, lifecycle state, gates, and readiness packs; it is a review board, not a second source of truth. Backlog handoff surfaces also run a local privacy scan over `04_backlog/` and block when credentials, private endpoints, emails, or private identifiers appear.
+- [Why it's different](#why-its-different)
+- [Who it's for](#who-its-for)
+- [The lifecycle](#the-lifecycle)
+- [Commands](#commands)
+- [Quick Start](#quick-start)
+- [Driving it from chat](#driving-it-from-chat-recommended)
+- [Governed backlog](#governed-backlog)
+- [Resolving change over time](#resolving-change-over-time)
+- [Command protocol](#command-protocol)
+- [Local memory](#local-memory)
+- [Workspace layout](#workspace-layout)
+- [Design rules](#design-rules)
+- [Verification](#verification)
+- [FAQ](#faq)
+- [Documentation](#documentation)
 
----
+## Why it's different
+
+- **Purpose-built for maturing requirements — not a generic spec generator.** Unlike general spec-driven (SDD) or BMAD-style frameworks, Ignite targets the specific BA/Product pain: working raw client input into a *robust* spec. Discovery is the heart of the system, not an afterthought.
+- **It matures, it doesn't fabricate.** Every downstream artifact traces back to confirmed evidence. What isn't known yet stays a visible `GAP-*` or `[PENDING INPUT]` — the framework refuses to invent scope.
+- **The lifecycle is governed, not just generated.** Gates stop you from building specs on an immature requirement or a backlog on stale context. When a command blocks, it tells you the correct previous step.
+- **The agent is a sanctioned analyst, not a free hand.** Agents can deepen discovery (`/annotate`, `/challenge`), enrich the PRD (`/compose`) and refine the backlog (`/refine-backlog`) — but the runtime validates every contribution against a verbatim quote before it touches an artifact. You stay in control.
+- **Vector-backed progressive disclosure.** A *local* vector index (LanceDB, or a deterministic fallback) feeds each phase and activity only the context it needs — generation reads the exact section instead of rereading the whole workspace.
+- **Local-first by default.** No remote MCP, external vector database, or external embedding service for client content. Runs fully on a locked-down VDI; LanceDB is optional and degrades to deterministic `json-hybrid`; semantic embeddings are optional local packages only.
+- **One source, every agent.** The same lifecycle drives Codex, Kilo Code, Claude Code/Desktop, an MCP server, or the plain CLI — adapters are generated from a single manifest, so they never drift.
+
+## Who it's for
+
+- **Business analysts & product managers** who must turn a vague client request into a defensible brief, PRD, and spec — and need to show *why* every decision is backed by evidence.
+- **Consultants & agencies** working client material under privacy constraints, where nothing can leave the machine.
+- **Teams handing work to AI coding agents** who want a traceable, agent-ready backlog instead of prompt-and-pray.
+
+If your hardest problem is *maturing* requirements — not writing them up after the fact — this is built for you.
+
+## The lifecycle
+
+Three phases, one governed flow: **Discovery → Specs → Backlog.**
+
+Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`) and stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`). Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed and cited, or explicitly pending, with per-section readiness and maturation telemetry showing exactly where discovery is stuck.
+
+Downstream generation stays **progressively disclosed**: each command reads the exact context it needs, never the whole workspace.
+
+## Commands
+
+Drive these from chat in plain language, or call them directly. Every surface speaks the same lifecycle.
+
+**Discovery & maturation**
+
+| Command | What it does |
+|---------|--------------|
+| `/init` | Create a project workspace |
+| `/ingest` | Ingest raw client / domain / interaction evidence and index local memory |
+| `/gaps` | (Re)generate the shareable discovery gaps document |
+| `/annotate` | Merge agent-proposed **semantic** gaps (verbatim-cited, `origin: agent`) |
+| `/challenge` | Advanced elicitation: pre-mortem + per-lens role-play |
+| `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
+| `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry) |
+| `/brief` | Compile the evidence-backed project brief |
+| `/context-request` | Generate a domain-specific context request |
+
+**Specs**
+
+| Command | What it does |
+|---------|--------------|
+| `/specs` | Generate the human PRD, a compact spec index, and bounded `SPEC-U-*` units |
+| `/compose` | Merge agent-authored PRD narrative with paragraph-level verbatim citations |
+
+**Backlog**
+
+| Command | What it does |
+|---------|--------------|
+| `/backlog` | Derive epics/stories/AC from Spec Units; emit `SLICE-PLAN.md` + readiness packs |
+| `/backlog --with-task-seeds` | Add optional task-seed contracts (bounded intentions, never executed) |
+| `/backlog-status` | Refresh the BA-facing `04_backlog/BACKLOG.md` rollup board |
+| `/story-status` | Govern a story's lifecycle, owner, and DoR/DoD gates (not manual edits) |
+| `/refine-backlog` | Merge cited agent refinement proposals (`origin: agent`, BA review) |
+| `/implementation-feedback` | Metabolize downstream findings into traced gaps / DoD |
+| `/quality` | Score stories (INVEST/SPIDR/Lawrence); write test cases + dynamic audit |
+
+**Change & governance**
+
+| Command | What it does |
+|---------|--------------|
+| `/sync` | Metabolize new/unmapped info (meetings, mail, blockers) as traceable change |
+| `/trace` | (Re)generate the traceability matrix and graph |
+| `/health` | Audit workspace health, staleness, and readiness |
+| `/validate` | Structural validity + non-blocking quality/consistency warnings |
+
+**Memory & utility**
+
+| Command | What it does |
+|---------|--------------|
+| `/reindex` | Rebuild local memory incrementally (`--full` for a total rebuild) |
+| `/retrieve` | Build a focused context pack (progressive disclosure) |
+| `/status` | Phase, health, gap counts, telemetry, and next step |
+| `/export` | Export a shareable artifact |
+| `/doctor` | Verify Python, adapters, write access, and the optional memory layer |
+| `/sentinel` | Generic fallback to run any command from one entry point |
 
 ## Quick Start
 
@@ -46,33 +134,26 @@ cd ignite-sentinel
 python -m sentinel /doctor
 ```
 
-`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies**. LanceDB is optional — without it Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports `WARN`, not a failure. To enable vector retrieval where the environment allows it:
+`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports `WARN`, not a failure.
+
+Optional layers (only where the environment allows):
 
 ```powershell
-python -m pip install -e .[memory]
-python -m sentinel /doctor
-```
-
-Semantic embeddings are a separate optional local layer. They never call an external embedding API at runtime and require a local model path or pre-seeded cache:
-
-```powershell
-python -m pip install -e .[memory-semantic]
+python -m pip install -e .[memory]            # LanceDB vector retrieval
+python -m pip install -e .[memory-semantic]   # local semantic embeddings (no external API)
 $env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
-python -m sentinel /doctor
 ```
 
-**Windows note:** if `python` opens the Microsoft Store, it's the App Execution alias — real Python isn't on `PATH`. Use the `py` launcher, run `.\verify.ps1` / `.\installers\sentinel.ps1`, or disable the alias. The repo-local launcher resolves the interpreter for you (tries `SENTINEL_PYTHON`, `.venv`, `python`, `py`, and the bundled Codex runtime):
-
-```powershell
-.\installers\sentinel.ps1 /doctor          # Windows
-sh installers/sentinel.sh /doctor          # Unix-like
-```
-
-Then open the repo root in your editor (`code .`) and drive Sentinel from chat.
+> **Windows note:** if `python` opens the Microsoft Store, it's the App Execution alias — real Python isn't on `PATH`. Use the `py` launcher, run `.\verify.ps1` / `.\installers\sentinel.ps1`, or disable the alias. The repo-local launcher resolves the interpreter for you (`SENTINEL_PYTHON`, `.venv`, `python`, `py`, then the bundled Codex runtime):
+>
+> ```powershell
+> .\installers\sentinel.ps1 /doctor          # Windows
+> sh installers/sentinel.sh /doctor          # Unix-like
+> ```
 
 ## Driving it from chat (recommended)
 
-You don't need to memorize commands. Describe the situation in plain language and the agent maps it to the right sequence:
+You don't need to memorize commands. Describe the situation and the agent maps it to the right sequence:
 
 ```text
 I have a new client requirement at input\client_requirement\initial-request.md.
@@ -81,11 +162,13 @@ Create project ACME_DASHBOARD, ingest it, and tell me the next step.
 
 If you prefer exact commands, every surface speaks the same lifecycle:
 
-- **Kilo Code** — slash commands: `/init ACME_DASHBOARD`
-- **Codex** — `sentinel` prefix if intercepted: `sentinel /init ACME_DASHBOARD`
-- **Claude Code / Desktop** — slash commands from `.claude/commands/` plus `CLAUDE.md` routing
-- **Any MCP client** — the local stdio server (`pip install -e .[mcp]`, then `python -m sentinel.mcp`)
-- **Terminal** — `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`
+| Surface | How you invoke it |
+|---------|-------------------|
+| **Kilo Code** | Slash commands — `/init ACME_DASHBOARD` |
+| **Codex** | `sentinel` prefix if intercepted — `sentinel /init ACME_DASHBOARD` |
+| **Claude Code / Desktop** | Slash commands from `.claude/commands/` + `CLAUDE.md` routing |
+| **Any MCP client** | Local stdio server — `pip install -e .[mcp]`, then `python -m sentinel.mcp` |
+| **Terminal** | `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]` |
 
 A typical discovery-to-brief run:
 
@@ -93,8 +176,8 @@ A typical discovery-to-brief run:
 python -m sentinel /init ACME_DASHBOARD
 python -m sentinel /ingest ACME_DASHBOARD --source input\client_requirement\initial-request.md
 python -m sentinel /gaps ACME_DASHBOARD
-python -m sentinel /annotate ACME_DASHBOARD --source input\interactions\analysis.json   # optional: agentic gaps
-python -m sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json   # optional: pre-mortem
+python -m sentinel /annotate ACME_DASHBOARD --source input\interactions\analysis.json     # optional: agentic gaps
+python -m sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json     # optional: pre-mortem
 python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
 python -m sentinel /maturity ACME_DASHBOARD
 python -m sentinel /brief ACME_DASHBOARD
@@ -103,64 +186,50 @@ python -m sentinel /brief ACME_DASHBOARD
 Downstream, once the brief is mature:
 
 ```powershell
-python -m sentinel /context-request ACME_DASHBOARD --domain technology
 python -m sentinel /specs ACME_DASHBOARD
-python -m sentinel /compose ACME_DASHBOARD --source input\interactions\prd-composition.json   # optional: cited PRD narrative
 python -m sentinel /backlog ACME_DASHBOARD
-python -m sentinel /backlog ACME_DASHBOARD --with-task-seeds   # optional: downstream task-seed intentions
 python -m sentinel /backlog-status ACME_DASHBOARD
 python -m sentinel /story-status ACME_DASHBOARD --story US-001 --set Ready --owner "Delivery Lead"
-python -m sentinel /story-status ACME_DASHBOARD --story US-001 --set Done --evidence input\interactions\us-001-evidence.md
-python -m sentinel /refine-backlog ACME_DASHBOARD --source input\interactions\backlog-refinement.json   # optional: cited backlog proposals
-python -m sentinel /implementation-feedback ACME_DASHBOARD --source input\interactions\implementation-feedback.json
 python -m sentinel /quality ACME_DASHBOARD
 python -m sentinel /trace ACME_DASHBOARD
 python -m sentinel /health ACME_DASHBOARD
 python -m sentinel /validate ACME_DASHBOARD
 ```
 
-See the [Scenarios guide](user_guide/12-scenarios.md) for situation-by-situation walkthroughs written for non-technical users (what to type, what to expect, what the output means).
+See the [Scenarios guide](user_guide/12-scenarios.md) for situation-by-situation walkthroughs written for non-technical users.
+
+## Governed backlog
+
+`/backlog` derives **one value story per confirmed Spec Unit** instead of expanding a fixed seed list. If no functional unit exists, it renders a `[PENDING INPUT]` stub and points back to the gaps that must be resolved. What the phase guarantees:
+
+- **Evidence-derived, never invented.** Stories come from `SPEC-U-*` units and cite their `REQ-EARS-*`; missing evidence becomes a stub, not a guess.
+- **Your slicing model, preserved.** Lives in `sentinel/slicing/backlog_slicing_model.json` — INVEST ("small but valuable"), vertical slicing, SPIDR and Lawrence guidance — selecting and explaining one pattern per story.
+- **Cross-cutting enablers stay bounded.** Concrete `EPIC-002` enablers must name the capability they support, the risk they reduce, and the evidence that closes them; loose setup is rejected.
+- **Progressive disclosure per story.** `backlog_generation.json` keeps the aggregate view plus a `per_story.US-NNN` mini-context; each retrieved result carries a `read_plan` (`source_path`, `section_path`, line anchors) propagated into story execution signals so an agent jumps from summary to the exact source range.
+- **Deterministic handoff, no tasking.** `SLICE-PLAN.md` + `slice_plan.json` order enablers first, then parallelizable waves with checkpoints, per-story handoff packs, and a pre-handoff DoR gate (warns by default; blocks only when `backlog_gate.strict` is on). It stops at the seam — Ignite exposes ordering and context, but never creates task IDs or executes implementation.
+- **Optional task seeds.** `/backlog --with-task-seeds` adds bounded intentions traced to AC and critical surfaces; default omits them, and even opt-in seeds never execute, estimate, assign, or schedule.
+- **Governed lifecycle + rollup.** `/story-status` moves a story through `Draft → Ready → In Progress → In Review → Done` (+ `Blocked`/`Stale`), assigns owner, evaluates DoR/DoD, and refreshes `BACKLOG.md`. `/backlog` preserves status/owner across regeneration.
+- **Quality that scores, not just lists.** `/quality` scores each story against the governed INVEST/SPIDR/Lawrence model and writes the dynamic `backlog_readiness_audit.md`, feeding non-blocking DoR warnings via `state.json#story_gates`.
+- **Closed feedback loop.** `/implementation-feedback` lets downstream agents return findings (dependencies, gaps, invalid AC, missing surfaces); Sentinel traces them, may open `GAP-FEEDBACK-*`, may mark stories `Stale`, and feeds DoD — without rewriting backlog scope.
+- **Privacy at the seam.** Backlog handoff/validation runs a deterministic local scan over `04_backlog/` for credentials, private endpoints, emails, or private identifiers. It warns by default, blocks only with `privacy_scan.mode: block`, and can be disabled with `privacy_scan.mode: off`.
 
 ## Resolving change over time
 
 A requirement keeps moving after discovery. Two distinct flows handle that:
 
-- **Structured gap answers** — when an answered `gaps.md` returns:
+- **Structured gap answers** — `/resolve-gaps` on an answered `gaps.md`. Confirmed answers become seeds and decisions; functional answers in EARS syntax become testable `REQ-EARS-*`; confirmed functional prose is marked `EARS-eligible, not normalized` and counted in `/status`.
+- **New or unmapped information** — `/sync` for meeting notes, email, a demo comment, a late blocker, so new scope becomes traceable change instead of silent creep. If a synced change re-triggers a `CLOSED` gap, Sentinel records it under `Reopened Closed Gaps` and surfaces counts in `/status` — it never silently reopens or rewrites it.
 
-  ```powershell
-  python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
-  python -m sentinel /maturity ACME_DASHBOARD
-  ```
+Other governed channels, each validated against verbatim local evidence:
 
-  Confirmed answers become seeds and decisions; functional answers written in EARS syntax also become testable `REQ-EARS-*` statements in `requirements.md`, and generated specs/backlog artifacts cite those IDs downstream. Confirmed functional prose is marked `EARS-eligible, not normalized` and counted in `/status` so the BA or agent can propose a separate EARS rewrite for confirmation.
+- **`/compose`** — agents enrich the PRD with cited JSON blocks; accepted blocks are `Origin: agent`, unsupported citations are rejected.
+- **Spec deltas** — regenerating `/specs` writes unit-level deltas for `SPEC-U-*` and propagates stale-unit hints; a `/sync` that touches a unit's source marks only the stories derived from it as `Stale`.
+- **`/refine-backlog`** — agents propose reslicing, split/merge, missing stories, or enabler candidates; accepted proposals land under `04_backlog/refinements/` as `Origin: agent` proposals only.
+- **`/implementation-feedback`** — findings are archived under `07_changes/05_implementation_feedback/`, linked as `implementation_feedback`, optionally surfaced as `GAP-FEEDBACK-*`, and can block a story's DoD.
 
-- **New or unmapped information** — meeting notes, email, a demo comment, a late blocker:
+`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings (scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift) as corrective guidance.
 
-  ```powershell
-  python -m sentinel /sync ACME_DASHBOARD --source input\change.md --note "client follow-up"
-  python -m sentinel /sync ACME_DASHBOARD                 # autonomous novelty scan of known folders
-  python -m sentinel /health ACME_DASHBOARD
-  ```
-
-Use `/resolve-gaps` for `### GAP-ID` documents; use `/sync` for everything that doesn't map to an existing gap, so new scope becomes traceable change instead of silent scope creep.
-
-If a synced change triggers a gap ID that had already been `CLOSED`, Sentinel records it in the impact report under `Reopened Closed Gaps` and surfaces aggregate counts in `/status` under `maturation_telemetry.reopened_by_sync_*`. The runtime does not silently reopen or rewrite the closed gap; it makes the renewed uncertainty visible for BA review.
-
-After `/specs`, agents may enrich the PRD through `/compose` by submitting JSON blocks with paragraph-level verbatim citations from local source-of-truth evidence. Accepted blocks are marked `Origin: agent`; pending sections and unsupported citations are rejected instead of being filled by narrative guesswork.
-
-When `/specs` is regenerated after changes, Sentinel writes unit-level deltas for `SPEC-U-*` files and propagates stale-unit hints into implementation readiness. When `/sync` touches a `SPEC-U-*` source, Sentinel marks only stories derived from that unit as `Stale`, refreshes the backlog board, and reports the stale stories through `/health`. Review those deltas before handing existing backlog work to implementation agents.
-
-After `/backlog`, agents may submit governed refinement proposals through `/refine-backlog`. The JSON source must cite local evidence verbatim and can propose reslicing, split/merge candidates, missing stories, or concrete enabler candidates for BA review. Accepted proposals are marked `Origin: agent` under `04_backlog/refinements/` and appended to the epic/story as proposals only; Sentinel does not rewrite the slicing model or invent backlog scope.
-
-After handoff, implementation agents may submit structured findings through `/implementation-feedback`. Each finding names a type, story, optional AC, summary, and evidence. Accepted findings are archived under `07_changes/05_implementation_feedback/`, linked into traceability as `implementation_feedback`, optionally surfaced as `GAP-FEEDBACK-*`, and can block the story's DoD through `implementation_feedback_resolved`. This is a feedback loop into BA review, not permission to patch generated stories by hand.
-
-Story lifecycle is governed through `/story-status`, not manual edits. The command moves a `US-NNN` through `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, or `Stale`, assigns an owner, evaluates DoR/DoD gates, updates `state.json` plus story frontmatter/checklists, refreshes `04_backlog/BACKLOG.md`, and records traceability. `/backlog` preserves status/owner values across regeneration and keeps DoR/DoD visible in `implementation_readiness.json`. `/backlog-status` can be run anytime after backlog generation to refresh the epic/status board without changing story state. By default `backlog_gate` warns; opt-in strict mode blocks `Ready`/`Done` until missing items are resolved. Use `--evidence PATH` to attach local downstream acceptance evidence before closing `Done`.
-
-`/backlog` also emits `04_backlog/SLICE-PLAN.md` plus `08_context_packs/slice_plan.json`. These artifacts order the handoff for downstream planning agents using existing story dependencies, EPIC-002 enabler links, DoR state, readiness score, execution contracts, retrieval plans and anchors. The plan includes a pre-handoff DoR verdict: soft mode records warnings, while strict mode blocks handoff if any story misses DoR. They deliberately stop at the seam: Ignite exposes ordering and context, but does not create task IDs or execute implementation/testing work. If a downstream consumer asks for task seeds, rerun `/backlog --with-task-seeds`; Sentinel will add a bounded `Task Seed Contract` per story and mirror it into `implementation_readiness.json`, but the seeds remain optional intentions that downstream planning may expand, reorder, or discard.
-
-`/validate` keeps structural validity separate from maturity signals. It returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings for scaffolding content, missing EARS/spec-unit continuity, dangling spec-unit source pointers, or PRD/spec drift. Use those warnings as corrective guidance, not as hardened gates.
-
-## Command Protocol
+## Command protocol
 
 Every project command runs through the same governed protocol:
 
@@ -169,13 +238,13 @@ Every project command runs through the same governed protocol:
 3. **Postflight** trace materialization for mutating commands.
 4. **Anchor** in `06_traceability/command_protocol_log.md`.
 
-This keeps execution repo-local, deterministic, and auditable across Codex, Kilo Code, Claude, MCP, and direct CLI usage — and is what lets the gates and traceability be trusted.
+This keeps execution repo-local, deterministic, and auditable across Codex, Kilo Code, Claude, MCP, and direct CLI — and is what lets the gates and traceability be trusted.
 
 ## Local memory
 
-Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders (technology, design, quality, business, interactions). `/retrieve` builds focused context packs — progressive disclosure — before an agent executes a workflow, so it reads the exact section it needs instead of the whole workspace.
+Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs.
 
-When LanceDB is available, Sentinel uses local hybrid retrieval: vector search plus FTS on `text`, combined with reciprocal rank fusion. When LanceDB is unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start` / `line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Generated context packs preserve those anchors as `read_plan`; the index is always reconstructible from the source files and is never the authority.
+When LanceDB is available, Sentinel uses local hybrid retrieval (vector + FTS on `text`, combined with reciprocal rank fusion). When it's unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start`/`line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Context packs preserve those anchors as `read_plan`. The index is always reconstructible from source files and is never the authority.
 
 ## Workspace layout
 
@@ -200,13 +269,13 @@ The repo also ships `input/` (drop local source files here before ingestion) and
 
 ## Design rules
 
-- Truth lives in workspace files, not in memory indexes.
-- Privacy is local-only by default: no remote MCP, external vector DB, or external embedding service for client content. Backlog commands that hand off or validate `04_backlog/` run a deterministic local scan for sensitive identifiers, credentials, non-example endpoints, email addresses, and private account/client IDs. The scan warns by default, blocks only with `privacy_scan.mode: block`, and can be disabled with `privacy_scan.mode: off`.
-- Mutate generated artifacts only through Sentinel commands — never edit downstream outputs by hand.
-- Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `PRD`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
-- Keep `main` a clean framework branch; run real projects in project branches (e.g. `project/ACME_DASHBOARD`) and merge only framework improvements back.
-- Tune project domains and maturity gates in `sentinel.config.yaml`.
-- Skills are authored once in `.codex/skills/` and mirrored to the Agent Skills standard directories (`.agents/skills/`, `.claude/skills/`); command adapters for Kilo and Claude are generated from a single manifest, so no surface drifts.
+- **Truth lives in workspace files,** not in memory indexes.
+- **Privacy is local-only by default** — no remote MCP, external vector DB, or external embedding service for client content. The lifecycle runs fully offline on a locked-down machine, so your project data stays yours.
+- **Mutate generated artifacts only through Sentinel commands** — never edit downstream outputs by hand.
+- **Preserve lineage** across `RAW`, `REQ`, `GAP`, `DEC`, `PRD`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
+- **Configure to taste** in `sentinel.config.yaml` — project domains, maturity gates, language, and the optional backlog privacy scan.
+
+> **Contributing to the framework itself?** See [MAINTAINERS.md](MAINTAINERS.md) for repository conventions (branching, keeping surfaces in sync, handling examples). Those are maintainer rules for *this* repo — they don't constrain how you use Ignite in your own projects.
 
 ## Verification
 
@@ -224,23 +293,39 @@ python -m sentinel /doctor
 python tests\evals\run_discovery_evals.py
 ```
 
-The eval harness covers discovery, brief, PRD, specs, and backlog. Backlog answer keys check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring for the governed INVEST/SPIDR/Lawrence model, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`, including metrics by active backend (`json-hybrid` or `lancedb-hybrid`) and golden queries across all eval fixtures.
+The eval harness covers discovery, brief, PRD, specs, and backlog. Backlog answer keys check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`.
 
-If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
+> If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
 
-## User documentation
+## FAQ
 
-- [User Guide](user_guide/00-user-guide.md) — start here; the lifecycle end to end.
-- [Command Reference](user_guide/01-command-reference.md) — every command, its output, and its gate.
-- [Artifact Reference](user_guide/02-artifact-reference.md) — what each generated file means.
-- [Workflows](user_guide/03-workflows.md) — recommended lifecycle flows.
-- [Scenarios](user_guide/12-scenarios.md) — situation → what to run → what to expect (non-technical).
-- [Chat Commands](user_guide/11-chat-commands.md) — natural language → command mapping.
-- [Codex Skills Guide](user_guide/04-codex-skills-guide.md)
-- [Traceability And Memory](user_guide/05-traceability-and-memory.md)
-- [VS Code Portable Install](user_guide/06-installation-vscode.md)
-- [Kilo Code Adapter](user_guide/07-kilo-code-adapter.md)
-- [Codex Adapter](user_guide/08-codex-adapter.md)
-- [Secure Environments](user_guide/09-secure-environments.md)
-- [Repo And Branching Strategy](user_guide/10-repo-and-branching-strategy.md)
-- [Claude Adapter](user_guide/13-claude-adapter.md)
+**Does any client data leave my machine?** No. The lifecycle is local-first: no remote MCP, no external vector database, and no external embedding service for client content. It runs fully on a locked-down VDI.
+
+**Do I need internet or a GPU?** No. The core lifecycle has no mandatory third-party dependencies and runs on CPU. LanceDB and semantic embeddings are optional local layers.
+
+**What happens without LanceDB?** Everything still works — Sentinel falls back to deterministic `json-hybrid` retrieval and `/doctor` reports `WARN`, not a failure.
+
+**Which LLM or agent do I need?** None to run the deterministic lifecycle. An agent (Codex, Claude, Kilo Code, or any MCP client) is optional and only *proposes* contributions — the runtime validates every one against a verbatim citation before it touches an artifact.
+
+**Will it edit my own files?** It only writes inside `workspaces/PROJECT_ID/`, and only through commands. Generated artifacts aren't meant to be hand-edited; you change them by re-running the relevant command.
+
+## Documentation
+
+| Guide | What's inside |
+|-------|---------------|
+| [User Guide](user_guide/00-user-guide.md) | Start here — the lifecycle end to end |
+| [Command Reference](user_guide/01-command-reference.md) | Every command, its output, and its gate |
+| [Artifact Reference](user_guide/02-artifact-reference.md) | What each generated file means |
+| [Workflows](user_guide/03-workflows.md) | Recommended lifecycle flows |
+| [Scenarios](user_guide/12-scenarios.md) | Situation → what to run → what to expect (non-technical) |
+| [Chat Commands](user_guide/11-chat-commands.md) | Natural language → command mapping |
+| [Traceability & Memory](user_guide/05-traceability-and-memory.md) | How lineage and retrieval work |
+| [Secure Environments](user_guide/09-secure-environments.md) | Running on locked-down VDIs |
+| [Repo & Branching Strategy](user_guide/10-repo-and-branching-strategy.md) | How `main` and project branches relate |
+| Adapters | [Codex Skills](user_guide/04-codex-skills-guide.md) · [Kilo Code](user_guide/07-kilo-code-adapter.md) · [Codex](user_guide/08-codex-adapter.md) · [Claude](user_guide/13-claude-adapter.md) · [VS Code Install](user_guide/06-installation-vscode.md) |
+
+## License
+
+[MIT](LICENSE) © 2026 jmatzkin1980
+
+Release history lives in [CHANGELOG.md](CHANGELOG.md).
