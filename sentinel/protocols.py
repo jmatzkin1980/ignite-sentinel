@@ -21,6 +21,7 @@ MUTATING_COMMANDS = {
     "challenge",
     "compose",
     "refine-backlog",
+    "implementation-feedback",
     "story-status",
     "brief",
     "resolve-gaps",
@@ -50,7 +51,7 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
         raise RuntimeError(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
 
-    if command in {"backlog", "backlog-status", "quality", "refine-backlog", "story-status"}:
+    if command in {"backlog", "backlog-status", "quality", "refine-backlog", "implementation-feedback", "story-status"}:
         assert_backlog_privacy_clean(project_id)
 
     if command == "quality" and not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):

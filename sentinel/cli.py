@@ -18,6 +18,7 @@ from .export import export_artifact
 from .gap_resolution import resolve_gaps
 from .generation import generate_backlog, generate_specs
 from .health import run_health
+from .implementation_feedback import apply_implementation_feedback
 from .maturity import evaluate, generate_project_brief
 from .memory import ContextBroker, reindex_workspace
 from .prd import apply_prd_composition
@@ -49,6 +50,7 @@ COMMANDS = {
     "challenge",
     "compose",
     "refine-backlog",
+    "implementation-feedback",
     "story-status",
     "brief",
     "resolve-gaps",
@@ -117,6 +119,10 @@ def main(argv: list[str] | None = None) -> int:
     refine_backlog_p = sub.add_parser("refine-backlog")
     refine_backlog_p.add_argument("project_id")
     refine_backlog_p.add_argument("--source", required=True)
+
+    implementation_feedback_p = sub.add_parser("implementation-feedback")
+    implementation_feedback_p.add_argument("project_id")
+    implementation_feedback_p.add_argument("--source", required=True)
 
     story_status_p = sub.add_parser("story-status")
     story_status_p.add_argument("project_id")
@@ -216,6 +222,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "refine-backlog":
             result = apply_backlog_refinement(args.project_id, Path(args.source))
+            print_json(result)
+        elif args.command == "implementation-feedback":
+            result = apply_implementation_feedback(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "story-status":
             result = update_story_status(

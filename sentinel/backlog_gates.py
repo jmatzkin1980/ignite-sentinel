@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from .discovery import parse_gap_rows
+from .implementation_feedback import open_feedback_for_story
 from .traceability import add_edge, add_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
 
@@ -41,6 +42,7 @@ def evaluate_story_gates(
     blocking_gaps = blocking_gaps_for_trace(project_id, trace)
     evidence = acceptance_evidence_for_story(project_id, story_id)
     story_quality = story_quality_for_story(project_id, story_id)
+    implementation_feedback = open_feedback_for_story(project_id, story_id)
 
     dor_items = [
         check_item(
@@ -92,6 +94,12 @@ def evaluate_story_gates(
             bool(evidence),
             "Attach traced downstream acceptance evidence before treating the story as Done.",
             evidence=evidence,
+        ),
+        check_item(
+            "implementation_feedback_resolved",
+            not implementation_feedback,
+            "Resolve open implementation feedback before treating the story as Done.",
+            feedback=implementation_feedback,
         ),
         check_item(
             "ready_gate_passed",

@@ -205,6 +205,15 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                         assert main(["sync", project_id, "--source", str(unit_path), "--note", "eval stale hook"]) == 0, (
                             f"sync stale hook failed for {fixture_dir.name}"
                         )
+                    feedback_key = key.get("implementation_feedback", {})
+                    if feedback_key:
+                        feedback_source = fixture_dir / str(feedback_key.get("source", "implementation_feedback.json"))
+                        assert feedback_source.exists(), (
+                            f"implementation feedback source missing for {fixture_dir.name}: {feedback_source.name}"
+                        )
+                        assert main(["implementation-feedback", project_id, "--source", str(feedback_source)]) == 0, (
+                            f"implementation-feedback failed for {fixture_dir.name}"
+                        )
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -241,6 +250,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             slice_plan = slice_plan_eval(ws, key)
             story_quality = story_quality_eval(ws, key)
             backlog_hooks = backlog_hooks_eval(ws, key)
+            implementation_feedback = (
+                {"ok": True, "mismatches": []}
+                if apply_annotation
+                else implementation_feedback_eval(ws, key)
+            )
         finally:
             os.chdir(old_cwd)
 
@@ -282,6 +296,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(slice_plan["mismatches"])
     backlog_mismatches.extend(story_quality["mismatches"])
     backlog_mismatches.extend(backlog_hooks["mismatches"])
+    backlog_mismatches.extend(implementation_feedback["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -374,6 +389,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "story_status_mismatches": story_status["mismatches"],
         "backlog_hooks_ok": backlog_hooks["ok"],
         "backlog_hooks_mismatches": backlog_hooks["mismatches"],
+        "implementation_feedback_ok": implementation_feedback["ok"],
+        "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -788,6 +805,57 @@ def backlog_hooks_eval(ws: Path, key: dict) -> dict[str, object]:
         actual_status = lifecycle.get(expected_unchanged, {}).get("status") if isinstance(lifecycle, dict) else None
         if actual_status == "Stale":
             mismatches.append(f"expected {expected_unchanged} to remain non-Stale after unrelated Spec Unit change")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def implementation_feedback_eval(ws: Path, key: dict) -> dict[str, object]:
+    feedback_key = key.get("implementation_feedback", {})
+    if not feedback_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    payload = state.get("implementation_feedback", {})
+    findings = payload.get("findings", {}) if isinstance(payload, dict) else {}
+    expected_id = str(feedback_key.get("expected_finding", ""))
+    finding = findings.get(expected_id) if isinstance(findings, dict) else None
+    if not isinstance(finding, dict):
+        mismatches.append(f"implementation_feedback missing finding {expected_id}")
+        return {"ok": False, "mismatches": mismatches}
+    expected_story = str(feedback_key.get("expected_story", ""))
+    if expected_story and finding.get("story_id") != expected_story:
+        mismatches.append(f"expected feedback story {expected_story}, got {finding.get('story_id')}")
+    expected_gap = str(feedback_key.get("expected_gap", ""))
+    if expected_gap and finding.get("gap_id") != expected_gap:
+        mismatches.append(f"expected feedback gap {expected_gap}, got {finding.get('gap_id')}")
+    if expected_story:
+        open_ids = payload.get("open_by_story", {}).get(expected_story, []) if isinstance(payload, dict) else []
+        if expected_id not in open_ids:
+            mismatches.append(f"expected {expected_id} to block DoD for {expected_story}")
+    if feedback_key.get("expect_stale") and expected_story:
+        lifecycle = state.get("story_lifecycle", {})
+        actual_status = lifecycle.get(expected_story, {}).get("status") if isinstance(lifecycle, dict) else None
+        if actual_status != "Stale":
+            mismatches.append(f"expected {expected_story} to be Stale after implementation feedback, got {actual_status}")
+    expected_dod_item = str(feedback_key.get("expect_dod_item", ""))
+    if expected_dod_item and expected_story:
+        gate = state.get("story_gates", {}).get(expected_story, {})
+        dod_items = gate.get("dod", {}).get("items", []) if isinstance(gate, dict) else []
+        if expected_dod_item not in {item.get("key") for item in dod_items if isinstance(item, dict)}:
+            mismatches.append(f"{expected_story} DoD missing {expected_dod_item}")
+    report_path = ws / "07_changes" / "05_implementation_feedback" / "feedback_report.md"
+    if not report_path.exists():
+        mismatches.append("implementation feedback report missing")
+    else:
+        report_text = report_path.read_text(encoding="utf-8")
+        if expected_id and expected_id not in report_text:
+            mismatches.append(f"feedback report missing {expected_id}")
+    graph = json.loads((ws / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8"))
+    node_types = {node.get("type") for node in graph.get("nodes", []) if isinstance(node, dict)}
+    edge_relations = {edge.get("relation") for edge in graph.get("edges", []) if isinstance(edge, dict)}
+    if "implementation_feedback" not in node_types:
+        mismatches.append("trace graph missing implementation_feedback node")
+    if "feedback_from_implementation" not in edge_relations:
+        mismatches.append("trace graph missing feedback_from_implementation edge")
     return {"ok": not mismatches, "mismatches": mismatches}
 
 

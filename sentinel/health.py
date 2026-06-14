@@ -56,6 +56,7 @@ def run_health(project_id: str) -> dict[str, object]:
     findings.extend(domain_context_freshness_findings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
     findings.extend(backlog_privacy_findings(project_id))
+    findings.extend(implementation_feedback_findings(project_id))
 
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
@@ -134,6 +135,19 @@ def backlog_privacy_findings(project_id: str) -> list[str]:
     return [
         f"Backlog privacy scan finding in {item['path']}:{item['line']} ({item['pattern']})."
         for item in findings
+    ]
+
+
+def implementation_feedback_findings(project_id: str) -> list[str]:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    payload = state.get("implementation_feedback", {})
+    open_by_story = payload.get("open_by_story", {}) if isinstance(payload, dict) else {}
+    if not isinstance(open_by_story, dict) or not open_by_story:
+        return []
+    return [
+        "Open implementation feedback blocks DoD for "
+        + ", ".join(f"{story} ({len(ids)})" for story, ids in sorted(open_by_story.items()))
+        + "."
     ]
 
 

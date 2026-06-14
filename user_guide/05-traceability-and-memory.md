@@ -31,7 +31,7 @@ Outputs:
 - `traceability_matrix.md`
 - `traceability_graph.md`
 
-Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates `story_status_change` nodes linked with `updates_story_status`. When the command receives `--evidence PATH`, Sentinel copies that local file into `04_backlog/acceptance_evidence/`, creates a `story_acceptance_evidence` node, links it to the story with `acceptance_evidence_for`, and lets the DoD gate consume that trace. `/sync` can also create `story_staleness` nodes when a changed `SPEC-U-*` source affects existing stories; only stories derived from that Spec Unit move to `Stale`. Sentinel records the evidence and staleness signals; it does not execute downstream tests.
+Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates `story_status_change` nodes linked with `updates_story_status`. When the command receives `--evidence PATH`, Sentinel copies that local file into `04_backlog/acceptance_evidence/`, creates a `story_acceptance_evidence` node, links it to the story with `acceptance_evidence_for`, and lets the DoD gate consume that trace. `/sync` can also create `story_staleness` nodes when a changed `SPEC-U-*` source affects existing stories; only stories derived from that Spec Unit move to `Stale`. `/implementation-feedback` creates an `implementation_feedback` change node linked with `feedback_from_implementation`, can open `implementation_feedback_gap` nodes, and feeds the DoD item `implementation_feedback_resolved`. Sentinel records evidence, staleness, and feedback signals; it does not execute downstream tests or rewrite backlog scope directly.
 
 ## Memory Layer
 
@@ -196,7 +196,7 @@ python -m sentinel /reindex PROJECT_ID --full
 
 By default this refreshes LanceDB memory and the JSON fallback incrementally from the graph, versionable artifacts, and context folders. If an artifact has the same `source_hash`, `embedding_version`, and `chunking_version`, Sentinel skips re-chunking and re-embedding it. Use `--full` when you intentionally want to rebuild every chunk.
 
-If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. If `/sync` touched a `SPEC-U-*` source, `/health` also names stories currently marked `Stale`. Run `/reindex` and `/backlog` before using the backlog for implementation handoff.
+If Technology, Design, Quality, Delivery, or other context folders changed after backlog generation, `/health` marks the backlog as potentially stale. If `/sync` touched a `SPEC-U-*` source, `/health` also names stories currently marked `Stale`. If `/implementation-feedback` has open blocking findings, `/health` names the stories whose DoD is blocked. Run `/reindex` and `/backlog` before using stale backlog context for implementation handoff, and resolve feedback through BA/Product review before treating the affected story as Done.
 
 ## Important Rule
 

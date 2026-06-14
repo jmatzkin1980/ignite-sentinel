@@ -38,6 +38,12 @@
       "body": "# Ignite Refine Backlog\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/refine-backlog PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with `proposals[]`. Each proposal declares a kind (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), target stories or source units as applicable, a recommendation, rationale, and verbatim `citations[]` from local source-of-truth evidence.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /refine-backlog PROJECT_ID --source PATH\n```\n\nThe runtime validates story/unit existence, rejects pending units, checks every citation verbatim, archives the source under `04_backlog/refinements/`, merges valid proposals with `origin: agent`, renders a governed refinement section in the backlog, and reports rejected proposals with reasons. Summarize accepted/rejected proposal IDs and the refinement report path."
     },
     {
+      "name": "implementation-feedback",
+      "description": "Merge structured downstream implementation feedback into traced backlog feedback without rewriting stories directly.",
+      "kilo_agent": "sentinel-backlog",
+      "body": "# Ignite Implementation Feedback\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/implementation-feedback PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with `findings[]`. Each finding declares a `type` (`new-dependency`, `gap`, `ac-challenge`, or `surface-not-covered`), target `story`, optional `acceptance_criteria`, `summary`, `evidence`, optional `source_units`, optional `gap_id`, `blocks_dod`, and `mark_stale`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /implementation-feedback PROJECT_ID --source PATH\n```\n\nThe runtime validates story and AC existence, requires evidence, archives the source under `07_changes/05_implementation_feedback/`, writes `feedback_report.md`, opens `GAP-FEEDBACK-*` records when applicable, creates `CHG` trace anchors linked to the story, may mark only affected stories `Stale`, and feeds DoD through `implementation_feedback_resolved`. It does not rewrite backlog scope directly. Summarize accepted/rejected finding IDs, stale stories, opened feedback gaps, and the report path."
+    },
+    {
       "name": "story-status",
       "description": "Update governed backlog story lifecycle status and owner.",
       "kilo_agent": "sentinel-backlog",
