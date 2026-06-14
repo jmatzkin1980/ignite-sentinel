@@ -70,7 +70,7 @@ Run CLI commands manually in the VS Code terminal and use the extension only to 
 - Keep `main` clean so a fresh download of the repo never includes client or workflow test data.
 - Use dedicated project branches for execution in laptops or VDIs, and avoid merging those branches into `main` when they contain client artifacts.
 
-Backlog handoff surfaces have an additional local guard. Commands that hand off, validate, or mutate `04_backlog/` scan existing backlog artifacts for credential assignments, authorization headers, non-example HTTP endpoints, email addresses, and private account/client identifiers. A finding blocks the command and names the file, line, and pattern. Remove the sensitive value from the source workspace artifact, rerun the appropriate Sentinel command, and keep the original secret in the approved system of record outside this repository.
+Backlog handoff surfaces have an additional local guard. Commands that hand off, validate, or mutate `04_backlog/` can scan existing backlog artifacts for credential assignments, authorization headers, non-example HTTP endpoints, email addresses, and private account/client identifiers. The default `privacy_scan.mode: warn` names the file, line, and pattern without blocking; `mode: block` makes those findings fail the command; `mode: off` skips the scan. Use `block` in repositories where backlog artifacts must never contain those values, and keep original secrets in the approved system of record outside this repository.
 
 ## Degraded Memory Mode (No LanceDB)
 

@@ -201,7 +201,7 @@ The repo also ships `input/` (drop local source files here before ingestion) and
 ## Design rules
 
 - Truth lives in workspace files, not in memory indexes.
-- Privacy is local-only by default: no remote MCP, external vector DB, or external embedding service for client content. Backlog commands that hand off or validate `04_backlog/` run a deterministic local scan and block sensitive identifiers, credentials, non-example endpoints, email addresses, and private account/client IDs.
+- Privacy is local-only by default: no remote MCP, external vector DB, or external embedding service for client content. Backlog commands that hand off or validate `04_backlog/` run a deterministic local scan for sensitive identifiers, credentials, non-example endpoints, email addresses, and private account/client IDs. The scan warns by default, blocks only with `privacy_scan.mode: block`, and can be disabled with `privacy_scan.mode: off`.
 - Mutate generated artifacts only through Sentinel commands — never edit downstream outputs by hand.
 - Preserve lineage across `RAW`, `REQ`, `GAP`, `DEC`, `PRD`, `SPEC`, `EPIC`, `US`, `AC`, `TC`, and `CHG`.
 - Keep `main` a clean framework branch; run real projects in project branches (e.g. `project/ACME_DASHBOARD`) and merge only framework improvements back.

@@ -132,6 +132,8 @@ gap_resolution:
 backlog_gate:
   threshold: 1.0
   strict: false
+privacy_scan:
+  mode: warn
 memory:
   provider: lancedb-hybrid
   lancedb_optional: true
@@ -161,6 +163,7 @@ def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:
             },
             "gap_resolution": {"auto_close_rule": "confirmed_structured"},
             "backlog_gate": {"threshold": "1.0", "strict": False},
+            "privacy_scan": {"mode": "warn"},
             "memory": {"provider": "lancedb-hybrid", "fallback": "json-hybrid", "embedding": "local-hash"},
         }
     return parse_simple_yaml(path.read_text(encoding="utf-8"))

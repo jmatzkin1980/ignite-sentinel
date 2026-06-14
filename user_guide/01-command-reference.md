@@ -357,6 +357,15 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 
 `/backlog` also emits `04_backlog/SLICE-PLAN.md` and `08_context_packs/slice_plan.json`. The slice plan sequences concrete `EPIC-002` enablers before dependent value stories, groups stories into parallelizable waves, defines checkpoints, and mirrors a per-story handoff pack with position, DoR/DoD state, `execution_contract`, `retrieval_plan`, anchors, validation contract, dependencies and trace IDs. This is a handoff contract, not tasking: Sentinel does not create downstream task IDs, estimates, or implementation steps.
 
+Backlog privacy scanning follows the same soft-gate principle as the handoff gate:
+
+```yaml
+privacy_scan:
+  mode: warn
+```
+
+`warn` is the default: commands that hand off or mutate `04_backlog/` report credentials, private endpoints, emails, or private identifiers without blocking. Use `mode: block` to make those findings fail the command, or `mode: off` to skip the scan entirely.
+
 ## `backlog-status`
 
 Generate or refresh the BA-facing backlog board and rollup.

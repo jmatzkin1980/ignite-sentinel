@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,7 @@ from .backlog_gates import backlog_gate_config
 from .backlog_rollup import backlog_status
 from .backlog_status import append_status_log, story_lifecycle_state, update_story_frontmatter
 from .traceability import add_edge, add_node
-from .workspace import read_json, update_state, utc_now, workspace_path, write_json
+from .workspace import load_config, read_json, update_state, utc_now, workspace_path, write_json
 
 
 SPEC_UNIT_RE = re.compile(r"\bSPEC-U-\d{3}\b")
@@ -32,6 +33,8 @@ BACKLOG_PRIVACY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"\b(account|tenant|customer|client)[ _-]?id\s*[:=]\s*[A-Za-z0-9_-]{6,}", re.IGNORECASE),
     ),
 )
+PRIVACY_SCAN_MODES = {"off", "warn", "block"}
+DEFAULT_PRIVACY_SCAN_MODE = "warn"
 
 
 def stale_spec_units_from_change(source: Path, text: str) -> list[str]:
@@ -155,6 +158,8 @@ def enforce_pre_handoff_gate(project_id: str, readiness_pack: dict[str, Any]) ->
 
 
 def scan_backlog_privacy(project_id: str) -> list[dict[str, Any]]:
+    if backlog_privacy_scan_mode(project_id) == "off":
+        return []
     base = workspace_path(project_id)
     backlog_dir = base / "04_backlog"
     if not backlog_dir.exists():
@@ -180,11 +185,36 @@ def scan_backlog_texts(base: Path, texts: dict[Path, str]) -> list[dict[str, Any
     return findings
 
 
-def assert_backlog_privacy_clean(project_id: str, findings: list[dict[str, Any]] | None = None) -> None:
-    findings = scan_backlog_privacy(project_id) if findings is None else findings
-    if findings:
-        first = findings[0]
+def backlog_privacy_scan_mode(project_id: str) -> str:
+    config = load_config(project_id)
+    scan = config.get("privacy_scan", {}) if isinstance(config.get("privacy_scan", {}), dict) else {}
+    mode = str(scan.get("mode", DEFAULT_PRIVACY_SCAN_MODE)).strip().lower()
+    return mode if mode in PRIVACY_SCAN_MODES else DEFAULT_PRIVACY_SCAN_MODE
+
+
+def evaluate_backlog_privacy(project_id: str, findings: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    mode = backlog_privacy_scan_mode(project_id)
+    findings = [] if mode == "off" else (scan_backlog_privacy(project_id) if findings is None else findings)
+    if mode == "off" or not findings:
+        verdict = "PASS"
+    else:
+        verdict = "BLOCKED" if mode == "block" else "WARN"
+    return {"mode": mode, "verdict": verdict, "findings": findings}
+
+
+def assert_backlog_privacy_clean(project_id: str, findings: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    result = evaluate_backlog_privacy(project_id, findings)
+    if result["verdict"] == "BLOCKED":
+        first = result["findings"][0]
         raise RuntimeError(
             "Backlog privacy scan blocked handoff: "
             f"{first['path']}:{first['line']} matched {first['pattern']}."
         )
+    if result["verdict"] == "WARN":
+        first = result["findings"][0]
+        print(
+            "Backlog privacy scan warning: "
+            f"{len(result['findings'])} finding(s); first is {first['path']}:{first['line']} matched {first['pattern']}.",
+            file=sys.stderr,
+        )
+    return result
