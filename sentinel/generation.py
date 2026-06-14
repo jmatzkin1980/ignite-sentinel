@@ -636,7 +636,7 @@ def read_artifact_text(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
-def generate_backlog(project_id: str) -> dict[str, str]:
+def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
         raise RuntimeError("Cannot generate backlog while requirement maturity is BLOCKED.")
@@ -654,6 +654,8 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
     all_story_specs = [*story_specs, *enabler_specs]
     apply_lifecycle_to_stories(project_id, all_story_specs)
+    if with_task_seeds:
+        attach_task_seed_contracts(all_story_specs)
     readiness_pack = build_implementation_readiness_pack(project_id, all_story_specs, backlog_context)
     slice_plan = generate_slice_plan(project_id, all_story_specs, readiness_pack)
     backlog_context["implementation_readiness"] = {
@@ -774,6 +776,7 @@ def generate_backlog(project_id: str) -> dict[str, str]:
         "backlog_board": board["path"],
         "slice_plan": slice_plan["path"],
         "slice_plan_json": slice_plan["json_path"],
+        "task_seed_contracts": "enabled" if with_task_seeds else "disabled",
     }
 
 
@@ -933,7 +936,7 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
     status = "ready" if not blockers else "needs-context"
     score_basis = len(required_domains_for_story(story)) + 3  # domains + execution contract fields
     readiness_score = round(max(0.0, 1.0 - len(blockers) / score_basis), 3)
-    return {
+    item = {
         "story_id": story["id"],
         "title": story["title"],
         "type": story["type"],
@@ -958,6 +961,125 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "context_pack": story.get("context_pack", "08_context_packs/backlog_generation.json"),
         "context_pack_section": story.get("context_pack_section", ""),
     }
+    if story.get("task_seed_contract"):
+        item["task_seed_contract"] = story["task_seed_contract"]
+    return item
+
+
+TASK_SEED_BOUNDARY_NOTE = (
+    "Task seeds are optional implementation intentions for downstream agents. "
+    "Ignite does not execute, estimate, assign, schedule or manage these tasks; "
+    "downstream planning may expand, reorder or discard them while preserving story scope and traceability."
+)
+
+
+def attach_task_seed_contracts(stories: list[dict[str, Any]]) -> None:
+    for story in stories:
+        story["task_seed_contract"] = task_seed_contract_for_story(story)
+
+
+def task_seed_contract_for_story(story: dict[str, Any]) -> dict[str, Any]:
+    ac_refs = [str(item.get("id", "")).strip() for item in story.get("acceptance", []) if item.get("id")]
+    fail_to_pass = [
+        str(item.get("id", "")).strip()
+        for item in story.get("acceptance", [])
+        if item.get("id") and item.get("classification") == "fail-to-pass"
+    ]
+    pass_to_pass = [
+        str(item.get("id", "")).strip()
+        for item in story.get("acceptance", [])
+        if item.get("id") and item.get("classification") == "pass-to-pass"
+    ]
+    evidence = [
+        str(item.get("id", "")).strip()
+        for item in story.get("acceptance", [])
+        if item.get("id") and item.get("classification") == "evidence"
+    ]
+    surfaces = task_seed_surfaces(story)
+    story_id = str(story.get("id", "US-000"))
+    seeds = [
+        task_seed(
+            story_id,
+            1,
+            "data-contract-intent",
+            "Clarify the data, external dependency, or state contract needed before implementing the acceptance path.",
+            fail_to_pass or ac_refs,
+            surfaces,
+            parallelizable=False,
+            depends_on=[],
+        ),
+        task_seed(
+            story_id,
+            2,
+            "service-behavior-intent",
+            "Plan the smallest domain/service behavior that satisfies the fail-to-pass acceptance path without expanding scope.",
+            fail_to_pass or ac_refs,
+            surfaces,
+            parallelizable=False,
+            depends_on=[f"TSEED-{story_id}-01"],
+        ),
+        task_seed(
+            story_id,
+            3,
+            "interface-or-workflow-intent",
+            "Plan the smallest user-observable interface or workflow change needed for the story boundary.",
+            pass_to_pass or fail_to_pass or ac_refs,
+            surfaces,
+            parallelizable=True,
+            depends_on=[f"TSEED-{story_id}-01"],
+        ),
+        task_seed(
+            story_id,
+            4,
+            "evidence-intent",
+            "Prepare downstream test, regression, or acceptance evidence before proposing the story as Done.",
+            evidence or ac_refs,
+            surfaces,
+            parallelizable=True,
+            depends_on=[f"TSEED-{story_id}-02", f"TSEED-{story_id}-03"],
+        ),
+    ]
+    return {
+        "emitted": True,
+        "scope_boundary": TASK_SEED_BOUNDARY_NOTE,
+        "source": "Derived from acceptance criteria and Agent Execution Contract critical surfaces.",
+        "seeds": seeds,
+    }
+
+
+def task_seed(
+    story_id: str,
+    order: int,
+    kind: str,
+    intention: str,
+    ac_refs: list[str],
+    surfaces: list[str],
+    parallelizable: bool,
+    depends_on: list[str],
+) -> dict[str, Any]:
+    return {
+        "id": f"TSEED-{story_id}-{order:02d}",
+        "order": order,
+        "kind": kind,
+        "intention": intention,
+        "acceptance_criteria": ac_refs,
+        "critical_surfaces": surfaces,
+        "parallelizable": parallelizable,
+        "depends_on": depends_on,
+        "not_tasking": "No execution, estimates, assignment, scheduling, or project-task ownership is implied.",
+    }
+
+
+def task_seed_surfaces(story: dict[str, Any]) -> list[str]:
+    signal = story.get("execution_contract", {}).get("critical_surfaces", {})
+    if not isinstance(signal, dict):
+        return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
+    status = str(signal.get("status", "Pending"))
+    summary = str(signal.get("summary", "")).strip()
+    source = str(signal.get("source", "")).strip()
+    if status == "Confirmed" and summary:
+        return [safe_cell(f"{source}: {summary}" if source else summary, 220)]
+    return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
 
 
 def required_domains_for_story(story: dict[str, Any]) -> list[str]:
@@ -2732,6 +2854,8 @@ So that {story['benefit'].lower()}
 
 {render_execution_retrieval_plan(story.get('execution_contract', {}).get('retrieval_plan', []))}
 
+{render_task_seed_contract_section(story.get('task_seed_contract'), '**Task Seed Contract:**')}
+
 **In Scope:**
 - The smallest user-observable behavior that satisfies `{story['fr']}`.
 - Required validation, recoverable failure behavior and trace evidence for this slice.
@@ -2847,6 +2971,34 @@ def render_execution_retrieval_plan(plan: list[dict[str, str]]) -> str:
 {rows}"""
 
 
+def render_task_seed_contract_section(contract: object, heading: str = "## Task Seed Contract") -> str:
+    if not isinstance(contract, dict) or not contract.get("emitted"):
+        return ""
+    seeds = contract.get("seeds", [])
+    rows = "\n".join(render_task_seed_row(seed) for seed in seeds if isinstance(seed, dict)) if isinstance(seeds, list) else ""
+    rows = rows or "| N/A | N/A | N/A | N/A | N/A | N/A |"
+    return f"""{heading}
+
+> {contract.get('scope_boundary', TASK_SEED_BOUNDARY_NOTE)}
+
+Source: {contract.get('source', 'Derived from acceptance criteria and critical surfaces.')}
+
+| Seed | Kind | Intention | AC Trace | Critical Surfaces | Parallelizable |
+| --- | --- | --- | --- | --- | --- |
+{rows}
+"""
+
+
+def render_task_seed_row(seed: dict[str, Any]) -> str:
+    ac_refs = ", ".join(f"`{item}`" for item in seed.get("acceptance_criteria", [])) or "`[PENDING AC]`"
+    surfaces = "; ".join(str(item) for item in seed.get("critical_surfaces", [])) or "[PENDING DOMAIN CONTEXT]"
+    parallelizable = "yes" if seed.get("parallelizable") else "no"
+    return (
+        f"| `{seed.get('id', 'TSEED-UNKNOWN')}` | {seed.get('kind', 'intent')} | "
+        f"{safe_cell(seed.get('intention', ''), 220)} | {ac_refs} | {safe_cell(surfaces, 220)} | {parallelizable} |"
+    )
+
+
 def render_context_signal_inline(signal: dict[str, Any]) -> str:
     status = signal.get("status", "Pending")
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
@@ -2925,6 +3077,8 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 ## Retrieval Plan For Execution Agents
 
 {render_execution_retrieval_plan(story.get('execution_contract', {}).get('retrieval_plan', []))}
+
+{render_task_seed_contract_section(story.get('task_seed_contract'))}
 
 ## Functional Slice
 

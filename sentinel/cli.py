@@ -141,7 +141,11 @@ def main(argv: list[str] | None = None) -> int:
     export_p.add_argument("--format", default="md", choices=["md"])
     export_p.add_argument("--domain")
 
-    for name in ("maturity", "specs", "backlog", "backlog-status", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
+    backlog_p = sub.add_parser("backlog")
+    backlog_p.add_argument("project_id")
+    backlog_p.add_argument("--with-task-seeds", action="store_true")
+
+    for name in ("maturity", "specs", "backlog-status", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
         command = sub.add_parser(name)
         command.add_argument("project_id")
     reindex_p = sub.add_parser("reindex")
@@ -254,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
             result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":
-            result = generate_backlog(args.project_id)
+            result = generate_backlog(args.project_id, with_task_seeds=bool(args.with_task_seeds))
             print_json(result)
         elif args.command == "backlog-status":
             result = backlog_status(args.project_id)

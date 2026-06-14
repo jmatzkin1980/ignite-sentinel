@@ -23,7 +23,7 @@
       "name": "backlog",
       "description": "Generate traceable epics, user stories, and acceptance criteria.",
       "kilo_agent": "sentinel-backlog",
-      "body": "# Ignite Backlog\n\nParse `PROJECT_ID` from:\n\n```text\n/backlog PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /backlog PROJECT_ID\n```\n\nSummarize generated epic, story, and acceptance criteria IDs."
+      "body": "# Ignite Backlog\n\nParse `PROJECT_ID` and optional `--with-task-seeds` from:\n\n```text\n/backlog PROJECT_ID\n/backlog PROJECT_ID --with-task-seeds\n```\n\nRun:\n\n```powershell\npython -m sentinel /backlog PROJECT_ID\npython -m sentinel /backlog PROJECT_ID --with-task-seeds\n```\n\nDefault mode generates epics, stories, acceptance criteria, implementation readiness, and slice plan with no task seeds. `--with-task-seeds` is opt-in and adds a per-story Task Seed Contract: ordered implementation intentions traced to AC and critical surfaces. These are not executed, estimated, assigned, scheduled, or managed by Ignite. Summarize generated epic, story, acceptance criteria IDs, and whether task seed contracts were enabled."
     },
     {
       "name": "backlog-status",

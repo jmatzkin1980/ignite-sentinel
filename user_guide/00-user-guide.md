@@ -155,6 +155,7 @@ Backlog rules:
 - INVEST is applied pragmatically: `Small` means small but still independently valuable, testable, and useful.
 - Missing domain context remains visible as `[PENDING DOMAIN CONTEXT]`.
 - Each story includes `Domain Context Coverage`, `Agent Execution Contract`, and `Retrieval Plan For Execution Agents`.
+- When a downstream consumer explicitly asks for implementation intentions, `/backlog --with-task-seeds` adds optional `Task Seed Contract` sections traced to acceptance criteria and confirmed critical surfaces. Default `/backlog` omits them, and Sentinel still does not execute, estimate, assign, schedule, or manage tasks.
 - Acceptance criteria are declarative Given/When/Then scenarios and classify fail-to-pass, pass-to-pass, and evidence expectations.
 - Cross-cutting enablers are valid only when concrete implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
 - Generic setup, broad hardening, environment availability, or vague operability work is a precondition or external task unless tied to this project's confirmed functionality and objective completion evidence.

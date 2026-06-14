@@ -327,6 +327,7 @@ Generate initial epic, user stories, acceptance criteria, and agent-oriented bac
 
 ```powershell
 python -m sentinel /backlog PROJECT_ID
+python -m sentinel /backlog PROJECT_ID --with-task-seeds
 ```
 
 Fails if maturity is `BLOCKED`.
@@ -349,6 +350,8 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 `/backlog` uses progressive disclosure across living domain context. If Technology, Design, Quality, Delivery, or other domains have added context files and those files were ingested, synced, or reindexed, Sentinel can cite that evidence in `Domain Context Coverage`, derive `Agent Execution Contract` sections, and create a story-level retrieval plan for downstream execution agents. The aggregate context remains in `backlog_generation.json`, while each value story also gets a `per_story.US-NNN` mini-context built from its `SPEC-U-*` statement and the same declarative retrieval plan. Missing commands, file maps, design tokens, regression suites, or blast-radius boundaries remain `[PENDING DOMAIN CONTEXT]` instead of being invented.
 
 `implementation_readiness.json` is the machine-friendly handoff pack. It records required domains, pending context, dependencies, validation expectations, retrieval queries, trace IDs, the per-story execution contract, and a snapshot hash of live domain context so `/health` can detect if the backlog became stale after domain owners updated their files.
+
+`--with-task-seeds` is optional and should be used only when a downstream consumer explicitly asks for task-seed intentions. When enabled, each story receives a `Task Seed Contract` and `implementation_readiness.json` receives `task_seed_contract`; these seeds are derived from acceptance criteria and confirmed critical surfaces. They are not task execution: Sentinel does not estimate, assign, schedule, execute, or manage them, and downstream planning may expand, reorder, or discard them while preserving story scope and traceability. Default `/backlog` omits this section.
 
 `/backlog` also refreshes `04_backlog/BACKLOG.md`, a BA-facing board with summary counts, rollup by epic, status lanes, owners, readiness scores, and blockers. The board is generated from governed workspace artifacts; never edit it by hand.
 

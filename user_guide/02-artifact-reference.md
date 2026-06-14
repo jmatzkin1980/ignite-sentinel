@@ -317,7 +317,7 @@ Each epic file includes:
 - domain context coverage for Product, Technology, Design, Quality, and Delivery;
 - slicing strategy loaded from `sentinel/slicing/backlog_slicing_model.json`, based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
-- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
+- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, optional task-seed contract, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 
 Sentinel derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files: one Spec Unit becomes one vertical story, and its AC evidence path cites the unit plus applicable `REQ-EARS-*` rows. When no functional Spec Unit exists, Sentinel renders one `[PENDING INPUT]` stub instead of the old fixed five-story scaffold, so missing evidence remains visible.
 
@@ -382,6 +382,8 @@ Story mirrors also include an `Agent Execution Contract` and `Retrieval Plan For
 - focused `/retrieve` queries that implementation, planning, frontend/backend, design, and quality agents should run before executing the story.
 
 When domain context is missing, Sentinel leaves `[PENDING DOMAIN CONTEXT]` instead of inventing commands, file paths, design tokens, regression suites, or implementation boundaries.
+
+When `/backlog --with-task-seeds` is used, story mirrors also include a `Task Seed Contract`. It lists optional implementation intentions derived from the story's acceptance criteria and confirmed critical surfaces. This contract is a downstream planning aid only: Ignite does not execute, estimate, assign, schedule, or manage the seeds, and default `/backlog` does not render them.
 
 Story mirrors receive the same `Agent Backlog Refinements` section when a validated proposal targets that story. These sections are review overlays, not rewritten scope.
 
@@ -480,6 +482,7 @@ It records, per story:
 - retrieval plan with focused queries and workflow labels;
 - validation contract: fail-to-pass, pass-to-pass, and evidence expectations;
 - blast-radius boundaries and parallelization notes.
+- optional `task_seed_contract` when `/backlog --with-task-seeds` was requested; default backlog generation omits it.
 
 The pack also stores a domain context snapshot hash. If Technology, Design, Quality, Delivery, or other context files change after backlog generation, `/health` reports that the backlog may be stale and should be refreshed with `/reindex` and `/backlog` before implementation handoff.
 

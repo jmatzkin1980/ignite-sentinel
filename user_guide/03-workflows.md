@@ -129,6 +129,7 @@ Use when specs are ready to become execution-oriented backlog.
 
 ```powershell
 python -m sentinel /backlog PROJECT_ID
+python -m sentinel /backlog PROJECT_ID --with-task-seeds   # optional, only when downstream asks for task-seed intentions
 python -m sentinel /quality PROJECT_ID
 python -m sentinel /trace PROJECT_ID
 python -m sentinel /health PROJECT_ID
@@ -159,6 +160,8 @@ Backlog value stories are derived from confirmed `SPEC-U-*` files produced by `/
 Backlog generation uses progressive disclosure. Before writing the epic, Sentinel retrieves focused local context for business value, functional slicing, technical dependencies, execution commands, critical surfaces, engineering practices, UX states, design match, quality risks, regression contract, and open uncertainty. The retrieval audit is stored in `08_context_packs/backlog_generation.json`; its queries come from `sentinel/retrieval_plans/backlog_generation.json` and each result carries `read_plan` source anchors. The pack keeps the aggregate retrieval view and a `per_story.US-NNN` mini-context for each Spec Unit-derived story, so one story can cite a stale-data surface while another cites a metrics-outage surface. Confirmed execution signals in each story carry an `anchor` with `source_path`, `section_path`, `line_start`, and `line_end`, and the `US-NNN.md` render shows that pointer inline. Source workspace files remain authoritative if memory disagrees.
 
 Sentinel also writes `08_context_packs/implementation_readiness.json`. This pack is the handoff contract for agents that will plan, implement, or test the backlog. It lists each story's required domains, pending context, dependencies, validation contract, execution contract, retrieval queries, trace IDs, blast radius, and a snapshot of the live domain context used at generation time. If specs were regenerated after backlog creation, `stale_spec_units` names changed `SPEC-U-*` units so reviewers can focus only on affected slices.
+
+If downstream planning explicitly needs a task-seed contract, run `/backlog --with-task-seeds`. Sentinel adds optional seeds to each story and to `implementation_readiness.json`, grounded in AC and confirmed critical surfaces; the default command stays silent, and the opt-in contract still does not create task IDs, estimates, assignments, schedules, or managed implementation steps.
 
 `04_backlog/SLICE-PLAN.md` and `08_context_packs/slice_plan.json` add the ordered handoff view: concrete `EPIC-002` enablers first, then implementation waves that can be planned in parallel after prerequisites, with checkpoints and per-story handoff packs. This is still backlog governance, not tasking; downstream agents consume the plan to decide what to retrieve and plan next.
 

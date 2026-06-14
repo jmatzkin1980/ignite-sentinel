@@ -24,6 +24,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. |
+| "Prepare optional task seeds for downstream planning" | `/backlog --with-task-seeds` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Use only when explicitly requested; seeds are intentions traced to AC/critical surfaces, not execution, estimates, assignments, schedules, or managed tasks. |
 | "Show me backlog progress / the BA board" | `/backlog-status` -> `/status` | Generates `04_backlog/BACKLOG.md` from governed lifecycle, gates, and readiness data. |
 | "Assign this story / move it to Ready/Done" | `/story-status --story US-NNN --set STATE --owner NAME [--evidence PATH]` -> `/status` -> `/trace` | Never edit `US-NNN.md`, `BACKLOG.md`, or `state.json` by hand; default DoR/DoD gates warn and strict mode blocks. |
 | "Review these agent backlog slicing/enabler proposals" | `/refine-backlog --source backlog-refinement.json` → `/trace` | Only after `/backlog`; every proposal must cite verbatim local evidence and remains a governed proposal. |
@@ -100,6 +101,7 @@ Use these directly in Kilo chat:
 /specs PROJECT_ID
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
+/backlog PROJECT_ID --with-task-seeds
 /backlog-status PROJECT_ID
 /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /story-status PROJECT_ID --story US-001 --set Done --evidence input\interactions\us-001-evidence.md
@@ -208,6 +210,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /specs PROJECT_ID
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
+/backlog PROJECT_ID --with-task-seeds
 /backlog-status PROJECT_ID
 /story-status PROJECT_ID --story US-001 --set Ready --owner "Delivery Lead"
 /story-status PROJECT_ID --story US-001 --set Done --evidence input\interactions\us-001-evidence.md

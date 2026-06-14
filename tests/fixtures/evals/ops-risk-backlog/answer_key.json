@@ -134,6 +134,15 @@
     "expect_pre_handoff_warn": true,
     "rationale": "IMP-055 validates lifecycle hooks: the handoff plan exposes soft DoR warnings and /sync marks only stories derived from the changed Spec Unit as Stale."
   },
+  "task_seeds": {
+    "with_task_seeds": true,
+    "expected_story": "US-001",
+    "expected_min_seeds": 4,
+    "expected_ac": "AC-001-01",
+    "expect_boundary_note": true,
+    "must_contain": ["## Task Seed Contract", "TSEED-US-001-01", "AC-001-01", "Ignite does not execute"],
+    "rationale": "IMP-054 validates the optional task-seed seam: only when /backlog --with-task-seeds is used, stories expose ordered implementation intentions traced to AC and critical surfaces, with an explicit no-tasking boundary."
+  },
   "implementation_feedback": {
     "source": "implementation_feedback.json",
     "expected_finding": "IFB-OPS-001",
