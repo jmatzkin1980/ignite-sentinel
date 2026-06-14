@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
+from .backlog_hooks import enforce_pre_handoff_gate
 from .memory import ContextBroker
 from .workspace import workspace_path, write_json
 
@@ -17,6 +18,7 @@ def generate_slice_plan(
     story_rows = build_story_rows(stories, readiness_pack)
     phases = build_phases(story_rows)
     handoff_packs = build_handoff_packs(story_rows)
+    pre_handoff = enforce_pre_handoff_gate(project_id, readiness_pack)
     plan = {
         "project_id": project_id,
         "workflow": "slice_plan",
@@ -36,6 +38,7 @@ def generate_slice_plan(
         },
         "phases": phases,
         "handoff_packs": handoff_packs,
+        "pre_handoff_gate": pre_handoff,
         "checkpoints": build_checkpoints(phases),
     }
     md_path = base / "04_backlog" / "SLICE-PLAN.md"
@@ -283,6 +286,10 @@ This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-c
 
 {render_checkpoint_table(checkpoints)}
 
+## Pre-Handoff Gate
+
+{render_pre_handoff_gate(plan.get('pre_handoff_gate', {}))}
+
 ## Per-Story Handoff Packs
 
 Machine-readable handoff packs live in `08_context_packs/slice_plan.json#handoff_packs`. Each pack carries position, DoR/DoD state, dependencies, execution contract, retrieval plan, anchors, validation contract and trace IDs.
@@ -333,3 +340,19 @@ def render_checkpoint_table(checkpoints: list[dict[str, Any]]) -> str:
             )
         )
     return "| Checkpoint | After | Stories | Objective |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
+
+
+def render_pre_handoff_gate(gate: dict[str, Any]) -> str:
+    verdict = str(gate.get("verdict", "WARN"))
+    mode = "strict" if gate.get("strict") else "soft"
+    warnings = gate.get("warnings", [])
+    if not warnings:
+        return f"- Mode: `{mode}`\n- Verdict: `{verdict}`\n- DoR: all stories passed."
+    rows = []
+    for item in warnings:
+        missing = "; ".join(str(value) for value in item.get("missing", [])) or "DoR has not passed."
+        rows.append(f"| `{item.get('story_id', 'N/A')}` | {item.get('severity', 'warning')} | {missing} |")
+    return (
+        f"- Mode: `{mode}`\n- Verdict: `{verdict}`\n\n"
+        "| Story | Severity | Missing DoR |\n| --- | --- | --- |\n" + "\n".join(rows)
+    )

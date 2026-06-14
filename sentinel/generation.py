@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
+from .backlog_hooks import assert_backlog_privacy_clean
 from .backlog_status import apply_lifecycle_to_stories
 from .backlog_gates import evaluate_story_gates, update_story_gate_state
 from .backlog_rollup import backlog_status
@@ -737,6 +738,8 @@ def generate_backlog(project_id: str) -> dict[str, str]:
     for stale_story_path in (base / "04_backlog").glob("US-*.md"):
         if stale_story_path not in active_story_paths:
             stale_story_path.unlink()
+
+    assert_backlog_privacy_clean(project_id)
 
     broker = ContextBroker(project_id)
     broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])

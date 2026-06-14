@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from .backlog_hooks import scan_backlog_privacy
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .traceability import children_of, load_graph, parents_of
@@ -53,6 +54,8 @@ def run_health(project_id: str) -> dict[str, object]:
         if not any(parent.startswith("EPIC-") for parent in parents_of(project_id, story["id"])):
             findings.append(f"{story['id']} is not linked to an epic.")
     findings.extend(domain_context_freshness_findings(project_id, base))
+    findings.extend(backlog_lifecycle_findings(project_id))
+    findings.extend(backlog_privacy_findings(project_id))
 
     verdict = "CLEAN" if not findings else "DIRTY"
     report_path = base / "06_traceability" / "health_report.md"
@@ -112,6 +115,25 @@ def domain_context_freshness_findings(project_id: str, base) -> list[str]:
     detail = f" Changed domains: {', '.join(changed_domains)}." if changed_domains else ""
     return [
         "Domain context changed after backlog generation; run /reindex and /backlog before implementation handoff." + detail
+    ]
+
+
+def backlog_lifecycle_findings(project_id: str) -> list[str]:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    lifecycle = state.get("story_lifecycle", {})
+    if not isinstance(lifecycle, dict):
+        return []
+    stale = sorted(story_id for story_id, item in lifecycle.items() if isinstance(item, dict) and item.get("status") == "Stale")
+    if not stale:
+        return []
+    return ["Backlog contains Stale stories after source changes: " + ", ".join(stale) + "."]
+
+
+def backlog_privacy_findings(project_id: str) -> list[str]:
+    findings = scan_backlog_privacy(project_id)
+    return [
+        f"Backlog privacy scan finding in {item['path']}:{item['line']} ({item['pattern']})."
+        for item in findings
     ]
 
 

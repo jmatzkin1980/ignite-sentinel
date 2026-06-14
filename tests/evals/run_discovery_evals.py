@@ -197,6 +197,14 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                         assert main(command) == 0, f"story-status failed for {fixture_dir.name}"
                     if key.get("story_quality"):
                         assert main(["quality", project_id]) == 0, f"quality failed for {fixture_dir.name}"
+                    hooks_key = key.get("backlog_hooks", {})
+                    if hooks_key.get("sync_stale_spec_unit"):
+                        unit_id = str(hooks_key["sync_stale_spec_unit"])
+                        unit_path = Path(temp) / "workspaces" / project_id / "03_specs" / "units" / f"{unit_id}.md"
+                        assert unit_path.exists(), f"stale hook Spec Unit missing for {fixture_dir.name}: {unit_id}"
+                        assert main(["sync", project_id, "--source", str(unit_path), "--note", "eval stale hook"]) == 0, (
+                            f"sync stale hook failed for {fixture_dir.name}"
+                        )
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -232,6 +240,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             backlog_rollup = backlog_rollup_eval(ws, key)
             slice_plan = slice_plan_eval(ws, key)
             story_quality = story_quality_eval(ws, key)
+            backlog_hooks = backlog_hooks_eval(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -272,6 +281,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(backlog_rollup["mismatches"])
     backlog_mismatches.extend(slice_plan["mismatches"])
     backlog_mismatches.extend(story_quality["mismatches"])
+    backlog_mismatches.extend(backlog_hooks["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -362,6 +372,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "backlog_refinement_mismatches": backlog_refinement["mismatches"],
         "story_status_ok": story_status["ok"],
         "story_status_mismatches": story_status["mismatches"],
+        "backlog_hooks_ok": backlog_hooks["ok"],
+        "backlog_hooks_mismatches": backlog_hooks["mismatches"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -748,6 +760,35 @@ def story_quality_eval(ws: Path, key: dict) -> dict[str, object]:
             if str(expected_text) not in audit_text:
                 mismatches.append(f"backlog_readiness_audit.md missing expected text: {expected_text}")
     return {"ok": not mismatches, "mismatches": mismatches, "min_score": min_score}
+
+
+def backlog_hooks_eval(ws: Path, key: dict) -> dict[str, object]:
+    hooks_key = key.get("backlog_hooks", {})
+    if not hooks_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    plan_path = ws / "08_context_packs" / "slice_plan.json"
+    if hooks_key.get("expect_pre_handoff_warn"):
+        if not plan_path.exists():
+            mismatches.append("slice_plan.json missing for pre-handoff gate")
+        else:
+            gate = json.loads(plan_path.read_text(encoding="utf-8")).get("pre_handoff_gate", {})
+            if gate.get("verdict") != "WARN" or not gate.get("warnings"):
+                mismatches.append(f"expected pre-handoff WARN with warnings, got {gate}")
+    expected_stale = str(hooks_key.get("expected_stale_story", ""))
+    if expected_stale:
+        lifecycle = state.get("story_lifecycle", {})
+        actual_status = lifecycle.get(expected_stale, {}).get("status") if isinstance(lifecycle, dict) else None
+        if actual_status != "Stale":
+            mismatches.append(f"expected {expected_stale} to be Stale after /sync, got {actual_status}")
+    expected_unchanged = str(hooks_key.get("expected_unchanged_story", ""))
+    if expected_unchanged:
+        lifecycle = state.get("story_lifecycle", {})
+        actual_status = lifecycle.get(expected_unchanged, {}).get("status") if isinstance(lifecycle, dict) else None
+        if actual_status == "Stale":
+            mismatches.append(f"expected {expected_unchanged} to remain non-Stale after unrelated Spec Unit change")
+    return {"ok": not mismatches, "mismatches": mismatches}
 
 
 def run_all() -> int:
