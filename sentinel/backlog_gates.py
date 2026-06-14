@@ -40,6 +40,7 @@ def evaluate_story_gates(
     ac_classes = {str(item.get("classification", "")).strip() for item in acceptance if isinstance(item, dict)}
     blocking_gaps = blocking_gaps_for_trace(project_id, trace)
     evidence = acceptance_evidence_for_story(project_id, story_id)
+    story_quality = story_quality_for_story(project_id, story_id)
 
     dor_items = [
         check_item(
@@ -74,6 +75,17 @@ def evaluate_story_gates(
             "Assign a human owner with /story-status --owner before treating the story as Ready.",
         ),
     ]
+    if story_quality:
+        dor_items.append(
+            check_item(
+                "story_quality_invest",
+                bool(story_quality.get("score", 0.0) >= story_quality.get("threshold", 0.8)),
+                "Quality audit must pass the governed INVEST/SPIDR story quality threshold.",
+                score=story_quality.get("score", 0.0),
+                status=story_quality.get("status", "UNKNOWN"),
+                warnings=story_quality.get("warnings", []),
+            )
+        )
     dod_items = [
         check_item(
             "acceptance_evidence_traced",
@@ -137,6 +149,14 @@ def acceptance_evidence_for_story(project_id: str, story_id: str) -> list[dict[s
         for item in entries
         if isinstance(item, dict) and item.get("path")
     ]
+
+
+def story_quality_for_story(project_id: str, story_id: str) -> dict[str, Any]:
+    state = read_json(state_path(project_id), {})
+    quality = state.get("story_quality", {})
+    if isinstance(quality, dict) and isinstance(quality.get(story_id), dict):
+        return quality[story_id]
+    return {}
 
 
 def register_acceptance_evidence(project_id: str, story_id: str, source: Path) -> dict[str, str]:

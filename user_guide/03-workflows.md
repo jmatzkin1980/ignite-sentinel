@@ -144,6 +144,8 @@ workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json
 workspaces/PROJECT_ID/08_context_packs/slice_plan.json
 ```
 
+After `/quality`, review `05_quality/backlog_readiness_audit.md` for the story-level INVEST/SPIDR score. The audit checks the existing Ignite model only: vertical behavior or concrete enabler boundary, small-but-valuable scope, classified ACs, traceability, and explicit dependencies. Findings feed DoR warnings in `state.json#story_gates`; they do not block by default.
+
 The primary backlog output is one Markdown file per epic, starting with:
 
 ```text

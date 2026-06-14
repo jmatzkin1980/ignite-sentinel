@@ -190,6 +190,7 @@ Creates:
 
 - test case set
 - `US -> TC` traceability
+- dynamic `backlog_readiness_audit.md` with INVEST/SPIDR story quality scores and DoR warnings
 
 ### `sentinel-sync`
 

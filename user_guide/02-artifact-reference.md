@@ -30,9 +30,10 @@ Typical fields:
 - `metrics`
 - `story_lifecycle`
 - `story_gates`
+- `story_quality`
 - `story_acceptance_evidence`
 
-Use this file to understand where the project is in the workflow. `story_lifecycle` is the governed ledger for current `US-NNN` status and owner; `story_gates` stores the latest DoR/DoD evaluation per story; `story_acceptance_evidence` records local evidence artifacts attached for Done. Mutate these only through `/story-status`.
+Use this file to understand where the project is in the workflow. `story_lifecycle` is the governed ledger for current `US-NNN` status and owner; `story_gates` stores the latest DoR/DoD evaluation per story; `story_quality` stores the latest `/quality` score for the governed INVEST/SPIDR/Lawrence story model; `story_acceptance_evidence` records local evidence artifacts attached for Done. Mutate lifecycle and evidence only through `/story-status`; refresh quality through `/quality`.
 
 ## `sentinel.config.yaml`
 
@@ -497,7 +498,7 @@ Generated test-case set linked to a user story.
 
 ### `backlog_readiness_audit.md`
 
-Backlog readiness audit linked to user stories. It checks JTBD linkage, vertical slicing, testability, domain context citations, and traceability.
+Backlog readiness audit linked to user stories. It now contains a dynamic story census with INVEST/SPIDR score, status, per-check findings, and a non-blocking verdict. The checks preserve the existing slicing model: governed slicing pattern, vertical story or concrete `EPIC-002` enabler boundary, small-but-valuable scope, AC coverage, traceability, and explicit dependencies. The same result is machine-readable in `state.json#story_quality` and feeds the DoR warning item `story_quality_invest` after `/quality` runs.
 
 ## `06_traceability/`
 
