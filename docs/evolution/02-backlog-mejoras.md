@@ -550,11 +550,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Nota 2026-06-13: implementado `sentinel/slice_plan.py` y wiring en `/backlog` para emitir `04_backlog/SLICE-PLAN.md` + `08_context_packs/slice_plan.json`. El plan deriva una fase de enablers concretos `EPIC-002`, olas de historias paralelizables por dependencias reales/enabler links, checkpoints y `handoff_packs.US-NNN` con posición, estado, DoR/DoD, `execution_contract`, `retrieval_plan`, anchors, validación y trazas. No introduce task IDs, estimates ni ejecución downstream. Tests cubren orden topológico/enablers primero y core flow; eval `ops-risk-backlog` valida artefactos, conteo, handoff pack y contenido mínimo. Docs y skill `sentinel-backlog` actualizadas.
 
 ### IMP-054 — Contrato de tareas-semilla por historia (opcional / frontera de scope)
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: algunos agentes downstream pueden necesitar un punto de partida de tasking más explícito, pero Ignite no debe convertirse en herramienta de tasking.
 - Alcance: agregar emisión opt-in (`/backlog --with-task-seeds` o `/handoff --task-seeds`) de un contrato mínimo de tareas-semilla por historia, trazado a AC y `critical_surfaces`, ordenado y con paralelismo indicado. No ejecuta, no estima, no gestiona tareas y documenta explícitamente el límite de scope.
 - Aceptación: con el flag, cada historia emite contrato de tareas-semilla trazado y con nota de frontera; sin flag no se emite nada; el artefacto deja claro que Ignite no ejecuta tasking.
 - Afecta: `sentinel/generation.py`, `sentinel/cli.py`, manifest/adapters si se agrega flag, `tests/`, `user_guide/02-artifact-reference.md`.
+- Nota 2026-06-14: implementado `/backlog --with-task-seeds` como contrato opt-in por historia. El modo default no emite `Task Seed Contract`; con flag, cada `US-NNN.md` y `implementation_readiness.json` incluyen semillas `TSEED-US-NNN-*` derivadas de AC y `Agent Execution Contract.critical_surfaces`, con orden, paralelismo y dependencias. La nota de frontera aclara que Ignite no ejecuta, estima, asigna, agenda ni gestiona tareas, y que downstream puede expandir/reordenar/descartar las semillas preservando scope y trazabilidad. Se actualizó CLI, MCP, manifest/adapters, skills, README y user guide. Tests cubren ausencia por default y emisión opt-in; eval `ops-risk-backlog` valida contrato, AC trazada y nota de frontera.
 
 ### IMP-055 — Hooks de ciclo vivo: staleness por historia, pre-handoff (DoR) y privacy scan
 - Estado: VERIFIED

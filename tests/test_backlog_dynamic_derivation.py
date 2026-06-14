@@ -86,6 +86,7 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
         self.assertIn("When queue metrics are available", first_story)
         self.assertIn("AC-001-05 | evidence", first_story)
         self.assertIn("SPEC-U-001, REQ-EARS-001, REQ-001, PRD-001, SPEC-001", first_story)
+        self.assertNotIn("Task Seed Contract", first_story)
 
         readiness = json.loads((workspace / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
         value_stories = [story for story in readiness["stories"] if story["type"] == "value_story"]
@@ -96,6 +97,19 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
         graph = load_graph(project_id)
         self.assertIn({"from": "SPEC-U-001", "to": "US-001", "relation": "decomposes_to"}, graph["edges"])
         self.assertIn({"from": "SPEC-U-006", "to": "US-006", "relation": "decomposes_to"}, graph["edges"])
+
+        result = main(["backlog", project_id, "--with-task-seeds"])
+        self.assertEqual(result, 0)
+        seeded_story = (workspace / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
+        self.assertIn("## Task Seed Contract", seeded_story)
+        self.assertIn("TSEED-US-001-01", seeded_story)
+        self.assertIn("AC-001-01", seeded_story)
+        self.assertIn("Ignite does not execute, estimate, assign, schedule or manage these tasks", seeded_story)
+        readiness_with_seeds = json.loads((workspace / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+        seeded_readiness = readiness_with_seeds["stories"][0]["task_seed_contract"]
+        self.assertTrue(seeded_readiness["emitted"])
+        self.assertEqual(seeded_readiness["seeds"][0]["acceptance_criteria"][0], "AC-001-01")
+        self.assertIn("No execution, estimates, assignment", seeded_readiness["seeds"][0]["not_tasking"])
 
     def test_backlog_execution_context_is_retrieved_per_story(self):
         project_id = "STORYCTX"

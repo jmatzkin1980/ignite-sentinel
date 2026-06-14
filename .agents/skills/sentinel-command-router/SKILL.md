@@ -26,6 +26,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/specs PROJECT_ID`
 - `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID`
+- `/backlog PROJECT_ID --with-task-seeds`
 - `/implementation-feedback PROJECT_ID --source PATH`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`

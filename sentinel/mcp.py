@@ -48,7 +48,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
     ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED).", ["project_id"]),
-    ("backlog", "Generate epics, stories, and implementation readiness (gated by health).", ["project_id"]),
+    ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health).", ["project_id"]),
     ("quality", "Generate test cases and the backlog readiness audit.", ["project_id"]),
     ("trace", "Generate the traceability matrix and graph.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
@@ -175,8 +175,11 @@ def build_server():
         return run_cli(["specs", project_id])
 
     @server.tool(name="sentinel_backlog", description=TOOL_SPECS[13][1])
-    def sentinel_backlog(project_id: str) -> dict:
-        return run_cli(["backlog", project_id])
+    def sentinel_backlog(project_id: str, with_task_seeds: bool = False) -> dict:
+        arguments = ["backlog", project_id]
+        if with_task_seeds:
+            arguments.append("--with-task-seeds")
+        return run_cli(arguments)
 
     @server.tool(name="sentinel_quality", description=TOOL_SPECS[14][1])
     def sentinel_quality(project_id: str) -> dict:

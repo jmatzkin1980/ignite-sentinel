@@ -18,9 +18,10 @@ Use this skill to generate execution-ready backlog artifacts.
 7. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
 8. Run `python -m sentinel /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
 9. When status, owner, or Done evidence changes are needed, run `python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
-10. When downstream implementation reports a dependency, gap, invalid AC, or missing surface, run `python -m sentinel /implementation-feedback PROJECT_ID --source FINDINGS.json`.
-11. Run `python -m sentinel /quality PROJECT_ID`.
-12. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
+10. Use `python -m sentinel /backlog PROJECT_ID --with-task-seeds` only when a downstream consumer explicitly asks for task-seed intentions.
+11. When downstream implementation reports a dependency, gap, invalid AC, or missing surface, run `python -m sentinel /implementation-feedback PROJECT_ID --source FINDINGS.json`.
+12. Run `python -m sentinel /quality PROJECT_ID`.
+13. Run `python -m sentinel /trace PROJECT_ID` and `python -m sentinel /health PROJECT_ID`.
 
 ## Rules
 
@@ -47,6 +48,7 @@ Use this skill to generate execution-ready backlog artifacts.
 - Each story must include a `Retrieval Plan For Execution Agents` so planners, implementers, and testers know which focused `/retrieve` queries to run before touching code or tests.
 - Treat `implementation_readiness.json` as the handoff contract for downstream agents. If it reports `needs-context`, resolve missing domain context upstream or rerun `/reindex` and `/backlog` after domain owners update their files.
 - Treat `SLICE-PLAN.md` and `08_context_packs/slice_plan.json` as the deterministic ordering layer for downstream handoff: enablers first, value-story waves next, checkpoints between waves, and per-story handoff packs with execution contract, retrieval plan and anchors. They are not tasking artifacts; do not add task IDs, estimates, or implementation steps.
+- Treat task seed contracts as an explicit scope boundary. They are emitted only with `/backlog --with-task-seeds`, contain implementation intentions traced to AC and critical surfaces, and never mean Ignite executes, estimates, assigns, schedules, or manages downstream tasks.
 - If `/health` reports that domain context changed after backlog generation, do not hand off implementation from the stale backlog. Run `/reindex` and `/backlog` first.
 - Acceptance criteria must be declarative Given/When/Then scenarios covering happy path, validation path, failure/recovery path, regression path, and quality evidence path.
 - Classify acceptance criteria as `fail-to-pass`, `pass-to-pass`, or `evidence` so downstream Quality and implementation agents know which tests should become newly green, which existing regression must stay green, and which evidence proves completion.

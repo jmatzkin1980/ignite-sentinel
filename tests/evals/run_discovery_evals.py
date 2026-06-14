@@ -176,7 +176,10 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
                 if not apply_annotation:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
-                    assert main(["backlog", project_id]) == 0, f"backlog failed for {fixture_dir.name}"
+                    backlog_command = ["backlog", project_id]
+                    if key.get("task_seeds", {}).get("with_task_seeds"):
+                        backlog_command.append("--with-task-seeds")
+                    assert main(backlog_command) == 0, f"backlog failed for {fixture_dir.name}"
                     refinement_source = fixture_dir / "backlog_refinement.json"
                     if refinement_source.exists():
                         assert main(["refine-backlog", project_id, "--source", str(refinement_source)]) == 0, (
@@ -250,6 +253,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             slice_plan = slice_plan_eval(ws, key)
             story_quality = story_quality_eval(ws, key)
             backlog_hooks = backlog_hooks_eval(ws, key)
+            task_seeds = task_seeds_eval(ws, key) if not apply_annotation else {"ok": True, "mismatches": []}
             implementation_feedback = (
                 {"ok": True, "mismatches": []}
                 if apply_annotation
@@ -296,6 +300,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(slice_plan["mismatches"])
     backlog_mismatches.extend(story_quality["mismatches"])
     backlog_mismatches.extend(backlog_hooks["mismatches"])
+    backlog_mismatches.extend(task_seeds["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
@@ -389,6 +394,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "story_status_mismatches": story_status["mismatches"],
         "backlog_hooks_ok": backlog_hooks["ok"],
         "backlog_hooks_mismatches": backlog_hooks["mismatches"],
+        "task_seeds_ok": task_seeds["ok"],
+        "task_seeds_mismatches": task_seeds["mismatches"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
@@ -805,6 +812,39 @@ def backlog_hooks_eval(ws: Path, key: dict) -> dict[str, object]:
         actual_status = lifecycle.get(expected_unchanged, {}).get("status") if isinstance(lifecycle, dict) else None
         if actual_status == "Stale":
             mismatches.append(f"expected {expected_unchanged} to remain non-Stale after unrelated Spec Unit change")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def task_seeds_eval(ws: Path, key: dict) -> dict[str, object]:
+    seeds_key = key.get("task_seeds", {})
+    if not seeds_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    story_id = str(seeds_key.get("expected_story", "US-001"))
+    readiness = json.loads((ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+    stories = {story.get("story_id"): story for story in readiness.get("stories", []) if isinstance(story, dict)}
+    contract = stories.get(story_id, {}).get("task_seed_contract")
+    if not isinstance(contract, dict) or not contract.get("emitted"):
+        mismatches.append(f"expected task_seed_contract for {story_id}")
+        return {"ok": False, "mismatches": mismatches}
+    seeds = contract.get("seeds", [])
+    expected_min = int(seeds_key.get("expected_min_seeds", 1))
+    if not isinstance(seeds, list) or len(seeds) < expected_min:
+        mismatches.append(f"expected at least {expected_min} task seeds for {story_id}, got {len(seeds) if isinstance(seeds, list) else 0}")
+        seeds = []
+    expected_ac = str(seeds_key.get("expected_ac", ""))
+    if expected_ac and not any(expected_ac in seed.get("acceptance_criteria", []) for seed in seeds if isinstance(seed, dict)):
+        mismatches.append(f"expected task seed AC trace {expected_ac}")
+    if seeds_key.get("expect_boundary_note") and "does not execute" not in str(contract.get("scope_boundary", "")):
+        mismatches.append("task seed contract missing boundary note")
+    story_path = ws / "04_backlog" / f"{story_id}.md"
+    if not story_path.exists():
+        mismatches.append(f"{story_id}.md missing for task seeds")
+    else:
+        text = story_path.read_text(encoding="utf-8")
+        for expected_text in seeds_key.get("must_contain", []):
+            if str(expected_text) not in text:
+                mismatches.append(f"{story_id}.md task seed section missing expected text: {expected_text}")
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
