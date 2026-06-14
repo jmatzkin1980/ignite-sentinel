@@ -425,6 +425,9 @@ python -m sentinel /quality PROJECT_ID
 Output:
 
 - `05_quality/TC-001.md`
+- `05_quality/backlog_readiness_audit.md`
+
+`/quality` also evaluates each story against the governed INVEST/SPIDR/Lawrence model already used by `/backlog`: governed slicing pattern, vertical behavior or concrete enabler boundary, small-but-valuable scope, AC coverage, traceability, and explicit dependencies. Results are persisted in `state.json#story_quality` and reflected as non-blocking DoR warnings in `state.json#story_gates` after `/quality` runs. Strict backlog gates remain opt-in through `config.backlog_gate.strict`.
 
 ## `trace`
 

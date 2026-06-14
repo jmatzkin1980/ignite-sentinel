@@ -564,11 +564,12 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/protocols.py`, `sentinel/sync.py`, `sentinel/health.py`, `sentinel/generation.py`, `tests/`, `user_guide/05-traceability-and-memory.md`, `user_guide/09-secure-environments.md`.
 
 ### IMP-056 — `/quality` verifica el cumplimiento del modelo INVEST/SPIDR que hoy es solo guía
-- Estado: PENDING
+- Estado: VERIFIED
 - Problema: el modelo INVEST/SPIDR/Lawrence ya existe como guía, pero `/quality` no verifica si una historia lo cumple; el `backlog_readiness_audit.md` tiene verdict/status hardcodeados.
 - Alcance: extender `/quality` para puntuar solo el modelo vigente: slice vertical e independiente, `Small` como small but valuable, AC presentes/clasificadas y derivadas de la unidad, trazabilidad `SPEC-U`/`REQ-EARS`/épica y cobertura de AC. Poblar `05_quality/backlog_readiness_audit.md` con evaluación real por historia y warnings no bloqueantes que alimenten DoR.
 - Aceptación: `/quality` reporta score INVEST y cobertura de AC por historia con verdict/status dinámicos; distingue historia bien sliceada de técnica sin comportamiento; warnings se reflejan en DoR; no bloquea por default; tests de niveles.
 - Afecta: `sentinel/quality.py`, `sentinel/validation.py`, `tests/`, skill `sentinel-quality`, `user_guide/01-command-reference.md`.
+- Nota 2026-06-13: implementado scoring determinístico de story quality en `/quality` contra el modelo vigente INVEST/SPIDR/Lawrence sin modificar la tabla "Slicing Strategy" ni el boundary `EPIC-002`. `backlog_readiness_audit.md` ahora emite verdict dinámico, score por historia, checks `slicing_pattern_governed`, `vertical_slice`, `small_but_valuable`, `acceptance_criteria_coverage`, `traceability_chain` e `independent_dependencies`; `state.json#story_quality` persiste resultados y `state.json#story_gates` recibe el ítem DoR `story_quality_invest` solo después de `/quality`. Warnings blandos por default; strict sigue opt-in vía `config.backlog_gate`. Tests cubren historia técnica sin comportamiento vs. historia evaluada y preservación de owner/DoR; eval `ops-risk-backlog` ejecuta `/quality` y valida score, audit y gate.
 
 ### IMP-057 — Contexto y cobertura de dominio por historia/Spec Unit
 - Estado: DONE
@@ -615,6 +616,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-13 | IMP-056 VERIFIED (branch `imp-056-story-quality`): `/quality` ahora puntúa story quality contra INVEST/SPIDR/Lawrence vigente, persiste `state.json#story_quality`, alimenta DoR con `story_quality_invest` y vuelve dinámico `backlog_readiness_audit.md`; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-053 VERIFIED (branch `imp-053-slice-plan`): agregado `SLICE-PLAN.md` y `slice_plan.json` como handoff determinístico de backlog, con fase de enablers, olas paralelizables, checkpoints y handoff packs por historia. Sin tasking ni cambios al modelo de slicing/EPIC-002; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-052 VERIFIED (branch `imp-052-backlog-rollup`): agregado `/backlog-status`, `04_backlog/BACKLOG.md`, rollup por épica/estado/owners/blockers, resumen en `/status`, refresh automático desde `/backlog` y `/story-status`, MCP/adapters/docs actualizados y eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-051 VERIFIED (branch `imp-051-dor-dod-gates`): DoR/DoD evaluable sobre los checklists existentes, `backlog_gate` blando/strict opt-in, warnings en `/story-status` y `/status`, bloqueo estricto de Ready/Done, evidencia local `--evidence` para DoD con trazabilidad, handoff JSON y eval `ops-risk-backlog` ampliados. |

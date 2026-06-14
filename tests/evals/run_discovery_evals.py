@@ -195,6 +195,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                         if story_status_key.get("owner"):
                             command.extend(["--owner", str(story_status_key["owner"])])
                         assert main(command) == 0, f"story-status failed for {fixture_dir.name}"
+                    if key.get("story_quality"):
+                        assert main(["quality", project_id]) == 0, f"quality failed for {fixture_dir.name}"
             ws = Path(temp) / "workspaces" / project_id
             gaps_md = (ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             gap_rows = parse_gap_rows(gaps_md)
@@ -229,6 +231,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             story_status = story_status_eval(ws, key)
             backlog_rollup = backlog_rollup_eval(ws, key)
             slice_plan = slice_plan_eval(ws, key)
+            story_quality = story_quality_eval(ws, key)
         finally:
             os.chdir(old_cwd)
 
@@ -268,6 +271,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(story_status["mismatches"])
     backlog_mismatches.extend(backlog_rollup["mismatches"])
     backlog_mismatches.extend(slice_plan["mismatches"])
+    backlog_mismatches.extend(story_quality["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -353,6 +357,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "backlog_slicing_accuracy": backlog_derivation["slicing_accuracy"],
         "backlog_anchor_validity": backlog_derivation["anchor_validity"],
         "backlog_context_distinctness": backlog_derivation["context_distinctness"],
+        "story_quality_min_score": story_quality["min_score"],
         "backlog_refinement_ok": backlog_refinement["ok"],
         "backlog_refinement_mismatches": backlog_refinement["mismatches"],
         "story_status_ok": story_status["ok"],
@@ -704,6 +709,47 @@ def slice_plan_eval(ws: Path, key: dict) -> dict[str, object]:
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+def story_quality_eval(ws: Path, key: dict) -> dict[str, object]:
+    quality_key = key.get("story_quality", {})
+    if not quality_key:
+        return {"ok": True, "mismatches": [], "min_score": 1.0}
+    mismatches: list[str] = []
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    story_quality = state.get("story_quality", {})
+    audit_path = ws / "05_quality" / "backlog_readiness_audit.md"
+    if not audit_path.exists():
+        mismatches.append("backlog_readiness_audit.md missing")
+    if not isinstance(story_quality, dict) or not story_quality:
+        mismatches.append("state.json missing story_quality results")
+        return {"ok": False, "mismatches": mismatches, "min_score": 0.0}
+    min_score = min(float(item.get("score", 0.0)) for item in story_quality.values() if isinstance(item, dict))
+    expected_min = float(quality_key.get("min_score", 0.0))
+    if min_score < expected_min:
+        mismatches.append(f"expected story quality min_score >= {expected_min:.2f}, got {min_score:.2f}")
+    for story_id in quality_key.get("expected_stories", []):
+        result = story_quality.get(str(story_id), {})
+        if not result:
+            mismatches.append(f"story_quality missing {story_id}")
+            continue
+        checks = {item.get("key"): item for item in result.get("checks", []) if isinstance(item, dict)}
+        for check in quality_key.get("required_checks", []):
+            if check not in checks:
+                mismatches.append(f"story_quality {story_id} missing check {check}")
+    if quality_key.get("expect_dor_item"):
+        expected_item = str(quality_key["expect_dor_item"])
+        for story_id in quality_key.get("expected_stories", []):
+            gate = state.get("story_gates", {}).get(str(story_id), {})
+            dor_items = gate.get("dor", {}).get("items", []) if isinstance(gate, dict) else []
+            if expected_item not in {item.get("key") for item in dor_items if isinstance(item, dict)}:
+                mismatches.append(f"{story_id} DoR missing {expected_item}")
+    if audit_path.exists():
+        audit_text = audit_path.read_text(encoding="utf-8")
+        for expected_text in quality_key.get("must_contain", []):
+            if str(expected_text) not in audit_text:
+                mismatches.append(f"backlog_readiness_audit.md missing expected text: {expected_text}")
+    return {"ok": not mismatches, "mismatches": mismatches, "min_score": min_score}
+
+
 def run_all() -> int:
     fixture_dirs = sorted(d for d in FIXTURES.iterdir() if (d / "answer_key.json").exists())
     if not fixture_dirs:
@@ -756,6 +802,9 @@ def run_all() -> int:
             "avg_backlog_context_distinctness": round(
                 sum(r["backlog_context_distinctness"] for r in results) / len(results), 3
             ),
+            "avg_story_quality_min_score": round(
+                sum(r["story_quality_min_score"] for r in results) / len(results), 3
+            ),
             "total_backlog_derivation_mismatches": sum(len(r["backlog_derivation_mismatches"]) for r in results),
             "total_backlog_invented_stories": sum(r["backlog_invented_story_count"] for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
@@ -781,6 +830,7 @@ def run_all() -> int:
             f"backlog_stories={r['backlog_story_count']} "
             f"backlog_no_invent={r['backlog_no_invention_rate']:.2f} "
             f"backlog_slicing={r['backlog_slicing_accuracy']:.2f} "
+            f"story_quality={r['story_quality_min_score']:.2f} "
             f"new_fp={len(r['new_false_positives'])}"
         )
         for gap in r["missing_must_fire"]:
@@ -821,7 +871,8 @@ def run_all() -> int:
         f"avg_backlog_derivation_coverage={s['avg_backlog_derivation_coverage']:.2f} (IMP-048) "
         f"avg_backlog_no_invention={s['avg_backlog_no_invention_rate']:.2f} "
         f"avg_backlog_slicing={s['avg_backlog_slicing_accuracy']:.2f} "
-        f"avg_backlog_anchors={s['avg_backlog_anchor_validity']:.2f} (IMP-061)"
+        f"avg_backlog_anchors={s['avg_backlog_anchor_validity']:.2f} (IMP-061) "
+        f"avg_story_quality_min_score={s['avg_story_quality_min_score']:.2f} (IMP-056)"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

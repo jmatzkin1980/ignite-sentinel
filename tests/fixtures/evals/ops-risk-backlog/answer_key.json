@@ -112,6 +112,21 @@
     "must_contain": ["# Slice Plan -", "## Phase 0 - Enablers", "## Implementation Waves", "Per-Story Handoff Packs"],
     "rationale": "IMP-053 validates the deterministic handoff plan: concrete EPIC-002 enablers are sequenced before value-story waves and each story has a machine-readable handoff pack."
   },
+  "story_quality": {
+    "expected_stories": ["US-004"],
+    "min_score": 0.8,
+    "required_checks": [
+      "slicing_pattern_governed",
+      "vertical_slice",
+      "small_but_valuable",
+      "acceptance_criteria_coverage",
+      "traceability_chain",
+      "independent_dependencies"
+    ],
+    "expect_dor_item": "story_quality_invest",
+    "must_contain": ["INVEST/SPIDR Score", "Story Quality Checks"],
+    "rationale": "IMP-056 validates that /quality evaluates the governed INVEST/SPIDR/Lawrence model per story, persists story_quality, and feeds the DoR warning surface without replacing the slicing model."
+  },
   "golden_queries": [
     {
       "id": "GQ-RISK-METRIC",
