@@ -139,6 +139,46 @@ def specs_scaffolding(specs_md: str) -> dict[str, object]:
     return {"ids": found, "count": len(found)}
 
 
+def knowledge_ledger_status(ws: Path, key: dict) -> dict[str, object]:
+    ledger_key = key.get("knowledge_ledger", {})
+    if not ledger_key:
+        return {"ok": True, "mismatches": [], "total": 0, "by_status": {}, "by_lens": {}}
+    path = ws / "01_discovery" / "knowledge_state.json"
+    if not path.exists():
+        return {"ok": False, "mismatches": ["knowledge_state.json missing"], "total": 0, "by_status": {}, "by_lens": {}}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    summary = payload.get("summary", {})
+    units = payload.get("units", [])
+    mismatches: list[str] = []
+    total = int(summary.get("total", 0) or 0)
+    min_total = int(ledger_key.get("min_total", 1))
+    if total < min_total:
+        mismatches.append(f"expected at least {min_total} knowledge units, got {total}")
+    by_status = summary.get("by_status", {})
+    for status in ledger_key.get("required_statuses", []):
+        if int(by_status.get(str(status), 0) or 0) <= 0:
+            mismatches.append(f"expected at least one knowledge unit with status {status}")
+    by_lens = summary.get("by_lens", {})
+    for lens in ledger_key.get("required_lenses", []):
+        if int(by_lens.get(str(lens), 0) or 0) <= 0:
+            mismatches.append(f"expected at least one knowledge unit for lens {lens}")
+    if ledger_key.get("require_evidence_or_pending", True):
+        for unit in units:
+            evidence = unit.get("evidence", {}) if isinstance(unit, dict) else {}
+            has_pending = evidence.get("note") == "[PENDING INPUT]"
+            has_trace_quote = bool(evidence.get("trace_id") and evidence.get("quote"))
+            if not (has_pending or has_trace_quote):
+                mismatches.append(f"{unit.get('id', 'unknown')} missing evidence trace/quote or [PENDING INPUT]")
+                break
+    return {
+        "ok": not mismatches,
+        "mismatches": mismatches,
+        "total": total,
+        "by_status": by_status,
+        "by_lens": by_lens,
+    }
+
+
 def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
@@ -254,6 +294,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             story_quality = story_quality_eval(ws, key)
             backlog_hooks = backlog_hooks_eval(ws, key)
             task_seeds = task_seeds_eval(ws, key) if not apply_annotation else {"ok": True, "mismatches": []}
+            knowledge_ledger = knowledge_ledger_status(ws, key)
             implementation_feedback = (
                 {"ok": True, "mismatches": []}
                 if apply_annotation
@@ -301,6 +342,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     backlog_mismatches.extend(story_quality["mismatches"])
     backlog_mismatches.extend(backlog_hooks["mismatches"])
     backlog_mismatches.extend(task_seeds["mismatches"])
+    backlog_mismatches.extend(knowledge_ledger["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
@@ -396,6 +438,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
         "backlog_hooks_mismatches": backlog_hooks["mismatches"],
         "task_seeds_ok": task_seeds["ok"],
         "task_seeds_mismatches": task_seeds["mismatches"],
+        "knowledge_ledger_ok": knowledge_ledger["ok"],
+        "knowledge_ledger_mismatches": knowledge_ledger["mismatches"],
+        "knowledge_ledger_total": knowledge_ledger["total"],
+        "knowledge_ledger_by_status": knowledge_ledger["by_status"],
+        "knowledge_ledger_by_lens": knowledge_ledger["by_lens"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
@@ -954,6 +1001,10 @@ def run_all() -> int:
             "avg_story_quality_min_score": round(
                 sum(r["story_quality_min_score"] for r in results) / len(results), 3
             ),
+            "avg_knowledge_ledger_units": round(
+                sum(r["knowledge_ledger_total"] for r in results) / len(results), 3
+            ),
+            "total_knowledge_ledger_mismatches": sum(len(r["knowledge_ledger_mismatches"]) for r in results),
             "total_backlog_derivation_mismatches": sum(len(r["backlog_derivation_mismatches"]) for r in results),
             "total_backlog_invented_stories": sum(r["backlog_invented_story_count"] for r in results),
             "total_new_false_positives": sum(len(r["new_false_positives"]) for r in results),
@@ -980,6 +1031,7 @@ def run_all() -> int:
             f"backlog_no_invent={r['backlog_no_invention_rate']:.2f} "
             f"backlog_slicing={r['backlog_slicing_accuracy']:.2f} "
             f"story_quality={r['story_quality_min_score']:.2f} "
+            f"knowledge_units={r['knowledge_ledger_total']} "
             f"new_fp={len(r['new_false_positives'])}"
         )
         for gap in r["missing_must_fire"]:
@@ -1002,6 +1054,8 @@ def run_all() -> int:
             )
         for mismatch in r["backlog_derivation_mismatches"]:
             print(f"         backlog derivation mismatch: {mismatch}")
+        for mismatch in r["knowledge_ledger_mismatches"]:
+            print(f"         knowledge ledger mismatch: {mismatch}")
         expected_pending = set(r["brief_expected_pending_sections"])
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
@@ -1021,7 +1075,8 @@ def run_all() -> int:
         f"avg_backlog_no_invention={s['avg_backlog_no_invention_rate']:.2f} "
         f"avg_backlog_slicing={s['avg_backlog_slicing_accuracy']:.2f} "
         f"avg_backlog_anchors={s['avg_backlog_anchor_validity']:.2f} (IMP-061) "
-        f"avg_story_quality_min_score={s['avg_story_quality_min_score']:.2f} (IMP-056)"
+        f"avg_story_quality_min_score={s['avg_story_quality_min_score']:.2f} (IMP-056) "
+        f"avg_knowledge_units={s['avg_knowledge_ledger_units']:.2f} (IMP-065)"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

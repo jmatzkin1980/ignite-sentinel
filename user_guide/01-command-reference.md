@@ -266,7 +266,7 @@ Output:
 
 ## `status`
 
-Show phase, health, language, privacy mode, readiness, gap counts, last change IDs, and next recommended step.
+Show phase, health, language, privacy mode, readiness, gap counts, knowledge ledger summary, last change IDs, and next recommended step.
 
 ```powershell
 python -m sentinel /status PROJECT_ID

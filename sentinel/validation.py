@@ -71,7 +71,7 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
     findings: list[str] = []
     node_types = {node.get("type") for node in graph.get("nodes", [])}
     if "raw_input" in node_types:
-        for required in ("identity_seed_bank", "discovery_log", "lens_review", "gap_report", "requirement"):
+        for required in ("identity_seed_bank", "discovery_log", "lens_review", "knowledge_ledger", "gap_report", "requirement"):
             if required not in node_types:
                 findings.append(f"Discovery artifact missing after raw input: {required}.")
 

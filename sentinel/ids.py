@@ -38,6 +38,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "identity_seed": "SEED",
         "discovery_log": "DISC",
         "lens_review": "DISC",
+        "knowledge_ledger": "DISC",
         "agent_annotation": "DISC",
         "project_brief": "REQ",
         "ears_requirement": "REQ",

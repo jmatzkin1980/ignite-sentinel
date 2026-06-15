@@ -435,7 +435,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/discovery.py`, `gap_resolution.py`, `maturity.py`, skill `sentinel-gap-response` + `python -m sentinel.adapters`, tests (`test_ears_elicitation.py`), `user_guide/03-workflows.md`, `user_guide/11-chat-commands.md`.
 
 ### IMP-039 — PRD compiler: secciones compiladas desde evidencia
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 4
 - Depende de: IMP-038; se beneficia de IMP-046/047. Reusa IMP-024 (`compile_brief_sections`), IMP-005, IMP-026 e IMP-007.
 - Problema: `render_prd_full` emite prosa de plantilla y cita `REQ-001` fijo; no consume las secciones compiladas del brief ni rutea respuestas de gaps cerrados a secciones del PRD.
@@ -444,7 +444,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py`, `sentinel/discovery.py`, `gap_resolution.py`, tests (`test_prd_compiler.py`), evals de IMP-038, `user_guide/02-artifact-reference.md`.
 
 ### IMP-040 — Canal agéntico de redacción del PRD (`/compose`)
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 6
 - Depende de: IMP-039. Reusa patrón IMP-021/023 de validación, evidencia verbatim, archivado de source y trazabilidad.
 - Problema: el PRD es para humanos y la compilación determinista no produce narrativa fluida; el agente puede redactarla, pero no tiene canal sancionado en fase 2 y eso tienta a editar artefactos a mano.
@@ -453,7 +453,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py` o `sentinel/prd.py`, `cli.py`, `protocols.py`, `commands_manifest.json` + adapters, `mcp.py`, `doctor.py`, skill `sentinel-compose`, schema `composition.schema.json`, `ids.py`, tests (`test_compose.py`), `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `user_guide/11-chat-commands.md`.
 
 ### IMP-041 — Readiness por sección + gate blando de `/specs`
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 7
 - Depende de: IMP-039; mejora con IMP-042. Reusa IMP-025 (`brief_section_readiness`, patrón `config.brief_gate`).
 - Problema: `/specs` genera con el único gate `readiness != BLOCKED`; no hay score por sección del PRD ni advertencia que nombre qué gap alimenta cada sección pobre.
@@ -462,7 +462,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `maturity.py`, `generation.py`, `status.py`, config de workspace, tests (`test_specs_readiness.py`), `user_guide/01-command-reference.md`.
 
 ### IMP-042 — Spec units: descomposición en unidades trazables
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 5
 - Depende de: IMP-038, IMP-047, IMP-039. Reusa IMP-031, IMP-026 e IMP-007.
 - Problema: `render_specs` emite un monolito con `CAP-001..003`, `JTBD-001`, seeds `US-001..005` y `ASM-001/002` idénticos para todo proyecto; es estructura inventada presentada como contrato para agentes y obliga a cargar el spec entero.
@@ -471,7 +471,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py`, `traceability.py`, `ids.py`, schema `spec_unit.schema.json`, tests (`test_spec_units.py`), `user_guide/02-artifact-reference.md`, skill `sentinel-specs`.
 
 ### IMP-043 — Delta-specs en regeneración
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 8
 - Depende de: IMP-042. Reusa IMP-011 (`record_regeneration_diff`).
 - Problema: el diff de regeneración actual reporta líneas y secciones por artefacto entero; tras `/sync`, ni el BA ni un agente de backlog saben qué unidades cambiaron.
@@ -480,7 +480,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py`, `sync.py`, tests, `user_guide/02-artifact-reference.md`.
 
 ### IMP-044 — Retrieval plans declarativos por sección, con punteros y presupuesto
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: paralelizable después de IMP-038
 - Depende de: IMP-038. Reusa IMP-031 e IMP-033.
 - Problema: `PRD_SECTION_QUERIES` y `BACKLOG_CONTEXT_QUERIES` viven hardcodeadas en `generation.py`; el contexto se arma con truncados fijos y los packs descartan anchors precisos. El equipo no puede mejorar recuperación sin tocar Python y el agente no recibe un plan de lectura preciso.
@@ -489,7 +489,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Afecta: `sentinel/generation.py`, `sentinel/retrieval_plans/`, loader nuevo o extensión de `lens_registry.py`, `pyproject.toml`, `memory.py` si hace falta, tests (`test_retrieval_plans.py`), `user_guide/05-traceability-and-memory.md`, skill `sentinel-specs`.
 
 ### IMP-045 — Consistencia cross-artefacto en `/validate`
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Prioridad: 9 (cierre del horizonte)
 - Depende de: IMP-039 + IMP-042. Reusa IMP-006 (`validation.py` warnings no bloqueantes).
 - Problema: nada verifica coherencia entre capas: secciones pobladas del brief que el PRD no consume, `REQ-EARS-*` confirmados sin cita en specs, `FR-E*` sin unidad de spec, o unidades con punteros colgantes.
@@ -526,7 +526,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Nota 2026-06-13: implementado `sentinel/backlog_status.py` y comando `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME]`. El lifecycle vive en `state.json#story_lifecycle`, se refleja en frontmatter y sección `Lifecycle` de `US-NNN.md`, agrega `04_backlog/status_log.md`, nodo `story_status_change` y edge `updates_story_status`; `postflight` refresca trace/matrix y command protocol. `/backlog` aplica `apply_lifecycle_to_stories` para preservar status/owner y propaga `story_status`/`owner` en `implementation_readiness.json` sin reemplazar el campo `status` de readiness. Tests cubren transición válida, transición ilegal `Draft → Done` y preservación tras regeneración; eval `ops-risk-backlog` mueve `US-004` a `Ready` con owner y valida state/frontmatter. DoR/DoD gates quedan fuera de scope para IMP-051.
 
 ### IMP-051 — Convertir los checklists DoR/DoD ya existentes en un gate evaluable
-- Estado: PENDING
+- Estado: DONE (2026-06-15, reconciliación documental: el runtime y tests ya existen; ver nota de higiene de Horizonte 10 / IMP-065).
 - Problema: las historias ya renderizan Definition Of Ready y Definition Of Done, pero son checklists estáticos sin evaluación ni conexión con estado o handoff.
 - Alcance: conservar los checklists actuales y agregar evaluación por historia usando señales existentes: AC presentes y clasificadas, `readiness_score`, ausencia de `GAP-*` blocking sobre la traza, patrón de slicing y owner. DoD exige evidencia de aceptación trazada desde downstream. Reusar el patrón `config.specs_gate {threshold, strict}` como `config.backlog_gate`, default advertencia, modo estricto opt-in.
 - Aceptación: una historia incompleta no alcanza `Ready` en modo estricto y en default lista faltantes exactos; una historia completa pasa DoR; DoD solo cierra con evidencia trazada; default no bloqueante.
@@ -641,10 +641,65 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 ---
 
+## Horizonte 10 — Discovery profundo
+
+Ítems promovidos desde `docs/evolution/08-propuesta-discovery-depth.md` (PROPUESTA PARA IMPLEMENTAR 2026-06-15). Fuente de diseño obligatoria: propuesta 08 completa, especialmente protocolo de sección 0, invariantes 0.b y orden de secciones 3 y 4. Orden estricto por PR: IMP-065 → IMP-066 → IMP-067 → IMP-068 → IMP-069; no iniciar el siguiente hasta merge manual del usuario.
+
+Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP-039, IMP-040, IMP-041, IMP-042, IMP-043, IMP-044, IMP-045 e IMP-051 porque el código y tests ya existen (`sentinel/generation.py::compile_prd_sections`, `tests/test_prd_compiler.py`, `test_spec_units.py`, `test_specs_readiness.py`, `test_compose.py`, `test_retrieval_plans.py`, `test_story_status.py`, schemas en `sentinel/schemas/`). Es una corrección documental, sin runtime.
+
+### IMP-065 — Lens Knowledge Ledger (objeto canónico de conocimiento por lente)
+- Estado: VERIFIED & PUSHED (2026-06-15, branch `imp-065-knowledge-ledger`, PR #63: https://github.com/jmatzkin1980/ignite-sentinel/pull/63; ledger `knowledge_state.md/json` generado por `/ingest`, nodo `knowledge_ledger`, indexación local, resumen en `/status`, schema y tests/evals sintéticos. `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 166 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK). Pendiente: merge manual del usuario.
+- Prioridad / orden: 1 de 5 — implementar primero. Es la base sobre la que se apoyan IMP-066, IMP-067, IMP-068 e IMP-069.
+- Problema: el conocimiento del discovery vive disperso (seeds, gaps, decisions, lens_review) sin un objeto unificado por lente con estado y evidencia; no hay "context graph" del que downstream pueda compilar progresivamente.
+- Alcance: crear el ledger `01_discovery/knowledge_state.md` (legible) y `01_discovery/knowledge_state.json` (máquina), construido determinísticamente en `ingest` desde los nodos/gaps/seeds/decisions existentes. Cada unidad: `lens`, `statement`, `status` (`CONFIRMED`/`ASSUMED`/`OPEN`/`INFERRED`), `evidence` (`trace_id`/cita/`[PENDING INPUT]`), `links`. Indexarlo vía `ContextBroker` y agregar nodo/edges en el grafo de trazabilidad (reusar `add_node`/`add_edge`, sin duplicar el grafo). Agregar schema `knowledge_unit.schema.json`. No romper artefactos existentes: seeds sigue y el ledger lo consolida.
+- Aceptación: tras `ingest`, existe `knowledge_state.{md,json}` con unidades por lente y estado; cada afirmación cita fuente o queda `[PENDING INPUT]`; el grafo enlaza el ledger; tests con fixtures sintéticos validan estructura, estados y citas; `verify.ps1` verde.
+- Afecta: `sentinel/discovery.py`, `sentinel/traceability.py`, `sentinel/memory.py`, `sentinel/schemas/knowledge_unit.schema.json`, `sentinel/status.py`, `tests/test_knowledge_ledger.py` + fixtures, `user_guide/02-artifact-reference.md`, `user_guide/05-traceability-and-memory.md`, `CHANGELOG.md`.
+- Depende de: nada.
+
+### IMP-066 — Escrutinio multi-lente agéntico (`/scrutinize`)
+- Estado: PENDING.
+- Prioridad / orden: 2 de 5. Depende de IMP-065 mergeado.
+- Problema: el escrutinio por lente es léxico + señal binaria de contexto; `/annotate` y `/challenge` son opt-in de una pasada. Falta una interrogación agéntica sistemática por lente que cruce requerimiento contra contexto de dominio y exponga lo no dicho con cita.
+- Alcance: comando + skill `/scrutinize PROJECT_ID [--lens LENS] --source ANALYSIS.json` que recibe hallazgos estructurados por lente (supuesto no dicho / contradicción / mención sin contraparte / conflicto con dominio), cada uno con cita verbatim local; reusar validación de `/annotate` (workspace, lente declarado en `lens_registry`, cita real en input crudo o context folders, severidad válida); materializar hallazgos como gaps `origin: scrutiny` y candidatos de ledger (`OPEN`); trazar e indexar; respetar `project_language`. Las técnicas se ejecutan por lente, nunca como personas genéricas.
+- Aceptación: `/scrutinize` con análisis citado produce hallazgos por lente que entran como gaps/unidades vía validación; un hallazgo sin cita real se rechaza; ledger y `gaps.md` reflejan `origin: scrutiny`; evals sintéticos cubren aceptación y rechazo; `verify.ps1` verde.
+- Afecta: `sentinel/discovery.py` o `sentinel/scrutiny.py`, `sentinel/cli.py`, `sentinel/protocols.py`, `sentinel/templates/commands_manifest.json` + adapters, `sentinel/mcp.py`, `sentinel/doctor.py`, `.codex/skills/sentinel-scrutiny/` + mirrors regenerados, `sentinel/schemas/scrutiny.schema.json`, `tests/test_scrutiny.py` + fixtures, `user_guide/01-command-reference.md`, `user_guide/03-workflows.md`, `user_guide/11-chat-commands.md`, `CHANGELOG.md`.
+- Depende de: IMP-065.
+
+### IMP-067 — Registro de supuestos gobernado (`/assume`)
+- Estado: PENDING.
+- Prioridad / orden: 3 de 5. Depende de IMP-065 mergeado; se beneficia de IMP-066.
+- Problema: hoy un dato es confirmado o abierto; falta la categoría gobernada "asumido" para que un gris se vuelva explícito (dueño, riesgo, justificación) en vez de esconderse o quedar como `[PENDING INPUT]` silencioso.
+- Alcance: comando + skill `/assume PROJECT_ID --source ASSUMPTIONS.json` que registra supuestos explícitos: `lens`, `statement`, `owner` humano, `risk` (`low`/`med`/`high`), `justification`/cita y `closes_gap`. Persistir en `01_discovery/assumptions.md`, reflejar en el ledger como `ASSUMED` y trazar. Un supuesto podrá luego validarse/invalidarse vía `/sync` (IMP-069). Gate blando: supuestos de riesgo alto sobre gaps bloqueantes siguen contando para readiness salvo opt-in.
+- Aceptación: `/assume` registra supuestos trazados y los refleja en el ledger como `ASSUMED` con dueño y riesgo; downstream los cita explícitamente en lugar de `[PENDING INPUT]` cuando exista el supuesto; `/maturity` los distingue de lo confirmado; evals sintéticos cubren registro, cita downstream y riesgo; `verify.ps1` verde.
+- Afecta: `sentinel/discovery.py` o `sentinel/assumptions.py`, `sentinel/cli.py`, `sentinel/protocols.py`, `commands_manifest.json` + adapters, `sentinel/mcp.py`, `sentinel/doctor.py`, `.codex/skills/sentinel-assume/`, `sentinel/schemas/assumption.schema.json`, `sentinel/generation.py`/`prd.py`, `tests/test_assumptions.py` + fixtures, `user_guide/01-command-reference.md`, `user_guide/02-artifact-reference.md`, `CHANGELOG.md`.
+- Depende de: IMP-065.
+
+### IMP-068 — Certeza de desarrollo: readiness matrix por lente×área
+- Estado: PENDING.
+- Prioridad / orden: 4 de 5. Depende de IMP-065; consume mejor con IMP-066 e IMP-067 mergeados.
+- Problema: la rúbrica de 16 áreas y el Crystallization Gate son texto estático, no un veredicto evaluable de "se puede encarar el desarrollo con incertidumbre baja/nula".
+- Alcance: computar la rúbrica (`mature_requirement_rubric`) como readiness matrix evaluable: por cada área×lente, estado `CONFIRMED`/`ASSUMED`/`OPEN` derivado del ledger + supuestos, con evidencia; score de certeza por lente y global; veredicto explícito de Crystallization Gate. Persistir `01_discovery/development_readiness.json` y exponerlo en `/maturity`, `/status` y dashboard vía dato, sin romper shapes existentes. Gate blando por default, strict opt-in.
+- Aceptación: `/maturity` y `/status` emiten readiness matrix con estado por área y veredicto; áreas confirmadas/asumidas/abiertas son distinguibles; dashboard muestra la certeza sin romper su contrato; evals sintéticos cubren los tres estados y el veredicto; `verify.ps1` verde.
+- Afecta: `sentinel/maturity.py`, `sentinel/status.py`, `sentinel/discovery.py`, `sentinel/dashboard.py`, `sentinel/doctor.py`, `tests/test_development_readiness.py` + fixtures, `user_guide/01-command-reference.md`, `user_guide/04-maturity-and-readiness.md`, `CHANGELOG.md`.
+- Depende de: IMP-065.
+
+### IMP-069 — Metabolización asíncrona precisa hacia el ledger
+- Estado: PENDING.
+- Prioridad / orden: 5 de 5. Depende de IMP-065, IMP-067 e IMP-068 mergeados.
+- Problema: `sync_change` reabre gaps y loguea, pero no actualiza el conocimiento a nivel de unidad: qué verdad cambió, qué supuesto se validó/invalidó, cómo se movió la certeza. La información asíncrona no impacta "los lugares correctos".
+- Alcance: extender `sentinel/sync.py::sync_change` y `/resolve-gaps` para que la metabolización actualice unidades del ledger (confirmar/abrir/invalidar verdades; validar/invalidar supuestos), recalcule readiness matrix (IMP-068) y emita impact report a nivel de nodo + flags de staleness downstream, además de reabrir gaps. Mantener `metabolism_log.md` y reports existentes; agregar la capa de conocimiento sin reemplazarla. Determinístico y local.
+- Aceptación: tras `/sync` con cambio que responde un gap o invalida un supuesto, el ledger refleja el nuevo estado de la unidad correcta, la readiness matrix se recalcula y el impact report nombra unidades y artefactos downstream stale; evals sintéticos cubren confirmación, invalidación de supuesto y staleness; `verify.ps1` verde.
+- Afecta: `sentinel/sync.py`, `sentinel/gap_resolution.py`, `sentinel/discovery.py`, `sentinel/maturity.py`, `sentinel/health.py`, `tests/test_metabolism_ledger.py` + fixtures, `user_guide/05-traceability-and-memory.md`, `user_guide/03-workflows.md`, `CHANGELOG.md`.
+- Depende de: IMP-065, IMP-067, IMP-068.
+
+---
+
 ## Registro de cambios del backlog
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-15 | IMP-065 VERIFIED & PUSHED (branch `imp-065-knowledge-ledger`, PR #63): agregado Lens Knowledge Ledger como `01_discovery/knowledge_state.md/json`, con unidades por lente y estado (`CONFIRMED`/`ASSUMED`/`OPEN`/`INFERRED`), evidencia o `[PENDING INPUT]`, nodo `knowledge_ledger`, memoria local, `/status`, schema, tests y evals sintéticos. `verify.ps1` verde. |
+| 2026-06-15 | Horizonte 10 "Discovery profundo" promovido desde `docs/evolution/08-propuesta-discovery-depth.md`: creados IMP-065…IMP-069 como ítems `PENDING`, con orden estricto IMP-065 → IMP-066 → IMP-067 → IMP-068 → IMP-069. Reconciliados a DONE los estados stale de IMP-039…045 e IMP-051 por existir runtime/tests, como corrección documental previa. |
 | 2026-06-15 | IMP-064 VERIFIED & PUSHED (branch `imp-064-dashboard-skill`, PR #62): skill `sentinel-dashboard`, reference de registry para secciones/stages, mirrors `.agents/.claude` regenerados, doctor/test de sync ampliados y docs de usuario alineadas. `verify.ps1` verde. |
 | 2026-06-15 | IMP-063 confirmado MERGED por el usuario y arranque de IMP-064 en branch `imp-064-dashboard-skill`: skill `sentinel-dashboard`, reference de registry, docs de usuario y mirrors a regenerar. |
 | 2026-06-14 | IMP-063 VERIFIED & PUSHED (branch `imp-063-dashboard-runtime`, PR #61): agregado `/dashboard` portfolio read-only, HTML autocontenido `dashboard.html` git-ignored, registry declarativo de lifecycle/secciones, adapters regenerados, MCP local, tests sintéticos y docs públicas. `verify.ps1` verde. |
