@@ -337,6 +337,7 @@ By default:
 - [Repo And Branching Strategy](10-repo-and-branching-strategy.md): how to maintain the framework.
 - [Chat Commands](11-chat-commands.md): how chat commands map to CLI commands.
 - [Scenarios](12-scenarios.md): concrete examples of common situations.
+- [Dashboard](14-dashboard.md): read-only portfolio view across local workspaces.
 
 ## Practical Advice
 

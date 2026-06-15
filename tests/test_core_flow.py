@@ -893,8 +893,12 @@ Second section paragraph.
 
         self.assertEqual(skills_out_of_sync(ROOT.parent), [])
         for surface in (".agents/skills", ".claude/skills"):
-            skill = ROOT.parent / surface / "sentinel-discovery" / "SKILL.md"
-            self.assertTrue(skill.exists(), f"missing {surface} skill mirror")
+            discovery_skill = ROOT.parent / surface / "sentinel-discovery" / "SKILL.md"
+            self.assertTrue(discovery_skill.exists(), f"missing {surface} discovery skill mirror")
+            dashboard_skill = ROOT.parent / surface / "sentinel-dashboard" / "SKILL.md"
+            dashboard_reference = ROOT.parent / surface / "sentinel-dashboard" / "references" / "section-registry.md"
+            self.assertTrue(dashboard_skill.exists(), f"missing {surface} dashboard skill mirror")
+            self.assertTrue(dashboard_reference.exists(), f"missing {surface} dashboard registry reference")
 
     def test_mcp_server_exposes_lifecycle_tools(self) -> None:
         from sentinel.mcp import describe_tools, run_cli
