@@ -448,6 +448,14 @@ def raw_input_text(base: Path) -> str:
     return "\n\n".join(chunks)
 
 
+def scrutiny_grounding_text(base: Path) -> str:
+    """Raw input plus domain-owned context folders for citation validation."""
+    context = load_domain_context(base)
+    chunks = [raw_input_text(base)]
+    chunks.extend(text for text in context.values() if text.strip())
+    return "\n\n".join(chunks)
+
+
 def load_agent_annotation(source: Path) -> dict:
     raw = source.read_text(encoding="utf-8")
     try:
@@ -525,6 +533,63 @@ def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None, origin: str 
             }
         )
     return validated
+
+
+def _trace_refs_from_graph(project_id: str) -> dict[str, str]:
+    refs: dict[str, str] = {}
+    for node in load_graph(project_id).get("nodes", []):
+        node_type = node.get("type")
+        if node_type and node_type not in refs:
+            refs[str(node_type)] = str(node.get("id", ""))
+    return {
+        "raw_input": refs.get("raw_input", ""),
+        "requirement": refs.get("requirement", ""),
+        "gap_report": refs.get("gap_report", ""),
+        "decision_log": refs.get("decision_log", ""),
+        "identity_seed_bank": refs.get("identity_seed_bank", ""),
+        "lens_review": refs.get("lens_review", ""),
+    }
+
+
+def refresh_knowledge_ledger(project_id: str, broker: ContextBroker | None = None) -> dict[str, object]:
+    """Rebuild the discovery ledger from current governed artifacts."""
+    base = workspace_path(project_id)
+    seeds_path = base / "01_discovery" / "identity_seeds.md"
+    gaps_path = base / "01_discovery" / "gaps.md"
+    decisions_path = base / "01_discovery" / "decisions.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot refresh knowledge ledger before gaps.md exists.")
+    ledger = materialize_knowledge_ledger(
+        project_id,
+        seeds_path.read_text(encoding="utf-8") if seeds_path.exists() else "",
+        parse_gap_rows(gaps_path.read_text(encoding="utf-8")),
+        decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else "",
+        _trace_refs_from_graph(project_id),
+    )
+    ledger_md_path = ledger["md_path"]
+    refs = _trace_refs_from_graph(project_id)
+    ledger_id = add_node(
+        project_id,
+        "DISC",
+        "knowledge_ledger",
+        ledger_md_path,
+        "Lens knowledge ledger",
+        domain="product",
+    )
+    for source_id in (refs.get("identity_seed_bank"), refs.get("gap_report"), refs.get("decision_log"), refs.get("lens_review")):
+        if source_id:
+            add_edge(project_id, source_id, ledger_id, "consolidated_by")
+    if refs.get("requirement"):
+        add_edge(project_id, ledger_id, refs["requirement"], "grounds")
+    broker = broker or ContextBroker(project_id)
+    broker.index_artifact(
+        ledger_id,
+        "knowledge_ledger",
+        ledger_md_path,
+        ledger_md_path.read_text(encoding="utf-8"),
+        trace_ids=[trace_id for trace_id in [refs.get("raw_input"), refs.get("gap_report"), ledger_id] if trace_id],
+    )
+    return {"ledger_id": ledger_id, **ledger}
 
 
 def _string_list(value: object) -> list[str]:
@@ -862,6 +927,195 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
         "challenge_id": challenge_id,
         "path": str(gaps_path.as_posix()),
         "challenge_report": str(report_path.as_posix()),
+        "merged": [gap["id"] for gap in merged_new],
+        "skipped_duplicates": skipped,
+        "gap_counts": counts,
+    }
+
+
+# --- IMP-066: systematic multi-lens scrutiny (/scrutinize) --------------------
+#
+# /scrutinize is the governed channel for a systematic per-lens agent pass over
+# raw requirement + domain context. It reuses the same citation validation as
+# /annotate, but allows evidence to come from local context folders too, tags
+# findings `origin: scrutiny`, writes a report, and refreshes the knowledge
+# ledger so the new open units are visible to downstream progressive disclosure.
+
+SCRUTINY_FINDING_TYPES = {
+    "unstated-assumption",
+    "contradiction",
+    "mention-without-counterpart",
+    "domain-conflict",
+}
+
+
+def _finding_type_by_gap(data: dict) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for item in data.get("gaps", []) if isinstance(data.get("gaps"), list) else []:
+        if isinstance(item, dict):
+            gid = str(item.get("id", "")).strip().upper()
+            finding_type = str(item.get("finding_type", item.get("type", ""))).strip()
+            if gid and finding_type:
+                mapping[gid] = finding_type
+    return mapping
+
+
+def validate_scrutiny_gaps(data: dict, grounding_text: str, lens: str | None = None) -> list[dict[str, str]]:
+    gaps = validate_agent_gaps(data, grounding_text, origin="scrutiny")
+    valid_lenses = known_lenses()
+    if lens:
+        lens = lens.strip().lower()
+        if lens not in valid_lenses:
+            raise AnnotationError(
+                f"Scrutiny lens '{lens}' is not a declared lens ({', '.join(sorted(valid_lenses))})."
+            )
+        mismatched = [gap["id"] for gap in gaps if gap.get("lens") != lens]
+        if mismatched:
+            raise AnnotationError(
+                f"Scrutiny source includes gaps outside --lens {lens}: {', '.join(mismatched)}."
+            )
+    raw_items = data.get("gaps", [])
+    for item in raw_items if isinstance(raw_items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        finding_type = str(item.get("finding_type", item.get("type", ""))).strip()
+        if finding_type and finding_type not in SCRUTINY_FINDING_TYPES:
+            gap_id = str(item.get("id", "<unknown>")).strip().upper()
+            raise AnnotationError(
+                f"{gap_id}: finding_type '{finding_type}' must be one of "
+                f"{', '.join(sorted(SCRUTINY_FINDING_TYPES))}."
+            )
+    return gaps
+
+
+def render_scrutiny_report(
+    project_id: str,
+    label: str,
+    merged: list[dict[str, str]],
+    skipped: list[str],
+    data: dict,
+    lens_filter: str | None = None,
+) -> str:
+    finding_types = _finding_type_by_gap(data)
+    by_lens: dict[str, list[dict[str, str]]] = {}
+    for gap in merged:
+        by_lens.setdefault(gap["lens"], []).append(gap)
+    lens_blocks = []
+    for lens in sorted(by_lens):
+        rows = "\n".join(
+            f"| `{gap['id']}` | {gap['severity']} | {finding_types.get(gap['id'], 'n/a')} | {gap['question']} | {gap.get('evidence_mention', '')} |"
+            for gap in by_lens[lens]
+        )
+        lens_blocks.append(f"### Lens: `{lens}`\n\n| Gap ID | Severity | Finding Type | Question | Evidence Cited |\n| --- | --- | --- | --- | --- |\n{rows}")
+    lens_section = "\n\n".join(lens_blocks) or "_No new scrutiny gaps merged (all duplicates)._"
+    skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
+    lens_note = f"Lens filter: `{lens_filter}`." if lens_filter else "Lens filter: all declared lenses."
+    return f"""# Scrutiny Report - {project_id}
+
+Source: `{label}`. Origin: `scrutiny`. {lens_note}
+
+The agent scrutinized raw requirement evidence plus local domain context through
+the Ignite lens model. Every finding below was validated by the runtime
+(declared lens, severity range, valid finding type, and a verbatim local
+citation) before merging as a gap. The agent proposes; the BA remains in control.
+
+## Scrutiny Findings By Lens
+
+{lens_section}
+
+Skipped (already present in gaps.md): {skipped_block}
+"""
+
+
+def apply_scrutiny(project_id: str, source: Path, lens: str | None = None) -> dict[str, object]:
+    """Validate and merge systematic multi-lens scrutiny findings (IMP-066)."""
+    base = workspace_path(project_id)
+    if not base.exists():
+        raise RuntimeError(f"Workspace not found: {project_id}")
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot scrutinize before /ingest creates 01_discovery/gaps.md.")
+
+    grounding_text = scrutiny_grounding_text(base)
+    if not grounding_text.strip():
+        raise RuntimeError("No raw or domain context evidence found under 00_raw/ to ground scrutiny against.")
+
+    lens_filter = lens.strip().lower() if lens else None
+    data = load_agent_annotation(source)
+    scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter)
+
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
+    existing_ids = {gap["id"] for gap in real_existing}
+    req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
+
+    merged_new: list[dict[str, str]] = []
+    skipped: list[str] = []
+    for gap in scrutiny_gaps:
+        if gap["id"] in existing_ids:
+            skipped.append(gap["id"])
+            continue
+        merged_new.append(gap)
+        existing_ids.add(gap["id"])
+
+    merged = real_existing + merged_new
+    language = _annotation_project_language(project_id, base)
+    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+
+    scrutiny_dir = base / "01_discovery" / "scrutiny"
+    scrutiny_dir.mkdir(parents=True, exist_ok=True)
+    stored = _unique_path(scrutiny_dir / f"{source.stem}.json")
+    shutil.copyfile(source, stored)
+
+    report_path = base / "01_discovery" / "scrutiny_report.md"
+    report_path.write_text(
+        render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter),
+        encoding="utf-8",
+    )
+
+    graph_nodes = load_graph(project_id).get("nodes", [])
+    scrutiny_id = add_node(
+        project_id,
+        "DISC",
+        "scrutiny_report",
+        report_path,
+        f"Scrutiny report: {source.stem}",
+        domain="product",
+    )
+    for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
+        add_edge(project_id, raw_node["id"], scrutiny_id, "scrutinized_by")
+    for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
+        add_edge(project_id, scrutiny_id, gap_node["id"], "raises")
+
+    broker = ContextBroker(project_id)
+    broker.index_artifact(
+        scrutiny_id,
+        "scrutiny_report",
+        report_path,
+        report_path.read_text(encoding="utf-8"),
+        trace_ids=[scrutiny_id],
+    )
+    ledger = refresh_knowledge_ledger(project_id, broker)
+    mark_source_processed(project_id, source, "scrutiny_applied", scrutiny_id)
+
+    counts = count_gaps(merged)
+    counts["scrutiny_origin"] = sum(1 for gap in merged if gap.get("origin") == "scrutiny")
+    updates: dict[str, object] = {
+        "gap_counts": counts,
+        "readiness_stage": readiness_stage_for_counts(counts),
+        "last_scrutiny_id": scrutiny_id,
+        "knowledge_ledger_summary": ledger["payload"]["summary"],
+    }
+    if counts.get("blocking_open", 0):
+        updates["health"] = "DIRTY"
+    update_state(project_id, **updates)
+
+    return {
+        "project_id": project_id,
+        "scrutiny_id": scrutiny_id,
+        "path": str(gaps_path.as_posix()),
+        "scrutiny_report": str(report_path.as_posix()),
+        "knowledge_state": str(ledger["md_path"].as_posix()),
         "merged": [gap["id"] for gap in merged_new],
         "skipped_duplicates": skipped,
         "gap_counts": counts,

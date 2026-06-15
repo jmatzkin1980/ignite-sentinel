@@ -195,6 +195,30 @@ Outputs:
 - `challenge_report` traceability node linked from the raw input and to the gap report
 - `gap_counts.challenge_origin` in `state.json` (visible in `/status`)
 
+## `scrutinize`
+
+Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.
+
+```powershell
+python -m sentinel /scrutinize PROJECT_ID --source PATH
+python -m sentinel /scrutinize PROJECT_ID --source PATH --lens technical
+```
+
+The source JSON contains a `gaps` array. Each item declares `id`, `lens`, `severity`, `finding_type`, `question`, and verbatim `evidence`. Supported `finding_type` values are `unstated-assumption`, `contradiction`, `mention-without-counterpart`, and `domain-conflict`.
+
+Unlike `/annotate` and `/challenge`, `/scrutinize` validates citations against raw input and domain context folders so a finding can cross the client's stated requirement with Technology, Design, Quality, Delivery, or Compliance context already ingested locally. `--lens` is optional and rejects findings outside the requested lens instead of silently mixing concerns.
+
+On success the findings are tagged `origin: scrutiny`, merged into `gaps.md`, written to a traced and indexed `01_discovery/scrutiny_report.md`, and the discovery ledger (`knowledge_state.md/json`) is refreshed so open scrutiny units remain visible with their cited evidence.
+
+Outputs:
+
+- updated `01_discovery/gaps.md` (gaps with `origin: scrutiny`)
+- `01_discovery/scrutiny_report.md` (findings grouped by lens and finding type)
+- copied source under `01_discovery/scrutiny/`
+- `scrutiny_report` traceability node linked from the raw input and to the gap report
+- refreshed `01_discovery/knowledge_state.md` and `.json`
+- `gap_counts.scrutiny_origin` in `state.json` (visible in `/status`)
+
 ## `resolve-gaps`
 
 Process an answered `gaps.md` or equivalent Markdown file.

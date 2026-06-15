@@ -13,6 +13,7 @@ from .context_requests import generate_context_request
 from .dashboard import generate_dashboard
 from .discovery import apply_annotation
 from .discovery import apply_challenge
+from .discovery import apply_scrutiny
 from .discovery import ingest
 from .discovery import regenerate_gaps
 from .export import export_artifact
@@ -50,6 +51,7 @@ COMMANDS = {
     "gaps",
     "annotate",
     "challenge",
+    "scrutinize",
     "compose",
     "refine-backlog",
     "implementation-feedback",
@@ -117,6 +119,11 @@ def main(argv: list[str] | None = None) -> int:
     challenge_p = sub.add_parser("challenge")
     challenge_p.add_argument("project_id")
     challenge_p.add_argument("--source", required=True)
+
+    scrutinize_p = sub.add_parser("scrutinize")
+    scrutinize_p.add_argument("project_id")
+    scrutinize_p.add_argument("--source", required=True)
+    scrutinize_p.add_argument("--lens")
 
     compose_p = sub.add_parser("compose")
     compose_p.add_argument("project_id")
@@ -229,6 +236,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "challenge":
             result = apply_challenge(args.project_id, Path(args.source))
+            print_json(result)
+        elif args.command == "scrutinize":
+            result = apply_scrutiny(args.project_id, Path(args.source), args.lens)
             print_json(result)
         elif args.command == "compose":
             result = apply_prd_composition(args.project_id, Path(args.source))

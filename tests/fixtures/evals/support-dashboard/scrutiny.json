@@ -1,0 +1,14 @@
+{
+  "_comment": "IMP-066 demonstration input: systematic scrutiny finding grounded in raw input. The runtime validates the quote, tags origin scrutiny, writes scrutiny_report.md, and refreshes knowledge_state.",
+  "gaps": [
+    {
+      "id": "GAP-SCRUTINY-DASHBOARD-JOURNEY",
+      "lens": "design",
+      "severity": "medium",
+      "finding_type": "mention-without-counterpart",
+      "question": "Which navigation path, entry point, and handoff should support leads use to reach and act from the dashboard?",
+      "evidence": "In scope: a read-only dashboard for the current quarter.",
+      "description": "A dashboard screen is mentioned, but the journey and entry path are not defined."
+    }
+  ]
+}

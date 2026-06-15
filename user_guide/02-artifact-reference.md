@@ -161,6 +161,12 @@ Sanctioned record of agentic discovery analysis contributed through `/annotate` 
 
 Versionable record of the advanced-elicitation pass contributed through `/challenge` (IMP-023). Groups the merged findings by lens, showing the technique that surfaced each one (pre-mortem, role-play, assumption inversion), plus the imagined failure modes and inverted assumptions the agent reported. These gaps carry `origin: challenge` in `gaps.md` and a `challenge_report` traceability node linked from the raw input to the gap report. Like `/annotate`, findings are validated against the raw input before merging — the agent proposes with evidence; the runtime is the authority. The raw analysis JSON is archived under `01_discovery/challenges/`.
 
+### `scrutiny_report.md`
+
+Versionable record of the deep scrutiny pass contributed through `/scrutinize` (IMP-066). It groups cited findings by lens and finding type: unstated assumptions, contradictions, mentions without counterpart, and domain conflicts. Findings may cite raw input or local domain context, but unsupported citations are rejected before anything is merged.
+
+These gaps carry `origin: scrutiny` in `gaps.md`, create a `scrutiny_report` traceability node, and refresh `knowledge_state.md/json` so open scrutiny findings stay visible as governed ledger units instead of becoming free-form agent notes. The raw JSON source is archived under `01_discovery/scrutiny/`.
+
 ### `decisions.md`
 
 Pending or captured decisions that affect the requirement.

@@ -179,10 +179,11 @@ def knowledge_ledger_status(ws: Path, key: dict) -> dict[str, object]:
     }
 
 
-def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
+def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutiny: bool = False) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
     annotation = fixture_dir / "annotation.json"
+    scrutiny = fixture_dir / "scrutiny.json"
     gap_responses = fixture_dir / "gap_responses.md"
     gap_response_rounds = fixture_dir / "gap_response_rounds"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
@@ -203,7 +204,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                     assert main(["annotate", project_id, "--source", str(annotation)]) == 0, (
                         f"annotate failed for {fixture_dir.name}"
                     )
-                if not apply_annotation:
+                if apply_scrutiny and scrutiny.exists():
+                    assert main(["scrutinize", project_id, "--source", str(scrutiny)]) == 0, (
+                        f"scrutinize failed for {fixture_dir.name}"
+                    )
+                if not apply_annotation and not apply_scrutiny:
                     response_sources = []
                     if gap_responses.exists():
                         response_sources.append(gap_responses)
@@ -214,7 +219,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
                             f"resolve-gaps failed for {fixture_dir.name}: {response_source.name}"
                         )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
-                if not apply_annotation:
+                if not apply_annotation and not apply_scrutiny:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
                     backlog_command = ["backlog", project_id]
                     if key.get("task_seeds", {}).get("with_task_seeds"):
@@ -266,7 +271,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
-            if apply_annotation:
+            if apply_annotation or apply_scrutiny:
                 prd_status = {section: "pending" for section in PRD_TRACKED_SECTIONS}
                 specs_scaffold = {"ids": [], "count": 0}
                 backlog_derivation = {
@@ -293,11 +298,11 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
             slice_plan = slice_plan_eval(ws, key)
             story_quality = story_quality_eval(ws, key)
             backlog_hooks = backlog_hooks_eval(ws, key)
-            task_seeds = task_seeds_eval(ws, key) if not apply_annotation else {"ok": True, "mismatches": []}
+            task_seeds = task_seeds_eval(ws, key) if not (apply_annotation or apply_scrutiny) else {"ok": True, "mismatches": []}
             knowledge_ledger = knowledge_ledger_status(ws, key)
             implementation_feedback = (
                 {"ok": True, "mismatches": []}
-                if apply_annotation
+                if apply_annotation or apply_scrutiny
                 else implementation_feedback_eval(ws, key)
             )
         finally:
@@ -352,6 +357,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False) -> dict:
     expected_gap_details = dict(key.get("expected_gap_details", {}))
     if apply_annotation:
         expected_gap_details.update(key.get("annotate", {}).get("expected_gap_details", {}))
+    if apply_scrutiny:
+        expected_gap_details.update(key.get("scrutinize", {}).get("expected_gap_details", {}))
     gap_detail_mismatches = []
     for gap_id, expected in expected_gap_details.items():
         actual = gap_details.get(gap_id)
@@ -961,6 +968,12 @@ def run_all() -> int:
         for d, r in zip(fixture_dirs, results)
     ]
     annotated_fixtures = sum(1 for d in fixture_dirs if (d / "annotation.json").exists())
+    scrutinized_results = [
+        run_fixture(d, apply_scrutiny=True)
+        for d in fixture_dirs
+        if (d / "scrutiny.json").exists()
+    ]
+    scrutinized_fixtures = sum(1 for d in fixture_dirs if (d / "scrutiny.json").exists())
 
     report = {
         "date": date.today().isoformat(),
@@ -974,6 +987,8 @@ def run_all() -> int:
                 sum(r["target_recall"] for r in annotated_results) / len(annotated_results), 3
             ),
             "annotated_fixtures": annotated_fixtures,
+            "scrutinized_fixtures": scrutinized_fixtures,
+            "scrutiny_ok": all(not r["gap_detail_mismatches"] for r in scrutinized_results),
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
             "avg_brief_expected_pending_coverage": round(
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
@@ -1066,6 +1081,7 @@ def run_all() -> int:
         f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
+        f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "

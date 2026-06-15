@@ -60,6 +60,15 @@
     "required_lenses": ["business", "product"],
     "require_evidence_or_pending": true
   },
+  "scrutinize": {
+    "expected_gap_details": {
+      "GAP-SCRUTINY-DASHBOARD-JOURNEY": {
+        "lens": "design",
+        "severity": "medium",
+        "origin": "scrutiny"
+      }
+    }
+  },
   "brief": {
     "target_populated": [
       "1",
