@@ -56,6 +56,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("validate", "Validate structure plus non-blocking semantic quality scores.", ["project_id"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, and assumption inversion; writes challenge_report.md.", ["project_id", "source"]),
+    ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
     ("refine_backlog", "Merge validated agent-authored backlog refinement proposals; every proposal cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
     ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
@@ -213,15 +214,22 @@ def build_server():
     def sentinel_challenge(project_id: str, source: str) -> dict:
         return run_cli(["challenge", project_id, "--source", source])
 
-    @server.tool(name="sentinel_compose", description=TOOL_SPECS[21][1])
+    @server.tool(name="sentinel_scrutinize", description=TOOL_SPECS[21][1])
+    def sentinel_scrutinize(project_id: str, source: str, lens: str = "") -> dict:
+        arguments = ["scrutinize", project_id, "--source", source]
+        if lens:
+            arguments += ["--lens", lens]
+        return run_cli(arguments)
+
+    @server.tool(name="sentinel_compose", description=TOOL_SPECS[22][1])
     def sentinel_compose(project_id: str, source: str) -> dict:
         return run_cli(["compose", project_id, "--source", source])
 
-    @server.tool(name="sentinel_refine_backlog", description=TOOL_SPECS[22][1])
+    @server.tool(name="sentinel_refine_backlog", description=TOOL_SPECS[23][1])
     def sentinel_refine_backlog(project_id: str, source: str) -> dict:
         return run_cli(["refine-backlog", project_id, "--source", source])
 
-    @server.tool(name="sentinel_story_status", description=TOOL_SPECS[23][1])
+    @server.tool(name="sentinel_story_status", description=TOOL_SPECS[24][1])
     def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "") -> dict:
         arguments = ["story-status", project_id, "--story", story, "--set", status]
         if owner:
@@ -230,11 +238,11 @@ def build_server():
             arguments += ["--evidence", evidence]
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_backlog_status", description=TOOL_SPECS[24][1])
+    @server.tool(name="sentinel_backlog_status", description=TOOL_SPECS[25][1])
     def sentinel_backlog_status(project_id: str) -> dict:
         return run_cli(["backlog-status", project_id])
 
-    @server.tool(name="sentinel_implementation_feedback", description=TOOL_SPECS[25][1])
+    @server.tool(name="sentinel_implementation_feedback", description=TOOL_SPECS[26][1])
     def sentinel_implementation_feedback(project_id: str, source: str) -> dict:
         return run_cli(["implementation-feedback", project_id, "--source", source])
 

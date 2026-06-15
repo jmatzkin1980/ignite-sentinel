@@ -10,7 +10,7 @@
     "parent_id": { "type": "string" },
     "description": { "type": "string" },
     "lens": { "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"] },
-    "origin": { "enum": ["checklist", "agent", "challenge"], "default": "checklist" },
+    "origin": { "enum": ["checklist", "agent", "challenge", "scrutiny"], "default": "checklist" },
     "question": { "type": "string" },
     "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." }
   }

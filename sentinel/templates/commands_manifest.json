@@ -14,6 +14,12 @@
       "body": "# Ignite Challenge\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/challenge PROJECT_ID --source PATH\n```\n\nFirst run advanced elicitation over the maturing requirement, per lens (invariant #1): pre-mortem (\"the project failed at 6 months — what did we fail to ask?\"), role-play by lens (operator, auditor, attacker...), and assumption inversion. Capture findings in a JSON `--source` file: a `gaps` array (each gap has `id`, `lens`, `severity`, `question`, a verbatim `evidence` quote from the raw input, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /challenge PROJECT_ID --source PATH\n```\n\nThe runtime validates each finding exactly like `/annotate` (declared lens, severity range, verbatim evidence), tags them `origin: challenge`, merges them into `01_discovery/gaps.md`, and writes a traced, indexed `01_discovery/challenge_report.md`. Summarize merged and skipped gap IDs plus updated gap counts."
     },
     {
+      "name": "scrutinize",
+      "description": "Merge systematic per-lens scrutiny findings as cited gaps (origin: scrutiny) and refresh the knowledge ledger.",
+      "kilo_agent": "sentinel-discovery",
+      "body": "# Ignite Scrutinize\n\nParse `PROJECT_ID`, optional `--lens LENS`, and `--source PATH` from:\n\n```text\n/scrutinize PROJECT_ID --source PATH\n/scrutinize PROJECT_ID --lens technical --source PATH\n```\n\nThe `--source` file is JSON with systematic findings by Ignite lens. Each gap has `id`, `lens`, `severity`, `finding_type` (`unstated-assumption`, `contradiction`, `mention-without-counterpart`, or `domain-conflict`), `question`, and a verbatim `evidence` quote from the raw input or local domain context folders.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /scrutinize PROJECT_ID --source PATH\n```\n\nThe runtime validates declared lens, optional lens filter, severity, finding type, and citation; tags accepted gaps `origin: scrutiny`; writes `01_discovery/scrutiny_report.md`; refreshes `01_discovery/knowledge_state.md/json`; and records traceability. Summarize merged/skipped gap IDs, updated gap counts, and the ledger path."
+    },
+    {
       "name": "compose",
       "description": "Merge validated agent-authored PRD narrative blocks with verbatim local citations.",
       "kilo_agent": "sentinel-specs",

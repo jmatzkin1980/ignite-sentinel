@@ -36,9 +36,10 @@ Optionally, deepen discovery beyond the deterministic checklist before resolving
 ```powershell
 python -m sentinel /annotate PROJECT_ID --source input\interactions\analysis.json
 python -m sentinel /challenge PROJECT_ID --source input\interactions\findings.json
+python -m sentinel /scrutinize PROJECT_ID --source input\interactions\scrutiny.json
 ```
 
-`/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`). Both keep the runtime as the authority — the agent cites, it never invents — and the merged gaps flow through `/resolve-gaps` like any other.
+`/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`); `/scrutinize` crosses raw input with local domain context and writes `01_discovery/scrutiny_report.md` (`origin: scrutiny`) while refreshing the discovery ledger. All three keep the runtime as the authority — the agent cites, it never invents — and the merged gaps flow through `/resolve-gaps` like any other.
 
 If maturity is `BLOCKED`, review:
 

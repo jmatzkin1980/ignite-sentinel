@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/scrutiny.schema.json",
+  "title": "Ignite Sentinel Scrutiny Analysis",
+  "type": "object",
+  "required": ["gaps"],
+  "additionalProperties": true,
+  "properties": {
+    "gaps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "lens", "severity", "question", "evidence", "finding_type"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^GAP-[A-Z0-9-]+$"
+          },
+          "lens": {
+            "type": "string",
+            "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "finding_type": {
+            "type": "string",
+            "enum": ["unstated-assumption", "contradiction", "mention-without-counterpart", "domain-conflict"]
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verbatim local quote from raw input or domain context."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

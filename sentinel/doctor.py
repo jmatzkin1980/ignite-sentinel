@@ -32,6 +32,7 @@ REQUIRED_COMMANDS = [
     "gaps",
     "annotate",
     "challenge",
+    "scrutinize",
     "compose",
     "refine-backlog",
     "story-status",
@@ -45,6 +46,7 @@ REQUIRED_COMMANDS = [
 REQUIRED_CODEX_SKILLS = [
     "sentinel-annotate",
     "sentinel-challenge",
+    "sentinel-scrutiny",
     "sentinel-compose",
     "sentinel-backlog",
     "sentinel-backlog-refine",

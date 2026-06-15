@@ -19,6 +19,7 @@ MUTATING_COMMANDS = {
     "gaps",
     "annotate",
     "challenge",
+    "scrutinize",
     "compose",
     "refine-backlog",
     "implementation-feedback",

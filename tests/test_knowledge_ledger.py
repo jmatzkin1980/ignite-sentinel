@@ -60,7 +60,9 @@ class KnowledgeLedgerTest(unittest.TestCase):
             self.assertIn(unit["status"], {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"})
             evidence = unit["evidence"]
             if unit["status"] == "OPEN":
-                self.assertEqual(evidence.get("note"), "[PENDING INPUT]")
+                self.assertTrue(
+                    evidence.get("note") == "[PENDING INPUT]" or (evidence.get("trace_id") and evidence.get("quote"))
+                )
             else:
                 self.assertTrue(evidence.get("trace_id"))
                 self.assertTrue(evidence.get("quote"))

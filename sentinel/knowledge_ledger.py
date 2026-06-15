@@ -64,7 +64,9 @@ def build_knowledge_units(
         status = normalize_gap_status(gap.get("status", "OPEN"))
         statement = gap.get("description") or gap.get("question") or gap.get("id", "Unresolved discovery gap")
         evidence = {"note": "[PENDING INPUT]"}
-        if status == "CONFIRMED" and gap.get("resolution_note"):
+        if gap.get("evidence_mention"):
+            evidence = {"trace_id": trace_refs.get("gap_report"), "quote": gap["evidence_mention"]}
+        elif status == "CONFIRMED" and gap.get("resolution_note"):
             evidence = {"trace_id": trace_refs.get("gap_report"), "quote": gap["resolution_note"]}
         unit = {
             "id": f"KLU-{sequence:03d}",
