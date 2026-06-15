@@ -876,12 +876,13 @@ Second section paragraph.
         from sentinel.adapters import manifest_command_names, out_of_sync
 
         names = manifest_command_names()
-        self.assertEqual(len(names), 29)
+        self.assertEqual(len(names), 30)
         self.assertIn("sentinel", names)
         self.assertIn("dashboard", names)
         self.assertIn("annotate", names)
         self.assertIn("challenge", names)
         self.assertIn("scrutinize", names)
+        self.assertIn("assume", names)
         self.assertIn("compose", names)
         self.assertIn("refine-backlog", names)
         self.assertIn("implementation-feedback", names)
@@ -905,8 +906,8 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 27)
-        for expected in ("sentinel_dashboard", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status"):
+        self.assertEqual(len(names), 28)
+        for expected in ("sentinel_dashboard", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_assume", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status"):
             self.assertIn(expected, names)
 
         result = run_cli(["init", "MCPX"])

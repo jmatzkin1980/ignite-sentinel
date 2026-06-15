@@ -39,6 +39,7 @@ def prefix_for_node_type(node_type: str) -> str:
         "discovery_log": "DISC",
         "lens_review": "DISC",
         "knowledge_ledger": "DISC",
+        "assumption_register": "DISC",
         "agent_annotation": "DISC",
         "scrutiny_report": "DISC",
         "project_brief": "REQ",

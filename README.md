@@ -12,7 +12,7 @@ Most tools generate documents. Ignite Sentinel does something harder: it *mature
 The source of truth is always the versionable files under `workspaces/PROJECT_ID/`. Local memory is a retrieval aid, never the authority. No client content leaves your machine.
 
 ```text
-  raw input ──/ingest──▶ discovery gaps ──(optional)──▶ /annotate · /challenge · /scrutinize
+  raw input ──/ingest──▶ discovery gaps ──(optional)──▶ /annotate · /challenge · /scrutinize · /assume
                               │                          (agentic deepening)
                               ▼
                         /resolve-gaps ──▶ /maturity ──▶ /brief
@@ -46,7 +46,7 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
 - **Purpose-built for maturing requirements — not a generic spec generator.** Unlike general spec-driven (SDD) or BMAD-style frameworks, Ignite targets the specific BA/Product pain: working raw client input into a *robust* spec. Discovery is the heart of the system, not an afterthought.
 - **It matures, it doesn't fabricate.** Every downstream artifact traces back to confirmed evidence. What isn't known yet stays a visible `GAP-*` or `[PENDING INPUT]` — the framework refuses to invent scope.
 - **The lifecycle is governed, not just generated.** Gates stop you from building specs on an immature requirement or a backlog on stale context. When a command blocks, it tells you the correct previous step.
-- **The agent is a sanctioned analyst, not a free hand.** Agents can deepen discovery (`/annotate`, `/challenge`, `/scrutinize`), enrich the PRD (`/compose`) and refine the backlog (`/refine-backlog`) — but the runtime validates every contribution against a verbatim quote before it touches an artifact. You stay in control.
+- **The agent is a sanctioned analyst, not a free hand.** Agents can deepen discovery (`/annotate`, `/challenge`, `/scrutinize`), register BA-owned assumptions (`/assume`), enrich the PRD (`/compose`) and refine the backlog (`/refine-backlog`) — but the runtime validates every contribution against a verbatim quote before it touches an artifact. You stay in control.
 - **Vector-backed progressive disclosure.** A *local* vector index (LanceDB, or a deterministic fallback) feeds each phase and activity only the context it needs — generation reads the exact section instead of rereading the whole workspace.
 - **Local-first by default.** No remote MCP, external vector database, or external embedding service for client content. Runs fully on a locked-down VDI; LanceDB is optional and degrades to deterministic `json-hybrid`; semantic embeddings are optional local packages only.
 - **One source, every agent.** The same lifecycle drives Codex, Kilo Code, Claude Code/Desktop, an MCP server, or the plain CLI — adapters are generated from a single manifest, so they never drift.
@@ -63,7 +63,7 @@ If your hardest problem is *maturing* requirements — not writing them up after
 
 Three phases, one governed flow: **Discovery → Specs → Backlog.**
 
-Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), and can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`). Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed and cited, or explicitly pending, with per-section readiness and maturation telemetry showing exactly where discovery is stuck.
+Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`), and can register explicit BA-owned assumptions (`/assume`) when the team chooses to proceed with visible risk. Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed, explicitly assumed, or pending, with per-section readiness and maturation telemetry showing exactly where discovery is stuck.
 
 Downstream generation stays **progressively disclosed**: each command reads the exact context it needs, never the whole workspace.
 
@@ -81,6 +81,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/annotate` | Merge agent-proposed **semantic** gaps (verbatim-cited, `origin: agent`) |
 | `/challenge` | Advanced elicitation: pre-mortem + per-lens role-play |
 | `/scrutinize` | Deep multi-lens scrutiny against raw input and domain context |
+| `/assume` | Register BA-owned governed assumptions with owner, risk, and cited basis |
 | `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
 | `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry) |
 | `/brief` | Compile the evidence-backed project brief |
@@ -189,6 +190,7 @@ python -m sentinel /gaps ACME_DASHBOARD
 python -m sentinel /annotate ACME_DASHBOARD --source input\interactions\analysis.json     # optional: agentic gaps
 python -m sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json     # optional: pre-mortem
 python -m sentinel /scrutinize ACME_DASHBOARD --source input\interactions\scrutiny.json   # optional: multi-lens scrutiny
+python -m sentinel /assume ACME_DASHBOARD --source input\interactions\assumptions.json    # optional: governed assumptions
 python -m sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
 python -m sentinel /maturity ACME_DASHBOARD
 python -m sentinel /brief ACME_DASHBOARD

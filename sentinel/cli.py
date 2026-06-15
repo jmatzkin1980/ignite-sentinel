@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .doctor import run_doctor
+from .assumptions import apply_assumptions
 from .backlog_refinement import apply_backlog_refinement
 from .backlog_rollup import backlog_status
 from .backlog_status import update_story_status
@@ -52,6 +53,7 @@ COMMANDS = {
     "annotate",
     "challenge",
     "scrutinize",
+    "assume",
     "compose",
     "refine-backlog",
     "implementation-feedback",
@@ -124,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
     scrutinize_p.add_argument("project_id")
     scrutinize_p.add_argument("--source", required=True)
     scrutinize_p.add_argument("--lens")
+
+    assume_p = sub.add_parser("assume")
+    assume_p.add_argument("project_id")
+    assume_p.add_argument("--source", required=True)
 
     compose_p = sub.add_parser("compose")
     compose_p.add_argument("project_id")
@@ -239,6 +245,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "scrutinize":
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens)
+            print_json(result)
+        elif args.command == "assume":
+            result = apply_assumptions(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "compose":
             result = apply_prd_composition(args.project_id, Path(args.source))

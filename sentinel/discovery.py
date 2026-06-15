@@ -548,6 +548,7 @@ def _trace_refs_from_graph(project_id: str) -> dict[str, str]:
         "decision_log": refs.get("decision_log", ""),
         "identity_seed_bank": refs.get("identity_seed_bank", ""),
         "lens_review": refs.get("lens_review", ""),
+        "assumption_register": refs.get("assumption_register", ""),
     }
 
 
@@ -557,6 +558,7 @@ def refresh_knowledge_ledger(project_id: str, broker: ContextBroker | None = Non
     seeds_path = base / "01_discovery" / "identity_seeds.md"
     gaps_path = base / "01_discovery" / "gaps.md"
     decisions_path = base / "01_discovery" / "decisions.md"
+    assumptions_path = base / "01_discovery" / "assumptions.md"
     if not gaps_path.exists():
         raise RuntimeError("Cannot refresh knowledge ledger before gaps.md exists.")
     ledger = materialize_knowledge_ledger(
@@ -565,6 +567,7 @@ def refresh_knowledge_ledger(project_id: str, broker: ContextBroker | None = Non
         parse_gap_rows(gaps_path.read_text(encoding="utf-8")),
         decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else "",
         _trace_refs_from_graph(project_id),
+        assumptions_path.read_text(encoding="utf-8") if assumptions_path.exists() else "",
     )
     ledger_md_path = ledger["md_path"]
     refs = _trace_refs_from_graph(project_id)
@@ -576,7 +579,7 @@ def refresh_knowledge_ledger(project_id: str, broker: ContextBroker | None = Non
         "Lens knowledge ledger",
         domain="product",
     )
-    for source_id in (refs.get("identity_seed_bank"), refs.get("gap_report"), refs.get("decision_log"), refs.get("lens_review")):
+    for source_id in (refs.get("identity_seed_bank"), refs.get("gap_report"), refs.get("decision_log"), refs.get("lens_review"), refs.get("assumption_register")):
         if source_id:
             add_edge(project_id, source_id, ledger_id, "consolidated_by")
     if refs.get("requirement"):

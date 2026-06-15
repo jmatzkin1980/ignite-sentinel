@@ -167,6 +167,12 @@ Versionable record of the deep scrutiny pass contributed through `/scrutinize` (
 
 These gaps carry `origin: scrutiny` in `gaps.md`, create a `scrutiny_report` traceability node, and refresh `knowledge_state.md/json` so open scrutiny findings stay visible as governed ledger units instead of becoming free-form agent notes. The raw JSON source is archived under `01_discovery/scrutiny/`.
 
+### `assumptions.md`
+
+Governed assumption register contributed through `/assume` (IMP-067). It records explicit BA-owned assumptions with lens, statement, human owner, risk level, verbatim local justification, optional provisional `GAP-*` link, and status `ASSUMED`.
+
+Assumptions are the visible middle state between confirmed evidence and open uncertainty. They refresh `knowledge_state.md/json` as `ASSUMED` units, create an `assumption_register` traceability node, and are surfaced in `/maturity` / `/status` by risk. Downstream artifacts may cite them explicitly, but they do not convert a gap into confirmed scope.
+
 ### `decisions.md`
 
 Pending or captured decisions that affect the requirement.
