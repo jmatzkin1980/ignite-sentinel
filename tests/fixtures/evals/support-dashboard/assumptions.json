@@ -1,0 +1,14 @@
+{
+  "_comment": "IMP-067 demonstration input: governed BA-owned assumption with verbatim local basis. The runtime validates the quote, writes assumptions.md, and refreshes knowledge_state with ASSUMED units.",
+  "assumptions": [
+    {
+      "id": "ASM-TECH-SUPPORT-METRICS",
+      "lens": "technical",
+      "statement": "The first dashboard slice will provisionally use the existing ticket metrics source for ticket volume, resolution time, and backlog ageing.",
+      "owner": "Technology Lead",
+      "risk": "med",
+      "justification": "They want to see ticket volume, resolution time, and backlog ageing in one screen.",
+      "closes_gap": "GAP-TECH-DATA-SOURCE"
+    }
+  ]
+}

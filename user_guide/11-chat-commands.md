@@ -16,6 +16,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I read the requirement and spotted gaps the checklist missed" | `/annotate --source analysis.json` → `/status` | Agent proposes semantic gaps with verbatim citations; runtime tags them `origin: agent` and merges. |
 | "Stress-test the requirement — what are we not asking?" / "run a pre-mortem" | `/challenge --source findings.json` → `/status` | Agent runs pre-mortem, per-lens role-play, and assumption inversion; runtime validates and merges findings as `origin: challenge` plus a `challenge_report.md`. |
 | "Scrutinize this requirement against domain context" / "run deep lens scrutiny" | `/scrutinize --source scrutiny.json` → `/status` | Agent proposes per-lens findings with verbatim raw or domain-context citations; runtime tags them `origin: scrutiny`, writes `scrutiny_report.md`, and refreshes the knowledge ledger. |
+| "We need to proceed with this assumption" / "record this as assumed, not confirmed" | `/assume --source assumptions.json` → `/status` | Registers human-owned assumptions with risk and local cited basis; runtime writes `assumptions.md`, refreshes `knowledge_state`, and surfaces assumption risk in maturity/status. |
 | "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes; for functional prose answers, mention any `EARS-eligible, not normalized` count and propose a BA-confirmed EARS rewrite. |
 | "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
 | "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
@@ -94,6 +95,7 @@ Use these directly in Kilo chat:
 /maturity PROJECT_ID
 /gaps PROJECT_ID
 /scrutinize PROJECT_ID --source input\interactions\scrutiny.json
+/assume PROJECT_ID --source input\interactions\assumptions.json
 /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 /brief PROJECT_ID
 /context-request PROJECT_ID --domain technology
@@ -153,6 +155,7 @@ sentinel /dashboard
 sentinel /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 sentinel /maturity PROJECT_ID
 sentinel /scrutinize PROJECT_ID --source input\interactions\scrutiny.json
+sentinel /assume PROJECT_ID --source input\interactions\assumptions.json
 sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
 

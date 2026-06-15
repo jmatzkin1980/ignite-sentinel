@@ -219,6 +219,34 @@ Outputs:
 - refreshed `01_discovery/knowledge_state.md` and `.json`
 - `gap_counts.scrutiny_origin` in `state.json` (visible in `/status`)
 
+## `assume`
+
+Register governed BA-owned assumptions (IMP-067) when the team chooses to proceed with explicit risk instead of hiding uncertainty or pretending it is confirmed.
+
+```powershell
+python -m sentinel /assume PROJECT_ID --source PATH
+```
+
+The source JSON contains `assumptions[]`. Each item declares:
+
+- `id`: `ASM-*`
+- `lens`: one Ignite lens
+- `statement`: the assumption being made
+- `owner`: human owner, such as BA, Product Owner, or domain lead
+- `risk`: `low`, `med`, or `high`
+- `justification`: verbatim local evidence quote
+- `closes_gap`: optional `GAP-*` provisionally addressed by the assumption
+
+The runtime validates the lens, owner, risk, and local quote; writes `01_discovery/assumptions.md`; traces and indexes the assumption register; and refreshes `knowledge_state.md/json` with `ASSUMED` units. Assumptions do not become confirmed evidence: high-risk linked assumptions remain visible in `/maturity` and `/status`, and downstream artifacts cite them as assumptions.
+
+Outputs:
+
+- `01_discovery/assumptions.md`
+- archived source under `01_discovery/assumptions/`
+- refreshed `01_discovery/knowledge_state.md` and `.json`
+- `assumption_register` traceability node
+- `maturity_metrics.assumptions` in `/maturity` and `/status`
+
 ## `resolve-gaps`
 
 Process an answered `gaps.md` or equivalent Markdown file.

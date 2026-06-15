@@ -2218,6 +2218,20 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
         kpi_primary_row = (
             f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | `GAP-METRIC-SOURCE` |"
         )
+    from .assumptions import render_prd_assumption_rows
+
+    governed_assumption_rows = render_prd_assumption_rows(project_id)
+    assumption_rows = governed_assumption_rows or "\n".join(
+        [
+            "| ASM-01 | Details absent from confirmed evidence remain pending and must not be silently converted into backlog scope. | Rework and loss of trust. | Sentinel guardrail | Active |",
+            "| ASM-02 | Domain context in memory is sufficient to draft PRD sections, with gaps where evidence is missing. | PRD may be too generic. | `08_context_packs/specs_generation.json` | Active |",
+        ]
+    )
+    assumption_header = (
+        "| ID | Assumption | Risk | Owner | Source Basis | Linked Gap | Status |\n| --- | --- | --- | --- | --- | --- | --- |"
+        if governed_assumption_rows else
+        "| ID | Assumption | Impact if Wrong | Source Basis | Status |\n| --- | --- | --- | --- | --- |"
+    )
     return f"""# PRD - {project_id}
 
 # {project_id} - Strategic Foundation
@@ -2327,10 +2341,8 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 ### 9a. Assumption Register
 
-| ID | Assumption | Impact if Wrong | Source Basis | Status |
-| --- | --- | --- | --- | --- |
-| ASM-01 | Details absent from confirmed evidence remain pending and must not be silently converted into backlog scope. | Rework and loss of trust. | Sentinel guardrail | Active |
-| ASM-02 | Domain context in memory is sufficient to draft PRD sections, with gaps where evidence is missing. | PRD may be too generic. | `08_context_packs/specs_generation.json` | Active |
+{assumption_header}
+{assumption_rows}
 
 ### 9b. Risk Register
 

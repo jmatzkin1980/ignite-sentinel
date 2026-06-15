@@ -179,11 +179,49 @@ def knowledge_ledger_status(ws: Path, key: dict) -> dict[str, object]:
     }
 
 
-def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutiny: bool = False) -> dict:
+def assumption_status(ws: Path, key: dict) -> dict[str, object]:
+    assume_key = key.get("assume", {})
+    expected = assume_key.get("expected_assumptions", {}) if isinstance(assume_key, dict) else {}
+    if not expected:
+        return {"ok": True, "mismatches": []}
+    assumptions_path = ws / "01_discovery" / "assumptions.md"
+    ledger_path = ws / "01_discovery" / "knowledge_state.json"
+    prd_path = ws / "03_specs" / "prd.md"
+    brief_path = ws / "02_requirements" / "project-brief.md"
+    mismatches: list[str] = []
+    assumptions_text = assumptions_path.read_text(encoding="utf-8") if assumptions_path.exists() else ""
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {"units": []}
+    prd_text = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
+    brief_text = brief_path.read_text(encoding="utf-8") if brief_path.exists() else ""
+    for assumption_id, expected_fields in expected.items():
+        if assumption_id not in assumptions_text:
+            mismatches.append(f"assumptions.md missing {assumption_id}")
+        unit = next((u for u in ledger.get("units", []) if assumption_id in json.dumps(u, ensure_ascii=False)), None)
+        if not unit:
+            mismatches.append(f"knowledge_state missing {assumption_id}")
+        elif unit.get("status") != "ASSUMED":
+            mismatches.append(f"{assumption_id} expected ASSUMED ledger unit, got {unit.get('status')}")
+        for field, expected_value in expected_fields.items():
+            if str(expected_value) not in assumptions_text:
+                mismatches.append(f"{assumption_id} missing {field}={expected_value} in assumptions.md")
+        if assume_key.get("expect_in_brief") and assumption_id not in brief_text:
+            mismatches.append(f"project-brief.md missing {assumption_id}")
+        if assume_key.get("expect_in_prd") and assumption_id not in prd_text:
+            mismatches.append(f"prd.md missing {assumption_id}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def run_fixture(
+    fixture_dir: Path,
+    apply_annotation: bool = False,
+    apply_scrutiny: bool = False,
+    apply_assumptions: bool = False,
+) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
     annotation = fixture_dir / "annotation.json"
     scrutiny = fixture_dir / "scrutiny.json"
+    assumptions = fixture_dir / "assumptions.json"
     gap_responses = fixture_dir / "gap_responses.md"
     gap_response_rounds = fixture_dir / "gap_response_rounds"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
@@ -207,6 +245,10 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutin
                 if apply_scrutiny and scrutiny.exists():
                     assert main(["scrutinize", project_id, "--source", str(scrutiny)]) == 0, (
                         f"scrutinize failed for {fixture_dir.name}"
+                    )
+                if apply_assumptions and assumptions.exists():
+                    assert main(["assume", project_id, "--source", str(assumptions)]) == 0, (
+                        f"assume failed for {fixture_dir.name}"
                     )
                 if not apply_annotation and not apply_scrutiny:
                     response_sources = []
@@ -300,6 +342,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutin
             backlog_hooks = backlog_hooks_eval(ws, key)
             task_seeds = task_seeds_eval(ws, key) if not (apply_annotation or apply_scrutiny) else {"ok": True, "mismatches": []}
             knowledge_ledger = knowledge_ledger_status(ws, key)
+            assumption_eval = assumption_status(ws, key) if apply_assumptions else {"ok": True, "mismatches": []}
             implementation_feedback = (
                 {"ok": True, "mismatches": []}
                 if apply_annotation or apply_scrutiny
@@ -348,6 +391,7 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutin
     backlog_mismatches.extend(backlog_hooks["mismatches"])
     backlog_mismatches.extend(task_seeds["mismatches"])
     backlog_mismatches.extend(knowledge_ledger["mismatches"])
+    backlog_mismatches.extend(assumption_eval["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
@@ -450,6 +494,8 @@ def run_fixture(fixture_dir: Path, apply_annotation: bool = False, apply_scrutin
         "knowledge_ledger_total": knowledge_ledger["total"],
         "knowledge_ledger_by_status": knowledge_ledger["by_status"],
         "knowledge_ledger_by_lens": knowledge_ledger["by_lens"],
+        "assumption_ok": assumption_eval["ok"],
+        "assumption_mismatches": assumption_eval["mismatches"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
@@ -974,6 +1020,12 @@ def run_all() -> int:
         if (d / "scrutiny.json").exists()
     ]
     scrutinized_fixtures = sum(1 for d in fixture_dirs if (d / "scrutiny.json").exists())
+    assumed_results = [
+        run_fixture(d, apply_assumptions=True)
+        for d in fixture_dirs
+        if (d / "assumptions.json").exists()
+    ]
+    assumed_fixtures = sum(1 for d in fixture_dirs if (d / "assumptions.json").exists())
 
     report = {
         "date": date.today().isoformat(),
@@ -989,6 +1041,8 @@ def run_all() -> int:
             "annotated_fixtures": annotated_fixtures,
             "scrutinized_fixtures": scrutinized_fixtures,
             "scrutiny_ok": all(not r["gap_detail_mismatches"] for r in scrutinized_results),
+            "assumed_fixtures": assumed_fixtures,
+            "assumption_ok": all(r["assumption_ok"] for r in assumed_results),
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
             "avg_brief_expected_pending_coverage": round(
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
@@ -1026,6 +1080,7 @@ def run_all() -> int:
             "total_fixed_known_false_positives": sum(len(r["fixed_known_false_positives"]) for r in results),
             "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
             "total_gap_detail_mismatches": sum(len(r["gap_detail_mismatches"]) for r in results),
+            "total_assumption_mismatches": sum(len(r.get("assumption_mismatches", [])) for r in assumed_results),
         },
     }
 
@@ -1082,6 +1137,7 @@ def run_all() -> int:
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
+        f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "

@@ -69,6 +69,17 @@
       }
     }
   },
+  "assume": {
+    "expect_in_brief": true,
+    "expect_in_prd": true,
+    "expected_assumptions": {
+      "ASM-TECH-SUPPORT-METRICS": {
+        "owner": "Technology Lead",
+        "risk": "med",
+        "closes_gap": "GAP-TECH-DATA-SOURCE"
+      }
+    }
+  },
   "brief": {
     "target_populated": [
       "1",

@@ -14,13 +14,14 @@ def materialize_knowledge_ledger(
     gaps: list[dict[str, str]],
     decisions_text: str,
     trace_refs: dict[str, str],
+    assumptions_text: str = "",
 ) -> dict[str, Any]:
     """Write the lens knowledge ledger from governed discovery artifacts.
 
     The ledger consolidates existing source-of-truth artifacts. It does not infer
     new facts; unsupported knowledge remains OPEN with explicit pending input.
     """
-    units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs)
+    units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
     summary = summarize_units(units)
     payload = {
         "project_id": project_id,
@@ -43,6 +44,7 @@ def build_knowledge_units(
     gaps: list[dict[str, str]],
     decisions_text: str,
     trace_refs: dict[str, str],
+    assumptions_text: str = "",
 ) -> list[dict[str, Any]]:
     units: list[dict[str, Any]] = []
     sequence = 1
@@ -96,6 +98,30 @@ def build_knowledge_units(
                     {"type": "decision", "target": decision.get("id")},
                     {"type": "artifact", "target": trace_refs.get("decision_log")},
                     {"type": "parent", "target": decision.get("parent")},
+                ]
+            ),
+        }
+        if unit["statement"]:
+            units.append(unit)
+            sequence += 1
+
+    for assumption in parse_assumption_rows(assumptions_text):
+        unit = {
+            "id": f"KLU-{sequence:03d}",
+            "lens": normalize_lens(assumption.get("lens", "product")),
+            "statement": assumption.get("statement", ""),
+            "status": "ASSUMED",
+            "evidence": {
+                "trace_id": trace_refs.get("assumption_register", ""),
+                "quote": assumption.get("justification", ""),
+            },
+            "links": compact_links(
+                [
+                    {"type": "assumption", "target": assumption.get("id")},
+                    {"type": "gap", "target": assumption.get("closes_gap")},
+                    {"type": "owner", "target": assumption.get("owner")},
+                    {"type": "risk", "target": assumption.get("risk")},
+                    {"type": "artifact", "target": trace_refs.get("assumption_register")},
                 ]
             ),
         }
@@ -209,6 +235,25 @@ def parse_decision_rows(text: str) -> list[dict[str, str]]:
     return decisions
 
 
+def parse_assumption_rows(text: str) -> list[dict[str, str]]:
+    assumptions: list[dict[str, str]] = []
+    for cells in markdown_table_rows(text):
+        if len(cells) >= 8 and cells[0].startswith("ASM-"):
+            assumptions.append(
+                {
+                    "id": cells[0],
+                    "lens": cells[1],
+                    "statement": cells[2],
+                    "owner": cells[3],
+                    "risk": cells[4],
+                    "justification": cells[5],
+                    "closes_gap": strip_ticks(cells[6]) if cells[6] not in {"-", "N/A"} else "",
+                    "status": cells[7],
+                }
+            )
+    return assumptions
+
+
 def markdown_table_rows(text: str) -> list[list[str]]:
     rows: list[list[str]] = []
     for line in text.splitlines():
@@ -216,7 +261,7 @@ def markdown_table_rows(text: str) -> list[list[str]]:
         if not stripped.startswith("|") or "---" in stripped:
             continue
         cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if not cells or cells[0] in {"Seed ID", "Decision ID"}:
+        if not cells or cells[0] in {"Seed ID", "Decision ID", "Assumption ID"}:
             continue
         rows.append(cells)
     return rows

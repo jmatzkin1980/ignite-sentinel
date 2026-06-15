@@ -327,6 +327,11 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
         metrics["prd_section_readiness"] = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
     # IMP-028: maturation-cycle telemetry.
     metrics["maturation_telemetry"] = maturation_telemetry(project_id)
+    assumptions_path = base / "01_discovery" / "assumptions.md"
+    if assumptions_path.exists():
+        from .assumptions import assumption_rows, summarize_assumptions
+
+        metrics["assumptions"] = summarize_assumptions(assumption_rows(assumptions_path.read_text(encoding="utf-8")))
     return metrics
 
 
@@ -430,6 +435,7 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
     seeds_text = read_optional(discovery / "identity_seeds.md")
     decisions_text = read_optional(discovery / "decisions.md")
     lens_review_text = read_optional(discovery / "lens_review.md")
+    assumptions_text = read_optional(discovery / "assumptions.md")
     # IMP-024: compile sections 1-6 from real evidence (raw client input plus
     # confirmed answers of closed gaps) instead of leaving template TBDs.
     raw_text = raw_input_text(base)
@@ -440,6 +446,7 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
         render_project_brief(
             project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
             raw_text=raw_text, gap_answers=gap_answers, language=language,
+            assumptions_text=assumptions_text,
         ),
         encoding="utf-8",
     )
@@ -541,6 +548,12 @@ def _gap_answer_block(gap_answers: dict[str, dict[str, str]], section: str, lang
     return "\n".join(lines)
 
 
+def _assumption_block(project_id: str, section: str, language: str) -> str:
+    from .assumptions import assumptions_by_brief_section, render_assumption_bullets
+
+    return render_assumption_bullets(assumptions_by_brief_section(project_id).get(section, []), language)
+
+
 def _pending(section_gap: str, language: str) -> str:
     if language == "es":
         return f"- {PENDING_INPUT}: sin evidencia en el input; se rastrea en `{section_gap}`. Aportar en el context pack del dominio."
@@ -548,7 +561,11 @@ def _pending(section_gap: str, language: str) -> str:
 
 
 def compile_brief_sections(
-    raw_text: str, gap_answers: dict[str, dict[str, str]], req_text: str, language: str
+    raw_text: str,
+    gap_answers: dict[str, dict[str, str]],
+    req_text: str,
+    language: str,
+    project_id: str = "",
 ) -> dict[str, str]:
     """Compile narrative sections 1-6 from evidence. Returns rendered blocks."""
     es = language == "es"
@@ -628,9 +645,9 @@ def compile_brief_sections(
     blocks["3"] = f"{asis_line}\n{tobe_line}\n{scope_in}\n{scope_out}"
 
     # --- Sections 4-6: populated only from confirmed gap answers; else PENDING ---
-    blocks["4"] = _gap_answer_block(gap_answers, "4", language) or _pending("GAP-DESIGN-FLOW", language)
-    blocks["5"] = _gap_answer_block(gap_answers, "5", language) or _pending("GAP-TECH-DATA-SOURCE", language)
-    blocks["6"] = _gap_answer_block(gap_answers, "6", language) or _pending("GAP-GOVERNANCE-CONSTRAINTS", language)
+    blocks["4"] = _gap_answer_block(gap_answers, "4", language) or (project_id and _assumption_block(project_id, "4", language)) or _pending("GAP-DESIGN-FLOW", language)
+    blocks["5"] = _gap_answer_block(gap_answers, "5", language) or (project_id and _assumption_block(project_id, "5", language)) or _pending("GAP-TECH-DATA-SOURCE", language)
+    blocks["6"] = _gap_answer_block(gap_answers, "6", language) or (project_id and _assumption_block(project_id, "6", language)) or _pending("GAP-GOVERNANCE-CONSTRAINTS", language)
     return blocks
 
 
@@ -644,12 +661,14 @@ def render_project_brief(
     raw_text: str = "",
     gap_answers: dict[str, dict[str, str]] | None = None,
     language: str = "en",
+    assumptions_text: str = "",
 ) -> str:
     open_gaps = summarize_open_gaps(gaps_text)
     seeds = summarize_table_artifact(seeds_text, "Seed ID", max_rows=10)
     decisions = summarize_table_artifact(decisions_text, "Decision ID", max_rows=8)
     coverage = summarize_table_artifact(lens_review_text, "Lens", max_rows=6)
-    sec = compile_brief_sections(raw_text, gap_answers or {}, req_text, language)
+    sec = compile_brief_sections(raw_text, gap_answers or {}, req_text, language, project_id=project_id)
+    assumptions = summarize_table_artifact(assumptions_text, "Assumption ID", max_rows=8)
     return f"""# Project Brief - {project_id}
 
 This brief is the mature discovery output. It reflects iterated requirement evidence and is the source handoff for PRD, specs, backlog, acceptance criteria, and tests.
@@ -695,6 +714,10 @@ Auditability and traceability expectations: all downstream artifacts must cite t
 ### Decisiones
 
 {decisions}
+
+### Supuestos Gobernados
+
+{assumptions}
 
 ### Cobertura Multi-Lente
 

@@ -37,9 +37,10 @@ Optionally, deepen discovery beyond the deterministic checklist before resolving
 python -m sentinel /annotate PROJECT_ID --source input\interactions\analysis.json
 python -m sentinel /challenge PROJECT_ID --source input\interactions\findings.json
 python -m sentinel /scrutinize PROJECT_ID --source input\interactions\scrutiny.json
+python -m sentinel /assume PROJECT_ID --source input\interactions\assumptions.json
 ```
 
-`/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`); `/scrutinize` crosses raw input with local domain context and writes `01_discovery/scrutiny_report.md` (`origin: scrutiny`) while refreshing the discovery ledger. All three keep the runtime as the authority — the agent cites, it never invents — and the merged gaps flow through `/resolve-gaps` like any other.
+`/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`); `/scrutinize` crosses raw input with local domain context and writes `01_discovery/scrutiny_report.md` (`origin: scrutiny`) while refreshing the discovery ledger; `/assume` records BA-owned assumptions with owner, risk, and cited basis when the team decides to proceed without confirmation. These channels keep the runtime as the authority — the agent or BA cites, it never invents — and the resulting gaps or assumptions remain visible downstream.
 
 If maturity is `BLOCKED`, review:
 

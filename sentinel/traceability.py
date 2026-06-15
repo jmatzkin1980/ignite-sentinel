@@ -222,7 +222,7 @@ def mermaid_style_for_node(node: dict[str, Any]) -> str:
         return "fill:#ffdfba,stroke:#c2410c,stroke-width:2px"
     if node_type == "change":
         return "fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px"
-    if node_type in {"identity_seed_bank", "discovery_log", "lens_review", "knowledge_ledger", "scrutiny_report"}:
+    if node_type in {"identity_seed_bank", "discovery_log", "lens_review", "knowledge_ledger", "assumption_register", "scrutiny_report"}:
         return "fill:#dcfce7,stroke:#15803d"
     if node_type == "backlog_readiness_audit":
         return "fill:#fef9c3,stroke:#a16207"
