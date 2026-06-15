@@ -29,6 +29,7 @@ workspaces/*
 *.7z
 *.zip
 .sentinel_doctor_write_test
+dashboard.html
 # Local evolution/operational memory: not published to the public repo
 docs/
 # Personal handoff documents live outside the repo (IMP-002)

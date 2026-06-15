@@ -15,6 +15,7 @@ from .memory import ContextBroker, active_embedder_status
 
 REQUIRED_COMMANDS = [
     "doctor",
+    "dashboard",
     "init",
     "ingest",
     "retrieve",
@@ -81,6 +82,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
         path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
+        dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
         path_check(root, "user_guide/06-installation-vscode.md", "VS Code portable installation guide"),
@@ -155,6 +157,19 @@ def write_check(root: Path) -> dict[str, str]:
         return {"name": "repo write access", "status": "PASS", "detail": str(root)}
     except OSError as exc:
         return {"name": "repo write access", "status": "FAIL", "detail": str(exc)}
+
+
+def dashboard_artifact_check(root: Path) -> dict[str, str]:
+    ignored = "dashboard.html" in (root / ".gitignore").read_text(encoding="utf-8") if (root / ".gitignore").exists() else False
+    exists = (root / "dashboard.html").exists()
+    if ignored:
+        detail = "dashboard.html is ignored; " + ("local snapshot present" if exists else "snapshot will be generated on demand")
+        return {"name": "dashboard.html local snapshot policy", "status": "PASS", "detail": detail}
+    return {
+        "name": "dashboard.html local snapshot policy",
+        "status": "WARN",
+        "detail": "dashboard.html is not listed in .gitignore; generated dashboards may expose embedded workspace content",
+    }
 
 
 def optional_dependency_check(module_name: str) -> dict[str, str]:

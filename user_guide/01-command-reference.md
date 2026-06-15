@@ -59,6 +59,20 @@ Checks:
 - optional LanceDB dependency and backend mode
 - optional embedding dependencies
 
+## `dashboard`
+
+Generate a local, read-only portfolio dashboard for every workspace under `workspaces/`.
+
+```powershell
+python -m sentinel /dashboard
+python -m sentinel /dashboard --root .
+python -m sentinel /dashboard --open
+```
+
+Unlike project commands, `/dashboard` does not take `PROJECT_ID`: it scans all workspaces that have `state.json`, skips `_template`, reuses the same status model exposed by `/status`, and writes a single `dashboard.html` in the repository root. The HTML is self-contained and opens offline with a double click. It embeds local workspace markdown for in-screen review, so `dashboard.html` is git-ignored and should be treated as a rebuildable local snapshot, not as source of truth.
+
+The dashboard is read-only. It shows portfolio KPIs, per-workspace phase/health, lifecycle pipeline, gaps that can be copied for a client response, generated documents in a modal markdown view, backlog rollups, DoR/DoD gates, warnings, and suggested prompts/commands. It never mutates workspaces or runs follow-up commands.
+
 ## `init`
 
 Create a project workspace.

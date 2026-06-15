@@ -52,6 +52,7 @@ When the user explains a situation without a command, infer the likely Sentinel 
 Accepted forms:
 
 - `/doctor`
+- `/dashboard`
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
@@ -81,6 +82,7 @@ Accepted forms:
 Execution rule:
 
 - Run the equivalent shell command: `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]`.
+- `/dashboard` is portfolio-scoped and does not take `PROJECT_ID`: run `python -m sentinel /dashboard [--root PATH] [--open]`.
 - If `python` is not available, use the configured or bundled Python runtime when visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]` on Windows.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
 - `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
@@ -89,6 +91,7 @@ Execution rule:
 - `/brief PROJECT_ID` refreshes `02_requirements/project-brief.md` from mature discovery evidence.
 - `/context-request PROJECT_ID --domain DOMAIN` creates a domain-specific request under `08_context_packs/requests/`.
 - `/status PROJECT_ID` reports phase, health, language, gap counts, and next recommended step.
+- `/dashboard` generates a local read-only `dashboard.html` snapshot for all workspaces; it skips `_template`, embeds local markdown documents, and never mutates workspace state.
 - `/sync PROJECT_ID` without `--source` is the autonomous novelty scan: it detects new or modified input/context files by hash, creates `CHG` events, impact reports, trace edges, and memory entries.
 - Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
 - Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.

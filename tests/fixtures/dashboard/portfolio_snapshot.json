@@ -1,0 +1,74 @@
+{
+  "workspaces": [
+    {
+      "project_id": "DASH_CLIENT_WAIT",
+      "state": {
+        "phase": "discovery_completed",
+        "health": "DIRTY",
+        "project_language": "es",
+        "privacy_mode": "local-only",
+        "readiness_stage": "CLIENT_RESPONSE_NEEDED",
+        "gap_counts": {
+          "open": 1,
+          "closed": 0,
+          "partially_closed": 1,
+          "blocking_open": 1,
+          "total": 2
+        },
+        "metrics": {
+          "requirements": 1,
+          "gaps_open": 2,
+          "decisions_pending": 1,
+          "user_stories": 0
+        }
+      },
+      "gaps": "| ID | Lens | Severity | Status | Parent | Description | Question | Source | Trigger | Origin | Resolution Note |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| GAP-USERS | business | high | OPEN | REQ-001 | Users unclear | Which users are in scope? | RAW-001 | N/A | checklist | N/A |\n| GAP-SCOPE | product | medium | PARTIALLY_CLOSED | REQ-001 | Scope partial | What is out of scope? | RAW-001 | N/A | checklist | partial answer |\n",
+      "documents": {
+        "02_requirements/requirements.md": "# Requirement\n\nSynthetic dashboard requirement."
+      }
+    },
+    {
+      "project_id": "DASH_BACKLOG_READY",
+      "state": {
+        "phase": "backlog_generated",
+        "health": "CLEAN",
+        "project_language": "en",
+        "privacy_mode": "local-only",
+        "readiness_stage": "READY_FOR_BACKLOG",
+        "gap_counts": {
+          "open": 0,
+          "closed": 4,
+          "partially_closed": 0,
+          "blocking_open": 0,
+          "total": 4
+        },
+        "metrics": {
+          "requirements": 1,
+          "gaps_open": 0,
+          "decisions_pending": 0,
+          "user_stories": 2
+        },
+        "story_gates": {
+          "US-001": {
+            "dor": {
+              "passed": true,
+              "missing": []
+            },
+            "dod": {
+              "passed": false,
+              "missing": [
+                "acceptance evidence"
+              ]
+            }
+          }
+        }
+      },
+      "documents": {
+        "02_requirements/project-brief.md": "# Project Brief\n\nConfirmed synthetic brief.",
+        "03_specs/prd.md": "# PRD\n\nSynthetic PRD.",
+        "03_specs/specs.md": "# Specs\n\nSynthetic specs.",
+        "04_backlog/BACKLOG.md": "# Backlog\n\nSynthetic backlog.\n\n| ID | Status |\n| --- | --- |\n| US-001 | Ready |"
+      }
+    }
+  ]
+}

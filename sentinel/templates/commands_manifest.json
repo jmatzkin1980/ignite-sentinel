@@ -62,6 +62,12 @@
       "body": "# Ignite Context Request\n\nParse `PROJECT_ID` and `--domain` from:\n\n```text\n/context-request PROJECT_ID --domain technology\n```\n\nAllowed domains: `technology`, `design`, `quality`, `frontend`, `backend`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /context-request PROJECT_ID --domain DOMAIN\n```\n\nReturn the generated file under `08_context_packs/requests/`."
     },
     {
+      "name": "dashboard",
+      "description": "Generate a local read-only HTML portfolio dashboard for all Ignite workspaces.",
+      "kilo_agent": "sentinel-health",
+      "body": "# Ignite Dashboard\n\nRun this command from the repository root:\n\n```powershell\npython -m sentinel /dashboard\n```\n\nOptional flags:\n\n```powershell\npython -m sentinel /dashboard --root .\npython -m sentinel /dashboard --open\n```\n\nThe runtime reads all `workspaces/*/state.json` snapshots except `_template`, reuses `/status` data per workspace, embeds local markdown artifacts into a self-contained `dashboard.html`, and never mutates project state. Summarize the generated path, workspace count, and the fact that the HTML is a local read-only snapshot ignored by git."
+    },
+    {
       "name": "doctor",
       "description": "Validate that Ignite Sentinel is ready in this VS Code workspace.",
       "kilo_agent": "sentinel-health",

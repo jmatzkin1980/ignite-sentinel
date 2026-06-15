@@ -23,6 +23,7 @@ Desde la raíz del repo:
 
 ```text
 python -m sentinel /doctor
+python -m sentinel /dashboard
 python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
 python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /maturity | /brief | /context-request
@@ -40,6 +41,7 @@ Este repo incluye el adapter `.claude/commands/` con un slash command por comand
 Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash commands nativos):
 
 - Si el usuario escribe un comando estilo `/COMMAND PROJECT_ID [OPTIONS]`, `sentinel /COMMAND ...` o `ignite /COMMAND ...`, ejecutar `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]` desde la raíz del repo.
+- `/dashboard` es de cartera y no lleva `PROJECT_ID`: ejecutar `python -m sentinel /dashboard [--root PATH] [--open]`. Genera `dashboard.html` local, read-only y git-ignored.
 - Si el usuario describe la situación en lenguaje natural, mapear la intención al flujo correcto (tabla completa en `user_guide/11-chat-commands.md`, sección Intent-To-Command Map): input nuevo de cliente → `/init` + `/ingest` + `/status`; respuestas a gaps → `/resolve-gaps` + `/maturity` + `/status`; contexto de dominio actualizado → `/sync` + `/reindex` + `/health`; handoff downstream → `/specs` + `/backlog` + `/backlog-status` + `/quality` + `/trace` + `/health` + `/validate` cuando los gates lo permitan.
 - Nunca editar artefactos generados a mano: siempre mutar vía CLI.
 - Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.

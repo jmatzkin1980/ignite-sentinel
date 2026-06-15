@@ -119,6 +119,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 |---------|--------------|
 | `/reindex` | Rebuild local memory incrementally (`--full` for a total rebuild) |
 | `/retrieve` | Build a focused context pack (progressive disclosure) |
+| `/dashboard` | Generate a local read-only `dashboard.html` portfolio view for all workspaces |
 | `/status` | Phase, health, gap counts, telemetry, and next step |
 | `/export` | Export a shareable artifact |
 | `/doctor` | Verify Python, adapters, write access, and the optional memory layer |
