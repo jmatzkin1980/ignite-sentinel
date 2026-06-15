@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from .lens_registry import known_lenses, load_lens_checks
+from .knowledge_ledger import materialize_knowledge_ledger
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
 from .traceability import add_edge, add_node, load_graph
@@ -75,6 +76,36 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     add_edge(project_id, raw_id, lens_review_id, "scrutinized_by")
     add_edge(project_id, lens_review_id, gap_id, "raises")
 
+    ledger = materialize_knowledge_ledger(
+        project_id,
+        seeds_path.read_text(encoding="utf-8"),
+        gaps,
+        dec_path.read_text(encoding="utf-8"),
+        {
+            "raw_input": raw_id,
+            "requirement": req_id,
+            "gap_report": gap_id,
+            "decision_log": dec_id,
+            "identity_seed_bank": seed_id,
+            "lens_review": lens_review_id,
+        },
+    )
+    ledger_md_path = ledger["md_path"]
+    ledger_json_path = ledger["json_path"]
+    ledger_id = add_node(
+        project_id,
+        "DISC",
+        "knowledge_ledger",
+        ledger_md_path,
+        "Lens knowledge ledger",
+        domain="product",
+    )
+    add_edge(project_id, seed_id, ledger_id, "consolidated_by")
+    add_edge(project_id, gap_id, ledger_id, "consolidated_by")
+    add_edge(project_id, dec_id, ledger_id, "consolidated_by")
+    add_edge(project_id, lens_review_id, ledger_id, "informs")
+    add_edge(project_id, ledger_id, req_id, "grounds")
+
     broker = ContextBroker(project_id)
     broker.index_artifact(raw_id, "raw_input", raw_target, text, trace_ids=[raw_id])
     broker.index_artifact(req_id, "requirement", req_path, req_path.read_text(encoding="utf-8"), trace_ids=[raw_id, req_id])
@@ -95,6 +126,13 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         lens_review_path.read_text(encoding="utf-8"),
         trace_ids=[raw_id, lens_review_id, gap_id],
     )
+    broker.index_artifact(
+        ledger_id,
+        "knowledge_ledger",
+        ledger_md_path,
+        ledger_md_path.read_text(encoding="utf-8"),
+        trace_ids=[raw_id, seed_id, gap_id, dec_id, ledger_id],
+    )
     index_context_folders(project_id, broker)
 
     update_state(
@@ -113,8 +151,16 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
             "identity_seeds": str(seeds_path.as_posix()),
             "discovery_log": str(discovery_log_path.as_posix()),
             "lens_review": str(lens_review_path.as_posix()),
+            "knowledge_state": str(ledger_md_path.as_posix()),
+            "knowledge_state_json": str(ledger_json_path.as_posix()),
         },
-        metrics={"requirements": 1, "gaps_open": len(gaps), "decisions_pending": 1, "user_stories": 0},
+        metrics={
+            "requirements": 1,
+            "gaps_open": len(gaps),
+            "decisions_pending": 1,
+            "user_stories": 0,
+            "knowledge_units": ledger["payload"]["summary"]["total"],
+        },
     )
     return {
         "raw_id": raw_id,
@@ -124,6 +170,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "seed_id": seed_id,
         "discovery_log_id": discovery_log_id,
         "lens_review_id": lens_review_id,
+        "knowledge_ledger_id": ledger_id,
     }
 
 

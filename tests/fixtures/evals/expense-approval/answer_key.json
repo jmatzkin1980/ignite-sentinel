@@ -53,6 +53,12 @@
       "origin": "checklist"
     }
   },
+  "knowledge_ledger": {
+    "min_total": 1,
+    "required_statuses": ["CONFIRMED", "OPEN"],
+    "required_lenses": ["business", "product"],
+    "require_evidence_or_pending": true
+  },
   "annotate": {
     "expected_gap_details": {
       "GAP-ACCEPTANCE": {
