@@ -161,6 +161,14 @@ I have a new client requirement at input\client_requirement\initial-request.md.
 Create project ACME_DASHBOARD, ingest it, and tell me the next step.
 ```
 
+For a portfolio view across local workspaces, ask in chat:
+
+```text
+Show me the Sentinel dashboard and summarize what needs attention.
+```
+
+The `sentinel-dashboard` skill routes that intent to `/dashboard`, generates the git-ignored local `dashboard.html`, and reports the read-only status signals without mutating project artifacts.
+
 If you prefer exact commands, every surface speaks the same lifecycle:
 
 | Surface | How you invoke it |
@@ -322,6 +330,7 @@ The eval harness covers discovery, brief, PRD, specs, and backlog. Backlog answe
 | [Workflows](user_guide/03-workflows.md) | Recommended lifecycle flows |
 | [Scenarios](user_guide/12-scenarios.md) | Situation → what to run → what to expect (non-technical) |
 | [Chat Commands](user_guide/11-chat-commands.md) | Natural language → command mapping |
+| [Dashboard](user_guide/14-dashboard.md) | Local read-only portfolio dashboard across workspaces |
 | [Traceability & Memory](user_guide/05-traceability-and-memory.md) | How lineage and retrieval work |
 | [Secure Environments](user_guide/09-secure-environments.md) | Running on locked-down VDIs |
 | [Repo & Branching Strategy](user_guide/10-repo-and-branching-strategy.md) | How `main` and project branches relate |

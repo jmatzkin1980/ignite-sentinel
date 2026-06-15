@@ -1,6 +1,6 @@
 ---
 name: sentinel-command-router
-description: Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal.
+description: Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal.
 ---
 
 # Sentinel Command Router
@@ -10,6 +10,7 @@ Translate short chat commands into Sentinel CLI executions.
 ## Accepted Forms
 
 - `/doctor`
+- `/dashboard`
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
@@ -44,7 +45,7 @@ Translate short chat commands into Sentinel CLI executions.
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
-For `/doctor`, omit `PROJECT_ID`.
+For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH` and `--open`.
 
 3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
 
@@ -64,6 +65,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/brief`: use `sentinel-project-brief`.
 - `/context-request`: use `sentinel-domain-request`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
+- `/dashboard`: use `sentinel-dashboard`.
 - `/specs`: use `sentinel-specs`.
 - `/compose`: use `sentinel-compose`.
 - `/backlog`: use `sentinel-backlog`.

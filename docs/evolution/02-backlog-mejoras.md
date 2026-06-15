@@ -620,7 +620,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 Ítems promovidos desde `docs/evolution/07-propuesta-dashboard.md` (PROPUESTA PARA IMPLEMENTAR 2026-06-14). Fuente de diseño obligatoria: propuesta 07 completa, especialmente protocolo de sección 0, tablas declarativas de sección 4 y aceptación de sección 5. Referencia visual exacta: `docs/evolution/07-dashboard-prototype-reference.html`. Orden estricto por PR: IMP-063 → IMP-064; no iniciar IMP-064 hasta que IMP-063 esté mergeado en `main`.
 
 ### IMP-063 — Runtime + comando `/dashboard` (engine determinístico)
-- Estado: VERIFIED & PUSHED (2026-06-14, branch `imp-063-dashboard-runtime`, PR #61: https://github.com/jmatzkin1980/ignite-sentinel/pull/61; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 164 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK). Pendiente: merge manual del usuario.
+- Estado: VERIFIED & PUSHED & MERGED (2026-06-15, branch `imp-063-dashboard-runtime`, PR #61: https://github.com/jmatzkin1980/ignite-sentinel/pull/61; merge manual confirmado por el usuario; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 164 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK).
 - Implementado por Codex: `sentinel/dashboard.py` agrega el modelo de cartera, `LIFECYCLE_STAGES`, `SECTION_REGISTRY`, render HTML autocontenido y `generate_dashboard`; `/dashboard` quedó registrado sin `PROJECT_ID` con `--root`/`--open`; `dashboard.html` quedó git-ignored y `/doctor` incluye un chequeo suave de política; adapters Kilo/Claude se regeneraron desde `commands_manifest.json`; MCP expone `sentinel_dashboard`; tests sintéticos cubren workspaces en discovery/backlog, secciones omitidas, documentos embebidos, gaps copiables y read-only.
 - Prioridad / orden: 1 de 2 — implementar primero. Sin dependencias.
 - Problema: no hay una vista de cartera local-first para ver de un vistazo la fase, health, gaps, siguiente paso, documentos y backlog de todos los workspaces sin navegar archivos `.md`.
@@ -630,10 +630,11 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Depende de: nada.
 
 ### IMP-064 — Skill `sentinel-dashboard` + reference de evolución + docs de usuario
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-15, branch `imp-064-dashboard-skill`; pendiente `verify.ps1`, push y PR).
 - Prioridad / orden: 2 de 2 — implementar segundo, recién con IMP-063 mergeado en `main`.
 - Problema: el comando necesita una skill para que un BA/PM lo pueda pedir en lenguaje natural e interpretar, y una referencia mantenedora para extender el registry sin stale UI.
 - Alcance: crear `.codex/skills/sentinel-dashboard/SKILL.md` y `references/section-registry.md`; regenerar mirrors `.agents/skills/` y `.claude/skills/`; agregar página de dashboard al user guide, fila en `user_guide/11-chat-commands.md`, mención en README y CHANGELOG.
+- Implementado por Codex: skill canónica `.codex/skills/sentinel-dashboard/` con workflow por intención natural, reglas read-only/local-first e interpretación de señales; reference `references/section-registry.md` con contrato para agregar secciones y readiness stages; `sentinel-command-router` reconoce `/dashboard`; `/doctor` exige el skill canónico; mirrors `.agents/skills/sentinel-dashboard/` y `.claude/skills/sentinel-dashboard/` regenerados; test de sync de skills ampliado; nueva guía `user_guide/14-dashboard.md`, Intent-To-Command Map, README y CHANGELOG alineados.
 - Aceptación: la skill dispara por intención natural, corre `/dashboard`, presenta/resume el HTML generado, documenta read-only/local-first y deja pasos concretos para agregar secciones o readiness stages. Skills regeneradas, test de sync verde y `.\verify.ps1` verde antes del commit.
 - Afecta: `.codex/skills/sentinel-dashboard/`, mirrors regenerados, `user_guide/`, README, CHANGELOG.
 - Depende de: IMP-063 mergeado.
@@ -644,6 +645,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-15 | IMP-063 confirmado MERGED por el usuario y arranque de IMP-064 en branch `imp-064-dashboard-skill`: skill `sentinel-dashboard`, reference de registry, docs de usuario y mirrors a regenerar. |
 | 2026-06-14 | IMP-063 VERIFIED & PUSHED (branch `imp-063-dashboard-runtime`, PR #61): agregado `/dashboard` portfolio read-only, HTML autocontenido `dashboard.html` git-ignored, registry declarativo de lifecycle/secciones, adapters regenerados, MCP local, tests sintéticos y docs públicas. `verify.ps1` verde. |
 | 2026-06-14 | Horizonte 9 "Dashboard" promovido desde `docs/evolution/07-propuesta-dashboard.md`: creados IMP-063 e IMP-064 como ítems `PENDING`, con orden estricto IMP-063 → IMP-064 y referencia visual obligatoria `07-dashboard-prototype-reference.html`. |
 | 2026-06-13 | IMP-055 VERIFIED (branch `imp-055-lifecycle-hooks`): hooks locales de backlog para staleness por Spec Unit en `/sync`, pre-handoff DoR en `SLICE-PLAN` blando/strict opt-in, privacy scan bloqueante sobre `04_backlog/`, hallazgos en `/health` y eval `ops-risk-backlog` ampliado. |

@@ -26,6 +26,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. |
 | "Prepare optional task seeds for downstream planning" | `/backlog --with-task-seeds` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Use only when explicitly requested; seeds are intentions traced to AC/critical surfaces, not execution, estimates, assignments, schedules, or managed tasks. |
 | "Show me backlog progress / the BA board" | `/backlog-status` -> `/status` | Generates `04_backlog/BACKLOG.md` from governed lifecycle, gates, and readiness data. |
+| "Show me the dashboard / portfolio status / what is pending across workspaces" | `/dashboard` | Generates local `dashboard.html`; summarize attention signals and do not mutate project artifacts. |
 | "Assign this story / move it to Ready/Done" | `/story-status --story US-NNN --set STATE --owner NAME [--evidence PATH]` -> `/status` -> `/trace` | Never edit `US-NNN.md`, `BACKLOG.md`, or `state.json` by hand; default DoR/DoD gates warn and strict mode blocks. |
 | "Review these agent backlog slicing/enabler proposals" | `/refine-backlog --source backlog-refinement.json` → `/trace` | Only after `/backlog`; every proposal must cite verbatim local evidence and remains a governed proposal. |
 | "Implementation found a missing dependency/gap/invalid AC" | `/implementation-feedback --source implementation-feedback.json` -> `/trace` -> `/health` | Only after `/backlog`; findings are traced to existing stories/AC and can stale or block DoD, but do not rewrite scope. |
@@ -40,6 +41,7 @@ The intended user experience after cloning the repository and opening the repo r
 
 ```text
 /doctor
+/dashboard
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 /gaps PROJECT_ID
@@ -85,6 +87,7 @@ Use these directly in Kilo chat:
 
 ```text
 /doctor
+/dashboard
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 /maturity PROJECT_ID
@@ -144,6 +147,7 @@ Codex may reserve some native slash commands depending on the surface. For that 
 
 ```text
 sentinel /init PROJECT_ID
+sentinel /dashboard
 sentinel /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 sentinel /maturity PROJECT_ID
 sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
@@ -187,6 +191,10 @@ Reject anything that is not backed by verbatim local evidence.
 ```text
 For PROJECT_ID, generate backlog and implementation readiness.
 Then tell me which stories still need domain context.
+```
+
+```text
+Show me the Sentinel dashboard and summarize which workspaces need attention.
 ```
 
 ## Recommended BA Lifecycle From Chat

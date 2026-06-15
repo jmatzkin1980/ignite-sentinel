@@ -49,6 +49,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-backlog",
     "sentinel-backlog-refine",
     "sentinel-command-router",
+    "sentinel-dashboard",
     "sentinel-discovery",
     "sentinel-domain-request",
     "sentinel-gap-response",
