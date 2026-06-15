@@ -630,7 +630,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 - Depende de: nada.
 
 ### IMP-064 — Skill `sentinel-dashboard` + reference de evolución + docs de usuario
-- Estado: IMPLEMENTED (2026-06-15, branch `imp-064-dashboard-skill`; pendiente `verify.ps1`, push y PR).
+- Estado: VERIFIED & PUSHED (2026-06-15, branch `imp-064-dashboard-skill`, PR #62: https://github.com/jmatzkin1980/ignite-sentinel/pull/62; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 164 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK). Pendiente: merge manual del usuario.
 - Prioridad / orden: 2 de 2 — implementar segundo, recién con IMP-063 mergeado en `main`.
 - Problema: el comando necesita una skill para que un BA/PM lo pueda pedir en lenguaje natural e interpretar, y una referencia mantenedora para extender el registry sin stale UI.
 - Alcance: crear `.codex/skills/sentinel-dashboard/SKILL.md` y `references/section-registry.md`; regenerar mirrors `.agents/skills/` y `.claude/skills/`; agregar página de dashboard al user guide, fila en `user_guide/11-chat-commands.md`, mención en README y CHANGELOG.
@@ -645,6 +645,7 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-15 | IMP-064 VERIFIED & PUSHED (branch `imp-064-dashboard-skill`, PR #62): skill `sentinel-dashboard`, reference de registry para secciones/stages, mirrors `.agents/.claude` regenerados, doctor/test de sync ampliados y docs de usuario alineadas. `verify.ps1` verde. |
 | 2026-06-15 | IMP-063 confirmado MERGED por el usuario y arranque de IMP-064 en branch `imp-064-dashboard-skill`: skill `sentinel-dashboard`, reference de registry, docs de usuario y mirrors a regenerar. |
 | 2026-06-14 | IMP-063 VERIFIED & PUSHED (branch `imp-063-dashboard-runtime`, PR #61): agregado `/dashboard` portfolio read-only, HTML autocontenido `dashboard.html` git-ignored, registry declarativo de lifecycle/secciones, adapters regenerados, MCP local, tests sintéticos y docs públicas. `verify.ps1` verde. |
 | 2026-06-14 | Horizonte 9 "Dashboard" promovido desde `docs/evolution/07-propuesta-dashboard.md`: creados IMP-063 e IMP-064 como ítems `PENDING`, con orden estricto IMP-063 → IMP-064 y referencia visual obligatoria `07-dashboard-prototype-reference.html`. |
