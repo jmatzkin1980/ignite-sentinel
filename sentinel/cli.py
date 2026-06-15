@@ -10,6 +10,7 @@ from .backlog_refinement import apply_backlog_refinement
 from .backlog_rollup import backlog_status
 from .backlog_status import update_story_status
 from .context_requests import generate_context_request
+from .dashboard import generate_dashboard
 from .discovery import apply_annotation
 from .discovery import apply_challenge
 from .discovery import ingest
@@ -32,6 +33,7 @@ from .workspace import ensure_workspace
 
 COMMANDS = {
     "doctor",
+    "dashboard",
     "init",
     "ingest",
     "retrieve",
@@ -70,6 +72,10 @@ def main(argv: list[str] | None = None) -> int:
 
     doctor_p = sub.add_parser("doctor")
     doctor_p.add_argument("--root", default=".")
+
+    dashboard_p = sub.add_parser("dashboard")
+    dashboard_p.add_argument("--root", default=".")
+    dashboard_p.add_argument("--open", action="store_true")
 
     init_p = sub.add_parser("init")
     init_p.add_argument("project_id")
@@ -165,6 +171,9 @@ def main(argv: list[str] | None = None) -> int:
             result = run_doctor(Path(args.root))
             print_json(result)
             return 0 if result["verdict"] == "PASS" else 1
+        elif args.command == "dashboard":
+            result = generate_dashboard(Path(args.root), open_browser=bool(args.open))
+            print_json(result)
         elif args.command == "ingest":
             result = ingest(args.project_id, Path(args.source))
             print_json(result)

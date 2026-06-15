@@ -615,10 +615,37 @@ Trabajo funcional (no documental) que apareció al cerrar el Horizonte 5: endure
 
 ---
 
+## Horizonte 9 — Dashboard
+
+Ítems promovidos desde `docs/evolution/07-propuesta-dashboard.md` (PROPUESTA PARA IMPLEMENTAR 2026-06-14). Fuente de diseño obligatoria: propuesta 07 completa, especialmente protocolo de sección 0, tablas declarativas de sección 4 y aceptación de sección 5. Referencia visual exacta: `docs/evolution/07-dashboard-prototype-reference.html`. Orden estricto por PR: IMP-063 → IMP-064; no iniciar IMP-064 hasta que IMP-063 esté mergeado en `main`.
+
+### IMP-063 — Runtime + comando `/dashboard` (engine determinístico)
+- Estado: VERIFIED (2026-06-14, branch `imp-063-dashboard-runtime`; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 164 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK). Pendiente: push y PR a `main`.
+- Implementado por Codex: `sentinel/dashboard.py` agrega el modelo de cartera, `LIFECYCLE_STAGES`, `SECTION_REGISTRY`, render HTML autocontenido y `generate_dashboard`; `/dashboard` quedó registrado sin `PROJECT_ID` con `--root`/`--open`; `dashboard.html` quedó git-ignored y `/doctor` incluye un chequeo suave de política; adapters Kilo/Claude se regeneraron desde `commands_manifest.json`; MCP expone `sentinel_dashboard`; tests sintéticos cubren workspaces en discovery/backlog, secciones omitidas, documentos embebidos, gaps copiables y read-only.
+- Prioridad / orden: 1 de 2 — implementar primero. Sin dependencias.
+- Problema: no hay una vista de cartera local-first para ver de un vistazo la fase, health, gaps, siguiente paso, documentos y backlog de todos los workspaces sin navegar archivos `.md`.
+- Alcance: crear `sentinel/dashboard.py` con `collect_dashboard_model`, `LIFECYCLE_STAGES`, `SECTION_REGISTRY`, `render_html` y `generate_dashboard`; registrar `/dashboard` en `sentinel/cli.py` sin `project_id` y con flags `--root`/`--open`; agregar el comando al manifest y regenerar adapters; agregar `dashboard.html` a `.gitignore`; chequeo suave en `/doctor`; tests con workspaces sintéticos; actualizar README, `user_guide/01-command-reference.md` y CHANGELOG. Render stdlib-only, read-only, local-first y sin tocar `/status`.
+- Aceptación: `python -m sentinel /dashboard` genera `dashboard.html` en la raíz con todos los workspaces reales excepto `_template`, fecha/hora visible, HTML autocontenido offline, portfolio + drawer + pipeline + gaps copiables + documentos en modal markdown, secciones sin datos omitidas, adapters sincronizados y `.\verify.ps1` verde antes del commit.
+- Afecta: `sentinel/dashboard.py`, `sentinel/cli.py`, `sentinel/templates/commands_manifest.json`, adapters regenerados, `sentinel/doctor.py`, `.gitignore`, `tests/test_dashboard.py`, fixtures/evals sintéticos, README, `user_guide/01-command-reference.md`, CHANGELOG.
+- Depende de: nada.
+
+### IMP-064 — Skill `sentinel-dashboard` + reference de evolución + docs de usuario
+- Estado: PENDING.
+- Prioridad / orden: 2 de 2 — implementar segundo, recién con IMP-063 mergeado en `main`.
+- Problema: el comando necesita una skill para que un BA/PM lo pueda pedir en lenguaje natural e interpretar, y una referencia mantenedora para extender el registry sin stale UI.
+- Alcance: crear `.codex/skills/sentinel-dashboard/SKILL.md` y `references/section-registry.md`; regenerar mirrors `.agents/skills/` y `.claude/skills/`; agregar página de dashboard al user guide, fila en `user_guide/11-chat-commands.md`, mención en README y CHANGELOG.
+- Aceptación: la skill dispara por intención natural, corre `/dashboard`, presenta/resume el HTML generado, documenta read-only/local-first y deja pasos concretos para agregar secciones o readiness stages. Skills regeneradas, test de sync verde y `.\verify.ps1` verde antes del commit.
+- Afecta: `.codex/skills/sentinel-dashboard/`, mirrors regenerados, `user_guide/`, README, CHANGELOG.
+- Depende de: IMP-063 mergeado.
+
+---
+
 ## Registro de cambios del backlog
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-14 | IMP-063 VERIFIED (branch `imp-063-dashboard-runtime`): agregado `/dashboard` portfolio read-only, HTML autocontenido `dashboard.html` git-ignored, registry declarativo de lifecycle/secciones, adapters regenerados, MCP local, tests sintéticos y docs públicas. `verify.ps1` verde. |
+| 2026-06-14 | Horizonte 9 "Dashboard" promovido desde `docs/evolution/07-propuesta-dashboard.md`: creados IMP-063 e IMP-064 como ítems `PENDING`, con orden estricto IMP-063 → IMP-064 y referencia visual obligatoria `07-dashboard-prototype-reference.html`. |
 | 2026-06-13 | IMP-055 VERIFIED (branch `imp-055-lifecycle-hooks`): hooks locales de backlog para staleness por Spec Unit en `/sync`, pre-handoff DoR en `SLICE-PLAN` blando/strict opt-in, privacy scan bloqueante sobre `04_backlog/`, hallazgos en `/health` y eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-056 VERIFIED (branch `imp-056-story-quality`): `/quality` ahora puntúa story quality contra INVEST/SPIDR/Lawrence vigente, persiste `state.json#story_quality`, alimenta DoR con `story_quality_invest` y vuelve dinámico `backlog_readiness_audit.md`; eval `ops-risk-backlog` ampliado. |
 | 2026-06-13 | IMP-053 VERIFIED (branch `imp-053-slice-plan`): agregado `SLICE-PLAN.md` y `slice_plan.json` como handoff determinístico de backlog, con fase de enablers, olas paralelizables, checkpoints y handoff packs por historia. Sin tasking ni cambios al modelo de slicing/EPIC-002; eval `ops-risk-backlog` ampliado. |
