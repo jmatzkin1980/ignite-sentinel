@@ -87,6 +87,9 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertIn("Decision status", html)
         self.assertIn("sentinel /resolve-gaps", html)
         self.assertIn("sentinel /sync", html)
+        self.assertIn("Guided Response", html)
+        self.assertIn("Client progress", html)
+        self.assertIn("guided-answer", html)
         self.assertNotIn("__ARTIFACT_DATA__", html)
         self.assertNotIn("<script src=", html)
         self.assertNotIn("http://", html)
@@ -152,6 +155,13 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertIn("unblocks", gap_marker["metadata"])
         self.assertIn("expected_format", gap_marker["metadata"])
         self.assertGreater(model["summary"]["sections_pending"], 0)
+        self.assertGreater(model["guided_response"]["summary"]["client"], 0)
+        self.assertGreater(model["guided_response"]["summary"]["domain"], 0)
+
+        guided = {item["id"]: item for item in model["guided_response"]["items"]}
+        self.assertEqual(guided["GAP-USERS"]["audience"], "client")
+        self.assertTrue(guided["GAP-USERS"]["response_needed"])
+        self.assertEqual(guided["GAP-TECH-DATA-SOURCE"]["audience"], "domain")
 
     def test_assumption_markers_include_owner_risk_and_html_anchors(self) -> None:
         raw = self.temp / "raw.md"
@@ -193,6 +203,9 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertEqual(assumption["metadata"]["risk"], "med")
         self.assertTrue(assumption["metadata"]["readiness_cells"])
         self.assertGreater(model["summary"]["sections_assumed"], 0)
+        guided = {item["id"]: item for item in model["guided_response"]["items"]}
+        self.assertEqual(guided["ASM-TECH-METRICS-SOURCE"]["audience"], "ba_assumption")
+        self.assertFalse(guided["ASM-TECH-METRICS-SOURCE"]["response_needed"])
 
         html = (
             self.temp

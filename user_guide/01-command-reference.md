@@ -92,6 +92,8 @@ The first implementation includes section navigation, search, source-line anchor
 
 Citation chips resolve backticked trace IDs against the local traceability graph. When a node exists, the view embeds a bounded source fragment and a one-hop mini trace graph from real edges so reviewers can inspect evidence and relationships without leaving the HTML snapshot.
 
+Guided response mode classifies visible markers into client questions, domain questions, and BA/assumption review items. The client view is selected by default and tracks draft progress in browser `localStorage`.
+
 The feedback panel stores comments only in browser `localStorage`. Exported Markdown keeps the governed command boundary: `GAP-*` marker comments use the existing `/resolve-gaps` answer-block shape, while other anchored comments can be passed to `/sync --source PATH --note "Artifact review feedback"`.
 
 ## `init`

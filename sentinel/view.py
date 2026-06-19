@@ -69,6 +69,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     marker_metadata = collect_marker_metadata(project_id, language, development_readiness)
     markers = enrich_markers(collect_markers(sections), marker_metadata)
     sections = attach_section_readiness(sections, markers, development_readiness)
+    guided_response = collect_guided_response(markers)
     citations = collect_citations(project_id, sections)
     trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
     trace_edges = trace_edges_for_citations(project_id, citations)
@@ -86,6 +87,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         "source_line_count": len(text.splitlines()),
         "sections": sections,
         "markers": markers,
+        "guided_response": guided_response,
         "citations": citations,
         "trace": {
             "nodes": trace_nodes,
@@ -105,6 +107,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
             "markers": len(markers),
             "pending": sum(1 for marker in markers if marker["kind"] in {"pending", "gap"}),
             "assumed": sum(1 for marker in markers if marker["kind"] == "assumption"),
+            "client_questions": guided_response["summary"]["client"],
             "citations": len(citations),
             "trace_nodes": len(trace_nodes),
             "trace_edges": len(trace_edges),
@@ -269,6 +272,73 @@ def enrich_markers(markers: list[dict[str, Any]], metadata: dict[str, dict[str, 
     for marker in markers:
         marker["metadata"] = metadata.get(marker["marker"], {})
     return markers
+
+
+def collect_guided_response(markers: list[dict[str, Any]]) -> dict[str, Any]:
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for marker in markers:
+        marker_id = str(marker.get("marker", ""))
+        if marker_id in seen:
+            continue
+        seen.add(marker_id)
+        metadata = marker.get("metadata", {})
+        audience = guided_audience_for_marker(marker)
+        status = str(metadata.get("status", "")).upper()
+        item = {
+            "id": marker_id,
+            "marker_id": marker.get("id", ""),
+            "kind": marker.get("kind", ""),
+            "audience": audience,
+            "audience_label": guided_audience_label(audience),
+            "response_needed": response_needed_for_guided_item(audience, status),
+            "section_id": marker.get("section_id", ""),
+            "section_path": marker.get("section_path", ""),
+            "line_start": marker.get("line_start", ""),
+            "lens": metadata.get("lens", ""),
+            "severity": metadata.get("severity", ""),
+            "status": metadata.get("status", ""),
+            "question": metadata.get("question", ""),
+            "expected_format": metadata.get("expected_format", ""),
+            "owner": metadata.get("owner", ""),
+            "risk": metadata.get("risk", ""),
+            "statement": metadata.get("statement", ""),
+        }
+        items.append(item)
+    summary = {
+        "client": sum(1 for item in items if item["audience"] == "client" and item["response_needed"]),
+        "domain": sum(1 for item in items if item["audience"] == "domain" and item["response_needed"]),
+        "ba_assumption": sum(1 for item in items if item["audience"] == "ba_assumption"),
+        "total": len(items),
+    }
+    return {"items": items, "summary": summary}
+
+
+def guided_audience_for_marker(marker: dict[str, Any]) -> str:
+    if marker.get("kind") == "assumption":
+        return "ba_assumption"
+    metadata = marker.get("metadata", {})
+    lens = str(metadata.get("lens", "")).strip().lower()
+    if lens in {"business", "product"}:
+        return "client"
+    if str(marker.get("marker", "")).startswith("GAP-"):
+        return "domain"
+    return "ba_assumption"
+
+
+def guided_audience_label(audience: str) -> str:
+    labels = {
+        "client": "Client",
+        "domain": "Domain",
+        "ba_assumption": "BA / Assumption",
+    }
+    return labels.get(audience, "Review")
+
+
+def response_needed_for_guided_item(audience: str, status: str) -> bool:
+    if audience == "ba_assumption":
+        return False
+    return status not in {"CLOSED", "CONFIRMED", "NOT APPLICABLE"}
 
 
 def attach_section_readiness(
@@ -636,6 +706,13 @@ HTML_TEMPLATE = r"""<!doctype html>
     .feedback-export { display: none; max-height: 180px; white-space: pre-wrap; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #101820; color: #f4f7fa; padding: 8px; font-family: Consolas, monospace; font-size: 11px; }
     .feedback-export.open { display: block; }
     .pill a { color: var(--ink); text-decoration: none; }
+    .guided-panel { display: grid; gap: 8px; }
+    .guided-progress { color: var(--muted); font-size: 12px; }
+    .guided-item { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 9px; font-size: 13px; }
+    .guided-item.domain { border-left-color: var(--warn); }
+    .guided-item.ba_assumption { border-left-color: var(--accent-2); }
+    .guided-item textarea { width: 100%; min-height: 70px; margin-top: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; resize: vertical; }
+    .guided-item a { color: var(--ink); text-decoration: none; font-weight: 700; }
     @media (max-width: 960px) {
       .layout { grid-template-columns: 1fr; }
       nav, aside { position: static; max-height: none; border: 0; border-bottom: 1px solid var(--line); }
@@ -666,6 +743,17 @@ HTML_TEMPLATE = r"""<!doctype html>
         <option value="assumption">Assumptions</option>
       </select>
       <div class="pill-list" id="markers"></div>
+      <div class="side-title">Guided Response</div>
+      <div class="guided-panel">
+        <select id="guidedAudienceFilter" aria-label="Filter guided responses">
+          <option value="client">Client questions</option>
+          <option value="domain">Domain questions</option>
+          <option value="ba_assumption">BA / assumptions</option>
+          <option value="all">All guided items</option>
+        </select>
+        <div class="guided-progress" id="guidedProgress"></div>
+        <div class="pill-list" id="guidedResponses"></div>
+      </div>
       <div class="side-title">Feedback Loop</div>
       <div class="feedback-panel">
         <div class="feedback-target-note" id="feedbackTarget"></div>
@@ -692,8 +780,10 @@ HTML_TEMPLATE = r"""<!doctype html>
     const model = __ARTIFACT_DATA__;
     const $ = (id) => document.getElementById(id);
     const feedbackKey = "ignite-sentinel:view-feedback:" + [model.project_id, model.artifact, model.source_relative_path].join(":");
+    const guidedKey = "ignite-sentinel:view-guided-response:" + [model.project_id, model.artifact, model.source_relative_path].join(":");
     let feedbackComments = loadFeedback();
     let feedbackTarget = { type: "section", id: model.sections[0]?.id || "content" };
+    let guidedAnswers = loadGuidedAnswers();
     $("phase").textContent = model.phase + " · read-only derived view";
     $("title").textContent = model.project_id + " · " + model.label;
     $("meta").innerHTML = [
@@ -712,6 +802,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     $("citations").innerHTML = citationItems.length ? citationItems.join("") : `<div class="empty">No citations or matching trace nodes found.</div>`;
     renderFeedbackTarget();
     renderFeedbackList();
+    renderGuidedResponses();
     $("search").addEventListener("input", event => {
       const q = event.target.value.toLowerCase();
       document.querySelectorAll(".artifact-section").forEach(section => {
@@ -723,6 +814,14 @@ HTML_TEMPLATE = r"""<!doctype html>
       document.querySelectorAll("#markers .pill").forEach(item => {
         item.hidden = value !== "all" && item.dataset.kind !== value;
       });
+    });
+    $("guidedAudienceFilter").addEventListener("change", renderGuidedResponses);
+    document.addEventListener("input", event => {
+      if (event.target.matches(".guided-answer")) {
+        guidedAnswers[event.target.dataset.guidedId] = event.target.value;
+        persistGuidedAnswers();
+        renderGuidedProgress();
+      }
     });
     document.addEventListener("click", event => {
       if (event.target.matches(".source-toggle")) {
@@ -813,6 +912,55 @@ HTML_TEMPLATE = r"""<!doctype html>
         value = value.replace(pattern, `<mark id="${marker.id}" class="marker ${marker.kind}">${escapeHtml(marker.marker)}</mark>`);
       });
       return value;
+    }
+    function loadGuidedAnswers() {
+      try {
+        const value = JSON.parse(localStorage.getItem(guidedKey) || "{}");
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      } catch {
+        return {};
+      }
+    }
+    function persistGuidedAnswers() {
+      localStorage.setItem(guidedKey, JSON.stringify(guidedAnswers));
+    }
+    function renderGuidedResponses() {
+      const filter = $("guidedAudienceFilter").value;
+      const items = (model.guided_response?.items || []).filter(item => filter === "all" || item.audience === filter);
+      $("guidedResponses").innerHTML = items.length
+        ? items.map(guidedItemHtml).join("")
+        : `<div class="empty">No guided items for this audience.</div>`;
+      renderGuidedProgress();
+    }
+    function renderGuidedProgress() {
+      const clientItems = (model.guided_response?.items || []).filter(item => item.audience === "client" && item.response_needed);
+      const answered = clientItems.filter(item => String(guidedAnswers[item.id] || "").trim()).length;
+      $("guidedProgress").textContent = `Client progress: ${answered}/${clientItems.length}`;
+    }
+    function guidedItemHtml(item) {
+      const answer = guidedAnswers[item.id] || "";
+      const details = [
+        item.lens,
+        item.severity,
+        item.status,
+        item.audience_label
+      ].filter(Boolean).join(" · ");
+      const prompt = item.question || item.statement || item.expected_format || item.id;
+      const expected = item.expected_format ? `<span><b>Expected format:</b> ${escapeHtml(item.expected_format)}</span>` : "";
+      const owner = item.owner || item.risk ? `<span><b>Owner/risk:</b> ${escapeHtml([item.owner, item.risk].filter(Boolean).join(" · "))}</span>` : "";
+      const textarea = item.audience === "client" && item.response_needed
+        ? `<textarea class="guided-answer" data-guided-id="${escapeHtml(item.id)}" placeholder="Draft local response">${escapeHtml(answer)}</textarea>`
+        : "";
+      return `<div class="guided-item ${escapeHtml(item.audience)}">
+        <a href="#${escapeHtml(item.marker_id || item.section_id || "content")}">${escapeHtml(item.id)}</a>
+        <div class="pill-meta">
+          <span>${escapeHtml(details)}</span>
+          <span>${escapeHtml(prompt)}</span>
+          ${expected}
+          ${owner}
+        </div>
+        ${textarea}
+      </div>`;
     }
     function loadFeedback() {
       try {
