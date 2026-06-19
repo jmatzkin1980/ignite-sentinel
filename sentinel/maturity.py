@@ -275,7 +275,7 @@ def reopened_gap_ids_from_sync_reports(base: Path) -> list[str]:
     return sorted(set(ids))
 
 
-def maturity_metrics(project_id: str) -> dict[str, object]:
+def maturity_metrics(project_id: str, persist_development_readiness: bool = False) -> dict[str, object]:
     """Quantified maturity: gap closure by severity plus evidence scores of generated artifacts."""
     from .validation import score_artifact_text
 
@@ -332,6 +332,12 @@ def maturity_metrics(project_id: str) -> dict[str, object]:
         from .assumptions import assumption_rows, summarize_assumptions
 
         metrics["assumptions"] = summarize_assumptions(assumption_rows(assumptions_path.read_text(encoding="utf-8")))
+    from .development_readiness import compute_development_readiness
+
+    metrics["development_readiness"] = compute_development_readiness(
+        project_id,
+        persist=persist_development_readiness,
+    )
     return metrics
 
 
@@ -357,7 +363,7 @@ def evaluate(project_id: str) -> dict[str, object]:
         report_path.read_text(encoding="utf-8"),
         trace_ids=["MATURITY-001"],
     )
-    metrics = maturity_metrics(project_id)
+    metrics = maturity_metrics(project_id, persist_development_readiness=True)
     previous = read_json(state_path(project_id), {}).get("maturity_metrics") or {}
     if isinstance(previous, dict) and "maturity_score" in previous:
         metrics["trend_vs_previous_run"] = round(

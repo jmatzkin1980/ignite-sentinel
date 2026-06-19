@@ -119,8 +119,11 @@ python -m sentinel /maturity PROJECT_ID
 Output:
 
 - `01_discovery/requirement_maturity_report.md`
+- `01_discovery/development_readiness.json`
 
 Blocks when open, answered, or partially closed gaps have severities configured as blocking in `sentinel.config.yaml`.
+
+`/maturity` also computes development certainty from the discovery knowledge ledger. The additive `development_readiness` block evaluates the mature requirement rubric as a 16-area matrix by Ignite lens. Each cell is `CONFIRMED`, `ASSUMED`, or `OPEN`, carries evidence or `[PENDING INPUT]`, contributes to lens/global scores, and reports an explicit Crystallization Gate verdict. The gate is informational by default; it does not silently force downstream progress or close gaps.
 
 ## `gaps`
 
@@ -318,7 +321,7 @@ Output:
 
 ## `status`
 
-Show phase, health, language, privacy mode, readiness, gap counts, knowledge ledger summary, last change IDs, and next recommended step.
+Show phase, health, language, privacy mode, readiness, gap counts, knowledge ledger summary, development readiness, last change IDs, and next recommended step.
 
 ```powershell
 python -m sentinel /status PROJECT_ID
@@ -570,6 +573,8 @@ Outputs:
 Once a project brief exists, the block also carries `brief_section_readiness` (IMP-025): each narrative brief section (1-6) as `populated`/`pending`, an overall `coverage_score`, and, for each poor section, the gaps that feed it — the same signal the soft `/brief` gate uses.
 
 It also carries `maturation_telemetry` (IMP-028): `resolve_iterations` (number of `/resolve-gaps` rounds), `closed_by_origin` and `closed_by_origin_pct` (closed gaps split by gap provenance: checklist vs agent vs challenge), `closed_by_response_source` and `closed_by_response_source_pct` (closed gaps split by who supplied the answer: client, domain, or controlled inference), `reopened_by_sync_total` / `reopened_by_sync_gap_ids` (closed gaps that a later `/sync` change triggered again), `open_blocking_gaps`, and `oldest_blocking_age_rounds` (how many resolve rounds the oldest still-open blocking gap has survived). Use it to see where maturation is stalling.
+
+It also carries `development_readiness` (IMP-068): `01_discovery/development_readiness.json` in API form. The summary includes `global_score`, per-lens scores, status counts, high-risk assumption IDs, and `crystallization_gate.state` (`NOT_READY_OPEN_UNCERTAINTY`, `NOT_READY_LOW_CERTAINTY`, `READY_WITH_GOVERNED_ASSUMPTIONS`, or `READY_LOW_UNCERTAINTY`). Use it to see whether uncertainty is confirmed, explicitly assumed with owner/risk, or still open before development handoff.
 
 ## `validate`
 

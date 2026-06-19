@@ -80,6 +80,19 @@
       }
     }
   },
+  "development_readiness": {
+    "min_areas": 16,
+    "required_statuses": ["CONFIRMED", "ASSUMED", "OPEN"],
+    "expected_verdict": "NOT_READY_OPEN_UNCERTAINTY",
+    "expected_area_statuses": {
+      "Data and integrations": {
+        "technical": "ASSUMED"
+      },
+      "Design prototype readiness": {
+        "design": "OPEN"
+      }
+    }
+  },
   "brief": {
     "target_populated": [
       "1",

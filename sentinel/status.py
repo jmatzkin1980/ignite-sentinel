@@ -14,6 +14,7 @@ def project_status(project_id: str) -> dict[str, object]:
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
     counts = state.get("gap_counts") or count_gap_rows(gaps)
     next_step = recommend_next_step(state, counts)
+    metrics = maturity_metrics(project_id)
     return {
         "project_id": project_id,
         "phase": state.get("phase", "unknown"),
@@ -22,7 +23,8 @@ def project_status(project_id: str) -> dict[str, object]:
         "privacy_mode": state.get("privacy_mode", "local-only"),
         "readiness_stage": state.get("readiness_stage", "DISCOVERY_RAW"),
         "gap_counts": counts,
-        "maturity_metrics": maturity_metrics(project_id),
+        "maturity_metrics": metrics,
+        "development_readiness": metrics.get("development_readiness", {}),
         "last_change_id": state.get("last_change_id"),
         "last_gap_resolution_id": state.get("last_gap_resolution_id"),
         "prd_composition_count": state.get("prd_composition_count", 0),

@@ -42,6 +42,8 @@ python -m sentinel /assume PROJECT_ID --source input\interactions\assumptions.js
 
 `/annotate` merges gaps the keyword checklist suppressed (`origin: agent`); `/challenge` runs pre-mortem, per-lens role-play, and assumption inversion, writing `01_discovery/challenge_report.md` (`origin: challenge`); `/scrutinize` crosses raw input with local domain context and writes `01_discovery/scrutiny_report.md` (`origin: scrutiny`) while refreshing the discovery ledger; `/assume` records BA-owned assumptions with owner, risk, and cited basis when the team decides to proceed without confirmation. These channels keep the runtime as the authority — the agent or BA cites, it never invents — and the resulting gaps or assumptions remain visible downstream.
 
+After assumptions or new gap answers, run `/maturity` again. Sentinel refreshes `01_discovery/development_readiness.json`, a lens-by-area certainty matrix that distinguishes confirmed, assumed, and open development uncertainty. Treat `READY_WITH_GOVERNED_ASSUMPTIONS` as a visible BA decision, not as hidden confirmation; open cells still name the gaps or pending evidence that must remain in the conversation.
+
 If maturity is `BLOCKED`, review:
 
 ```text
@@ -65,6 +67,7 @@ When maturity reaches `READY_FOR_SPECS`, Sentinel also materializes:
 
 ```text
 workspaces/PROJECT_ID/02_requirements/project-brief.md
+workspaces/PROJECT_ID/01_discovery/development_readiness.json
 ```
 
 You can also refresh the brief explicitly:

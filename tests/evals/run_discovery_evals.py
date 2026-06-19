@@ -211,6 +211,42 @@ def assumption_status(ws: Path, key: dict) -> dict[str, object]:
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+def development_readiness_status(ws: Path, key: dict) -> dict[str, object]:
+    readiness_key = key.get("development_readiness", {})
+    if not readiness_key:
+        return {"ok": True, "mismatches": []}
+    path = ws / "01_discovery" / "development_readiness.json"
+    if not path.exists():
+        return {"ok": False, "mismatches": ["development_readiness.json missing"]}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+    matrix = payload.get("matrix", []) if isinstance(payload, dict) else []
+    mismatches: list[str] = []
+    min_areas = int(readiness_key.get("min_areas", 16))
+    if int(summary.get("areas_total", 0) or 0) < min_areas:
+        mismatches.append(f"expected at least {min_areas} readiness areas")
+    by_status = summary.get("by_status", {}) if isinstance(summary.get("by_status"), dict) else {}
+    for status in readiness_key.get("required_statuses", []):
+        if int(by_status.get(str(status), 0) or 0) <= 0:
+            mismatches.append(f"expected at least one readiness cell with status {status}")
+    expected_verdict = readiness_key.get("expected_verdict")
+    verdict = summary.get("crystallization_gate", {}) if isinstance(summary.get("crystallization_gate"), dict) else {}
+    if expected_verdict and verdict.get("state") != expected_verdict:
+        mismatches.append(f"expected verdict {expected_verdict}, got {verdict.get('state')}")
+    expected_cells = readiness_key.get("expected_area_statuses", {})
+    for area_name, lenses in expected_cells.items():
+        area = next((row for row in matrix if row.get("area") == area_name), None)
+        if not area:
+            mismatches.append(f"readiness matrix missing area {area_name}")
+            continue
+        cells = {cell.get("lens"): cell for cell in area.get("lenses", []) if isinstance(cell, dict)}
+        for lens, expected_status in lenses.items():
+            actual = cells.get(lens, {}).get("status")
+            if actual != expected_status:
+                mismatches.append(f"{area_name}/{lens} expected {expected_status}, got {actual}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
 def run_fixture(
     fixture_dir: Path,
     apply_annotation: bool = False,
@@ -343,6 +379,11 @@ def run_fixture(
             task_seeds = task_seeds_eval(ws, key) if not (apply_annotation or apply_scrutiny) else {"ok": True, "mismatches": []}
             knowledge_ledger = knowledge_ledger_status(ws, key)
             assumption_eval = assumption_status(ws, key) if apply_assumptions else {"ok": True, "mismatches": []}
+            development_readiness = (
+                development_readiness_status(ws, key)
+                if apply_assumptions
+                else {"ok": True, "mismatches": []}
+            )
             implementation_feedback = (
                 {"ok": True, "mismatches": []}
                 if apply_annotation or apply_scrutiny
@@ -392,6 +433,7 @@ def run_fixture(
     backlog_mismatches.extend(task_seeds["mismatches"])
     backlog_mismatches.extend(knowledge_ledger["mismatches"])
     backlog_mismatches.extend(assumption_eval["mismatches"])
+    backlog_mismatches.extend(development_readiness["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
@@ -496,6 +538,8 @@ def run_fixture(
         "knowledge_ledger_by_lens": knowledge_ledger["by_lens"],
         "assumption_ok": assumption_eval["ok"],
         "assumption_mismatches": assumption_eval["mismatches"],
+        "development_readiness_ok": development_readiness["ok"],
+        "development_readiness_mismatches": development_readiness["mismatches"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
@@ -1043,6 +1087,7 @@ def run_all() -> int:
             "scrutiny_ok": all(not r["gap_detail_mismatches"] for r in scrutinized_results),
             "assumed_fixtures": assumed_fixtures,
             "assumption_ok": all(r["assumption_ok"] for r in assumed_results),
+            "development_readiness_ok": all(r["development_readiness_ok"] for r in assumed_results),
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
             "avg_brief_expected_pending_coverage": round(
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
@@ -1081,6 +1126,9 @@ def run_all() -> int:
             "total_language_mismatches": sum(1 for r in results if r["language_mismatch"]),
             "total_gap_detail_mismatches": sum(len(r["gap_detail_mismatches"]) for r in results),
             "total_assumption_mismatches": sum(len(r.get("assumption_mismatches", [])) for r in assumed_results),
+            "total_development_readiness_mismatches": sum(
+                len(r.get("development_readiness_mismatches", [])) for r in assumed_results
+            ),
         },
     }
 
@@ -1126,6 +1174,8 @@ def run_all() -> int:
             print(f"         backlog derivation mismatch: {mismatch}")
         for mismatch in r["knowledge_ledger_mismatches"]:
             print(f"         knowledge ledger mismatch: {mismatch}")
+        for mismatch in r["development_readiness_mismatches"]:
+            print(f"         development readiness mismatch: {mismatch}")
         expected_pending = set(r["brief_expected_pending_sections"])
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
@@ -1138,6 +1188,7 @@ def run_all() -> int:
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
         f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
+        f"development_readiness_ok={s['development_readiness_ok']} (IMP-068) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "

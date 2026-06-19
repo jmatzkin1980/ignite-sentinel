@@ -229,6 +229,7 @@ def _summary(status: dict[str, Any], stage: dict[str, Any]) -> dict[str, Any]:
     return {
         "Estado actual": stage["text"],
         "Madurez": _score(metrics),
+        "Certeza desarrollo": _development_readiness_label(status),
         "Gaps abiertos": int(counts.get("open", 0) or 0) + int(counts.get("partially_closed", 0) or 0),
         "Gaps bloqueantes": counts.get("blocking_open", 0),
         "Gaps cerrados": f"{counts.get('closed', 0)}/{counts.get('total', 0)}",
@@ -244,6 +245,17 @@ def _score(metrics: dict[str, Any]) -> str:
             return f"{round(score * 100)}% / {round(threshold * 100)}%"
         return f"{round(score * 100)}%"
     return "-"
+
+
+def _development_readiness_label(status: dict[str, Any]) -> str:
+    readiness = status.get("development_readiness") if isinstance(status.get("development_readiness"), dict) else {}
+    summary = readiness.get("summary") if isinstance(readiness.get("summary"), dict) else {}
+    score = summary.get("global_score")
+    gate = summary.get("crystallization_gate") if isinstance(summary.get("crystallization_gate"), dict) else {}
+    state = str(gate.get("state") or "-")
+    if isinstance(score, (int, float)):
+        return f"{round(score * 100)}% - {state}"
+    return state
 
 
 def _next_action(project_id: str, status: dict[str, Any], stage: dict[str, Any]) -> dict[str, str]:
