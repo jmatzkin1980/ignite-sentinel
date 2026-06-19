@@ -69,6 +69,7 @@ Accepted forms:
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID`
+- `/self-review PROJECT_ID --source ANALYSIS.json`
 - `/backlog PROJECT_ID`
 - `/backlog-status PROJECT_ID`
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]`
@@ -94,6 +95,7 @@ Execution rule:
 - `/status PROJECT_ID` reports phase, health, language, gap counts, and next recommended step.
 - `/dashboard` generates a local read-only `dashboard.html` snapshot for all workspaces; it skips `_template`, embeds local markdown documents, and never mutates workspace state.
 - `/view PROJECT_ID --artifact ARTIFACT` generates a local read-only artifact HTML snapshot under `08_context_packs/views/`; it is derived from Markdown source-of-truth plus traceability and must not be edited or treated as source.
+- `/self-review PROJECT_ID --source ANALYSIS.json` validates skeptical PRD/spec findings and hard-to-reverse decisions against verbatim generated-artifact evidence, writes `03_specs/self_review/`, merges cited gaps as `origin: self-review`, and never rewrites PRD/specs automatically.
 - `/sync PROJECT_ID` without `--source` is the autonomous novelty scan: it detects new or modified input/context files by hash, creates `CHG` events, impact reports, trace edges, and memory entries.
 - Use `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW` as progressive disclosure for focused LanceDB context; it does not mutate source artifacts.
 - Every project command runs through Sentinel vNext command protocol: preflight workspace/phase/health guard, CLI execution, trace materialization for mutating commands, and `06_traceability/command_protocol_log.md` anchor.

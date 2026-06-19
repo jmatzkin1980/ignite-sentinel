@@ -732,7 +732,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: gaps de cliente, dominio y supuestos se clasifican correctamente; el contador progresa al responder.
 
 ### IMP-076 — Self-review escéptico + registro de decisiones difíciles de revertir
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-076-skeptical-self-review`: nuevo `/self-review PROJECT_ID --source ANALYSIS.json` valida gaps citados contra PRD/specs como `origin: self-review`, registra decisiones `DEC-*` con riesgo/reversibilidad y cita verbatim en `03_specs/self_review/decision_register.md`, traza evento + decisiones, indexa artefactos, expone MCP/adapters/docs y cubre fixture con gap + decisión sin auto-editar PRD/specs).
 - Prioridad / orden: 6 de 8. Independiente del render; puede adelantarse si conviene.
 - Alcance: review adversaria sobre PRD/specs generados, registro gobernado de decisiones costosas y chequeo de delta/reuse brownfield.
 - Aceptación: fixture con decisión implícita genera gap/decisión con cita, sin auto-editar el artefacto.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-076 IMPLEMENTED en `codex/imp-076-skeptical-self-review`: agregado `/self-review` para revision esceptica post-specs, con gaps `origin: self-review`, registro de decisiones dificiles de revertir bajo `03_specs/self_review/`, trazabilidad, MCP/adapters/docs y test focal. |
 | 2026-06-19 | IMP-077 IMPLEMENTED en `codex/imp-077-artifact-view-guided-response`: `/view` agrega modo de respuesta guiada con clasificación cliente/dominio/BA-supuestos y progreso local en `localStorage`. |
 | 2026-06-19 | IMP-073 IMPLEMENTED en `codex/imp-073-artifact-view-feedback-export`: `/view` permite guardar comentarios locales anclados y exportarlos como Markdown gobernado para `/resolve-gaps` o `/sync`, sin mutar artefactos fuente desde el HTML. |
 | 2026-06-19 | IMP-072 IMPLEMENTED en `codex/imp-072-artifact-view-trace-evidence`: `/view` agrega chips de evidencia con fragmentos fuente locales y mini-grafo inline por cita usando nodos/edges reales de trazabilidad. |

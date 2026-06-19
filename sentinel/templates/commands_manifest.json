@@ -20,6 +20,12 @@
       "body": "# Ignite Scrutinize\n\nParse `PROJECT_ID`, optional `--lens LENS`, and `--source PATH` from:\n\n```text\n/scrutinize PROJECT_ID --source PATH\n/scrutinize PROJECT_ID --lens technical --source PATH\n```\n\nThe `--source` file is JSON with systematic findings by Ignite lens. Each gap has `id`, `lens`, `severity`, `finding_type` (`unstated-assumption`, `contradiction`, `mention-without-counterpart`, or `domain-conflict`), `question`, and a verbatim `evidence` quote from the raw input or local domain context folders.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /scrutinize PROJECT_ID --source PATH\n```\n\nThe runtime validates declared lens, optional lens filter, severity, finding type, and citation; tags accepted gaps `origin: scrutiny`; writes `01_discovery/scrutiny_report.md`; refreshes `01_discovery/knowledge_state.md/json`; and records traceability. Summarize merged/skipped gap IDs, updated gap counts, and the ledger path."
     },
     {
+      "name": "self-review",
+      "description": "Run skeptical self-review over generated PRD/specs and register cited gaps plus hard-to-reverse decisions.",
+      "kilo_agent": "sentinel-specs",
+      "body": "# Ignite Self Review\n\nParse `PROJECT_ID` and `--source PATH` from:\n\n```text\n/self-review PROJECT_ID --source PATH\n```\n\nThe `--source` file is JSON with optional `gaps[]` and `decisions[]`. Gaps follow the governed cited shape (`id`, `lens`, `severity`, `question`, and verbatim `evidence`) and are validated against generated PRD/spec artifacts, then merged as `origin: self-review`. Decisions declare `id` (`DEC-*`), `title`, `lens`, `risk`, `reversibility`, `decision`, verbatim `evidence`, and optional `consequence`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /self-review PROJECT_ID --source PATH\n```\n\nThe runtime archives the source under `03_specs/self_review/`, writes `self_review_report.md` and `decision_register.md`, records traceability, and does not rewrite PRD/specs automatically. Summarize merged gaps, skipped duplicates, registered decisions, and generated paths."
+    },
+    {
       "name": "assume",
       "description": "Register BA-owned governed assumptions with risk, cited basis, and ledger visibility.",
       "kilo_agent": "sentinel-discovery",
