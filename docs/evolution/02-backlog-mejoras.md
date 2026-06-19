@@ -726,7 +726,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: export→`/resolve-gaps` y export→`/sync` funcionan sin cambios de runtime de parsing.
 
 ### IMP-077 — Modo "respuesta guiada" para el cliente
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-077-artifact-view-guided-response`: el modelo de `/view` agrega `guided_response` con clasificación deduplicada de markers en `client`, `domain` y `ba_assumption`; el HTML muestra por defecto preguntas de cliente, separa dominio/BA-supuestos por filtro y guarda borradores locales en `localStorage` con contador de progreso. Tests focalizados en `tests/test_artifact_view.py`; verificación completa pendiente).
 - Prioridad / orden: 5 de 8. Depende de IMP-071 e IMP-073.
 - Alcance: derivar audiencia de gaps y mostrar solo lo que el cliente debe responder, con progreso local y separación de items de dominio/BA/asumidos.
 - Aceptación: gaps de cliente, dominio y supuestos se clasifican correctamente; el contador progresa al responder.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-077 IMPLEMENTED en `codex/imp-077-artifact-view-guided-response`: `/view` agrega modo de respuesta guiada con clasificación cliente/dominio/BA-supuestos y progreso local en `localStorage`. |
 | 2026-06-19 | IMP-073 IMPLEMENTED en `codex/imp-073-artifact-view-feedback-export`: `/view` permite guardar comentarios locales anclados y exportarlos como Markdown gobernado para `/resolve-gaps` o `/sync`, sin mutar artefactos fuente desde el HTML. |
 | 2026-06-19 | IMP-072 IMPLEMENTED en `codex/imp-072-artifact-view-trace-evidence`: `/view` agrega chips de evidencia con fragmentos fuente locales y mini-grafo inline por cita usando nodos/edges reales de trazabilidad. |
 | 2026-06-19 | IMP-071 IMPLEMENTED en `codex/imp-071-artifact-view-markers`: `/view` ahora convierte markers en señales navegables con panel filtrable de pendientes/supuestos, metadata de gaps/supuestos y badges de certeza por sección. |
