@@ -106,15 +106,23 @@ def build_knowledge_units(
             sequence += 1
 
     for assumption in parse_assumption_rows(assumptions_text):
+        assumption_status = normalize_assumption_status(assumption.get("status", "ASSUMED"))
+        evidence = {
+            "trace_id": trace_refs.get("assumption_register", ""),
+            "quote": assumption.get("justification", ""),
+        }
+        if assumption_status == "OPEN":
+            evidence = {
+                "trace_id": trace_refs.get("assumption_register", ""),
+                "quote": assumption.get("justification", "") or "[PENDING INPUT]",
+                "note": "Assumption invalidated; reopen or replace the linked knowledge.",
+            }
         unit = {
             "id": f"KLU-{sequence:03d}",
             "lens": normalize_lens(assumption.get("lens", "product")),
             "statement": assumption.get("statement", ""),
-            "status": "ASSUMED",
-            "evidence": {
-                "trace_id": trace_refs.get("assumption_register", ""),
-                "quote": assumption.get("justification", ""),
-            },
+            "status": assumption_status,
+            "evidence": evidence,
             "links": compact_links(
                 [
                     {"type": "assumption", "target": assumption.get("id")},
@@ -285,6 +293,17 @@ def normalize_gap_status(status: str) -> str:
     if value == "ASSUMED":
         return "ASSUMED"
     if value == "INFERRED":
+        return "INFERRED"
+    return "OPEN"
+
+
+def normalize_assumption_status(status: str) -> str:
+    value = status.strip().upper().replace("-", "_").replace(" ", "_")
+    if value in {"VALIDATED", "CONFIRMED", "CLOSED"}:
+        return "CONFIRMED"
+    if value in {"ASSUMED", "ASSUMPTION"}:
+        return "ASSUMED"
+    if value in {"INFERRED", "INFERRED_FROM_INPUT"}:
         return "INFERRED"
     return "OPEN"
 
