@@ -654,6 +654,8 @@ The marker panel is a derived review aid. `GAP-*` markers are enriched from `01_
 
 The evidence panel is also derived. Backticked trace IDs such as `REQ-001`, `FR-001`, `SPEC-U-001`, `US-001`, `AC-001`, `RAW-001`, `GAP-*`, or `ASM-*` are resolved only when a matching node exists in `06_traceability/traceability_graph.json`. For each matched node the view embeds a bounded local source fragment and a one-hop mini graph made from real trace edges. Missing nodes remain visible as unmatched citations; the view never fabricates evidence or graph relationships.
 
+The feedback panel is local browser state. It stores anchored comments in `localStorage` and exports Markdown instead of writing to source artifacts. Comments on `GAP-*` markers are shaped as existing `/resolve-gaps` answer blocks; other comments are plain review notes suitable for `/sync --source PATH --note "Artifact review feedback"`.
+
 ## `memory.lancedb/`
 
 Local memory area.

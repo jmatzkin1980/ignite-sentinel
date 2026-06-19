@@ -82,6 +82,11 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertIn("read-only derived view", html)
         self.assertIn("const model =", html)
         self.assertIn("GAPVIEW", html)
+        self.assertIn("localStorage", html)
+        self.assertIn("Export Markdown", html)
+        self.assertIn("Decision status", html)
+        self.assertIn("sentinel /resolve-gaps", html)
+        self.assertIn("sentinel /sync", html)
         self.assertNotIn("__ARTIFACT_DATA__", html)
         self.assertNotIn("<script src=", html)
         self.assertNotIn("http://", html)
@@ -89,6 +94,49 @@ class ArtifactViewTest(unittest.TestCase):
 
         state = json.loads((self.temp / "workspaces" / "GAPVIEW" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["last_command"], "view")
+
+    def test_feedback_export_shape_is_accepted_by_resolve_gaps_and_sync(self) -> None:
+        fixture = ROOT / "fixtures" / "incomplete_requirement.md"
+        self.assertEqual(main(["init", "FEEDBACK"]), 0)
+        self.assertEqual(main(["ingest", "FEEDBACK", "--source", str(fixture)]), 0)
+
+        gap_export = self.temp / "artifact-feedback-gap.md"
+        gap_export.write_text(
+            "# Artifact Review Feedback Export - FEEDBACK\n\n"
+            "- Source artifact: workspaces/FEEDBACK/01_discovery/gaps.md\n"
+            "- Resolve gaps command: sentinel /resolve-gaps FEEDBACK --source PATH\n\n"
+            "### GAP-USERS\n"
+            "- Answer: Primary users are support operations analysts reviewing queue risk before standup.\n"
+            "- Owner / source: Artifact review comment\n"
+            "- Evidence or reference: workspaces/FEEDBACK/01_discovery/gaps.md#marker-1 lines 1-12\n"
+            "- Decision status: pending\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["resolve-gaps", "FEEDBACK", "--source", str(gap_export)]), 0)
+        gaps = (self.temp / "workspaces" / "FEEDBACK" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+        self.assertIn("ANSWERED", gaps)
+        self.assertIn("awaiting-confirmation: substantive answer", gaps)
+
+        sync_export = self.temp / "artifact-feedback-sync.md"
+        sync_export.write_text(
+            "# Artifact Review Feedback Export - FEEDBACK\n\n"
+            "- Source artifact: workspaces/FEEDBACK/01_discovery/gaps.md\n"
+            "- Sync command: sentinel /sync FEEDBACK --source PATH --note \"Artifact review feedback\"\n\n"
+            "### Review Comment: FBC-1\n"
+            "- Target: section `section-1`\n"
+            "- Source artifact: `workspaces/FEEDBACK/01_discovery/gaps.md`\n"
+            "- Section: Discovery Gaps\n"
+            "- Comment: Please clarify whether the rollout owner is Product or Delivery.\n"
+            "- Suggested command: `sentinel /sync FEEDBACK --source PATH --note \"Artifact review feedback\"`\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            main(["sync", "FEEDBACK", "--source", str(sync_export), "--note", "Artifact review feedback"]),
+            0,
+        )
+        state = json.loads((self.temp / "workspaces" / "FEEDBACK" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["last_command"], "sync")
+        self.assertTrue(state.get("last_change_id", "").startswith("CHG-"))
 
     def test_gap_markers_include_elicitation_metadata_and_section_badges(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
