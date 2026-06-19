@@ -21,6 +21,10 @@ What the first version shows:
 - section table of contents and search
 - source line anchors for each section
 - pending, gap, and assumption markers highlighted inline
+- a filterable "Pending And Assumptions" panel where each marker links back to its exact inline highlight
+- gap metadata from `gaps.md`: lens, severity, status, why it matters, what it unblocks, and expected answer format
+- governed assumption metadata from `assumptions.md`: owner, risk, statement, linked gap, and status
+- section certainty badges (`populated`, `pending`, `assumed`) derived from artifact markers and the local development readiness context when present
 - citations and matching trace nodes in the side panel
 - a Markdown source toggle for reviewers who need the canonical text
 

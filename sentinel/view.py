@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .assumptions import load_assumptions
+from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .traceability import load_graph
 from .workspace import read_json, workspace_path
 
@@ -61,11 +63,15 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
 
     text = path.read_text(encoding="utf-8")
     sections = split_markdown_sections(text)
-    markers = collect_markers(sections)
-    citations = collect_citations(sections)
-    trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
     state = read_json(base / "state.json", {})
     language = str(state.get("project_language") or "auto")
+    development_readiness = read_json(base / "01_discovery" / "development_readiness.json", {})
+    marker_metadata = collect_marker_metadata(project_id, language, development_readiness)
+    markers = enrich_markers(collect_markers(sections), marker_metadata)
+    sections = attach_section_readiness(sections, markers, development_readiness)
+    citations = collect_citations(sections)
+    trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
+    section_summary = summarize_section_readiness(sections)
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     return {
         "project_id": project_id,
@@ -84,9 +90,18 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
             "nodes": trace_nodes,
             "node_count": len(trace_nodes),
         },
+        "readiness": {
+            "summary": development_readiness.get("summary", {}),
+            "section_summary": section_summary,
+        },
         "summary": {
             "sections": len(sections),
+            "sections_populated": section_summary["populated"],
+            "sections_pending": section_summary["pending"],
+            "sections_assumed": section_summary["assumed"],
             "markers": len(markers),
+            "pending": sum(1 for marker in markers if marker["kind"] in {"pending", "gap"}),
+            "assumed": sum(1 for marker in markers if marker["kind"] == "assumption"),
             "citations": len(citations),
             "trace_nodes": len(trace_nodes),
         },
@@ -177,6 +192,115 @@ def collect_markers(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 }
             )
     return markers
+
+
+def collect_marker_metadata(
+    project_id: str,
+    language: str,
+    development_readiness: dict[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    base = workspace_path(project_id)
+    metadata: dict[str, dict[str, Any]] = {}
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if gaps_path.exists():
+        for row in parse_gap_rows(gaps_path.read_text(encoding="utf-8")):
+            gap_id = row["id"]
+            metadata[gap_id] = {
+                "source": "gaps.md",
+                "lens": row.get("lens", ""),
+                "severity": row.get("severity", ""),
+                "status": row.get("status", ""),
+                "description": row.get("description", ""),
+                "question": row.get("question", ""),
+                "why": why_gap_matters(gap_id, language),
+                "unblocks": unblocks_for_gap(gap_id, language),
+                "expected_format": expected_format_for_gap(gap_id, language),
+            }
+    for row in load_assumptions(project_id):
+        metadata[row["id"]] = {
+            "source": "assumptions.md",
+            "lens": row.get("lens", ""),
+            "statement": row.get("statement", ""),
+            "owner": row.get("owner", ""),
+            "risk": row.get("risk", ""),
+            "justification": row.get("justification", ""),
+            "closes_gap": row.get("closes_gap", ""),
+            "status": row.get("status", "ASSUMED"),
+        }
+    for marker_id, cells in readiness_cells_by_marker(development_readiness or {}).items():
+        metadata.setdefault(marker_id, {})["readiness_cells"] = cells
+    return metadata
+
+
+def readiness_cells_by_marker(development_readiness: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    by_marker: dict[str, list[dict[str, Any]]] = {}
+    for area in development_readiness.get("matrix", []):
+        if not isinstance(area, dict):
+            continue
+        for cell in area.get("lenses", []):
+            if not isinstance(cell, dict):
+                continue
+            marker_ids = {
+                str(link.get("target", "")).strip()
+                for link in cell.get("links", [])
+                if isinstance(link, dict) and str(link.get("target", "")).startswith("GAP-")
+            }
+            evidence = cell.get("evidence", {})
+            if isinstance(evidence, dict) and str(evidence.get("assumption_id", "")).startswith("ASM-"):
+                marker_ids.add(str(evidence["assumption_id"]).strip())
+            for marker_id in marker_ids:
+                by_marker.setdefault(marker_id, []).append(
+                    {
+                        "area_id": area.get("area_id", ""),
+                        "area": area.get("area", ""),
+                        "lens": cell.get("lens", ""),
+                        "status": cell.get("status", area.get("status", "")),
+                        "score": cell.get("score", area.get("score", 0.0)),
+                    }
+                )
+    return by_marker
+
+
+def enrich_markers(markers: list[dict[str, Any]], metadata: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    for marker in markers:
+        marker["metadata"] = metadata.get(marker["marker"], {})
+    return markers
+
+
+def attach_section_readiness(
+    sections: list[dict[str, Any]],
+    markers: list[dict[str, Any]],
+    development_readiness: dict[str, Any],
+) -> list[dict[str, Any]]:
+    markers_by_section: dict[str, list[dict[str, Any]]] = {}
+    for marker in markers:
+        markers_by_section.setdefault(marker["section_id"], []).append(marker)
+    for section in sections:
+        section_markers = markers_by_section.get(section["id"], [])
+        pending = sum(1 for marker in section_markers if marker["kind"] in {"pending", "gap"})
+        assumed = sum(1 for marker in section_markers if marker["kind"] == "assumption")
+        if pending:
+            status = "pending"
+        elif assumed:
+            status = "assumed"
+        else:
+            status = "populated"
+        section["readiness"] = {
+            "status": status,
+            "pending_markers": pending,
+            "assumption_markers": assumed,
+            "development_cells": sum(len(marker.get("metadata", {}).get("readiness_cells", [])) for marker in section_markers),
+            "certainty_source": "development_readiness.json" if development_readiness else "artifact_markers",
+        }
+    return sections
+
+
+def summarize_section_readiness(sections: list[dict[str, Any]]) -> dict[str, int]:
+    summary = {"populated": 0, "pending": 0, "assumed": 0}
+    for section in sections:
+        status = section.get("readiness", {}).get("status", "populated")
+        summary[status] = summary.get(status, 0) + 1
+    return summary
 
 
 def collect_citations(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -385,12 +509,21 @@ HTML_TEMPLATE = r"""<!doctype html>
     mark.pending { background: #fef3c7; color: #7c2d12; }
     mark.gap { background: #fee2e2; color: #7f1d1d; }
     mark.assumption { background: #ede9fe; color: #4c1d95; }
+    mark.marker:target { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .badge { display: inline-flex; align-items: center; min-height: 22px; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .badge.populated { background: #dcfce7; color: #14532d; }
+    .badge.pending { background: #fef3c7; color: #7c2d12; }
+    .badge.assumed { background: #ede9fe; color: #4c1d95; }
     .side-title { margin: 16px 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
+    select { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; font: inherit; background: #fff; }
     .pill-list { display: grid; gap: 8px; }
     .pill { display: block; text-decoration: none; color: var(--ink); background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px; font-size: 13px; }
     .pill.gap { border-left-color: var(--gap); }
     .pill.pending { border-left-color: var(--warn); }
     .pill.assumption { border-left-color: var(--accent-2); }
+    .pill[hidden] { display: none; }
+    .pill-meta { margin-top: 6px; color: var(--muted); display: grid; gap: 4px; }
+    .pill-meta b { color: var(--ink); }
     .empty { color: var(--muted); font-size: 13px; }
     .source-toggle { margin-top: 10px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
     .markdown-source { display: none; white-space: pre-wrap; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; font-family: Consolas, monospace; font-size: 12px; overflow: auto; }
@@ -417,7 +550,13 @@ HTML_TEMPLATE = r"""<!doctype html>
     </nav>
     <main id="content"></main>
     <aside>
-      <div class="side-title">Pending Markers</div>
+      <div class="side-title">Pending And Assumptions</div>
+      <select id="markerFilter" aria-label="Filter markers">
+        <option value="all">All markers</option>
+        <option value="gap">Gaps</option>
+        <option value="pending">Pending input</option>
+        <option value="assumption">Assumptions</option>
+      </select>
       <div class="pill-list" id="markers"></div>
       <div class="side-title">Evidence And Trace</div>
       <div class="pill-list" id="citations"></div>
@@ -436,7 +575,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     $("stats").innerHTML = Object.entries(model.summary).map(([k, v]) => `<div class="stat"><strong>${v}</strong><span>${label(k)}</span></div>`).join("");
     $("toc").innerHTML = model.sections.map(s => `<a class="level-${s.level}" href="#${s.id}">${escapeHtml(s.title)}</a>`).join("");
     $("content").innerHTML = model.sections.map(sectionHtml).join("");
-    $("markers").innerHTML = model.markers.length ? model.markers.map(m => pill(m, m.marker, m.kind)).join("") : `<div class="empty">No pending, gap, or assumption markers found.</div>`;
+    $("markers").innerHTML = model.markers.length ? model.markers.map(markerPill).join("") : `<div class="empty">No pending, gap, or assumption markers found.</div>`;
     const citationItems = [
       ...model.citations.map(c => pill(c, c.citation, "citation")),
       ...model.trace.nodes.map(n => `<a class="pill" href="#content"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</a>`)
@@ -448,6 +587,12 @@ HTML_TEMPLATE = r"""<!doctype html>
         section.classList.toggle("hidden", q && !section.textContent.toLowerCase().includes(q));
       });
     });
+    $("markerFilter").addEventListener("change", event => {
+      const value = event.target.value;
+      document.querySelectorAll("#markers .pill").forEach(item => {
+        item.hidden = value !== "all" && item.dataset.kind !== value;
+      });
+    });
     document.addEventListener("click", event => {
       if (event.target.matches(".source-toggle")) {
         const target = document.getElementById(event.target.dataset.target);
@@ -456,24 +601,49 @@ HTML_TEMPLATE = r"""<!doctype html>
     });
 
     function sectionHtml(s) {
+      const readiness = s.readiness || { status: "populated" };
       return `<section class="artifact-section" id="${s.id}">
-        <div class="section-meta">${escapeHtml(s.section_path)} · lines ${s.line_start}-${s.line_end}</div>
-        <div class="content">${highlight(s.html)}</div>
+        <div class="section-meta">${escapeHtml(s.section_path)} · lines ${s.line_start}-${s.line_end} · <span class="badge ${escapeHtml(readiness.status)}">${escapeHtml(readiness.status)}</span></div>
+        <div class="content">${highlightSection(s)}</div>
         <button class="source-toggle" data-target="src-${s.id}">Markdown source</button>
         <pre class="markdown-source" id="src-${s.id}">${escapeHtml(s.markdown)}</pre>
       </section>`;
     }
+    function markerPill(item) {
+      return `<a class="pill ${item.kind}" data-kind="${item.kind}" href="#${item.id}">
+        <strong>${escapeHtml(item.marker)}</strong><br>${escapeHtml(item.section_path || "")}
+        ${metadataHtml(item)}
+      </a>`;
+    }
     function pill(item, text, kind) {
       return `<a class="pill ${kind}" href="#${item.section_id || "content"}"><strong>${escapeHtml(text)}</strong><br>${escapeHtml(item.section_path || "")}</a>`;
     }
-    function highlight(value) {
-      return value
-        .replace(/(\[PENDING INPUT\]|\[PENDING DOMAIN CONTEXT\]|\[PENDING [^\]]+\])/g, '<mark class="marker pending">$1</mark>')
-        .replace(/(GAP-[A-Z0-9-]+)/g, '<mark class="marker gap">$1</mark>')
-        .replace(/(ASM-[A-Z0-9-]+|\bASSUMED\b)/g, '<mark class="marker assumption">$1</mark>');
+    function metadataHtml(item) {
+      const meta = item.metadata || {};
+      const rows = [];
+      if (meta.lens || meta.severity || meta.status) rows.push(`<span><b>Lens/status:</b> ${escapeHtml([meta.lens, meta.severity, meta.status].filter(Boolean).join(" · "))}</span>`);
+      if (meta.why) rows.push(`<span><b>Why it matters:</b> ${escapeHtml(meta.why)}</span>`);
+      if (meta.unblocks) rows.push(`<span><b>Unblocks:</b> ${escapeHtml(meta.unblocks)}</span>`);
+      if (meta.expected_format) rows.push(`<span><b>Expected format:</b> ${escapeHtml(meta.expected_format)}</span>`);
+      if (meta.owner || meta.risk) rows.push(`<span><b>Owner/risk:</b> ${escapeHtml([meta.owner, meta.risk].filter(Boolean).join(" · "))}</span>`);
+      if (meta.statement) rows.push(`<span><b>Assumption:</b> ${escapeHtml(meta.statement)}</span>`);
+      if (meta.closes_gap) rows.push(`<span><b>Closes gap:</b> ${escapeHtml(meta.closes_gap)}</span>`);
+      if (meta.readiness_cells?.length) rows.push(`<span><b>Readiness:</b> ${escapeHtml(meta.readiness_cells.map(c => [c.area, c.lens, c.status].filter(Boolean).join(" / ")).join("; "))}</span>`);
+      return rows.length ? `<span class="pill-meta">${rows.join("")}</span>` : "";
+    }
+    function highlightSection(section) {
+      let value = section.html;
+      model.markers.filter(m => m.section_id === section.id).forEach(marker => {
+        const pattern = new RegExp(escapeRegExp(marker.marker));
+        value = value.replace(pattern, `<mark id="${marker.id}" class="marker ${marker.kind}">${escapeHtml(marker.marker)}</mark>`);
+      });
+      return value;
     }
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    function escapeRegExp(value) {
+      return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
     function label(key) {
       return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());

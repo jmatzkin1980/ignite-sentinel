@@ -61,6 +61,74 @@ class ArtifactViewTest(unittest.TestCase):
         state = json.loads((self.temp / "workspaces" / "GAPVIEW" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["last_command"], "view")
 
+    def test_gap_markers_include_elicitation_metadata_and_section_badges(self) -> None:
+        fixture = ROOT / "fixtures" / "incomplete_requirement.md"
+        self.assertEqual(main(["init", "GAPMETA"]), 0)
+        self.assertEqual(main(["ingest", "GAPMETA", "--source", str(fixture)]), 0)
+
+        model = collect_artifact_model("GAPMETA", "gaps")
+        gap_marker = next(marker for marker in model["markers"] if marker["marker"] == "GAP-USERS")
+
+        self.assertTrue(gap_marker["metadata"]["lens"])
+        self.assertEqual(gap_marker["metadata"]["severity"], "high")
+        self.assertIn("why", gap_marker["metadata"])
+        self.assertIn("unblocks", gap_marker["metadata"])
+        self.assertIn("expected_format", gap_marker["metadata"])
+        self.assertGreater(model["summary"]["sections_pending"], 0)
+
+    def test_assumption_markers_include_owner_risk_and_html_anchors(self) -> None:
+        raw = self.temp / "raw.md"
+        raw.write_text(
+            "# Risk Dashboard\n\n"
+            "We need a dashboard for operations leads to see queue risk before standup. "
+            "The dashboard reads queue metrics from the existing support metrics service.",
+            encoding="utf-8",
+        )
+        assumption_source = self.temp / "assumptions.json"
+        assumption_source.write_text(
+            json.dumps(
+                {
+                    "assumptions": [
+                        {
+                            "id": "ASM-TECH-METRICS-SOURCE",
+                            "lens": "technical",
+                            "statement": "The dashboard will provisionally use the existing support metrics service as the source for queue risk.",
+                            "owner": "Technology Lead",
+                            "risk": "med",
+                            "justification": "The dashboard reads queue metrics from the existing support metrics service.",
+                            "closes_gap": "GAP-TECH-DATA-SOURCE",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["init", "ASMMETA"]), 0)
+        self.assertEqual(main(["ingest", "ASMMETA", "--source", str(raw)]), 0)
+        self.assertEqual(main(["assume", "ASMMETA", "--source", str(assumption_source)]), 0)
+        self.assertEqual(main(["maturity", "ASMMETA"]), 0)
+        self.assertEqual(main(["brief", "ASMMETA"]), 0)
+        self.assertEqual(main(["view", "ASMMETA", "--artifact", "brief"]), 0)
+
+        model = collect_artifact_model("ASMMETA", "brief")
+        assumption = next(marker for marker in model["markers"] if marker["marker"] == "ASM-TECH-METRICS-SOURCE")
+        self.assertEqual(assumption["metadata"]["owner"], "Technology Lead")
+        self.assertEqual(assumption["metadata"]["risk"], "med")
+        self.assertTrue(assumption["metadata"]["readiness_cells"])
+        self.assertGreater(model["summary"]["sections_assumed"], 0)
+
+        html = (
+            self.temp
+            / "workspaces"
+            / "ASMMETA"
+            / "08_context_packs"
+            / "views"
+            / "brief.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"id": "marker-', html)
+        self.assertIn("Owner/risk", html)
+        self.assertIn("ASM-TECH-METRICS-SOURCE", html)
+
 
 if __name__ == "__main__":
     unittest.main()
