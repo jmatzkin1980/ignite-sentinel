@@ -26,6 +26,7 @@ What the first version shows:
 - governed assumption metadata from `assumptions.md`: owner, risk, statement, linked gap, and status
 - section certainty badges (`populated`, `pending`, `assumed`) derived from artifact markers and the local development readiness context when present
 - citations and matching trace nodes in the side panel
+- evidence chips that resolve trace IDs to the real graph node, show a local source fragment, and render a one-hop mini trace graph from actual `traceability_graph.json` edges
 - a Markdown source toggle for reviewers who need the canonical text
 
 Do not edit generated HTML. If review feedback changes scope or answers a gap, capture it as local evidence and route it through `/resolve-gaps`, `/sync`, `/annotate`, or the appropriate governed command.

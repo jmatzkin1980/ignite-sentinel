@@ -178,7 +178,7 @@ For a navigable view of one artifact, run:
 python -m sentinel /view ACME_DASHBOARD --artifact prd
 ```
 
-`/view` writes a self-contained read-only HTML snapshot under `workspaces/ACME_DASHBOARD/08_context_packs/views/`. The Markdown artifact remains the source of truth. The side panel turns `GAP-*`, pending-input, and governed-assumption markers into navigable review signals with gap/assumption metadata and section certainty badges.
+`/view` writes a self-contained read-only HTML snapshot under `workspaces/ACME_DASHBOARD/08_context_packs/views/`. The Markdown artifact remains the source of truth. The side panel turns `GAP-*`, pending-input, and governed-assumption markers into navigable review signals with gap/assumption metadata and section certainty badges; citation chips resolve local trace nodes, source fragments, and one-hop mini graphs when the graph contains that evidence.
 
 If you prefer exact commands, every surface speaks the same lifecycle:
 

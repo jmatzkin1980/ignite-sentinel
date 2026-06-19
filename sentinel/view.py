@@ -69,8 +69,9 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     marker_metadata = collect_marker_metadata(project_id, language, development_readiness)
     markers = enrich_markers(collect_markers(sections), marker_metadata)
     sections = attach_section_readiness(sections, markers, development_readiness)
-    citations = collect_citations(sections)
+    citations = collect_citations(project_id, sections)
     trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
+    trace_edges = trace_edges_for_citations(project_id, citations)
     section_summary = summarize_section_readiness(sections)
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     return {
@@ -88,7 +89,9 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         "citations": citations,
         "trace": {
             "nodes": trace_nodes,
+            "edges": trace_edges,
             "node_count": len(trace_nodes),
+            "edge_count": len(trace_edges),
         },
         "readiness": {
             "summary": development_readiness.get("summary", {}),
@@ -104,6 +107,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
             "assumed": sum(1 for marker in markers if marker["kind"] == "assumption"),
             "citations": len(citations),
             "trace_nodes": len(trace_nodes),
+            "trace_edges": len(trace_edges),
         },
     }
 
@@ -303,21 +307,105 @@ def summarize_section_readiness(sections: list[dict[str, Any]]) -> dict[str, int
     return summary
 
 
-def collect_citations(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     citations: list[dict[str, Any]] = []
+    graph = load_graph(project_id)
+    node_lookup = {str(node.get("id", "")): node for node in graph.get("nodes", [])}
     for section in sections:
         for match in CITATION_RE.finditer(section["markdown"]):
             citation = match.group(0)
+            trace_id = citation_trace_id(citation)
+            trace_node = node_lookup.get(trace_id, {}) if trace_id else {}
             citations.append(
                 {
                     "id": f"citation-{len(citations) + 1}",
                     "citation": citation,
+                    "trace_id": trace_id,
                     "section_id": section["id"],
                     "section_path": section["section_path"],
                     "line_start": section["line_start"],
+                    "trace_node": trace_node_summary(trace_node),
+                    "source_fragment": source_fragment_for_node(project_id, trace_node),
+                    "mini_graph": mini_graph_for_node(trace_id, graph),
                 }
             )
     return citations
+
+
+def citation_trace_id(citation: str) -> str:
+    backtick = re.search(r"`([A-Z]+(?:-[A-Z]+)*-\d+)`", citation)
+    if backtick:
+        return backtick.group(1)
+    source = re.search(r"\b((?:REQ|FR|JTBD|SPEC-U|US|AC|TC|KLU|DEC|CHG|RAW|GAP|ASM)-[A-Z0-9-]+)\b", citation)
+    return source.group(1) if source else ""
+
+
+def trace_node_summary(node: dict[str, Any]) -> dict[str, Any]:
+    if not node:
+        return {}
+    return {
+        "id": node.get("id", ""),
+        "type": node.get("type", ""),
+        "title": node.get("title", ""),
+        "path": str(node.get("path", "")).replace("\\", "/"),
+        "status": node.get("status", ""),
+        "domain": node.get("domain", ""),
+    }
+
+
+def source_fragment_for_node(project_id: str, node: dict[str, Any], *, max_lines: int = 80) -> dict[str, Any]:
+    if not node:
+        return {}
+    raw_path = str(node.get("path", "")).strip()
+    if not raw_path:
+        return {}
+    base = workspace_path(project_id)
+    candidates = [Path(raw_path)]
+    if not Path(raw_path).is_absolute():
+        candidates.append(base / raw_path)
+    path = next((candidate for candidate in candidates if candidate.exists() and candidate.is_file()), None)
+    if path is None:
+        return {"path": raw_path.replace("\\", "/"), "available": False}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        return {"path": raw_path.replace("\\", "/"), "available": False}
+    end = min(len(lines), max_lines)
+    return {
+        "path": str(path.as_posix()),
+        "available": True,
+        "line_start": 1 if lines else 0,
+        "line_end": end,
+        "truncated": len(lines) > end,
+        "text": "\n".join(lines[:end]),
+    }
+
+
+def mini_graph_for_node(trace_id: str, graph: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    if not trace_id:
+        return {"nodes": [], "edges": []}
+    node_lookup = {str(node.get("id", "")): node for node in graph.get("nodes", [])}
+    related_ids = {trace_id}
+    edges: list[dict[str, Any]] = []
+    for edge in graph.get("edges", []):
+        source = str(edge.get("from", ""))
+        target = str(edge.get("to", ""))
+        if source != trace_id and target != trace_id:
+            continue
+        related_ids.update({source, target})
+        edges.append({"from": source, "to": target, "relation": edge.get("relation", "")})
+    nodes = [trace_node_summary(node_lookup[node_id]) for node_id in sorted(related_ids) if node_id in node_lookup]
+    return {"nodes": nodes, "edges": edges}
+
+
+def trace_edges_for_citations(project_id: str, citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    graph = load_graph(project_id)
+    cited = {citation.get("trace_id") for citation in citations if citation.get("trace_id")}
+    edges = []
+    for edge in graph.get("edges", []):
+        if edge.get("from") in cited or edge.get("to") in cited:
+            edges.append({"from": edge.get("from"), "to": edge.get("to"), "relation": edge.get("relation")})
+    return edges
 
 
 def trace_nodes_for_artifact(project_id: str, relative_path: str, artifact: str) -> list[dict[str, Any]]:
@@ -524,6 +612,13 @@ HTML_TEMPLATE = r"""<!doctype html>
     .pill[hidden] { display: none; }
     .pill-meta { margin-top: 6px; color: var(--muted); display: grid; gap: 4px; }
     .pill-meta b { color: var(--ink); }
+    .evidence-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px; font-size: 13px; }
+    .evidence-card summary { cursor: pointer; font-weight: 700; }
+    .evidence-card summary span { color: var(--muted); font-weight: 400; }
+    .mini-graph { margin-top: 8px; display: grid; gap: 5px; }
+    .mini-node, .mini-edge { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fbfcfd; }
+    .mini-edge { color: var(--muted); }
+    .source-fragment { max-height: 220px; white-space: pre-wrap; overflow: auto; background: #101820; color: #f4f7fa; border-radius: 8px; padding: 10px; font-family: Consolas, monospace; font-size: 12px; }
     .empty { color: var(--muted); font-size: 13px; }
     .source-toggle { margin-top: 10px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
     .markdown-source { display: none; white-space: pre-wrap; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; font-family: Consolas, monospace; font-size: 12px; overflow: auto; }
@@ -577,7 +672,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     $("content").innerHTML = model.sections.map(sectionHtml).join("");
     $("markers").innerHTML = model.markers.length ? model.markers.map(markerPill).join("") : `<div class="empty">No pending, gap, or assumption markers found.</div>`;
     const citationItems = [
-      ...model.citations.map(c => pill(c, c.citation, "citation")),
+      ...model.citations.map(evidenceCard),
       ...model.trace.nodes.map(n => `<a class="pill" href="#content"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</a>`)
     ];
     $("citations").innerHTML = citationItems.length ? citationItems.join("") : `<div class="empty">No citations or matching trace nodes found.</div>`;
@@ -617,6 +712,29 @@ HTML_TEMPLATE = r"""<!doctype html>
     }
     function pill(item, text, kind) {
       return `<a class="pill ${kind}" href="#${item.section_id || "content"}"><strong>${escapeHtml(text)}</strong><br>${escapeHtml(item.section_path || "")}</a>`;
+    }
+    function evidenceCard(item) {
+      const node = item.trace_node || {};
+      const fragment = item.source_fragment || {};
+      const graph = item.mini_graph || { nodes: [], edges: [] };
+      return `<details class="evidence-card" id="evidence-${item.id}">
+        <summary>${escapeHtml(item.citation)} <span>${escapeHtml(node.type || "citation")} · ${escapeHtml(item.section_path || "")}</span></summary>
+        <div class="pill-meta">
+          ${node.id ? `<span><b>Trace node:</b> ${escapeHtml(node.id)} · ${escapeHtml(node.title || "")}</span>` : `<span><b>Trace node:</b> No matching graph node</span>`}
+          ${node.path ? `<span><b>Path:</b> ${escapeHtml(node.path)}</span>` : ""}
+          ${fragment.available ? `<span><b>Source Fragment:</b> lines ${fragment.line_start}-${fragment.line_end}${fragment.truncated ? " · truncated" : ""}</span><pre class="source-fragment">${escapeHtml(fragment.text)}</pre>` : `<span><b>Source Fragment:</b> not available in local graph path</span>`}
+          ${miniGraphHtml(graph)}
+        </div>
+      </details>`;
+    }
+    function miniGraphHtml(graph) {
+      const nodes = graph.nodes || [];
+      const edges = graph.edges || [];
+      if (!nodes.length && !edges.length) return `<span><b>Mini Trace:</b> no direct graph relations found.</span>`;
+      return `<div class="mini-graph"><b>Mini Trace</b>
+        ${nodes.map(n => `<div class="mini-node"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</div>`).join("")}
+        ${edges.map(e => `<div class="mini-edge">${escapeHtml(e.from || "")} → ${escapeHtml(e.to || "")} · ${escapeHtml(e.relation || "")}</div>`).join("")}
+      </div>`;
     }
     function metadataHtml(item) {
       const meta = item.metadata || {};

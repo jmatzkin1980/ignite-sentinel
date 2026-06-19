@@ -90,6 +90,8 @@ python -m sentinel /view PROJECT_ID --artifact prd --open
 
 The first implementation includes section navigation, search, source-line anchors, pending/gap/assumption markers, citation chips, and matching trace nodes. It does not mutate the source artifact.
 
+Citation chips resolve backticked trace IDs against the local traceability graph. When a node exists, the view embeds a bounded source fragment and a one-hop mini trace graph from real edges so reviewers can inspect evidence and relationships without leaving the HTML snapshot.
+
 ## `init`
 
 Create a project workspace.
