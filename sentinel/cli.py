@@ -31,6 +31,8 @@ from .status import project_status
 from .sync import sync_change, sync_pending_sources
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .validation import validate_project
+from .view import ARTIFACTS as VIEW_ARTIFACTS
+from .view import generate_artifact_view
 from .workspace import ensure_workspace
 
 COMMANDS = {
@@ -48,6 +50,7 @@ COMMANDS = {
     "health",
     "trace",
     "validate",
+    "view",
     "reindex",
     "gaps",
     "annotate",
@@ -80,6 +83,11 @@ def main(argv: list[str] | None = None) -> int:
     dashboard_p = sub.add_parser("dashboard")
     dashboard_p.add_argument("--root", default=".")
     dashboard_p.add_argument("--open", action="store_true")
+
+    view_p = sub.add_parser("view")
+    view_p.add_argument("project_id")
+    view_p.add_argument("--artifact", required=True, choices=sorted(VIEW_ARTIFACTS))
+    view_p.add_argument("--open", action="store_true")
 
     init_p = sub.add_parser("init")
     init_p.add_argument("project_id")
@@ -186,6 +194,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result["verdict"] == "PASS" else 1
         elif args.command == "dashboard":
             result = generate_dashboard(Path(args.root), open_browser=bool(args.open))
+            print_json(result)
+        elif args.command == "view":
+            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open))
             print_json(result)
         elif args.command == "ingest":
             result = ingest(args.project_id, Path(args.source))

@@ -28,6 +28,7 @@ REQUIRED_COMMANDS = [
     "health",
     "trace",
     "validate",
+    "view",
     "reindex",
     "gaps",
     "annotate",

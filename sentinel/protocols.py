@@ -7,7 +7,7 @@ from .backlog_hooks import assert_backlog_privacy_clean
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
-READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status"}
+READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
 MUTATING_COMMANDS = {
     "ingest",
     "sync",

@@ -30,6 +30,7 @@ python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /m
 python -m sentinel /sync | /reindex | /retrieve
 python -m sentinel /specs | /backlog | /backlog-status | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /quality | /trace | /health | /validate
 python -m sentinel /status PROJECT_ID | /export PROJECT_ID
+python -m sentinel /view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]
 ```
 
 Fallback Windows sin Python en PATH: `.\installers\sentinel.ps1 /COMMAND PROJECT_ID`.
@@ -42,6 +43,7 @@ Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash
 
 - Si el usuario escribe un comando estilo `/COMMAND PROJECT_ID [OPTIONS]`, `sentinel /COMMAND ...` o `ignite /COMMAND ...`, ejecutar `python -m sentinel /COMMAND PROJECT_ID [OPTIONS]` desde la raíz del repo.
 - `/dashboard` es de cartera y no lleva `PROJECT_ID`: ejecutar `python -m sentinel /dashboard [--root PATH] [--open]`. Genera `dashboard.html` local, read-only y git-ignored.
+- `/view PROJECT_ID --artifact ARTIFACT` genera una vista HTML local y read-only de un artefacto bajo `08_context_packs/views/`; es derivada del Markdown source-of-truth y no se edita a mano.
 - Si el usuario describe la situación en lenguaje natural, mapear la intención al flujo correcto (tabla completa en `user_guide/11-chat-commands.md`, sección Intent-To-Command Map): input nuevo de cliente → `/init` + `/ingest` + `/status`; respuestas a gaps → `/resolve-gaps` + `/maturity` + `/status`; contexto de dominio actualizado → `/sync` + `/reindex` + `/health`; handoff downstream → `/specs` + `/backlog` + `/backlog-status` + `/quality` + `/trace` + `/health` + `/validate` cuando los gates lo permitan.
 - Nunca editar artefactos generados a mano: siempre mutar vía CLI.
 - Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.

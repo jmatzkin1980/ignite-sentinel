@@ -20,6 +20,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
 - `/status PROJECT_ID`
 - `/export PROJECT_ID --artifact gaps|brief|context-request --format md`
+- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
@@ -45,7 +46,7 @@ Translate short chat commands into Sentinel CLI executions.
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
-For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH` and `--open`.
+For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH` and `--open`. `/view` requires `PROJECT_ID` and writes a derived read-only HTML snapshot under `08_context_packs/views/`.
 
 3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
 
@@ -71,7 +72,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/backlog`: use `sentinel-backlog`.
 - `/implementation-feedback`: use `sentinel-backlog`; accepted findings are traced feedback, not direct backlog rewrites.
 - `/quality`: use `sentinel-quality`.
-- `/health`, `/trace`, `/validate`, `/doctor`: use `sentinel-health`.
+- `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/status`, `/export`: summarize the CLI result and generated artifact path.
 
 ## Safety
