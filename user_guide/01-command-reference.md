@@ -274,12 +274,20 @@ Auto-close rule:
 
 If the answer exists but decision status is pending or unclear, the gap becomes `PARTIALLY_CLOSED`.
 
+Knowledge metabolism:
+
+- confirmed answers refresh `knowledge_state.md/json` and `development_readiness.json`;
+- if a confirmed gap answer closes the gap linked by a governed assumption, that assumption moves from `ASSUMED` to `VALIDATED`;
+- the gap resolution report includes a `Knowledge Ledger Metabolism` section with impacted `KLU-*` units, validated assumptions, and downstream artifacts that may now be stale.
+
 Outputs:
 
 - updated `01_discovery/gaps.md`
 - copied response under `07_changes/00_client_responses/`
 - `07_changes/00_client_responses/[source]_gap_resolution_report.md`
 - appended `01_discovery/gap_resolution_log.md`
+- refreshed `01_discovery/knowledge_state.md` and `.json`
+- refreshed `01_discovery/development_readiness.json`
 - confirmed seeds and decisions when applicable
 - EARS-normalized requirements (IMP-026): when a confirmed answer is already written in EARS syntax (e.g. "When <trigger>, the system shall <response>." — ubiquitous, event, state, unwanted, or optional, in EN or ES), it is accumulated into `02_requirements/requirements.md` under "Normalized Requirements (EARS)" as `REQ-EARS-NNN` with its pattern and source. Prose answers stay as seeds/decisions; the runtime validates EARS structure and never invents it. `/specs` and `/backlog` cite confirmed `REQ-EARS-*` rows so downstream stories, acceptance criteria, and tests can preserve the normalized requirement IDs.
 
@@ -613,6 +621,8 @@ This detects new or modified files in input and workspace context folders using 
 
 If a synced change triggers a gap ID that was already `CLOSED`, the impact report lists it under `Reopened Closed Gaps` and `/status` exposes the aggregate in `maturation_telemetry.reopened_by_sync_*`. Sentinel does not silently change the closed gap state; it makes the renewed uncertainty explicit for BA review.
 
+If a synced file contains structured `### GAP-*` response blocks, Sentinel applies the same governed closure rules as `/resolve-gaps` before rebuilding the ledger. If it explicitly invalidates an `ASM-*`, Sentinel marks that assumption `INVALIDATED`, maps the linked knowledge unit back to `OPEN`, recalculates `development_readiness.json`, and flags downstream stale artifacts for `/health`.
+
 Explicit file:
 
 ```powershell
@@ -623,6 +633,8 @@ Creates:
 
 - `CHG` node
 - impact report
+- refreshed `knowledge_state.*` and `development_readiness.json` when knowledge moves
+- `Knowledge Ledger Metabolism` and downstream staleness sections in the impact report
 - `may_impact` edges to downstream artifacts
 - source manifest entries for processed files
 - LanceDB `ba_memory` rows for change and impact chunks
