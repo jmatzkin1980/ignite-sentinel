@@ -650,6 +650,8 @@ Examples:
 
 These HTML files are self-contained local snapshots derived from Markdown source artifacts plus workspace state and traceability. They are ignored by git and can be rebuilt at any time. The Markdown files remain the source of truth; review feedback should enter through governed commands such as `/resolve-gaps`, `/sync`, `/annotate`, or `/compose`.
 
+Before rendering, `/view` derives a block model from the Markdown. The catalog is intentionally closed: `section`, `requirement-table`, `persona`, `ears-statement`, `decision`, `traceability`, `pending`, and `assumption`. Blocks preserve exact Markdown slices for round-trip reconstruction, so the model can support richer review behavior without becoming a new artifact contract.
+
 The marker panel is a derived review aid. `GAP-*` markers are enriched from `01_discovery/gaps.md` with lens, severity, status, why the gap matters, what it unblocks, and the expected answer format. `ASM-*` / `ASSUMED` markers are enriched from `01_discovery/assumptions.md` with owner, risk, statement, status, and linked gap. Section badges summarize whether the visible artifact section is populated, still pending, or proceeding under a governed assumption.
 
 The evidence panel is also derived. Backticked trace IDs such as `REQ-001`, `FR-001`, `SPEC-U-001`, `US-001`, `AC-001`, `RAW-001`, `GAP-*`, or `ASM-*` are resolved only when a matching node exists in `06_traceability/traceability_graph.json`. For each matched node the view embeds a bounded local source fragment and a one-hop mini graph made from real trace edges. Missing nodes remain visible as unmatched citations; the view never fabricates evidence or graph relationships.

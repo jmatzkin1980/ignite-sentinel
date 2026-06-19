@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .assumptions import load_assumptions
+from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .traceability import load_graph
 from .workspace import read_json, workspace_path
@@ -62,7 +63,8 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Artifact not found for /view: workspaces/{project_id}/{relative}")
 
     text = path.read_text(encoding="utf-8")
-    sections = split_markdown_sections(text)
+    block_model = markdown_to_blocks(text, artifact=artifact)
+    sections = attach_section_html(sections_from_blocks(block_model))
     state = read_json(base / "state.json", {})
     language = str(state.get("project_language") or "auto")
     development_readiness = read_json(base / "01_discovery" / "development_readiness.json", {})
@@ -85,6 +87,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         "source_path": f"workspaces/{project_id}/{relative}",
         "source_relative_path": relative,
         "source_line_count": len(text.splitlines()),
+        "blocks": block_model,
         "sections": sections,
         "markers": markers,
         "guided_response": guided_response,
@@ -113,6 +116,12 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
             "trace_edges": len(trace_edges),
         },
     }
+
+
+def attach_section_html(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    for section in sections:
+        section["html"] = markdown_to_html(section["markdown"])
+    return sections
 
 
 def split_markdown_sections(text: str) -> list[dict[str, Any]]:

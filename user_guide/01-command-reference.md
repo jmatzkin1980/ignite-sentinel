@@ -86,7 +86,9 @@ python -m sentinel /view PROJECT_ID --artifact backlog
 python -m sentinel /view PROJECT_ID --artifact prd --open
 ```
 
-`/view` reads the Markdown source of truth, workspace state, assumptions, gaps, development readiness, and traceability graph, then writes `workspaces/PROJECT_ID/08_context_packs/views/ARTIFACT.html`. The HTML is self-contained, opens without a server, and is ignored by git. It is a rebuildable review surface, not a second source of truth. Pending and assumption markers link back to exact inline highlights and show their governed metadata in the side panel.
+`/view` reads the Markdown source of truth, derives a lossless block model, then combines it with workspace state, assumptions, gaps, development readiness, and traceability graph data before writing `workspaces/PROJECT_ID/08_context_packs/views/ARTIFACT.html`. The HTML is self-contained, opens without a server, and is ignored by git. It is a rebuildable review surface, not a second source of truth. Pending and assumption markers link back to exact inline highlights and show their governed metadata in the side panel.
+
+The derived block model uses a closed catalog (`section`, `requirement-table`, `persona`, `ears-statement`, `decision`, `traceability`, `pending`, `assumption`) and is round-trippable back to the original Markdown. It exists to give the view a stable intermediate representation; it does not change how generated `.md` artifacts are authored, reviewed, or versioned.
 
 The first implementation includes section navigation, search, source-line anchors, pending/gap/assumption markers, citation chips, and matching trace nodes. It does not mutate the source artifact.
 
