@@ -41,6 +41,35 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertGreater(model["summary"]["citations"], 0)
         self.assertTrue(any(node["type"] == "prd" for node in model["trace"]["nodes"]))
 
+    def test_citations_resolve_source_fragments_and_real_trace_neighborhoods(self) -> None:
+        fixture = ROOT / "fixtures" / "complete_requirement.md"
+        self.assertEqual(main(["init", "EVIDENCE"]), 0)
+        self.assertEqual(main(["ingest", "EVIDENCE", "--source", str(fixture)]), 0)
+        self.assertEqual(main(["maturity", "EVIDENCE"]), 0)
+        self.assertEqual(main(["specs", "EVIDENCE"]), 0)
+        self.assertEqual(main(["view", "EVIDENCE", "--artifact", "prd"]), 0)
+
+        model = collect_artifact_model("EVIDENCE", "prd")
+        with_fragment = [citation for citation in model["citations"] if citation["source_fragment"].get("available")]
+        with_edges = [citation for citation in model["citations"] if citation["mini_graph"]["edges"]]
+
+        self.assertTrue(with_fragment)
+        self.assertEqual(with_fragment[0]["trace_node"]["id"], with_fragment[0]["trace_id"])
+        self.assertTrue(with_fragment[0]["source_fragment"]["text"].strip())
+        self.assertTrue(with_edges)
+        self.assertGreater(model["summary"]["trace_edges"], 0)
+
+        html = (
+            self.temp
+            / "workspaces"
+            / "EVIDENCE"
+            / "08_context_packs"
+            / "views"
+            / "prd.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Source Fragment", html)
+        self.assertIn("Mini Trace", html)
+
     def test_view_command_generates_self_contained_html_for_gaps(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
         self.assertEqual(main(["init", "GAPVIEW"]), 0)

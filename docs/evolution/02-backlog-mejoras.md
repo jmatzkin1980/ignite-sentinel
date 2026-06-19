@@ -714,7 +714,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: la vista lista todos los pendientes/supuestos con metadata y anclas 1:1 al texto.
 
 ### IMP-072 — Trazabilidad y evidencia clickeables
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-072-artifact-view-trace-evidence`: `/view` resuelve citas trazables contra `traceability_graph.json`, adjunta nodo real, fragmento local acotado del archivo fuente y mini-grafo de un salto por cita; el HTML renderiza chips desplegables "Source Fragment" + "Mini Trace" sin librerías ni red. Tests focalizados en `tests/test_artifact_view.py`; `verify.ps1` verde).
 - Prioridad / orden: 3 de 8. Depende de IMP-070.
 - Alcance: chips de evidencia que abren fragmentos fuente y mini-grafo inline por requerimiento usando el grafo real, sin librerías ni red.
 - Aceptación: un FR/spec/story navega a evidencia y relaciones reales sin inventar nodos.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-072 IMPLEMENTED en `codex/imp-072-artifact-view-trace-evidence`: `/view` agrega chips de evidencia con fragmentos fuente locales y mini-grafo inline por cita usando nodos/edges reales de trazabilidad. |
 | 2026-06-19 | IMP-071 IMPLEMENTED en `codex/imp-071-artifact-view-markers`: `/view` ahora convierte markers en señales navegables con panel filtrable de pendientes/supuestos, metadata de gaps/supuestos y badges de certeza por sección. |
 | 2026-06-19 | IMP-070 IMPLEMENTED en `codex/imp-070-artifact-view`: agregado `/view` para vistas HTML read-only por artefacto, modelo JSON con secciones/markers/citas/trace, adapters/MCP/doctor/docs/tests alineados y H11 promovido/reconciliado en este backlog. |
 | 2026-06-19 | IMP-069 marcado DONE tras merge de PR #67 a `main`; Horizonte 10 queda habilitando el arranque de Horizonte 11. |
