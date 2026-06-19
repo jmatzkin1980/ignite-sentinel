@@ -126,7 +126,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/dashboard` | Generate a local read-only `dashboard.html` portfolio view for all workspaces |
 | `/view` | Generate a local read-only HTML view for one artifact |
 | `/status` | Phase, health, gap counts, telemetry, and next step |
-| `/export` | Export a shareable artifact |
+| `/export` | Export a shareable artifact, including optional local PRD MDX |
 | `/doctor` | Verify Python, adapters, write access, and the optional memory layer |
 | `/sentinel` | Generic fallback to run any command from one entry point |
 
