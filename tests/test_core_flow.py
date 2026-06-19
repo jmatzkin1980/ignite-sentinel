@@ -7,6 +7,7 @@ import unittest
 import json
 from pathlib import Path
 
+from sentinel.blocks import blocks_to_markdown
 from sentinel.cli import main
 from sentinel.doctor import run_doctor
 from sentinel.memory import ContextBroker
@@ -91,6 +92,17 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("Backlog-Relevant Contract", spec_text)
         self.assertIn("Retrieval Plan For Backlog Agents", spec_text)
         self.assertTrue((self.temp / "workspaces" / "NOVA" / "08_context_packs" / "specs_generation.json").exists())
+        self.assertEqual(main(["export", "NOVA", "--artifact", "prd", "--fmt", "mdx"]), 0)
+        mdx_dir = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "exports" / "prd-mdx"
+        self.assertTrue((mdx_dir / "index.mdx").exists())
+        self.assertTrue((mdx_dir / "blocks.json").exists())
+        mdx_text = (mdx_dir / "index.mdx").read_text(encoding="utf-8")
+        self.assertIn("export const sentinelExport", mdx_text)
+        self.assertIn("derived MDX export", mdx_text)
+        self.assertIn("# PRD", mdx_text)
+        blocks = json.loads((mdx_dir / "blocks.json").read_text(encoding="utf-8"))
+        self.assertEqual(blocks_to_markdown(blocks), prd_text)
+        self.assertTrue(blocks["roundtrip"]["idempotent"])
         self.assertEqual(main(["backlog", "NOVA"]), 0)
         backlog_pack = self.temp / "workspaces" / "NOVA" / "08_context_packs" / "backlog_generation.json"
         self.assertTrue(backlog_pack.exists())

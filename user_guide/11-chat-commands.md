@@ -103,6 +103,7 @@ Use these directly in Kilo chat:
 /context-request PROJECT_ID --domain technology
 /status PROJECT_ID
 /export PROJECT_ID --artifact gaps --format md
+/export PROJECT_ID --artifact prd --format mdx
 /sync PROJECT_ID
 /sync PROJECT_ID --source input\interactions\client-answer.md --note "client response"
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery

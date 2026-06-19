@@ -419,11 +419,14 @@ Copy a shareable artifact under the workspace export folder.
 python -m sentinel /export PROJECT_ID --artifact gaps --format md
 python -m sentinel /export PROJECT_ID --artifact brief --format md
 python -m sentinel /export PROJECT_ID --artifact context-request --format md --domain technology
+python -m sentinel /export PROJECT_ID --artifact prd --format mdx
 ```
 
 Output:
 
 - `08_context_packs/exports/`
+
+Markdown export copies the source artifact. PRD MDX export is optional and derived from the artifact block model: it writes `08_context_packs/exports/prd-mdx/index.mdx`, `blocks.json`, and a local `README.md`. Use it only with an offline renderer your team already controls. Sentinel does not install a renderer, call a hosted Plan MCP, or treat MDX as source of truth.
 
 ## `specs`
 

@@ -29,7 +29,7 @@ python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.
 python -m sentinel /gaps | /annotate --source ANALYSIS.json | /resolve-gaps | /maturity | /brief | /context-request
 python -m sentinel /sync | /reindex | /retrieve
 python -m sentinel /specs | /self-review --source FILE | /backlog | /backlog-status | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /quality | /trace | /health | /validate
-python -m sentinel /status PROJECT_ID | /export PROJECT_ID
+python -m sentinel /status PROJECT_ID | /export PROJECT_ID --artifact gaps|brief|context-request|prd --format md|mdx
 python -m sentinel /view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]
 ```
 

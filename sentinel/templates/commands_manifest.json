@@ -95,7 +95,7 @@
       "name": "export",
       "description": "Export a shareable Ignite Sentinel artifact.",
       "kilo_agent": "sentinel-health",
-      "body": "# Ignite Export\n\nParse `PROJECT_ID`, `--artifact`, and optional `--format md` from:\n\n```text\n/export PROJECT_ID --artifact gaps --format md\n```\n\nAllowed artifacts: `gaps`, `brief`, `context-request`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /export PROJECT_ID --artifact ARTIFACT --format md\n```\n\nReturn the copied artifact path under `08_context_packs/exports/`."
+      "body": "# Ignite Export\n\nParse `PROJECT_ID`, `--artifact`, and optional `--format md|mdx` / `--fmt md|mdx` from:\n\n```text\n/export PROJECT_ID --artifact gaps --format md\n/export PROJECT_ID --artifact prd --format mdx\n```\n\nAllowed Markdown artifacts: `gaps`, `brief`, `context-request`, `prd`.\nAllowed MDX artifact: `prd` only.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /export PROJECT_ID --artifact ARTIFACT --format md\npython -m sentinel /export PROJECT_ID --artifact prd --format mdx\n```\n\nMarkdown export copies the artifact under `08_context_packs/exports/`. MDX export writes a local derived folder under `08_context_packs/exports/prd-mdx/` with `index.mdx`, `blocks.json`, and `README.md`. It is for teams that already have an offline MDX renderer; it does not enable hosted/remote rendering and does not replace Markdown as source of truth."
     },
     {
       "name": "gaps",

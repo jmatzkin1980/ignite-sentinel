@@ -744,7 +744,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: round-trip idempotente en fixtures, sin cambiar el contrato Markdown.
 
 ### IMP-075 — Export MDX opcional para equipos con renderer
-- Estado: PENDING / OPTIONAL.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-075-mdx-export`: `/export PROJECT_ID --artifact prd --format mdx` emite `08_context_packs/exports/prd-mdx/` con `index.mdx`, `blocks.json` y `README.md`, derivado del modelo de bloques, sin red ni dependencias y documentado como target local opcional que no reemplaza Markdown SSoT).
 - Prioridad / orden: 8 de 8. Depende de IMP-074.
 - Alcance: export derivado MDX local para equipos con renderer offline; no habilita hosted/remote.
 - Aceptación: export MDX offline documentado y testeado sin red.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-075 IMPLEMENTED en `codex/imp-075-mdx-export`: `/export --artifact prd --format mdx` genera carpeta MDX local derivada de bloques (`index.mdx`, `blocks.json`, `README.md`) sin renderer remoto ni nuevo SSoT. |
 | 2026-06-19 | IMP-074 IMPLEMENTED en `codex/imp-074-artifact-blocks`: agregado modelo de bloques derivado y round-trippable para artefactos Markdown; `/view` consume secciones desde bloques manteniendo Markdown como SSoT. |
 | 2026-06-19 | IMP-076 IMPLEMENTED en `codex/imp-076-skeptical-self-review`: agregado `/self-review` para revision esceptica post-specs, con gaps `origin: self-review`, registro de decisiones dificiles de revertir bajo `03_specs/self_review/`, trazabilidad, MCP/adapters/docs y test focal. |
 | 2026-06-19 | IMP-077 IMPLEMENTED en `codex/imp-077-artifact-view-guided-response`: `/view` agrega modo de respuesta guiada con clasificación cliente/dominio/BA-supuestos y progreso local en `localStorage`. |

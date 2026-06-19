@@ -51,6 +51,7 @@ python -m sentinel /doctor
 /context-request PROJECT_ID --domain DOMAIN
 /status PROJECT_ID
 /export PROJECT_ID --artifact ARTIFACT --format md
+/export PROJECT_ID --artifact prd --format mdx
 /sync PROJECT_ID [--source PATH --note "NOTE"]
 /retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW
 /reindex PROJECT_ID
