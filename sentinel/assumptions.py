@@ -144,6 +144,49 @@ def load_assumptions(project_id: str) -> list[dict[str, str]]:
     return assumption_rows(path.read_text(encoding="utf-8"))
 
 
+def persist_assumptions(project_id: str, rows: list[dict[str, str]]) -> Path:
+    path = workspace_path(project_id) / "01_discovery" / "assumptions.md"
+    path.write_text(render_assumptions(project_id, rows), encoding="utf-8")
+    return path
+
+
+def update_assumption_statuses(
+    project_id: str,
+    *,
+    validated_gap_ids: set[str] | None = None,
+    invalidated_assumption_ids: set[str] | None = None,
+    evidence: str = "",
+    source_id: str = "",
+) -> dict[str, Any]:
+    """Move governed assumptions when BA-owned evidence confirms or invalidates them."""
+    rows = load_assumptions(project_id)
+    if not rows:
+        return {"validated": [], "invalidated": [], "path": None, "summary": summarize_assumptions([])}
+    validated_gap_ids = {gap_id.upper() for gap_id in (validated_gap_ids or set())}
+    invalidated_assumption_ids = {assumption_id.upper() for assumption_id in (invalidated_assumption_ids or set())}
+    validated: list[str] = []
+    invalidated: list[str] = []
+    for row in rows:
+        assumption_id = row.get("id", "").upper()
+        closes_gap = row.get("closes_gap", "").upper()
+        if assumption_id in invalidated_assumption_ids:
+            if row.get("status") != "INVALIDATED":
+                invalidated.append(assumption_id)
+            row["status"] = "INVALIDATED"
+        elif closes_gap and closes_gap in validated_gap_ids and row.get("status") == "ASSUMED":
+            validated.append(assumption_id)
+            row["status"] = "VALIDATED"
+    path = persist_assumptions(project_id, rows) if validated or invalidated else workspace_path(project_id) / "01_discovery" / "assumptions.md"
+    summary = summarize_assumptions(rows)
+    update_state(project_id, assumption_summary=summary)
+    return {
+        "validated": validated,
+        "invalidated": invalidated,
+        "path": str(path.as_posix()),
+        "summary": summary,
+    }
+
+
 def render_assumptions(project_id: str, rows: list[dict[str, str]]) -> str:
     table = "\n".join(
         "| {id} | {lens} | {statement} | {owner} | {risk} | {justification} | {closes_gap} | {status} |".format(
@@ -175,16 +218,20 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
     by_risk = {"low": 0, "med": 0, "high": 0}
     high_risk_blocking: list[str] = []
     by_lens: dict[str, int] = {}
+    by_status: dict[str, int] = {}
     for row in rows:
         risk = row.get("risk", "med")
         by_risk[risk] = by_risk.get(risk, 0) + 1
         by_lens[row.get("lens", "product")] = by_lens.get(row.get("lens", "product"), 0) + 1
+        status = row.get("status", "ASSUMED").upper()
+        by_status[status] = by_status.get(status, 0) + 1
         if risk == "high" and row.get("closes_gap"):
             high_risk_blocking.append(row["closes_gap"])
     return {
         "total": len(rows),
         "by_risk": by_risk,
         "by_lens": by_lens,
+        "by_status": by_status,
         "high_risk_gap_ids": sorted(set(high_risk_blocking)),
     }
 
@@ -221,7 +268,7 @@ def render_prd_assumption_rows(project_id: str) -> str:
     if not rows:
         return ""
     return "\n".join(
-        f"| `{row['id']}` | {escape_table(row['statement'])} | {row['risk']} | {escape_table(row['owner'])} | {escape_table(row['justification'])} | `{row.get('closes_gap') or 'N/A'}` | ASSUMED |"
+        f"| `{row['id']}` | {escape_table(row['statement'])} | {row['risk']} | {escape_table(row['owner'])} | {escape_table(row['justification'])} | `{row.get('closes_gap') or 'N/A'}` | {row.get('status', 'ASSUMED')} |"
         for row in rows
     )
 

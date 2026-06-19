@@ -12,6 +12,16 @@ from .discovery import (
     readiness_stage_for_counts,
     render_gaps,
 )
+from .gap_resolution import (
+    annotate_resolution_source_types,
+    apply_gap_responses,
+    materialize_ears_requirements,
+    materialize_resolution_decisions,
+    materialize_resolution_seeds,
+    parse_gap_responses,
+    update_gap_report_node_status,
+)
+from .knowledge_metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
 from .traceability import add_edge, add_node, children_of, count_by_type, load_graph
@@ -37,6 +47,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     gaps = detect_gaps(sync_detection_text(base, text), load_domain_context(base))
     gap_merge = materialize_sync_gaps(project_id, gaps, change_id)
     reopened = reopened_closed_gap_ids(base, gaps)
+    sync_resolution = apply_structured_gap_responses(project_id, text, source, change_id)
     stale_units = stale_spec_units_from_change(source, text)
     stale_result = mark_stale_stories_for_spec_units(
         project_id,
@@ -44,15 +55,34 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         f"/sync change {change_id} touched Spec Unit source.",
         change_id,
     )
+    broker = ContextBroker(project_id)
+    metabolism = metabolize_knowledge(
+        project_id,
+        change_id,
+        source_text=text,
+        validated_gap_ids=set(sync_resolution["closed"]),
+        broker=broker,
+    )
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
     impact_path.write_text(
-        render_impact(project_id, change_id, affected, gaps, note, blast_radius, reopened, gap_merge["merged"]),
+        render_impact(
+            project_id,
+            change_id,
+            affected,
+            gaps,
+            note,
+            blast_radius,
+            reopened,
+            gap_merge["merged"],
+            sync_resolution,
+            metabolism,
+            stale_result,
+        ),
         encoding="utf-8",
     )
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
     add_edge(project_id, change_id, impact_id, "produces")
 
-    broker = ContextBroker(project_id)
     broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id])
     broker.index_artifact(
         impact_id,
@@ -61,7 +91,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         impact_path.read_text(encoding="utf-8"),
         trace_ids=[change_id, impact_id],
     )
-    metabolism_path = append_metabolism_log(project_id, change_id, source, affected, gaps, note, reopened)
+    metabolism_path = append_metabolism_log(project_id, change_id, source, affected, gaps, note, reopened, metabolism)
     broker.index_artifact(
         "METABOLISM-LOG",
         "metabolism_log",
@@ -76,7 +106,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     update_state(
         project_id,
         phase="change_synced",
-        health="DIRTY" if gap_merge["merged"] or stale_result.get("stale_stories") else "CLEAN",
+        health="DIRTY" if gap_merge["merged"] or stale_result.get("stale_stories") or metabolism.get("downstream_stale_artifacts") else "CLEAN",
         last_change_id=change_id,
     )
     return {
@@ -89,6 +119,8 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "merged_gaps": gap_merge["merged"],
         "skipped_existing_gaps": gap_merge["skipped_existing"],
         "reopened_gaps": reopened,
+        "sync_closed_gaps": sync_resolution["closed"],
+        "knowledge_metabolism": metabolism,
         "staleness": stale_result,
     }
 
@@ -113,7 +145,12 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync") -> dict
         update_state(
             project_id,
             phase="change_batch_synced",
-            health="DIRTY" if any(result.get("merged_gaps") or result.get("staleness", {}).get("stale_stories") for result in results) else "CLEAN",
+            health="DIRTY" if any(
+                result.get("merged_gaps")
+                or result.get("staleness", {}).get("stale_stories")
+                or result.get("knowledge_metabolism", {}).get("downstream_stale_artifacts")
+                for result in results
+            ) else "CLEAN",
             metrics={"changes_processed": len(results)},
         )
 
@@ -195,6 +232,37 @@ def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], chang
     return {"merged": [gap["id"] for gap in merged], "skipped_existing": skipped}
 
 
+def apply_structured_gap_responses(project_id: str, text: str, source: Path, change_id: str) -> dict[str, object]:
+    responses = parse_gap_responses(text)
+    if not responses:
+        return {"closed": [], "answered": [], "partially_closed": [], "open": []}
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        return {"closed": [], "answered": [], "partially_closed": [], "open": []}
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
+    result = apply_gap_responses(existing, responses)
+    annotate_resolution_source_types(result, source)
+    language = project_language(project_id)
+    gaps_path.write_text(render_gaps(project_id, result["gaps"], req_id, language), encoding="utf-8")
+    seed_ids = materialize_resolution_seeds(project_id, result["closed"], change_id)  # type: ignore[arg-type]
+    decision_ids = materialize_resolution_decisions(project_id, result["closed"], change_id)  # type: ignore[arg-type]
+    ears_ids = materialize_ears_requirements(project_id, result["closed"], change_id)  # type: ignore[arg-type]
+    for node_id in seed_ids + decision_ids:
+        add_edge(project_id, change_id, node_id, "confirms")
+    for node_id in ears_ids:
+        add_edge(project_id, change_id, node_id, "normalizes")
+    update_gap_report_node_status(project_id, result["counts"])  # type: ignore[arg-type]
+    update_state(project_id, gap_counts=result["counts"], readiness_stage=readiness_stage_for_counts(result["counts"]))  # type: ignore[arg-type]
+    return {
+        "closed": [item["id"] for item in result["closed"]],  # type: ignore[index]
+        "answered": [item["id"] for item in result["answered"]],  # type: ignore[index]
+        "partially_closed": [item["id"] for item in result["partially_closed"]],  # type: ignore[index]
+        "open": [item["id"] for item in result["open"]],  # type: ignore[index]
+    }
+
+
 def summarize_impact(project_id: str, affected: list[str]) -> dict[str, object]:
     graph = load_graph(project_id)
     node_lookup = {node["id"]: node for node in graph.get("nodes", [])}
@@ -256,6 +324,7 @@ def append_metabolism_log(
     gaps: list[dict[str, str]],
     note: str,
     reopened: list[str] | None = None,
+    knowledge_metabolism: dict[str, object] | None = None,
 ) -> Path:
     path = workspace_path(project_id) / "07_changes" / "metabolism_log.md"
     if not path.exists():
@@ -287,6 +356,11 @@ Every sync event records the evolution of project knowledge. Source files remain
         handle.write(
             f"- Reopened closed gaps: {', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n"
         )
+        if knowledge_metabolism:
+            units = knowledge_metabolism.get("impacted_knowledge_units", [])
+            stale = knowledge_metabolism.get("downstream_stale_artifacts", [])
+            handle.write(f"- Impacted knowledge units: {', '.join(f'`{unit}`' for unit in units) if units else 'None'}\n")
+            handle.write(f"- Downstream stale artifacts: {', '.join(f'`{item}`' for item in stale) if stale else 'None'}\n")
         handle.write("- Required action: review impacted requirements, PRD/specs, backlog, quality, and traceability before marking the change applied.\n\n")
     return path
 
@@ -300,6 +374,9 @@ def render_impact(
     blast_radius: dict[str, object] | None = None,
     reopened: list[str] | None = None,
     merged_gaps: list[str] | None = None,
+    sync_resolution: dict[str, object] | None = None,
+    knowledge_metabolism: dict[str, object] | None = None,
+    story_staleness: dict[str, object] | None = None,
 ) -> str:
     affected_rows = "\n".join(f"- `{node_id}`" for node_id in affected) or "- No existing downstream nodes found."
     gap_rows = "\n".join(
@@ -313,6 +390,15 @@ def render_impact(
     blast_rows = "\n".join(f"| {node_type} | {count} |" for node_type, count in by_type.items()) or "| none | 0 |"
     reopened_rows = "\n".join(f"- `{gap_id}`" for gap_id in reopened) or "- None."
     merged_gap_rows = "\n".join(f"- `{gap_id}`" for gap_id in merged_gaps) or "- None."
+    sync_resolution = sync_resolution or {}
+    knowledge_metabolism = knowledge_metabolism or {}
+    story_staleness = story_staleness or {}
+    sync_closed_rows = "\n".join(f"- `{gap_id}`" for gap_id in sync_resolution.get("closed", [])) or "- None."
+    unit_rows = "\n".join(f"- `{unit_id}`" for unit_id in knowledge_metabolism.get("impacted_knowledge_units", [])) or "- None."
+    validated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("validated_assumptions", [])) or "- None."
+    invalidated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("invalidated_assumptions", [])) or "- None."
+    stale_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("downstream_stale_artifacts", [])) or "- None."
+    stale_story_rows = "\n".join(f"- `{item}`" for item in story_staleness.get("stale_stories", [])) or "- None."
     return f"""# Change Impact Report - {project_id}
 
 - Change: `{change_id}`
@@ -344,6 +430,37 @@ def render_impact(
 ## Governed Gaps Added To gaps.md
 
 {merged_gap_rows}
+
+## Structured Gap Responses Applied By Sync
+
+{sync_closed_rows}
+
+## Knowledge Ledger Metabolism
+
+- Knowledge state: `{knowledge_metabolism.get("knowledge_state", "N/A")}`
+- Development readiness: `{knowledge_metabolism.get("development_readiness", "N/A")}`
+
+Impacted knowledge units:
+
+{unit_rows}
+
+Validated assumptions:
+
+{validated_rows}
+
+Invalidated assumptions:
+
+{invalidated_rows}
+
+## Downstream Staleness
+
+Knowledge-stale artifacts:
+
+{stale_rows}
+
+Stale stories:
+
+{stale_story_rows}
 
 ## Required BA Action
 

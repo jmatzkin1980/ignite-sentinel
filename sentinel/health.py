@@ -56,6 +56,7 @@ def run_health(project_id: str) -> dict[str, object]:
             findings.append(f"{story['id']} is not linked to an epic.")
     warnings.extend(domain_context_freshness_findings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
+    findings.extend(knowledge_staleness_findings(project_id))
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
     warnings.extend(privacy["warnings"])
@@ -138,6 +139,22 @@ def backlog_lifecycle_findings(project_id: str) -> list[str]:
     if not stale:
         return []
     return ["Backlog contains Stale stories after source changes: " + ", ".join(stale) + "."]
+
+
+def knowledge_staleness_findings(project_id: str) -> list[str]:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    payload = state.get("knowledge_staleness", {})
+    if not isinstance(payload, dict):
+        return []
+    artifacts = [str(item) for item in payload.get("downstream_artifacts", []) if item]
+    units = [str(item) for item in payload.get("impacted_knowledge_units", []) if item]
+    if not artifacts:
+        return []
+    detail = f" Impacted knowledge units: {', '.join(units)}." if units else ""
+    return [
+        "Knowledge changed after downstream artifacts were generated; refresh affected brief/PRD/spec/backlog before implementation handoff."
+        + detail
+    ]
 
 
 def backlog_privacy_findings(project_id: str) -> dict[str, list[str]]:

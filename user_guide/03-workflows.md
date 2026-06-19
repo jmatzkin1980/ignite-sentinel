@@ -63,6 +63,8 @@ python -m sentinel /status PROJECT_ID
 
 For functional or business-rule gaps, the expected format now points stakeholders toward EARS-shaped answers. A confirmed EARS answer is accumulated into `02_requirements/requirements.md` as `REQ-EARS-*`. A confirmed prose answer still closes the gap when it is substantive, but Sentinel marks it `EARS-eligible, not normalized` and `/status` counts it so the BA or agent can propose a separate EARS rewrite for confirmation.
 
+If a confirmed gap answer validates a governed assumption, `/resolve-gaps` updates `01_discovery/assumptions.md`, refreshes `knowledge_state.*`, recalculates `development_readiness.json`, and adds a Knowledge Ledger Metabolism section to the gap resolution report. Review that section before treating an assumption as confirmed knowledge downstream.
+
 When maturity reaches `READY_FOR_SPECS`, Sentinel also materializes:
 
 ```text
@@ -231,6 +233,8 @@ Review:
 workspaces/PROJECT_ID/07_changes/
 workspaces/PROJECT_ID/08_context_packs/
 ```
+
+If the synced source includes a structured confirmed `### GAP-*` answer, Sentinel applies the same governed closure rules used by `/resolve-gaps`. If the source explicitly invalidates an `ASM-*`, Sentinel marks that assumption `INVALIDATED`, opens the linked ledger unit, recalculates development readiness, and names stale downstream artifacts in the impact report. `/health` turns those knowledge staleness flags into findings until the affected brief, PRD, specs, backlog, or readiness packs are refreshed or reviewed.
 
 Then patch affected artifacts and rerun:
 

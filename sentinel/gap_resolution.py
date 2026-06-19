@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
 from .ears import classify_ears
+from .knowledge_metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .traceability import add_edge, add_node, load_graph, save_graph
@@ -82,6 +83,14 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     update_gap_report_node_status(project_id, resolution_results["counts"])
 
     broker = ContextBroker(project_id)
+    metabolism = metabolize_knowledge(
+        project_id,
+        change_id,
+        source_text=text,
+        validated_gap_ids={item["id"] for item in resolution_results["closed"]},
+        broker=broker,
+    )
+    report_path.write_text(render_resolution_report(project_id, change_id, resolution_results, metabolism), encoding="utf-8")
     broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id])
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[change_id, report_id])
     reindex_workspace(project_id)
@@ -108,6 +117,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "partially_closed": [item["id"] for item in resolution_results["partially_closed"]],
         "open": [item["id"] for item in resolution_results["open"]],
         "gap_counts": resolution_results["counts"],
+        "knowledge_metabolism": metabolism,
     }
 
 
@@ -321,11 +331,26 @@ def update_gap_report_node_status(project_id: str, counts: dict[str, int]) -> No
     save_graph(project_id, graph)
 
 
-def render_resolution_report(project_id: str, change_id: str, result: dict[str, object]) -> str:
+def render_resolution_report(
+    project_id: str,
+    change_id: str,
+    result: dict[str, object],
+    knowledge_metabolism: dict[str, object] | None = None,
+) -> str:
     closed = result["closed"]
     answered = result.get("answered", [])
     partial = result["partially_closed"]
     open_gaps = result["open"]
+    knowledge_metabolism = knowledge_metabolism or {}
+    unit_rows = "\n".join(
+        f"- `{unit_id}`" for unit_id in knowledge_metabolism.get("impacted_knowledge_units", [])
+    ) or "- None."
+    validated_rows = "\n".join(
+        f"- `{item}`" for item in knowledge_metabolism.get("validated_assumptions", [])
+    ) or "- None."
+    stale_rows = "\n".join(
+        f"- `{item}`" for item in knowledge_metabolism.get("downstream_stale_artifacts", [])
+    ) or "- None."
     return f"""# Gap Resolution Report - {project_id}
 
 - Change: `{change_id}`
@@ -346,6 +371,23 @@ def render_resolution_report(project_id: str, change_id: str, result: dict[str, 
 ## Still Open
 
 {render_resolution_rows(open_gaps)}
+
+## Knowledge Ledger Metabolism
+
+- Knowledge state: `{knowledge_metabolism.get("knowledge_state", "N/A")}`
+- Development readiness: `{knowledge_metabolism.get("development_readiness", "N/A")}`
+
+Impacted knowledge units:
+
+{unit_rows}
+
+Validated assumptions:
+
+{validated_rows}
+
+Downstream stale artifacts:
+
+{stale_rows}
 """
 
 

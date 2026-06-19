@@ -93,6 +93,17 @@
       }
     }
   },
+  "metabolism": {
+    "sync_source": "assumption_invalidation.md",
+    "expected_invalidated_assumptions": ["ASM-TECH-SUPPORT-METRICS"],
+    "expected_unit_status_by_assumption": {
+      "ASM-TECH-SUPPORT-METRICS": "OPEN"
+    },
+    "expected_stale_artifact_contains": "project-brief.md",
+    "expected_impact_terms": ["Knowledge Ledger Metabolism", "ASM-TECH-SUPPORT-METRICS"],
+    "require_impacted_units": true,
+    "expect_health_dirty": true
+  },
   "brief": {
     "target_populated": [
       "1",

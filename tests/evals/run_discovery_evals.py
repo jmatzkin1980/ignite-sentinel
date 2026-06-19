@@ -389,6 +389,11 @@ def run_fixture(
                 if apply_annotation or apply_scrutiny
                 else implementation_feedback_eval(ws, key)
             )
+            metabolism_eval = (
+                metabolism_status(ws, key, project_id, fixture_dir)
+                if apply_assumptions
+                else {"ok": True, "mismatches": []}
+            )
         finally:
             os.chdir(old_cwd)
 
@@ -435,6 +440,7 @@ def run_fixture(
     backlog_mismatches.extend(assumption_eval["mismatches"])
     backlog_mismatches.extend(development_readiness["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
+    backlog_mismatches.extend(metabolism_eval["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -540,6 +546,8 @@ def run_fixture(
         "assumption_mismatches": assumption_eval["mismatches"],
         "development_readiness_ok": development_readiness["ok"],
         "development_readiness_mismatches": development_readiness["mismatches"],
+        "metabolism_ok": metabolism_eval["ok"],
+        "metabolism_mismatches": metabolism_eval["mismatches"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
         "baseline_ok": (
@@ -1043,6 +1051,63 @@ def implementation_feedback_eval(ws: Path, key: dict) -> dict[str, object]:
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+def metabolism_status(ws: Path, key: dict, project_id: str, fixture_dir: Path) -> dict[str, object]:
+    metabolism_key = key.get("metabolism", {})
+    if not metabolism_key:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    source = fixture_dir / str(metabolism_key.get("sync_source", ""))
+    if not source.exists():
+        return {"ok": False, "mismatches": [f"metabolism sync source missing: {source.name}"]}
+    with contextlib.redirect_stdout(io.StringIO()):
+        if main(["sync", project_id, "--source", str(source), "--note", "eval knowledge metabolism"]) != 0:
+            return {"ok": False, "mismatches": [f"sync failed for metabolism source {source.name}"]}
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    payload = state.get("last_knowledge_metabolism", {})
+    expected_invalidated = sorted(str(item) for item in metabolism_key.get("expected_invalidated_assumptions", []))
+    actual_invalidated = sorted(str(item) for item in payload.get("invalidated_assumptions", []))
+    for item in expected_invalidated:
+        if item not in actual_invalidated:
+            mismatches.append(f"metabolism missing invalidated assumption {item}")
+    expected_stale = str(metabolism_key.get("expected_stale_artifact_contains", ""))
+    stale_artifacts = "\n".join(str(item) for item in payload.get("downstream_stale_artifacts", []))
+    if expected_stale and expected_stale not in stale_artifacts:
+        mismatches.append(f"metabolism stale artifacts missing {expected_stale}")
+    if metabolism_key.get("require_impacted_units") and not payload.get("impacted_knowledge_units"):
+        mismatches.append("metabolism did not report impacted knowledge units")
+
+    ledger = json.loads((ws / "01_discovery" / "knowledge_state.json").read_text(encoding="utf-8"))
+    expected_statuses = metabolism_key.get("expected_unit_status_by_assumption", {})
+    for assumption_id, expected_status in expected_statuses.items():
+        matched = [
+            unit
+            for unit in ledger.get("units", [])
+            if any(
+                link.get("type") == "assumption" and link.get("target") == assumption_id
+                for link in unit.get("links", [])
+            )
+        ]
+        if not matched:
+            mismatches.append(f"ledger missing assumption unit {assumption_id}")
+        elif matched[0].get("status") != expected_status:
+            mismatches.append(f"{assumption_id} expected {expected_status}, got {matched[0].get('status')}")
+
+    reports = sorted((ws / "07_changes").rglob("*impact_report.md"))
+    report_text = "\n".join(path.read_text(encoding="utf-8") for path in reports)
+    for term in metabolism_key.get("expected_impact_terms", []):
+        if str(term) not in report_text:
+            mismatches.append(f"impact report missing {term}")
+    if metabolism_key.get("expect_health_dirty"):
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(["health", project_id])
+        health = json.loads((ws / "06_traceability" / "health_report.json").read_text(encoding="utf-8"))
+        if health.get("verdict") != "DIRTY":
+            mismatches.append(f"expected health DIRTY after metabolism, got {health.get('verdict')}")
+        if not any("Knowledge changed after downstream artifacts" in item for item in health.get("findings", [])):
+            mismatches.append("health report missing knowledge staleness finding")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
 def run_all() -> int:
     fixture_dirs = sorted(d for d in FIXTURES.iterdir() if (d / "answer_key.json").exists())
     if not fixture_dirs:
@@ -1088,6 +1153,7 @@ def run_all() -> int:
             "assumed_fixtures": assumed_fixtures,
             "assumption_ok": all(r["assumption_ok"] for r in assumed_results),
             "development_readiness_ok": all(r["development_readiness_ok"] for r in assumed_results),
+            "metabolism_ok": all(r["metabolism_ok"] for r in assumed_results),
             "avg_brief_target_coverage": round(sum(r["brief_target_coverage"] for r in results) / len(results), 3),
             "avg_brief_expected_pending_coverage": round(
                 sum(r["brief_expected_pending_coverage"] for r in results) / len(results), 3
@@ -1189,6 +1255,7 @@ def run_all() -> int:
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
         f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
         f"development_readiness_ok={s['development_readiness_ok']} (IMP-068) "
+        f"metabolism_ok={s['metabolism_ok']} (IMP-069) "
         f"avg_brief_target_coverage={s['avg_brief_target_coverage']:.2f} (IMP-024 progress) "
         f"avg_brief_pending_coverage={s['avg_brief_expected_pending_coverage']:.2f} "
         f"avg_prd_target_coverage={s['avg_prd_target_coverage']:.2f} (IMP-039 compiled PRD) "
