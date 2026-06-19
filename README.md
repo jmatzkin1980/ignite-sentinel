@@ -63,7 +63,7 @@ If your hardest problem is *maturing* requirements — not writing them up after
 
 Three phases, one governed flow: **Discovery → Specs → Backlog.**
 
-Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`), and can register explicit BA-owned assumptions (`/assume`) when the team chooses to proceed with visible risk. Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed, explicitly assumed, or pending, with per-section readiness and maturation telemetry showing exactly where discovery is stuck.
+Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`), and can register explicit BA-owned assumptions (`/assume`) when the team chooses to proceed with visible risk. Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed, explicitly assumed, or pending, with per-section readiness, development certainty, and maturation telemetry showing exactly where discovery is stuck.
 
 Downstream generation stays **progressively disclosed**: each command reads the exact context it needs, never the whole workspace.
 
@@ -83,7 +83,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/scrutinize` | Deep multi-lens scrutiny against raw input and domain context |
 | `/assume` | Register BA-owned governed assumptions with owner, risk, and cited basis |
 | `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
-| `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry) |
+| `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry + development certainty) |
 | `/brief` | Compile the evidence-backed project brief |
 | `/context-request` | Generate a domain-specific context request |
 
@@ -257,7 +257,7 @@ This keeps execution repo-local, deterministic, and auditable across Codex, Kilo
 
 ## Local memory
 
-Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders, including Markdown/Text files and HTML prototypes; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs. Discovery also writes `01_discovery/knowledge_state.md` and `.json`: a lens-by-lens ledger of confirmed, inferred, assumed, and open knowledge, always backed by evidence or `[PENDING INPUT]`.
+Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders, including Markdown/Text files and HTML prototypes; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs. Discovery also writes `01_discovery/knowledge_state.md` and `.json`: a lens-by-lens ledger of confirmed, inferred, assumed, and open knowledge, always backed by evidence or `[PENDING INPUT]`. `/maturity` then derives `01_discovery/development_readiness.json`, a 16-area lens matrix that distinguishes `CONFIRMED`, `ASSUMED`, and `OPEN` development certainty and exposes the Crystallization Gate verdict in `/status` and the dashboard.
 
 When LanceDB is available, Sentinel uses local hybrid retrieval (vector + FTS on `text`, combined with reciprocal rank fusion). When it's unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start`/`line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Context packs preserve those anchors as `read_plan`. The index is always reconstructible from source files and is never the authority.
 
@@ -268,7 +268,7 @@ workspaces/PROJECT_ID/
   00_raw/                     # client requirement + domain context (the evidence)
     00_client_requirement/  01_business_context/  02_technology_context/
     03_design_context/      04_quality_context/   05_interactions/
-  01_discovery/               # gaps.md, seeds, knowledge_state, lens review, agentic reports
+  01_discovery/               # gaps.md, seeds, knowledge_state, development_readiness, lens review, agentic reports
   02_requirements/            # requirements.md (+ EARS), project-brief.md
   03_specs/                   # prd.md, specs.md, SPEC-U units, optional composition reports
   04_backlog/                 # epics, user stories, acceptance criteria, BA board

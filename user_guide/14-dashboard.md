@@ -39,7 +39,8 @@ sentinel /dashboard
 ## How To Read It
 
 - Portfolio cards show totals and attention signals across workspaces.
-- Workspace rows show phase, health, language, privacy mode, maturity, gaps, backlog rollup, warnings, and next step.
+- Workspace rows show phase, health, language, privacy mode, maturity, development certainty, gaps, backlog rollup, warnings, and next step.
+- The workspace summary includes the `development_readiness` score and Crystallization Gate state from `/status`, so confirmed, assumed, and open uncertainty remains visible at portfolio level.
 - Lifecycle stages help you see whether a workspace is still in discovery, moving through specs, or ready for backlog/implementation review.
 - Gaps can be copied for client/domain follow-up.
 - Documents open in the dashboard for quick review, but the canonical files still live under each workspace.

@@ -675,7 +675,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Depende de: IMP-065.
 
 ### IMP-068 — Certeza de desarrollo: readiness matrix por lente×área
-- Estado: PENDING.
+- Estado: VERIFIED (2026-06-19, branch `codex/imp-068-readiness-matrix`; `development_readiness.json` con matriz de 16 áreas×lente, estados `CONFIRMED`/`ASSUMED`/`OPEN`, evidencia, scores por lente/global, Crystallization Gate; expuesto en `/maturity`, `/status` y dashboard; docs/tests/evals actualizados; `python -m sentinel.adapters` sin drift; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 182 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK con `development_readiness_ok=True`). Pendiente: commit, push, PR y merge manual del usuario.
 - Prioridad / orden: 4 de 5. Depende de IMP-065; consume mejor con IMP-066 e IMP-067 mergeados.
 - Problema: la rúbrica de 16 áreas y el Crystallization Gate son texto estático, no un veredicto evaluable de "se puede encarar el desarrollo con incertidumbre baja/nula".
 - Alcance: computar la rúbrica (`mature_requirement_rubric`) como readiness matrix evaluable: por cada área×lente, estado `CONFIRMED`/`ASSUMED`/`OPEN` derivado del ledger + supuestos, con evidencia; score de certeza por lente y global; veredicto explícito de Crystallization Gate. Persistir `01_discovery/development_readiness.json` y exponerlo en `/maturity`, `/status` y dashboard vía dato, sin romper shapes existentes. Gate blando por default, strict opt-in.
