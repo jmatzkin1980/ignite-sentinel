@@ -180,6 +180,12 @@
       "description": "Validate Ignite workspace structure, graph integrity, semantic quality, and cross-artifact consistency.",
       "kilo_agent": "sentinel-health",
       "body": "# Ignite Validate\n\nParse `PROJECT_ID` from:\n\n```text\n/validate PROJECT_ID\n```\n\nRun:\n\n```powershell\npython -m sentinel /validate PROJECT_ID\n```\n\nReport whether the workspace is structurally valid. Also summarize non-blocking `semantic_quality` and `cross_artifact_consistency` warnings, naming the affected layer, artifact, and suggested corrective command when present."
+    },
+    {
+      "name": "view",
+      "description": "Generate a local read-only HTML view for one Sentinel artifact.",
+      "kilo_agent": "sentinel-health",
+      "body": "# Ignite View\n\nParse `PROJECT_ID`, `--artifact`, and optional `--open` from:\n\n```text\n/view PROJECT_ID --artifact prd\n/view PROJECT_ID --artifact brief --open\n```\n\nAllowed artifacts: `gaps`, `brief`, `prd`, `specs`, and `backlog`.\n\nRun from the repository root:\n\n```powershell\npython -m sentinel /view PROJECT_ID --artifact ARTIFACT\npython -m sentinel /view PROJECT_ID --artifact ARTIFACT --open\n```\n\nThe runtime reads the Markdown source of truth, traceability graph, and workspace state, then writes a self-contained read-only HTML snapshot under `08_context_packs/views/`. It never mutates the source artifact. Summarize the generated path, source path, section count, pending markers, citations, and trace-node count."
     }
   ]
 }

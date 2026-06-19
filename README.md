@@ -122,6 +122,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/reindex` | Rebuild local memory incrementally (`--full` for a total rebuild) |
 | `/retrieve` | Build a focused context pack (progressive disclosure) |
 | `/dashboard` | Generate a local read-only `dashboard.html` portfolio view for all workspaces |
+| `/view` | Generate a local read-only HTML view for one artifact |
 | `/status` | Phase, health, gap counts, telemetry, and next step |
 | `/export` | Export a shareable artifact |
 | `/doctor` | Verify Python, adapters, write access, and the optional memory layer |
@@ -170,6 +171,14 @@ Show me the Sentinel dashboard and summarize what needs attention.
 ```
 
 The `sentinel-dashboard` skill routes that intent to `/dashboard`, generates the git-ignored local `dashboard.html`, and reports the read-only status signals without mutating project artifacts.
+
+For a navigable view of one artifact, run:
+
+```powershell
+python -m sentinel /view ACME_DASHBOARD --artifact prd
+```
+
+`/view` writes a self-contained read-only HTML snapshot under `workspaces/ACME_DASHBOARD/08_context_packs/views/`. The Markdown artifact remains the source of truth.
 
 If you prefer exact commands, every surface speaks the same lifecycle:
 

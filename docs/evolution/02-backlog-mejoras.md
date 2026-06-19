@@ -684,7 +684,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Depende de: IMP-065.
 
 ### IMP-069 — Metabolización asíncrona precisa hacia el ledger
-- Estado: VERIFIED & PUSHED (2026-06-19, branch `codex/imp-069-precise-metabolism`, PR #67: https://github.com/jmatzkin1980/ignite-sentinel/pull/67; `sentinel/knowledge_metabolism.py` agrega metabolización determinística; `/resolve-gaps` valida supuestos al cerrar gaps, `/sync` aplica respuestas estructuradas e invalida `ASM-*` explícitos; ledger/readiness se regeneran; impact reports y `metabolism_log.md` nombran `KLU-*` y stale downstream; `/health` reporta knowledge staleness; tests/evals/docs actualizados; `python -m sentinel.adapters` sin drift; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 185 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK con `metabolism_ok=True`). Pendiente: merge manual del usuario.
+- Estado: DONE (2026-06-19, branch `codex/imp-069-precise-metabolism`, PR #67 mergeado a `main`: https://github.com/jmatzkin1980/ignite-sentinel/pull/67; `sentinel/knowledge_metabolism.py` agrega metabolización determinística; `/resolve-gaps` valida supuestos al cerrar gaps, `/sync` aplica respuestas estructuradas e invalida `ASM-*` explícitos; ledger/readiness se regeneran; impact reports y `metabolism_log.md` nombran `KLU-*` y stale downstream; `/health` reporta knowledge staleness; tests/evals/docs actualizados; `python -m sentinel.adapters` sin drift; `powershell -ExecutionPolicy Bypass -File .\verify.ps1` verde: 185 tests OK, `/doctor` PASS con warnings opcionales esperados, discovery evals OK con `metabolism_ok=True`).
 - Prioridad / orden: 5 de 5. Depende de IMP-065, IMP-067 e IMP-068 mergeados.
 - Problema: `sync_change` reabre gaps y loguea, pero no actualiza el conocimiento a nivel de unidad: qué verdad cambió, qué supuesto se validó/invalidó, cómo se movió la certeza. La información asíncrona no impacta "los lugares correctos".
 - Alcance: extender `sentinel/sync.py::sync_change` y `/resolve-gaps` para que la metabolización actualice unidades del ledger (confirmar/abrir/invalidar verdades; validar/invalidar supuestos), recalcule readiness matrix (IMP-068) y emita impact report a nivel de nodo + flags de staleness downstream, además de reabrir gaps. Mantener `metabolism_log.md` y reports existentes; agregar la capa de conocimiento sin reemplazarla. Determinístico y local.
@@ -694,10 +694,69 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 ---
 
+## Horizonte 11 — Superficie de revisión de artefactos
+
+Ítems promovidos desde `docs/evolution/09-propuesta-visual-plan-mdx.md` (PROPUESTA PARA IMPLEMENTAR 2026-06-17). Fuente de diseño obligatoria: propuesta 09 completa, especialmente invariantes de sección 0, decisión HTML self-contained vs MDX, backlog ejecutable de sección 3 y prototipos de referencia de sección 6. Orden estricto: IMP-070 → IMP-071 → IMP-072 → IMP-073 → IMP-077 → IMP-076 → IMP-074 → IMP-075. No introducir red ni dependencias obligatorias; el HTML es vista derivada, git-ignored y read-only.
+
+### IMP-070 — Modelo de vista por artefacto + comando `/view`
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-070-artifact-view`: `sentinel/view.py` agrega modelo de artefacto, secciones con líneas, markers, citas, nodos de trazabilidad y render HTML self-contained; `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]` registrado en CLI/protocolos/MCP/manifest/adapters/doctor; vistas ignoradas por git; docs y tests agregados. Verificación local parcial en curso).
+- Prioridad / orden: 1 de 8.
+- Problema: no existe una vista por artefacto; PRD/spec/brief/gaps/backlog se revisan como Markdown plano o dentro del dashboard de cartera, sin navegación específica ni señales de pendiente/citas/trace agrupadas.
+- Alcance: comando `python -m sentinel /view PROJECT_ID --artifact {prd|specs|brief|backlog|gaps} [--open]`; `collect_artifact_model` arma JSON desde Markdown source-of-truth + grafo + estado; `render_artifact_html` produce HTML local read-only bajo `08_context_packs/views/`; cero red, cero CDN, cero dependencia obligatoria; idioma tomado de `project_language`.
+- Aceptación: `/view PROJECT_ID --artifact prd` genera `08_context_packs/views/prd.html` navegable y autocontenido; el modelo reconstruye todas las secciones del `.md` con anchors de línea; `/doctor` PASS; suite verde sin red.
+- Afecta: `sentinel/view.py`, `sentinel/cli.py`, `sentinel/protocols.py`, `sentinel/mcp.py`, `sentinel/templates/commands_manifest.json`, adapters regenerados, `sentinel/doctor.py`, `.gitignore`, `tests/test_artifact_view.py`, `tests/test_core_flow.py`, README, AGENTS/CLAUDE, `user_guide/01`, `02`, `11`, `15`.
+- Depende de: Horizonte 10 mergeado.
+
+### IMP-071 — Panel "qué falta / qué se asumió" + markers como señal navegable
+- Estado: PENDING.
+- Prioridad / orden: 2 de 8. Depende de IMP-070.
+- Alcance: enriquecer el panel lateral con metadata de `gaps.md`, `assumptions.md` y `development_readiness.json`: severidad, lente, riesgo, dueño, por-qué-importa, qué-desbloquea, formato esperado y badge de certeza por sección.
+- Aceptación: la vista lista todos los pendientes/supuestos con metadata y anclas 1:1 al texto.
+
+### IMP-072 — Trazabilidad y evidencia clickeables
+- Estado: PENDING.
+- Prioridad / orden: 3 de 8. Depende de IMP-070.
+- Alcance: chips de evidencia que abren fragmentos fuente y mini-grafo inline por requerimiento usando el grafo real, sin librerías ni red.
+- Aceptación: un FR/spec/story navega a evidencia y relaciones reales sin inventar nodos.
+
+### IMP-073 — Lazo de feedback: comentarios anclados → input gobernado para CLI
+- Estado: PENDING.
+- Prioridad / orden: 4 de 8. Depende de IMP-070 e IMP-071.
+- Alcance: comentarios locales en `localStorage` exportables como `.md` compatible con `/resolve-gaps` y `/sync`; sin formato nuevo obligatorio ni escritura directa del HTML a artefactos finales.
+- Aceptación: export→`/resolve-gaps` y export→`/sync` funcionan sin cambios de runtime de parsing.
+
+### IMP-077 — Modo "respuesta guiada" para el cliente
+- Estado: PENDING.
+- Prioridad / orden: 5 de 8. Depende de IMP-071 e IMP-073.
+- Alcance: derivar audiencia de gaps y mostrar solo lo que el cliente debe responder, con progreso local y separación de items de dominio/BA/asumidos.
+- Aceptación: gaps de cliente, dominio y supuestos se clasifican correctamente; el contador progresa al responder.
+
+### IMP-076 — Self-review escéptico + registro de decisiones difíciles de revertir
+- Estado: PENDING.
+- Prioridad / orden: 6 de 8. Independiente del render; puede adelantarse si conviene.
+- Alcance: review adversaria sobre PRD/specs generados, registro gobernado de decisiones costosas y chequeo de delta/reuse brownfield.
+- Aceptación: fixture con decisión implícita genera gap/decisión con cita, sin auto-editar el artefacto.
+
+### IMP-074 — Representación de bloques de artefacto
+- Estado: PENDING / OPTIONAL.
+- Prioridad / orden: 7 de 8. Depende de IMP-070.
+- Alcance: interlingua Markdown↔JSON de bloques cerrados, derivada y round-trippable.
+- Aceptación: round-trip idempotente en fixtures, sin cambiar el contrato Markdown.
+
+### IMP-075 — Export MDX opcional para equipos con renderer
+- Estado: PENDING / OPTIONAL.
+- Prioridad / orden: 8 de 8. Depende de IMP-074.
+- Alcance: export derivado MDX local para equipos con renderer offline; no habilita hosted/remote.
+- Aceptación: export MDX offline documentado y testeado sin red.
+
+---
+
 ## Registro de cambios del backlog
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-070 IMPLEMENTED en `codex/imp-070-artifact-view`: agregado `/view` para vistas HTML read-only por artefacto, modelo JSON con secciones/markers/citas/trace, adapters/MCP/doctor/docs/tests alineados y H11 promovido/reconciliado en este backlog. |
+| 2026-06-19 | IMP-069 marcado DONE tras merge de PR #67 a `main`; Horizonte 10 queda habilitando el arranque de Horizonte 11. |
 | 2026-06-19 | IMP-069 IMPLEMENTED en `codex/imp-069-precise-metabolism`: metabolización precisa de conocimiento para `/resolve-gaps` y `/sync`, con validación/invalidación de supuestos, refresh de ledger/readiness, impact reports con `KLU-*`, staleness downstream en `/health`, tests/evals sintéticos y docs. |
 | 2026-06-15 | IMP-065 VERIFIED & PUSHED (branch `imp-065-knowledge-ledger`, PR #63): agregado Lens Knowledge Ledger como `01_discovery/knowledge_state.md/json`, con unidades por lente y estado (`CONFIRMED`/`ASSUMED`/`OPEN`/`INFERRED`), evidencia o `[PENDING INPUT]`, nodo `knowledge_ledger`, memoria local, `/status`, schema, tests y evals sintéticos. `verify.ps1` verde. |
 | 2026-06-15 | Horizonte 10 "Discovery profundo" promovido desde `docs/evolution/08-propuesta-discovery-depth.md`: creados IMP-065…IMP-069 como ítems `PENDING`, con orden estricto IMP-065 → IMP-066 → IMP-067 → IMP-068 → IMP-069. Reconciliados a DONE los estados stale de IMP-039…045 e IMP-051 por existir runtime/tests, como corrección documental previa. |

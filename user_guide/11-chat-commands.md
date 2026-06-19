@@ -24,6 +24,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
+| "Show me the PRD/spec/brief as a navigable artifact" | `/view --artifact prd|specs|brief|gaps|backlog` | Generates local `08_context_packs/views/ARTIFACT.html`; report source path, marker count, citations, and that it is read-only. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. |
 | "Prepare optional task seeds for downstream planning" | `/backlog --with-task-seeds` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Use only when explicitly requested; seeds are intentions traced to AC/critical surfaces, not execution, estimates, assignments, schedules, or managed tasks. |

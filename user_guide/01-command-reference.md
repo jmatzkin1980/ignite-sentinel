@@ -73,6 +73,23 @@ Unlike project commands, `/dashboard` does not take `PROJECT_ID`: it scans all w
 
 The dashboard is read-only. It shows portfolio KPIs, per-workspace phase/health, lifecycle pipeline, gaps that can be copied for a client response, generated documents in a modal markdown view, backlog rollups, DoR/DoD gates, warnings, and suggested prompts/commands. It never mutates workspaces or runs follow-up commands.
 
+## `view`
+
+Generate a local, read-only HTML view for one generated artifact.
+
+```powershell
+python -m sentinel /view PROJECT_ID --artifact gaps
+python -m sentinel /view PROJECT_ID --artifact brief
+python -m sentinel /view PROJECT_ID --artifact prd
+python -m sentinel /view PROJECT_ID --artifact specs
+python -m sentinel /view PROJECT_ID --artifact backlog
+python -m sentinel /view PROJECT_ID --artifact prd --open
+```
+
+`/view` reads the Markdown source of truth, workspace state, and traceability graph, then writes `workspaces/PROJECT_ID/08_context_packs/views/ARTIFACT.html`. The HTML is self-contained, opens without a server, and is ignored by git. It is a rebuildable review surface, not a second source of truth.
+
+The first implementation includes section navigation, search, source-line anchors, pending/gap/assumption markers, citation chips, and matching trace nodes. It does not mutate the source artifact.
+
 ## `init`
 
 Create a project workspace.
