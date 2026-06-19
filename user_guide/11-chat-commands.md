@@ -24,6 +24,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
+| "Run a skeptical review of the PRD/specs" | `/self-review --source self-review.json` → `/validate` | Merge cited PRD/spec findings as `origin: self-review` gaps and register hard-to-reverse decisions; do not edit PRD/specs automatically. |
 | "Show me the PRD/spec/brief as a navigable artifact" | `/view --artifact prd|specs|brief|gaps|backlog` | Generates local `08_context_packs/views/ARTIFACT.html`; report source path, marker count, citations, and that it is read-only. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
 | "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. |
@@ -107,6 +108,7 @@ Use these directly in Kilo chat:
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery
 /reindex PROJECT_ID
 /specs PROJECT_ID
+/self-review PROJECT_ID --source input\interactions\self-review.json
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
 /backlog PROJECT_ID --with-task-seeds
@@ -156,6 +158,7 @@ sentinel /dashboard
 sentinel /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 sentinel /maturity PROJECT_ID
 sentinel /scrutinize PROJECT_ID --source input\interactions\scrutiny.json
+sentinel /self-review PROJECT_ID --source input\interactions\self-review.json
 sentinel /assume PROJECT_ID --source input\interactions\assumptions.json
 sentinel /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 ```
@@ -223,6 +226,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /status PROJECT_ID
 /health PROJECT_ID
 /specs PROJECT_ID
+/self-review PROJECT_ID --source input\interactions\self-review.json
 /compose PROJECT_ID --source input\interactions\prd-composition.json
 /backlog PROJECT_ID
 /backlog PROJECT_ID --with-task-seeds

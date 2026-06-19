@@ -27,6 +27,7 @@ from .memory import ContextBroker, reindex_workspace
 from .prd import apply_prd_composition
 from .protocols import postflight_command, preflight_command
 from .quality import generate_quality
+from .self_review import apply_self_review
 from .status import project_status
 from .sync import sync_change, sync_pending_sources
 from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
@@ -56,6 +57,7 @@ COMMANDS = {
     "annotate",
     "challenge",
     "scrutinize",
+    "self-review",
     "assume",
     "compose",
     "refine-backlog",
@@ -134,6 +136,10 @@ def main(argv: list[str] | None = None) -> int:
     scrutinize_p.add_argument("project_id")
     scrutinize_p.add_argument("--source", required=True)
     scrutinize_p.add_argument("--lens")
+
+    self_review_p = sub.add_parser("self-review")
+    self_review_p.add_argument("project_id")
+    self_review_p.add_argument("--source", required=True)
 
     assume_p = sub.add_parser("assume")
     assume_p.add_argument("project_id")
@@ -256,6 +262,9 @@ def main(argv: list[str] | None = None) -> int:
             print_json(result)
         elif args.command == "scrutinize":
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens)
+            print_json(result)
+        elif args.command == "self-review":
+            result = apply_self_review(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "assume":
             result = apply_assumptions(args.project_id, Path(args.source))

@@ -81,6 +81,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/annotate` | Merge agent-proposed **semantic** gaps (verbatim-cited, `origin: agent`) |
 | `/challenge` | Advanced elicitation: pre-mortem + per-lens role-play |
 | `/scrutinize` | Deep multi-lens scrutiny against raw input and domain context |
+| `/self-review` | Skeptical PRD/spec review: cited gaps plus hard-to-reverse decisions |
 | `/assume` | Register BA-owned governed assumptions with owner, risk, and cited basis |
 | `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
 | `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry + development certainty) |
@@ -93,6 +94,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 |---------|--------------|
 | `/specs` | Generate the human PRD, a compact spec index, and bounded `SPEC-U-*` units |
 | `/compose` | Merge agent-authored PRD narrative with paragraph-level verbatim citations |
+| `/self-review` | Register adversarial PRD/spec findings without rewriting the source artifacts |
 
 **Backlog**
 
@@ -209,6 +211,7 @@ Downstream, once the brief is mature:
 
 ```powershell
 python -m sentinel /specs ACME_DASHBOARD
+python -m sentinel /self-review ACME_DASHBOARD --source input\interactions\self-review.json
 python -m sentinel /backlog ACME_DASHBOARD
 python -m sentinel /backlog-status ACME_DASHBOARD
 python -m sentinel /story-status ACME_DASHBOARD --story US-001 --set Ready --owner "Delivery Lead"
@@ -245,6 +248,7 @@ A requirement keeps moving after discovery. Two distinct flows handle that:
 Other governed channels, each validated against verbatim local evidence:
 
 - **`/compose`** — agents enrich the PRD with cited JSON blocks; accepted blocks are `Origin: agent`, unsupported citations are rejected.
+- **`/self-review`** — agents run a skeptical pass over PRD/specs; accepted findings become `origin: self-review` gaps and hard-to-reverse decisions in `03_specs/self_review/`, while PRD/spec files stay unchanged.
 - **Spec deltas** — regenerating `/specs` writes unit-level deltas for `SPEC-U-*` and propagates stale-unit hints; a `/sync` that touches a unit's source marks only the stories derived from it as `Stale`.
 - **`/refine-backlog`** — agents propose reslicing, split/merge, missing stories, or enabler candidates; accepted proposals land under `04_backlog/refinements/` as `Origin: agent` proposals only.
 - **`/implementation-feedback`** — findings are archived under `07_changes/05_implementation_feedback/`, linked as `implementation_feedback`, optionally surfaced as `GAP-FEEDBACK-*`, and can block a story's DoD.

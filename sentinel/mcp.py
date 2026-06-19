@@ -64,6 +64,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
+    ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
 ]
 
 
@@ -258,6 +259,10 @@ def build_server():
     @server.tool(name="sentinel_implementation_feedback", description=TOOL_SPECS[28][1])
     def sentinel_implementation_feedback(project_id: str, source: str) -> dict:
         return run_cli(["implementation-feedback", project_id, "--source", source])
+
+    @server.tool(name="sentinel_self_review", description=TOOL_SPECS[29][1])
+    def sentinel_self_review(project_id: str, source: str) -> dict:
+        return run_cli(["self-review", project_id, "--source", source])
 
     return server
 

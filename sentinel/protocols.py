@@ -20,6 +20,7 @@ MUTATING_COMMANDS = {
     "annotate",
     "challenge",
     "scrutinize",
+    "self-review",
     "assume",
     "compose",
     "refine-backlog",

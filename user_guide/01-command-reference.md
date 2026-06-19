@@ -245,6 +245,57 @@ Outputs:
 - refreshed `01_discovery/knowledge_state.md` and `.json`
 - `gap_counts.scrutiny_origin` in `state.json` (visible in `/status`)
 
+## `self-review`
+
+Run a skeptical self-review over generated PRD/spec artifacts and register cited findings without rewriting the artifacts under review.
+
+```powershell
+python -m sentinel /self-review PROJECT_ID --source path\to\self-review.json
+```
+
+Use this after `/specs` when a BA, product reviewer, or agent wants to pressure-test the generated PRD/specs for implicit decisions, costly reversibility, missing reuse/brownfield deltas, or assumptions that should remain visible before backlog handoff.
+
+The source JSON may contain `gaps[]`, `decisions[]`, or both:
+
+```json
+{
+  "gaps": [
+    {
+      "id": "GAP-SELF-REVIEW-ROLLBACK",
+      "lens": "product",
+      "severity": "medium",
+      "question": "What rollback behavior is expected if this workflow fails after submission?",
+      "evidence": "submit invoices for billing"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-BILLING-SCOPE-LOCK",
+      "title": "Billing submission is treated as in-scope",
+      "lens": "product",
+      "risk": "high",
+      "reversibility": "hard-to-reverse",
+      "decision": "The PRD scopes billing submission as a committed workflow.",
+      "evidence": "submit invoices for billing",
+      "consequence": "Changing this later may invalidate acceptance criteria and backlog slicing."
+    }
+  ]
+}
+```
+
+Gap validation reuses the governed cited-gap rules and tags accepted items as `origin: self-review`. Decision validation requires a `DEC-*` id, a declared risk (`low`, `med`, `medium`, or `high`), reversibility (`easy`, `moderate`, `hard-to-reverse`, or `irreversible`), and verbatim local evidence from the generated PRD/spec context.
+
+Outputs:
+
+- updated `01_discovery/gaps.md` only when new cited gaps are accepted
+- archived source under `03_specs/self_review/`
+- `03_specs/self_review/self_review_report.md`
+- `03_specs/self_review/decision_register.md`
+- traceability nodes for the self-review event and hard-to-reverse decisions
+- `gap_counts.self_review_origin` and `last_self_review_id` in `state.json`
+
+`/self-review` is deliberately a review channel, not an automatic repair pass. It can make risks and hard decisions visible, but changing the PRD/spec narrative still happens through upstream evidence, `/compose`, `/sync`, or a regenerated `/specs` flow.
+
 ## `assume`
 
 Register governed BA-owned assumptions (IMP-067) when the team chooses to proceed with explicit risk instead of hiding uncertainty or pretending it is confirmed.
