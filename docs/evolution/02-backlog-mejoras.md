@@ -708,7 +708,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Depende de: Horizonte 10 mergeado.
 
 ### IMP-071 — Panel "qué falta / qué se asumió" + markers como señal navegable
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-071-artifact-view-markers`: el modelo de `/view` enriquece markers desde `gaps.md`, `assumptions.md` y `development_readiness.json`; el HTML agrega panel filtrable "Pending And Assumptions", anclas `#marker-*` 1:1, metadata de lens/severity/status/why/unblocks/expected format, owner/risk para supuestos, celdas de readiness asociadas y badges de certeza por sección. Tests focalizados en `tests/test_artifact_view.py`; `verify.ps1` verde).
 - Prioridad / orden: 2 de 8. Depende de IMP-070.
 - Alcance: enriquecer el panel lateral con metadata de `gaps.md`, `assumptions.md` y `development_readiness.json`: severidad, lente, riesgo, dueño, por-qué-importa, qué-desbloquea, formato esperado y badge de certeza por sección.
 - Aceptación: la vista lista todos los pendientes/supuestos con metadata y anclas 1:1 al texto.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-071 IMPLEMENTED en `codex/imp-071-artifact-view-markers`: `/view` ahora convierte markers en señales navegables con panel filtrable de pendientes/supuestos, metadata de gaps/supuestos y badges de certeza por sección. |
 | 2026-06-19 | IMP-070 IMPLEMENTED en `codex/imp-070-artifact-view`: agregado `/view` para vistas HTML read-only por artefacto, modelo JSON con secciones/markers/citas/trace, adapters/MCP/doctor/docs/tests alineados y H11 promovido/reconciliado en este backlog. |
 | 2026-06-19 | IMP-069 marcado DONE tras merge de PR #67 a `main`; Horizonte 10 queda habilitando el arranque de Horizonte 11. |
 | 2026-06-19 | IMP-069 IMPLEMENTED en `codex/imp-069-precise-metabolism`: metabolización precisa de conocimiento para `/resolve-gaps` y `/sync`, con validación/invalidación de supuestos, refresh de ledger/readiness, impact reports con `KLU-*`, staleness downstream en `/health`, tests/evals sintéticos y docs. |

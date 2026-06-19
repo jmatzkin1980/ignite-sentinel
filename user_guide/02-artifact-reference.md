@@ -650,6 +650,8 @@ Examples:
 
 These HTML files are self-contained local snapshots derived from Markdown source artifacts plus workspace state and traceability. They are ignored by git and can be rebuilt at any time. The Markdown files remain the source of truth; review feedback should enter through governed commands such as `/resolve-gaps`, `/sync`, `/annotate`, or `/compose`.
 
+The marker panel is a derived review aid. `GAP-*` markers are enriched from `01_discovery/gaps.md` with lens, severity, status, why the gap matters, what it unblocks, and the expected answer format. `ASM-*` / `ASSUMED` markers are enriched from `01_discovery/assumptions.md` with owner, risk, statement, status, and linked gap. Section badges summarize whether the visible artifact section is populated, still pending, or proceeding under a governed assumption.
+
 ## `memory.lancedb/`
 
 Local memory area.
