@@ -180,7 +180,23 @@ For a navigable view of one artifact, run:
 python -m sentinel /view ACME_DASHBOARD --artifact prd
 ```
 
-`/view` writes a self-contained read-only HTML snapshot under `workspaces/ACME_DASHBOARD/08_context_packs/views/`. The Markdown artifact remains the source of truth. The view is derived through a lossless block model so sections, tables, decisions, EARS rows, pending markers, assumptions, and traceability signals can be handled consistently without changing the Markdown contract. The side panel turns `GAP-*`, pending-input, and governed-assumption markers into navigable review signals with gap/assumption metadata and section certainty badges; citation chips resolve local trace nodes, source fragments, and one-hop mini graphs when the graph contains that evidence. Guided response mode separates client questions from domain and BA/assumption items with local draft progress. Reviewers can also save local anchored comments in `localStorage` and export Markdown for `/resolve-gaps` or `/sync`; the HTML never writes directly to final artifacts.
+`/view` writes a self-contained read-only HTML snapshot under `workspaces/ACME_DASHBOARD/08_context_packs/views/`. The Markdown artifact remains the source of truth; the HTML is a rebuildable review surface.
+
+The artifact review surface includes:
+
+- a lossless block model behind the view, so sections, tables, decisions, EARS rows, pending markers, assumptions, and traceability signals can be handled without changing the Markdown contract;
+- a marker panel for `GAP-*`, pending-input, and governed-assumption signals, with gap/assumption metadata, section certainty badges, and inline anchors;
+- citation chips backed by the local traceability graph, including source fragments and one-hop mini graphs when evidence exists;
+- guided response mode, which separates client questions from domain and BA/assumption items and tracks local draft progress;
+- local anchored comments in `localStorage`, exportable as Markdown for `/resolve-gaps` or `/sync`, with no direct writes from HTML to source artifacts.
+
+For teams that already have an offline MDX renderer, Sentinel can also export a derived local PRD MDX folder:
+
+```powershell
+python -m sentinel /export ACME_DASHBOARD --artifact prd --format mdx
+```
+
+That writes `08_context_packs/exports/prd-mdx/` with `index.mdx`, `blocks.json`, and `README.md`. It is optional, local-only, and derived from the same block model; it does not install a renderer, call a hosted service, or replace Markdown as the source of truth.
 
 If you prefer exact commands, every surface speaks the same lifecycle:
 
