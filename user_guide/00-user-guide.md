@@ -338,7 +338,7 @@ By default:
 - [Chat Commands](11-chat-commands.md): how chat commands map to CLI commands.
 - [Scenarios](12-scenarios.md): concrete examples of common situations.
 - [Dashboard](14-dashboard.md): read-only portfolio view across local workspaces.
-- [Artifact Views](15-artifact-views.md): read-only local HTML views for gaps, brief, PRD, specs, and backlog.
+- [Artifact Views](15-artifact-views.md): read-only local HTML views for gaps, brief, PRD, specs, and backlog, plus optional local PRD MDX export.
 
 ## Practical Advice
 
