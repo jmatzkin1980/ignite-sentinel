@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from sentinel.blocks import blocks_to_markdown
 from sentinel.cli import main
 from sentinel.view import collect_artifact_model
 
@@ -36,6 +37,9 @@ class ArtifactViewTest(unittest.TestCase):
         reconstructed = "\n".join(section["markdown"] for section in model["sections"])
 
         self.assertEqual(reconstructed, source)
+        self.assertEqual(blocks_to_markdown(model["blocks"]), source)
+        self.assertTrue(model["blocks"]["roundtrip"]["idempotent"])
+        self.assertTrue(all("block_id" in section for section in model["sections"]))
         self.assertEqual(model["artifact"], "prd")
         self.assertGreater(model["summary"]["sections"], 1)
         self.assertGreater(model["summary"]["citations"], 0)

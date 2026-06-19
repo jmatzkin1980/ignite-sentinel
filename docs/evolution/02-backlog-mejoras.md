@@ -738,7 +738,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: fixture con decisión implícita genera gap/decisión con cita, sin auto-editar el artefacto.
 
 ### IMP-074 — Representación de bloques de artefacto
-- Estado: PENDING / OPTIONAL.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-074-artifact-blocks`: agregado `sentinel/blocks.py` con catálogo cerrado de bloques, conversión Markdown→bloques→Markdown idempotente en fixtures, y `/view` ahora deriva sus secciones desde esa interlingua sin cambiar el contrato Markdown ni introducir dependencias).
 - Prioridad / orden: 7 de 8. Depende de IMP-070.
 - Alcance: interlingua Markdown↔JSON de bloques cerrados, derivada y round-trippable.
 - Aceptación: round-trip idempotente en fixtures, sin cambiar el contrato Markdown.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-074 IMPLEMENTED en `codex/imp-074-artifact-blocks`: agregado modelo de bloques derivado y round-trippable para artefactos Markdown; `/view` consume secciones desde bloques manteniendo Markdown como SSoT. |
 | 2026-06-19 | IMP-076 IMPLEMENTED en `codex/imp-076-skeptical-self-review`: agregado `/self-review` para revision esceptica post-specs, con gaps `origin: self-review`, registro de decisiones dificiles de revertir bajo `03_specs/self_review/`, trazabilidad, MCP/adapters/docs y test focal. |
 | 2026-06-19 | IMP-077 IMPLEMENTED en `codex/imp-077-artifact-view-guided-response`: `/view` agrega modo de respuesta guiada con clasificación cliente/dominio/BA-supuestos y progreso local en `localStorage`. |
 | 2026-06-19 | IMP-073 IMPLEMENTED en `codex/imp-073-artifact-view-feedback-export`: `/view` permite guardar comentarios locales anclados y exportarlos como Markdown gobernado para `/resolve-gaps` o `/sync`, sin mutar artefactos fuente desde el HTML. |
