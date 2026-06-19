@@ -27,6 +27,9 @@ What the first version shows:
 - section certainty badges (`populated`, `pending`, `assumed`) derived from artifact markers and the local development readiness context when present
 - citations and matching trace nodes in the side panel
 - evidence chips that resolve trace IDs to the real graph node, show a local source fragment, and render a one-hop mini trace graph from actual `traceability_graph.json` edges
+- local anchored comments stored in `localStorage`, with Markdown export for existing `/resolve-gaps` and `/sync` flows
 - a Markdown source toggle for reviewers who need the canonical text
 
-Do not edit generated HTML. If review feedback changes scope or answers a gap, capture it as local evidence and route it through `/resolve-gaps`, `/sync`, `/annotate`, or the appropriate governed command.
+The feedback export uses existing Sentinel inputs. Comments anchored to `GAP-*` markers are exported as `### GAP-*` answer blocks with `Answer`, `Owner / source`, `Evidence or reference`, and `Decision status`, so they can be reviewed and passed to `/resolve-gaps`. Other section or marker comments are exported as review Markdown suitable for `/sync --source PATH --note "Artifact review feedback"`.
+
+Do not edit generated HTML. If review feedback changes scope or answers a gap, export it as local evidence and route it through `/resolve-gaps`, `/sync`, `/annotate`, or the appropriate governed command.

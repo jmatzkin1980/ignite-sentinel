@@ -720,7 +720,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 - Aceptación: un FR/spec/story navega a evidencia y relaciones reales sin inventar nodos.
 
 ### IMP-073 — Lazo de feedback: comentarios anclados → input gobernado para CLI
-- Estado: PENDING.
+- Estado: IMPLEMENTED (2026-06-19, branch `codex/imp-073-artifact-view-feedback-export`: `/view` agrega comentarios locales anclados a secciones o markers, persistidos en `localStorage`, con export Markdown descargable. Los comentarios sobre `GAP-*` salen como bloques `### GAP-*` compatibles con `/resolve-gaps`; los demás salen como comentarios de revisión compatibles con `/sync`. No hay escritura directa desde el HTML a artefactos finales ni cambios de parser. Tests focalizados en `tests/test_artifact_view.py`; verificación completa pendiente).
 - Prioridad / orden: 4 de 8. Depende de IMP-070 e IMP-071.
 - Alcance: comentarios locales en `localStorage` exportables como `.md` compatible con `/resolve-gaps` y `/sync`; sin formato nuevo obligatorio ni escritura directa del HTML a artefactos finales.
 - Aceptación: export→`/resolve-gaps` y export→`/sync` funcionan sin cambios de runtime de parsing.
@@ -755,6 +755,7 @@ Nota de higiene previa 2026-06-15: reconciliados a DONE los estados stale de IMP
 
 | Fecha | Cambio |
 |---|---|
+| 2026-06-19 | IMP-073 IMPLEMENTED en `codex/imp-073-artifact-view-feedback-export`: `/view` permite guardar comentarios locales anclados y exportarlos como Markdown gobernado para `/resolve-gaps` o `/sync`, sin mutar artefactos fuente desde el HTML. |
 | 2026-06-19 | IMP-072 IMPLEMENTED en `codex/imp-072-artifact-view-trace-evidence`: `/view` agrega chips de evidencia con fragmentos fuente locales y mini-grafo inline por cita usando nodos/edges reales de trazabilidad. |
 | 2026-06-19 | IMP-071 IMPLEMENTED en `codex/imp-071-artifact-view-markers`: `/view` ahora convierte markers en señales navegables con panel filtrable de pendientes/supuestos, metadata de gaps/supuestos y badges de certeza por sección. |
 | 2026-06-19 | IMP-070 IMPLEMENTED en `codex/imp-070-artifact-view`: agregado `/view` para vistas HTML read-only por artefacto, modelo JSON con secciones/markers/citas/trace, adapters/MCP/doctor/docs/tests alineados y H11 promovido/reconciliado en este backlog. |

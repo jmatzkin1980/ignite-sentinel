@@ -620,9 +620,22 @@ HTML_TEMPLATE = r"""<!doctype html>
     .mini-edge { color: var(--muted); }
     .source-fragment { max-height: 220px; white-space: pre-wrap; overflow: auto; background: #101820; color: #f4f7fa; border-radius: 8px; padding: 10px; font-family: Consolas, monospace; font-size: 12px; }
     .empty { color: var(--muted); font-size: 13px; }
-    .source-toggle { margin-top: 10px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+    button { font: inherit; }
+    .source-toggle, .feedback-target, .feedback-action { margin-top: 10px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+    .feedback-target { margin-right: 6px; }
+    .feedback-action.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
     .markdown-source { display: none; white-space: pre-wrap; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; font-family: Consolas, monospace; font-size: 12px; overflow: auto; }
     .markdown-source.open { display: block; }
+    .feedback-panel { display: grid; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px; font-size: 13px; }
+    .feedback-panel label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .feedback-panel input, .feedback-panel textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; background: #fff; }
+    .feedback-panel textarea { min-height: 88px; resize: vertical; }
+    .feedback-target-note { color: var(--muted); font-size: 12px; }
+    .feedback-list { display: grid; gap: 7px; }
+    .feedback-item { border: 1px solid var(--line); border-radius: 6px; padding: 7px; background: #fbfcfd; }
+    .feedback-export { display: none; max-height: 180px; white-space: pre-wrap; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #101820; color: #f4f7fa; padding: 8px; font-family: Consolas, monospace; font-size: 11px; }
+    .feedback-export.open { display: block; }
+    .pill a { color: var(--ink); text-decoration: none; }
     @media (max-width: 960px) {
       .layout { grid-template-columns: 1fr; }
       nav, aside { position: static; max-height: none; border: 0; border-bottom: 1px solid var(--line); }
@@ -653,6 +666,24 @@ HTML_TEMPLATE = r"""<!doctype html>
         <option value="assumption">Assumptions</option>
       </select>
       <div class="pill-list" id="markers"></div>
+      <div class="side-title">Feedback Loop</div>
+      <div class="feedback-panel">
+        <div class="feedback-target-note" id="feedbackTarget"></div>
+        <label>Owner / source<input id="feedbackOwner" value="Artifact review comment"></label>
+        <label>Decision status
+          <select id="feedbackDecision">
+            <option value="pending">pending</option>
+            <option value="confirmed">confirmed</option>
+            <option value="not applicable">not applicable</option>
+          </select>
+        </label>
+        <textarea id="feedbackText" placeholder="Write a local anchored comment"></textarea>
+        <button class="feedback-action primary" id="saveFeedback">Save Comment</button>
+        <button class="feedback-action" id="exportFeedback">Export Markdown</button>
+        <button class="feedback-action" id="clearFeedback">Clear Comments</button>
+        <pre class="feedback-export" id="feedbackExportText"></pre>
+        <div class="feedback-list" id="feedbackList"></div>
+      </div>
       <div class="side-title">Evidence And Trace</div>
       <div class="pill-list" id="citations"></div>
     </aside>
@@ -660,6 +691,9 @@ HTML_TEMPLATE = r"""<!doctype html>
   <script>
     const model = __ARTIFACT_DATA__;
     const $ = (id) => document.getElementById(id);
+    const feedbackKey = "ignite-sentinel:view-feedback:" + [model.project_id, model.artifact, model.source_relative_path].join(":");
+    let feedbackComments = loadFeedback();
+    let feedbackTarget = { type: "section", id: model.sections[0]?.id || "content" };
     $("phase").textContent = model.phase + " · read-only derived view";
     $("title").textContent = model.project_id + " · " + model.label;
     $("meta").innerHTML = [
@@ -676,6 +710,8 @@ HTML_TEMPLATE = r"""<!doctype html>
       ...model.trace.nodes.map(n => `<a class="pill" href="#content"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</a>`)
     ];
     $("citations").innerHTML = citationItems.length ? citationItems.join("") : `<div class="empty">No citations or matching trace nodes found.</div>`;
+    renderFeedbackTarget();
+    renderFeedbackList();
     $("search").addEventListener("input", event => {
       const q = event.target.value.toLowerCase();
       document.querySelectorAll(".artifact-section").forEach(section => {
@@ -693,6 +729,24 @@ HTML_TEMPLATE = r"""<!doctype html>
         const target = document.getElementById(event.target.dataset.target);
         target.classList.toggle("open");
       }
+      if (event.target.matches(".feedback-target")) {
+        feedbackTarget = {
+          type: event.target.dataset.targetType || "section",
+          id: event.target.dataset.targetId || "content",
+          marker: event.target.dataset.marker || "",
+          gapId: event.target.dataset.gapId || "",
+        };
+        renderFeedbackTarget();
+        $("feedbackText").focus();
+      }
+    });
+    $("saveFeedback").addEventListener("click", saveFeedbackComment);
+    $("exportFeedback").addEventListener("click", exportFeedbackMarkdown);
+    $("clearFeedback").addEventListener("click", () => {
+      feedbackComments = [];
+      persistFeedback();
+      renderFeedbackList();
+      $("feedbackExportText").classList.remove("open");
     });
 
     function sectionHtml(s) {
@@ -700,15 +754,18 @@ HTML_TEMPLATE = r"""<!doctype html>
       return `<section class="artifact-section" id="${s.id}">
         <div class="section-meta">${escapeHtml(s.section_path)} · lines ${s.line_start}-${s.line_end} · <span class="badge ${escapeHtml(readiness.status)}">${escapeHtml(readiness.status)}</span></div>
         <div class="content">${highlightSection(s)}</div>
+        <button class="feedback-target" data-target-type="section" data-target-id="${s.id}">Add feedback</button>
         <button class="source-toggle" data-target="src-${s.id}">Markdown source</button>
         <pre class="markdown-source" id="src-${s.id}">${escapeHtml(s.markdown)}</pre>
       </section>`;
     }
     function markerPill(item) {
-      return `<a class="pill ${item.kind}" data-kind="${item.kind}" href="#${item.id}">
-        <strong>${escapeHtml(item.marker)}</strong><br>${escapeHtml(item.section_path || "")}
+      const gapId = item.marker.startsWith("GAP-") ? item.marker : "";
+      return `<div class="pill ${item.kind}" data-kind="${item.kind}">
+        <a href="#${item.id}"><strong>${escapeHtml(item.marker)}</strong><br>${escapeHtml(item.section_path || "")}</a>
         ${metadataHtml(item)}
-      </a>`;
+        <button class="feedback-target" data-target-type="marker" data-target-id="${item.id}" data-marker="${escapeHtml(item.marker)}" data-gap-id="${escapeHtml(gapId)}">Add feedback</button>
+      </div>`;
     }
     function pill(item, text, kind) {
       return `<a class="pill ${kind}" href="#${item.section_id || "content"}"><strong>${escapeHtml(text)}</strong><br>${escapeHtml(item.section_path || "")}</a>`;
@@ -756,6 +813,110 @@ HTML_TEMPLATE = r"""<!doctype html>
         value = value.replace(pattern, `<mark id="${marker.id}" class="marker ${marker.kind}">${escapeHtml(marker.marker)}</mark>`);
       });
       return value;
+    }
+    function loadFeedback() {
+      try {
+        const value = JSON.parse(localStorage.getItem(feedbackKey) || "[]");
+        return Array.isArray(value) ? value : [];
+      } catch {
+        return [];
+      }
+    }
+    function persistFeedback() {
+      localStorage.setItem(feedbackKey, JSON.stringify(feedbackComments));
+    }
+    function saveFeedbackComment() {
+      const text = $("feedbackText").value.trim();
+      if (!text) return;
+      const section = sectionForTarget(feedbackTarget);
+      const comment = {
+        id: "FBC-" + Date.now(),
+        target_type: feedbackTarget.type,
+        target_id: feedbackTarget.id,
+        marker: feedbackTarget.marker || "",
+        gap_id: feedbackTarget.gapId || "",
+        section_id: section?.id || "",
+        section_path: section?.section_path || "",
+        line_start: section?.line_start || "",
+        line_end: section?.line_end || "",
+        owner_source: $("feedbackOwner").value.trim() || "Artifact review comment",
+        decision_status: $("feedbackDecision").value,
+        text,
+        created_at: new Date().toISOString()
+      };
+      feedbackComments.push(comment);
+      persistFeedback();
+      $("feedbackText").value = "";
+      renderFeedbackList();
+    }
+    function renderFeedbackTarget() {
+      const section = sectionForTarget(feedbackTarget);
+      const marker = feedbackTarget.marker ? " / " + feedbackTarget.marker : "";
+      $("feedbackTarget").textContent = "Target: " + feedbackTarget.type + " " + feedbackTarget.id + marker + (section ? " · " + section.section_path : "");
+    }
+    function renderFeedbackList() {
+      $("feedbackList").innerHTML = feedbackComments.length
+        ? feedbackComments.map(item => `<div class="feedback-item"><strong>${escapeHtml(item.target_type)} ${escapeHtml(item.marker || item.target_id)}</strong><br>${escapeHtml(item.text)}</div>`).join("")
+        : `<div class="empty">No local comments saved.</div>`;
+    }
+    function exportFeedbackMarkdown() {
+      const markdown = buildFeedbackExport(feedbackComments);
+      $("feedbackExportText").textContent = markdown;
+      $("feedbackExportText").classList.add("open");
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${model.project_id}-${model.artifact}-feedback.md`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+    function buildFeedbackExport(comments) {
+      const lines = [
+        `# Artifact Review Feedback Export - ${model.project_id}`,
+        "",
+        `- Source artifact: ${model.source_path}`,
+        `- Generated at: ${new Date().toISOString()}`,
+        `- Resolve gaps command: sentinel /resolve-gaps ${model.project_id} --source PATH`,
+        `- Sync command: sentinel /sync ${model.project_id} --source PATH --note "Artifact review feedback"`,
+        "",
+      ];
+      if (!comments.length) {
+        lines.push("No local comments were saved before export.", "");
+        return lines.join("\n");
+      }
+      comments.forEach(comment => {
+        const gapId = comment.gap_id || (String(comment.marker || "").startsWith("GAP-") ? comment.marker : "");
+        const evidence = `${model.source_path}#${comment.target_id}${comment.line_start ? " lines " + comment.line_start + "-" + comment.line_end : ""}`;
+        if (gapId) {
+          lines.push(`### ${gapId}`);
+          lines.push(`- Answer: ${singleLine(comment.text)}`);
+          lines.push(`- Owner / source: ${singleLine(comment.owner_source || "Artifact review comment")}`);
+          lines.push(`- Evidence or reference: ${singleLine(evidence)}`);
+          lines.push(`- Decision status: ${singleLine(comment.decision_status || "pending")}`);
+          lines.push("");
+        } else {
+          lines.push(`### Review Comment: ${comment.id}`);
+          lines.push(`- Target: ${comment.target_type} \`${comment.target_id}\``);
+          lines.push(`- Source artifact: \`${model.source_path}\``);
+          if (comment.section_path) lines.push(`- Section: ${comment.section_path}`);
+          lines.push(`- Comment: ${singleLine(comment.text)}`);
+          lines.push(`- Suggested command: \`sentinel /sync ${model.project_id} --source PATH --note "Artifact review feedback"\``);
+          lines.push("");
+        }
+      });
+      return lines.join("\n");
+    }
+    function sectionForTarget(target) {
+      if (target.type === "section") return model.sections.find(section => section.id === target.id);
+      const marker = model.markers.find(item => item.id === target.id);
+      if (marker) return model.sections.find(section => section.id === marker.section_id);
+      return model.sections[0];
+    }
+    function singleLine(value) {
+      return String(value ?? "").replace(/\s+/g, " ").trim();
     }
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
