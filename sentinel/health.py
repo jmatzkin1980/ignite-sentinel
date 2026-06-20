@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from .backlog_hooks import evaluate_backlog_privacy
+from .core.markdown import parse_table_rows
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .traceability import children_of, load_graph, parents_of
@@ -183,7 +184,8 @@ def implementation_feedback_findings(project_id: str) -> list[str]:
 
 def has_blocking_open_gap(text: str) -> bool:
     for line in text.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        rows = parse_table_rows(line, strip_code_ticks=False)
+        cells = rows[0] if rows else []
         if not cells or not cells[0].startswith("GAP-"):
             continue
         # Old format: Gap ID | Severity | Status | ...

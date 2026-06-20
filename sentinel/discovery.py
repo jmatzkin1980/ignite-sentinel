@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from .lens_registry import known_lenses, load_lens_checks
+from .core.markdown import parse_table_rows
 from .knowledge_ledger import materialize_knowledge_ledger
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
@@ -355,7 +356,8 @@ def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
 def parse_gap_rows(text: str) -> list[dict[str, str]]:
     gaps: list[dict[str, str]] = []
     for line in text.splitlines():
-        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        rows = parse_table_rows(line)
+        cells = rows[0] if rows else []
         if not cells or not cells[0].startswith("GAP-"):
             continue
         if len(cells) >= 8:

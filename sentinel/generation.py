@@ -11,6 +11,7 @@ from .backlog_hooks import assert_backlog_privacy_clean
 from .backlog_status import apply_lifecycle_to_stories
 from .backlog_gates import evaluate_story_gates, update_story_gate_state
 from .backlog_rollup import backlog_status
+from .core.markdown import parse_table_rows
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
@@ -317,7 +318,7 @@ def spec_unit_statement(text: str) -> str:
             continue
         if not in_requirement or not line.startswith("|"):
             continue
-        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        cells = parse_table_rows(line)[0]
         if len(cells) < 2 or cells[0] in {"EARS ID", "---"}:
             continue
         return cells[1]
@@ -1148,7 +1149,7 @@ def parse_ears_requirements(requirements_text: str) -> list[dict[str, str]]:
             continue
         if not in_section or not line.startswith("|"):
             continue
-        cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+        cells = parse_table_rows(line)[0]
         if len(cells) < 4 or cells[0] in {"ID", "---"} or not EARS_REQUIREMENT_ID_RE.match(cells[0]):
             continue
         rows.append(
