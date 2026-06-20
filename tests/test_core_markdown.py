@@ -1,5 +1,7 @@
 import unittest
 
+from sentinel.assumptions import assumption_rows
+from sentinel.backlog_status import acceptance_from_story_markdown as story_acceptance_rows
 from sentinel.core.markdown import (
     frontmatter_list,
     parse_frontmatter,
@@ -7,6 +9,12 @@ from sentinel.core.markdown import (
     render_frontmatter,
     table_to_dicts,
 )
+from sentinel.discovery import parse_gap_rows
+from sentinel.generation import parse_ears_requirements, spec_unit_statement
+from sentinel.health import has_blocking_open_gap
+from sentinel.implementation_feedback import acceptance_from_story_markdown as feedback_acceptance_rows
+from sentinel.knowledge_ledger import markdown_table_rows
+from sentinel.maturity import parse_blocking_gaps, parse_gap_answers, summarize_open_gaps
 
 
 class CoreMarkdownTests(unittest.TestCase):
@@ -92,6 +100,108 @@ owner: "Jose"
     def test_render_frontmatter_round_trips_supported_subset(self):
         data = {"id": "US-001", "trace": ["REQ-001", "SPEC-001"], "status": "Ready"}
         self.assertEqual(parse_frontmatter(render_frontmatter(data) + "\n# Body"), data)
+
+
+class MigratedMarkdownCallSiteTests(unittest.TestCase):
+    def test_discovery_gap_rows_keep_tick_stripping_contract(self):
+        text = """
+| Gap ID | Lens | Severity | Status | Parent | Description | Question | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `GAP-001` | product | high | OPEN | REQ-001 | Missing scope | What is in scope? | RAW-001 |
+"""
+        self.assertEqual(
+            parse_gap_rows(text),
+            [
+                {
+                    "id": "GAP-001",
+                    "lens": "product",
+                    "severity": "high",
+                    "status": "OPEN",
+                    "parent": "REQ-001",
+                    "description": "Missing scope",
+                    "question": "What is in scope?",
+                    "source": "RAW-001",
+                }
+            ],
+        )
+
+    def test_assumption_rows_keep_tick_stripping_contract(self):
+        text = """
+| ID | Lens | Statement | Owner | Risk | Justification | Closes Gap | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `ASM-001` | technical | Statement | Jose | med | Evidence basis | `GAP-001` | ASSUMED |
+"""
+        self.assertEqual(
+            assumption_rows(text),
+            [
+                {
+                    "id": "ASM-001",
+                    "lens": "technical",
+                    "statement": "Statement",
+                    "owner": "Jose",
+                    "risk": "med",
+                    "justification": "Evidence basis",
+                    "closes_gap": "GAP-001",
+                    "status": "ASSUMED",
+                }
+            ],
+        )
+
+    def test_story_acceptance_rows_preserve_code_ticks(self):
+        text = "| AC-001 | `happy-path` | Given/When/Then |\n"
+        expected = [{"id": "AC-001", "classification": "`happy-path`"}]
+        self.assertEqual(story_acceptance_rows(text), expected)
+        self.assertEqual(feedback_acceptance_rows(text), expected)
+
+    def test_health_and_maturity_gap_parsers_support_old_and_new_formats(self):
+        old_format = "| GAP-001 | high | OPEN | Missing scope |\n"
+        new_format = "| GAP-002 | product | high | ANSWERED | REQ-001 | Missing users |\n"
+        self.assertTrue(has_blocking_open_gap(old_format + new_format))
+        self.assertEqual(parse_blocking_gaps(old_format + new_format, {"critical", "high"}), ["GAP-001", "GAP-002"])
+        self.assertEqual(
+            summarize_open_gaps(new_format),
+            "- `GAP-002` (product, high): Missing users",
+        )
+
+    def test_gap_answers_keep_tick_stripping_contract(self):
+        text = "| DEC-001 | `GAP-001` | CONFIRMED | Confirmed answer | Client |\n"
+        self.assertEqual(parse_gap_answers(text), {"GAP-001": {"statement": "Confirmed answer", "source": "Client"}})
+
+    def test_generation_table_parsers_use_core_markdown(self):
+        requirements = """
+## Normalized Requirements (EARS)
+
+| ID | Pattern | Statement | Source |
+| --- | --- | --- | --- |
+| `REQ-EARS-001` | Event-driven | When X, the system shall Y. | RAW-001 |
+"""
+        self.assertEqual(
+            parse_ears_requirements(requirements),
+            [
+                {
+                    "id": "REQ-EARS-001",
+                    "pattern": "Event-driven",
+                    "statement": "When X, the system shall Y.",
+                    "source": "RAW-001",
+                }
+            ],
+        )
+        spec_unit = """
+## Normalized Requirement
+
+| EARS ID | Statement |
+| --- | --- |
+| `REQ-EARS-001` | When X, the system shall Y. |
+"""
+        self.assertEqual(spec_unit_statement(spec_unit), "When X, the system shall Y.")
+
+    def test_knowledge_ledger_table_rows_keep_header_filtering(self):
+        text = """
+| Seed ID | Lens | Status |
+| --- | --- | --- |
+| SEED-001 | product | CONFIRMED |
+"""
+        self.assertEqual(markdown_table_rows(text), [["SEED-001", "product", "CONFIRMED"]])
 
 
 if __name__ == "__main__":

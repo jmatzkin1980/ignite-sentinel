@@ -14,6 +14,7 @@ from .discovery import (
     raw_input_text,
     split_evidence_sentences,
 )
+from .core.markdown import parse_table_rows
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -208,7 +209,7 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
             if not line.startswith("| ") or "CHG-" not in line:
                 continue
             iterations += 1
-            cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+            cells = parse_table_rows(line)[0]
             if len(cells) >= 9:
                 closed_by_response_source["client"] += parse_int(cells[6])
                 closed_by_response_source["domain"] += parse_int(cells[7])
@@ -423,7 +424,8 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
 def parse_blocking_gaps(text: str, blocking_severities: set[str]) -> list[str]:
     blocking_gaps = []
     for line in text.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        rows = parse_table_rows(line, strip_code_ticks=False)
+        cells = rows[0] if rows else []
         if not cells or not cells[0].startswith("GAP-"):
             continue
         if len(cells) >= 4:
@@ -509,7 +511,8 @@ def parse_gap_answers(text: str) -> dict[str, dict[str, str]]:
     """Map gap_id -> confirmed answer from the gap-resolution seed/decision tables."""
     answers: dict[str, dict[str, str]] = {}
     for line in text.splitlines():
-        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        rows = parse_table_rows(line)
+        cells = rows[0] if rows else []
         if len(cells) >= 5 and cells[1].startswith("GAP-") and cells[2].upper() == "CONFIRMED":
             gap_id = cells[1]
             answers.setdefault(gap_id, {"statement": cells[3], "source": cells[4]})
@@ -793,7 +796,8 @@ def primary_requirement(req_text: str) -> str:
 def summarize_open_gaps(gaps_text: str) -> str:
     rows = []
     for line in gaps_text.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        parsed_rows = parse_table_rows(line, strip_code_ticks=False)
+        cells = parsed_rows[0] if parsed_rows else []
         if not cells or not cells[0].startswith("GAP-"):
             continue
         if len(cells) >= 6 and cells[3].upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"}:

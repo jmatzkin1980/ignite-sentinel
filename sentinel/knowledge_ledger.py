@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import parse_table_rows
 from .workspace import read_json, write_json, workspace_path
 
 LEDGER_STATUSES = {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"}
@@ -268,7 +269,7 @@ def markdown_table_rows(text: str) -> list[list[str]]:
         stripped = line.strip()
         if not stripped.startswith("|") or "---" in stripped:
             continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        cells = parse_table_rows(stripped, strip_code_ticks=False)[0]
         if not cells or cells[0] in {"Seed ID", "Decision ID", "Assumption ID"}:
             continue
         rows.append(cells)

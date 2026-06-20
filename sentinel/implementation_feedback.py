@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import parse_table_rows
 from .memory import ContextBroker
 from .traceability import add_edge, add_node, upsert_node
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path, write_json
@@ -355,7 +356,7 @@ def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
     for line in text.splitlines():
         if not line.startswith("| AC-"):
             continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        cells = parse_table_rows(line, strip_code_ticks=False)[0]
         if len(cells) >= 2:
             items.append({"id": cells[0], "classification": cells[1]})
     return items

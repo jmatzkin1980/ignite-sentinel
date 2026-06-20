@@ -7,6 +7,7 @@ from typing import Any
 
 from .lens_registry import known_lenses
 from .memory import ContextBroker
+from .core.markdown import parse_table_rows
 from .traceability import add_edge, add_node, load_graph
 from .workspace import read_json, state_path, update_state, workspace_path
 
@@ -119,7 +120,7 @@ def assumption_rows(text: str) -> list[dict[str, str]]:
         stripped = line.strip()
         if not stripped.startswith("|") or "---" in stripped:
             continue
-        cells = [cell.strip().strip("`") for cell in stripped.strip("|").split("|")]
+        cells = parse_table_rows(stripped)[0]
         if len(cells) < 8 or not cells[0].startswith("ASM-"):
             continue
         rows.append(
