@@ -1,0 +1,96 @@
+{
+  "fixture": "adversarial-partial-gap-response",
+  "language": "en",
+  "expected_language": "en",
+  "deliberate_omissions": [
+    "Some gap responses are confirmed and substantive",
+    "Some responses are pending confirmation",
+    "Some responses are vague or deferred",
+    "An invalid agent annotation cites fabricated evidence"
+  ],
+  "must_fire": [
+    "GAP-USERS",
+    "GAP-OBJECTIVE",
+    "GAP-SCOPE",
+    "GAP-ACCEPTANCE",
+    "GAP-DESIGN-FLOW",
+    "GAP-DESIGN-STATES",
+    "GAP-FRONTEND-SURFACE",
+    "GAP-DELIVERY-READINESS"
+  ],
+  "must_not_fire": [],
+  "known_false_positives": [],
+  "target_fire": [],
+  "expected_gap_details": {
+    "GAP-USERS": {
+      "status": "CLOSED",
+      "origin": "checklist"
+    },
+    "GAP-OBJECTIVE": {
+      "status": "ANSWERED",
+      "origin": "checklist"
+    },
+    "GAP-SCOPE": {
+      "status": "PARTIALLY_CLOSED",
+      "origin": "checklist"
+    },
+    "GAP-ACCEPTANCE": {
+      "status": "PARTIALLY_CLOSED",
+      "origin": "checklist"
+    }
+  },
+  "knowledge_ledger": {
+    "min_total": 1,
+    "required_statuses": ["CONFIRMED", "OPEN"],
+    "required_lenses": ["business", "product", "quality"],
+    "require_evidence_or_pending": true
+  },
+  "brief": {
+    "target_populated": ["1", "2"],
+    "target_pending": ["4", "5", "6"],
+    "rationale": "Partial answers may improve identity/users and the brief may narrate the apparent app/process, but vague scope and acceptance responses must keep downstream readiness constrained."
+  },
+  "rejection_scenarios": [
+    {
+      "name": "fabricated annotation rejected without mutating discovery",
+      "command": ["annotate", "{project_id}", "--source", "fixture:invalid_annotation.json"],
+      "output_contains": ["evidence quote is not found verbatim"],
+      "unchanged_paths": [
+        "01_discovery/gaps.md",
+        "01_discovery/knowledge_state.md"
+      ],
+      "forbidden_text_paths": [
+        "01_discovery/gaps.md",
+        "01_discovery/knowledge_state.md"
+      ],
+      "forbidden_text": ["GAP-FABRICATED-OPS-DATA", "Mercury platform"]
+    }
+  ],
+  "lifecycle_guards": {
+    "skip_downstream_generation": true,
+    "expected_state": {
+      "health": "DIRTY",
+      "readiness_stage": "CLIENT_RESPONSE_NEEDED"
+    },
+    "expected_missing_artifacts": [
+      "03_specs/specs.md",
+      "04_backlog/implementation_readiness.json"
+    ],
+    "blocked_commands": [
+      {
+        "name": "specs blocked while answered and partially closed gaps remain",
+        "command": ["specs", "{project_id}"]
+      }
+    ]
+  },
+  "golden_queries": [
+    {
+      "id": "GQ-PARTIAL-USERS",
+      "query": "who are the users after the partial gap response",
+      "workflow": "brief",
+      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "kind": "same-language",
+      "rationale": "The confirmed user response should remain retrievable even though the requirement is not mature."
+    }
+  ]
+}

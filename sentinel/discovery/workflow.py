@@ -195,6 +195,39 @@ REQUIREMENT_HINTS = (
     "queremos", "necesit", "debe", "deber", "se requiere", "permitir", "esperamos",
 )
 
+MISSING_CONTEXT_HINTS = (
+    "no ",
+    "not ",
+    "without ",
+    "missing ",
+    "unclear ",
+    "undefined ",
+    "not defined",
+    "did not define",
+    "does not define",
+    "do not define",
+    "lacks ",
+    "lack ",
+    "unknown ",
+    "sin ",
+    "no se defin",
+    "no defin",
+    "falta ",
+    "pendiente ",
+)
+
+CLAUSE_BOUNDARY_HINTS = (
+    ".",
+    ";",
+    "\n",
+    " but ",
+    " however ",
+    " yet ",
+    " pero ",
+    " aunque ",
+    " sin embargo ",
+)
+
 
 def split_evidence_sentences(text: str) -> list[str]:
     """Split raw evidence into clean sentences, dropping markdown noise."""
@@ -265,6 +298,35 @@ def extract_metric_signals(text: str, limit: int = 5) -> list[dict[str, str]]:
     return results
 
 
+def has_positive_token_evidence(evidence: str, tokens: tuple[str, ...] | list[str]) -> bool:
+    """Return true when a token appears outside a missing/negated context."""
+    sentences = split_evidence_sentences(evidence)
+    if not sentences:
+        sentences = [evidence]
+    for sentence in sentences:
+        lowered = sentence.lower()
+        for token in tokens:
+            token_text = str(token).lower()
+            index = lowered.find(token_text)
+            while index >= 0:
+                clause_start = 0
+                clause_end = len(lowered)
+                for boundary in CLAUSE_BOUNDARY_HINTS:
+                    previous = lowered.rfind(boundary, 0, index)
+                    if previous >= 0:
+                        clause_start = max(clause_start, previous + len(boundary))
+                    following = lowered.find(boundary, index + len(token_text))
+                    if following >= 0:
+                        clause_end = min(clause_end, following)
+                window_start = max(clause_start, index - 48)
+                window_end = min(clause_end, index + len(token_text) + 48)
+                window = lowered[window_start:window_end]
+                if not any(hint in window for hint in MISSING_CONTEXT_HINTS):
+                    return True
+                index = lowered.find(token_text, index + len(token_text))
+    return False
+
+
 def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=None) -> list[dict[str, str]]:
     """Detect gaps by applying the declarative lens checklist (IMP-033).
 
@@ -299,7 +361,7 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             "description": check["description"],
         }
         if rule == "absent_tokens":
-            if not any(token in evidence for token in check.get("tokens", ())):
+            if not has_positive_token_evidence(evidence, check.get("tokens", ())):
                 gaps.append(gap)
         elif rule == "mention_without_counterpart":
             # Inquisitive tier (IMP-015): a surface is mentioned but its

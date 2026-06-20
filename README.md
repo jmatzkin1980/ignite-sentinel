@@ -337,7 +337,7 @@ python -m sentinel /doctor
 python tests\evals\run_discovery_evals.py
 ```
 
-The eval harness covers discovery, brief, PRD, specs, and backlog. Backlog answer keys check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`.
+The eval harness covers discovery, brief, PRD, specs, and backlog. It includes happy-path fixtures plus adversarial lifecycle cases: thin intakes that must remain blocked, partial gap responses that must not over-close discovery, fabricated citations that must be rejected without mutating artifacts, and downstream guards that prevent specs/backlog from running while blocking uncertainty remains. Backlog answer keys also check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`.
 
 > If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
 
