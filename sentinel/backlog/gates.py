@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from ..discovery import parse_gap_rows
-from ..gaps import BLOCKING_GAP_STATUSES
+from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, is_blocking
 from ..implementation_feedback import open_feedback_for_story
 from ..core.graph import add_edge, add_node
 from ..workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -132,16 +132,14 @@ def blocking_gaps_for_trace(project_id: str, trace: list[str]) -> list[str]:
     if not trace:
         return []
     config = load_config(project_id)
-    blocking = set(config.get("maturity", {}).get("blocking_gap_severities", ["critical", "high"]))
+    blocking = blocking_severities(config)
     path = workspace_path(project_id) / "01_discovery" / "gaps.md"
     gaps = parse_gap_rows(path.read_text(encoding="utf-8")) if path.exists() else []
     trace_tokens = {item for item in trace if item.startswith("GAP-")}
     result: list[str] = []
     for gap in gaps:
         gap_id = str(gap.get("id", "")).strip("`")
-        severity = str(gap.get("severity", "")).lower()
-        status = str(gap.get("status", "OPEN")).upper()
-        if severity in blocking and status in BLOCKING_GAP_STATUSES and (gap_id in trace_tokens or not trace_tokens):
+        if is_blocking(gap, blocking) and (gap_id in trace_tokens or not trace_tokens):
             result.append(gap_id)
     return result
 
