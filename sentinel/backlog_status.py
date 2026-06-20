@@ -10,7 +10,7 @@ from .backlog_gates import (
     update_story_gate_state,
 )
 from .backlog_rollup import backlog_status
-from .core.markdown import parse_table_rows
+from .core.markdown import parse_frontmatter, parse_table_rows, update_frontmatter_keys
 from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
@@ -196,22 +196,10 @@ def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
 
 
 def trace_from_frontmatter(text: str) -> list[str]:
-    if not text.startswith("---\n"):
+    trace = parse_frontmatter(text).get("trace", [])
+    if not isinstance(trace, list):
         return []
-    end = text.find("\n---", 4)
-    if end == -1:
-        return []
-    values: list[str] = []
-    in_trace = False
-    for raw in text[4:end].splitlines():
-        if raw.startswith("trace:"):
-            in_trace = True
-            continue
-        if in_trace and raw.startswith("  - "):
-            values.append(raw[4:].strip())
-        elif in_trace and raw and not raw.startswith(" "):
-            break
-    return values
+    return [str(value) for value in trace if str(value).strip()]
 
 
 def slicing_from_story_markdown(text: str) -> str:
@@ -241,32 +229,11 @@ def update_story_frontmatter(path: Path, status: str, owner: str) -> None:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         raise StoryStatusError(f"Story frontmatter not found: {path.name}")
-    end = text.find("\n---", 4)
-    if end == -1:
+    rendered = update_frontmatter_keys(text, {"status": status, "owner": owner}, quote_keys={"owner"})
+    if rendered is None:
         raise StoryStatusError(f"Story frontmatter not closed: {path.name}")
-    frontmatter = text[4:end].splitlines()
-    body = text[end:]
-    updated = upsert_frontmatter_key(upsert_frontmatter_key(frontmatter, "status", status), "owner", owner)
-    rendered = "---\n" + "\n".join(updated) + body
     rendered = update_story_lifecycle_section(rendered, status, owner)
     path.write_text(rendered, encoding="utf-8")
-
-
-def upsert_frontmatter_key(lines: list[str], key: str, value: str) -> list[str]:
-    rendered = f'{key}: "{value}"' if key == "owner" else f"{key}: {value}"
-    for index, line in enumerate(lines):
-        if line.startswith(f"{key}:"):
-            result = list(lines)
-            result[index] = rendered
-            return result
-    result = list(lines)
-    insert_at = 0
-    for index, line in enumerate(result):
-        if line.startswith("status:"):
-            insert_at = index + 1
-            break
-    result.insert(insert_at, rendered)
-    return result
 
 
 def update_story_lifecycle_section(text: str, status: str, owner: str) -> str:

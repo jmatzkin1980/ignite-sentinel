@@ -97,9 +97,57 @@ def frontmatter_list(values: list[str]) -> str:
 
 
 def frontmatter_block(text: str) -> str | None:
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
+        return None
+    start, end = bounds
+    return text[start:end]
+
+
+def frontmatter_bounds(text: str) -> tuple[int, int] | None:
     if not text.startswith("---\n"):
         return None
     end = text.find("\n---", 4)
     if end == -1:
         return None
-    return text[4:end]
+    return 4, end
+
+
+def update_frontmatter_keys(
+    text: str,
+    updates: dict[str, str],
+    *,
+    quote_keys: set[str] | None = None,
+) -> str | None:
+    """Update scalar keys in an existing Sentinel frontmatter block.
+
+    The function preserves existing key order and list blocks. New scalar keys
+    are inserted after status when present, matching story lifecycle behavior.
+    """
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
+        return None
+    parse_frontmatter(text)
+    quote_keys = quote_keys or set()
+    start, end = bounds
+    lines = text[start:end].splitlines()
+    for key, value in updates.items():
+        lines = upsert_frontmatter_scalar(lines, key, value, quote=key in quote_keys)
+    return "---\n" + "\n".join(lines) + text[end:]
+
+
+def upsert_frontmatter_scalar(lines: list[str], key: str, value: str, *, quote: bool = False) -> list[str]:
+    rendered = f'{key}: "{value}"' if quote else f"{key}: {value}"
+    for index, line in enumerate(lines):
+        if line.startswith(f"{key}:"):
+            result = list(lines)
+            result[index] = rendered
+            return result
+    result = list(lines)
+    insert_at = 0
+    for index, line in enumerate(result):
+        if line.startswith("status:"):
+            insert_at = index + 1
+            break
+    result.insert(insert_at, rendered)
+    return result

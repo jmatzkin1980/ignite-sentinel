@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import parse_frontmatter
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
@@ -82,21 +83,6 @@ def missing_from_gate(gate: dict[str, Any], item: dict[str, Any], key: str) -> l
     if not isinstance(source, dict):
         source = item.get(key, {}) if isinstance(item.get(key, {}), dict) else {}
     return [str(value) for value in source.get("missing", [])]
-
-
-def parse_frontmatter(text: str) -> dict[str, str]:
-    if not text.startswith("---\n"):
-        return {}
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}
-    data: dict[str, str] = {}
-    for raw in text[4:end].splitlines():
-        if ":" not in raw or raw.startswith("  "):
-            continue
-        key, value = raw.split(":", 1)
-        data[key.strip()] = value.strip().strip('"')
-    return data
 
 
 def story_title(text: str, fallback: str) -> str:

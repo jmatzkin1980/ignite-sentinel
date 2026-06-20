@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
+from .core.markdown import parse_frontmatter
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
 from .traceability import load_graph, parents_of
@@ -361,7 +362,10 @@ def check_spec_unit_pointers(
                 f"{unit_id} cites {ears_id}, but that EARS ID is absent from requirements.md.",
                 f"python -m sentinel /specs {project_id}",
             )
-        for pointer in parse_frontmatter_list(text, "sources"):
+        sources = parse_frontmatter(text).get("sources", [])
+        if not isinstance(sources, list):
+            sources = []
+        for pointer in [str(value) for value in sources]:
             if pointer.startswith("[PENDING"):
                 continue
             if not pointer_resolves(base, pointer):
@@ -389,27 +393,6 @@ def read_text(path: Path) -> str:
 
 def unit_texts_exist(base: Path) -> bool:
     return any((base / "03_specs" / "units").glob("SPEC-U-*.md"))
-
-
-def parse_frontmatter_list(text: str, key: str) -> list[str]:
-    if not text.startswith("---"):
-        return []
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return []
-    values: list[str] = []
-    in_list = False
-    for line in parts[1].splitlines():
-        if line.strip() == f"{key}:":
-            in_list = True
-            continue
-        if in_list:
-            if line.startswith("  - "):
-                values.append(line[4:].strip())
-                continue
-            if line and not line.startswith(" "):
-                break
-    return values
 
 
 def pointer_resolves(base: Path, pointer: str) -> bool:

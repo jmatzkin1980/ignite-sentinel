@@ -1,16 +1,22 @@
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 from sentinel.assumptions import assumption_rows
+from sentinel.backlog_rollup import collect_story_rows
 from sentinel.backlog_status import acceptance_from_story_markdown as story_acceptance_rows
+from sentinel.backlog_status import trace_from_frontmatter, update_story_frontmatter
 from sentinel.core.markdown import (
     frontmatter_list,
     parse_frontmatter,
     parse_table_rows,
     render_frontmatter,
     table_to_dicts,
+    update_frontmatter_keys,
 )
 from sentinel.discovery import parse_gap_rows
-from sentinel.generation import parse_ears_requirements, spec_unit_statement
+from sentinel.generation import parse_ears_requirements, read_spec_units, spec_unit_statement
 from sentinel.health import has_blocking_open_gap
 from sentinel.implementation_feedback import acceptance_from_story_markdown as feedback_acceptance_rows
 from sentinel.knowledge_ledger import markdown_table_rows
@@ -100,6 +106,28 @@ owner: "Jose"
     def test_render_frontmatter_round_trips_supported_subset(self):
         data = {"id": "US-001", "trace": ["REQ-001", "SPEC-001"], "status": "Ready"}
         self.assertEqual(parse_frontmatter(render_frontmatter(data) + "\n# Body"), data)
+
+    def test_update_frontmatter_keys_preserves_existing_order_and_quotes_selected_keys(self):
+        text = """---
+id: US-001
+parent_epic: EPIC-001
+status: Draft
+trace:
+  - REQ-001
+---
+# Body
+"""
+        updated = update_frontmatter_keys(text, {"status": "Ready", "owner": "Delivery Lead"}, quote_keys={"owner"})
+        self.assertIsNotNone(updated)
+        self.assertIn(
+            """id: US-001
+parent_epic: EPIC-001
+status: Ready
+owner: "Delivery Lead"
+trace:
+  - REQ-001""",
+            updated,
+        )
 
 
 class MigratedMarkdownCallSiteTests(unittest.TestCase):
@@ -202,6 +230,73 @@ class MigratedMarkdownCallSiteTests(unittest.TestCase):
 | SEED-001 | product | CONFIRMED |
 """
         self.assertEqual(markdown_table_rows(text), [["SEED-001", "product", "CONFIRMED"]])
+
+    def test_frontmatter_call_sites_use_core_parser_contract(self):
+        story = """---
+id: US-001
+parent_epic: EPIC-009
+status: Draft
+owner: ""
+trace:
+  - REQ-001
+  - SPEC-U-001
+---
+# US-001 - First slice
+"""
+        self.assertEqual(trace_from_frontmatter(story), ["REQ-001", "SPEC-U-001"])
+        with tempfile.TemporaryDirectory() as temp:
+            old_cwd = Path.cwd()
+            os.chdir(temp)
+            try:
+                story_path = Path("workspaces/FRONT/04_backlog/US-001.md")
+                story_path.parent.mkdir(parents=True)
+                story_path.write_text(story, encoding="utf-8")
+                rows = collect_story_rows("FRONT")
+                self.assertEqual(rows[0]["epic_id"], "EPIC-009")
+                self.assertEqual(rows[0]["status"], "Draft")
+                update_story_frontmatter(story_path, "Ready", "Delivery Lead")
+                updated = story_path.read_text(encoding="utf-8")
+                self.assertIn("status: Ready", updated)
+                self.assertIn('owner: "Delivery Lead"', updated)
+                self.assertIn("  - REQ-001", updated)
+            finally:
+                os.chdir(old_cwd)
+
+    def test_spec_unit_frontmatter_lists_are_read_by_core_parser(self):
+        unit = """---
+id: SPEC-U-001
+status: evidence-backed
+trace_ids:
+  - REQ-001
+ears:
+  - REQ-EARS-001
+sources:
+  - 02_requirements/requirements.md#normalized-requirements-ears
+---
+# SPEC-U-001 - Requirement
+
+## Normalized Requirement
+
+| EARS ID | Statement |
+| --- | --- |
+| REQ-EARS-001 | When X, the system shall Y. |
+"""
+        with tempfile.TemporaryDirectory() as temp:
+            old_cwd = Path.cwd()
+            os.chdir(temp)
+            try:
+                unit_path = Path("workspaces/FRONT/03_specs/units/SPEC-U-001.md")
+                unit_path.parent.mkdir(parents=True)
+                unit_path.write_text(unit, encoding="utf-8")
+                units = read_spec_units("FRONT")
+                self.assertEqual(units[0]["trace_ids"], ["REQ-001"])
+                self.assertEqual(units[0]["ears"], ["REQ-EARS-001"])
+                self.assertEqual(
+                    units[0]["sources"],
+                    ["02_requirements/requirements.md#normalized-requirements-ears"],
+                )
+            finally:
+                os.chdir(old_cwd)
 
 
 if __name__ == "__main__":
