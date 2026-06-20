@@ -5,37 +5,9 @@ import json
 import sys
 from pathlib import Path
 
-from .doctor import run_doctor
-from .assumptions import apply_assumptions
-from .backlog.refinement import apply_backlog_refinement
-from .backlog.rollup import backlog_status
-from .backlog.status import update_story_status
-from .context_requests import generate_context_request
-from .dashboard import generate_dashboard
-from .discovery import apply_annotation
-from .discovery import apply_challenge
-from .discovery import apply_scrutiny
-from .discovery import ingest
-from .discovery import regenerate_gaps
-from .export import export_artifact
-from .gap_resolution import resolve_gaps
-from .generation import generate_backlog, generate_specs
-from .health import run_health
-from .implementation_feedback import apply_implementation_feedback
-from .maturity import evaluate, generate_project_brief
-from .memory import ContextBroker, reindex_workspace
-from .prd import apply_prd_composition
 from .protocols import postflight_command, preflight_command
-from .quality import generate_quality
-from .self_review import apply_self_review
-from .status import project_status
-from .sync import sync_change, sync_pending_sources
-from .core.graph import load_graph
-from .traceability import write_mermaid_graph, write_traceability_matrix
-from .validation import validate_project
-from .view import ARTIFACTS as VIEW_ARTIFACTS
-from .view import generate_artifact_view
-from .workspace import ensure_workspace
+
+VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog"}
 
 COMMANDS = {
     "doctor",
@@ -192,23 +164,35 @@ def main(argv: list[str] | None = None) -> int:
         preflight_command(args.command, project_id)
         result = None
         if args.command == "init":
+            from .workspace import ensure_workspace
+
             path = ensure_workspace(args.project_id)
             result = {"workspace": str(path)}
             print_json(result)
         elif args.command == "doctor":
+            from .doctor import run_doctor
+
             result = run_doctor(Path(args.root))
             print_json(result)
             return 0 if result["verdict"] == "PASS" else 1
         elif args.command == "dashboard":
+            from .dashboard import generate_dashboard
+
             result = generate_dashboard(Path(args.root), open_browser=bool(args.open))
             print_json(result)
         elif args.command == "view":
+            from .view import generate_artifact_view
+
             result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open))
             print_json(result)
         elif args.command == "ingest":
+            from .discovery import ingest
+
             result = ingest(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "retrieve":
+            from .memory import ContextBroker
+
             broker = ContextBroker(args.project_id)
             if args.write_pack:
                 result = broker.build_context_pack(
@@ -244,42 +228,66 @@ def main(argv: list[str] | None = None) -> int:
                 )
             print_json(result)
         elif args.command == "sync":
+            from .sync import sync_change, sync_pending_sources
+
             if args.source:
                 result = sync_change(args.project_id, Path(args.source), args.note)
             else:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync")
             print_json(result)
         elif args.command == "gaps":
+            from .discovery import regenerate_gaps
+
             result = regenerate_gaps(args.project_id)
             print_json(result)
         elif args.command == "resolve-gaps":
+            from .gap_resolution import resolve_gaps
+
             result = resolve_gaps(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "annotate":
+            from .discovery import apply_annotation
+
             result = apply_annotation(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "challenge":
+            from .discovery import apply_challenge
+
             result = apply_challenge(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "scrutinize":
+            from .discovery import apply_scrutiny
+
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens)
             print_json(result)
         elif args.command == "self-review":
+            from .self_review import apply_self_review
+
             result = apply_self_review(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "assume":
+            from .assumptions import apply_assumptions
+
             result = apply_assumptions(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "compose":
+            from .prd import apply_prd_composition
+
             result = apply_prd_composition(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "refine-backlog":
+            from .backlog.refinement import apply_backlog_refinement
+
             result = apply_backlog_refinement(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "implementation-feedback":
+            from .implementation_feedback import apply_implementation_feedback
+
             result = apply_implementation_feedback(args.project_id, Path(args.source))
             print_json(result)
         elif args.command == "story-status":
+            from .backlog.status import update_story_status
+
             result = update_story_status(
                 args.project_id,
                 args.story,
@@ -289,46 +297,73 @@ def main(argv: list[str] | None = None) -> int:
             )
             print_json(result)
         elif args.command == "maturity":
+            from .maturity import evaluate
+
             result = evaluate(args.project_id)
             print_json(result)
         elif args.command == "brief":
+            from .maturity import generate_project_brief
+
             result = generate_project_brief(args.project_id)
             print_json(result)
         elif args.command == "context-request":
+            from .context_requests import generate_context_request
+
             result = generate_context_request(args.project_id, args.domain)
             print_json(result)
         elif args.command == "status":
+            from .status import project_status
+
             result = project_status(args.project_id)
             print_json(result)
         elif args.command == "export":
+            from .export import export_artifact
+
             result = export_artifact(args.project_id, args.artifact, args.format, args.domain)
             print_json(result)
         elif args.command == "specs":
+            from .generation import generate_specs
+
             result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":
+            from .generation import generate_backlog
+
             result = generate_backlog(args.project_id, with_task_seeds=bool(args.with_task_seeds))
             print_json(result)
         elif args.command == "backlog-status":
+            from .backlog.rollup import backlog_status
+
             result = backlog_status(args.project_id)
             print_json(result)
         elif args.command == "quality":
+            from .quality import generate_quality
+
             result = generate_quality(args.project_id)
             print_json(result)
         elif args.command == "health":
+            from .health import run_health
+
             result = run_health(args.project_id)
             print_json(result)
         elif args.command == "trace":
+            from .core.graph import load_graph
+            from .traceability import write_mermaid_graph, write_traceability_matrix
+
             matrix = write_traceability_matrix(args.project_id)
             mermaid = write_mermaid_graph(args.project_id)
             result = {"graph": load_graph(args.project_id), "matrix": str(matrix), "mermaid": str(mermaid)}
             print_json(result)
         elif args.command == "validate":
+            from .validation import validate_project
+
             result = validate_project(args.project_id)
             print_json(result)
             postflight_command(args.command, project_id, result)
             return 0 if result["verdict"] == "VALID" else 1
         elif args.command == "reindex":
+            from .memory import reindex_workspace
+
             result = reindex_workspace(args.project_id, full=args.full)
             print_json(result)
         postflight_command(args.command, project_id, result)
