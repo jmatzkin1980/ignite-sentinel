@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from .backlog_hooks import enforce_pre_handoff_gate
+from .backlog.hooks import enforce_pre_handoff_gate
 from .memory import ContextBroker
 from .workspace import workspace_path, write_json
 

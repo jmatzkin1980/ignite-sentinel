@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from .backlog_hooks import evaluate_backlog_privacy
+from .backlog.hooks import evaluate_backlog_privacy
 from .core.markdown import parse_table_rows
 from .generation import domain_context_snapshot
 from .memory import ContextBroker

@@ -67,7 +67,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     stale_results = []
     for finding in accepted:
         if finding.get("mark_stale"):
-            from .backlog_hooks import mark_stale_stories_for_spec_units
+            from .backlog.hooks import mark_stale_stories_for_spec_units
 
             stale_results.append(
                 mark_stale_stories_for_spec_units(
@@ -222,8 +222,8 @@ def persist_feedback_state(
 def refresh_feedback_story_gates(project_id: str, findings: list[dict[str, Any]]) -> None:
     if not findings:
         return
-    from .backlog_gates import evaluate_story_gates, update_story_gate_state
-    from .backlog_status import story_for_gate, update_story_gate_sections
+    from .backlog.gates import evaluate_story_gates, update_story_gate_state
+    from .backlog.status import story_for_gate, update_story_gate_sections
 
     state = read_json(state_path(project_id), {})
     lifecycle = state.get("story_lifecycle", {})

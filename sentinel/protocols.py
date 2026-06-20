@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .backlog_hooks import assert_backlog_privacy_clean
+from .backlog.hooks import assert_backlog_privacy_clean
 from .core.graph import load_graph
 from .traceability import write_mermaid_graph, write_traceability_matrix
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
