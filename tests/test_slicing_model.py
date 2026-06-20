@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import unittest
 
+from sentinel.compilers.backlog import render_enabler_boundary, render_slicing_strategy_table
+from sentinel.compilers.slicing import slicing_decision_for_spec_unit
 from sentinel.generation import (
-    render_enabler_boundary,
-    render_slicing_strategy_table,
-    slicing_decision_for_spec_unit,
+    render_enabler_boundary as generation_render_enabler_boundary,
+    render_slicing_strategy_table as generation_render_slicing_strategy_table,
 )
+from sentinel.generation import slicing_decision_for_spec_unit as generation_slicing_decision_for_spec_unit
 from sentinel.slicing_model import load_slicing_model
 
 
@@ -28,6 +30,11 @@ Reject loose items such as "make an internal tool accessible", generic environme
 
 
 class SlicingModelTests(unittest.TestCase):
+    def test_generation_slicing_imports_remain_compatible(self):
+        self.assertIs(generation_render_enabler_boundary, render_enabler_boundary)
+        self.assertIs(generation_render_slicing_strategy_table, render_slicing_strategy_table)
+        self.assertIs(generation_slicing_decision_for_spec_unit, slicing_decision_for_spec_unit)
+
     def test_declarative_model_renders_existing_strategy_and_boundary_text(self):
         model = load_slicing_model()
 
