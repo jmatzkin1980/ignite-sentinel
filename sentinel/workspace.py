@@ -1,9 +1,20 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from .core.io import read_json, write_json
+from .core.paths import (
+    config_path,
+    graph_path,
+    memory_path,
+    repo_root,
+    source_manifest_path,
+    state_path,
+    workspace_path,
+)
+from .core.state import read_state, update_state, write_state
+from .core.time import utc_now
 
 DEFAULT_DOMAINS = [
     "product",
@@ -40,38 +51,6 @@ WORKSPACE_DIRS = [
     "08_context_packs/exports",
     "memory.lancedb",
 ]
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
-
-def repo_root() -> Path:
-    return Path.cwd()
-
-
-def workspace_path(project_id: str, root: Path | None = None) -> Path:
-    return (root or repo_root()) / "workspaces" / project_id
-
-
-def state_path(project_id: str, root: Path | None = None) -> Path:
-    return workspace_path(project_id, root) / "state.json"
-
-
-def graph_path(project_id: str, root: Path | None = None) -> Path:
-    return workspace_path(project_id, root) / "06_traceability" / "traceability_graph.json"
-
-
-def config_path(project_id: str, root: Path | None = None) -> Path:
-    return workspace_path(project_id, root) / "sentinel.config.yaml"
-
-
-def memory_path(project_id: str, root: Path | None = None) -> Path:
-    return workspace_path(project_id, root) / "memory.lancedb" / "memory.json"
-
-
-def source_manifest_path(project_id: str, root: Path | None = None) -> Path:
-    return workspace_path(project_id, root) / "00_raw" / "source_manifest.json"
 
 
 def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
@@ -215,20 +194,3 @@ def coerce_scalar(value: str) -> Any:
     return value
 
 
-def read_json(path: Path, default: Any | None = None) -> Any:
-    if not path.exists():
-        return default
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def write_json(path: Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
-def update_state(project_id: str, **changes: Any) -> dict[str, Any]:
-    state = read_json(state_path(project_id), {})
-    state.update(changes)
-    state["updated_at"] = utc_now()
-    write_json(state_path(project_id), state)
-    return state
