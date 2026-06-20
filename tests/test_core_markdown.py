@@ -16,7 +16,10 @@ from sentinel.core.markdown import (
     update_frontmatter_keys,
 )
 from sentinel.discovery import parse_gap_rows
-from sentinel.generation import parse_ears_requirements, read_spec_units, spec_unit_statement
+from sentinel.compilers.specs import read_spec_units, spec_unit_statement
+from sentinel.generation import parse_ears_requirements
+from sentinel.generation import read_spec_units as generation_read_spec_units
+from sentinel.generation import spec_unit_statement as generation_spec_unit_statement
 from sentinel.health import has_blocking_open_gap
 from sentinel.implementation_feedback import acceptance_from_story_markdown as feedback_acceptance_rows
 from sentinel.knowledge_ledger import markdown_table_rows
@@ -131,6 +134,10 @@ trace:
 
 
 class MigratedMarkdownCallSiteTests(unittest.TestCase):
+    def test_generation_spec_unit_imports_remain_compatible(self):
+        self.assertIs(generation_read_spec_units, read_spec_units)
+        self.assertIs(generation_spec_unit_statement, spec_unit_statement)
+
     def test_discovery_gap_rows_keep_tick_stripping_contract(self):
         text = """
 | Gap ID | Lens | Severity | Status | Parent | Description | Question | Source |

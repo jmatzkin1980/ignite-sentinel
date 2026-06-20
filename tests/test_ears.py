@@ -16,10 +16,12 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
+from sentinel.compilers.specs import render_specs
 from sentinel.discovery import parse_gap_rows
 from sentinel.ears import classify_ears, is_ears
 from sentinel.gap_resolution import resolve_gaps
-from sentinel.generation import parse_ears_requirements, render_epic, render_specs
+from sentinel.generation import parse_ears_requirements, render_epic
+from sentinel.generation import render_specs as generation_render_specs
 
 RAW = (
     "# Ops Dashboard\n\n"
@@ -86,6 +88,9 @@ class EarsResolutionTests(unittest.TestCase):
 
 
 class EarsDownstreamCitationTests(unittest.TestCase):
+    def test_generation_render_specs_import_remains_compatible(self):
+        self.assertIs(generation_render_specs, render_specs)
+
     def test_specs_and_backlog_cite_confirmed_ears_rows(self):
         req_text = (
             "# Requirements\n\n"
