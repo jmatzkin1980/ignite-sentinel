@@ -11,7 +11,7 @@ from typing import Any
 from .assumptions import load_assumptions
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
-from .traceability import load_graph
+from .core.graph import load_graph
 from .workspace import read_json, workspace_path
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from .discovery import expected_format_for_gap, unblocks_for_gap
 from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
-from .traceability import add_edge, add_node, nodes_by_type
+from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path
 
 DOMAINS = {"technology", "design", "quality", "frontend", "backend"}

@@ -88,7 +88,7 @@ Nota de entorno: `lancedb` es opcional (IMP-013). Sin él, el framework opera en
 
 ```text
 sentinel/          runtime Python (cli, discovery, generation, memory, sync, health, validation, protocols...)
-sentinel/core/     primitivas compartidas: markdown, IO JSON, rutas de workspace, state.json y tiempo UTC
+sentinel/core/     primitivas compartidas: markdown, IO JSON/texto, rutas de workspace, state.json, grafo y tiempo UTC
 tests/             unittest suite (17 tests)
 .codex/ .kilo/     adapters Codex y Kilo Code
 user_guide/        documentación de usuario (00-12)
@@ -98,7 +98,7 @@ docs/evolution/    memoria operativa local (baseline, roadmap, backlog) — git-
 installers/        launchers PowerShell
 ```
 
-Nota para mantenedores: `sentinel/workspace.py` conserva shims de compatibilidad (`read_json`, `write_json`, `workspace_path`, `state_path`, `update_state`, etc.) para no romper imports existentes. Las nuevas primitivas compartidas deben nacer en `sentinel/core/` y luego, si hace falta, reexportarse desde fachadas históricas.
+Nota para mantenedores: `sentinel/workspace.py` conserva shims de compatibilidad (`read_json`, `write_json`, `workspace_path`, `state_path`, `update_state`, etc.) para no romper imports existentes. El dominio debe preferir `sentinel/core/` para primitivas nuevas; `core.graph` es la fachada de acceso al grafo, mientras `traceability.py` conserva los renders de matriz/mermaid.
 
 ## Cómo trabajar una mejora del framework
 

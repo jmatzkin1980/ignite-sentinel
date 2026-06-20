@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel.core.io import read_json, write_json
+from sentinel.core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
+from sentinel.core.io import append_text, read_json, write_json
 from sentinel.core.paths import graph_path, memory_path, source_manifest_path, state_path, workspace_path
 from sentinel.core.state import update_state
 from sentinel.workspace import (
@@ -44,6 +45,11 @@ class CoreWorkspaceTests(unittest.TestCase):
         self.assertEqual(read_json(path, {}), {"project_id": "CORE", "phase": "updated"})
         self.assertFalse((path.parent / ".state.json.tmp").exists())
 
+        log_path = workspace_path("CORE") / "06_traceability" / "command_protocol_log.md"
+        append_text(log_path, "one\n")
+        append_text(log_path, "two\n")
+        self.assertEqual(log_path.read_text(encoding="utf-8"), "one\ntwo\n")
+
     def test_core_state_and_workspace_state_update_same_file(self):
         path = state_path("CORE")
         write_json(path, {"project_id": "CORE", "phase": "initialized"})
@@ -55,6 +61,18 @@ class CoreWorkspaceTests(unittest.TestCase):
 
         workspace_update_state("CORE", phase="brief_completed")
         self.assertEqual(read_json(path, {})["phase"], "brief_completed")
+
+    def test_core_graph_facade_uses_traceability_contract(self):
+        node_id = add_node("CORE", "REQ", "requirement", workspace_path("CORE") / "req.md", "Requirement")
+        add_edge("CORE", node_id, "GAP-001", "raises")
+        graph = load_graph("CORE")
+
+        self.assertEqual(node_id, "REQ-001")
+        self.assertEqual(nodes_by_type("CORE", "requirement")[0]["id"], "REQ-001")
+        self.assertEqual(graph["edges"], [{"from": "REQ-001", "to": "GAP-001", "relation": "raises"}])
+
+        save_graph("CORE", graph)
+        self.assertEqual(read_json(graph_path("CORE"), {})["nodes"][0]["id"], "REQ-001")
 
 
 if __name__ == "__main__":

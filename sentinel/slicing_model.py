@@ -6,10 +6,11 @@ without touching Python, while the runtime keeps validating a known taxonomy.
 """
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from .core.io import read_json
 
 
 SLICING_DIR = Path(__file__).resolve().parent / "slicing"
@@ -41,7 +42,7 @@ def load_slicing_model(
 
 @lru_cache(maxsize=8)
 def _load_cached(directory: str) -> dict[str, Any]:
-    data = json.loads((Path(directory) / SLICING_MODEL_FILE).read_text(encoding="utf-8"))
+    data = read_json(Path(directory) / SLICING_MODEL_FILE, {})
     return normalize_slicing_model(data)
 
 

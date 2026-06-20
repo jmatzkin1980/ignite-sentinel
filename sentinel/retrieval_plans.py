@@ -5,12 +5,12 @@ filters, budgets, and lens vocabulary can evolve without Python edits.
 """
 from __future__ import annotations
 
-import json
 import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .core.io import read_json
 from .lens_registry import lens_checks_for_lens
 
 
@@ -36,7 +36,7 @@ def load_retrieval_plan(
 @lru_cache(maxsize=16)
 def _load_cached(directory: str, workflow: str) -> dict[str, Any]:
     path = Path(directory) / f"{workflow}.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = read_json(path, {})
     return normalize_plan(workflow, data)
 
 

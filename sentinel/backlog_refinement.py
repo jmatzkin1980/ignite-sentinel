@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
 from typing import Any
 
+from .core.graph import add_edge, add_node, nodes_by_type
+from .core.io import read_json, write_json
 from .memory import ContextBroker
-from .traceability import add_edge, add_node, nodes_by_type
-from .workspace import read_json, update_state, workspace_path
+from .workspace import update_state, workspace_path
 
 
 class BacklogRefinementError(RuntimeError):
@@ -33,7 +33,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     if not source.exists():
         raise BacklogRefinementError(f"Backlog refinement source not found: {source}")
 
-    data = json.loads(source.read_text(encoding="utf-8"))
+    data = read_json(source, {})
     evidence_text = backlog_refinement_evidence_text(base)
     story_index = load_story_index(base)
     spec_units = load_spec_unit_index(base)
@@ -48,7 +48,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     existing = read_json(accepted_path, [])
     existing_refinements = existing if isinstance(existing, list) else []
     merged = [*existing_refinements, *accepted]
-    accepted_path.write_text(json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_json(accepted_path, merged)
     render_backlog_refinements(base, merged)
     report_path = write_refinement_report(project_id, accepted, rejected, archived)
 
