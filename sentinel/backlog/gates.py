@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Any
 
 from ..discovery import parse_gap_rows
+from ..gaps import BLOCKING_GAP_STATUSES
 from ..implementation_feedback import open_feedback_for_story
 from ..core.graph import add_edge, add_node
 from ..workspace import load_config, read_json, state_path, update_state, workspace_path
 
 
 BACKLOG_GATE_DEFAULT_THRESHOLD = 1.0
-BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
 REQUIRED_AC_CLASSES = {"fail-to-pass", "pass-to-pass", "evidence"}
 
 

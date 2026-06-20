@@ -9,6 +9,7 @@ from ..lens_registry import known_lenses, load_lens_checks
 from ..core.graph import add_edge, add_node, load_graph
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
+from ..gaps import parse_gap_table
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
 from ..sources import mark_source_processed
@@ -417,31 +418,7 @@ def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
 
 
 def parse_gap_rows(text: str) -> list[dict[str, str]]:
-    gaps: list[dict[str, str]] = []
-    for line in text.splitlines():
-        rows = parse_table_rows(line)
-        cells = rows[0] if rows else []
-        if not cells or not cells[0].startswith("GAP-"):
-            continue
-        if len(cells) >= 8:
-            gap = {
-                "id": cells[0],
-                "lens": cells[1],
-                "severity": cells[2],
-                "status": cells[3],
-                "parent": cells[4],
-                "description": cells[5],
-                "question": cells[6],
-                "source": cells[7],
-            }
-            if len(cells) >= 9 and cells[8] not in {"", "N/A"}:
-                gap["evidence_mention"] = cells[8]
-            if len(cells) >= 10 and cells[9] not in {"", "N/A"}:
-                gap["origin"] = cells[9]
-            if len(cells) >= 11 and cells[10] not in {"", "N/A"}:
-                gap["resolution_note"] = cells[10]
-            gaps.append(gap)
-    return gaps
+    return parse_gap_table(text)
 
 
 def regenerate_gaps(project_id: str) -> dict[str, object]:
