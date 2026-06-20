@@ -10,6 +10,7 @@ from .markdown import (
     parse_table_rows,
     render_frontmatter,
     table_to_dicts,
+    update_frontmatter_keys,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "parse_table_rows",
     "render_frontmatter",
     "table_to_dicts",
+    "update_frontmatter_keys",
 ]

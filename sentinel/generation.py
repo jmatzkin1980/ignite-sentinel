@@ -11,7 +11,7 @@ from .backlog_hooks import assert_backlog_privacy_clean
 from .backlog_status import apply_lifecycle_to_stories
 from .backlog_gates import evaluate_story_gates, update_story_gate_state
 from .backlog_rollup import backlog_status
-from .core.markdown import parse_table_rows
+from .core.markdown import frontmatter_list, parse_frontmatter, parse_table_rows
 from .discovery import extract_personas, extract_functional_signals, extract_metric_signals, prd_section_for_gap, split_evidence_sentences
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
@@ -242,34 +242,9 @@ def spec_unit_snapshot(base: Path) -> dict[str, dict[str, Any]]:
             "id": unit_id,
             "path": path,
             "text": text,
-            "frontmatter": parse_spec_unit_frontmatter(text),
+            "frontmatter": parse_frontmatter(text),
         }
     return snapshot
-
-
-def parse_spec_unit_frontmatter(text: str) -> dict[str, Any]:
-    if not text.startswith("---\n"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    data: dict[str, Any] = {}
-    current_key = ""
-    for raw_line in parts[1].splitlines():
-        if not raw_line.strip():
-            continue
-        if raw_line.startswith("  - ") and current_key:
-            values = data.setdefault(current_key, [])
-            if isinstance(values, list):
-                values.append(raw_line[4:].strip())
-            continue
-        if ":" in raw_line:
-            key, value = raw_line.split(":", 1)
-            key = key.strip()
-            value = value.strip()
-            data[key] = [] if value == "" else value
-            current_key = key
-    return data
 
 
 def read_spec_units(project_id: str) -> list[dict[str, Any]]:
@@ -278,7 +253,7 @@ def read_spec_units(project_id: str) -> list[dict[str, Any]]:
     units: list[dict[str, Any]] = []
     for path in sorted(units_dir.glob("SPEC-U-*.md")) if units_dir.exists() else []:
         text = path.read_text(encoding="utf-8")
-        frontmatter = parse_spec_unit_frontmatter(text)
+        frontmatter = parse_frontmatter(text)
         unit_id = str(frontmatter.get("id", path.stem)).strip()
         if not re.match(r"^SPEC-U-\d{3}$", unit_id):
             continue
@@ -3131,10 +3106,6 @@ As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower
 
 {render_gate_missing_block('DoD', dod)}
 """
-
-
-def frontmatter_list(values: list[str]) -> str:
-    return "\n".join(f"  - {value}" for value in values)
 
 
 def render_context_summary(context: dict[str, object]) -> str:
