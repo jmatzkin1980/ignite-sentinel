@@ -16,7 +16,8 @@ from sentinel.gaps import (
     is_blocking,
     parse_gap_table,
 )
-from sentinel.maturity import parse_blocking_gaps
+from sentinel.health import has_blocking_open_gap, run_health
+from sentinel.maturity import evaluate, parse_blocking_gaps
 from sentinel.workspace import ensure_workspace
 
 
@@ -166,6 +167,44 @@ class GapContractTests(unittest.TestCase):
             )
             self.assertEqual(blocking_gaps_for_trace("GAPCFG", ["GAP-900"]), ["GAP-900"])
             self.assertEqual(blocking_gaps_for_trace("GAPCFG", ["GAP-901"]), [])
+        finally:
+            os.chdir(old_cwd)
+            shutil.rmtree(temp)
+
+    def test_health_and_maturity_honor_same_blocking_gap_config(self):
+        old_cwd = Path.cwd()
+        temp = Path(tempfile.mkdtemp())
+        try:
+            os.chdir(temp)
+            workspace = ensure_workspace("HEALTHCFG")
+            config = workspace / "sentinel.config.yaml"
+            config.write_text(
+                config.read_text(encoding="utf-8").replace(
+                    "    - critical\n    - high",
+                    "    - medium",
+                ),
+                encoding="utf-8",
+            )
+            (workspace / "02_requirements" / "requirements.md").write_text(
+                "# Requirements\n\nWhen X, the system shall Y.\n",
+                encoding="utf-8",
+            )
+            gaps_path = workspace / "01_discovery" / "gaps.md"
+            gaps_path.write_text(
+                "| GAP-900 | product | medium | OPEN | REQ-001 | Missing variant | Q? | Client |\n"
+                "| GAP-901 | product | high | OPEN | REQ-001 | Missing high | Q? | Client |\n",
+                encoding="utf-8",
+            )
+
+            maturity = evaluate("HEALTHCFG")
+            health = run_health("HEALTHCFG")
+
+            self.assertEqual(maturity["readiness"], "BLOCKED")
+            self.assertEqual(maturity["blocking_gaps"], ["GAP-900"])
+            self.assertEqual(health["verdict"], "DIRTY")
+            self.assertIn("Blocking gaps remain open.", health["findings"])
+            self.assertTrue(has_blocking_open_gap(gaps_path.read_text(encoding="utf-8"), {"medium"}))
+            self.assertFalse(has_blocking_open_gap(gaps_path.read_text(encoding="utf-8"), {"critical"}))
         finally:
             os.chdir(old_cwd)
             shutil.rmtree(temp)
