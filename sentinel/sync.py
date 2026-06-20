@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from .backlog_hooks import mark_stale_stories_for_spec_units, stale_spec_units_from_change
+from .backlog.hooks import mark_stale_stories_for_spec_units, stale_spec_units_from_change
 from .discovery import (
     count_gaps,
     detect_gaps,

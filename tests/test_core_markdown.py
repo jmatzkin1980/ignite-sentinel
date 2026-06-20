@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 
 from sentinel.assumptions import assumption_rows
-from sentinel.backlog_rollup import collect_story_rows
-from sentinel.backlog_status import acceptance_from_story_markdown as story_acceptance_rows
-from sentinel.backlog_status import trace_from_frontmatter, update_story_frontmatter
+from sentinel.backlog.rollup import collect_story_rows
+from sentinel.backlog.status import acceptance_from_story_markdown as story_acceptance_rows
+from sentinel.backlog.status import trace_from_frontmatter, update_story_frontmatter
 from sentinel.core.markdown import (
     frontmatter_list,
     parse_frontmatter,

@@ -6,10 +6,10 @@ import re
 from typing import Any
 
 from .memory import ContextBroker, get_multi_domain_context
-from .backlog_hooks import assert_backlog_privacy_clean
-from .backlog_status import apply_lifecycle_to_stories
-from .backlog_gates import evaluate_story_gates, update_story_gate_state
-from .backlog_rollup import backlog_status
+from .backlog.hooks import assert_backlog_privacy_clean
+from .backlog.status import apply_lifecycle_to_stories
+from .backlog.gates import evaluate_story_gates, update_story_gate_state
+from .backlog.rollup import backlog_status
 from .core.markdown import parse_table_rows
 from .compilers.backlog import (
     build_agent_execution_contract,

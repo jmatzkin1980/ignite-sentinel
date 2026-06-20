@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .backlog_gates import evaluate_story_gates, update_story_gate_state
+from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path

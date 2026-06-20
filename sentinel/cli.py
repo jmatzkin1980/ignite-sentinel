@@ -7,9 +7,9 @@ from pathlib import Path
 
 from .doctor import run_doctor
 from .assumptions import apply_assumptions
-from .backlog_refinement import apply_backlog_refinement
-from .backlog_rollup import backlog_status
-from .backlog_status import update_story_status
+from .backlog.refinement import apply_backlog_refinement
+from .backlog.rollup import backlog_status
+from .backlog.status import update_story_status
 from .context_requests import generate_context_request
 from .dashboard import generate_dashboard
 from .discovery import apply_annotation
