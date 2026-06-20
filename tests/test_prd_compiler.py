@@ -9,7 +9,8 @@ from pathlib import Path
 
 from sentinel.cli import main
 from sentinel.discovery import prd_section_for_gap
-from sentinel.generation import compile_prd_sections
+from sentinel.compilers.prd import compile_prd_sections
+from sentinel.generation import compile_prd_sections as generation_compile_prd_sections
 from sentinel.validation import score_artifact_text
 
 
@@ -26,6 +27,9 @@ We expect this to cut preparation effort by around 30% once the team adopts it.
 
 
 class PrdSectionCompilerTests(unittest.TestCase):
+    def test_generation_import_remains_compatible(self):
+        self.assertIs(generation_compile_prd_sections, compile_prd_sections)
+
     def test_target_sections_compile_from_evidence(self):
         gap_answers = {
             "GAP-ACCEPTANCE": {
