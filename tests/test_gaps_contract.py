@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 from sentinel import discovery
 from sentinel.backlog import gates
+from sentinel.backlog.gates import blocking_gaps_for_trace
 from sentinel.gaps import (
     BLOCKING_GAP_STATUSES,
     GAP_ROW_FIELDS,
@@ -11,6 +16,8 @@ from sentinel.gaps import (
     is_blocking,
     parse_gap_table,
 )
+from sentinel.maturity import parse_blocking_gaps
+from sentinel.workspace import ensure_workspace
 
 
 class GapContractTests(unittest.TestCase):
@@ -70,6 +77,52 @@ class GapContractTests(unittest.TestCase):
             ],
         )
 
+    def test_parse_gap_table_supports_legacy_rows_only_when_requested(self):
+        text = "\n".join(
+            [
+                "| GAP-001 | high | OPEN | Missing scope |",
+                "| GAP-002 | product | medium | PARTIALLY_CLOSED | Missing variant |",
+            ]
+        )
+        self.assertEqual(parse_gap_table(text), [])
+        self.assertEqual(
+            parse_gap_table(text, include_legacy=True),
+            [
+                {
+                    "id": "GAP-001",
+                    "lens": "",
+                    "severity": "high",
+                    "status": "OPEN",
+                    "parent": "",
+                    "description": "Missing scope",
+                    "question": "",
+                    "source": "",
+                },
+                {
+                    "id": "GAP-002",
+                    "lens": "product",
+                    "severity": "medium",
+                    "status": "PARTIALLY_CLOSED",
+                    "parent": "",
+                    "description": "Missing variant",
+                    "question": "",
+                    "source": "",
+                },
+            ],
+        )
+
+    def test_parse_blocking_gaps_uses_canonical_predicate_with_legacy_support(self):
+        text = "\n".join(
+            [
+                "| GAP-001 | high | OPEN | Missing scope |",
+                "| GAP-002 | product | medium | PARTIALLY_CLOSED | Missing variant |",
+                "| GAP-003 | product | low | OPEN | REQ-001 | Missing edge | Q? | Client |",
+                "| GAP-004 | product | high | CLOSED | REQ-001 | Already closed | Q? | Client |",
+            ]
+        )
+        self.assertEqual(parse_blocking_gaps(text, {"critical", "high"}), ["GAP-001"])
+        self.assertEqual(parse_blocking_gaps(text, {"medium"}), ["GAP-002"])
+
     def test_blocking_contract_has_single_exported_status_set(self):
         self.assertEqual(GAP_ROW_FIELDS[:4], ("id", "lens", "severity", "status"))
         self.assertIs(gates.BLOCKING_GAP_STATUSES, BLOCKING_GAP_STATUSES)
@@ -90,6 +143,32 @@ class GapContractTests(unittest.TestCase):
         self.assertTrue(is_blocking({"severity": "`critical`", "status": "`ANSWERED`"}))
         self.assertFalse(is_blocking({"severity": "medium", "status": "OPEN"}))
         self.assertFalse(is_blocking({"severity": "high", "status": "CLOSED"}))
+
+    def test_backlog_gates_use_canonical_blocking_config(self):
+        old_cwd = Path.cwd()
+        temp = Path(tempfile.mkdtemp())
+        try:
+            os.chdir(temp)
+            workspace = ensure_workspace("GAPCFG")
+            config = workspace / "sentinel.config.yaml"
+            config.write_text(
+                config.read_text(encoding="utf-8").replace(
+                    "    - critical\n    - high",
+                    "    - MEDIUM",
+                ),
+                encoding="utf-8",
+            )
+            gaps_path = workspace / "01_discovery" / "gaps.md"
+            gaps_path.write_text(
+                "| GAP-900 | product | medium | OPEN | REQ-001 | Missing variant | Q? | Client |\n"
+                "| GAP-901 | product | high | OPEN | REQ-001 | Missing high | Q? | Client |\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(blocking_gaps_for_trace("GAPCFG", ["GAP-900"]), ["GAP-900"])
+            self.assertEqual(blocking_gaps_for_trace("GAPCFG", ["GAP-901"]), [])
+        finally:
+            os.chdir(old_cwd)
+            shutil.rmtree(temp)
 
 
 if __name__ == "__main__":

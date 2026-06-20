@@ -19,6 +19,7 @@ GAP_ROW_FIELDS = (
     "resolution_note",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
+GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED"}
 DEFAULT_BLOCKING_GAP_SEVERITIES = {"critical", "high"}
 
 
@@ -31,28 +32,61 @@ def blocking_severities(config: dict[str, Any] | None) -> set[str]:
     return severities or set(DEFAULT_BLOCKING_GAP_SEVERITIES)
 
 
-def parse_gap_table(text: str) -> list[dict[str, str]]:
+def parse_gap_table(text: str, *, include_legacy: bool = False) -> list[dict[str, str]]:
     gaps: list[dict[str, str]] = []
     for line in text.splitlines():
         rows = parse_table_rows(line)
         cells = rows[0] if rows else []
-        if not cells or not cells[0].startswith("GAP-") or len(cells) < 8:
+        if not cells or not cells[0].startswith("GAP-"):
             continue
-        gap = {
-            "id": cells[0],
-            "lens": cells[1],
-            "severity": cells[2],
-            "status": cells[3],
-            "parent": cells[4],
-            "description": cells[5],
-            "question": cells[6],
-            "source": cells[7],
-        }
-        for index, field in enumerate(GAP_ROW_FIELDS[8:], start=8):
-            if len(cells) > index and cells[index] not in {"", "N/A"}:
-                gap[field] = cells[index]
-        gaps.append(gap)
+        if len(cells) >= 8:
+            gap = {
+                "id": cells[0],
+                "lens": cells[1],
+                "severity": cells[2],
+                "status": cells[3],
+                "parent": cells[4],
+                "description": cells[5],
+                "question": cells[6],
+                "source": cells[7],
+            }
+            for index, field in enumerate(GAP_ROW_FIELDS[8:], start=8):
+                if len(cells) > index and cells[index] not in {"", "N/A"}:
+                    gap[field] = cells[index]
+            gaps.append(gap)
+            continue
+        if include_legacy:
+            legacy = legacy_gap_row(cells)
+            if legacy:
+                gaps.append(legacy)
     return gaps
+
+
+def legacy_gap_row(cells: list[str]) -> dict[str, str] | None:
+    if len(cells) < 4:
+        return None
+    second = cells[2].strip("`").upper()
+    if second in GAP_STATUSES:
+        return {
+            "id": cells[0],
+            "lens": "",
+            "severity": cells[1],
+            "status": cells[2],
+            "parent": "",
+            "description": cells[3],
+            "question": "",
+            "source": "",
+        }
+    return {
+        "id": cells[0],
+        "lens": cells[1],
+        "severity": cells[2],
+        "status": cells[3],
+        "parent": "",
+        "description": cells[4] if len(cells) > 4 else "",
+        "question": "",
+        "source": "",
+    }
 
 
 def is_blocking(

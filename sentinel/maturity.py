@@ -17,6 +17,7 @@ from .discovery import (
     split_evidence_sentences,
 )
 from .core.markdown import parse_table_rows
+from .gaps import blocking_severities, is_blocking, parse_gap_table
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -351,7 +352,7 @@ def evaluate(project_id: str) -> dict[str, object]:
     gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
     req_text = requirements_path.read_text(encoding="utf-8") if requirements_path.exists() else ""
     config = load_config(project_id)
-    blocking = set(config.get("maturity", {}).get("blocking_gap_severities", ["critical", "high"]))
+    blocking = blocking_severities(config)
     blocking_gaps = parse_blocking_gaps(gaps_text, blocking)
     readiness = "READY_FOR_SPECS" if not blocking_gaps and req_text else "BLOCKED"
     project_brief = None
@@ -433,18 +434,12 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
 
 
 def parse_blocking_gaps(text: str, blocking_severities: set[str]) -> list[str]:
-    blocking_gaps = []
-    for line in text.splitlines():
-        rows = parse_table_rows(line, strip_code_ticks=False)
-        cells = rows[0] if rows else []
-        if not cells or not cells[0].startswith("GAP-"):
-            continue
-        if len(cells) >= 4:
-            severity = cells[2] if cells[1].lower() not in blocking_severities else cells[1]
-            status = cells[3] if cells[1].lower() not in blocking_severities else cells[2]
-            if status.upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"} and severity.lower() in blocking_severities:
-                blocking_gaps.append(cells[0])
-    return blocking_gaps
+    severities = {str(severity).strip().lower() for severity in blocking_severities}
+    return [
+        str(gap.get("id", "")).strip("`")
+        for gap in parse_gap_table(text, include_legacy=True)
+        if is_blocking(gap, severities)
+    ]
 
 
 def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) -> Path:
