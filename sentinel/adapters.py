@@ -103,6 +103,12 @@ def skill_files(root: Path) -> list[Path]:
     return [item for item in sorted(base.rglob("*")) if item.is_file()]
 
 
+def canonical_skill_names(root: Path | None = None) -> list[str]:
+    root = root or Path.cwd()
+    base = root / CANONICAL_SKILLS_DIR
+    return sorted(item.parent.name for item in base.glob("*/SKILL.md") if item.is_file())
+
+
 def regenerate_skills(root: Path | None = None) -> dict[str, int]:
     """Materialize the canonical skills into the Agent Skills standard directories (IMP-018).
 

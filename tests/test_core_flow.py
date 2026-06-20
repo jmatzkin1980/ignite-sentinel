@@ -900,8 +900,8 @@ Second section paragraph.
         self.assertEqual(main(["validate", "REGEN"]), 0)
 
     def test_command_adapters_in_sync_with_manifest(self) -> None:
-        from sentinel.adapters import manifest_command_names, out_of_sync, runtime_command_names
-        from sentinel.doctor import command_surface_parity_check
+        from sentinel.adapters import canonical_skill_names, manifest_command_names, out_of_sync, runtime_command_names
+        from sentinel.doctor import REQUIRED_COMMANDS, codex_skill_checks, command_surface_parity_check
 
         names = manifest_command_names()
         self.assertEqual(len(names), 32)
@@ -919,6 +919,13 @@ Second section paragraph.
         self.assertIn("story-status", names)
         self.assertIn("backlog-status", names)
         self.assertEqual(set(runtime_command_names()), set(names) - {"sentinel"})
+        self.assertIn("self-review", REQUIRED_COMMANDS)
+        self.assertIn("implementation-feedback", REQUIRED_COMMANDS)
+        self.assertEqual(REQUIRED_COMMANDS, runtime_command_names())
+        expected_skills = sorted(item.parent.name for item in (ROOT.parent / ".codex" / "skills").glob("*/SKILL.md"))
+        self.assertEqual(canonical_skill_names(ROOT.parent), expected_skills)
+        codex_checks = codex_skill_checks(ROOT.parent)
+        self.assertEqual({check["name"].removeprefix("Codex skill: ") for check in codex_checks}, set(expected_skills))
         self.assertEqual(command_surface_parity_check()["status"], "PASS")
         negative = command_surface_parity_check(runtime=["doctor", "missing-runtime"], manifest=["sentinel", "doctor", "manifest-only"])
         self.assertEqual(negative["status"], "FAIL")
