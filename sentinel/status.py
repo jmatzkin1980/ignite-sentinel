@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .backlog.rollup import backlog_status
 from .discovery import parse_gap_rows
-from .knowledge_ledger import knowledge_ledger_summary
+from .knowledge.ledger import knowledge_ledger_summary
 from .maturity import maturity_metrics
 from .workspace import read_json, state_path, workspace_path
 

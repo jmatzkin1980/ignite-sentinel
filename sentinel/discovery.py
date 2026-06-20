@@ -9,7 +9,7 @@ from .lens_registry import known_lenses, load_lens_checks
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import append_text, read_json
 from .core.markdown import parse_table_rows
-from .knowledge_ledger import materialize_knowledge_ledger
+from .knowledge.ledger import materialize_knowledge_ledger
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
 from .workspace import ensure_workspace, load_config, update_state, workspace_path

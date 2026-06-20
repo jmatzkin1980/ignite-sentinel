@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
 from .ears import classify_ears
-from .knowledge_metabolism import metabolize_knowledge
+from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .core.graph import add_edge, add_node, load_graph, save_graph

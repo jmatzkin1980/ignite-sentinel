@@ -21,7 +21,7 @@ from .gap_resolution import (
     parse_gap_responses,
     update_gap_report_node_status,
 )
-from .knowledge_metabolism import metabolize_knowledge
+from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph
