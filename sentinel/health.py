@@ -3,11 +3,11 @@ from __future__ import annotations
 import re
 
 from .backlog.hooks import evaluate_backlog_privacy
-from .core.markdown import parse_table_rows
+from .gaps import blocking_severities, is_blocking, parse_gap_table
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .core.graph import children_of, load_graph, parents_of
-from .workspace import memory_path, read_json, update_state, workspace_path, write_json
+from .workspace import load_config, memory_path, read_json, update_state, workspace_path, write_json
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
@@ -27,7 +27,7 @@ def run_health(project_id: str) -> dict[str, object]:
     gaps_path = base / "01_discovery" / "gaps.md"
     if gaps_path.exists():
         gaps_text = gaps_path.read_text(encoding="utf-8")
-        if has_blocking_open_gap(gaps_text):
+        if has_blocking_open_gap(gaps_text, blocking_severities(load_config(project_id))):
             findings.append("Blocking gaps remain open.")
 
     for path in base.rglob("*.md"):
@@ -182,24 +182,9 @@ def implementation_feedback_findings(project_id: str) -> list[str]:
     ]
 
 
-def has_blocking_open_gap(text: str) -> bool:
-    for line in text.splitlines():
-        rows = parse_table_rows(line, strip_code_ticks=False)
-        cells = rows[0] if rows else []
-        if not cells or not cells[0].startswith("GAP-"):
-            continue
-        # Old format: Gap ID | Severity | Status | ...
-        if (
-            len(cells) >= 3
-            and cells[1].lower() in {"critical", "high"}
-            and cells[2].upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"}
-        ):
-            return True
-        # New format: Gap ID | Lens | Severity | Status | ...
-        if (
-            len(cells) >= 4
-            and cells[2].lower() in {"critical", "high"}
-            and cells[3].upper() in {"OPEN", "PARTIALLY_CLOSED", "ANSWERED"}
-        ):
+def has_blocking_open_gap(text: str, severities: set[str] | None = None) -> bool:
+    blocking = severities or blocking_severities({})
+    for gap in parse_gap_table(text, include_legacy=True):
+        if is_blocking(gap, blocking):
             return True
     return False
