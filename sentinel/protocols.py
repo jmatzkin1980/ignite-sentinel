@@ -3,9 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .backlog.hooks import assert_backlog_privacy_clean
-from .core.graph import load_graph
-from .traceability import write_mermaid_graph, write_traceability_matrix
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
@@ -56,10 +53,15 @@ def preflight_command(command: str, project_id: str | None) -> None:
         raise RuntimeError(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
 
     if command in {"backlog", "backlog-status", "quality", "refine-backlog", "implementation-feedback", "story-status"}:
+        from .backlog.hooks import assert_backlog_privacy_clean
+
         assert_backlog_privacy_clean(project_id)
 
-    if command == "quality" and not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
-        raise RuntimeError("Cannot generate quality artifacts without backlog user stories.")
+    if command == "quality":
+        from .core.graph import load_graph
+
+        if not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
+            raise RuntimeError("Cannot generate quality artifacts without backlog user stories.")
 
 
 def postflight_command(command: str, project_id: str | None, result: Any) -> None:
@@ -67,6 +69,8 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         return
 
     if command in MUTATING_COMMANDS | {"trace"}:
+        from .traceability import write_mermaid_graph, write_traceability_matrix
+
         write_traceability_matrix(project_id)
         write_mermaid_graph(project_id)
 
