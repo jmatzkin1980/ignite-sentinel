@@ -53,6 +53,7 @@ Checks:
 - Kilo Code agents adapter
 - Kilo Code slash commands
 - Kilo Code repo config
+- command surface parity between runtime and manifest
 - user guide and adapter guides
 - portable installers and launchers
 - repo write access

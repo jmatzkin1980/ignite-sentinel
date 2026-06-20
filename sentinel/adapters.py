@@ -23,6 +23,12 @@ def manifest_command_names() -> list[str]:
     return [entry["name"] for entry in load_manifest()["commands"]]
 
 
+def runtime_command_names() -> list[str]:
+    from .cli import COMMANDS
+
+    return sorted(COMMANDS)
+
+
 def render_kilo_command(entry: dict) -> str:
     front = [f"description: {entry['description']}"]
     if entry.get("kilo_agent"):

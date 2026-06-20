@@ -127,7 +127,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/view` | Generate a local read-only HTML view for one artifact |
 | `/status` | Phase, health, gap counts, telemetry, and next step |
 | `/export` | Export a shareable artifact, including optional local PRD MDX |
-| `/doctor` | Verify Python, adapters, write access, and the optional memory layer |
+| `/doctor` | Verify Python, adapter parity, write access, and the optional memory layer |
 | `/sentinel` | Generic fallback to run any command from one entry point |
 
 ## Quick Start
@@ -140,7 +140,7 @@ cd ignite-sentinel
 python -m sentinel /doctor
 ```
 
-`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports `WARN`, not a failure.
+`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, command surface parity between runtime and manifest, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports `WARN`, not a failure.
 
 Optional layers (only where the environment allows):
 
