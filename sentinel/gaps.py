@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .core.markdown import parse_table_rows
@@ -99,3 +100,36 @@ def is_blocking(
     severity = str(gap.get("severity", "")).strip("`").lower()
     status = str(gap.get("status", "OPEN")).strip("`").upper()
     return severity in blocking and status in blocking_statuses
+
+
+def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
+    pattern = re.compile(r"^###\s+(GAP-[A-Z0-9-]+).*?(?=^###\s+GAP-[A-Z0-9-]+|\Z)", re.M | re.S)
+    responses: dict[str, dict[str, str]] = {}
+    for match in pattern.finditer(text):
+        gap_id = match.group(1).strip()
+        block = match.group(0)
+        responses[gap_id] = {
+            "answer": extract_field(block, ("Respuesta", "Answer")),
+            "owner": extract_field(block, ("Owner / fuente", "Owner / source")),
+            "evidence": extract_field(block, ("Evidencia o referencia", "Evidence or reference")),
+            "decision_status": extract_field(block, ("Estado de decisión", "Decision status")),
+        }
+    return responses
+
+
+def extract_field(block: str, labels: tuple[str, ...]) -> str:
+    for label in labels:
+        pattern = re.compile(rf"^\s*-\s*{re.escape(label)}\s*:\s*(.*)$", re.I | re.M)
+        match = pattern.search(block)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def parse_gap_answers(text: str) -> dict[str, dict[str, str]]:
+    """Map gap_id -> confirmed answer from the gap-resolution seed/decision tables."""
+    answers: dict[str, dict[str, str]] = {}
+    for row in parse_table_rows(text, skip_separator_rows=True):
+        if len(row) >= 5 and row[1].startswith("GAP-") and row[2].upper() == "CONFIRMED":
+            answers.setdefault(row[1], {"statement": row[3], "source": row[4]})
+    return answers

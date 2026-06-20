@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
 from .ears import classify_ears
+from .gaps import parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
@@ -120,30 +121,6 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "gap_counts": resolution_results["counts"],
         "knowledge_metabolism": metabolism,
     }
-
-
-def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
-    pattern = re.compile(r"^###\s+(GAP-[A-Z0-9-]+).*?(?=^###\s+GAP-[A-Z0-9-]+|\Z)", re.M | re.S)
-    responses: dict[str, dict[str, str]] = {}
-    for match in pattern.finditer(text):
-        gap_id = match.group(1).strip()
-        block = match.group(0)
-        responses[gap_id] = {
-            "answer": extract_field(block, ("Respuesta", "Answer")),
-            "owner": extract_field(block, ("Owner / fuente", "Owner / source")),
-            "evidence": extract_field(block, ("Evidencia o referencia", "Evidence or reference")),
-            "decision_status": extract_field(block, ("Estado de decisión", "Decision status")),
-        }
-    return responses
-
-
-def extract_field(block: str, labels: tuple[str, ...]) -> str:
-    for label in labels:
-        pattern = re.compile(rf"^\s*-\s*{re.escape(label)}\s*:\s*(.*)$", re.I | re.M)
-        match = pattern.search(block)
-        if match:
-            return match.group(1).strip()
-    return ""
 
 
 def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[str, str]]) -> dict[str, object]:
