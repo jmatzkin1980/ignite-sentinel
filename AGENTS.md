@@ -41,6 +41,7 @@ These conventions apply only when **changing the framework itself** in this repo
 - The eval harness is 100% synthetic, so evolving the framework never needs real data. When extracting lessons from chats, examples, prior harnesses, or confidential files, persist only generalized framework rules. Never persist (or write into repo artifacts) source paths, client names, system names, URLs, endpoints, account IDs, raw payloads, private business facts, or wording that can identify the inspiration source.
 - Before pushing framework changes to `main`, run the unit suite, `/doctor`, at least one lifecycle smoke test when runtime changed, inspect staged files, and scan staged diffs for sensitive/confidential terms.
 - Do not stage or commit unrelated local deletions, generated project workspaces, or user-owned files unless the user explicitly asks to manage them.
+- Keep shared runtime primitives under `sentinel/core/`: Markdown parsing in `core/markdown.py`, JSON IO in `core/io.py`, workspace paths in `core/paths.py`, state access in `core/state.py`, and shared time helpers in `core/time.py`. `sentinel/workspace.py` remains a compatibility facade for existing imports; new common primitives should go to `core/` first.
 - Prefer Spanish explanations for framework behavior unless project language or user request indicates otherwise, with concise but concrete examples of commands, artifacts, inputs, and outputs.
 
 ## Ignite Chat Commands
