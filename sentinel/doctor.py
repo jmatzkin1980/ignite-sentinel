@@ -9,63 +9,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .adapters import manifest_command_names, runtime_command_names
+from .adapters import canonical_skill_names, manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status
 
 
-REQUIRED_COMMANDS = [
-    "doctor",
-    "dashboard",
-    "init",
-    "ingest",
-    "retrieve",
-    "sync",
-    "maturity",
-    "specs",
-    "backlog",
-    "backlog-status",
-    "quality",
-    "health",
-    "trace",
-    "validate",
-    "view",
-    "reindex",
-    "gaps",
-    "annotate",
-    "challenge",
-    "scrutinize",
-    "assume",
-    "compose",
-    "refine-backlog",
-    "story-status",
-    "resolve-gaps",
-    "brief",
-    "context-request",
-    "status",
-    "export",
-]
-
-REQUIRED_CODEX_SKILLS = [
-    "sentinel-annotate",
-    "sentinel-challenge",
-    "sentinel-scrutiny",
-    "sentinel-assume",
-    "sentinel-compose",
-    "sentinel-backlog",
-    "sentinel-backlog-refine",
-    "sentinel-command-router",
-    "sentinel-dashboard",
-    "sentinel-discovery",
-    "sentinel-domain-request",
-    "sentinel-gap-response",
-    "sentinel-health",
-    "sentinel-maturity",
-    "sentinel-privacy-local-first",
-    "sentinel-project-brief",
-    "sentinel-quality",
-    "sentinel-specs",
-    "sentinel-sync",
-]
+REQUIRED_COMMANDS = runtime_command_names()
 
 REQUIRED_CLAUDE_COMMANDS = manifest_command_names()
 
@@ -214,7 +162,7 @@ def optional_dependency_check(module_name: str) -> dict[str, str]:
 def codex_skill_checks(root: Path) -> list[dict[str, str]]:
     return [
         path_check(root, f".codex/skills/{skill}/SKILL.md", f"Codex skill: {skill}")
-        for skill in REQUIRED_CODEX_SKILLS
+        for skill in canonical_skill_names(root)
     ]
 
 
