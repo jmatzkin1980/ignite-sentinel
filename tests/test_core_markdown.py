@@ -22,7 +22,7 @@ from sentinel.generation import read_spec_units as generation_read_spec_units
 from sentinel.generation import spec_unit_statement as generation_spec_unit_statement
 from sentinel.health import has_blocking_open_gap
 from sentinel.implementation_feedback import acceptance_from_story_markdown as feedback_acceptance_rows
-from sentinel.knowledge_ledger import markdown_table_rows
+from sentinel.knowledge.ledger import markdown_table_rows
 from sentinel.maturity import parse_blocking_gaps, parse_gap_answers, summarize_open_gaps
 
 
