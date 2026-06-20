@@ -5,6 +5,7 @@ from typing import Any
 
 from .assumptions import load_assumptions
 from .discovery import mature_requirement_rubric
+from .readiness_primitives import above_threshold, average_score, weighted_score
 from .workspace import read_json, workspace_path, write_json
 
 READINESS_STATUSES = ("CONFIRMED", "ASSUMED", "OPEN")
@@ -66,7 +67,7 @@ def build_readiness_matrix(
                 "gap_when_missing": item.get("gap_when_missing", ""),
                 "lenses": cells,
                 "status": aggregate_status([cell["status"] for cell in cells]),
-                "score": round(sum(float(cell["score"]) for cell in cells) / len(cells), 3) if cells else 0.0,
+                "score": weighted_score(cells, STATUS_WEIGHTS),
             }
         )
     return matrix
@@ -168,11 +169,11 @@ def summarize_matrix(matrix: list[dict[str, Any]]) -> dict[str, Any]:
         evidence = cell.get("evidence", {}) if isinstance(cell.get("evidence"), dict) else {}
         if status == "ASSUMED" and evidence.get("risk") == "high":
             high_risk_assumptions.append(str(evidence.get("assumption_id", "")))
-    score = round(sum(float(cell.get("score", 0.0)) for cell in cells) / len(cells), 3) if cells else 0.0
+    score = average_score(float(cell.get("score", 0.0)) for cell in cells)
     lens_scores: dict[str, float] = {}
     for lens in sorted(by_lens):
         lens_cells = [cell for cell in cells if cell.get("lens") == lens]
-        lens_scores[lens] = round(sum(float(cell.get("score", 0.0)) for cell in lens_cells) / len(lens_cells), 3)
+        lens_scores[lens] = average_score(float(cell.get("score", 0.0)) for cell in lens_cells)
     open_cells = by_status.get("OPEN", 0)
     assumed_cells = by_status.get("ASSUMED", 0)
     verdict = crystallization_verdict(score, open_cells, assumed_cells)
@@ -195,7 +196,7 @@ def crystallization_verdict(score: float, open_cells: int, assumed_cells: int) -
         state = "NOT_READY_OPEN_UNCERTAINTY"
         ready = False
         rationale = "Open matrix cells remain; keep gaps explicit before development handoff."
-    elif score < DEFAULT_THRESHOLD:
+    elif not above_threshold(score, DEFAULT_THRESHOLD):
         state = "NOT_READY_LOW_CERTAINTY"
         ready = False
         rationale = "The score is below the development certainty threshold."
