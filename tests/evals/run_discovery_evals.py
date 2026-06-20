@@ -247,6 +247,94 @@ def development_readiness_status(ws: Path, key: dict) -> dict[str, object]:
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+def run_eval_command(args: list[str]) -> dict[str, object]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        exit_code = main(args)
+    return {"exit_code": exit_code, "stdout": stdout.getvalue(), "stderr": stderr.getvalue()}
+
+
+def fixture_command_args(raw_args: list[str], project_id: str, fixture_dir: Path) -> list[str]:
+    args: list[str] = []
+    for value in raw_args:
+        text = str(value).replace("{project_id}", project_id)
+        if text.startswith("fixture:"):
+            args.append(str(fixture_dir / text.split(":", 1)[1]))
+        else:
+            args.append(text)
+    return args
+
+
+def snapshot_workspace_files(ws: Path, relative_paths: list[str]) -> dict[str, str | None]:
+    snapshots: dict[str, str | None] = {}
+    for relative in relative_paths:
+        path = ws / relative
+        snapshots[relative] = path.read_text(encoding="utf-8") if path.exists() else None
+    return snapshots
+
+
+def rejection_scenarios_status(ws: Path, project_id: str, fixture_dir: Path, key: dict) -> dict[str, object]:
+    scenarios = key.get("rejection_scenarios", [])
+    if not scenarios:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    for scenario in scenarios:
+        name = str(scenario.get("name", "unnamed rejection scenario"))
+        unchanged_paths = [str(item) for item in scenario.get("unchanged_paths", [])]
+        before = snapshot_workspace_files(ws, unchanged_paths)
+        command = fixture_command_args([str(item) for item in scenario.get("command", [])], project_id, fixture_dir)
+        if not command:
+            mismatches.append(f"{name}: missing command")
+            continue
+        result = run_eval_command(command)
+        if int(result["exit_code"]) == 0:
+            mismatches.append(f"{name}: expected rejection, got exit 0")
+        combined_output = f"{result['stdout']}\n{result['stderr']}"
+        for expected_text in scenario.get("output_contains", []):
+            if str(expected_text) not in combined_output:
+                mismatches.append(f"{name}: output missing {expected_text!r}")
+        after = snapshot_workspace_files(ws, unchanged_paths)
+        for relative, before_text in before.items():
+            if after.get(relative) != before_text:
+                mismatches.append(f"{name}: {relative} mutated after rejected command")
+        for relative in scenario.get("forbidden_text_paths", []):
+            text = (ws / str(relative)).read_text(encoding="utf-8") if (ws / str(relative)).exists() else ""
+            for forbidden in scenario.get("forbidden_text", []):
+                if str(forbidden) in text:
+                    mismatches.append(f"{name}: forbidden text {forbidden!r} found in {relative}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def lifecycle_guard_status(ws: Path, project_id: str, fixture_dir: Path, key: dict) -> dict[str, object]:
+    guard = key.get("lifecycle_guards", {})
+    if not guard:
+        return {"ok": True, "mismatches": []}
+    mismatches: list[str] = []
+    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    for field, expected in guard.get("expected_state", {}).items():
+        actual = state.get(field)
+        if actual != expected:
+            mismatches.append(f"state.{field} expected {expected!r}, got {actual!r}")
+    for relative in guard.get("expected_missing_artifacts", []):
+        if (ws / str(relative)).exists():
+            mismatches.append(f"expected artifact to be absent: {relative}")
+    for command_guard in guard.get("blocked_commands", []):
+        name = str(command_guard.get("name", "blocked command"))
+        command = fixture_command_args([str(item) for item in command_guard.get("command", [])], project_id, fixture_dir)
+        if not command:
+            mismatches.append(f"{name}: missing command")
+            continue
+        result = run_eval_command(command)
+        if int(result["exit_code"]) == 0:
+            mismatches.append(f"{name}: expected non-zero exit, got 0")
+        combined_output = f"{result['stdout']}\n{result['stderr']}"
+        for expected_text in command_guard.get("output_contains", []):
+            if str(expected_text) not in combined_output:
+                mismatches.append(f"{name}: output missing {expected_text!r}")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
 def run_fixture(
     fixture_dir: Path,
     apply_annotation: bool = False,
@@ -261,6 +349,8 @@ def run_fixture(
     gap_responses = fixture_dir / "gap_responses.md"
     gap_response_rounds = fixture_dir / "gap_response_rounds"
     project_id = "EVAL" + re.sub(r"[^A-Z]", "", fixture_dir.name.upper())[:12]
+    lifecycle_key = key.get("lifecycle_guards", {})
+    skip_downstream = bool(lifecycle_key.get("skip_downstream_generation", False))
 
     old_cwd = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="sentinel_eval_") as temp:
@@ -272,6 +362,8 @@ def run_fixture(
                 assert main(["ingest", project_id, "--source", str(requirement)]) == 0, (
                     f"ingest failed for {fixture_dir.name}"
                 )
+                ws = Path(temp) / "workspaces" / project_id
+                rejection_scenarios = rejection_scenarios_status(ws, project_id, fixture_dir, key)
                 # IMP-021: optionally apply the agent's stored semantic analysis
                 # so target_recall reflects the agentic pass, not the lexical one.
                 if apply_annotation and annotation.exists():
@@ -297,7 +389,7 @@ def run_fixture(
                             f"resolve-gaps failed for {fixture_dir.name}: {response_source.name}"
                         )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
-                if not apply_annotation and not apply_scrutiny:
+                if not apply_annotation and not apply_scrutiny and not skip_downstream:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
                     backlog_command = ["backlog", project_id]
                     if key.get("task_seeds", {}).get("with_task_seeds"):
@@ -349,7 +441,7 @@ def run_fixture(
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
-            if apply_annotation or apply_scrutiny:
+            if apply_annotation or apply_scrutiny or skip_downstream:
                 prd_status = {section: "pending" for section in PRD_TRACKED_SECTIONS}
                 specs_scaffold = {"ids": [], "count": 0}
                 backlog_derivation = {
@@ -394,6 +486,7 @@ def run_fixture(
                 if apply_assumptions
                 else {"ok": True, "mismatches": []}
             )
+            lifecycle_guard = lifecycle_guard_status(ws, project_id, fixture_dir, key)
         finally:
             os.chdir(old_cwd)
 
@@ -441,6 +534,8 @@ def run_fixture(
     backlog_mismatches.extend(development_readiness["mismatches"])
     backlog_mismatches.extend(implementation_feedback["mismatches"])
     backlog_mismatches.extend(metabolism_eval["mismatches"])
+    backlog_mismatches.extend(rejection_scenarios["mismatches"])
+    backlog_mismatches.extend(lifecycle_guard["mismatches"])
 
     expected_language = key.get("expected_language", key.get("language"))
     language_detected = state.get("project_language", "unknown")
@@ -550,6 +645,10 @@ def run_fixture(
         "metabolism_mismatches": metabolism_eval["mismatches"],
         "implementation_feedback_ok": implementation_feedback["ok"],
         "implementation_feedback_mismatches": implementation_feedback["mismatches"],
+        "rejection_scenarios_ok": rejection_scenarios["ok"],
+        "rejection_scenarios_mismatches": rejection_scenarios["mismatches"],
+        "lifecycle_guards_ok": lifecycle_guard["ok"],
+        "lifecycle_guards_mismatches": lifecycle_guard["mismatches"],
         "baseline_ok": (
             not missing
             and not new_false_positives
@@ -1195,6 +1294,12 @@ def run_all() -> int:
             "total_development_readiness_mismatches": sum(
                 len(r.get("development_readiness_mismatches", [])) for r in assumed_results
             ),
+            "total_rejection_scenario_mismatches": sum(
+                len(r.get("rejection_scenarios_mismatches", [])) for r in results
+            ),
+            "total_lifecycle_guard_mismatches": sum(
+                len(r.get("lifecycle_guards_mismatches", [])) for r in results
+            ),
         },
     }
 
@@ -1242,6 +1347,10 @@ def run_all() -> int:
             print(f"         knowledge ledger mismatch: {mismatch}")
         for mismatch in r["development_readiness_mismatches"]:
             print(f"         development readiness mismatch: {mismatch}")
+        for mismatch in r["rejection_scenarios_mismatches"]:
+            print(f"         rejection scenario mismatch: {mismatch}")
+        for mismatch in r["lifecycle_guards_mismatches"]:
+            print(f"         lifecycle guard mismatch: {mismatch}")
         expected_pending = set(r["brief_expected_pending_sections"])
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
@@ -1266,7 +1375,9 @@ def run_all() -> int:
         f"avg_backlog_slicing={s['avg_backlog_slicing_accuracy']:.2f} "
         f"avg_backlog_anchors={s['avg_backlog_anchor_validity']:.2f} (IMP-061) "
         f"avg_story_quality_min_score={s['avg_story_quality_min_score']:.2f} (IMP-056) "
-        f"avg_knowledge_units={s['avg_knowledge_ledger_units']:.2f} (IMP-065)"
+        f"avg_knowledge_units={s['avg_knowledge_ledger_units']:.2f} (IMP-065) "
+        f"rejection_mismatches={s['total_rejection_scenario_mismatches']} "
+        f"lifecycle_guard_mismatches={s['total_lifecycle_guard_mismatches']}"
     )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1

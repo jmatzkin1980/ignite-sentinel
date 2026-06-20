@@ -41,6 +41,21 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertIn("`BLOCKED`", report)
         self.assertNotEqual(main(["specs", "ACME"]), 0)
 
+    def test_brief_does_not_clean_project_with_blocking_gaps(self) -> None:
+        source = self.temp / "thin.md"
+        source.write_text(
+            "We need better reports soon. The current material is hard to understand.",
+            encoding="utf-8",
+        )
+        self.assertEqual(main(["init", "THIN"]), 0)
+        self.assertEqual(main(["ingest", "THIN", "--source", str(source)]), 0)
+        self.assertEqual(main(["brief", "THIN"]), 0)
+        state = json.loads((self.temp / "workspaces" / "THIN" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["health"], "DIRTY")
+        self.assertEqual(state["readiness_stage"], "CLIENT_RESPONSE_NEEDED")
+        self.assertGreater(state["gap_counts"]["blocking_open"], 0)
+        self.assertNotEqual(main(["specs", "THIN"]), 0)
+
     def test_spanish_client_input_generates_spanish_gap_document(self) -> None:
         source = self.temp / "input" / "client_requirement" / "nota-cliente.md"
         source.parent.mkdir(parents=True)

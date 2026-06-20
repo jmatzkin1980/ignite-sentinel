@@ -1,0 +1,14 @@
+{
+  "gaps": [
+    {
+      "id": "GAP-FABRICATED-OPS-DATA",
+      "lens": "technical",
+      "severity": "high",
+      "description": "Fabricated data ownership evidence should be rejected.",
+      "question": "Which system owns the fabricated operations data?",
+      "evidence": "The operations data is owned by the Mercury platform.",
+      "source": "agent"
+    }
+  ]
+}
+

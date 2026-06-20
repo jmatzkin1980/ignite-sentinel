@@ -7,11 +7,13 @@ from .discovery import (
     BRIEF_SECTION_FOR_GAP,
     PRD_SECTION_FOR_GAP,
     brief_section_for_gap,
+    count_gaps,
     extract_functional_signals,
     extract_metric_signals,
     extract_personas,
     parse_gap_rows,
     raw_input_text,
+    readiness_stage_for_counts,
     split_evidence_sentences,
 )
 from .core.markdown import parse_table_rows
@@ -404,6 +406,9 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     readiness = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
     below = float(readiness["coverage_score"]) < threshold
     warnings = brief_gate_warnings(readiness, language) if below else []
+    gap_counts = count_gaps(parse_gap_rows(gaps_text))
+    readiness_stage = readiness_stage_for_counts(gap_counts)
+    has_blocking_gaps = bool(gap_counts.get("blocking_open", 0))
     result = {
         "project_id": project_id,
         "project_brief": str(brief_path),
@@ -416,7 +421,13 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
         update_state(project_id, phase="brief_below_threshold", readiness_stage="BRIEF_BELOW_THRESHOLD")
         result["blocked"] = True
         return result
-    update_state(project_id, phase="brief_completed", readiness_stage="READY_FOR_SPECS", health="CLEAN")
+    update_state(
+        project_id,
+        phase="brief_completed",
+        readiness_stage=readiness_stage if has_blocking_gaps else "READY_FOR_SPECS",
+        health="DIRTY" if has_blocking_gaps else "CLEAN",
+        gap_counts=gap_counts,
+    )
     result["blocked"] = False
     return result
 

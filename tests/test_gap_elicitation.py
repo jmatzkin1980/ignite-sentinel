@@ -13,6 +13,7 @@ import unittest
 
 from sentinel.context_requests import lens_checks_section
 from sentinel.discovery import (
+    detect_gaps,
     expected_format_for_gap,
     parse_gap_rows,
     render_gaps,
@@ -116,6 +117,27 @@ class ContextRequestFactorTests(unittest.TestCase):
         section = lens_checks_section("quality", "es")
         self.assertIn("Desbloquea:", section)
         self.assertIn("Formato esperado:", section)
+
+
+class NegatedEvidenceTests(unittest.TestCase):
+    def test_negated_mentions_do_not_suppress_required_gaps(self):
+        gaps = detect_gaps(
+            "The team mentioned reports and a possible screen, but they did not define "
+            "the scope, users, acceptance criteria, or delivery path."
+        )
+        gap_ids = {gap["id"] for gap in gaps}
+        self.assertIn("GAP-SCOPE", gap_ids)
+        self.assertIn("GAP-USERS", gap_ids)
+        self.assertIn("GAP-ACCEPTANCE", gap_ids)
+        self.assertIn("GAP-DELIVERY-READINESS", gap_ids)
+
+    def test_positive_mentions_still_count_after_negated_mentions(self):
+        gaps = detect_gaps(
+            "The team did not define users earlier, but users are store managers "
+            "who review refunds every morning."
+        )
+        gap_ids = {gap["id"] for gap in gaps}
+        self.assertNotIn("GAP-USERS", gap_ids)
 
 
 if __name__ == "__main__":
