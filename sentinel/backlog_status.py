@@ -11,7 +11,7 @@ from .backlog_gates import (
 )
 from .backlog_rollup import backlog_status
 from .core.markdown import parse_frontmatter, parse_table_rows, update_frontmatter_keys
-from .traceability import add_edge, add_node, nodes_by_type
+from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 

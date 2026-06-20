@@ -6,11 +6,12 @@ import shutil
 from pathlib import Path
 
 from .lens_registry import known_lenses, load_lens_checks
+from .core.graph import add_edge, add_node, load_graph
+from .core.io import append_text, read_json
 from .core.markdown import parse_table_rows
 from .knowledge_ledger import materialize_knowledge_ledger
 from .memory import ContextBroker, index_context_folders
 from .sources import mark_source_processed
-from .traceability import add_edge, add_node, load_graph
 from .workspace import ensure_workspace, load_config, update_state, workspace_path
 
 METRIC_RE = re.compile(
@@ -392,9 +393,7 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     state_path = base / "state.json"
     if state_path.exists():
         try:
-            import json
-
-            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state = read_json(state_path, {})
             state_language = state.get("project_language", state_language)
         except Exception:
             pass
@@ -459,9 +458,8 @@ def scrutiny_grounding_text(base: Path) -> str:
 
 
 def load_agent_annotation(source: Path) -> dict:
-    raw = source.read_text(encoding="utf-8")
     try:
-        data = json.loads(raw)
+        data = read_json(source, {})
     except json.JSONDecodeError as exc:
         raise AnnotationError(f"Annotation source is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
@@ -619,7 +617,7 @@ def _annotation_project_language(project_id: str, base: Path) -> str:
     state_file = base / "state.json"
     if state_file.exists():
         try:
-            language = json.loads(state_file.read_text(encoding="utf-8")).get("project_language", language)
+            language = read_json(state_file, {}).get("project_language", language)
         except (ValueError, OSError):
             pass
     return str(language if language in {"es", "en"} else "en")
@@ -681,8 +679,7 @@ the authority. The agent proposes with evidence; it never writes artifacts by ha
 """,
             encoding="utf-8",
         )
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(render_annotation_log_entry(label, merged, skipped, data) + "\n")
+    append_text(log_path, render_annotation_log_entry(label, merged, skipped, data) + "\n")
 
 
 def apply_annotation(project_id: str, source: Path) -> dict[str, object]:

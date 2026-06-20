@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from .blocks import markdown_to_blocks
+from .core.io import write_json
 from .workspace import update_state, workspace_path
 
 
@@ -43,7 +44,7 @@ def export_mdx(project_id: str, artifact: str, source: Path) -> dict[str, str]:
     mdx_path = export_dir / "index.mdx"
     blocks_path = export_dir / "blocks.json"
     readme_path = export_dir / "README.md"
-    blocks_path.write_text(json.dumps(block_model, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(blocks_path, block_model)
     mdx_path.write_text(render_mdx(project_id, artifact, source, block_model), encoding="utf-8")
     readme_path.write_text(render_mdx_readme(project_id, artifact, source), encoding="utf-8")
     update_state(project_id, last_export=str(mdx_path.as_posix()))

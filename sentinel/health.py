@@ -6,7 +6,7 @@ from .backlog_hooks import evaluate_backlog_privacy
 from .core.markdown import parse_table_rows
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
-from .traceability import children_of, load_graph, parents_of
+from .core.graph import children_of, load_graph, parents_of
 from .workspace import memory_path, read_json, update_state, workspace_path, write_json
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)

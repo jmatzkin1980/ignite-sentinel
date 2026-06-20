@@ -24,7 +24,8 @@ from .gap_resolution import (
 from .knowledge_metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
-from .traceability import add_edge, add_node, children_of, count_by_type, load_graph
+from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph
+from .core.io import append_text
 from .workspace import read_json, update_state, utc_now, workspace_path
 
 
@@ -341,27 +342,27 @@ Every sync event records the evolution of project knowledge. Source files remain
     health_signal = "DIRTY" if gaps else "CLEAN"
     event_type = "GAP_OR_CHANGE_INPUT"
     reopened = reopened or []
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(f"| {utc_now()} | `{change_id}` | `{source.as_posix()}` | {event_type} | {health_signal} |\n")
-        handle.write("\n")
-        handle.write(f"## {change_id} Impact Detail\n\n")
-        handle.write(f"- Operator note: {note or 'No operator note provided.'}\n")
-        handle.write(f"- Affected nodes: {', '.join(f'`{node}`' for node in affected) if affected else 'None'}\n")
-        if gaps:
-            handle.write("- New or unresolved gaps:\n")
-            for gap in gaps:
-                handle.write(f"  - `{gap['id']}` ({gap['severity']}): {gap['description']}\n")
-        else:
-            handle.write("- New or unresolved gaps: None detected by deterministic scan.\n")
-        handle.write(
-            f"- Reopened closed gaps: {', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n"
-        )
-        if knowledge_metabolism:
-            units = knowledge_metabolism.get("impacted_knowledge_units", [])
-            stale = knowledge_metabolism.get("downstream_stale_artifacts", [])
-            handle.write(f"- Impacted knowledge units: {', '.join(f'`{unit}`' for unit in units) if units else 'None'}\n")
-            handle.write(f"- Downstream stale artifacts: {', '.join(f'`{item}`' for item in stale) if stale else 'None'}\n")
-        handle.write("- Required action: review impacted requirements, PRD/specs, backlog, quality, and traceability before marking the change applied.\n\n")
+    lines = [
+        f"| {utc_now()} | `{change_id}` | `{source.as_posix()}` | {event_type} | {health_signal} |\n",
+        "\n",
+        f"## {change_id} Impact Detail\n\n",
+        f"- Operator note: {note or 'No operator note provided.'}\n",
+        f"- Affected nodes: {', '.join(f'`{node}`' for node in affected) if affected else 'None'}\n",
+    ]
+    if gaps:
+        lines.append("- New or unresolved gaps:\n")
+        for gap in gaps:
+            lines.append(f"  - `{gap['id']}` ({gap['severity']}): {gap['description']}\n")
+    else:
+        lines.append("- New or unresolved gaps: None detected by deterministic scan.\n")
+    lines.append(f"- Reopened closed gaps: {', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n")
+    if knowledge_metabolism:
+        units = knowledge_metabolism.get("impacted_knowledge_units", [])
+        stale = knowledge_metabolism.get("downstream_stale_artifacts", [])
+        lines.append(f"- Impacted knowledge units: {', '.join(f'`{unit}`' for unit in units) if units else 'None'}\n")
+        lines.append(f"- Downstream stale artifacts: {', '.join(f'`{item}`' for item in stale) if stale else 'None'}\n")
+    lines.append("- Required action: review impacted requirements, PRD/specs, backlog, quality, and traceability before marking the change applied.\n\n")
+    append_text(path, "".join(lines))
     return path
 
 

@@ -7,8 +7,9 @@ from typing import Any
 
 from .lens_registry import known_lenses
 from .memory import ContextBroker
+from .core.graph import add_edge, add_node, load_graph
+from .core.io import read_json as core_read_json
 from .core.markdown import parse_table_rows
-from .traceability import add_edge, add_node, load_graph
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
@@ -23,7 +24,7 @@ def load_assumption_source(source: Path) -> dict[str, Any]:
     if not source.exists():
         raise AssumptionError(f"Assumption source not found: {source}")
     try:
-        data = json.loads(source.read_text(encoding="utf-8"))
+        data = core_read_json(source, {})
     except json.JSONDecodeError as exc:
         raise AssumptionError(f"Assumption source is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):

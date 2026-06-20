@@ -12,7 +12,7 @@ from .markdown import (
     table_to_dicts,
     update_frontmatter_keys,
 )
-from .io import read_json, write_json
+from .io import append_text, read_json, write_json
 from .paths import (
     config_path,
     graph_path,
@@ -26,6 +26,7 @@ from .state import read_state, update_state, write_state
 from .time import utc_now
 
 __all__ = [
+    "append_text",
     "config_path",
     "frontmatter_list",
     "graph_path",

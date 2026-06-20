@@ -16,7 +16,8 @@ from .discovery import (
 )
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
-from .traceability import add_edge, add_node, load_graph
+from .core.graph import add_edge, add_node, load_graph
+from .core.io import read_json as core_read_json
 from .workspace import read_json, update_state, workspace_path
 
 
@@ -130,7 +131,7 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
 
 def load_self_review_source(source: Path) -> dict[str, Any]:
     try:
-        data = json.loads(source.read_text(encoding="utf-8"))
+        data = core_read_json(source, {})
     except json.JSONDecodeError as exc:
         raise AnnotationError(f"Invalid JSON in self-review source: {exc}") from exc
     if not isinstance(data, dict):

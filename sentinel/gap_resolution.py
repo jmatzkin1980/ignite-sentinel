@@ -9,7 +9,8 @@ from .ears import classify_ears
 from .knowledge_metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
-from .traceability import add_edge, add_node, load_graph, save_graph
+from .core.graph import add_edge, add_node, load_graph, save_graph
+from .core.io import append_text
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
@@ -236,16 +237,18 @@ def materialize_resolution_seeds(project_id: str, closed: list[dict[str, str]], 
     path = workspace_path(project_id) / "01_discovery" / "identity_seeds.md"
     if not path.exists():
         path.write_text("# Identity Seeds\n\n", encoding="utf-8")
-    with path.open("a", encoding="utf-8") as handle:
-        # IMP-024: tag each confirmed answer with the brief section it feeds, so
-        # the brief compiler can route it (synergy with the IMP-022 gap→section map).
-        handle.write("\n## Gap Resolution Seeds\n\n")
-        handle.write("| Seed ID | Gap ID | Status | Statement | Source | Brief Section | PRD Section |\n")
-        handle.write("| --- | --- | --- | --- | --- | --- | --- |\n")
-        for index, gap in enumerate(closed, start=1):
-            brief_section = brief_section_for_gap(gap["id"]) or "-"
-            prd_section = prd_section_for_gap(gap["id"]) or "-"
-            handle.write(f"| AUTO-SEED-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` | {brief_section} | {prd_section} |\n")
+    rows = [
+        "\n## Gap Resolution Seeds\n\n",
+        "| Seed ID | Gap ID | Status | Statement | Source | Brief Section | PRD Section |\n",
+        "| --- | --- | --- | --- | --- | --- | --- |\n",
+    ]
+    for index, gap in enumerate(closed, start=1):
+        brief_section = brief_section_for_gap(gap["id"]) or "-"
+        prd_section = prd_section_for_gap(gap["id"]) or "-"
+        rows.append(
+            f"| AUTO-SEED-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` | {brief_section} | {prd_section} |\n"
+        )
+    append_text(path, "".join(rows))
     seed_ids = []
     for gap in closed:
         seed_id = add_node(project_id, "SEED", "identity_seed", path, f"Confirmed answer for {gap['id']}", status="confirmed", domain=gap.get("lens", "product"))
@@ -260,12 +263,14 @@ def materialize_resolution_decisions(project_id: str, closed: list[dict[str, str
     path = workspace_path(project_id) / "01_discovery" / "decisions.md"
     if not path.exists():
         path.write_text("# Decision Log\n\n", encoding="utf-8")
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write("\n## Gap Resolution Decisions\n\n")
-        handle.write("| Decision ID | Gap ID | Status | Decision | Source |\n")
-        handle.write("| --- | --- | --- | --- | --- |\n")
-        for index, gap in enumerate(decisions, start=1):
-            handle.write(f"| AUTO-DEC-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` |\n")
+    rows = [
+        "\n## Gap Resolution Decisions\n\n",
+        "| Decision ID | Gap ID | Status | Decision | Source |\n",
+        "| --- | --- | --- | --- | --- |\n",
+    ]
+    for index, gap in enumerate(decisions, start=1):
+        rows.append(f"| AUTO-DEC-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` |\n")
+    append_text(path, "".join(rows))
     decision_ids = []
     for gap in decisions:
         decision_id = add_node(project_id, "DEC", "decision", path, f"Confirmed decision for {gap['id']}", status="confirmed", domain=gap.get("lens", "product"))
@@ -317,8 +322,7 @@ def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]],
                 status="confirmed", domain=gap.get("lens", "product"),
             )
         )
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write("\n".join(lines) + "\n")
+    append_text(path, "\n".join(lines) + "\n")
     return node_ids
 
 
@@ -414,10 +418,10 @@ def append_gap_resolution_log(project_id: str, change_id: str, report_id: str, r
             encoding="utf-8",
         )
     source_counts = closed_resolution_source_counts(result)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(
-            f"| {utc_now()} | `{change_id}` | `{report_id}` | {len(result['closed'])} | {len(result['partially_closed'])} | {len(result['open'])} | {source_counts['client']} | {source_counts['domain']} | {source_counts['inference']} |\n"
-        )
+    append_text(
+        path,
+        f"| {utc_now()} | `{change_id}` | `{report_id}` | {len(result['closed'])} | {len(result['partially_closed'])} | {len(result['open'])} | {source_counts['client']} | {source_counts['domain']} | {source_counts['inference']} |\n",
+    )
     return path
 
 

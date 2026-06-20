@@ -27,9 +27,10 @@ Check schema (per entry in a lens file's ``checks`` array):
 """
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 from pathlib import Path
+
+from .core.io import read_json
 
 LENSES_DIR = Path(__file__).resolve().parent / "lenses"
 
@@ -55,7 +56,7 @@ def _load_cached(directory: str) -> tuple:
     ordered_names += [n for n in sorted(by_name) if n not in LENS_ORDER]
     checks: list[dict] = []
     for name in ordered_names:
-        data = json.loads(by_name[name].read_text(encoding="utf-8"))
+        data = read_json(by_name[name], {})
         lens = data.get("lens", name)
         for raw in data.get("checks", []):
             entry = dict(raw)

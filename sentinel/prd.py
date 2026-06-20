@@ -6,8 +6,9 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .core.graph import add_edge, add_node, nodes_by_type
+from .core.io import write_json
 from .memory import ContextBroker
-from .traceability import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
@@ -27,7 +28,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     if not source.exists():
         raise ComposeError(f"Composition source not found: {source}")
 
-    data = json.loads(source.read_text(encoding="utf-8"))
+    data = read_json(source, {})
     prd_text = prd_path.read_text(encoding="utf-8")
     sections = prd_sections(prd_text)
     evidence_text = composition_evidence_text(base)
@@ -42,7 +43,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     existing = read_json(accepted_path, [])
     existing_blocks = existing if isinstance(existing, list) else []
     merged_blocks = [*existing_blocks, *accepted]
-    accepted_path.write_text(json.dumps(merged_blocks, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_json(accepted_path, merged_blocks)
     report_path = write_composition_report(project_id, accepted, rejected, archived)
 
     if accepted:

@@ -18,7 +18,7 @@ from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slicing_model import load_slicing_model
 from .slice_plan import generate_slice_plan
-from .traceability import add_edge, add_node, nodes_by_type, upsert_node
+from .core.graph import add_edge, add_node, nodes_by_type, upsert_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
 

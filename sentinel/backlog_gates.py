@@ -5,7 +5,7 @@ from typing import Any
 
 from .discovery import parse_gap_rows
 from .implementation_feedback import open_feedback_for_story
-from .traceability import add_edge, add_node
+from .core.graph import add_edge, add_node
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
 
 

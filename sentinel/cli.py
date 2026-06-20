@@ -30,7 +30,8 @@ from .quality import generate_quality
 from .self_review import apply_self_review
 from .status import project_status
 from .sync import sync_change, sync_pending_sources
-from .traceability import load_graph, write_mermaid_graph, write_traceability_matrix
+from .core.graph import load_graph
+from .traceability import write_mermaid_graph, write_traceability_matrix
 from .validation import validate_project
 from .view import ARTIFACTS as VIEW_ARTIFACTS
 from .view import generate_artifact_view

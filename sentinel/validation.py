@@ -6,7 +6,7 @@ import re
 from .core.markdown import parse_frontmatter
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
-from .traceability import load_graph, parents_of
+from .core.graph import load_graph, parents_of
 from .workspace import state_path, workspace_path
 
 

@@ -8,7 +8,7 @@ from typing import Any
 from .backlog_gates import backlog_gate_config
 from .backlog_rollup import backlog_status
 from .backlog_status import append_status_log, story_lifecycle_state, update_story_frontmatter
-from .traceability import add_edge, add_node
+from .core.graph import add_edge, add_node
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path, write_json
 
 

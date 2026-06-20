@@ -16,7 +16,7 @@ from .discovery import (
 )
 from .core.markdown import parse_table_rows
 from .memory import ContextBroker
-from .traceability import add_edge, add_node, nodes_by_type
+from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
 
 

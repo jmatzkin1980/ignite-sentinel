@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
 from typing import Any
 
+from .core.graph import add_edge, add_node, upsert_node
 from .core.markdown import parse_table_rows
 from .memory import ContextBroker
-from .traceability import add_edge, add_node, upsert_node
-from .workspace import read_json, state_path, update_state, utc_now, workspace_path, write_json
+from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 
 class ImplementationFeedbackError(RuntimeError):
@@ -26,7 +25,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     if not source.exists():
         raise ImplementationFeedbackError(f"Implementation feedback source not found: {source}")
 
-    data = json.loads(source.read_text(encoding="utf-8"))
+    data = read_json(source, {})
     if not isinstance(data, dict):
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
     story_index = load_story_index(base)
