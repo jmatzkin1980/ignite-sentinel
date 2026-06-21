@@ -59,8 +59,12 @@ Accepted forms:
 - `/maturity PROJECT_ID`
 - `/gaps PROJECT_ID`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
+- `/challenge PROJECT_ID --source ANALYSIS.json`
+- `/scrutinize PROJECT_ID --source ANALYSIS.json`
+- `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
+- `/compose PROJECT_ID --source COMPOSITION.json`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
 - `/status PROJECT_ID`
 - `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md`
@@ -76,6 +80,7 @@ Accepted forms:
 - `/backlog-status PROJECT_ID`
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]`
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json`
+- `/implementation-feedback PROJECT_ID --source FINDINGS.json`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
 - `/health PROJECT_ID`
