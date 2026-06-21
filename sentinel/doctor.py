@@ -89,6 +89,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
         path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
         command_surface_parity_check(),
+        *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
@@ -199,6 +200,47 @@ def command_surface_parity_check(
     if missing_in_runtime:
         details.append("manifest only: " + ", ".join(missing_in_runtime))
     return {"name": "command surface parity", "status": "FAIL", "detail": "; ".join(details)}
+
+
+DOC_COMMAND_MENTION_FILES = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "user_guide/01-command-reference.md",
+)
+
+
+def docs_command_mentions_checks(
+    root: Path,
+    commands: list[str] | None = None,
+    docs: tuple[str, ...] = DOC_COMMAND_MENTION_FILES,
+) -> list[dict[str, str]]:
+    command_names = sorted(commands or runtime_command_names())
+    checks: list[dict[str, str]] = []
+    for relative in docs:
+        path = root / relative
+        if not path.exists():
+            checks.append({"name": f"docs command mentions: {relative}", "status": "WARN", "detail": "document missing"})
+            continue
+        text = path.read_text(encoding="utf-8")
+        missing = [command for command in command_names if f"/{command}" not in text]
+        if missing:
+            checks.append(
+                {
+                    "name": f"docs command mentions: {relative}",
+                    "status": "WARN",
+                    "detail": "missing " + ", ".join(f"/{command}" for command in missing),
+                }
+            )
+        else:
+            checks.append(
+                {
+                    "name": f"docs command mentions: {relative}",
+                    "status": "PASS",
+                    "detail": f"{len(command_names)} command tokens mentioned",
+                }
+            )
+    return checks
 
 
 def optional_dependency_check(module_name: str) -> dict[str, str]:

@@ -926,6 +926,26 @@ Second section paragraph.
         self.assertIn("manifest only: manifest-only", negative["detail"])
         self.assertEqual(out_of_sync(ROOT.parent), [])
 
+    def test_doctor_docs_command_mentions_warn_for_missing_tokens(self) -> None:
+        from sentinel.doctor import docs_command_mentions_checks
+
+        docs_root = self.temp / "docs-root"
+        docs_root.mkdir()
+        (docs_root / "complete.md").write_text("Use `/doctor` and `/health`.", encoding="utf-8")
+        (docs_root / "missing.md").write_text("Use `/doctor`.", encoding="utf-8")
+
+        checks = docs_command_mentions_checks(
+            docs_root,
+            commands=["doctor", "health"],
+            docs=("complete.md", "missing.md", "absent.md"),
+        )
+
+        by_name = {check["name"]: check for check in checks}
+        self.assertEqual(by_name["docs command mentions: complete.md"]["status"], "PASS")
+        self.assertEqual(by_name["docs command mentions: missing.md"]["status"], "WARN")
+        self.assertIn("/health", by_name["docs command mentions: missing.md"]["detail"])
+        self.assertEqual(by_name["docs command mentions: absent.md"]["status"], "WARN")
+
     def test_skills_materialized_in_standard_directories(self) -> None:
         from sentinel.adapters import skills_out_of_sync
 

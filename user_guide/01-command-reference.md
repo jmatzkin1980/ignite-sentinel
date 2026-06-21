@@ -54,6 +54,7 @@ Checks:
 - Kilo Code slash commands
 - Kilo Code repo config
 - command surface parity between runtime and manifest
+- command mentions in operational docs (`WARN` when a `/<command>` token is missing)
 - user guide and adapter guides
 - portable installers and launchers
 - repo write access
