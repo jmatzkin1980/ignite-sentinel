@@ -11,6 +11,13 @@ def read_json(path: Path, default: Any | None = None) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def read_json_resource(resource: Any, default: Any | None = None) -> Any:
+    try:
+        return json.loads(resource.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return default
+
+
 def write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_name(f".{path.name}.tmp")

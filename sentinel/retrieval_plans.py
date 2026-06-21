@@ -12,9 +12,11 @@ from typing import Any
 
 from .core.io import read_json
 from .lens_registry import lens_checks_for_lens
+from .resources import read_package_json
 
 
-RETRIEVAL_PLANS_DIR = Path(__file__).resolve().parent / "retrieval_plans"
+_DEFAULT_RETRIEVAL_PLANS_DIR = Path(__file__).resolve().parent / "retrieval_plans"
+RETRIEVAL_PLANS_DIR = _DEFAULT_RETRIEVAL_PLANS_DIR
 
 
 def load_retrieval_plan(
@@ -29,19 +31,28 @@ def load_retrieval_plan(
     """
     if override is not None:
         return normalize_plan(workflow, override)
+    if plans_dir is None and RETRIEVAL_PLANS_DIR == _DEFAULT_RETRIEVAL_PLANS_DIR:
+        return _load_package_cached(workflow)
     directory = Path(plans_dir) if plans_dir is not None else RETRIEVAL_PLANS_DIR
-    return _load_cached(str(directory), workflow)
+    return _load_path_cached(str(directory), workflow)
 
 
 @lru_cache(maxsize=16)
-def _load_cached(directory: str, workflow: str) -> dict[str, Any]:
+def _load_path_cached(directory: str, workflow: str) -> dict[str, Any]:
     path = Path(directory) / f"{workflow}.json"
     data = read_json(path, {})
     return normalize_plan(workflow, data)
 
 
+@lru_cache(maxsize=16)
+def _load_package_cached(workflow: str) -> dict[str, Any]:
+    data = read_package_json("retrieval_plans", f"{workflow}.json")
+    return normalize_plan(workflow, data)
+
+
 def clear_cache() -> None:
-    _load_cached.cache_clear()
+    _load_path_cached.cache_clear()
+    _load_package_cached.cache_clear()
 
 
 def normalize_plan(workflow: str, data: dict[str, Any]) -> dict[str, Any]:

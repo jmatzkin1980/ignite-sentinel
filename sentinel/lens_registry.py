@@ -30,9 +30,11 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from .core.io import read_json
+from .core.io import read_json, read_json_resource
+from .resources import package_json_files
 
-LENSES_DIR = Path(__file__).resolve().parent / "lenses"
+_DEFAULT_LENSES_DIR = Path(__file__).resolve().parent / "lenses"
+LENSES_DIR = _DEFAULT_LENSES_DIR
 
 # Deterministic load order keeps gap emission stable. Lens files not listed
 # here are appended alphabetically, so a brand-new lens still loads.
@@ -44,19 +46,32 @@ VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
 
 def load_lens_checks(lenses_dir: Path | str | None = None) -> list[dict]:
     """Return the flat, ordered list of lens checks (each tagged with ``lens``)."""
+    if lenses_dir is None and LENSES_DIR == _DEFAULT_LENSES_DIR:
+        return _load_package_cached()
     directory = Path(lenses_dir) if lenses_dir is not None else LENSES_DIR
-    return _load_cached(str(directory))
+    return _load_path_cached(str(directory))
 
 
 @lru_cache(maxsize=8)
-def _load_cached(directory: str) -> tuple:
+def _load_path_cached(directory: str) -> tuple:
     path = Path(directory)
     by_name = {f.stem: f for f in sorted(path.glob("*.json"))}
+    return _load_ordered_lenses(by_name)
+
+
+@lru_cache(maxsize=1)
+def _load_package_cached() -> tuple:
+    by_name = {f.name.removesuffix(".json"): f for f in package_json_files("lenses")}
+    return _load_ordered_lenses(by_name)
+
+
+def _load_ordered_lenses(by_name: dict) -> tuple:
     ordered_names = [n for n in LENS_ORDER if n in by_name]
     ordered_names += [n for n in sorted(by_name) if n not in LENS_ORDER]
     checks: list[dict] = []
     for name in ordered_names:
-        data = read_json(by_name[name], {})
+        source = by_name[name]
+        data = read_json(source, {}) if isinstance(source, Path) else read_json_resource(source, {})
         lens = data.get("lens", name)
         for raw in data.get("checks", []):
             entry = dict(raw)
@@ -82,4 +97,5 @@ def known_lenses(lenses_dir: Path | str | None = None) -> set[str]:
 
 
 def clear_cache() -> None:
-    _load_cached.cache_clear()
+    _load_path_cached.cache_clear()
+    _load_package_cached.cache_clear()

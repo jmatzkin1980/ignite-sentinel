@@ -11,9 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from .core.io import read_json
+from .resources import read_package_json
 
 
-SLICING_DIR = Path(__file__).resolve().parent / "slicing"
+_DEFAULT_SLICING_DIR = Path(__file__).resolve().parent / "slicing"
+SLICING_DIR = _DEFAULT_SLICING_DIR
 SLICING_MODEL_FILE = "backlog_slicing_model.json"
 
 VALID_SLICING_PATTERNS = {
@@ -36,18 +38,27 @@ def load_slicing_model(
     """
     if override is not None:
         return normalize_slicing_model(override)
+    if slicing_dir is None and SLICING_DIR == _DEFAULT_SLICING_DIR:
+        return _load_package_cached()
     directory = Path(slicing_dir) if slicing_dir is not None else SLICING_DIR
-    return _load_cached(str(directory))
+    return _load_path_cached(str(directory))
 
 
 @lru_cache(maxsize=8)
-def _load_cached(directory: str) -> dict[str, Any]:
+def _load_path_cached(directory: str) -> dict[str, Any]:
     data = read_json(Path(directory) / SLICING_MODEL_FILE, {})
     return normalize_slicing_model(data)
 
 
+@lru_cache(maxsize=1)
+def _load_package_cached() -> dict[str, Any]:
+    data = read_package_json("slicing", SLICING_MODEL_FILE)
+    return normalize_slicing_model(data)
+
+
 def clear_cache() -> None:
-    _load_cached.cache_clear()
+    _load_path_cached.cache_clear()
+    _load_package_cached.cache_clear()
 
 
 def normalize_slicing_model(data: dict[str, Any]) -> dict[str, Any]:
