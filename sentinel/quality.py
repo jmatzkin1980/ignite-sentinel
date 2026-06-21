@@ -7,6 +7,7 @@ from typing import Any
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
+from .readiness_primitives import above_threshold, average_score
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
@@ -251,10 +252,9 @@ def evaluate_story_quality(
             dependencies=dependencies,
         ),
     ]
-    passed = sum(1 for item in checks if item["passed"])
-    score = round(passed / len(checks), 3) if checks else 0.0
+    score = average_score(1.0 if item["passed"] else 0.0 for item in checks)
     warnings = [str(item["warning"]) for item in checks if not item["passed"]]
-    status = "PASS" if score >= 1.0 else "WARN" if score >= STORY_QUALITY_MIN_SCORE else "FAIL"
+    status = "PASS" if above_threshold(score, 1.0) else "WARN" if above_threshold(score, STORY_QUALITY_MIN_SCORE) else "FAIL"
     verdict = "ready-for-handoff" if status == "PASS" else "review-before-handoff"
     return {
         "story_id": story_id,
