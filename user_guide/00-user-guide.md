@@ -330,6 +330,7 @@ By default:
 - [Codex Skills Guide](04-codex-skills-guide.md): how Codex skills map to Sentinel workflows.
 - [Traceability And Memory](05-traceability-and-memory.md): how local memory and progressive disclosure work.
 - [Installation And VS Code](06-installation-vscode.md): how to use Sentinel after cloning or downloading the repo.
+- [Portability](16-portability.md): environment matrix, no-install mode, `.pyz`, and a short IT approval note.
 - [Kilo Code Adapter](07-kilo-code-adapter.md): how Kilo Code reads repo-local agents and commands.
 - [Codex Adapter](08-codex-adapter.md): how Codex reads skills and `AGENTS.md`.
 - [Claude Adapter](13-claude-adapter.md): how Claude Code and Claude Desktop read `.claude/commands/` and `CLAUDE.md`.
