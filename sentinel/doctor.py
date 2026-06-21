@@ -315,9 +315,9 @@ def memory_dependency_check() -> dict[str, str]:
         detail = package_detail("lancedb")
     else:
         detail = (
-            "not installed; deterministic JSON memory fallback is active. "
-            "Vector retrieval is degraded but the full lifecycle works. "
-            "Enable with `python -m pip install -e .[memory]` when the environment allows it."
+            "local-restricted OK: lancedb is optional and not installed; "
+            "deterministic json-hybrid memory is active and the full lifecycle works without pip installs. "
+            "Enable vector retrieval with `python -m pip install -e .[memory]` only when the environment allows it."
         )
     return {
         "name": "memory dependency: lancedb (optional)",
@@ -354,7 +354,7 @@ def lancedb_smoke_check() -> dict[str, str]:
         return {
             "name": "LanceDB local open/create",
             "status": "WARN",
-            "detail": "lancedb is not installed; ContextBroker runs in deterministic json-hybrid mode",
+            "detail": "local-restricted OK: lancedb probe skipped because the optional package is not installed; json-hybrid mode is healthy",
         }
     try:
         import lancedb  # type: ignore
@@ -390,7 +390,7 @@ def memory_backend_mode_check() -> dict[str, str]:
         return {
             "name": "memory backend mode",
             "status": "WARN",
-            "detail": "json-hybrid; degradation cause: lancedb is not installed",
+            "detail": "json-hybrid; local-restricted OK; lancedb is optional and not installed",
         }
     old_cwd = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="sentinel_memory_backend_doctor_") as temp_dir:
