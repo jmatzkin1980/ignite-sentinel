@@ -281,4 +281,12 @@ Run this checklist end to end whenever you set up Sentinel on a new machine, or 
 6. Open the repo root in VS Code and confirm your agent surface sees its adapter: `.kilo/` for Kilo Code, `.codex/` and `AGENTS.md` for Codex, `.claude/` and `CLAUDE.md` for Claude.
 7. Delete the smoke workspace before committing anything.
 
+Framework maintainers can also run the dedicated zipapp portability smoke:
+
+```powershell
+python -m unittest -b tests.test_build_pyz
+```
+
+That test builds `sentinel.pyz`, creates a clean framework copy without `.git`, `.venv`, or `dist`, and verifies `/doctor` from the `.pyz` against that clean copy.
+
 Last full verification run on record: 2026-06-14 (Python 3.14.6, 159 unit tests OK, `/doctor` PASS with optional dependency warnings only, discovery evals baseline OK). Run `.\verify.ps1` for the live result rather than matching a fixed number.
