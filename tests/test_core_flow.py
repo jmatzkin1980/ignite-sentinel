@@ -900,7 +900,8 @@ Second section paragraph.
         self.assertEqual(main(["validate", "REGEN"]), 0)
 
     def test_command_adapters_in_sync_with_manifest(self) -> None:
-        from sentinel.adapters import manifest_command_names, out_of_sync
+        from sentinel.adapters import manifest_command_names, out_of_sync, runtime_command_names
+        from sentinel.doctor import command_surface_parity_check
 
         names = manifest_command_names()
         self.assertEqual(len(names), 32)
@@ -917,6 +918,12 @@ Second section paragraph.
         self.assertIn("implementation-feedback", names)
         self.assertIn("story-status", names)
         self.assertIn("backlog-status", names)
+        self.assertEqual(set(runtime_command_names()), set(names) - {"sentinel"})
+        self.assertEqual(command_surface_parity_check()["status"], "PASS")
+        negative = command_surface_parity_check(runtime=["doctor", "missing-runtime"], manifest=["sentinel", "doctor", "manifest-only"])
+        self.assertEqual(negative["status"], "FAIL")
+        self.assertIn("runtime only: missing-runtime", negative["detail"])
+        self.assertIn("manifest only: manifest-only", negative["detail"])
         self.assertEqual(out_of_sync(ROOT.parent), [])
 
     def test_skills_materialized_in_standard_directories(self) -> None:

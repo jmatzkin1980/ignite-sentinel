@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .adapters import manifest_command_names
+from .adapters import manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status
 
 
@@ -88,6 +88,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "kilo.jsonc", "Kilo Code repo config"),
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
         path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
+        command_surface_parity_check(),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
         path_check(root, "user_guide", "user guide"),
@@ -176,6 +177,28 @@ def dashboard_artifact_check(root: Path) -> dict[str, str]:
         "status": "WARN",
         "detail": "dashboard.html is not listed in .gitignore; generated dashboards may expose embedded workspace content",
     }
+
+
+def command_surface_parity_check(
+    runtime: list[str] | None = None,
+    manifest: list[str] | None = None,
+) -> dict[str, str]:
+    runtime_names = set(runtime_command_names() if runtime is None else runtime)
+    manifest_names = set(manifest_command_names() if manifest is None else manifest) - {"sentinel"}
+    missing_in_manifest = sorted(runtime_names - manifest_names)
+    missing_in_runtime = sorted(manifest_names - runtime_names)
+    if not missing_in_manifest and not missing_in_runtime:
+        return {
+            "name": "command surface parity",
+            "status": "PASS",
+            "detail": f"{len(runtime_names)} runtime commands match the command manifest",
+        }
+    details = []
+    if missing_in_manifest:
+        details.append("runtime only: " + ", ".join(missing_in_manifest))
+    if missing_in_runtime:
+        details.append("manifest only: " + ", ".join(missing_in_runtime))
+    return {"name": "command surface parity", "status": "FAIL", "detail": "; ".join(details)}
 
 
 def optional_dependency_check(module_name: str) -> dict[str, str]:
