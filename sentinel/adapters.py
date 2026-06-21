@@ -12,10 +12,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-MANIFEST_PATH = Path(__file__).parent / "templates" / "commands_manifest.json"
+from .resources import read_package_json
+
+_DEFAULT_MANIFEST_PATH = Path(__file__).parent / "templates" / "commands_manifest.json"
+MANIFEST_PATH = _DEFAULT_MANIFEST_PATH
 
 
 def load_manifest() -> dict:
+    if MANIFEST_PATH == _DEFAULT_MANIFEST_PATH:
+        return read_package_json("templates", "commands_manifest.json")
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
