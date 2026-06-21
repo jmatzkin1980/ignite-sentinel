@@ -158,6 +158,24 @@ If Windows blocks `.\installers\sentinel.ps1` because scripts are disabled, invo
 powershell -ExecutionPolicy Bypass -File .\installers\sentinel.ps1 /doctor
 ```
 
+## Single-File Zipapp
+
+If you want one local file to copy into a restricted workspace, build `dist/sentinel.pyz` from the repo root:
+
+```powershell
+python -m sentinel.build
+python dist/sentinel.pyz /doctor --root .
+```
+
+Equivalent portable launchers:
+
+```powershell
+.\installers\build_pyz.ps1
+sh installers/build_pyz.sh
+```
+
+The `.pyz` uses only Python stdlib packaging (`zipapp`) and contains Sentinel runtime resources such as schemas, command manifest, lenses, retrieval plans, and slicing model. It is ignored by git and can be rebuilt any time.
+
 ## Optional Local Venv
 
 Use only if your environment allows local virtual environments:
