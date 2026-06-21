@@ -157,6 +157,15 @@ $env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
 > sh installers/sentinel.sh /doctor          # Unix-like
 > ```
 
+To produce a single-file local zipapp for restricted environments, build `dist/sentinel.pyz` with stdlib tooling:
+
+```powershell
+python -m sentinel.build
+python dist/sentinel.pyz /doctor --root .
+```
+
+The generated `.pyz` is a local artifact and is ignored by git.
+
 ## Driving it from chat (recommended)
 
 You don't need to memorize commands. Describe the situation and the agent maps it to the right sequence:
