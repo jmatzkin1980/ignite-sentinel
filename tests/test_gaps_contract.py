@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 
 from sentinel import discovery
+import sentinel.gap_resolution as gap_resolution
+import sentinel.maturity as maturity
 from sentinel.backlog import gates
 from sentinel.backlog.gates import blocking_gaps_for_trace
 from sentinel.gaps import (
@@ -14,6 +16,8 @@ from sentinel.gaps import (
     GAP_ROW_FIELDS,
     blocking_severities,
     is_blocking,
+    parse_gap_answers,
+    parse_gap_responses,
     parse_gap_table,
 )
 from sentinel.health import has_blocking_open_gap, run_health
@@ -208,6 +212,48 @@ class GapContractTests(unittest.TestCase):
         finally:
             os.chdir(old_cwd)
             shutil.rmtree(temp)
+
+    def test_gap_response_parsers_are_canonical_with_compatibility_shims(self):
+        response_text = (
+            "### GAP-USERS\n"
+            "- Answer: Operations leads and analysts.\n"
+            "- Owner / source: Product owner\n"
+            "- Evidence or reference: Workshop notes\n"
+            "- Decision status: confirmed\n\n"
+            "### GAP-SCOPE\n"
+            "- Respuesta: Solo lectura del tablero.\n"
+            "- Owner / fuente: Cliente\n"
+            "- Evidencia o referencia: Acta\n"
+            "- Estado de decisión: confirmado\n"
+        )
+        expected_responses = {
+            "GAP-USERS": {
+                "answer": "Operations leads and analysts.",
+                "owner": "Product owner",
+                "evidence": "Workshop notes",
+                "decision_status": "confirmed",
+            },
+            "GAP-SCOPE": {
+                "answer": "Solo lectura del tablero.",
+                "owner": "Cliente",
+                "evidence": "Acta",
+                "decision_status": "confirmado",
+            },
+        }
+        self.assertEqual(parse_gap_responses(response_text), expected_responses)
+        self.assertIs(gap_resolution.parse_gap_responses, parse_gap_responses)
+
+        answers_text = "\n".join(
+            [
+                "| Seed ID | Gap ID | Status | Statement | Source |",
+                "| --- | --- | --- | --- | --- |",
+                "| SEED-001 | `GAP-USERS` | CONFIRMED | Operations leads. | `CHG-001` |",
+                "| SEED-002 | GAP-SCOPE | pending | Read-only. | Client |",
+            ]
+        )
+        expected_answers = {"GAP-USERS": {"statement": "Operations leads.", "source": "CHG-001"}}
+        self.assertEqual(parse_gap_answers(answers_text), expected_answers)
+        self.assertIs(maturity.parse_gap_answers, parse_gap_answers)
 
 
 if __name__ == "__main__":

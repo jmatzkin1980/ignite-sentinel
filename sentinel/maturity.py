@@ -17,7 +17,7 @@ from .discovery import (
     split_evidence_sentences,
 )
 from .core.markdown import parse_table_rows
-from .gaps import blocking_severities, is_blocking, parse_gap_table
+from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -511,18 +511,6 @@ _OBJECTIVE_CUES = ("the goal", "goal is", "objetivo", "objective", "aim to", "pu
 _ASIS_CUES = ("today", "currently", "right now", "hoy", "actualmente", "proceso actual", "by hand", "a mano", "manual")
 _OUT_SCOPE_CUES = ("out of scope", "out-of-scope", "fuera de alcance")
 _IN_SCOPE_CUES = ("in scope", "scope:", "scope is", "alcance")
-
-
-def parse_gap_answers(text: str) -> dict[str, dict[str, str]]:
-    """Map gap_id -> confirmed answer from the gap-resolution seed/decision tables."""
-    answers: dict[str, dict[str, str]] = {}
-    for line in text.splitlines():
-        rows = parse_table_rows(line)
-        cells = rows[0] if rows else []
-        if len(cells) >= 5 and cells[1].startswith("GAP-") and cells[2].upper() == "CONFIRMED":
-            gap_id = cells[1]
-            answers.setdefault(gap_id, {"statement": cells[3], "source": cells[4]})
-    return answers
 
 
 def _first_sentence_with(sentences: list[str], cues: tuple[str, ...]) -> str:
