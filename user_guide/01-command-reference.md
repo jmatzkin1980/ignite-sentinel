@@ -54,6 +54,7 @@ Checks:
 - Kilo Code slash commands
 - Kilo Code repo config
 - command surface parity between runtime and manifest
+- runtime stdlib purity (`FAIL` when a non-optional third-party import reaches the runtime)
 - command mentions in operational docs (`WARN` when a `/<command>` token is missing)
 - user guide and adapter guides
 - portable installers and launchers

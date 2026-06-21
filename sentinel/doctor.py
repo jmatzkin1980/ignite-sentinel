@@ -11,6 +11,7 @@ from typing import Any
 
 from .adapters import manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status
+from .portability import stdlib_purity_violations
 
 
 REQUIRED_COMMANDS = [
@@ -89,6 +90,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "CLAUDE.md", "Claude Code and Claude Desktop instructions"),
         path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
         command_surface_parity_check(),
+        stdlib_purity_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -200,6 +202,23 @@ def command_surface_parity_check(
     if missing_in_runtime:
         details.append("manifest only: " + ", ".join(missing_in_runtime))
     return {"name": "command surface parity", "status": "FAIL", "detail": "; ".join(details)}
+
+
+def stdlib_purity_check(root: Path) -> dict[str, str]:
+    package_dir = root / "sentinel"
+    if not package_dir.exists():
+        return {"name": "stdlib purity", "status": "FAIL", "detail": f"missing runtime package: {package_dir}"}
+    violations = stdlib_purity_violations(package_dir)
+    if not violations:
+        return {
+            "name": "stdlib purity",
+            "status": "PASS",
+            "detail": "runtime imports are stdlib, local, or guarded optional dependencies",
+        }
+    detail = "; ".join(violation.format() for violation in violations[:5])
+    if len(violations) > 5:
+        detail += f"; +{len(violations) - 5} more"
+    return {"name": "stdlib purity", "status": "FAIL", "detail": detail}
 
 
 DOC_COMMAND_MENTION_FILES = (
