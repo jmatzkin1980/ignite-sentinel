@@ -36,7 +36,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "Review these agent backlog slicing/enabler proposals" | `/refine-backlog --source backlog-refinement.json` → `/trace` | Only after `/backlog`; every proposal must cite verbatim local evidence and remains a governed proposal. |
 | "Implementation found a missing dependency/gap/invalid AC" | `/implementation-feedback --source implementation-feedback.json` -> `/trace` -> `/health` | Only after `/backlog`; findings are traced to existing stories/AC and can stale or block DoD, but do not rewrite scope. |
 | "What changed since the backlog was generated?" | `/health` | Staleness finding names the changed domains. |
-| "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is WARN (degraded mode), not failure. |
+| "Is the framework healthy on this machine?" | `/doctor` | LanceDB missing is a local-restricted WARN (healthy no-install mode), not failure. |
 
 Rules for any agent surface: respect gates (never force a blocked command — explain why and recommend the prior step), mutate artifacts only through the CLI, and end every interaction with generated artifacts, gap/health state, and the recommended next step.
 

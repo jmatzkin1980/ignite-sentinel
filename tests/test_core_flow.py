@@ -453,7 +453,11 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         self.assertEqual(report["verdict"], "PASS")
         self.assertEqual(checks["memory dependency: lancedb (optional)"]["status"], "WARN")
         self.assertIn("json", checks["memory dependency: lancedb (optional)"]["detail"].lower())
+        self.assertIn("local-restricted ok", checks["memory dependency: lancedb (optional)"]["detail"].lower())
         self.assertEqual(checks["LanceDB local open/create"]["status"], "WARN")
+        self.assertIn("local-restricted ok", checks["LanceDB local open/create"]["detail"].lower())
+        self.assertEqual(checks["memory backend mode"]["status"], "WARN")
+        self.assertIn("local-restricted ok", checks["memory backend mode"]["detail"].lower())
 
     def test_context_broker_falls_back_to_json_without_lancedb(self) -> None:
         import sys

@@ -129,7 +129,7 @@ python -m sentinel --help
 python -m sentinel /doctor
 ```
 
-No global package install is required: the core lifecycle has no mandatory third-party dependencies. If `/doctor` reports `memory dependency: lancedb (optional)` as `WARN` and your environment allows installs, enable the vector memory layer:
+No global package install is required: the core lifecycle has no mandatory third-party dependencies. If `/doctor` reports `memory dependency: lancedb (optional)` as a local-restricted `WARN`, that is a healthy no-install state. If your environment allows installs, enable the vector memory layer:
 
 ```powershell
 python -m pip install -e .[memory]
@@ -208,7 +208,7 @@ Ignite works through repo-local files:
 2. Open the folder itself in VS Code, not only a subfolder.
 3. Open Kilo Code chat, Codex in VS Code, or Codex Desktop.
 4. Run `/doctor` in Kilo or `sentinel /doctor` in Codex.
-5. If LanceDB cannot be installed (locked-down VDI), continue anyway: Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports WARN, not FAIL. To enable vector retrieval later: `python -m pip install -e .[memory]`.
+5. If LanceDB cannot be installed (locked-down VDI), continue anyway: Sentinel runs the full lifecycle in deterministic `json-hybrid` memory mode and `/doctor` reports a local-restricted WARN, not FAIL. To enable vector retrieval later: `python -m pip install -e .[memory]`.
 6. If semantic embeddings are allowed, install `[memory-semantic]`, pre-seed the local model/cache, and run `/reindex PROJECT_ID` after enabling it.
 7. Run `/init DEMO_PROJECT` in Kilo or `sentinel /init DEMO_PROJECT` in Codex.
 8. Try `/status DEMO_PROJECT` in Kilo or `sentinel /status DEMO_PROJECT` in Codex.
