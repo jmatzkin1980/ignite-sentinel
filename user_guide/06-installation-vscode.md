@@ -176,6 +176,8 @@ sh installers/build_pyz.sh
 
 The `.pyz` uses only Python stdlib packaging (`zipapp`) and contains Sentinel runtime resources such as schemas, command manifest, lenses, retrieval plans, and slicing model. It is ignored by git and can be rebuilt any time.
 
+For the environment matrix and a short IT/security approval note, see [Portability And IT Letter](16-portability.md) or the repo-root [PORTABILITY.md](../PORTABILITY.md).
+
 ## Optional Local Venv
 
 Use only if your environment allows local virtual environments:

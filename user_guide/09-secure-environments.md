@@ -2,6 +2,8 @@
 
 This guide is for company laptops and client VDIs with restricted permissions.
 
+For a concise IT/security approval note and a matrix of supported execution modes, see [Portability And IT Letter](16-portability.md) or the repo-root [PORTABILITY.md](../PORTABILITY.md).
+
 ## Portability Assumptions
 
 Ignite Sentinel assumes:

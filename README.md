@@ -37,6 +37,7 @@ The source of truth is always the versionable files under `workspaces/PROJECT_ID
 - [Local memory](#local-memory)
 - [Workspace layout](#workspace-layout)
 - [Design rules](#design-rules)
+- [Portability](#portability)
 - [Verification](#verification)
 - [FAQ](#faq)
 - [Documentation](#documentation)
@@ -165,6 +166,8 @@ python dist/sentinel.pyz /doctor --root .
 ```
 
 The generated `.pyz` is a local artifact and is ignored by git.
+
+For IT/security review and restricted-environment setup, see [PORTABILITY.md](PORTABILITY.md) and the [Portability guide](user_guide/16-portability.md). The short version: the core lifecycle needs Python 3.10+, has no mandatory third-party packages, runs local-first, and treats missing LanceDB as a healthy `json-hybrid` mode.
 
 ## Driving it from chat (recommended)
 
@@ -330,6 +333,18 @@ The repo also ships `input/` (drop local source files here before ingestion) and
 
 > **Contributing to the framework itself?** See [MAINTAINERS.md](MAINTAINERS.md) for repository conventions (branching, keeping surfaces in sync, handling examples). Those are maintainer rules for *this* repo — they don't constrain how you use Ignite in your own projects.
 
+## Portability
+
+Ignite Sentinel is designed for restricted laptops and client VDIs. The core lifecycle is stdlib-pure, so it does not require `pip install` to run. Optional layers such as LanceDB and semantic embeddings can be added only where the environment allows them.
+
+Recommended escalation path:
+
+1. Use an approved Python 3.10+ runtime and run `python -m sentinel /doctor`.
+2. If a single copied artifact is easier to approve, build `dist/sentinel.pyz` with `python -m sentinel.build` and run `python sentinel.pyz /doctor --root .`.
+3. Treat a missing LanceDB check as healthy no-install operation when `/doctor` reports global `PASS` and `json-hybrid` mode.
+
+Use [PORTABILITY.md](PORTABILITY.md) as the short IT note and [user_guide/16-portability.md](user_guide/16-portability.md) for the full environment matrix.
+
 ## Verification
 
 The recommended one step resolves the interpreter on its own and runs the unit suite, `/doctor`, and the eval harness:
@@ -375,6 +390,8 @@ The eval harness covers discovery, brief, PRD, specs, and backlog. It includes h
 | [Dashboard](user_guide/14-dashboard.md) | Local read-only portfolio dashboard across workspaces |
 | [Traceability & Memory](user_guide/05-traceability-and-memory.md) | How lineage and retrieval work |
 | [Secure Environments](user_guide/09-secure-environments.md) | Running on locked-down VDIs |
+| [Portability](user_guide/16-portability.md) | Environment matrix, no-install mode, `.pyz`, and IT approval note |
+| [IT Portability Note](PORTABILITY.md) | Short reusable note for IT/security review |
 | [Repo & Branching Strategy](user_guide/10-repo-and-branching-strategy.md) | How `main` and project branches relate |
 | Adapters | [Codex Skills](user_guide/04-codex-skills-guide.md) · [Kilo Code](user_guide/07-kilo-code-adapter.md) · [Codex](user_guide/08-codex-adapter.md) · [Claude](user_guide/13-claude-adapter.md) · [VS Code Install](user_guide/06-installation-vscode.md) |
 
