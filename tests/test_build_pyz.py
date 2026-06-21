@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,6 +14,26 @@ from sentinel.build import build_pyz
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+PORTABLE_ROOT_FILES = (
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "kilo.jsonc",
+)
+
+PORTABLE_ROOT_DIRS = (
+    ".agents",
+    ".claude",
+    ".codex",
+    ".kilo",
+    "input",
+    "installers",
+    "sentinel",
+    "user_guide",
+    "workspaces/_template",
+)
 
 
 class BuildPyzTest(unittest.TestCase):
@@ -51,6 +73,63 @@ class BuildPyzTest(unittest.TestCase):
         self.assertEqual("PASS", pyz_payload["verdict"])
         self.assertEqual(module_payload["commands"], pyz_payload["commands"])
         self.assertEqual(module_payload["summary"]["failures"], pyz_payload["summary"]["failures"])
+
+    def test_zipapp_doctor_passes_against_clean_framework_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            portable_root = temp / "portable-root"
+            runner = temp / "runner"
+            runner.mkdir()
+            _copy_portable_root(portable_root)
+            target = build_pyz(portable_root / "dist" / "sentinel.pyz")
+
+            self.assertFalse((portable_root / ".git").exists())
+            self.assertFalse((portable_root / ".venv").exists())
+            self.assertTrue(target.exists())
+
+            env = os.environ.copy()
+            env.pop("PYTHONPATH", None)
+            env["PYTHONNOUSERSITE"] = "1"
+            result = subprocess.run(
+                [sys.executable, str(target), "/doctor", "--root", str(portable_root)],
+                cwd=runner,
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=60,
+                check=True,
+            )
+
+        payload = json.loads(result.stdout)
+        checks = {check["name"]: check for check in payload["checks"]}
+        self.assertEqual("PASS", payload["verdict"])
+        self.assertEqual(str(portable_root.resolve()), payload["root"])
+        self.assertEqual(0, payload["summary"]["failures"])
+        self.assertEqual("PASS", checks["stdlib purity"]["status"])
+        self.assertEqual("PASS", checks["command adapter manifest"]["status"])
+        self.assertEqual("PASS", checks["repo write access"]["status"])
+        if checks["memory backend mode"]["status"] == "WARN":
+            self.assertIn("json-hybrid", checks["memory backend mode"]["detail"])
+
+
+def _copy_portable_root(destination: Path) -> None:
+    destination.mkdir(parents=True)
+    for relative in PORTABLE_ROOT_FILES:
+        shutil.copy2(ROOT / relative, destination / relative)
+    for relative in PORTABLE_ROOT_DIRS:
+        source = ROOT / relative
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, target, ignore=_ignore_portable_copy_artifacts)
+
+
+def _ignore_portable_copy_artifacts(_directory: str, names: list[str]) -> set[str]:
+    return {
+        name
+        for name in names
+        if name in {"__pycache__", ".pytest_cache", ".mypy_cache", "dist", ".venv"}
+        or name.endswith((".pyc", ".pyo"))
+    }
 
 
 if __name__ == "__main__":
