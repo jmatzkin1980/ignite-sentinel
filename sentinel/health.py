@@ -58,6 +58,7 @@ def run_health(project_id: str) -> dict[str, object]:
     warnings.extend(domain_context_freshness_findings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
     findings.extend(knowledge_staleness_findings(project_id))
+    findings.extend(suspicious_trace_link_findings(project_id))
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
     warnings.extend(privacy["warnings"])
@@ -155,6 +156,22 @@ def knowledge_staleness_findings(project_id: str) -> list[str]:
     return [
         "Knowledge changed after downstream artifacts were generated; refresh affected brief/PRD/spec/backlog before implementation handoff."
         + detail
+    ]
+
+
+def suspicious_trace_link_findings(project_id: str) -> list[str]:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    payload = state.get("suspicious_trace_links", {})
+    if not isinstance(payload, dict):
+        return []
+    links = [item for item in payload.get("links", []) if isinstance(item, dict)]
+    if not links:
+        return []
+    targets = ", ".join(str(item.get("to")) for item in links[:8] if item.get("to"))
+    suffix = f" Targets: {targets}." if targets else ""
+    return [
+        f"Semantic change may invalidate downstream trace links for {payload.get('change_id', 'latest change')}; BA review required before implementation handoff."
+        + suffix
     ]
 
 

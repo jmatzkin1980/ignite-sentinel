@@ -155,8 +155,11 @@ def write_traceability_matrix(project_id: str) -> Path:
     for edge in graph.get("edges", []):
         source = node_lookup.get(edge["from"], {})
         target = node_lookup.get(edge["to"], {})
+        relation = edge["relation"]
+        if edge.get("suspicious"):
+            relation = f"{relation} (SUSPICIOUS: {edge.get('suspicion_reason', 'review required')})"
         rows.append(
-            f"| `{edge['from']}` | {source.get('type', 'unknown')} | `{edge['to']}` | {target.get('type', 'unknown')} | {edge['relation']} | {target.get('domain', 'n/a')} | {target.get('status', 'n/a')} |"
+            f"| `{edge['from']}` | {source.get('type', 'unknown')} | `{edge['to']}` | {target.get('type', 'unknown')} | {relation} | {target.get('domain', 'n/a')} | {target.get('status', 'n/a')} |"
         )
     node_rows = [
         f"| `{node['id']}` | {node.get('type', 'artifact')} | {node.get('domain', 'n/a')} | {node.get('status', 'n/a')} | `{node.get('path', '')}` |"
