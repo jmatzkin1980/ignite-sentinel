@@ -123,6 +123,10 @@ Discovery artifacts created from raw input.
 
 Short summary of the ingested source.
 
+### `requirement_units.md`
+
+Discovery-only index of cited `RU-*` Requirement Units (IMP-115). Each row records a stable RU ID, label, verbatim evidence mention, raw source, and trace ID. RUs are analysis anchors for discovery lenses and implementability review; they do not replace `SPEC-U-*` Spec Units, user stories, enablers, or backlog slicing.
+
 ### `gaps.md`
 
 List of missing, ambiguous, risky, or unverified information.
