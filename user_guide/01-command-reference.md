@@ -130,6 +130,7 @@ Creates or updates:
 
 - raw source copy
 - requirement register
+- cited discovery-only requirement units (`01_discovery/requirement_units.md`) when named surfaces/capabilities are present
 - gap report
 - decision log
 - digest

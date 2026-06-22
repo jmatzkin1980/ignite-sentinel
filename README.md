@@ -298,7 +298,7 @@ This keeps execution repo-local, deterministic, and auditable across Codex, Kilo
 
 ## Local memory
 
-Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders, including Markdown/Text files and HTML prototypes; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs. Discovery also writes `01_discovery/knowledge_state.md` and `.json`: a lens-by-lens ledger of confirmed, inferred, assumed, and open knowledge, always backed by evidence or `[PENDING INPUT]`. `/maturity` derives `01_discovery/development_readiness.json`, a 16-area lens matrix that distinguishes `CONFIRMED`, `ASSUMED`, and `OPEN` development certainty; `/resolve-gaps` and `/sync` now metabolize confirmed or invalidating evidence back into those same files and flag stale downstream artifacts when knowledge moved after brief/spec/backlog generation.
+Each workspace carries a local memory index under `workspaces/PROJECT_ID/memory.lancedb/`. `/ingest`, `/sync`, and `/reindex` populate it from generated artifacts and domain-owned context folders, including Markdown/Text files and HTML prototypes; `/retrieve` builds focused context packs (progressive disclosure) so an agent reads the exact section it needs. Discovery also writes `01_discovery/requirement_units.md`, a cited discovery-only `RU-*` index of named requirement units, plus `01_discovery/knowledge_state.md` and `.json`: a lens-by-lens ledger of confirmed, inferred, assumed, and open knowledge, always backed by evidence or `[PENDING INPUT]`. `/maturity` derives `01_discovery/development_readiness.json`, a 16-area lens matrix that distinguishes `CONFIRMED`, `ASSUMED`, and `OPEN` development certainty; `/resolve-gaps` and `/sync` now metabolize confirmed or invalidating evidence back into those same files and flag stale downstream artifacts when knowledge moved after brief/spec/backlog generation.
 
 When LanceDB is available, Sentinel uses local hybrid retrieval (vector + FTS on `text`, combined with reciprocal rank fusion). When it's unavailable or degraded, it stays in deterministic `json-hybrid` mode. Chunks are heading-aware, preserve Markdown tables, carry `section_path` plus approximate `line_start`/`line_end` anchors, and reindex incrementally by `source_hash`, `embedding_version`, and `chunking_version`. Context packs preserve those anchors as `read_plan`. The index is always reconstructible from source files and is never the authority.
 
@@ -309,7 +309,7 @@ workspaces/PROJECT_ID/
   00_raw/                     # client requirement + domain context (the evidence)
     00_client_requirement/  01_business_context/  02_technology_context/
     03_design_context/      04_quality_context/   05_interactions/
-  01_discovery/               # gaps.md, seeds, knowledge_state, development_readiness, lens review, agentic reports
+  01_discovery/               # gaps.md, requirement_units.md, seeds, knowledge_state, development_readiness, lens review, agentic reports
   02_requirements/            # requirements.md (+ EARS), project-brief.md
   03_specs/                   # prd.md, specs.md, SPEC-U units, optional composition reports
   04_backlog/                 # epics, user stories, acceptance criteria, BA board

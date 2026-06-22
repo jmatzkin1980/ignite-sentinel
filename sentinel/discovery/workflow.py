@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..lens_registry import known_lenses, load_lens_checks
 from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label
-from ..core.graph import add_edge, add_node, load_graph
+from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
 from ..gaps import parse_gap_table
@@ -33,12 +33,23 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     mark_source_processed(project_id, source, "initial_ingested")
     mark_source_processed(project_id, raw_target, "raw_copy")
     raw_id = add_node(project_id, "RAW", "raw_input", raw_target, source.stem, domain="product")
+    requirement_units = extract_requirement_units(text, raw_id, raw_target)
+    units_path = base / "01_discovery" / "requirement_units.md"
+    units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
 
     req_text = extract_requirement(text)
     req_path = base / "02_requirements" / "requirements.md"
     req_path.write_text(render_requirement(project_id, req_text, raw_id), encoding="utf-8")
     req_id = add_node(project_id, "REQ", "requirement", req_path, "Primary requirement", domain="product")
     add_edge(project_id, raw_id, req_id, "extracts")
+    unit_node_ids: list[str] = []
+    for unit in requirement_units:
+        unit_id = upsert_node(project_id, unit["id"], "requirement_unit", units_path, unit["label"], domain="product")
+        unit["trace_id"] = unit_id
+        unit_node_ids.append(unit_id)
+        add_edge(project_id, raw_id, unit_id, "decomposes_into")
+        add_edge(project_id, unit_id, req_id, "analyzes")
+    units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
 
     gaps = detect_gaps(text, context)
     gap_path = base / "01_discovery" / "gaps.md"
@@ -112,6 +123,14 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
 
     broker = ContextBroker(project_id)
     broker.index_artifact(raw_id, "raw_input", raw_target, text, trace_ids=[raw_id])
+    if requirement_units:
+        broker.index_artifact(
+            "RU-INDEX",
+            "requirement_units",
+            units_path,
+            units_path.read_text(encoding="utf-8"),
+            trace_ids=[raw_id, *unit_node_ids],
+        )
     broker.index_artifact(req_id, "requirement", req_path, req_path.read_text(encoding="utf-8"), trace_ids=[raw_id, req_id])
     broker.index_artifact(gap_id, "gap_report", gap_path, gap_path.read_text(encoding="utf-8"), trace_ids=[req_id, gap_id])
     broker.index_artifact(dec_id, "decision_log", dec_path, dec_path.read_text(encoding="utf-8"), trace_ids=[req_id, dec_id])
@@ -155,6 +174,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
             "identity_seeds": str(seeds_path.as_posix()),
             "discovery_log": str(discovery_log_path.as_posix()),
             "lens_review": str(lens_review_path.as_posix()),
+            "requirement_units": str(units_path.as_posix()),
             "knowledge_state": str(ledger_md_path.as_posix()),
             "knowledge_state_json": str(ledger_json_path.as_posix()),
         },
@@ -164,6 +184,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
             "decisions_pending": 1,
             "user_stories": 0,
             "knowledge_units": ledger["payload"]["summary"]["total"],
+            "requirement_units": len(requirement_units),
         },
     )
     return {
@@ -175,6 +196,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "discovery_log_id": discovery_log_id,
         "lens_review_id": lens_review_id,
         "knowledge_ledger_id": ledger_id,
+        "requirement_unit_ids": unit_node_ids,
     }
 
 
@@ -184,6 +206,95 @@ def extract_requirement(text: str) -> str:
         if any(word in line.lower() for word in ("need", "necesit", "require", "objetivo", "queremos", "must")):
             return line
     return lines[0] if lines else "Requirement to be refined."
+
+
+UNIT_TRIGGER_RE = re.compile(
+    r"\b("
+    r"dashboard|tablero|panel|card|cards|tarjeta|tarjetas|metric|metrics|metrica|metricas|kpi|indicador|indicadores|"
+    r"login|logueo|auth|autenticacion|autenticación|roles?|permisos?|permission|permissions?|"
+    r"workflow|flujo|journey|form|formulario|screen|pantalla|api|endpoint|integration|integracion|integración|"
+    r"sync|sincronizacion|sincronización|export|reporte|report"
+    r")\b",
+    re.I,
+)
+
+STOP_LABELS = {
+    "need",
+    "necesitamos",
+    "queremos",
+    "must",
+    "should",
+    "system",
+    "sistema",
+    "usuario",
+    "user",
+    "users",
+    "cliente",
+    "client",
+}
+
+
+def extract_requirement_units(text: str, raw_id: str = "RAW-001", source: Path | None = None) -> list[dict[str, str]]:
+    units: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sentence in requirement_sentences(text):
+        for match in UNIT_TRIGGER_RE.finditer(sentence):
+            mention = match.group(0).strip()
+            label = unit_label_from_sentence(sentence, mention)
+            key = label.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            unit_id = f"RU-{len(units) + 1:03d}"
+            units.append(
+                {
+                    "id": unit_id,
+                    "label": label,
+                    "evidence_mention": mention,
+                    "source": source.as_posix() if source else "",
+                    "raw_id": raw_id,
+                    "trace_id": unit_id,
+                }
+            )
+    return units
+
+
+def requirement_sentences(text: str) -> list[str]:
+    cleaned = re.sub(r"\s+", " ", text.replace("\n", " ")).strip()
+    if not cleaned:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+|;\s+|\s+-\s+", cleaned)
+    return [part.strip(" .\t") for part in parts if part.strip(" .\t")]
+
+
+def unit_label_from_sentence(sentence: str, mention: str) -> str:
+    words = re.findall(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_-]+", sentence)
+    if not words:
+        return mention
+    idx = next((i for i, word in enumerate(words) if word.lower() == mention.lower()), 0)
+    start = max(0, idx - 2)
+    end = min(len(words), idx + 4)
+    label_words = [word for word in words[start:end] if word.lower() not in STOP_LABELS]
+    if not label_words:
+        label_words = [mention]
+    return " ".join(label_words).strip()[:80]
+
+
+def render_requirement_units(project_id: str, units: list[dict[str, str]]) -> str:
+    rows = "\n".join(
+        f"| `{unit['id']}` | {unit['label']} | `{unit['evidence_mention']}` | `{unit.get('raw_id', 'RAW-001')}` | `{unit.get('trace_id', unit['id'])}` |"
+        for unit in units
+    )
+    if not rows:
+        rows = "| N/A | No cited requirement units detected. | N/A | N/A | N/A |"
+    return f"""# Requirement Units - {project_id}
+
+Requirement Units are discovery-time analysis units. They are cited from raw input and do not replace Spec Units, user stories, or backlog slicing.
+
+| RU ID | Label | Evidence Mention | Raw Source | Trace ID |
+| --- | --- | --- | --- | --- |
+{rows}
+"""
 
 
 PERSONA_HINTS = (
