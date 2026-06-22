@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .discovery import expected_format_for_gap, unblocks_for_gap
+from .discovery import candidate_options_markdown, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
 from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
@@ -71,6 +71,7 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
     prompts = prompts_for(domain, language)
     title = prompts["title"]
     lens_checks = lens_checks_section(domain, language)
+    gap_candidates = domain_gap_candidate_options_section(domain, language, gaps_path)
     if language == "es":
         return f"""# {title} - {project_id}
 
@@ -86,6 +87,7 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 ## Preguntas a responder
 
 {prompts['questions']}
+{gap_candidates}
 
 ## Checks del lente a cubrir
 
@@ -115,6 +117,7 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 ## Questions To Answer
 
 {prompts['questions']}
+{gap_candidates}
 
 ## Lens Checks To Cover
 
@@ -130,6 +133,25 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 - Do not use remote MCP, external services, or external embeddings.
 - Mark every assumption as `PENDING` or `INFERRED`.
 """
+
+
+def domain_gap_candidate_options_section(domain: str, language: str, gaps_path: Path) -> str:
+    if not gaps_path.exists():
+        return ""
+    lens = domain_for_node(domain)
+    sections: list[str] = []
+    for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")):
+        if gap.get("status", "OPEN") == "CLOSED":
+            continue
+        if gap.get("lens") != lens:
+            continue
+        options = candidate_options_markdown(gap, language)
+        if options:
+            sections.append(f"### {gap['id']}\n\n{options}")
+    if not sections:
+        return ""
+    heading = "## Opciones candidatas citadas para gaps abiertos" if language == "es" else "## Cited Candidate Options For Open Gaps"
+    return "\n\n" + heading + "\n\n" + "\n\n".join(sections)
 
 
 def prompts_for(domain: str, language: str) -> dict[str, str]:
