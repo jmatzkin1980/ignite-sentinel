@@ -169,6 +169,8 @@ Output:
 
 Use this before sharing gaps with a client or domain owner.
 
+When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited candidate options. They are shortcuts for BA/client selection, not automatic answers; `/resolve-gaps` still closes only confirmed or not-applicable responses.
+
 ## `annotate`
 
 Merge an agentic semantic analysis of the raw input into discovery gaps (IMP-021). The deterministic checklist decides gaps by token presence/absence and therefore misses what is *named but not defined* (a reassuring keyword like "security is important" suppresses the gap). The agent operating Sentinel is the only component that reads meaning; `/annotate` is its sanctioned channel — it proposes, the runtime validates and persists.
@@ -347,6 +349,8 @@ The parser reads `### GAP-ID` blocks and extracts:
 - decision status
 
 The parser also accepts equivalent field labels in the detected project language so existing answered gap files remain processable.
+
+Candidate options rendered in `gaps.md` or `/context-request` are not parsed as decisions. Copy one into the answer only after the BA/client/domain owner confirms it and adds owner, evidence/reference, and decision status.
 
 Auto-close rule:
 

@@ -1437,12 +1437,75 @@ def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
     return notes.get(gap["id"], f'The input mentions "{mention}" but does not describe the missing information for this gap.')
 
 
+def candidate_options_for_gap(gap: dict[str, str], language: str = "en") -> list[dict[str, str]]:
+    """Return cited, non-selected answer candidates for gaps with local evidence."""
+    if gap.get("status", "OPEN") == "CLOSED":
+        return []
+    mention = str(gap.get("evidence_mention", "")).strip()
+    if not mention or mention.upper() == "N/A":
+        return []
+    gap_id = gap["id"]
+    title = human_title_for_gap(gap_id, language)
+    if language == "es":
+        if gap_id == "GAP-METRIC-SOURCE":
+            texts = [
+                f"Confirmar que `{mention}` es la meta de exito y aportar fuente, baseline, owner y metodo de medicion.",
+                f"Tratar `{mention}` como objetivo direccional hasta confirmar fuente/baseline, indicando que evidencia falta.",
+            ]
+        elif gap_id in {"GAP-DESIGN-STATES", "GAP-FRONTEND-SURFACE"}:
+            texts = [
+                f"Aplicar el detalle faltante de `{title}` a la superficie mencionada `{mention}`.",
+                f"Declarar que `{mention}` queda fuera del alcance MVP y nombrar la alternativa o diferimiento.",
+            ]
+        else:
+            texts = [
+                f"Confirmar que `{mention}` esta dentro del alcance y responder el detalle faltante de `{title}`.",
+                f"Confirmar que `{mention}` es solo contexto, fuera de alcance o pendiente, y explicitar el limite.",
+            ]
+        return [{"label": chr(65 + idx), "text": text, "citation": mention} for idx, text in enumerate(texts)]
+    if gap_id == "GAP-METRIC-SOURCE":
+        texts = [
+            f"Confirm `{mention}` is the success target and provide source, baseline, owner, and measurement method.",
+            f"Treat `{mention}` as a directional target until source/baseline are confirmed, naming the missing evidence.",
+        ]
+    elif gap_id in {"GAP-DESIGN-STATES", "GAP-FRONTEND-SURFACE"}:
+        texts = [
+            f"Apply the missing `{title}` detail to the mentioned surface `{mention}`.",
+            f"Declare `{mention}` out of MVP scope and name the alternative or deferral.",
+        ]
+    else:
+        texts = [
+            f"Confirm `{mention}` is in scope and answer the missing `{title}` detail.",
+            f"Confirm `{mention}` is context-only, out of scope, or pending, and state the boundary.",
+        ]
+    return [{"label": chr(65 + idx), "text": text, "citation": mention} for idx, text in enumerate(texts)]
+
+
+def candidate_options_markdown(gap: dict[str, str], language: str = "en") -> str:
+    options = candidate_options_for_gap(gap, language)
+    if not options:
+        return ""
+    if language == "es":
+        lines = ["Opciones candidatas citadas (no seleccionadas):"]
+        for option in options:
+            lines.append(f"- Opcion {option['label']}: {option['text']} Cita local: `{option['citation']}`.")
+        lines.append("Estas opciones no cierran el gap; el BA/owner debe confirmar una respuesta.")
+        return "\n".join(lines)
+    lines = ["Cited candidate options (not selected):"]
+    for option in options:
+        lines.append(f"- Option {option['label']}: {option['text']} Local citation: `{option['citation']}`.")
+    lines.append("These options do not close the gap; the BA/owner must confirm an answer.")
+    return "\n".join(lines)
+
+
 def render_gap_response_section(gap: dict[str, str], req_id: str, language: str = "en") -> str:
     gap_id = gap["id"]
     lens = gap.get("lens", lens_for_gap(gap_id))
     evidence_note = evidence_note_for_gap(gap, language)
     evidence_label = "Evidencia que dispara la pregunta:" if language == "es" else "Evidence that triggers the question:"
     evidence_block = f"\n{evidence_label}\n{evidence_note}\n" if evidence_note else ""
+    candidate_options = candidate_options_markdown(gap, language)
+    candidate_block = f"\n{candidate_options}\n" if candidate_options else ""
     if language == "es":
         return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
 
@@ -1468,6 +1531,7 @@ Formato de respuesta esperado:
 
 Ejemplo de respuesta útil:
 {example_response_for_gap(gap_id, language)}
+{candidate_block}
 
 Respuesta del cliente / dominio:
 
@@ -1500,6 +1564,7 @@ Expected response format:
 
 Example of a useful answer:
 {example_response_for_gap(gap_id)}
+{candidate_block}
 
 Client / domain response:
 
