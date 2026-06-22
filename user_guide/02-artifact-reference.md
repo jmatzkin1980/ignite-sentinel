@@ -159,7 +159,7 @@ Sanctioned record of agentic discovery analysis contributed through `/annotate` 
 
 ### `challenge_report.md`
 
-Versionable record of the advanced-elicitation pass contributed through `/challenge` (IMP-023). Groups the merged findings by lens, showing the technique that surfaced each one (pre-mortem, role-play, assumption inversion), plus the imagined failure modes and inverted assumptions the agent reported. These gaps carry `origin: challenge` in `gaps.md` and a `challenge_report` traceability node linked from the raw input to the gap report. Like `/annotate`, findings are validated against the raw input before merging — the agent proposes with evidence; the runtime is the authority. The raw analysis JSON is archived under `01_discovery/challenges/`.
+Versionable record of the advanced-elicitation pass contributed through `/challenge` (IMP-023/112). Groups the merged findings by lens, showing the registry-backed technique that surfaced each one. The default set remains pre-mortem, per-lens role-play, and assumption inversion; the catalog lives under `sentinel/techniques/*.json`, where additional available techniques can be added without changing Python command surfaces. The report also records imagined failure modes and inverted assumptions from the agent source JSON. These gaps carry `origin: challenge` in `gaps.md` and a `challenge_report` traceability node linked from the raw input to the gap report. Like `/annotate`, findings are validated against the raw input before merging — the agent proposes with evidence; the runtime is the authority. The raw analysis JSON is archived under `01_discovery/challenges/`.
 
 ### `scrutiny_report.md`
 
@@ -253,6 +253,8 @@ Initial requirement artifact extracted from raw input.
 This is the first structured step from raw client language toward AI-friendly specs and backlog.
 
 When confirmed gap answers are already written in EARS syntax, Sentinel appends them under `Normalized Requirements (EARS)` as `REQ-EARS-*` rows with pattern, statement, and source. Generated PRD/spec/backlog artifacts cite those IDs; the source of truth remains this file.
+
+`/maturity` and `/validate` also score this file through `requirement_quality` (IMP-111). The linter is non-blocking and never rewrites prose; it cites exact fragments when a statement contains vague or non-measurable terms, passive voice, missing verification cues, or cannot be normalized to a recognized EARS pattern. This signal is about requirement testability, separate from `/quality`, which scores generated stories later.
 
 ### `project-brief.md`
 
@@ -689,6 +691,8 @@ This is a local retrieval index and fallback. It is not the source of truth.
 
 Once `03_specs/prd.md` exists, `/maturity` and `/status` also expose `maturity_metrics.prd_section_readiness` (IMP-041): numbered PRD sections 1-13, per-section status, evidence citation count, `coverage_score`, and feeding gaps for poor sections. `/specs` returns the same block plus `specs_gate`; strict blocking is opt-in through workspace config and reports `SPECS_BELOW_THRESHOLD` instead of silently pushing weak PRD sections downstream.
 
+After IMP-111, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
+
 ## Regeneration Diffs
 
 When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.
@@ -735,7 +739,7 @@ Cada lente tiene una lista `checks`; cada check declara:
 3. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
 4. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
 
-Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`must_not_fire`) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean.
+Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`target_fire` como positivos esperados, `must_not_fire` como negativos etiquetados) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean. El reporte de `python tests/evals/run_discovery_evals.py` incluye `gap_benchmark` con precision/recall/F1, recall por lente y varianza opcional entre corridas si definís `SENTINEL_EVAL_REPEAT=N`.
 
 Para cambios de backlog, usá el bloque `backlog` de los mismos answer keys. Ahí se registran historias esperadas, `SPEC-U-*` fuente, comportamiento de no-invención, patrón de slicing esperado y checks opt-in de anchors/contexto. `python tests/evals/run_discovery_evals.py` debe reportar cobertura de derivación, no-invención y slicing sin regresiones antes de abrir PR.
 

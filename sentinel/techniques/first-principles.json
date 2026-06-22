@@ -1,0 +1,13 @@
+{
+  "id": "first-principles",
+  "name": "first principles",
+  "category": "decomposition",
+  "default": false,
+  "prompt": "Decompose the request into irreducible user, value, data, rule, interface, quality, and governance facts; flag facts that are implied but not evidenced.",
+  "evidence_contract": "Every implied fact must either cite local evidence or remain a pending question.",
+  "output_focus": [
+    "irreducible fact",
+    "missing evidence",
+    "gap question"
+  ]
+}

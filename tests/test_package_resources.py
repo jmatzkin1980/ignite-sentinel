@@ -17,6 +17,8 @@ from sentinel.retrieval_plans import clear_cache as clear_plan_cache
 from sentinel.retrieval_plans import load_retrieval_plan
 from sentinel.slicing_model import clear_cache as clear_slicing_cache
 from sentinel.slicing_model import load_slicing_model
+from sentinel.technique_registry import clear_cache as clear_technique_cache
+from sentinel.technique_registry import load_techniques
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +30,7 @@ class PackageResourceLoadingTest(unittest.TestCase):
         clear_lens_cache()
         clear_plan_cache()
         clear_slicing_cache()
+        clear_technique_cache()
 
     def test_default_loaders_match_filesystem_overrides(self) -> None:
         manifest_path = SENTINEL_ROOT / "templates" / "commands_manifest.json"
@@ -36,6 +39,10 @@ class PackageResourceLoadingTest(unittest.TestCase):
         default_lenses = load_lens_checks()
         filesystem_lenses = load_lens_checks(SENTINEL_ROOT / "lenses")
         self.assertEqual(default_lenses, filesystem_lenses)
+
+        default_techniques = load_techniques()
+        filesystem_techniques = load_techniques(SENTINEL_ROOT / "techniques")
+        self.assertEqual(default_techniques, filesystem_techniques)
 
         default_plan = load_retrieval_plan("specs_generation")
         filesystem_plan = load_retrieval_plan("specs_generation", plans_dir=SENTINEL_ROOT / "retrieval_plans")
@@ -57,6 +64,7 @@ class PackageResourceLoadingTest(unittest.TestCase):
             "schemas/*.json",
             "templates/*.json",
             "lenses/*.json",
+            "techniques/*.json",
             "retrieval_plans/*.json",
             "slicing/*.json",
         ):
@@ -75,9 +83,11 @@ class PackageResourceLoadingTest(unittest.TestCase):
                     "from sentinel.resources import read_package_json",
                     "from sentinel.retrieval_plans import load_retrieval_plan",
                     "from sentinel.slicing_model import load_slicing_model",
+                    "from sentinel.technique_registry import load_techniques",
                     "print(json.dumps({",
                     "  'commands': len(load_manifest()['commands']),",
                     "  'lens_count': len(load_lens_checks()),",
+                    "  'technique_count': len(load_techniques()),",
                     "  'workflow': load_retrieval_plan('specs_generation')['workflow'],",
                     "  'slicing_model': load_slicing_model()['model'],",
                     "  'gap_schema': read_package_json('schemas', 'gap.schema.json')['title'],",
@@ -99,6 +109,7 @@ class PackageResourceLoadingTest(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(len(load_manifest()["commands"]), payload["commands"])
         self.assertEqual(len(load_lens_checks()), payload["lens_count"])
+        self.assertEqual(len(load_techniques()), payload["technique_count"])
         self.assertEqual("specs_generation", payload["workflow"])
         self.assertEqual("backlog_slicing", payload["slicing_model"])
         self.assertEqual("Ignite Sentinel Gap", payload["gap_schema"])

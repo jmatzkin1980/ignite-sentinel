@@ -134,6 +134,94 @@ def prd_section_status(prd_md: str) -> dict:
     return status
 
 
+def _ratio(numerator: int, denominator: int, default: float = 1.0) -> float:
+    return round(numerator / denominator, 3) if denominator else default
+
+
+def _f1(precision: float, recall: float) -> float:
+    return round((2 * precision * recall) / (precision + recall), 3) if precision + recall else 0.0
+
+
+def metric_variance(values: list[float]) -> float:
+    if len(values) <= 1:
+        return 0.0
+    mean = sum(values) / len(values)
+    return round(sum((value - mean) ** 2 for value in values) / len(values), 6)
+
+
+def discovery_gap_benchmark(
+    fired: set[str],
+    must_fire: set[str],
+    target_fire: set[str],
+    must_not_fire: set[str],
+    known_false_positives: set[str],
+    gap_details: dict[str, dict[str, str]] | None = None,
+) -> dict[str, object]:
+    """Precision/recall/F1 over the answer-key-labeled discovery gap universe.
+
+    Existing baseline gates remain unchanged: only missing must-fire gaps and new
+    false positives fail the eval. These metrics are additive benchmarking
+    signals for IMP-110 and intentionally count known false positives as false
+    positives so quality debt stays visible without breaking the build.
+    """
+    expected_positive = set(must_fire) | set(target_fire)
+    expected_negative = set(must_not_fire)
+    true_positive = fired & expected_positive
+    false_positive = fired & expected_negative
+    known_false_positive = false_positive & known_false_positives
+    new_false_positive = false_positive - known_false_positives
+    precision = _ratio(len(true_positive), len(true_positive) + len(false_positive))
+    recall = _ratio(len(true_positive), len(expected_positive))
+    required_recall = _ratio(len(fired & must_fire), len(must_fire))
+    target_recall = _ratio(len(fired & target_fire), len(target_fire))
+    by_lens: dict[str, dict[str, float | int]] = {}
+    details = gap_details or {}
+    for gap_id in sorted(expected_positive):
+        lens = str(details.get(gap_id, {}).get("lens", "unknown"))
+        item = by_lens.setdefault(lens, {"expected": 0, "detected": 0, "recall": 0.0})
+        item["expected"] = int(item["expected"]) + 1
+        if gap_id in fired:
+            item["detected"] = int(item["detected"]) + 1
+    for item in by_lens.values():
+        item["recall"] = _ratio(int(item["detected"]), int(item["expected"]))
+    return {
+        "expected_positive_total": len(expected_positive),
+        "expected_negative_total": len(expected_negative),
+        "true_positive_total": len(true_positive),
+        "false_positive_total": len(false_positive),
+        "known_false_positive_total": len(known_false_positive),
+        "new_false_positive_total": len(new_false_positive),
+        "precision": precision,
+        "recall": recall,
+        "f1": _f1(precision, recall),
+        "required_recall": required_recall,
+        "target_recall": target_recall,
+        "by_lens": by_lens,
+    }
+
+
+def repeat_variance_for_results(repeated_results: list[list[dict]]) -> dict[str, dict[str, float]]:
+    if not repeated_results:
+        return {}
+    fixture_names = [row["fixture"] for row in repeated_results[0]]
+    variance: dict[str, dict[str, float]] = {}
+    for index, fixture in enumerate(fixture_names):
+        rows = [run[index] for run in repeated_results if len(run) > index and run[index]["fixture"] == fixture]
+        variance[fixture] = {
+            "precision": metric_variance([float(row["gap_benchmark"]["precision"]) for row in rows]),
+            "recall": metric_variance([float(row["gap_benchmark"]["recall"]) for row in rows]),
+            "f1": metric_variance([float(row["gap_benchmark"]["f1"]) for row in rows]),
+        }
+    return variance
+
+
+def eval_repeat_count() -> int:
+    try:
+        return max(1, int(os.environ.get("SENTINEL_EVAL_REPEAT", "1")))
+    except ValueError:
+        return 1
+
+
 def specs_scaffolding(specs_md: str) -> dict[str, object]:
     found = sorted({item for item in SPECS_SCAFFOLDING_IDS if re.search(rf"\b{re.escape(item)}\b", specs_md)})
     return {"ids": found, "count": len(found)}
@@ -500,6 +588,7 @@ def run_fixture(
     new_false_positives = sorted((fired & must_not_fire) - known_fp)
     fixed_known_fp = sorted(known_fp - fired)
     target_detected = sorted(fired & target)
+    gap_benchmark = discovery_gap_benchmark(fired, must_fire, target, must_not_fire, known_fp, gap_details)
 
     brief_key = key.get("brief", {})
     brief_target = [s for s in brief_key.get("target_populated", []) if s in BRIEF_TRACKED_SECTIONS]
@@ -587,6 +676,10 @@ def run_fixture(
         "false_positives": false_positives,
         "new_false_positives": new_false_positives,
         "fixed_known_false_positives": fixed_known_fp,
+        "gap_benchmark": gap_benchmark,
+        "gap_precision": gap_benchmark["precision"],
+        "gap_recall": gap_benchmark["recall"],
+        "gap_f1": gap_benchmark["f1"],
         "target_fire_total": len(target),
         "target_fire_detected": target_detected,
         "target_recall": round(len(target_detected) / len(target), 3) if target else 1.0,
@@ -1212,7 +1305,12 @@ def run_all() -> int:
     if not fixture_dirs:
         print("No eval fixtures found under tests/fixtures/evals/")
         return 1
-    results = [run_fixture(d) for d in fixture_dirs]
+    repeat_count = eval_repeat_count()
+    repeated_results = [[run_fixture(d) for d in fixture_dirs] for _ in range(repeat_count)]
+    results = repeated_results[0]
+    repeat_variance = repeat_variance_for_results(repeated_results)
+    for row in results:
+        row["repeat_variance"] = repeat_variance.get(row["fixture"], {"precision": 0.0, "recall": 0.0, "f1": 0.0})
 
     # IMP-021 progress: re-run fixtures that carry an agent annotation through
     # the /annotate pass. Additive metric; the lexical baseline above is
@@ -1242,6 +1340,19 @@ def run_all() -> int:
             "fixtures_run": len(results),
             "baseline_ok": all(r["baseline_ok"] for r in results),
             "avg_recall_must_fire": round(sum(r["recall_must_fire"] for r in results) / len(results), 3),
+            "avg_gap_precision": round(sum(float(r["gap_benchmark"]["precision"]) for r in results) / len(results), 3),
+            "avg_gap_recall": round(sum(float(r["gap_benchmark"]["recall"]) for r in results) / len(results), 3),
+            "avg_gap_f1": round(sum(float(r["gap_benchmark"]["f1"]) for r in results) / len(results), 3),
+            "repeat_count": repeat_count,
+            "avg_gap_precision_variance": round(
+                sum(row["repeat_variance"]["precision"] for row in results) / len(results), 6
+            ),
+            "avg_gap_recall_variance": round(
+                sum(row["repeat_variance"]["recall"] for row in results) / len(results), 6
+            ),
+            "avg_gap_f1_variance": round(
+                sum(row["repeat_variance"]["f1"] for row in results) / len(results), 6
+            ),
             "avg_target_recall": round(sum(r["target_recall"] for r in results) / len(results), 3),
             "avg_target_recall_with_annotations": round(
                 sum(r["target_recall"] for r in annotated_results) / len(annotated_results), 3
@@ -1312,6 +1423,9 @@ def run_all() -> int:
         status = "OK " if r["baseline_ok"] else "FAIL"
         print(
             f"  [{status}] {r['fixture']:24s} recall={r['recall_must_fire']:.2f} "
+            f"gap_p/r/f1={float(r['gap_benchmark']['precision']):.2f}/"
+            f"{float(r['gap_benchmark']['recall']):.2f}/"
+            f"{float(r['gap_benchmark']['f1']):.2f} "
             f"target={len(r['target_fire_detected'])}/{r['target_fire_total']} "
             f"brief={len(r['brief_target_populated'])}/{len(r['brief_target_sections'])} "
             f"prd={len(r['prd_target_populated'])}/{len(r['prd_target_sections'])} "
@@ -1358,6 +1472,11 @@ def run_all() -> int:
     s = report["summary"]
     print(
         f"Summary: baseline_ok={s['baseline_ok']} avg_recall={s['avg_recall_must_fire']:.2f} "
+        f"avg_gap_p/r/f1={s['avg_gap_precision']:.2f}/{s['avg_gap_recall']:.2f}/{s['avg_gap_f1']:.2f} "
+        f"repeat={s['repeat_count']} "
+        f"var_p/r/f1={s['avg_gap_precision_variance']:.6f}/"
+        f"{s['avg_gap_recall_variance']:.6f}/"
+        f"{s['avg_gap_f1_variance']:.6f} "
         f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "

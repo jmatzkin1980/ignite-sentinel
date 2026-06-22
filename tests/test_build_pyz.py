@@ -48,6 +48,7 @@ class BuildPyzTest(unittest.TestCase):
             self.assertIn("__main__.py", names)
             self.assertIn("sentinel/cli.py", names)
             self.assertIn("sentinel/templates/commands_manifest.json", names)
+            self.assertIn("sentinel/techniques/pre-mortem.json", names)
             self.assertIn("sentinel/slicing/backlog_slicing_model.json", names)
             self.assertFalse(any("__pycache__" in name for name in names))
 

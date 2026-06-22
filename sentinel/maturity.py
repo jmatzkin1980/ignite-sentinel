@@ -17,6 +17,7 @@ from .discovery import (
     split_evidence_sentences,
 )
 from .core.markdown import parse_table_rows
+from .ears import requirements_quality_report
 from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
@@ -308,6 +309,12 @@ def maturity_metrics(project_id: str, persist_development_readiness: bool = Fals
         if path.exists():
             artifact_scores[name] = float(score_artifact_text(path.read_text(encoding="utf-8"))["score"])
     evidence_score = round(sum(artifact_scores.values()) / len(artifact_scores), 3) if artifact_scores else None
+    requirements_path = base / "02_requirements" / "requirements.md"
+    requirement_quality = (
+        requirements_quality_report(requirements_path.read_text(encoding="utf-8"))
+        if requirements_path.exists()
+        else {"score": 0.0, "statement_count": 0, "classifications": {}, "statements": [], "warnings": []}
+    )
 
     if evidence_score is None:
         maturity_score = gap_closure_rate
@@ -320,6 +327,8 @@ def maturity_metrics(project_id: str, persist_development_readiness: bool = Fals
         "open_gaps_by_severity": open_by_severity,
         "artifact_evidence_scores": artifact_scores,
         "evidence_score": evidence_score,
+        "requirement_quality": requirement_quality,
+        "requirement_quality_score": requirement_quality["score"],
         "maturity_score": maturity_score,
     }
     # IMP-025: per-section brief readiness once a brief exists.

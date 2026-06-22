@@ -153,6 +153,8 @@ Blocks when open, answered, or partially closed gaps have severities configured 
 
 `/maturity` also computes development certainty from the discovery knowledge ledger. The additive `development_readiness` block evaluates the mature requirement rubric as a 16-area matrix by Ignite lens. Each cell is `CONFIRMED`, `ASSUMED`, or `OPEN`, carries evidence or `[PENDING INPUT]`, contributes to lens/global scores, and reports an explicit Crystallization Gate verdict. The gate is informational by default; it does not silently force downstream progress or close gaps.
 
+`/maturity` also exposes `maturity_metrics.requirement_quality` (IMP-111). This non-blocking score inspects `02_requirements/requirements.md` statements, including `REQ-001` and confirmed `REQ-EARS-*` rows, and cites fragments that contain vague/non-measurable terms, passive voice, missing verification signals, or prose that is not normalizable to an EARS pattern. It helps the BA see whether the evidence is testable enough; it does not rewrite the requirement or change readiness gates.
+
 ## `gaps`
 
 Regenerate the shareable human-friendly discovery gap document.
@@ -214,7 +216,7 @@ Run advanced elicitation (IMP-023) and merge the findings as gaps with `origin: 
 python -m sentinel /challenge PROJECT_ID --source PATH
 ```
 
-`/challenge` materializes "understanding what is not being said". The agent first runs three techniques over the maturing requirement, per lens (invariant #1): pre-mortem ("the project failed at 6 months — what did we fail to ask?"), role-play by lens (operator, auditor, attacker...), and assumption inversion. The findings go in a JSON `--source` file shaped like `/annotate` (a `gaps` array with `id`, `lens`, `severity`, `question`, verbatim `evidence`, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.
+`/challenge` materializes "understanding what is not being said". The agent runs the default registry-backed techniques over the maturing requirement, per lens (invariant #1): pre-mortem ("the project failed at 6 months — what did we fail to ask?"), role-play by lens (operator, auditor, attacker...), and assumption inversion. The technique catalog lives under `sentinel/techniques/*.json`; adding another available technique is data-only and does not change the command surface. The findings go in a JSON `--source` file shaped like `/annotate` (a `gaps` array with `id`, `lens`, `severity`, `question`, verbatim `evidence`, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.
 
 Validation is identical to `/annotate` (declared lens, severity range, verbatim evidence — never invented). On success the gaps are tagged `origin: challenge`, merged into `gaps.md`, and a traced, indexed `01_discovery/challenge_report.md` is written grouping findings by lens with the technique that surfaced each one.
 
@@ -658,7 +660,9 @@ Outputs:
 
 ## Maturity Metrics
 
-`/maturity` and `/status` expose a quantified `maturity_metrics` block: `gap_closure_rate`, `open_gaps_by_severity`, per-artifact `artifact_evidence_scores` (same scoring as `/validate`), a combined `maturity_score` (0.0–1.0), and `trend_vs_previous_run` comparing consecutive `/maturity` runs. Use the trend to see whether new evidence is actually maturing the requirement.
+`/maturity` and `/status` expose a quantified `maturity_metrics` block: `gap_closure_rate`, `open_gaps_by_severity`, per-artifact `artifact_evidence_scores` (same scoring as `/validate`), `requirement_quality_score`, a combined `maturity_score` (0.0–1.0), and `trend_vs_previous_run` comparing consecutive `/maturity` runs. Use the trend to see whether new evidence is actually maturing the requirement.
+
+`requirement_quality` is the IMP-111 requirement linter result. It scores each requirement statement and lists cited warning fragments for ambiguous terms, passive voice, missing verification cues, or statements that are not EARS-normalizable. This is separate from `/quality`: `/maturity` scores requirement prose before specs/backlog, while `/quality` scores generated user stories against INVEST/SPIDR/Lawrence.
 
 Once a project brief exists, the block also carries `brief_section_readiness` (IMP-025): each narrative brief section (1-6) as `populated`/`pending`, an overall `coverage_score`, and, for each poor section, the gaps that feed it — the same signal the soft `/brief` gate uses.
 
@@ -682,6 +686,8 @@ Checks:
 - missing artifact paths
 - edges pointing to missing nodes
 - expected semantic sections in PRD, specs, and stories
+
+Requirement quality (non-blocking): the report includes `requirement_quality`, the same IMP-111 linter exposed by `/maturity`. It cites the exact requirement fragments that are vague, passive, missing verification cues, or not normalizable to EARS. These warnings never change `verdict`; structural validity remains separate from requirement testability.
 
 Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, EARS rows, source citations, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. A PRD compiled from real evidence should classify as `evidence-backed` or `mixed`; `scaffolding` means the artifact is still mostly structure or pending content. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
 

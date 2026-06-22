@@ -1,0 +1,13 @@
+{
+  "id": "role-play",
+  "name": "per-lens role-play",
+  "category": "lens-role",
+  "default": true,
+  "prompt": "Review the requirement as the accountable role for each Ignite lens: operator, auditor, designer, engineer, tester, delivery lead, and business owner.",
+  "evidence_contract": "Every finding must cite a verbatim local evidence fragment and declare the Ignite lens it belongs to.",
+  "output_focus": [
+    "lens-specific blind spot",
+    "role concern",
+    "question for client or domain owner"
+  ]
+}

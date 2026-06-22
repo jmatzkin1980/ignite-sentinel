@@ -1,0 +1,13 @@
+{
+  "id": "stakeholder-round-robin",
+  "name": "stakeholder round-robin",
+  "category": "stakeholder",
+  "default": false,
+  "prompt": "Rotate through likely stakeholders and ask what each one would need to approve, operate, test, support, or audit the requirement.",
+  "evidence_contract": "Stakeholder concerns must be grounded in the local requirement or domain context before becoming gaps.",
+  "output_focus": [
+    "stakeholder concern",
+    "approval or operation need",
+    "gap question"
+  ]
+}

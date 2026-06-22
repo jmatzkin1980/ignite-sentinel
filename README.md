@@ -64,7 +64,7 @@ If your hardest problem is *maturing* requirements — not writing them up after
 
 Three phases, one governed flow: **Discovery → Specs → Backlog.**
 
-Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`), and can register explicit BA-owned assumptions (`/assume`) when the team chooses to proceed with visible risk. Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite, and the project brief is compiled section by section — each one evidence-backed, explicitly assumed, or pending, with per-section readiness, development certainty, knowledge metabolism, and maturation telemetry showing exactly where discovery is stuck.
+Discovery is the heart. The checklist detects what's missing deterministically; the agent then adds the semantic gaps a reassuring keyword would otherwise hide (`/annotate`), stress-tests the requirement with a pre-mortem and per-lens role-play (`/challenge`), can run cited multi-lens scrutiny across raw input plus domain context (`/scrutinize`), and can register explicit BA-owned assumptions (`/assume`) when the team chooses to proceed with visible risk. Confirmed functional answers are normalized into testable **EARS** statements (`REQ-EARS-*`) that downstream artifacts cite. `/maturity` and `/validate` also surface non-blocking requirement-quality signals for vague prose, passive voice, missing verification cues, or statements not normalizable to EARS. The project brief is compiled section by section — each one evidence-backed, explicitly assumed, or pending, with per-section readiness, development certainty, knowledge metabolism, and maturation telemetry showing exactly where discovery is stuck.
 
 Downstream generation stays **progressively disclosed**: each command reads the exact context it needs, never the whole workspace.
 
@@ -80,12 +80,12 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/ingest` | Ingest raw client / domain / interaction evidence and index local memory |
 | `/gaps` | (Re)generate the shareable discovery gaps document |
 | `/annotate` | Merge agent-proposed **semantic** gaps (verbatim-cited, `origin: agent`) |
-| `/challenge` | Advanced elicitation: pre-mortem + per-lens role-play |
+| `/challenge` | Advanced elicitation from a declarative technique registry |
 | `/scrutinize` | Deep multi-lens scrutiny against raw input and domain context |
 | `/self-review` | Skeptical PRD/spec review: cited gaps plus hard-to-reverse decisions |
 | `/assume` | Register BA-owned governed assumptions with owner, risk, and cited basis |
 | `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
-| `/maturity` | Evaluate readiness for specs/backlog (gates + telemetry + development certainty) |
+| `/maturity` | Evaluate readiness for specs/backlog (gates + requirement quality + telemetry + development certainty) |
 | `/brief` | Compile the evidence-backed project brief |
 | `/context-request` | Generate a domain-specific context request |
 
@@ -283,7 +283,7 @@ Other governed channels, each validated against verbatim local evidence:
 
 Backlog is intentionally stable after generation. Domain context updates should usually be consumed through `/reindex`, `/retrieve`, and `implementation_readiness.json`; rerun `/backlog` only when the new evidence materially changes story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
-`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `semantic_quality` and `cross_artifact_consistency` emit non-blocking warnings (scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift) as corrective guidance.
+`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `requirement_quality`, `semantic_quality`, and `cross_artifact_consistency` emit non-blocking warnings (vague requirement prose, scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift) as corrective guidance.
 
 ## Command protocol
 
@@ -363,7 +363,7 @@ python tests\evals\run_discovery_evals.py
 
 The zipapp portability smoke lives in `tests/test_build_pyz.py`: it builds `sentinel.pyz`, copies a clean framework root without `.git`, `.venv`, or `dist`, and runs `/doctor` from the `.pyz` against that clean copy.
 
-The eval harness covers discovery, brief, PRD, specs, and backlog. It includes happy-path fixtures plus adversarial lifecycle cases: thin intakes that must remain blocked, partial gap responses that must not over-close discovery, fabricated citations that must be rejected without mutating artifacts, and downstream guards that prevent specs/backlog from running while blocking uncertainty remains. Backlog answer keys also check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`.
+The eval harness covers discovery, brief, PRD, specs, and backlog. It includes happy-path fixtures plus adversarial lifecycle cases: thin intakes that must remain blocked, partial gap responses that must not over-close discovery, fabricated citations that must be rejected without mutating artifacts, and downstream guards that prevent specs/backlog from running while blocking uncertainty remains. Discovery reports include precision/recall/F1 over the answer-key-labeled gap universe plus optional repeat-run variance via `SENTINEL_EVAL_REPEAT=N`. Backlog answer keys also check expected stories/source units, no-invention behavior, slicing-pattern baseline, opt-in anchor/context metrics, optional task-seed contracts, story-quality scoring, pre-handoff DoR warnings, story-level staleness from Spec Unit changes, and implementation feedback that opens traced `GAP-FEEDBACK-*` and blocks DoD. Retrieval evals run through the unit suite (`tests/test_evals_retrieval.py`) and write gitignored JSON reports under `tests/evals/reports/`.
 
 > If a change added or modified a command or skill, run `python -m sentinel.adapters` first to regenerate the Kilo/Claude command files and skill mirrors, then verify. Don't push framework changes while tests or `/doctor` fail.
 
