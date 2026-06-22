@@ -19,7 +19,7 @@ from sentinel.cli import main
 from sentinel.compilers.backlog import render_epic
 from sentinel.compilers.specs import render_specs
 from sentinel.discovery import parse_gap_rows
-from sentinel.ears import classify_ears, is_ears
+from sentinel.ears import classify_ears, is_ears, requirements_quality_report, score_requirement_quality
 from sentinel.gap_resolution import resolve_gaps
 from sentinel.generation import parse_ears_requirements
 from sentinel.generation import render_epic as generation_render_epic
@@ -43,6 +43,45 @@ class EarsClassifyTests(unittest.TestCase):
     def test_prose_is_not_ears(self):
         self.assertIsNone(classify_ears("We want a nice dashboard."))
         self.assertFalse(is_ears("Reduce manual work by 30%."))
+
+    def test_requirement_quality_distinguishes_vague_from_testable(self):
+        vague = score_requirement_quality("We need a nice dashboard soon that is easy and efficient.")
+        self.assertLess(vague["score"], 0.55)
+        self.assertEqual(vague["classification"], "weak")
+        signal_ids = {item["id"] for item in vague["signals"]}
+        self.assertIn("ambiguous_term", signal_ids)
+        self.assertIn("not_ears_normalizable", signal_ids)
+        self.assertIn("missing_verification", signal_ids)
+        self.assertTrue(all(item["fragment"] for item in vague["signals"]))
+
+        testable = score_requirement_quality(
+            "When a case breaches SLA, the system shall flag the queue within 5 minutes."
+        )
+        self.assertEqual(testable["classification"], "testable")
+        self.assertEqual(testable["ears_pattern"], "event")
+        self.assertEqual(testable["signals"], [])
+
+        passive = score_requirement_quality("The alert shall be displayed when the queue is stale.")
+        self.assertIn("passive_voice", {item["id"] for item in passive["signals"]})
+
+    def test_requirements_markdown_quality_scores_primary_and_ears_rows(self):
+        report = requirements_quality_report(
+            "# Requirement Register - DEMO\n\n"
+            "## REQ-001 Primary Requirement\n\n"
+            "- Source: `RAW-001`\n"
+            "- Status: `draft`\n"
+            "- Domains: product, functional, quality\n\n"
+            "We need something better soon.\n\n"
+            "## Normalized Requirements (EARS)\n\n"
+            "| ID | Pattern | Statement | Source |\n"
+            "| --- | --- | --- | --- |\n"
+            "| REQ-EARS-001 | event | When a case breaches SLA, the system shall flag it. | `GAP-001` / `CHG-001` |\n"
+        )
+        self.assertEqual(report["statement_count"], 2)
+        self.assertLess(report["score"], 1.0)
+        self.assertEqual(report["statements"][0]["id"], "REQ-001")
+        self.assertEqual(report["statements"][1]["id"], "REQ-EARS-001")
+        self.assertTrue(report["warnings"])
 
 
 class EarsResolutionTests(unittest.TestCase):

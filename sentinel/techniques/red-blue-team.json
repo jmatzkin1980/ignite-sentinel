@@ -1,0 +1,13 @@
+{
+  "id": "red-blue-team",
+  "name": "red/blue team",
+  "category": "adversarial",
+  "default": false,
+  "prompt": "Red team the requirement for misuse, failure, ambiguity, and invalid success claims; blue team the minimum evidence needed to defend the requirement.",
+  "evidence_contract": "A red-team finding can merge only when its concern is anchored in a verbatim local quote.",
+  "output_focus": [
+    "attack or failure angle",
+    "defense evidence",
+    "gap question"
+  ]
+}

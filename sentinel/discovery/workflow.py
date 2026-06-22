@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from ..lens_registry import known_lenses, load_lens_checks
+from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label
 from ..core.graph import add_edge, add_node, load_graph
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
@@ -819,8 +820,9 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 # severity range, verbatim evidence) and are merged as gaps tagged
 # `origin: challenge`. Techniques run per lens (invariant #1), not as generic
 # personas. The runtime stays the authority; the agent proposes with evidence.
+# IMP-112 moves the default technique catalog to sentinel/techniques/*.json.
 
-CHALLENGE_TECHNIQUES = ("pre-mortem", "role-play", "assumption-inversion")
+CHALLENGE_TECHNIQUES = default_challenge_technique_ids()
 
 
 def _technique_by_gap(data: dict) -> dict[str, str]:
@@ -832,6 +834,11 @@ def _technique_by_gap(data: dict) -> dict[str, str]:
             if gid and tech:
                 mapping[gid] = tech
     return mapping
+
+
+def _technique_name(raw: str) -> str:
+    normalized = str(raw or "").strip()
+    return technique_label(normalized) if normalized else "n/a"
 
 
 def render_challenge_report(
@@ -849,7 +856,7 @@ def render_challenge_report(
     lens_blocks = []
     for lens in sorted(by_lens):
         rows = "\n".join(
-            f"| `{gap['id']}` | {gap['severity']} | {techniques.get(gap['id'], 'n/a')} | {gap['question']} | {gap.get('evidence_mention', '')} |"
+            f"| `{gap['id']}` | {gap['severity']} | {_technique_name(techniques.get(gap['id'], ''))} | {gap['question']} | {gap.get('evidence_mention', '')} |"
             for gap in by_lens[lens]
         )
         lens_blocks.append(f"### Lens: `{lens}`\n\n| Gap ID | Severity | Technique | Question | Evidence Cited |\n| --- | --- | --- | --- | --- |\n{rows}")
@@ -867,6 +874,8 @@ requirement. Every finding below was validated by the runtime (declared lens,
 severity range, verbatim evidence) before merging as a gap — never written by hand.
 
 ## Challenge Findings By Lens
+
+Technique catalog: `sentinel/techniques/*.json`. Default set: {default_technique_summary()}.
 
 {lens_section}
 

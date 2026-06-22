@@ -1,0 +1,13 @@
+{
+  "id": "assumption-inversion",
+  "name": "assumption inversion",
+  "category": "assumption",
+  "default": true,
+  "prompt": "Name the hidden assumptions that make the request seem easy, then invert each one and ask what evidence would prove the inverted case false.",
+  "evidence_contract": "Only assumptions grounded in local evidence can become challenge gaps; otherwise they stay narrative notes.",
+  "output_focus": [
+    "hidden assumption",
+    "inverted risk",
+    "confirmation question"
+  ]
+}

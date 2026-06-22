@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 
 from .core.markdown import parse_frontmatter
+from .ears import requirements_quality_report
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
 from .core.graph import load_graph, parents_of
@@ -45,6 +46,7 @@ def validate_project(project_id: str) -> dict[str, object]:
     findings.extend(validate_semantic_artifacts(project_id, base, graph))
 
     semantic_quality, quality_warnings = semantic_quality_report(base)
+    requirement_quality, requirement_warnings = requirement_quality_validation(base)
     cross_consistency = cross_artifact_consistency(project_id, base)
     consistency_warnings = [str(item["message"]) for item in cross_consistency.get("warnings", []) if isinstance(item, dict)]
 
@@ -53,8 +55,9 @@ def validate_project(project_id: str) -> dict[str, object]:
         "verdict": verdict,
         "findings": findings,
         "semantic_quality": semantic_quality,
+        "requirement_quality": requirement_quality,
         "cross_artifact_consistency": cross_consistency,
-        "warnings": [*quality_warnings, *consistency_warnings],
+        "warnings": [*quality_warnings, *requirement_warnings, *consistency_warnings],
     }
 
 
@@ -187,6 +190,22 @@ def semantic_quality_report(base: Path) -> tuple[dict[str, dict[str, object]], l
                 f"{name} is partially evidence-backed (score {result['score']}): "
                 f"{result['pending_markers']} pending markers remain."
             )
+    return report, warnings
+
+
+def requirement_quality_validation(base: Path) -> tuple[dict[str, object], list[str]]:
+    path = base / "02_requirements" / "requirements.md"
+    if not path.exists():
+        return {"score": 0.0, "statement_count": 0, "classifications": {}, "statements": [], "warnings": []}, []
+    report = requirements_quality_report(path.read_text(encoding="utf-8"))
+    warnings = [
+        (
+            f"{item['statement_id']} requirement-quality warning {item['signal_id']}: "
+            f"{item['message']} Fragment: \"{item['fragment']}\""
+        )
+        for item in report.get("warnings", [])
+        if isinstance(item, dict)
+    ]
     return report, warnings
 
 

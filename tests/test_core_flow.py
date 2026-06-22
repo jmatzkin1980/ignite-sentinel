@@ -789,6 +789,28 @@ Second section paragraph.
         self.assertIn("maturity_metrics", status)
         self.assertIn("maturity_score", status["maturity_metrics"])
 
+    def test_maturity_and_validate_expose_requirement_quality_without_blocking(self) -> None:
+        from sentinel.maturity import evaluate
+        from sentinel.validation import validate_project
+
+        source = self.temp / "vague.md"
+        source.write_text("We need a nice dashboard soon that is easy and efficient.", encoding="utf-8")
+        self.assertEqual(main(["init", "RQLT"]), 0)
+        self.assertEqual(main(["ingest", "RQLT", "--source", str(source)]), 0)
+
+        maturity = evaluate("RQLT")
+        quality = maturity["metrics"]["requirement_quality"]
+        self.assertEqual(quality["statement_count"], 1)
+        self.assertLess(quality["score"], 0.55)
+        self.assertTrue(quality["warnings"])
+        self.assertEqual(maturity["readiness"], "BLOCKED")
+
+        validation = validate_project("RQLT")
+        self.assertEqual(validation["verdict"], "VALID")
+        self.assertIn("requirement_quality", validation)
+        self.assertLess(validation["requirement_quality"]["score"], 0.55)
+        self.assertTrue(any("requirement-quality warning" in warning for warning in validation["warnings"]))
+
     def test_domain_context_change_warns_without_forcing_backlog_regeneration(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
         self.assertEqual(main(["init", "STALE"]), 0)
