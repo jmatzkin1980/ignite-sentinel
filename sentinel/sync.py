@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -24,7 +25,7 @@ from .gap_resolution import (
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
-from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph
+from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text
 from .workspace import read_json, update_state, utc_now, workspace_path
 
@@ -44,6 +45,12 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     blast_radius = summarize_impact(project_id, affected)
     for node_id in affected:
         add_edge(project_id, change_id, node_id, "may_impact")
+    suspicious_links = mark_suspicious_trace_links(
+        project_id,
+        change_id,
+        affected,
+        semantic_change_analysis(text, note),
+    )
 
     gaps = detect_gaps(sync_detection_text(base, text), load_domain_context(base))
     gap_merge = materialize_sync_gaps(project_id, gaps, change_id)
@@ -78,6 +85,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
             sync_resolution,
             metabolism,
             stale_result,
+            suspicious_links,
         ),
         encoding="utf-8",
     )
@@ -107,8 +115,20 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
     update_state(
         project_id,
         phase="change_synced",
-        health="DIRTY" if gap_merge["merged"] or stale_result.get("stale_stories") or metabolism.get("downstream_stale_artifacts") else "CLEAN",
+        health=(
+            "DIRTY"
+            if gap_merge["merged"]
+            or stale_result.get("stale_stories")
+            or metabolism.get("downstream_stale_artifacts")
+            or suspicious_links
+            else "CLEAN"
+        ),
         last_change_id=change_id,
+        suspicious_trace_links={
+            "change_id": change_id,
+            "count": len(suspicious_links),
+            "links": suspicious_links,
+        },
     )
     return {
         "change_id": change_id,
@@ -123,6 +143,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "sync_closed_gaps": sync_resolution["closed"],
         "knowledge_metabolism": metabolism,
         "staleness": stale_result,
+        "suspicious_trace_links": suspicious_links,
     }
 
 
@@ -176,6 +197,72 @@ def impacted_nodes(project_id: str) -> list[str]:
                 affected.append(child)
                 stack.append(child)
     return affected
+
+
+SEMANTIC_CHANGE_RE = re.compile(
+    r"\b("
+    r"no longer|must not|shall not|instead|replace[sd]?|replacing|remove[sd]?|"
+    r"exclude[sd]?|out of scope|deprecat(?:e|ed|es)|rename[sd]?|now|"
+    r"changes? from|new target|different owner|"
+    r"ya no|no debe|en vez de|reemplaza|reemplazar|elimina|excluye|"
+    r"fuera de alcance|depreca|renombra|ahora|cambia de|nuevo objetivo"
+    r")\b",
+    re.I,
+)
+COSMETIC_CHANGE_RE = re.compile(
+    r"\b(typo|spelling|copy edit|formatting|whitespace|grammar|cosmetic|"
+    r"ortografia|ortograf[ií]a|redacci[oó]n|formato|espacios|cosmetico|cosm[eé]tico)\b",
+    re.I,
+)
+
+
+def semantic_change_analysis(text: str, note: str = "") -> dict[str, object]:
+    """Detect semantic change cues without inferring replacement facts."""
+    combined = f"{note}\n{text}"
+    triggers = sorted({match.group(0).lower() for match in SEMANTIC_CHANGE_RE.finditer(combined)})
+    cosmetic_only = bool(COSMETIC_CHANGE_RE.search(combined)) and not triggers
+    return {
+        "suspicious": bool(triggers) and not cosmetic_only,
+        "triggers": triggers,
+        "reason": "semantic-change-cue" if triggers and not cosmetic_only else "",
+    }
+
+
+def mark_suspicious_trace_links(
+    project_id: str,
+    change_id: str,
+    affected: list[str],
+    analysis: dict[str, object],
+) -> list[dict[str, object]]:
+    if not analysis.get("suspicious") or not affected:
+        return []
+    graph = load_graph(project_id)
+    affected_set = set(affected)
+    node_lookup = {node["id"]: node for node in graph.get("nodes", [])}
+    reason = str(analysis.get("reason") or "semantic-change-cue")
+    triggers = [str(item) for item in analysis.get("triggers", []) if str(item)]
+    suspicious: list[dict[str, object]] = []
+    for edge in graph.get("edges", []):
+        if edge.get("from") != change_id or edge.get("to") not in affected_set:
+            continue
+        edge["suspicious"] = True
+        edge["suspicion_reason"] = reason
+        edge["suspicion_triggers"] = triggers
+        edge["review_status"] = "needs-ba-review"
+        node = node_lookup.get(str(edge.get("to")), {})
+        suspicious.append(
+            {
+                "from": change_id,
+                "to": edge.get("to"),
+                "relation": edge.get("relation"),
+                "target_type": node.get("type", "unknown"),
+                "target_title": node.get("title", ""),
+                "reason": reason,
+                "triggers": triggers,
+            }
+        )
+    save_graph(project_id, graph)
+    return suspicious
 
 
 def sync_detection_text(base: Path, change_text: str) -> str:
@@ -378,6 +465,7 @@ def render_impact(
     sync_resolution: dict[str, object] | None = None,
     knowledge_metabolism: dict[str, object] | None = None,
     story_staleness: dict[str, object] | None = None,
+    suspicious_trace_links: list[dict[str, object]] | None = None,
 ) -> str:
     affected_rows = "\n".join(f"- `{node_id}`" for node_id in affected) or "- No existing downstream nodes found."
     gap_rows = "\n".join(
@@ -394,12 +482,17 @@ def render_impact(
     sync_resolution = sync_resolution or {}
     knowledge_metabolism = knowledge_metabolism or {}
     story_staleness = story_staleness or {}
+    suspicious_trace_links = suspicious_trace_links or []
     sync_closed_rows = "\n".join(f"- `{gap_id}`" for gap_id in sync_resolution.get("closed", [])) or "- None."
     unit_rows = "\n".join(f"- `{unit_id}`" for unit_id in knowledge_metabolism.get("impacted_knowledge_units", [])) or "- None."
     validated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("validated_assumptions", [])) or "- None."
     invalidated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("invalidated_assumptions", [])) or "- None."
     stale_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("downstream_stale_artifacts", [])) or "- None."
     stale_story_rows = "\n".join(f"- `{item}`" for item in story_staleness.get("stale_stories", [])) or "- None."
+    suspicious_rows = "\n".join(
+        f"- `{item.get('from')}` -> `{item.get('to')}` ({item.get('target_type', 'unknown')}): {item.get('reason')} via {', '.join(str(trigger) for trigger in item.get('triggers', [])) or 'semantic cue'}"
+        for item in suspicious_trace_links
+    ) or "- None."
     return f"""# Change Impact Report - {project_id}
 
 - Change: `{change_id}`
@@ -462,6 +555,10 @@ Knowledge-stale artifacts:
 Stale stories:
 
 {stale_story_rows}
+
+## Suspicious Trace Links
+
+{suspicious_rows}
 
 ## Required BA Action
 
