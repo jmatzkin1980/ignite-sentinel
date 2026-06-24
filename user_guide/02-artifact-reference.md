@@ -73,11 +73,13 @@ gap_resolution:
 backlog_gate:
   threshold: 1.0
   strict: false
+implementability_gate:
+  strict: false
 privacy_scan:
   mode: warn
 ```
 
-For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict` and `privacy_scan.mode` are opt-in hardening controls: their defaults keep backlog handoff non-blocking while still surfacing warnings.
+For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict`, `implementability_gate.strict`, and `privacy_scan.mode` are opt-in hardening controls: their defaults keep handoff non-blocking while still surfacing warnings. `implementability_gate.strict` (IMP-118) blocks the advance to `READY_FOR_SPECS` at `/brief` when any Requirement Unit has a non-inferable open gap; by default it only warns.
 
 `project_language` controls the language used for human-facing generated artifacts. Supported values:
 
@@ -207,6 +209,14 @@ It turns the mature requirement coverage rubric from `lens_review.md` into 16 ev
 - `score`: contribution to the lens/global certainty score.
 
 The summary exposes status counts, per-lens scores, a global score, high-risk assumption IDs, and a Crystallization Gate verdict. This artifact does not replace `gaps.md`, `assumptions.md`, or `knowledge_state.json`; it is a derived view that makes development uncertainty explicit for `/maturity`, `/status`, and the dashboard.
+
+Since IMP-118 the same artifact also carries `unit_implementability`: maturity read as **agent implementability per Requirement Unit** (RU, IMP-115). Beyond the rubric-area matrix above, it answers, for each cited RU × lens, whether the unit can be implemented from current discovery evidence. Each cell status is driven by the RU's anchored, still-open gaps (the `Unit` column of `gaps.md`, IMP-116):
+
+- `OPEN`: a **non-inferable** gap blocks the lens. The missing information is owned by the client — only they can answer it (e.g. a metric named with no source/definition). The unit is not implementable on that lens yet.
+- `DEFERRED_TO_CONTEXT`: the only remaining gaps are **discoverable** domain dimensions a context pack can still deepen later (technical/design/quality/frontend). They do not count as `OPEN` and do not block a small unit.
+- `CONFIRMED`: no open gap anchored to the unit on that lens.
+
+A gap is non-inferable when its lens check reads the client's own requirement text (`evidence_scope: source`); any domain scope is treated as discoverable. The `summary` lists which units are `implementable`, `deferred_to_context`, or `not_implementable`, plus an `implementability_score` and a soft governing `gate`. The gate **warns by default** which units are not implementable; opt-in `implementability_gate.strict` in `sentinel.config.yaml` blocks the advance to `READY_FOR_SPECS` at `/brief` (mirroring `brief_gate`). The pre-existing `maturity_score` is unchanged — this is an additive maturity dimension.
 
 ### `discovery_log.md`
 

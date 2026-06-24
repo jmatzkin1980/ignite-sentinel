@@ -4,7 +4,10 @@ import re
 from typing import Any
 
 from .assumptions import load_assumptions
+from .core.markdown import parse_table_rows
 from .discovery import mature_requirement_rubric
+from .gaps import parse_gap_table
+from .lens_registry import LENS_ORDER, load_lens_checks
 from .workspace import read_json, workspace_path, write_json
 
 READINESS_STATUSES = ("CONFIRMED", "ASSUMED", "OPEN")
@@ -14,6 +17,18 @@ STATUS_WEIGHTS = {
     "ASSUMED": 0.65,
     "OPEN": 0.0,
 }
+
+# IMP-118: per Requirement Unit implementability statuses. A cell is OPEN only
+# when the missing information is non-inferable and necessary to implement;
+# DEFERRED_TO_CONTEXT marks unknowns that a domain context pack can still
+# deepen later, so they do not count as OPEN and do not block small units.
+IMPLEMENTABILITY_STATUSES = ("CONFIRMED", "DEFERRED_TO_CONTEXT", "OPEN")
+# Lens checks whose evidence reads the client's own requirement text are
+# non-inferable: only the client can answer them. Every other scope
+# (technical/design/quality/frontend) is a domain dimension that a context pack
+# is expected to deepen, hence discoverable rather than blocking.
+NON_INFERABLE_SCOPE = "source"
+_UNRESOLVED_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED", "NEW_GAP"}
 
 
 def compute_development_readiness(project_id: str, persist: bool = False) -> dict[str, Any]:
@@ -37,6 +52,9 @@ def compute_development_readiness(project_id: str, persist: bool = False) -> dic
         "statuses": list(READINESS_STATUSES),
         "summary": summary,
         "matrix": matrix,
+        # IMP-118: maturity as agent implementability, scoped per Requirement
+        # Unit × lens. Additive; the rubric matrix/summary above are unchanged.
+        "unit_implementability": compute_unit_implementability(project_id),
     }
     if persist:
         out = base / "01_discovery" / "development_readiness.json"
@@ -287,3 +305,189 @@ def compact_links(links: list[dict[str, Any]]) -> list[dict[str, str]]:
         seen.add(key)
         compacted.append({"type": link_type, "target": target})
     return compacted
+
+
+# --- IMP-118: per Requirement Unit implementability matrix + soft gate --------
+#
+# Madurez = implementabilidad por agente. For each Requirement Unit (RU,
+# IMP-115) the matrix answers, per lens, whether the unit can be implemented
+# from current discovery evidence. The status of a cell is driven by the RU's
+# anchored, still-open gaps (IMP-116 ``Unit`` column in ``gaps.md``):
+#
+#   OPEN                -> a non-inferable, client-owned gap blocks the lens
+#                          (only the client can answer; the unit is not
+#                          implementable on that lens yet).
+#   DEFERRED_TO_CONTEXT -> the only remaining gaps are domain dimensions a
+#                          context pack can deepen later; discoverable, not
+#                          blocking — a small unit still advances.
+#   CONFIRMED           -> no open gap anchored to the unit on that lens.
+#
+# The classification reuses each lens check's declarative ``evidence_scope``
+# (``source`` == non-inferable; domain scopes == discoverable). Nothing here
+# touches the rubric matrix or ``crystallization_gate``; it is additive.
+
+
+def gap_scope_index() -> dict[str, str]:
+    """Map each declarative gap id to its lens check ``evidence_scope``."""
+    return {
+        str(check["id"]): str(check.get("evidence_scope", "source"))
+        for check in load_lens_checks()
+    }
+
+
+def classify_unit_gap(gap: dict[str, str], scope_index: dict[str, str]) -> str:
+    """OPEN (non-inferable) vs DEFERRED_TO_CONTEXT (domain-discoverable)."""
+    scope = scope_index.get(str(gap.get("id", "")).strip("`"), "")
+    if not scope:
+        # Unknown/agentic gap with no registry scope: business and product
+        # findings are about the client requirement itself (non-inferable);
+        # domain lenses are deepened by their context packs.
+        lens = normalize_lens(str(gap.get("lens", "")))
+        scope = NON_INFERABLE_SCOPE if lens in {"business", "product"} else "technical"
+    return "OPEN" if scope == NON_INFERABLE_SCOPE else "DEFERRED_TO_CONTEXT"
+
+
+def parse_requirement_units(path) -> list[dict[str, str]]:
+    """Read the cited Requirement Units from ``requirement_units.md`` (IMP-115)."""
+    if not path.exists():
+        return []
+    units: list[dict[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        rows = parse_table_rows(line)
+        cells = rows[0] if rows else []
+        if not cells or not cells[0].startswith("RU-"):
+            continue
+        units.append(
+            {
+                "id": cells[0],
+                "label": cells[1] if len(cells) > 1 else "",
+                "evidence_mention": cells[2] if len(cells) > 2 else "",
+            }
+        )
+    return units
+
+
+def unit_readiness(statuses: list[str]) -> str:
+    if any(status == "OPEN" for status in statuses):
+        return "NOT_IMPLEMENTABLE"
+    if any(status == "DEFERRED_TO_CONTEXT" for status in statuses):
+        return "DEFERRED_TO_CONTEXT"
+    return "IMPLEMENTABLE"
+
+
+def build_unit_implementability_matrix(
+    units: list[dict[str, str]],
+    gaps: list[dict[str, str]],
+    scope_index: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Per RU × lens implementability cells derived from anchored open gaps."""
+    unresolved = [
+        gap
+        for gap in gaps
+        if str(gap.get("status", "OPEN")).strip("`").upper() in _UNRESOLVED_GAP_STATUSES
+    ]
+    matrix: list[dict[str, Any]] = []
+    for unit in units:
+        unit_id = str(unit.get("id", "")).strip()
+        unit_gaps = [
+            gap for gap in unresolved
+            if str(gap.get("unit", "")).strip().strip("`") == unit_id
+        ]
+        cells: list[dict[str, Any]] = []
+        for lens in LENS_ORDER:
+            lens_gaps = [
+                gap for gap in unit_gaps
+                if normalize_lens(str(gap.get("lens", ""))) == lens
+            ]
+            classes = [classify_unit_gap(gap, scope_index) for gap in lens_gaps]
+            if "OPEN" in classes:
+                status = "OPEN"
+            elif "DEFERRED_TO_CONTEXT" in classes:
+                status = "DEFERRED_TO_CONTEXT"
+            else:
+                status = "CONFIRMED"
+            cells.append(
+                {
+                    "lens": lens,
+                    "status": status,
+                    "gaps": [str(gap.get("id", "")).strip("`") for gap in lens_gaps],
+                }
+            )
+        matrix.append(
+            {
+                "unit_id": unit_id,
+                "label": unit.get("label", ""),
+                "evidence_mention": unit.get("evidence_mention", ""),
+                "lenses": cells,
+                "readiness": unit_readiness([cell["status"] for cell in cells]),
+                "open_lenses": [cell["lens"] for cell in cells if cell["status"] == "OPEN"],
+                "deferred_lenses": [
+                    cell["lens"] for cell in cells if cell["status"] == "DEFERRED_TO_CONTEXT"
+                ],
+            }
+        )
+    return matrix
+
+
+def summarize_unit_implementability(matrix: list[dict[str, Any]]) -> dict[str, Any]:
+    implementable = [row["unit_id"] for row in matrix if row["readiness"] == "IMPLEMENTABLE"]
+    deferred = [row["unit_id"] for row in matrix if row["readiness"] == "DEFERRED_TO_CONTEXT"]
+    not_implementable = [row["unit_id"] for row in matrix if row["readiness"] == "NOT_IMPLEMENTABLE"]
+    total = len(matrix)
+    # A unit is "advanceable" when nothing non-inferable blocks it (implementable
+    # or only deferred-to-context). Empty matrix (legacy/no RUs) scores 1.0.
+    score = round((len(implementable) + len(deferred)) / total, 3) if total else 1.0
+    return {
+        "units_total": total,
+        "implementable": implementable,
+        "deferred_to_context": deferred,
+        "not_implementable": not_implementable,
+        "implementability_score": score,
+        "gate": unit_implementability_gate(not_implementable, deferred),
+    }
+
+
+def unit_implementability_gate(not_implementable: list[str], deferred: list[str]) -> dict[str, Any]:
+    """Soft governing verdict: warns by default, never hard-blocks here."""
+    if not_implementable:
+        state = "UNITS_NOT_IMPLEMENTABLE"
+        rationale = (
+            "Some requirement units have non-inferable open gaps; this warns by "
+            "default. Opt-in strict mode can block READY_FOR_SPECS at /brief."
+        )
+    elif deferred:
+        state = "READY_PENDING_DOMAIN_CONTEXT"
+        rationale = (
+            "No non-inferable gaps remain; the open unknowns are discoverable in "
+            "domain context packs and do not block discovery handoff."
+        )
+    else:
+        state = "ALL_UNITS_IMPLEMENTABLE"
+        rationale = "Every requirement unit is implementable from discovery evidence."
+    return {
+        "state": state,
+        "not_implementable_units": not_implementable,
+        "deferred_units": deferred,
+        "blocks_by_default": False,
+    }
+
+
+def compute_unit_implementability(project_id: str) -> dict[str, Any]:
+    """Per-RU implementability view from cited units and anchored open gaps.
+
+    Reads only local artifacts (``requirement_units.md`` + ``gaps.md``). Without
+    Requirement Units (legacy workspaces) the matrix is empty and the gate is a
+    no-op, so behavior for pre-IMP-115 workspaces is unchanged.
+    """
+    base = workspace_path(project_id)
+    units = parse_requirement_units(base / "01_discovery" / "requirement_units.md")
+    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps = parse_gap_table(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
+    scope_index = gap_scope_index()
+    matrix = build_unit_implementability_matrix(units, gaps, scope_index)
+    return {
+        "statuses": list(IMPLEMENTABILITY_STATUSES),
+        "non_inferable_scope": NON_INFERABLE_SCOPE,
+        "summary": summarize_unit_implementability(matrix),
+        "matrix": matrix,
+    }
