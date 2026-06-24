@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
-from sentinel.discovery import AnnotationError, apply_scrutiny, scrutiny_grounding_text, validate_scrutiny_gaps
+from sentinel.discovery import AnnotationError, apply_scrutiny, parse_gap_rows, scrutiny_grounding_text, validate_scrutiny_gaps
 
 RAW = (
     "# Billing Sync\n\n"
@@ -86,7 +86,7 @@ class ScrutinyLifecycleTests(unittest.TestCase):
 
         gaps_md = (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-SCRUTINY-BILLING-LATENCY"))
-        self.assertTrue(row.rstrip().endswith("| scrutiny |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "scrutiny", row)
 
         report = (self.ws / "01_discovery" / "scrutiny_report.md").read_text(encoding="utf-8")
         self.assertIn("Scrutiny Report", report)

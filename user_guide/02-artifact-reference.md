@@ -136,7 +136,7 @@ This document is designed to be shared with client or domain stakeholders. It in
 - project metadata and document version;
 - response instructions;
 - one human-friendly section per gap framed as elicitation (IMP-022): ID, title, lens, severity, description, **why it matters (risk if left open)**, **what answering it unblocks** (the downstream brief/PRD/spec section that consumes the answer), the question, the **expected response format**, an example answer, optional cited candidate options when local evidence supports them (IMP-113), and blank response fields;
-- a framework trace table with lens, severity, status, parent, question, source consulted, detected trigger, and `Origin` (`checklist` for deterministic gaps; `agent` for gaps contributed through `/annotate`, IMP-021).
+- a framework trace table with lens, severity, status, parent, question, source consulted, detected trigger, `Origin` (`checklist` for deterministic gaps; `agent` for gaps contributed through `/annotate`, IMP-021), and `Unit` — the `RU-*` Requirement Unit the gap is anchored to (IMP-116). Lenses run per unit: each unit's cited evidence is scoped on its own, so a trigger token present in one unit no longer suppresses an inquisitive gap that belongs to another. Document-level gaps and legacy workspaces leave `Unit` as `N/A`.
 
 When the answered document returns, save it under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` and run `/resolve-gaps PROJECT_ID --source PATH`.
 

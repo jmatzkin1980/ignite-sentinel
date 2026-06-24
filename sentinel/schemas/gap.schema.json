@@ -12,6 +12,7 @@
     "lens": { "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"] },
     "origin": { "enum": ["checklist", "agent", "challenge", "scrutiny"], "default": "checklist" },
     "question": { "type": "string" },
-    "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." }
+    "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." },
+    "unit": { "type": "string", "pattern": "^RU-[0-9]{3}$", "description": "Optional Requirement Unit (RU-*) the gap is anchored to (IMP-116). Absent for document-level gaps and legacy workspaces." }
   }
 }
