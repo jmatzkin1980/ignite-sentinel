@@ -40,7 +40,7 @@ LENSES_DIR = _DEFAULT_LENSES_DIR
 # here are appended alphabetically, so a brand-new lens still loads.
 LENS_ORDER = ("business", "product", "quality", "technical", "compliance", "delivery", "design")
 
-VALID_RULES = {"absent_tokens", "mention_without_counterpart", "metric_without_source"}
+VALID_RULES = {"absent_tokens", "mention_without_counterpart", "mention_requires_counterpart", "metric_without_source"}
 VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
 
 

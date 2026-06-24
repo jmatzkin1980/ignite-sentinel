@@ -84,6 +84,58 @@
         "measured"
       ],
       "why": "Una metrica sin baseline ni fuente no es medible ni comprometible."
+    },
+    {
+      "id": "GAP-METRIC-DEFINITION",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "A metric, KPI, or indicator concept is named without its definition, formula, unit, source, or threshold.",
+      "triggers": [
+        "metrica",
+        "métrica",
+        "metricas",
+        "métricas",
+        "metric",
+        "metrics",
+        "kpi",
+        "kpis",
+        "indicador",
+        "indicadores",
+        "indicator",
+        "indicators",
+        "scorecard",
+        "metric card",
+        "metric cards",
+        "tarjeta de metrica",
+        "tarjetas de metricas"
+      ],
+      "counterparts": [
+        "definicion",
+        "definición",
+        "definition",
+        "formula",
+        "fórmula",
+        "calculo",
+        "cálculo",
+        "calculation",
+        "se calcula",
+        "computed",
+        "unidad",
+        "unit",
+        "fuente",
+        "source",
+        "baseline",
+        "linea base",
+        "línea base",
+        "umbral",
+        "threshold",
+        "medido",
+        "measured",
+        "metodo de medicion",
+        "método de medición"
+      ],
+      "why": "Nombrar una metrica/kpi/indicador sin su definicion, fuente o umbral no la hace medible; la contracara ausente ancla la pregunta en vez de apagarla (IMP-117)."
     }
   ]
 }
