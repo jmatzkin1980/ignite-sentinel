@@ -127,6 +127,28 @@ def brief_gate_warnings(readiness: dict[str, object], language: str = "en") -> l
     return warnings
 
 
+def implementability_gate_warnings(summary: dict[str, object], language: str = "en") -> list[str]:
+    """Warnings naming the RUs that are not implementable yet (IMP-118).
+
+    Soft by default: these explain which units carry non-inferable open gaps so
+    the BA can chase the answers, without blocking the advance to specs.
+    """
+    warnings: list[str] = []
+    not_implementable = summary.get("not_implementable", []) if isinstance(summary, dict) else []
+    for unit_id in not_implementable:  # type: ignore[union-attr]
+        if language == "es":
+            warnings.append(
+                f"Unidad `{unit_id}` no es implementable aún: tiene gaps no-inferibles "
+                f"abiertos que solo el cliente puede responder antes de specs."
+            )
+        else:
+            warnings.append(
+                f"Unit `{unit_id}` is not implementable yet: it has open non-inferable "
+                f"gaps only the client can answer before specs."
+            )
+    return warnings
+
+
 def prd_section_readiness(prd_text: str) -> dict[str, object]:
     """Classify numbered PRD sections as populated/pending and score coverage."""
     bodies: dict[str, list[str]] = {}
@@ -351,6 +373,14 @@ def maturity_metrics(project_id: str, persist_development_readiness: bool = Fals
         project_id,
         persist=persist_development_readiness,
     )
+    # IMP-118: surface the per-RU implementability summary at top level so
+    # /maturity and /status report which units are implementable, deferred to
+    # domain context, or not implementable, without breaking maturity_score.
+    development_readiness = metrics["development_readiness"]
+    if isinstance(development_readiness, dict):
+        unit_impl = development_readiness.get("unit_implementability", {})
+        if isinstance(unit_impl, dict):
+            metrics["unit_implementability"] = unit_impl.get("summary", {})
     return metrics
 
 
@@ -416,6 +446,20 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     readiness = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
     below = float(readiness["coverage_score"]) < threshold
     warnings = brief_gate_warnings(readiness, language) if below else []
+    # IMP-118: soft governing gate on per-RU implementability. By default it
+    # only warns which units are not implementable (non-inferable open gaps);
+    # opt-in strict mode blocks the advance to READY_FOR_SPECS, mirroring
+    # brief_gate. Discoverable (deferred-to-context) units never block.
+    from .development_readiness import compute_unit_implementability
+
+    impl_gate_cfg = config.get("implementability_gate", {})
+    impl_gate_cfg = impl_gate_cfg if isinstance(impl_gate_cfg, dict) else {}
+    impl_strict = bool(impl_gate_cfg.get("strict", False))
+    impl = compute_unit_implementability(project_id)
+    impl_summary = impl.get("summary", {}) if isinstance(impl, dict) else {}
+    not_implementable = list(impl_summary.get("not_implementable", []))
+    impl_warnings = implementability_gate_warnings(impl_summary, language) if not_implementable else []
+    warnings = warnings + impl_warnings
     gap_counts = count_gaps(parse_gap_rows(gaps_text))
     readiness_stage = readiness_stage_for_counts(gap_counts)
     has_blocking_gaps = bool(gap_counts.get("blocking_open", 0))
@@ -426,9 +470,15 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
         "brief_section_readiness": readiness,
         "warnings": warnings,
         "brief_gate": {"threshold": threshold, "strict": strict, "below_threshold": below},
+        "implementability": impl_summary,
+        "implementability_gate": {"strict": impl_strict, "not_implementable_units": not_implementable},
     }
     if strict and below:
         update_state(project_id, phase="brief_below_threshold", readiness_stage="BRIEF_BELOW_THRESHOLD")
+        result["blocked"] = True
+        return result
+    if impl_strict and not_implementable:
+        update_state(project_id, phase="units_not_implementable", readiness_stage="UNITS_NOT_IMPLEMENTABLE")
         result["blocked"] = True
         return result
     update_state(
