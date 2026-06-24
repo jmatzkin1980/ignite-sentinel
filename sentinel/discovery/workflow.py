@@ -1202,6 +1202,59 @@ SCRUTINY_FINDING_TYPES = {
     "domain-conflict",
 }
 
+# --- IMP-119: agentic implementability probe (pre-flight) ---------------------
+#
+# The probe is a sub-mode of /scrutinize (not a new command — it reuses the same
+# citation/merge machinery and adds no command surface, mirroring IMP-112). An
+# agent declares, per Requirement Unit, whether it has enough to implement or
+# what it is missing — materialized as cited gaps anchored to `RU-*`, the
+# pre-flight mirror of the downstream `/implementation-feedback`. Findings carry
+# a probe-specific finding_type vocabulary and `origin: implementability-probe`;
+# nothing is auto-resolved, and every finding still requires a verbatim local
+# citation, exactly like scrutiny.
+
+PROBE_FINDING_TYPES = {
+    "missing-context",
+    "non-inferable-gap",
+    "ambiguous-for-implementation",
+}
+
+SCRUTINY_MODES = {
+    "scrutiny": {
+        "origin": "scrutiny",
+        "finding_types": SCRUTINY_FINDING_TYPES,
+        "report_name": "scrutiny_report.md",
+        "store_dir": "scrutiny",
+        "node_type": "scrutiny_report",
+        "node_label": "Scrutiny report",
+        "raw_relation": "scrutinized_by",
+        "state_key": "last_scrutiny_id",
+        "origin_count_key": "scrutiny_origin",
+        "require_unit": False,
+    },
+    "implementability-probe": {
+        "origin": "implementability-probe",
+        "finding_types": PROBE_FINDING_TYPES,
+        "report_name": "implementability_probe_report.md",
+        "store_dir": "implementability_probe",
+        "node_type": "implementability_probe",
+        "node_label": "Implementability probe",
+        "raw_relation": "probed_by",
+        "state_key": "last_probe_id",
+        "origin_count_key": "implementability_probe_origin",
+        "require_unit": True,
+    },
+}
+
+
+def _scrutiny_mode(mode: str | None) -> dict[str, object]:
+    key = (mode or "scrutiny").strip().lower()
+    if key not in SCRUTINY_MODES:
+        raise AnnotationError(
+            f"Unknown scrutiny mode '{mode}': must be one of {', '.join(sorted(SCRUTINY_MODES))}."
+        )
+    return SCRUTINY_MODES[key]
+
 
 def _finding_type_by_gap(data: dict) -> dict[str, str]:
     mapping: dict[str, str] = {}
@@ -1214,8 +1267,15 @@ def _finding_type_by_gap(data: dict) -> dict[str, str]:
     return mapping
 
 
-def validate_scrutiny_gaps(data: dict, grounding_text: str, lens: str | None = None) -> list[dict[str, str]]:
-    gaps = validate_agent_gaps(data, grounding_text, origin="scrutiny")
+def validate_scrutiny_gaps(
+    data: dict,
+    grounding_text: str,
+    lens: str | None = None,
+    mode: str | None = "scrutiny",
+    known_units: set[str] | None = None,
+) -> list[dict[str, str]]:
+    spec = _scrutiny_mode(mode)
+    gaps = validate_agent_gaps(data, grounding_text, origin=str(spec["origin"]))
     valid_lenses = known_lenses()
     if lens:
         lens = lens.strip().lower()
@@ -1228,17 +1288,34 @@ def validate_scrutiny_gaps(data: dict, grounding_text: str, lens: str | None = N
             raise AnnotationError(
                 f"Scrutiny source includes gaps outside --lens {lens}: {', '.join(mismatched)}."
             )
+    finding_types = spec["finding_types"]
     raw_items = data.get("gaps", [])
     for item in raw_items if isinstance(raw_items, list) else []:
         if not isinstance(item, dict):
             continue
         finding_type = str(item.get("finding_type", item.get("type", ""))).strip()
-        if finding_type and finding_type not in SCRUTINY_FINDING_TYPES:
+        if finding_type and finding_type not in finding_types:
             gap_id = str(item.get("id", "<unknown>")).strip().upper()
             raise AnnotationError(
                 f"{gap_id}: finding_type '{finding_type}' must be one of "
-                f"{', '.join(sorted(SCRUTINY_FINDING_TYPES))}."
+                f"{', '.join(sorted(finding_types))}."
             )
+    if spec["require_unit"]:
+        # The probe is per-RU: every finding must anchor to a Requirement Unit,
+        # and (when the unit register exists) to a real one — it cites, never
+        # invents the unit it claims is unimplementable.
+        for gap in gaps:
+            unit = gap.get("unit", "")
+            if not unit:
+                raise AnnotationError(
+                    f"{gap['id']}: the implementability probe requires a 'unit' (RU-NNN) "
+                    "so each finding anchors to the Requirement Unit it blocks."
+                )
+            if known_units is not None and unit not in known_units:
+                raise AnnotationError(
+                    f"{gap['id']}: unit '{unit}' is not a known Requirement Unit "
+                    "(run discovery to extract RUs; the probe cites real units, never invents them)."
+                )
     return gaps
 
 
@@ -1281,8 +1358,77 @@ Skipped (already present in gaps.md): {skipped_block}
 """
 
 
-def apply_scrutiny(project_id: str, source: Path, lens: str | None = None) -> dict[str, object]:
-    """Validate and merge systematic multi-lens scrutiny findings (IMP-066)."""
+def known_requirement_unit_ids(base: Path) -> set[str]:
+    """RU ids declared in 01_discovery/requirement_units.md (IMP-115), or empty."""
+    units_path = base / "01_discovery" / "requirement_units.md"
+    if not units_path.exists():
+        return set()
+    ids: set[str] = set()
+    for row in parse_table_rows(units_path.read_text(encoding="utf-8")):
+        if row and RU_ID_RE.match(row[0].strip().strip("`")):
+            ids.add(row[0].strip().strip("`"))
+    return ids
+
+
+def render_probe_report(
+    project_id: str,
+    label: str,
+    merged: list[dict[str, str]],
+    skipped: list[str],
+    data: dict,
+) -> str:
+    """Per-RU implementability probe report (IMP-119)."""
+    finding_types = _finding_type_by_gap(data)
+    by_unit: dict[str, list[dict[str, str]]] = {}
+    for gap in merged:
+        by_unit.setdefault(gap.get("unit", "—"), []).append(gap)
+    unit_blocks = []
+    for unit in sorted(by_unit):
+        rows = "\n".join(
+            f"| `{gap['id']}` | {gap['lens']} | {gap['severity']} | {finding_types.get(gap['id'], 'n/a')} | {gap['question']} | {gap.get('evidence_mention', '')} |"
+            for gap in by_unit[unit]
+        )
+        unit_blocks.append(
+            f"### Unit: `{unit}`\n\n"
+            "| Gap ID | Lens | Severity | Finding Type | Missing To Implement | Evidence Cited |\n"
+            "| --- | --- | --- | --- | --- | --- |\n"
+            f"{rows}"
+        )
+    unit_section = "\n\n".join(unit_blocks) or "_No new probe gaps merged (all duplicates)._"
+    skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
+    return f"""# Implementability Probe Report - {project_id}
+
+Source: `{label}`. Origin: `implementability-probe`.
+
+A coding agent probed, per Requirement Unit, whether it has enough to implement
+each unit before any work begins — the pre-flight mirror of
+`/implementation-feedback`. Every finding below was validated by the runtime
+(declared lens, severity range, a probe finding type, an anchoring `RU-*`, and a
+verbatim local citation) before merging as a gap. The agent declares what is
+missing; nothing is auto-resolved and the BA remains in control.
+
+## Probe Findings By Requirement Unit
+
+{unit_section}
+
+Skipped (already present in gaps.md): {skipped_block}
+"""
+
+
+def apply_scrutiny(
+    project_id: str,
+    source: Path,
+    lens: str | None = None,
+    mode: str | None = "scrutiny",
+) -> dict[str, object]:
+    """Validate and merge systematic multi-lens scrutiny findings (IMP-066).
+
+    With ``mode="implementability-probe"`` (IMP-119) the same machinery runs the
+    pre-flight implementability probe: per-RU cited gaps, probe finding types,
+    and ``origin: implementability-probe``.
+    """
+    spec = _scrutiny_mode(mode)
+    is_probe = spec["origin"] == "implementability-probe"
     base = workspace_path(project_id)
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
@@ -1296,7 +1442,8 @@ def apply_scrutiny(project_id: str, source: Path, lens: str | None = None) -> di
 
     lens_filter = lens.strip().lower() if lens else None
     data = load_agent_annotation(source)
-    scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter)
+    known_units = known_requirement_unit_ids(base) if spec["require_unit"] else None
+    scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter, mode=mode, known_units=known_units)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
@@ -1316,64 +1463,74 @@ def apply_scrutiny(project_id: str, source: Path, lens: str | None = None) -> di
     language = _annotation_project_language(project_id, base)
     gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
 
-    scrutiny_dir = base / "01_discovery" / "scrutiny"
-    scrutiny_dir.mkdir(parents=True, exist_ok=True)
-    stored = _unique_path(scrutiny_dir / f"{source.stem}.json")
+    store_dir = base / "01_discovery" / str(spec["store_dir"])
+    store_dir.mkdir(parents=True, exist_ok=True)
+    stored = _unique_path(store_dir / f"{source.stem}.json")
     shutil.copyfile(source, stored)
 
-    report_path = base / "01_discovery" / "scrutiny_report.md"
-    report_path.write_text(
-        render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter),
-        encoding="utf-8",
-    )
+    report_path = base / "01_discovery" / str(spec["report_name"])
+    if is_probe:
+        report_text = render_probe_report(project_id, source.stem, merged_new, skipped, data)
+    else:
+        report_text = render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter)
+    report_path.write_text(report_text, encoding="utf-8")
 
     graph_nodes = load_graph(project_id).get("nodes", [])
-    scrutiny_id = add_node(
+    node_type = str(spec["node_type"])
+    report_id = add_node(
         project_id,
         "DISC",
-        "scrutiny_report",
+        node_type,
         report_path,
-        f"Scrutiny report: {source.stem}",
+        f"{spec['node_label']}: {source.stem}",
         domain="product",
     )
     for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
-        add_edge(project_id, raw_node["id"], scrutiny_id, "scrutinized_by")
+        add_edge(project_id, raw_node["id"], report_id, str(spec["raw_relation"]))
     for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
-        add_edge(project_id, scrutiny_id, gap_node["id"], "raises")
+        add_edge(project_id, report_id, gap_node["id"], "raises")
 
     broker = ContextBroker(project_id)
     broker.index_artifact(
-        scrutiny_id,
-        "scrutiny_report",
+        report_id,
+        node_type,
         report_path,
         report_path.read_text(encoding="utf-8"),
-        trace_ids=[scrutiny_id],
+        trace_ids=[report_id],
     )
     ledger = refresh_knowledge_ledger(project_id, broker)
-    mark_source_processed(project_id, source, "scrutiny_applied", scrutiny_id)
+    mark_source_processed(project_id, source, f"{spec['origin']}_applied", report_id)
 
     counts = count_gaps(merged)
-    counts["scrutiny_origin"] = sum(1 for gap in merged if gap.get("origin") == "scrutiny")
+    origin = str(spec["origin"])
+    counts[str(spec["origin_count_key"])] = sum(1 for gap in merged if gap.get("origin") == origin)
     updates: dict[str, object] = {
         "gap_counts": counts,
         "readiness_stage": readiness_stage_for_counts(counts),
-        "last_scrutiny_id": scrutiny_id,
+        str(spec["state_key"]): report_id,
         "knowledge_ledger_summary": ledger["payload"]["summary"],
     }
     if counts.get("blocking_open", 0):
         updates["health"] = "DIRTY"
     update_state(project_id, **updates)
 
-    return {
+    result: dict[str, object] = {
         "project_id": project_id,
-        "scrutiny_id": scrutiny_id,
+        "mode": origin,
         "path": str(gaps_path.as_posix()),
-        "scrutiny_report": str(report_path.as_posix()),
+        "report": str(report_path.as_posix()),
         "knowledge_state": str(ledger["md_path"].as_posix()),
         "merged": [gap["id"] for gap in merged_new],
         "skipped_duplicates": skipped,
         "gap_counts": counts,
     }
+    if is_probe:
+        result["probe_id"] = report_id
+        result["implementability_probe_report"] = str(report_path.as_posix())
+    else:
+        result["scrutiny_id"] = report_id
+        result["scrutiny_report"] = str(report_path.as_posix())
+    return result
 
 
 def render_requirement(project_id: str, req_text: str, raw_id: str) -> str:

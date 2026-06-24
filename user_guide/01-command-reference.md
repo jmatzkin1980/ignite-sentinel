@@ -255,6 +255,18 @@ Outputs:
 - refreshed `01_discovery/knowledge_state.md` and `.json`
 - `gap_counts.scrutiny_origin` in `state.json` (visible in `/status`)
 
+### Sub-mode: implementability probe (IMP-119)
+
+```powershell
+python -m sentinel /scrutinize PROJECT_ID --mode implementability-probe --source PATH
+```
+
+`--mode implementability-probe` runs the pre-flight, per-Requirement-Unit mirror of `/implementation-feedback`: a coding agent declares, before any work starts, what it is missing to implement each `RU-*` (IMP-115). It reuses the same citation and merge machinery as the default `scrutiny` mode, with three differences:
+
+- every finding **must** carry a `unit` (`RU-NNN`) anchor, and (when `requirement_units.md` exists) it must be a real RU — the probe cites units, it does not invent them;
+- `finding_type` is `missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`;
+- accepted findings are tagged `origin: implementability-probe`, written to `01_discovery/implementability_probe_report.md` (grouped by Requirement Unit), and copied under `01_discovery/implementability_probe/`. A `implementability_probe` traceability node is linked from the raw input (`probed_by`) and `gap_counts.implementability_probe_origin` appears in `state.json`. The source JSON follows `implementability_probe.schema.json`. Nothing is auto-resolved.
+
 ## `self-review`
 
 Run a skeptical self-review over generated PRD/spec artifacts and register cited findings without rewriting the artifacts under review.

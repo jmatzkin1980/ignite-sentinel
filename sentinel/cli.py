@@ -109,6 +109,11 @@ def main(argv: list[str] | None = None) -> int:
     scrutinize_p.add_argument("project_id")
     scrutinize_p.add_argument("--source", required=True)
     scrutinize_p.add_argument("--lens")
+    scrutinize_p.add_argument(
+        "--mode",
+        default="scrutiny",
+        choices=["scrutiny", "implementability-probe"],
+    )
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -258,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "scrutinize":
             from .discovery import apply_scrutiny
 
-            result = apply_scrutiny(args.project_id, Path(args.source), args.lens)
+            result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
             print_json(result)
         elif args.command == "self-review":
             from .self_review import apply_self_review

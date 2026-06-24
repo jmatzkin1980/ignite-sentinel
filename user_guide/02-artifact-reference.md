@@ -173,6 +173,12 @@ Versionable record of the deep scrutiny pass contributed through `/scrutinize` (
 
 These gaps carry `origin: scrutiny` in `gaps.md`, create a `scrutiny_report` traceability node, and refresh `knowledge_state.md/json` so open scrutiny findings stay visible as governed ledger units instead of becoming free-form agent notes. The raw JSON source is archived under `01_discovery/scrutiny/`.
 
+### `implementability_probe_report.md`
+
+Versionable record of the pre-flight implementability probe contributed through `/scrutinize --mode implementability-probe` (IMP-119), the per-Requirement-Unit mirror of `/implementation-feedback`. It groups cited findings by `RU-*`: each finding states what a coding agent is missing to implement that unit, typed as `missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`. Every finding must anchor to a real Requirement Unit and quote local evidence verbatim; uncited or unanchored findings are rejected before anything is merged.
+
+These gaps carry `origin: implementability-probe` in `gaps.md`, create an `implementability_probe` traceability node (`probed_by` the raw input), and surface in `gap_counts.implementability_probe_origin`. The raw JSON source (schema `implementability_probe.schema.json`) is archived under `01_discovery/implementability_probe/`. The probe only signals — it never auto-resolves a gap.
+
 ### `assumptions.md`
 
 Governed assumption register contributed through `/assume` (IMP-067). It records explicit BA-owned assumptions with lens, statement, human owner, risk level, verbatim local justification, optional provisional `GAP-*` link, and lifecycle status.
