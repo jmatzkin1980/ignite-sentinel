@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/implementability_probe.schema.json",
+  "title": "Ignite Sentinel Implementability Probe",
+  "description": "Pre-flight, per-Requirement-Unit declaration by a coding agent of what is missing to implement (IMP-119). Mirror of scrutiny.schema.json with a probe finding-type vocabulary and a required RU anchor.",
+  "type": "object",
+  "required": ["gaps"],
+  "additionalProperties": true,
+  "properties": {
+    "gaps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "lens", "severity", "question", "evidence", "finding_type", "unit"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^GAP-[A-Z0-9-]+$"
+          },
+          "unit": {
+            "type": "string",
+            "pattern": "^RU-[0-9]{3}$",
+            "description": "Requirement Unit (IMP-115) this finding blocks. The probe is per-RU."
+          },
+          "lens": {
+            "type": "string",
+            "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "finding_type": {
+            "type": "string",
+            "enum": ["missing-context", "non-inferable-gap", "ambiguous-for-implementation"]
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What is missing to implement this unit, phrased as a cited question."
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verbatim local quote from raw input or domain context."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
