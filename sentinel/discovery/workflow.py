@@ -51,7 +51,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         add_edge(project_id, unit_id, req_id, "analyzes")
     units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
 
-    gaps = detect_gaps(text, context)
+    gaps = detect_unit_anchored_gaps(text, context, requirement_units)
     gap_path = base / "01_discovery" / "gaps.md"
     gap_path.write_text(render_gaps(project_id, gaps, req_id, language), encoding="utf-8")
     gap_id = add_node(
@@ -500,6 +500,77 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
     return gaps
 
 
+def unit_scope_text(unit: dict[str, str], text: str) -> str:
+    """Cited evidence scope for a Requirement Unit (IMP-116).
+
+    Returns the source sentence(s) that mention the unit, so lens checks can be
+    evaluated against the unit's own cited text instead of the whole document.
+    Falls back to the unit label when no sentence carries the mention verbatim.
+    """
+    mention = str(unit.get("evidence_mention", "")).strip().lower()
+    sentences = [
+        sentence
+        for sentence in requirement_sentences(text)
+        if mention and mention in sentence.lower()
+    ]
+    if sentences:
+        return " ".join(sentences)
+    return str(unit.get("label", "")).strip()
+
+
+def anchoring_unit_for_gap(gap: dict[str, str], units: list[dict[str, str]], text: str) -> str:
+    """Return the RU id whose cited scope explains an inquisitive gap (IMP-116).
+
+    Only gaps carrying a detected trigger (``evidence_mention``) are anchored;
+    document-level ``absent_tokens`` gaps stay unanchored. The first unit (stable
+    RU order) whose scoped text contains the trigger wins.
+    """
+    mention = str(gap.get("evidence_mention", "")).strip().lower()
+    if not mention or mention == "n/a":
+        return ""
+    for unit in units:
+        if mention in unit_scope_text(unit, text).lower():
+            return str(unit.get("id", ""))
+    return ""
+
+
+def detect_unit_anchored_gaps(
+    text: str,
+    context: dict[str, str] | None = None,
+    units: list[dict[str, str]] | None = None,
+    lenses_dir=None,
+) -> list[dict[str, str]]:
+    """Run lens checks globally and per Requirement Unit (IMP-116).
+
+    Document-level detection is unchanged: every gap ``detect_gaps`` would emit
+    is still produced. When Requirement Units (IMP-115) exist, each unit's cited
+    evidence is also scoped on its own, so a trigger token present in one unit
+    can no longer suppress an inquisitive gap that belongs to another unit. Each
+    emitted gap carries the RU that explains it in an additive ``unit`` field;
+    document-level gaps without a unit scope stay unanchored. Without units the
+    result is identical to ``detect_gaps`` (back-compat for existing workspaces).
+    """
+    base_gaps = detect_gaps(text, context, lenses_dir)
+    if not units:
+        return base_gaps
+    by_id = {gap["id"]: gap for gap in base_gaps}
+    for gap in base_gaps:
+        gap["unit"] = anchoring_unit_for_gap(gap, units, text)
+    for unit in units:
+        scope = unit_scope_text(unit, text)
+        for gap in detect_gaps(scope, context, lenses_dir):
+            if gap["id"] in by_id:
+                continue
+            # Only inquisitive (trigger-bearing) gaps are surfaced per unit;
+            # document-level absent_tokens gaps remain a single global signal.
+            if not str(gap.get("evidence_mention", "")).strip():
+                continue
+            gap["unit"] = str(unit.get("id", ""))
+            by_id[gap["id"]] = gap
+            base_gaps.append(gap)
+    return base_gaps
+
+
 def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
     counts = {
         "open": 0,
@@ -579,6 +650,7 @@ def readiness_stage_for_counts(counts: dict[str, int]) -> str:
 # the normal resolve/maturity/gate lifecycle).
 
 GAP_ID_RE = re.compile(r"^GAP-[A-Z0-9-]+$")
+RU_ID_RE = re.compile(r"^RU-[0-9]{3}$")
 
 
 class AnnotationError(RuntimeError):
@@ -671,18 +743,25 @@ def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None, origin: str 
                 "An agent must cite real text, never invent it."
             )
         description = str(item.get("description", "")).strip() or question
-        validated.append(
-            {
-                "id": gap_id,
-                "lens": lens,
-                "severity": severity,
-                "status": "OPEN",
-                "description": description,
-                "question": question,
-                "evidence_mention": evidence if len(evidence) <= 160 else evidence[:157] + "...",
-                "origin": origin,
-            }
-        )
+        gap = {
+            "id": gap_id,
+            "lens": lens,
+            "severity": severity,
+            "status": "OPEN",
+            "description": description,
+            "question": question,
+            "evidence_mention": evidence if len(evidence) <= 160 else evidence[:157] + "...",
+            "origin": origin,
+        }
+        unit = str(item.get("unit", "")).strip().upper()
+        if unit:
+            if not RU_ID_RE.match(unit):
+                raise AnnotationError(
+                    f"{gap_id}: unit '{item.get('unit')}' must match ^RU-[0-9]{{3}}$ "
+                    "(a Requirement Unit id, IMP-116)."
+                )
+            gap["unit"] = unit
+        validated.append(gap)
     return validated
 
 
@@ -1377,8 +1456,8 @@ def source_consulted_text(language: str) -> str:
 
 def none_gap_row(language: str) -> str:
     if language == "es":
-        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A | checklist |"
-    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist |"
+        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A | checklist | N/A | N/A |"
+    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist | N/A | N/A |"
 
 
 def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
@@ -1393,9 +1472,9 @@ def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
         source_consulted_text(language),
         gap.get("evidence_mention") or "N/A",
         gap.get("origin", "checklist"),
+        gap.get("resolution_note") or "N/A",
+        gap.get("unit") or "N/A",
     ]
-    if gap.get("resolution_note"):
-        cells.append(gap["resolution_note"])
     return "| " + " | ".join(cells) + " |"
 
 
@@ -1468,8 +1547,8 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución | Unidad |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Trazabilidad de resolución
@@ -1509,8 +1588,8 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note | Unit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Resolution Trace

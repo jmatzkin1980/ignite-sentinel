@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
-from sentinel.discovery import AnnotationError, apply_challenge, validate_agent_gaps
+from sentinel.discovery import AnnotationError, apply_challenge, parse_gap_rows, validate_agent_gaps
 
 RAW = (
     "# Expense Approval\n\n"
@@ -85,7 +85,7 @@ class ChallengeLifecycleTests(unittest.TestCase):
         # gap merged with origin challenge in the trace table
         gaps_md = (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-GOVERNANCE-CONSTRAINTS"))
-        self.assertTrue(row.rstrip().endswith("| challenge |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "challenge", row)
 
         # challenge_report.md exists, names the lens, technique, and pre-mortem
         report = (self.ws / "01_discovery" / "challenge_report.md").read_text(encoding="utf-8")
@@ -108,7 +108,7 @@ class ChallengeLifecycleTests(unittest.TestCase):
         self.assertEqual(main(["gaps", "CHL"]), 0)
         gaps_md = (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-GOVERNANCE-CONSTRAINTS"))
-        self.assertTrue(row.rstrip().endswith("| challenge |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "challenge", row)
 
     def test_cli_challenge_runs(self):
         self.assertEqual(main(["challenge", "CHL", "--source", str(self._write({"gaps": [_finding()]}))]), 0)

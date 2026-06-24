@@ -1005,7 +1005,7 @@ Second section paragraph.
             from sentinel.mcp import build_server
 
             tools = asyncio.new_event_loop().run_until_complete(build_server().list_tools())
-            self.assertEqual(len(tools), 27)
+            self.assertEqual(len(tools), 30)
 
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"

@@ -22,7 +22,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
-from sentinel.discovery import AnnotationError, apply_annotation, validate_agent_gaps
+from sentinel.discovery import AnnotationError, apply_annotation, parse_gap_rows, validate_agent_gaps
 
 ROOT = Path(__file__).parent
 
@@ -110,7 +110,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
         self.assertIn("| Detected Trigger | Origin |", gaps_md)
         # the merged row carries origin agent in the trace table
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-DATA-RETENTION"))
-        self.assertTrue(row.rstrip().endswith("| agent |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "agent", row)
 
         # traceability: agent_annotation node + edges
         graph = (self.ws / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
@@ -132,7 +132,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
         self.assertEqual(main(["gaps", "ANN"]), 0)
         gaps_md = (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-DATA-RETENTION"))
-        self.assertTrue(row.rstrip().endswith("| agent |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "agent", row)
 
     def test_duplicate_gap_is_skipped(self):
         ann = self._write_annotation({"gaps": [_gap()]})
@@ -157,7 +157,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
         row = next(line for line in gaps_md.splitlines() if line.startswith("| GAP-DATA-RETENTION"))
         self.assertIn("CLOSED", row)
         # origin tag is preserved through resolution re-render
-        self.assertTrue(row.rstrip().endswith("| agent |"), row)
+        self.assertEqual(parse_gap_rows(row)[0].get("origin"), "agent", row)
 
     def test_cli_rejects_fabricated_evidence(self):
         bad = self._write_annotation({"gaps": [_gap(evidence="totally invented quote")]})

@@ -18,6 +18,7 @@ GAP_ROW_FIELDS = (
     "evidence_mention",
     "origin",
     "resolution_note",
+    "unit",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED"}
