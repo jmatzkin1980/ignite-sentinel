@@ -486,6 +486,20 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             if mention:
                 gap["evidence_mention"] = mention
             gaps.append(gap)
+        elif rule == "mention_requires_counterpart":
+            # IMP-117: end false maturity for surface concepts. Unlike
+            # ``mention_without_counterpart`` (which fires unless a counterpart is
+            # present, trigger optional), this rule fires ONLY when the concept is
+            # actually named (trigger present) and its counterpart is absent, so a
+            # bare mention of a metric/auth concept anchors the question instead of
+            # passing as coverage. No trigger -> nothing to ask.
+            mention = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
+            if not mention:
+                continue
+            if any(token in evidence for token in check.get("counterparts", ())):
+                continue
+            gap["evidence_mention"] = mention
+            gaps.append(gap)
         elif rule == "metric_without_source":
             metric_match = METRIC_RE.search(text)
             metric_sentence = ""
@@ -1503,6 +1517,8 @@ def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
         "GAP-BACKLOG-SLICING-READINESS": "No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia.",
         "GAP-BACKLOG-ENABLERS": "No estan claros los enablers transversales validos: trabajo de implementacion frontend/backend o arquitectura que debe construirse antes para soportar funcionalidades confirmadas dentro del boundary del proyecto.",
         "GAP-QUALITY-HANDOFF": "El handoff a Calidad no está suficientemente explícito: flujos críticos, casos borde, datos de prueba, riesgos de regresión o evidencia esperada.",
+        "GAP-METRIC-DEFINITION": "Se nombra una métrica, KPI o indicador sin su definición, fórmula, unidad, fuente ni umbral.",
+        "GAP-AUTH-MODEL": "Se mencionan autenticación, permisos o roles sin el método de autenticación, el modelo de permisos ni el catálogo de roles.",
     }
     return descriptions.get(gap["id"], gap["description"])
 
@@ -1613,6 +1629,8 @@ def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
             "GAP-BACKEND-SURFACE": f'El input menciona "{mention}" pero no describe contratos, persistencia ni comportamiento ante fallas.',
             "GAP-TECH-DEEP-DIVE-INPUT": f'El input menciona "{mention}" pero no aporta arquitectura, repositorios ni source of truth para profundizar.',
             "GAP-METRIC-SOURCE": f'La métrica "{mention}" aparece sin fuente, baseline ni método de medición.',
+            "GAP-METRIC-DEFINITION": f'El input menciona "{mention}" pero no define la métrica: falta fórmula/unidad, fuente o umbral.',
+            "GAP-AUTH-MODEL": f'El input menciona "{mention}" pero no describe el método de autenticación, el modelo de permisos ni el catálogo de roles.',
         }
         return notes.get(gap["id"], f'El input menciona "{mention}" pero no describe la información faltante de este gap.')
     notes = {
@@ -1623,6 +1641,8 @@ def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
         "GAP-BACKEND-SURFACE": f'The input mentions "{mention}" but does not describe contracts, persistence, or failure behavior.',
         "GAP-TECH-DEEP-DIVE-INPUT": f'The input mentions "{mention}" but provides no architecture, repository, or source-of-truth input to deepen it.',
         "GAP-METRIC-SOURCE": f'The metric "{mention}" appears without a source, baseline, or measurement method.',
+        "GAP-METRIC-DEFINITION": f'The input mentions "{mention}" but does not define the metric: missing formula/unit, source, or threshold.',
+        "GAP-AUTH-MODEL": f'The input mentions "{mention}" but does not describe the auth method, permission model, or role catalog.',
     }
     return notes.get(gap["id"], f'The input mentions "{mention}" but does not describe the missing information for this gap.')
 
@@ -1809,6 +1829,8 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-BACKLOG-SLICING-READINESS": "Preparacion de slicing de backlog",
             "GAP-BACKLOG-ENABLERS": "Enablers transversales validos",
             "GAP-QUALITY-HANDOFF": "Handoff de calidad",
+            "GAP-METRIC-DEFINITION": "Definición de métrica",
+            "GAP-AUTH-MODEL": "Modelo de auth y permisos",
         }
         return titles.get(gap_id, "Información necesaria")
     titles = {
@@ -1833,6 +1855,8 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-BACKLOG-SLICING-READINESS": "Backlog Slicing Readiness",
         "GAP-BACKLOG-ENABLERS": "Valid Cross-Cutting Enablers",
         "GAP-QUALITY-HANDOFF": "Quality Handoff",
+        "GAP-METRIC-DEFINITION": "Metric Definition",
+        "GAP-AUTH-MODEL": "Auth And Permission Model",
     }
     return titles.get(gap_id, "Information Needed")
 
@@ -1881,6 +1905,8 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
             "GAP-BACKLOG-SLICING-READINESS": "El backlog necesita saber cual es el primer slice de valor, que variantes pueden diferirse y donde no conviene cortar por debajo del valor.",
             "GAP-BACKLOG-ENABLERS": "Los enablers transversales solo son validos si son implementacion previa/cross que soporta funcionalidad confirmada dentro del boundary del proyecto.",
             "GAP-QUALITY-HANDOFF": "QA necesita flujos críticos, casos borde, datos y expectativas de evidencia para profundizar cobertura.",
+            "GAP-METRIC-DEFINITION": "Una métrica nombrada sin definición, fuente ni umbral no es medible ni comprometible y arrastra ambigüedad a KPIs y criterios de éxito.",
+            "GAP-AUTH-MODEL": "Sin método de autenticación, modelo de permisos ni catálogo de roles, la superficie de acceso queda indefinida para diseño, backend y seguridad.",
         }
         return reasons.get(gap_id, "Esta información es necesaria para evitar supuestos en artefactos downstream.")
     reasons = {
@@ -1905,6 +1931,8 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
         "GAP-BACKLOG-SLICING-READINESS": "Backlog needs the first value slice, deferrable variants, and the boundary where splitting smaller would stop producing value.",
         "GAP-BACKLOG-ENABLERS": "Cross-cutting enablers are valid only when they are advance/cross implementation work that supports confirmed functionality inside the project boundary.",
         "GAP-QUALITY-HANDOFF": "QA needs critical flows, edge cases, data, and evidence expectations to deepen coverage.",
+        "GAP-METRIC-DEFINITION": "A metric named without a definition, source, or threshold is not measurable or commitable and drags ambiguity into KPIs and success criteria.",
+        "GAP-AUTH-MODEL": "Without an auth method, permission model, or role catalog, the access surface stays undefined for design, backend, and security.",
     }
     return reasons.get(gap_id, "This information is needed to avoid assumptions in downstream artifacts.")
 
@@ -1953,6 +1981,8 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-BACKLOG-SLICING-READINESS": "Primer slice: usuario autorizado ve un caso de alto riesgo con datos vigentes. Diferir exportacion, bulk actions y reglas avanzadas. No dividir en crear boton/endpoint/tabla porque ninguna parte sola valida valor.",
             "GAP-BACKLOG-ENABLERS": "Enabler valido: soporte backend compartido para consultas de riesgo y permisos por rol del flujo, con validacion objetiva. No enabler: 'asegurar que una herramienta interna sea accesible'; eso es precondicion operacional.",
             "GAP-QUALITY-HANDOFF": "Tests críticos: alto riesgo, riesgo normal, datos de fuente desactualizados, permisos faltantes, cola vacía y regresión de filtros existentes.",
+            "GAP-METRIC-DEFINITION": "La métrica 'tiempo de resolución' se define como promedio de horas entre apertura y cierre, fuente Case Management, baseline 8h, umbral objetivo 6h.",
+            "GAP-AUTH-MODEL": "Autenticación vía SSO corporativo (OIDC). Permisos por RBAC con roles 'lead' (lectura total) y 'agent' (solo su cola); catálogo de roles owner Seguridad.",
         }
         return examples.get(gap_id, "Una respuesta útil indica decisión, owner/fuente, evidencia y si está confirmado o pendiente.")
     examples = {
@@ -1977,6 +2007,8 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-BACKLOG-SLICING-READINESS": "First slice: authorized user sees one high-risk case with current data. Defer export, bulk actions, and advanced rules. Do not split into button/endpoint/table because none validates value alone.",
         "GAP-BACKLOG-ENABLERS": "Valid enabler: shared backend support for risk queries and role permissions for the flow, with objective validation. Not an enabler: 'make an internal tool accessible'; that is an operational precondition.",
         "GAP-QUALITY-HANDOFF": "Critical tests: high risk, normal risk, stale source data, missing permissions, empty queue, and regression of existing filters.",
+        "GAP-METRIC-DEFINITION": "The 'resolution time' metric is the average hours between open and close, source Case Management, baseline 8h, target threshold 6h.",
+        "GAP-AUTH-MODEL": "Authentication via corporate SSO (OIDC). Permissions via RBAC with roles 'lead' (full read) and 'agent' (own queue only); role catalog owned by Security.",
     }
     return examples.get(gap_id, "A useful answer names the decision, owner/source, evidence, and whether the answer is confirmed or pending.")
 
@@ -2025,6 +2057,8 @@ def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-PRD-DEPENDENCIES-ROADMAP": "El plan de ejecución del PRD (dependencias, MVP, roadmap).",
             "GAP-PRD-ROLLOUT-ENVIRONMENTS": "El plan de ejecución del PRD (rollout, ambientes y restricciones de release).",
             "GAP-PRD-GLOSSARY-GOVERNANCE": "La sección de Gobernanza del PRD (glosario, restricciones, audit trail).",
+            "GAP-METRIC-DEFINITION": "Los KPIs del brief y la sección de NFRs/KPIs y medición del PRD.",
+            "GAP-AUTH-MODEL": "Los actores/permisos del brief, la sección de gobernanza/seguridad del PRD y la superficie de acceso de specs.",
         }
         return unblocks.get(gap_id, "Una sección downstream de brief/PRD/spec que hoy no tiene evidencia confirmada para consumir.")
     unblocks = {
@@ -2055,6 +2089,8 @@ def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-DEPENDENCIES-ROADMAP": "The PRD Execution Plan (dependencies, MVP, roadmap).",
         "GAP-PRD-ROLLOUT-ENVIRONMENTS": "The PRD Execution Plan (rollout, environments, and release constraints).",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "The PRD Governance section (glossary, constraints, audit trail).",
+        "GAP-METRIC-DEFINITION": "Brief KPIs and the PRD NFRs/KPIs and measurement section.",
+        "GAP-AUTH-MODEL": "Brief actors/permissions, the PRD governance/security section, and the specs access surface.",
     }
     return unblocks.get(gap_id, "A downstream brief/PRD/spec section that currently has no confirmed evidence to consume.")
 
@@ -2090,6 +2126,8 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencias con owner y fases del roadmap.",
             "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Ambientes objetivo, estrategia de rollout, restricciones de release y criterio de rollback.",
             "GAP-PRD-GLOSSARY-GOVERNANCE": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+            "GAP-METRIC-DEFINITION": "Por métrica: definición/fórmula, unidad, fuente/owner del dato, baseline y umbral objetivo.",
+            "GAP-AUTH-MODEL": "Método de autenticación, modelo de permisos (p. ej. RBAC) y catálogo de roles con sus alcances.",
         }
         return formats.get(gap_id, "Una decisión más owner/fuente, evidencia y si está confirmada o pendiente.")
     formats = {
@@ -2120,6 +2158,8 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-DEPENDENCIES-ROADMAP": "MVP, dependencies with owner, and roadmap phases.",
         "GAP-PRD-ROLLOUT-ENVIRONMENTS": "Target environments, rollout strategy, release constraints, and rollback criterion.",
         "GAP-PRD-GLOSSARY-GOVERNANCE": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+        "GAP-METRIC-DEFINITION": "Per metric: definition/formula, unit, data source/owner, baseline, and target threshold.",
+        "GAP-AUTH-MODEL": "Authentication method, permission model (e.g. RBAC), and role catalog with their scopes.",
     }
     return formats.get(gap_id, "A decision plus owner/source, evidence, and whether it is confirmed or pending.")
 
@@ -2544,7 +2584,7 @@ def lens_signal(domain: str, context: dict[str, str]) -> str:
 
 
 def lens_for_gap(gap_id: str) -> str:
-    if "TECH" in gap_id:
+    if "TECH" in gap_id or "AUTH" in gap_id:
         return "technical"
     if "DESIGN" in gap_id:
         return "design"
@@ -2586,6 +2626,8 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-BACKLOG-SLICING-READINESS": "¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?",
             "GAP-BACKLOG-ENABLERS": "¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?",
             "GAP-QUALITY-HANDOFF": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
+            "GAP-METRIC-DEFINITION": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
+            "GAP-AUTH-MODEL": "¿Qué método de autenticación, modelo de permisos y catálogo de roles aplican para esta capacidad?",
         }
         return questions.get(gap_id, "¿Qué información confirmada resuelve esta incertidumbre?")
     questions = {
@@ -2611,6 +2653,8 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-BACKLOG-SLICING-READINESS": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?",
         "GAP-BACKLOG-ENABLERS": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?",
         "GAP-QUALITY-HANDOFF": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
+        "GAP-METRIC-DEFINITION": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
+        "GAP-AUTH-MODEL": "Which authentication method, permission model, and role catalog apply to this capability?",
     }
     return questions.get(gap_id, "What confirmed information resolves this uncertainty?")
 

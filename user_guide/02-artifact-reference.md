@@ -720,7 +720,8 @@ Cada lente tiene una lista `checks`; cada check declara:
 - `description`: qué falta (en inglés, como en los artefactos).
 - `rule`: cómo dispara el check.
   - `absent_tokens`: dispara cuando **ninguno** de los `tokens` aparece en la evidencia.
-  - `mention_without_counterpart`: tier inquisitivo — dispara cuando se menciona una superficie (`triggers`) pero falta su contracara (`counterparts`); ancla la pregunta a la mención detectada.
+  - `mention_without_counterpart`: tier inquisitivo de superficie — dispara salvo que aparezca una contracara (`counterparts`); el `trigger` es opcional y solo aporta la cita. Pensado para superficies amplias (frontend/backend) donde la pregunta corresponde aunque la palabra exacta no esté.
+  - `mention_requires_counterpart` (IMP-117): fin de la falsa madurez para **conceptos-superficie** (métrica/kpi/indicador, auth/login/permiso/rol). Dispara **solo** cuando el concepto está nombrado (`triggers` presente) y falta su contracara (`counterparts`); si el concepto no se menciona, no pregunta nada. Severidad `medium` (madura sin bloquear); ancla la pregunta a la mención citada.
   - `metric_without_source`: dispara cuando hay una métrica cuantitativa pero no aparece ninguno de los `suppressors` (palabras de fuente/baseline).
 - `evidence_scope`: qué texto lee la regla — `source | technical | design | quality | frontend | all`.
 - `why` (opcional): la experiencia de campo que motiva el check; notas del equipo, se muestran en el context-request.

@@ -169,6 +169,50 @@
         " sad "
       ],
       "why": "Tecnologia no puede analizar arquitectura sin repos, source of truth ni diagramas."
+    },
+    {
+      "id": "GAP-AUTH-MODEL",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Authentication, permissions, or roles are named without the auth method, permission model, or role catalog.",
+      "triggers": [
+        "auth",
+        "autenticacion",
+        "autenticación",
+        "login",
+        "logueo",
+        "permiso",
+        "permisos",
+        "permission",
+        "permissions",
+        " roles",
+        " role "
+      ],
+      "counterparts": [
+        "sso",
+        "oauth",
+        "oidc",
+        "saml",
+        "ldap",
+        "openid",
+        "auth method",
+        "metodo de autenticacion",
+        "método de autenticación",
+        "permission model",
+        "modelo de permisos",
+        "rbac",
+        "abac",
+        "role catalog",
+        "catalogo de roles",
+        "catálogo de roles",
+        "access policy",
+        "politica de acceso",
+        "política de acceso",
+        "identity provider",
+        "active directory"
+      ],
+      "why": "Mencionar auth/permiso/rol sin metodo de autenticacion, modelo de permisos ni catalogo de roles deja la superficie de acceso indefinida; la contracara ausente ancla la pregunta (IMP-117)."
     }
   ]
 }
