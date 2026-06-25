@@ -56,8 +56,14 @@
   },
   "knowledge_ledger": {
     "min_total": 1,
-    "required_statuses": ["CONFIRMED", "OPEN"],
-    "required_lenses": ["business", "product"],
+    "required_statuses": [
+      "CONFIRMED",
+      "OPEN"
+    ],
+    "required_lenses": [
+      "business",
+      "product"
+    ],
     "require_evidence_or_pending": true
   },
   "scrutinize": {
@@ -82,7 +88,11 @@
   },
   "development_readiness": {
     "min_areas": 16,
-    "required_statuses": ["CONFIRMED", "ASSUMED", "OPEN"],
+    "required_statuses": [
+      "CONFIRMED",
+      "ASSUMED",
+      "OPEN"
+    ],
     "expected_verdict": "NOT_READY_OPEN_UNCERTAINTY",
     "expected_area_statuses": {
       "Data and integrations": {
@@ -95,12 +105,17 @@
   },
   "metabolism": {
     "sync_source": "assumption_invalidation.md",
-    "expected_invalidated_assumptions": ["ASM-TECH-SUPPORT-METRICS"],
+    "expected_invalidated_assumptions": [
+      "ASM-TECH-SUPPORT-METRICS"
+    ],
     "expected_unit_status_by_assumption": {
       "ASM-TECH-SUPPORT-METRICS": "OPEN"
     },
     "expected_stale_artifact_contains": "project-brief.md",
-    "expected_impact_terms": ["Knowledge Ledger Metabolism", "ASM-TECH-SUPPORT-METRICS"],
+    "expected_impact_terms": [
+      "Knowledge Ledger Metabolism",
+      "ASM-TECH-SUPPORT-METRICS"
+    ],
     "require_impacted_units": true,
     "expect_health_dirty": true
   },
@@ -118,12 +133,19 @@
     "rationale": "Sections 1 (objective: reduce weekly-review prep time, 30% target), 2 (actor: support team leads) and 3 (scope: read-only dashboard for current quarter, editing out of scope) have confirmed evidence yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },
   "prd": {
-    "target_populated": ["1", "3", "4", "6"],
+    "target_populated": [
+      "1",
+      "3",
+      "4",
+      "6"
+    ],
     "rationale": "The PRD should eventually compile executive problem/outcome, personas, functional requirements, and KPI detail from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
   },
   "backlog": {
     "expected_story_count": 1,
-    "expected_story_ids": ["US-001"],
+    "expected_story_ids": [
+      "US-001"
+    ],
     "expected_source_units": [],
     "expect_pending_stub": true,
     "require_no_invented_stories": true,
@@ -136,33 +158,55 @@
     "rationale": "The synthetic acceptance answer is GWT prose, not EARS, so the backlog phase must keep a pending stub and avoid the old fixed value-story scaffold."
   },
   "ears": {
-    "expected_eligible_not_normalized": ["GAP-ACCEPTANCE"],
+    "expected_eligible_not_normalized": [
+      "GAP-ACCEPTANCE"
+    ],
     "rationale": "The synthetic response is confirmed and functional but written as Given/When/Then prose, not a strict EARS statement. IMP-047 must mark it as EARS-eligible without normalizing it automatically."
   },
   "golden_queries": [
     {
-      "id": "GQ-METRIC",
-      "query": "what is the success metric and target for the dashboard",
+      "id": "GQ-DATASOURCE",
+      "query": "systems and data ownership and source of truth for ticket data",
       "workflow": "specs",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "expected_section": "GAP-TECH-DATA-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "The 30% preparation-effort target is the success metric; a same-language query should retrieve the requirement/gap chunk."
+      "rationale": "Where dashboard ticket data comes from and who owns it."
     },
     {
-      "id": "GQ-USERS",
-      "query": "who are the users of the dashboard",
-      "workflow": "brief",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "id": "GQ-ACCEPTANCE",
+      "query": "what acceptance signal confirms the dashboard is done",
+      "workflow": "specs",
+      "expected_section": "GAP-ACCEPTANCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "Support team leads are the actors; same-language retrieval must surface the requirement evidence."
+      "rationale": "The acceptance/quality bar for the dashboard is undescribed."
+    },
+    {
+      "id": "GQ-JOURNEY",
+      "query": "what is the success metric and target users for the dashboard",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Distractor-competitive query (echoes success/metric/users/scope vocabulary shared with the multi-domain distractor corpus): hash retrieval misses the correct section AND surfaces a wrong-domain distractor. Falsifiable target IMP-121+ must lift while keeping distractors out."
     },
     {
       "id": "GQ-XLING-METRIC",
-      "query": "cual es la metrica de exito y el objetivo del tablero",
+      "query": "fuente de la metrica linea base y metodo de medicion del tablero",
       "workflow": "specs",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "cross-lingual",
-      "rationale": "Cross-lingual ES query over EN content. Expected to FAIL with the hash embedding (no semantics); this is the falsifiable target IMP-029 must move above 0."
+      "rationale": "Cross-lingual section query; expected to FAIL with hash embeddings (no semantics) and become a hard gate once a semantic local embedder is active (IMP-029/121)."
     }
   ]
 }

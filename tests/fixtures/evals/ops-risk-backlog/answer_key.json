@@ -37,17 +37,35 @@
   },
   "knowledge_ledger": {
     "min_total": 1,
-    "required_statuses": ["CONFIRMED", "OPEN"],
-    "required_lenses": ["business", "product"],
+    "required_statuses": [
+      "CONFIRMED",
+      "OPEN"
+    ],
+    "required_lenses": [
+      "business",
+      "product"
+    ],
     "require_evidence_or_pending": true
   },
   "brief": {
-    "target_populated": ["1", "2", "3"],
-    "target_pending": ["4", "5", "6"],
+    "target_populated": [
+      "1",
+      "2",
+      "3"
+    ],
+    "target_pending": [
+      "4",
+      "5",
+      "6"
+    ],
     "rationale": "The objective, users, scope, and selected domain context are present; delivery/governance detail remains pending."
   },
   "prd": {
-    "target_populated": ["1", "3", "4"],
+    "target_populated": [
+      "1",
+      "3",
+      "4"
+    ],
     "rationale": "The PRD has enough confirmed evidence for problem, personas, and functional requirements; detailed KPI source/method remains pending."
   },
   "backlog": {
@@ -90,7 +108,9 @@
     "rationale": "IMP-048 must derive one value story per confirmed Spec Unit instead of the previous fixed five-story seed."
   },
   "backlog_refinement": {
-    "expected_accepted": ["BREF-OPS-001"],
+    "expected_accepted": [
+      "BREF-OPS-001"
+    ],
     "expect_origin_agent": true,
     "rationale": "IMP-059 validates an agentic backlog refinement with verbatim local citations and renders it as origin agent."
   },
@@ -108,19 +128,33 @@
       "Ready": 1,
       "Done": 0
     },
-    "must_contain": ["# Backlog Board -", "### Ready", "`US-004`", "Ops BA"],
+    "must_contain": [
+      "# Backlog Board -",
+      "### Ready",
+      "`US-004`",
+      "Ops BA"
+    ],
     "rationale": "IMP-052 validates the BA-facing backlog board and persisted rollup after governed story status changes, including concrete EPIC-002 enabler stories when they are materialized as backlog items."
   },
   "slice_plan": {
     "expected_stories_total": 10,
     "expected_enablers_min": 1,
     "require_enablers_first": true,
-    "expected_handoff_packs": ["US-004"],
-    "must_contain": ["# Slice Plan -", "## Phase 0 - Enablers", "## Implementation Waves", "Per-Story Handoff Packs"],
+    "expected_handoff_packs": [
+      "US-004"
+    ],
+    "must_contain": [
+      "# Slice Plan -",
+      "## Phase 0 - Enablers",
+      "## Implementation Waves",
+      "Per-Story Handoff Packs"
+    ],
     "rationale": "IMP-053 validates the deterministic handoff plan: concrete EPIC-002 enablers are sequenced before value-story waves and each story has a machine-readable handoff pack."
   },
   "story_quality": {
-    "expected_stories": ["US-004"],
+    "expected_stories": [
+      "US-004"
+    ],
     "min_score": 0.8,
     "required_checks": [
       "slicing_pattern_governed",
@@ -131,7 +165,10 @@
       "independent_dependencies"
     ],
     "expect_dor_item": "story_quality_invest",
-    "must_contain": ["INVEST/SPIDR Score", "Story Quality Checks"],
+    "must_contain": [
+      "INVEST/SPIDR Score",
+      "Story Quality Checks"
+    ],
     "rationale": "IMP-056 validates that /quality evaluates the governed INVEST/SPIDR/Lawrence model per story, persists story_quality, and feeds the DoR warning surface without replacing the slicing model."
   },
   "backlog_hooks": {
@@ -147,7 +184,12 @@
     "expected_min_seeds": 4,
     "expected_ac": "AC-001-01",
     "expect_boundary_note": true,
-    "must_contain": ["## Task Seed Contract", "TSEED-US-001-01", "AC-001-01", "Ignite does not execute"],
+    "must_contain": [
+      "## Task Seed Contract",
+      "TSEED-US-001-01",
+      "AC-001-01",
+      "Ignite does not execute"
+    ],
     "rationale": "IMP-054 validates the optional task-seed seam: only when /backlog --with-task-seeds is used, stories expose ordered implementation intentions traced to AC and critical surfaces, with an explicit no-tasking boundary."
   },
   "implementation_feedback": {
@@ -161,12 +203,48 @@
   },
   "golden_queries": [
     {
-      "id": "GQ-RISK-METRIC",
-      "query": "what metric measures operations preparation improvement",
+      "id": "GQ-DATASOURCE",
+      "query": "systems and data ownership and source of truth for the risk queues",
       "workflow": "specs",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "expected_section": "GAP-TECH-DATA-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "The requirement states the 30 percent preparation reduction metric."
+      "rationale": "Where risk-queue data comes from is undescribed."
+    },
+    {
+      "id": "GQ-METRIC",
+      "query": "what is the success metric and baseline for manual preparation",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "The 30% preparation metric lacks baseline/source."
+    },
+    {
+      "id": "GQ-GOVERNANCE",
+      "query": "what is the success metric and target users and scope for the dashboard",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Distractor-competitive query (echoes success/metric/users/scope vocabulary shared with the multi-domain distractor corpus): hash retrieval misses the correct section AND surfaces a wrong-domain distractor. Falsifiable target IMP-121+ must lift while keeping distractors out."
+    },
+    {
+      "id": "GQ-XLING-JOURNEY",
+      "query": "recorrido del usuario y pantallas del tablero de riesgo",
+      "workflow": "brief",
+      "expected_section": "GAP-DESIGN-FLOW",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual section query; expected to FAIL with hash embeddings (no semantics) and become a hard gate once a semantic local embedder is active (IMP-029/121)."
     }
   ]
 }

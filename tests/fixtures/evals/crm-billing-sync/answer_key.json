@@ -56,8 +56,14 @@
   },
   "knowledge_ledger": {
     "min_total": 1,
-    "required_statuses": ["CONFIRMED", "OPEN"],
-    "required_lenses": ["business", "product"],
+    "required_statuses": [
+      "CONFIRMED",
+      "OPEN"
+    ],
+    "required_lenses": [
+      "business",
+      "product"
+    ],
     "require_evidence_or_pending": true
   },
   "brief": {
@@ -74,12 +80,18 @@
     "rationale": "Sections 1 (objective), 2 (users) and 3 (scope) are confirmed in the requirement (see must_not_fire) yet render as TBD. IMP-024 must populate them with citations; sections 4-6 stay [PENDING INPUT]. Baseline brief_target_coverage 0.00."
   },
   "prd": {
-    "target_populated": ["1", "3", "4"],
+    "target_populated": [
+      "1",
+      "3",
+      "4"
+    ],
     "rationale": "The PRD should eventually compile executive problem/outcome, personas, and functional requirements from confirmed evidence instead of template prose. IMP-038 records the current low baseline."
   },
   "backlog": {
     "expected_story_count": 1,
-    "expected_story_ids": ["US-001"],
+    "expected_story_ids": [
+      "US-001"
+    ],
     "expected_source_units": [],
     "expect_pending_stub": true,
     "require_no_invented_stories": true,
@@ -92,33 +104,55 @@
     "rationale": "The confirmed answer is GWT prose, not EARS, so no Spec Unit is emitted and /backlog must preserve a pending stub instead of inventing value stories."
   },
   "ears": {
-    "expected_eligible_not_normalized": ["GAP-ACCEPTANCE"],
+    "expected_eligible_not_normalized": [
+      "GAP-ACCEPTANCE"
+    ],
     "rationale": "The synthetic acceptance response is confirmed prose, not strict EARS. IMP-047 must mark it as EARS-eligible without automatic normalization."
   },
   "golden_queries": [
     {
-      "id": "GQ-CRM-OBJECTIVE",
-      "query": "what is the objective of syncing CRM customer records into billing",
+      "id": "GQ-ACCEPTANCE",
+      "query": "what acceptance signal confirms the sync is correct",
       "workflow": "specs",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "expected_section": "GAP-ACCEPTANCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "The requirement states billing should always work with current customer information."
+      "rationale": "Acceptance for the CRM-billing sync is undescribed."
     },
     {
-      "id": "GQ-CRM-SCOPE",
-      "query": "which data is in scope and what stays out of scope",
-      "workflow": "brief",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "id": "GQ-GOVERNANCE",
+      "query": "governance constraints and compliance for customer data",
+      "workflow": "specs",
+      "expected_section": "GAP-GOVERNANCE-CONSTRAINTS",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "Customer master data is in scope; product catalog and pricing are explicitly out of scope."
+      "rationale": "Governance over customer master data is undescribed."
     },
     {
-      "id": "GQ-CRM-XLING-USERS",
-      "query": "quienes son los usuarios afectados por la sincronizacion",
-      "workflow": "brief",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "id": "GQ-METRIC",
+      "query": "what is the success metric and target users for the integration",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Distractor-competitive query (echoes success/metric/users/scope vocabulary shared with the multi-domain distractor corpus): hash retrieval misses the correct section AND surfaces a wrong-domain distractor. Falsifiable target IMP-121+ must lift while keeping distractors out."
+    },
+    {
+      "id": "GQ-XLING-DATASOURCE",
+      "query": "sistemas y propiedad de los datos y fuente de verdad de los clientes",
+      "workflow": "specs",
+      "expected_section": "GAP-TECH-DATA-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "cross-lingual",
-      "rationale": "Cross-lingual ES query over EN content for finance back office/account manager actors."
+      "rationale": "Cross-lingual section query; expected to FAIL with hash embeddings (no semantics) and become a hard gate once a semantic local embedder is active (IMP-029/121)."
     }
   ]
 }
