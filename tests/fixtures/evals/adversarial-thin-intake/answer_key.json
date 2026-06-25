@@ -45,13 +45,24 @@
   },
   "knowledge_ledger": {
     "min_total": 1,
-    "required_statuses": ["OPEN"],
-    "required_lenses": ["business", "product", "quality"],
+    "required_statuses": [
+      "OPEN"
+    ],
+    "required_lenses": [
+      "business",
+      "product",
+      "quality"
+    ],
     "require_evidence_or_pending": true
   },
   "brief": {
     "target_populated": [],
-    "target_pending": ["1", "4", "5", "6"],
+    "target_pending": [
+      "1",
+      "4",
+      "5",
+      "6"
+    ],
     "rationale": "A thin intake may render superficial actor/process narrative from the raw text, but business value, design, technology, and governance must stay pending and downstream must remain blocked."
   },
   "lifecycle_guards": {
@@ -67,22 +78,64 @@
     "blocked_commands": [
       {
         "name": "specs blocked while blocking discovery gaps remain",
-        "command": ["specs", "{project_id}"]
+        "command": [
+          "specs",
+          "{project_id}"
+        ]
       },
       {
         "name": "backlog blocked while blocking discovery gaps remain",
-        "command": ["backlog", "{project_id}"]
+        "command": [
+          "backlog",
+          "{project_id}"
+        ]
       }
     ]
   },
   "golden_queries": [
     {
-      "id": "GQ-THIN-REPORTING",
-      "query": "what does the client want to improve",
-      "workflow": "discovery",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "id": "GQ-ACCEPTANCE",
+      "query": "what acceptance signal confirms the reports are done",
+      "workflow": "specs",
+      "expected_section": "GAP-ACCEPTANCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "Even a thin intake should remain retrievable for follow-up discovery."
+      "rationale": "Thin intake leaves acceptance undescribed."
+    },
+    {
+      "id": "GQ-SCOPE",
+      "query": "what is the scope and boundary of the reporting",
+      "workflow": "brief",
+      "expected_section": "GAP-SCOPE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Thin intake leaves scope undescribed."
+    },
+    {
+      "id": "GQ-METRIC",
+      "query": "what is the success metric and target users for the reports",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Distractor-competitive query (echoes success/metric/users/scope vocabulary shared with the multi-domain distractor corpus): hash retrieval misses the correct section AND surfaces a wrong-domain distractor. Falsifiable target IMP-121+ must lift while keeping distractors out."
+    },
+    {
+      "id": "GQ-XLING-ACCEPTANCE",
+      "query": "fuente de la metrica linea base y metodo de medicion de los reportes",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual section query; expected to FAIL with hash embeddings (no semantics) and become a hard gate once a semantic local embedder is active (IMP-029/121)."
     }
   ]
 }

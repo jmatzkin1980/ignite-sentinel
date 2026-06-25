@@ -41,20 +41,41 @@
   },
   "knowledge_ledger": {
     "min_total": 1,
-    "required_statuses": ["CONFIRMED", "OPEN"],
-    "required_lenses": ["business", "product", "quality"],
+    "required_statuses": [
+      "CONFIRMED",
+      "OPEN"
+    ],
+    "required_lenses": [
+      "business",
+      "product",
+      "quality"
+    ],
     "require_evidence_or_pending": true
   },
   "brief": {
-    "target_populated": ["1", "2"],
-    "target_pending": ["4", "5", "6"],
+    "target_populated": [
+      "1",
+      "2"
+    ],
+    "target_pending": [
+      "4",
+      "5",
+      "6"
+    ],
     "rationale": "Partial answers may improve identity/users and the brief may narrate the apparent app/process, but vague scope and acceptance responses must keep downstream readiness constrained."
   },
   "rejection_scenarios": [
     {
       "name": "fabricated annotation rejected without mutating discovery",
-      "command": ["annotate", "{project_id}", "--source", "fixture:invalid_annotation.json"],
-      "output_contains": ["evidence quote is not found verbatim"],
+      "command": [
+        "annotate",
+        "{project_id}",
+        "--source",
+        "fixture:invalid_annotation.json"
+      ],
+      "output_contains": [
+        "evidence quote is not found verbatim"
+      ],
       "unchanged_paths": [
         "01_discovery/gaps.md",
         "01_discovery/knowledge_state.md"
@@ -63,7 +84,10 @@
         "01_discovery/gaps.md",
         "01_discovery/knowledge_state.md"
       ],
-      "forbidden_text": ["GAP-FABRICATED-OPS-DATA", "Mercury platform"]
+      "forbidden_text": [
+        "GAP-FABRICATED-OPS-DATA",
+        "Mercury platform"
+      ]
     }
   ],
   "lifecycle_guards": {
@@ -79,18 +103,57 @@
     "blocked_commands": [
       {
         "name": "specs blocked while answered and partially closed gaps remain",
-        "command": ["specs", "{project_id}"]
+        "command": [
+          "specs",
+          "{project_id}"
+        ]
       }
     ]
   },
   "golden_queries": [
     {
-      "id": "GQ-PARTIAL-USERS",
-      "query": "who are the users after the partial gap response",
-      "workflow": "brief",
-      "expected_artifacts": ["requirements.md", "gaps.md"],
+      "id": "GQ-ACCEPTANCE",
+      "query": "what acceptance signal confirms the helper is done",
+      "workflow": "specs",
+      "expected_section": "GAP-ACCEPTANCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
       "kind": "same-language",
-      "rationale": "The confirmed user response should remain retrievable even though the requirement is not mature."
+      "rationale": "Acceptance for the ops review helper is undescribed."
+    },
+    {
+      "id": "GQ-FRONTEND",
+      "query": "frontend surface roles and states for the helper",
+      "workflow": "specs",
+      "expected_section": "GAP-FRONTEND-SURFACE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Frontend surface of the helper is undescribed."
+    },
+    {
+      "id": "GQ-SCOPE",
+      "query": "what is the success metric target users and scope of the helper",
+      "workflow": "brief",
+      "expected_section": "GAP-SCOPE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "same-language",
+      "rationale": "Distractor-competitive query (echoes success/metric/users/scope vocabulary shared with the multi-domain distractor corpus): hash retrieval misses the correct section AND surfaces a wrong-domain distractor. Falsifiable target IMP-121+ must lift while keeping distractors out."
+    },
+    {
+      "id": "GQ-XLING-ACCEPTANCE",
+      "query": "fuente de la metrica linea base y metodo de medicion del asistente",
+      "workflow": "specs",
+      "expected_section": "GAP-METRIC-SOURCE",
+      "expected_artifacts": [
+        "gaps.md"
+      ],
+      "kind": "cross-lingual",
+      "rationale": "Cross-lingual section query; expected to FAIL with hash embeddings (no semantics) and become a hard gate once a semantic local embedder is active (IMP-029/121)."
     }
   ]
 }

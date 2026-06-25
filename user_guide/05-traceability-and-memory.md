@@ -124,6 +124,8 @@ Sentinel auto-detects local embedders in this order:
 
 The semantic levels are optional. Runtime retrieval never calls an external embedding API and never downloads a model. If a semantic package or model is unavailable, Sentinel keeps using deterministic local hash embeddings and the JSON hybrid fallback remains fully supported.
 
+Retrieval quality is measured by a falsifiable eval harness (`tests/test_evals_retrieval.py`). Each fixture is scored with section-level golden queries (a query must retrieve a specific artifact section, not just any chunk of the right file) over a workspace seeded with a shared multi-domain distractor corpus. The JSON report under `tests/evals/reports/` compares recall@5, MRR, cross-lingual recall, and distractor discrimination `by_backend` and `by_embedder`. In the deterministic hash fallback, same-language recall is intentionally below the trivial 1.0 ceiling and cross-lingual recall sits near zero — that gap is the falsifiable target a local semantic embedder is expected to lift, and the harness stays green as a non-regression floor.
+
 It is used by:
 
 ```powershell
