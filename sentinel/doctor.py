@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .adapters import manifest_command_names, runtime_command_names
-from .memory import ContextBroker, active_embedder_status
+from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
 from .portability import stdlib_purity_violations
 
 
@@ -337,15 +337,27 @@ def semantic_embedder_check() -> dict[str, str]:
                 f"version={status['version']}"
             ),
         }
+    detail = "semantic embedder not active; deterministic hash_embedding fallback is active. "
+    try:
+        diagnostics = embedder_diagnostics()
+    except Exception:  # noqa: BLE001 - diagnosis is best-effort and must never break /doctor
+        diagnostics = {"candidates": [], "recommendation": ""}
+    reasons = "; ".join(
+        f"{candidate.get('level')}: {candidate.get('outcome')}"
+        for candidate in diagnostics.get("candidates", [])
+        if candidate.get("outcome")
+    )
+    if reasons:
+        detail += f"Candidates — {reasons}. "
+    detail += diagnostics.get("recommendation") or (
+        "Install optional local models with `python -m pip install -e .[memory-semantic]` "
+        "and pre-seed the model cache or set SENTINEL_MODEL2VEC_MODEL / "
+        "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+    )
     return {
         "name": "memory embedder: semantic local (optional)",
         "status": "WARN",
-        "detail": (
-            "semantic embedder not active; deterministic hash_embedding fallback is active. "
-            "Install optional local models with `python -m pip install -e .[memory-semantic]` "
-            "and pre-seed the model cache or set SENTINEL_MODEL2VEC_MODEL / "
-            "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
-        ),
+        "detail": detail,
     }
 
 

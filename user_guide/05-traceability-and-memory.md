@@ -124,6 +124,36 @@ Sentinel auto-detects local embedders in this order:
 
 The semantic levels are optional. Runtime retrieval never calls an external embedding API and never downloads a model. If a semantic package or model is unavailable, Sentinel keeps using deterministic local hash embeddings and the JSON hybrid fallback remains fully supported.
 
+### Enabling local semantic embeddings offline
+
+Semantic retrieval is a first-class but optional upgrade, measured (not assumed) by the retrieval eval harness below. To enable it without ever touching the network:
+
+1. Install the optional packages in the same environment that runs `python -m sentinel`:
+
+   ```powershell
+   python -m pip install -e .[memory-semantic]
+   ```
+
+2. Make a multilingual model available **locally**. Either pre-seed the model cache offline, or point Sentinel at a local model directory:
+
+   ```powershell
+   $env:SENTINEL_MODEL2VEC_MODEL = "C:\models\potion-multilingual-128M"
+   # or, for the sentence-transformers level:
+   $env:SENTINEL_SENTENCE_TRANSFORMERS_MODEL = "C:\models\paraphrase-multilingual-MiniLM-L12-v2"
+   ```
+
+   Sentinel loads models with `local_files_only` enforced and refuses remote (`http(s)://`) refs, so detection never downloads anything. If a model ref is not available locally, Sentinel silently keeps the deterministic hash fallback — behavior is identical to not having it installed.
+
+3. Confirm the active level and diagnose any fallback with:
+
+   ```powershell
+   python -m sentinel /doctor
+   ```
+
+   The `memory embedder: semantic local (optional)` check reports `PASS` with the active level/dimensions when a local model loaded, or `WARN` when the deterministic hash fallback is active. In the fallback case the detail names each probed candidate (`model2vec` / `sentence-transformers`) and why it is inactive (`package-missing`, `model-not-local`, `model-unavailable`, or `skipped`) plus the concrete next step. The hash fallback is never an error: `/doctor` stays PASS overall.
+
+When a local semantic model is active, the retrieval eval harness is expected to show measurable cross-lingual/paraphrase gains over the hash baseline (see below); with no model present the metrics and behavior are unchanged.
+
 Retrieval quality is measured by a falsifiable eval harness (`tests/test_evals_retrieval.py`). Each fixture is scored with section-level golden queries (a query must retrieve a specific artifact section, not just any chunk of the right file) over a workspace seeded with a shared multi-domain distractor corpus. The JSON report under `tests/evals/reports/` compares recall@5, MRR, cross-lingual recall, and distractor discrimination `by_backend` and `by_embedder`. In the deterministic hash fallback, same-language recall is intentionally below the trivial 1.0 ceiling and cross-lingual recall sits near zero — that gap is the falsifiable target a local semantic embedder is expected to lift, and the harness stays green as a non-regression floor.
 
 It is used by:
