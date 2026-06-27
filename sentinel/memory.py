@@ -147,38 +147,128 @@ def _looks_local_model_ref(model_ref: str) -> bool:
     return not any(marker in model_ref.lower() for marker in ("http://", "https://"))
 
 
-def detect_embedder() -> Embedder:
-    model2vec_ref = os.environ.get("SENTINEL_MODEL2VEC_MODEL", DEFAULT_MODEL2VEC_MODEL)
-    if _looks_local_model_ref(model2vec_ref):
-        try:
-            from model2vec import StaticModel  # type: ignore
+def _probe_model2vec(model_ref: str) -> tuple[Embedder | None, dict[str, str]]:
+    """Try to load a local model2vec model, recording why it did or did not activate.
 
-            try:
-                model = StaticModel.from_pretrained(model2vec_ref, local_files_only=True)
-            except TypeError:
-                if not Path(model2vec_ref).expanduser().exists():
-                    raise RuntimeError("model2vec local_files_only is unavailable and model ref is not a local path")
-                model = StaticModel.from_pretrained(model2vec_ref)
-            return Model2VecEmbedder(model, model2vec_ref)
-        except Exception:
-            pass
+    Never reaches the network: remote refs are refused and ``local_files_only`` is
+    enforced; the only path that drops the flag requires an existing local path.
+    """
+    diag: dict[str, str] = {"level": "model2vec", "model_ref": model_ref}
+    if not _looks_local_model_ref(model_ref):
+        diag.update(outcome="skipped", detail="model ref looks like a remote URL; refusing to fetch (local-first)")
+        return None, diag
+    try:
+        from model2vec import StaticModel  # type: ignore
+    except Exception as exc:  # noqa: BLE001 - report any import failure as package-missing
+        diag.update(outcome="package-missing", detail=f"model2vec package not importable ({exc.__class__.__name__})")
+        return None, diag
+    try:
+        try:
+            model = StaticModel.from_pretrained(model_ref, local_files_only=True)
+        except TypeError:
+            if not Path(model_ref).expanduser().exists():
+                diag.update(
+                    outcome="model-not-local",
+                    detail="installed model2vec cannot enforce local_files_only and the ref is not a local path; no download attempted",
+                )
+                return None, diag
+            model = StaticModel.from_pretrained(model_ref)
+        embedder = Model2VecEmbedder(model, model_ref)
+        diag.update(outcome="active", detail=f"local model2vec model loaded: {model_ref}")
+        return embedder, diag
+    except Exception as exc:  # noqa: BLE001 - any load failure stays local and falls back
+        diag.update(
+            outcome="model-unavailable",
+            detail=f"model2vec installed but model not available locally ({exc.__class__.__name__}); no download attempted",
+        )
+        return None, diag
+
+
+def _probe_sentence_transformers(model_ref: str) -> tuple[Embedder | None, dict[str, str]]:
+    """Try to load a local sentence-transformers model, recording the outcome. No network."""
+    diag: dict[str, str] = {"level": "sentence-transformers", "model_ref": model_ref}
+    if not _looks_local_model_ref(model_ref):
+        diag.update(outcome="skipped", detail="model ref looks like a remote URL; refusing to fetch (local-first)")
+        return None, diag
+    try:
+        from sentence_transformers import SentenceTransformer  # type: ignore
+    except Exception as exc:  # noqa: BLE001
+        diag.update(outcome="package-missing", detail=f"sentence-transformers package not importable ({exc.__class__.__name__})")
+        return None, diag
+    try:
+        try:
+            model = SentenceTransformer(model_ref, local_files_only=True)
+        except TypeError:
+            if not Path(model_ref).expanduser().exists():
+                diag.update(
+                    outcome="model-not-local",
+                    detail="installed sentence-transformers cannot enforce local_files_only and the ref is not a local path; no download attempted",
+                )
+                return None, diag
+            model = SentenceTransformer(model_ref)
+        embedder = SentenceTransformersEmbedder(model, model_ref)
+        diag.update(outcome="active", detail=f"local sentence-transformers model loaded: {model_ref}")
+        return embedder, diag
+    except Exception as exc:  # noqa: BLE001
+        diag.update(
+            outcome="model-unavailable",
+            detail=f"sentence-transformers installed but model not available locally ({exc.__class__.__name__}); no download attempted",
+        )
+        return None, diag
+
+
+def _probe_embedder() -> tuple[Embedder, list[dict[str, str]]]:
+    """Resolve the active local embedder and the per-candidate diagnostic trail.
+
+    Order: model2vec → sentence-transformers → deterministic hash fallback. The hash
+    fallback is first-class and always succeeds, so detection never raises or hits the
+    network. Returns the embedder plus an ordered list of candidate outcomes.
+    """
+    diagnostics: list[dict[str, str]] = []
+
+    model2vec_ref = os.environ.get("SENTINEL_MODEL2VEC_MODEL", DEFAULT_MODEL2VEC_MODEL)
+    embedder, diag = _probe_model2vec(model2vec_ref)
+    diagnostics.append(diag)
+    if embedder is not None:
+        return embedder, diagnostics
 
     st_ref = os.environ.get("SENTINEL_SENTENCE_TRANSFORMERS_MODEL", DEFAULT_SENTENCE_TRANSFORMERS_MODEL)
-    if _looks_local_model_ref(st_ref):
-        try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
+    embedder, diag = _probe_sentence_transformers(st_ref)
+    diagnostics.append(diag)
+    if embedder is not None:
+        return embedder, diagnostics
 
-            try:
-                model = SentenceTransformer(st_ref, local_files_only=True)
-            except TypeError:
-                if not Path(st_ref).expanduser().exists():
-                    raise RuntimeError("sentence-transformers local_files_only is unavailable and model ref is not a local path")
-                model = SentenceTransformer(st_ref)
-            return SentenceTransformersEmbedder(model, st_ref)
-        except Exception:
-            pass
+    return HashEmbedder(), diagnostics
 
-    return HashEmbedder()
+
+def detect_embedder() -> Embedder:
+    return _probe_embedder()[0]
+
+
+def _embedder_recommendation(candidates: list[dict[str, str]]) -> str:
+    """Actionable next step when no semantic embedder is active, derived from outcomes."""
+    outcomes = {candidate.get("outcome") for candidate in candidates}
+    if "package-missing" in outcomes:
+        return (
+            "Install optional local models with `python -m pip install -e .[memory-semantic]`, "
+            "then pre-seed the model cache offline or set SENTINEL_MODEL2VEC_MODEL / "
+            "SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a local model path."
+        )
+    if outcomes & {"model-not-local", "model-unavailable"}:
+        return (
+            "Semantic packages are installed but no model is available locally. Pre-seed the model "
+            "cache offline or set SENTINEL_MODEL2VEC_MODEL / SENTINEL_SENTENCE_TRANSFORMERS_MODEL to a "
+            "local model path. Sentinel never downloads a model at runtime."
+        )
+    if outcomes and outcomes <= {"skipped"}:
+        return (
+            "Configured model refs look remote and were refused (local-first). Point "
+            "SENTINEL_MODEL2VEC_MODEL / SENTINEL_SENTENCE_TRANSFORMERS_MODEL at a local model path."
+        )
+    return (
+        "Install optional local models with `python -m pip install -e .[memory-semantic]` and provide "
+        "a local model path or pre-seeded cache."
+    )
 
 
 def active_embedder_status() -> dict[str, Any]:
@@ -190,6 +280,30 @@ def active_embedder_status() -> dict[str, Any]:
         "dimensions": status.dimensions,
         "detail": status.detail,
         "semantic": status.semantic,
+    }
+
+
+def embedder_diagnostics() -> dict[str, Any]:
+    """Diagnose local semantic embedder availability without ever using the network.
+
+    Returns the active embedder status, whether semantic retrieval is active, the
+    ordered per-candidate outcomes, and an actionable recommendation when the
+    deterministic hash fallback is in effect.
+    """
+    embedder, candidates = _probe_embedder()
+    status = embedder.status
+    return {
+        "active": {
+            "name": status.name,
+            "level": status.level,
+            "version": status.version,
+            "dimensions": status.dimensions,
+            "detail": status.detail,
+            "semantic": status.semantic,
+        },
+        "semantic": status.semantic,
+        "candidates": candidates,
+        "recommendation": "" if status.semantic else _embedder_recommendation(candidates),
     }
 
 
