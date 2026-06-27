@@ -89,6 +89,8 @@ indexed_at, embedder, embedding_version, vector
 
 Chunks are heading-aware. Each result carries `section_path` plus approximate `line_start` and `line_end` anchors so agents can open the source section instead of treating retrieval output as authority. Markdown tables are kept whole inside a chunk; Sentinel avoids splitting a table across multiple chunks.
 
+Each chunk is also contextualized before indexing. Sentinel prepends a deterministic, local situational prefix — document title, artifact type, `section_path`, domain, iteration, and any Requirement Units (`RU-NNN`) the chunk belongs to — and embeds and full-text indexes that contextualized text. This lifts retrieval recall (a section about a metric still ranks for a query about that metric even when the chunk body never repeats the heading) without any model or network: the metadata already exists from chunking. The prefix is an indexing aid only. The `content` Sentinel returns and the `read_plan` anchors stay verbatim — the situational prefix never contaminates the cited text. Because contextualization changes how chunks are indexed, it is tied to the chunking version (`heading-table:v2`); existing workspaces re-chunk on their next `/reindex` (see Reindexing).
+
 The framework also keeps a JSON hybrid fallback:
 
 ```text

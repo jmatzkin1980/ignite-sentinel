@@ -15,8 +15,11 @@ from .workspace import graph_path, memory_path, read_json, write_json, workspace
 
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+RU_ID_RE = re.compile(r"RU-\d{3}")
 VECTOR_DIMENSIONS = 128
-CHUNKING_VERSION = "heading-table:v1"
+# v2 (IMP-122): chunks carry a deterministic situational context prefix used only for
+# embedding/FTS indexing; the cited content and read_plan anchors are unchanged.
+CHUNKING_VERSION = "heading-table:v2"
 DEFAULT_MODEL2VEC_MODEL = "minishlab/potion-multilingual-128M"
 DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CONTEXT_FOLDERS = {
@@ -455,6 +458,15 @@ class ContextBroker:
         ]
         for index, chunk in enumerate(chunk_records(text)):
             chunk_text = chunk["text"]
+            context_prefix = build_context_prefix(
+                title=artifact["title"],
+                artifact_type=artifact_type,
+                domain=domain,
+                iteration=iteration,
+                section_path=chunk["section_path"],
+                trace_ids=trace_ids,
+            )
+            context_text = contextualize_chunk_text(context_prefix, chunk_text)
             self.data["chunks"].append(
                 {
                     **artifact,
@@ -465,8 +477,9 @@ class ContextBroker:
                     "text": chunk_text,
                     "content": chunk_text,
                     "summary": chunk_text[:180],
+                    "context_text": context_text,
                     "status": "active",
-                    "embedding": self.embedder.embed(chunk_text),
+                    "embedding": self.embedder.embed(context_text),
                 }
             )
         write_json(self.path, self.data)
@@ -517,12 +530,15 @@ class ContextBroker:
                     "sensitivity": chunk.get("sensitivity", "internal"),
                     "indexed_at": chunk["indexed_at"],
                     "summary": chunk["summary"],
-                    "text": chunk["text"],
+                    # FTS indexes the `text` column: feed the contextualized text so the
+                    # situational prefix improves full-text recall. The cited content stays
+                    # in `content`; retrieve() returns rows from JSON, never this column.
+                    "text": chunk.get("context_text") or chunk["text"],
                     "content": chunk["content"],
                     "status": chunk["status"],
                     "embedder": chunk.get("embedder", self.embedder_status.name),
                     "embedding_version": chunk.get("embedding_version", self.embedder_status.version),
-                    "vector": chunk.get("embedding") or self.embedder.embed(chunk["text"]),
+                    "vector": chunk.get("embedding") or self.embedder.embed(chunk.get("context_text") or chunk["text"]),
                 }
             )
         try:
@@ -588,19 +604,24 @@ class ContextBroker:
                 continue
             if section and section.lower() not in str(chunk.get("section_path", "")).lower():
                 continue
-            text = chunk["text"]
-            overlap = len(query_tokens.intersection(tokenize(text))) / max(len(query_tokens), 1)
-            lexical = max(overlap, cosine(query_vector, text_vector(text)))
+            # Score against the contextualized text (situational prefix + chunk) so the
+            # prefix lifts lexical/FTS/semantic recall; the verbatim chunk text is still
+            # what gets returned and cited (IMP-122).
+            index_text = chunk.get("context_text") or chunk["text"]
+            overlap = len(query_tokens.intersection(tokenize(index_text))) / max(len(query_tokens), 1)
+            lexical = max(overlap, cosine(query_vector, text_vector(index_text)))
             lancedb_signal = lancedb_candidates.get(chunk["chunk_id"], {})
             vector = float(lancedb_signal.get("score", 0.0))
             local_embedding = 0.0
             if self.embedder_status.semantic and chunk.get("embedding_version") == self.embedder_status.version:
                 local_embedding = embedding_cosine(query_embedding, chunk.get("embedding", []))
-            workflow_boost = 0.05 if workflow.lower() in text.lower() else 0.0
+            workflow_boost = 0.05 if workflow.lower() in index_text.lower() else 0.0
             score = lexical + vector + local_embedding + workflow_boost
             if score > 0:
                 row = {"score": round(score, 4), **chunk}
                 row.pop("embedding", None)
+                # The situational prefix is an indexing aid only; never expose it to the agent.
+                row.pop("context_text", None)
                 row["why_retrieved"] = why_retrieved(
                     lexical,
                     vector,
@@ -985,6 +1006,50 @@ def apply_char_budget(results: list[dict[str, Any]], max_chars: int) -> list[dic
 
 def chunk_texts(text: str, max_chars: int = 900) -> list[str]:
     return [chunk["text"] for chunk in chunk_records(text, max_chars=max_chars)]
+
+
+def build_context_prefix(
+    *,
+    title: str = "",
+    artifact_type: str = "",
+    domain: str = "",
+    iteration: int = 1,
+    section_path: str = "",
+    trace_ids: list[str] | None = None,
+) -> str:
+    """Deterministic, local situational prefix for a chunk (Contextual Retrieval, IMP-122).
+
+    The prefix names the document, type, section, domain, iteration, and any Requirement
+    Units (RU-NNN) the chunk belongs to. It is used only to embed and full-text index the
+    chunk; it never enters the cited content the agent reads, nor the read_plan anchors.
+    No network and no model are involved — the metadata already exists from chunking.
+    """
+    parts: list[str] = []
+    if title:
+        parts.append(f"document: {title}")
+    if artifact_type:
+        parts.append(f"type: {artifact_type}")
+    if section_path:
+        parts.append(f"section: {section_path}")
+    if domain:
+        parts.append(f"domain: {domain}")
+    parts.append(f"iteration: {iteration}")
+    units: list[str] = []
+    for trace_id in trace_ids or []:
+        for match in RU_ID_RE.findall(str(trace_id)):
+            if match not in units:
+                units.append(match)
+    for match in RU_ID_RE.findall(section_path or ""):
+        if match not in units:
+            units.append(match)
+    if units:
+        parts.append(f"units: {', '.join(sorted(units))}")
+    return "[" + " | ".join(parts) + "]"
+
+
+def contextualize_chunk_text(prefix: str, text: str) -> str:
+    """Compose the indexing text from the situational prefix and the verbatim chunk text."""
+    return f"{prefix}\n{text}" if prefix else text
 
 
 def chunk_records(text: str, max_chars: int = 900, overlap_ratio: float = 0.12) -> list[dict[str, Any]]:
