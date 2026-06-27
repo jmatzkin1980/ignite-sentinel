@@ -173,6 +173,8 @@ python -m sentinel /retrieve PROJECT_ID --query "..." --workflow discovery --sta
 Each result includes `why_retrieved`, based on local lexical match, local semantic similarity, LanceDB/hash vector match, and explicit filters such as domain, trace ID, or artifact type. It also includes `read_plan` with `source_path`, `section_path`, `line_start`, and `line_end` so an agent can open the exact source section when the summary is not enough.
 With LanceDB enabled, `why_retrieved` includes native retrieval ranks such as `vector_rank` and `fts_rank` when they contributed to the result.
 
+After the lexical/semantic/vector signals are merged, a deterministic second stage re-scores the shortlist by **recency and domain coverage** (IMP-123): of two results with equivalent vocabulary, the one from a later iteration (or, within the same iteration, a later `indexed_at`) ranks higher, and a result whose domain the query explicitly names gets a small on-domain lift. The bonus is bounded so it breaks near-ties without overriding a strong relevance gap; each result exposes `base_score`, `recency_score`, and `coverage_score` alongside the final `score`, and `why_retrieved` notes the recency boost when it applied. This stage runs entirely locally with no network — an optional neural reranker stays off by default and is never required.
+
 `/ingest`, `/sync`, and `/reindex` populate memory. The indexed workspace context folders are:
 
 - `00_raw/00_client_requirement`

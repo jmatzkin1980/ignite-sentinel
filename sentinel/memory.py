@@ -20,6 +20,13 @@ VECTOR_DIMENSIONS = 128
 # v2 (IMP-122): chunks carry a deterministic situational context prefix used only for
 # embedding/FTS indexing; the cited content and read_plan anchors are unchanged.
 CHUNKING_VERSION = "heading-table:v2"
+# IMP-123: deterministic, network-free second-stage re-score over the merged
+# shortlist. Weights recency (iteration, then indexed_at) and domain coverage so
+# fresh, on-domain context outranks stale context with equivalent vocabulary.
+# Bounded so the re-score breaks near-ties without overriding strong relevance
+# signals; an optional neural reranker stays off by default and is never required.
+RECENCY_WEIGHT = 0.15
+COVERAGE_WEIGHT = 0.05
 DEFAULT_MODEL2VEC_MODEL = "minishlab/potion-multilingual-128M"
 DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CONTEXT_FOLDERS = {
@@ -644,7 +651,9 @@ class ContextBroker:
                     "line_end": int(row.get("line_end", 0) or 0),
                 }
                 scored.append(row)
-        results = sorted(scored, key=lambda row: row["score"], reverse=True)[:limit]
+        # IMP-123: deterministic recency + domain-coverage re-score over the merged
+        # shortlist before truncation, so fresh context wins lexical ties.
+        results = apply_recency_coverage_rescore(scored, query_tokens)[:limit]
         if max_chars is not None:
             results = apply_char_budget(results, max_chars)
         return results
@@ -986,6 +995,68 @@ def why_retrieved(
     if trace_id:
         reasons.append(f"trace_id={trace_id}")
     return "; ".join(reasons) or "retrieved by local ranking"
+
+
+def _recency_key(chunk: dict[str, Any]) -> tuple[int, str]:
+    """Deterministic recency ordering key: higher iteration first, then a later
+    ``indexed_at``. ``indexed_at`` is an ISO-8601 string, so lexical order already
+    matches chronological order — no parsing or network needed."""
+    return (int(chunk.get("iteration", 1) or 1), str(chunk.get("indexed_at", "")))
+
+
+def domain_coverage(chunk: dict[str, Any], query_tokens: set[str]) -> float:
+    """Deterministic domain-coverage signal in [0, 1].
+
+    Rewards a chunk whose ``domain`` the query explicitly references (the query
+    "covers" that domain). Tokenization is consistent with ``retrieve`` and the
+    check is purely local."""
+    if not query_tokens:
+        return 0.0
+    domain_tokens = set(tokenize(str(chunk.get("domain", ""))))
+    if domain_tokens and domain_tokens.issubset(query_tokens):
+        return 1.0
+    return 0.0
+
+
+def apply_recency_coverage_rescore(
+    rows: list[dict[str, Any]],
+    query_tokens: set[str],
+    recency_weight: float = RECENCY_WEIGHT,
+    coverage_weight: float = COVERAGE_WEIGHT,
+) -> list[dict[str, Any]]:
+    """Second-stage deterministic re-score (IMP-123).
+
+    Adds a bounded recency + domain-coverage bonus to each row's base score so
+    fresh, on-domain context outranks stale context with equivalent vocabulary,
+    then returns the rows sorted by the re-scored value. Recency is pool-relative:
+    the newest chunk in the shortlist scores 1.0 and the oldest 0.0, so a single
+    distinct recency yields no differentiation. Network-free; ties are broken by
+    recency then ``chunk_id`` for fully deterministic ordering."""
+    if not rows:
+        return rows
+    distinct_keys = sorted({_recency_key(row) for row in rows})
+    span = len(distinct_keys) - 1
+    recency_norm = {key: (index / span if span else 0.0) for index, key in enumerate(distinct_keys)}
+    for row in rows:
+        recency = recency_norm[_recency_key(row)]
+        coverage = domain_coverage(row, query_tokens)
+        bonus = recency_weight * recency + coverage_weight * coverage
+        row["base_score"] = row["score"]
+        row["recency_score"] = round(recency, 4)
+        row["coverage_score"] = round(coverage, 4)
+        row["score"] = round(row["score"] + bonus, 4)
+        extra = []
+        if recency > 0:
+            extra.append(f"recency boost (iteration {int(row.get('iteration', 1) or 1)})")
+        if coverage > 0:
+            extra.append("domain coverage")
+        if extra and row.get("why_retrieved"):
+            row["why_retrieved"] = f"{row['why_retrieved']}; " + "; ".join(extra)
+    return sorted(
+        rows,
+        key=lambda row: (row["score"], _recency_key(row), row["chunk_id"]),
+        reverse=True,
+    )
 
 
 def apply_char_budget(results: list[dict[str, Any]], max_chars: int) -> list[dict[str, Any]]:
