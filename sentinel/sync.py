@@ -446,11 +446,39 @@ Every sync event records the evolution of project knowledge. Source files remain
     if knowledge_metabolism:
         units = knowledge_metabolism.get("impacted_knowledge_units", [])
         stale = knowledge_metabolism.get("downstream_stale_artifacts", [])
+        associative = knowledge_metabolism.get("associative_findings", [])
         lines.append(f"- Impacted knowledge units: {', '.join(f'`{unit}`' for unit in units) if units else 'None'}\n")
         lines.append(f"- Downstream stale artifacts: {', '.join(f'`{item}`' for item in stale) if stale else 'None'}\n")
+        associative_targets = [str(item.get("target")) for item in associative if item.get("target")]
+        lines.append(
+            f"- Associative impact candidates (BA review): {', '.join(f'`{target}`' for target in associative_targets) if associative_targets else 'None'}\n"
+        )
     lines.append("- Required action: review impacted requirements, PRD/specs, backlog, quality, and traceability before marking the change applied.\n\n")
     append_text(path, "".join(lines))
     return path
+
+
+def render_associative_findings(findings: list[dict[str, object]] | None) -> str:
+    findings = findings or []
+    if not findings:
+        return "- None."
+    rows = []
+    for finding in findings:
+        citation = finding.get("citation", {}) or {}
+        source = citation.get("source_path", "") or "unknown source"
+        section = citation.get("section_path", "")
+        line_start = citation.get("line_start", 0)
+        line_end = citation.get("line_end", 0)
+        locator = f"`{source}`"
+        if section:
+            locator += f" §{section}"
+        if line_start or line_end:
+            locator += f" L{line_start}-{line_end}"
+        rows.append(
+            f"- `{finding.get('target')}` (sim {finding.get('score')}): "
+            f"{finding.get('reason', 'posible impacto por similitud')} — cita {locator}"
+        )
+    return "\n".join(rows)
 
 
 def render_impact(
@@ -487,6 +515,7 @@ def render_impact(
     unit_rows = "\n".join(f"- `{unit_id}`" for unit_id in knowledge_metabolism.get("impacted_knowledge_units", [])) or "- None."
     validated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("validated_assumptions", [])) or "- None."
     invalidated_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("invalidated_assumptions", [])) or "- None."
+    associative_rows = render_associative_findings(knowledge_metabolism.get("associative_findings", []))
     stale_rows = "\n".join(f"- `{item}`" for item in knowledge_metabolism.get("downstream_stale_artifacts", [])) or "- None."
     stale_story_rows = "\n".join(f"- `{item}`" for item in story_staleness.get("stale_stories", [])) or "- None."
     suspicious_rows = "\n".join(
@@ -545,6 +574,12 @@ Validated assumptions:
 Invalidated assumptions:
 
 {invalidated_rows}
+
+## Associative Impact Candidates (BA review)
+
+_Suggested by meaning-based retrieval (IMP-125), not by deterministic invalidation. These are candidates for BA review — nothing is auto-invalidated; the graph remains the authority of propagation._
+
+{associative_rows}
 
 ## Downstream Staleness
 
