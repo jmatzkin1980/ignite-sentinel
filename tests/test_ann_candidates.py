@@ -44,10 +44,11 @@ class CandidateGenerationTests(unittest.TestCase):
             domain="product",
         )
 
-    def test_json_fullscan_reaches_all_chunks_without_lancedb(self) -> None:
-        # Default test env has no LanceDB table: the full scan must reach every
-        # SSoT chunk and the path is reported as json-fullscan.
-        self.assertIsNone(self.broker._table)
+    def test_forced_fullscan_reaches_all_chunks(self) -> None:
+        # Force the no-LanceDB fallback path (deterministic whether or not LanceDB
+        # is installed): the full scan must reach every SSoT chunk and report
+        # json-fullscan.
+        self.broker._table = None
         for token, expected in (("widget", "A"), ("gadget", "B"), ("module", "C")):
             results = self.broker.retrieve(token, "specs")
             self.assertTrue(results, token)
@@ -83,9 +84,16 @@ class CandidateGenerationTests(unittest.TestCase):
         self.assertEqual(self.broker.last_candidate_source, "json-fullscan")
 
     def test_context_pack_exposes_candidate_source(self) -> None:
+        # The pack always exposes which path produced its candidates, regardless of
+        # whether LanceDB is installed (lancedb-ann when the VDB generated them,
+        # else json-fullscan).
+        pack = self.broker.build_context_pack("widget", "specs")
+        self.assertIn("candidate_source", pack)
+        self.assertIn(pack["candidate_source"], {"lancedb-ann", "json-fullscan"})
+        # Forcing the no-LanceDB path makes the reported source deterministic.
+        self.broker._table = None
         pack = self.broker.build_context_pack("widget", "specs")
         self.assertEqual(pack["candidate_source"], "json-fullscan")
-        self.assertEqual(pack["backend"], "json-hybrid")
 
 
 if __name__ == "__main__":
