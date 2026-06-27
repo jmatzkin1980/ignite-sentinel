@@ -63,6 +63,8 @@ ba_memory
 
 When LanceDB is available, Sentinel keeps a local full-text index on `text` and combines native FTS ranks with vector ranks using reciprocal rank fusion. The JSON memory remains the audit and fallback layer.
 
+When a LanceDB table is active, it also **generates the candidate set** (IMP-124): the vector + FTS search produces the shortlist that is then scored and re-ranked, so the index contributes recall and scale rather than only re-ranking. The JSON store stays the source of truth for verbatim content and metadata, and the unconditional full scan is the fallback whenever LanceDB is absent, returns nothing, or yields stale ids — so no chunk ever becomes unreachable and `json-hybrid` behaves identically. Each context pack reports which path produced its candidates in `candidate_source` (`lancedb-ann` or `json-fullscan`).
+
 LanceDB is a Python dependency. It does not require a separate database server for Sentinel's default workflow. The package must be installed in the same Python environment that runs `python -m sentinel`. You can verify this with:
 
 ```powershell
