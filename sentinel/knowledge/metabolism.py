@@ -26,6 +26,15 @@ INVALIDATION_TOKENS = (
     "no se usará",
 )
 
+# IMP-125: associative metabolization. A change reworded without invalidation
+# vocabulary impacts nothing through the deterministic token/link path. The
+# associative step asks the retrieval broker for assumptions that look related
+# by *meaning* and surfaces them as cited, BA-reviewable findings — never
+# auto-applied. The graph stays the authority of propagation.
+ASSOCIATIVE_SCORE_THRESHOLD = 0.15
+ASSOCIATIVE_LIMIT = 5
+ASSUMPTION_ID_RE = re.compile(r"\bASM-[A-Z0-9][A-Z0-9-]*\b", re.I)
+
 
 def metabolize_knowledge(
     project_id: str,
@@ -45,6 +54,11 @@ def metabolize_knowledge(
     before_units = read_ledger_units(base)
     validated_gap_ids = {gap_id.upper() for gap_id in (validated_gap_ids or set())}
     invalidated_assumptions = detect_invalidated_assumptions(project_id, source_text)
+    associative_findings = associative_impact_candidates(
+        broker,
+        source_text,
+        already_invalidated=invalidated_assumptions,
+    )
     evidence = evidence_snippet(source_text)
     assumption_result = update_assumption_statuses(
         project_id,
@@ -64,6 +78,7 @@ def metabolize_knowledge(
         "validated_assumptions": assumption_result.get("validated", []),
         "invalidated_assumptions": assumption_result.get("invalidated", []),
         "impacted_knowledge_units": unit_ids,
+        "associative_findings": associative_findings,
         "knowledge_state": str(ledger["md_path"].as_posix()),
         "development_readiness": str((base / "01_discovery" / "development_readiness.json").as_posix()),
         "readiness_summary": readiness.get("summary", {}),
@@ -96,6 +111,82 @@ def detect_invalidated_assumptions(project_id: str, text: str) -> set[str]:
         elif closes_gap and normalize(closes_gap) in normalized and phrase_overlap(row.get("statement", ""), text):
             invalidated.add(assumption_id)
     return invalidated
+
+
+def associative_impact_candidates(
+    broker: Any,
+    source_text: str,
+    *,
+    already_invalidated: set[str],
+) -> list[dict[str, Any]]:
+    """IMP-125: surface meaning-based impact candidates as cited findings.
+
+    Complements the deterministic token/link metabolization without replacing it:
+    when a change resembles a governed assumption by meaning (not by invalidation
+    vocabulary), the retrieval broker proposes that assumption as a *candidate*
+    impact. Findings are cited and BA-reviewable; nothing is auto-closed or
+    auto-invalidated, and the graph remains the authority of propagation.
+
+    Degrades to no findings (and no error) when there is no broker, no semantic
+    embedder, or retrieval fails — preserving the current deterministic behavior.
+    """
+    if broker is None:
+        return []
+    status = getattr(broker, "embedder_status", None)
+    if status is None or not getattr(status, "semantic", False):
+        return []
+    query = associative_query(source_text)
+    if not query:
+        return []
+    try:
+        rows = broker.retrieve(
+            query,
+            workflow="sync",
+            artifact_type="assumption_register",
+            limit=ASSOCIATIVE_LIMIT,
+        )
+    except Exception:
+        # The associative step is advisory only; any retrieval failure degrades
+        # to the deterministic path rather than breaking /sync.
+        return []
+    findings: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        score = float(row.get("score", 0.0) or 0.0)
+        if score < ASSOCIATIVE_SCORE_THRESHOLD:
+            continue
+        text = str(row.get("text") or row.get("content") or "")
+        read_plan = row.get("read_plan", {}) or {}
+        citation = {
+            "source_path": read_plan.get("source_path") or row.get("source_path", ""),
+            "section_path": read_plan.get("section_path") or row.get("section_path", ""),
+            "line_start": int(read_plan.get("line_start", 0) or 0),
+            "line_end": int(read_plan.get("line_end", 0) or 0),
+        }
+        for match in ASSUMPTION_ID_RE.findall(text):
+            assumption_id = match.upper()
+            # Don't echo assumptions the deterministic path already flagged, and
+            # report each candidate once even if it spans several chunks.
+            if assumption_id in already_invalidated or assumption_id in seen:
+                continue
+            seen.add(assumption_id)
+            findings.append(
+                {
+                    "kind": "associative",
+                    "target": assumption_id,
+                    "reason": "posible impacto por similitud semántica",
+                    "score": round(score, 4),
+                    "why_retrieved": row.get("why_retrieved", ""),
+                    "chunk_id": row.get("chunk_id", ""),
+                    "trace_ids": list(row.get("trace_ids", []) or []),
+                    "citation": citation,
+                }
+            )
+    return findings
+
+
+def associative_query(text: str, limit: int = 600) -> str:
+    return re.sub(r"\s+", " ", text).strip()[:limit]
 
 
 def impacted_knowledge_units(
