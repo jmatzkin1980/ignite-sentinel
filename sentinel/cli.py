@@ -44,6 +44,18 @@ COMMANDS = {
 }
 
 
+def require_retrieve_query(query: str | None) -> str:
+    if not query:
+        raise ValueError("/retrieve requires --query unless --timeline is used")
+    return query
+
+
+def require_retrieve_workflow(workflow: str | None) -> str:
+    if not workflow:
+        raise ValueError("/retrieve requires --workflow unless --timeline is used")
+    return workflow
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = normalize_slash_command(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(
@@ -73,8 +85,8 @@ def main(argv: list[str] | None = None) -> int:
 
     retrieve_p = sub.add_parser("retrieve")
     retrieve_p.add_argument("project_id")
-    retrieve_p.add_argument("--query", required=True)
-    retrieve_p.add_argument("--workflow", required=True)
+    retrieve_p.add_argument("--query")
+    retrieve_p.add_argument("--workflow")
     retrieve_p.add_argument("--limit", type=int, default=5)
     retrieve_p.add_argument("--artifact-type")
     retrieve_p.add_argument("--domain")
@@ -87,6 +99,9 @@ def main(argv: list[str] | None = None) -> int:
     retrieve_p.add_argument("--max-chars", type=int)
     retrieve_p.add_argument("--summary-only", action="store_true")
     retrieve_p.add_argument("--write-pack", action="store_true")
+    # IMP-126: recency-first ordering and a read-only episodic timeline.
+    retrieve_p.add_argument("--order", choices=["relevance", "recency"], default="relevance")
+    retrieve_p.add_argument("--timeline", action="store_true")
 
     sync_p = sub.add_parser("sync")
     sync_p.add_argument("project_id")
@@ -199,10 +214,16 @@ def main(argv: list[str] | None = None) -> int:
             from .memory import ContextBroker
 
             broker = ContextBroker(args.project_id)
-            if args.write_pack:
+            if args.timeline:
+                result = broker.build_change_timeline(
+                    args.limit if args.limit and args.limit > 0 else None,
+                    args.artifact_type,
+                    args.trace_id,
+                )
+            elif args.write_pack:
                 result = broker.build_context_pack(
-                    args.query,
-                    args.workflow,
+                    require_retrieve_query(args.query),
+                    require_retrieve_workflow(args.workflow),
                     args.limit,
                     args.artifact_type,
                     args.domain,
@@ -214,11 +235,12 @@ def main(argv: list[str] | None = None) -> int:
                     args.section,
                     args.max_chars,
                     args.summary_only,
+                    args.order,
                 )
             else:
                 result = broker.retrieve(
-                    args.query,
-                    args.workflow,
+                    require_retrieve_query(args.query),
+                    require_retrieve_workflow(args.workflow),
                     args.limit,
                     args.artifact_type,
                     args.domain,
@@ -230,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.section,
                     args.max_chars,
                     args.summary_only,
+                    args.order,
                 )
             print_json(result)
         elif args.command == "sync":

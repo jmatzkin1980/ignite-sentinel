@@ -149,7 +149,7 @@
       "name": "retrieve",
       "description": "Retrieve a focused context pack for an Ignite workflow.",
       "kilo_agent": "sentinel-sync",
-      "body": "# Ignite Retrieve\n\nParse project ID, query, workflow, and optional filters from:\n\n```text\n/retrieve PROJECT_ID --query \"TEXT\" --workflow WORKFLOW\n```\n\nRun:\n\n```powershell\npython -m sentinel /retrieve PROJECT_ID --query \"TEXT\" --workflow WORKFLOW --write-pack\n```\n\nIf the user provided `--limit`, `--artifact-type`, `--domain`, or `--trace-id`, preserve those options.\n\nRetrieval uses local LanceDB memory when available. Source files remain the authority; if results look stale, run `/reindex PROJECT_ID`."
+      "body": "# Ignite Retrieve\n\nParse project ID, query, workflow, and optional filters from:\n\n```text\n/retrieve PROJECT_ID --query \"TEXT\" --workflow WORKFLOW\n```\n\nRun:\n\n```powershell\npython -m sentinel /retrieve PROJECT_ID --query \"TEXT\" --workflow WORKFLOW --write-pack\n```\n\nIf the user provided `--limit`, `--artifact-type`, `--domain`, or `--trace-id`, preserve those options.\n\nTo prioritize recent context over pure relevance, add `--order recency`. To answer \"what changed and when\" without a query, use the read-only episodic timeline (changes, impact/metabolism trail, and interactions, newest first):\n\n```powershell\npython -m sentinel /retrieve PROJECT_ID --timeline\n```\n\n`--timeline` accepts optional `--limit`, `--artifact-type`, and `--trace-id` filters and needs no `--query`/`--workflow`.\n\nRetrieval uses local LanceDB memory when available. Source files remain the authority; if results look stale, run `/reindex PROJECT_ID`."
     },
     {
       "name": "sentinel",

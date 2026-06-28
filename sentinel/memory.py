@@ -39,6 +39,18 @@ CONTEXT_FOLDERS = {
     "07_changes": ("change_context", "product"),
 }
 INDEXABLE_SUFFIXES = {".md", ".txt", ".html", ".htm"}
+# IMP-126: artifact types that make up the episodic/temporal timeline — changes,
+# their impact/metabolism trail, and client/domain interactions. The timeline is
+# derived read-only from indexed chunks; it never duplicates the graph.
+EPISODIC_ARTIFACT_TYPES = {
+    "change",
+    "impact_report",
+    "gap_resolution_report",
+    "metabolism_log",
+    "interaction_context",
+    "change_context",
+}
+RETRIEVE_ORDERS = ("relevance", "recency")
 
 
 def tokenize(text: str) -> list[str]:
@@ -581,6 +593,7 @@ class ContextBroker:
         section: str | None = None,
         max_chars: int | None = None,
         summary_only: bool = False,
+        order: str = "relevance",
     ) -> list[dict[str, Any]]:
         lancedb_candidates = self._lancedb_candidates(
             query,
@@ -672,7 +685,17 @@ class ContextBroker:
                 scored.append(row)
         # IMP-123: deterministic recency + domain-coverage re-score over the merged
         # shortlist before truncation, so fresh context wins lexical ties.
-        results = apply_recency_coverage_rescore(scored, query_tokens)[:limit]
+        rescored = apply_recency_coverage_rescore(scored, query_tokens)
+        # IMP-126: optional recency-first ordering exposes the temporal dimension to
+        # retrieval. Default "relevance" keeps the IMP-123 score ordering unchanged;
+        # "recency" sorts the same shortlist newest-first (score breaks ties).
+        if order == "recency":
+            rescored = sorted(
+                rescored,
+                key=lambda row: (_recency_key(row), row["score"], row["chunk_id"]),
+                reverse=True,
+            )
+        results = rescored[:limit]
         if max_chars is not None:
             results = apply_char_budget(results, max_chars)
         return results
@@ -746,6 +769,7 @@ class ContextBroker:
         section: str | None = None,
         max_chars: int | None = None,
         summary_only: bool = False,
+        order: str = "relevance",
     ) -> dict[str, Any]:
         results = self.retrieve(
             query,
@@ -761,6 +785,7 @@ class ContextBroker:
             section,
             max_chars,
             summary_only,
+            order,
         )
         pack = {
             "project_id": self.project_id,
@@ -786,6 +811,7 @@ class ContextBroker:
                 "section": section,
                 "max_chars": max_chars,
                 "summary_only": summary_only,
+                "order": order,
             },
             "source_hashes": sorted({row.get("source_hash", "") for row in results if row.get("source_hash")}),
             "results": results,
@@ -795,6 +821,58 @@ class ContextBroker:
         write_json(pack_path, pack)
         pack["path"] = str(pack_path.as_posix())
         return pack
+
+    def build_change_timeline(
+        self,
+        limit: int | None = None,
+        artifact_type: str | None = None,
+        trace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """IMP-126: read-only episodic timeline of "what changed and when".
+
+        Derives a chronological view from the chunks already indexed for changes,
+        their impact/metabolism trail, and interactions — newest first by the same
+        deterministic recency key used by the re-score (iteration, then
+        ``indexed_at``). It reuses ``iteration``/timestamps without persisting new
+        state or duplicating the graph, and works identically in both backends
+        because it reads the JSON source of truth.
+        """
+        episodic = {artifact_type} if artifact_type else EPISODIC_ARTIFACT_TYPES
+        events_by_artifact: dict[str, dict[str, Any]] = {}
+        for chunk in self.data.get("chunks", []):
+            if chunk.get("artifact_type") not in episodic:
+                continue
+            if trace_id and trace_id not in chunk.get("trace_ids", []):
+                continue
+            artifact_id = str(chunk.get("artifact_id", ""))
+            # One event per artifact; the first chunk carries the heading/title.
+            if artifact_id in events_by_artifact:
+                continue
+            events_by_artifact[artifact_id] = {
+                "artifact_id": artifact_id,
+                "artifact_type": chunk.get("artifact_type", ""),
+                "title": chunk.get("title", ""),
+                "indexed_at": chunk.get("indexed_at", ""),
+                "iteration": int(chunk.get("iteration", 1) or 1),
+                "trace_ids": list(chunk.get("trace_ids", []) or []),
+                "domain": chunk.get("domain", ""),
+                "section_path": chunk.get("section_path", ""),
+                "source_path": chunk.get("source_path", chunk.get("file_path", "")),
+                "summary": chunk.get("summary", ""),
+            }
+        events = sorted(
+            events_by_artifact.values(),
+            key=lambda event: (_recency_key(event), event["artifact_id"]),
+            reverse=True,
+        )
+        if limit is not None:
+            events = events[:limit]
+        return {
+            "project_id": self.project_id,
+            "backend": self.backend,
+            "count": len(events),
+            "events": events,
+        }
 
 
 def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
