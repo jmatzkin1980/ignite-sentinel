@@ -4,6 +4,7 @@
   "default_limit": 4,
   "default_budget_chars": 1800,
   "default_summary_chars": 260,
+  "global_budget_chars": 12000,
   "sections": {
     "epic_value": {
       "query": "business outcome scope mvp kpi users product goal",

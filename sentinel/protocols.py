@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .workspace import read_json, state_path, update_state, utc_now, workspace_path
+from .workspace import load_config, read_json, state_path, update_state, utc_now, workspace_path
+
+# IMP-127: default volume above which a project is considered to "need context"
+# (focused retrieval) rather than whole-artifact reading.
+NEEDS_CONTEXT_MIN_CHUNKS = 12
 
 READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
 MUTATING_COMMANDS = {
@@ -91,6 +95,43 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         command_log=command_log[-25:],
     )
     write_command_protocol_log(project_id, command_log[-25:])
+
+
+def evaluate_needs_context(project_id: str, indexed_chunks: int) -> dict[str, Any]:
+    """IMP-127: portable, soft "needs-context" gate.
+
+    Warns when a project holds enough indexed memory to warrant focused retrieval
+    but has no focus context pack — i.e. a high-volume flow likely read whole
+    artifacts instead of consulting focus. The trigger is the *volume of
+    retrievable context*, NOT whether LanceDB is present, so it fires identically
+    in ``json-hybrid``. Soft by default (a ``/health`` warning); ``strict`` opt-in
+    via config ``needs_context_gate.strict`` escalates it to a blocking finding.
+    This mirrors the existing ``backlog_gate``/``implementability_gate`` pattern:
+    runtime gate, no editor hooks, no new command surface.
+    """
+    config = load_config(project_id)
+    gate = config.get("needs_context_gate", {})
+    gate = gate if isinstance(gate, dict) else {}
+    strict = bool(gate.get("strict", False))
+    threshold = int(gate.get("min_chunks", NEEDS_CONTEXT_MIN_CHUNKS))
+    packs_dir = workspace_path(project_id) / "08_context_packs"
+    has_focus_pack = packs_dir.exists() and any(packs_dir.glob("*_focus.json"))
+    needs_context = indexed_chunks >= threshold and not has_focus_pack
+    message = None
+    if needs_context:
+        message = (
+            f"Project holds {indexed_chunks} indexed chunks but no focus context pack; "
+            "consult focused retrieval (a *_focus.json pack or /retrieve --write-pack) "
+            "instead of reading whole artifacts before downstream work."
+        )
+    return {
+        "needs_context": needs_context,
+        "strict": strict,
+        "threshold": threshold,
+        "indexed_chunks": indexed_chunks,
+        "has_focus_pack": has_focus_pack,
+        "message": message,
+    }
 
 
 def summarize_result(result: Any) -> str:
