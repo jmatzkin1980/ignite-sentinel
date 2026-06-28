@@ -32,6 +32,18 @@
     "GAP-SCOPE"
   ],
   "known_false_positives": [],
+  "distractors": [
+    {
+      "gap_id": "GAP-AUTH-MODEL",
+      "source_quote": "main users are support team leads.",
+      "rationale": "The fixture names a user group for a read-only dashboard; treating that phrase as an authentication or permission-model gap would be plausible domain noise, not a confirmed discovery miss."
+    },
+    {
+      "gap_id": "GAP-SCOPE",
+      "source_quote": "In scope: read-only dashboard current quarter. Out scope: editing tickets or managing agents from this screen.",
+      "rationale": "The source states both in-scope and out-of-scope boundaries; a scope gap here is a mined same-domain false-positive distractor."
+    }
+  ],
   "target_fire": [
     "GAP-DESIGN-FLOW",
     "GAP-FRONTEND-SURFACE"

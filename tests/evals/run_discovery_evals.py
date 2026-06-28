@@ -149,12 +149,30 @@ def metric_variance(values: list[float]) -> float:
     return round(sum((value - mean) ** 2 for value in values) / len(values), 6)
 
 
+def distractor_gap_ids(raw_distractors: object) -> set[str]:
+    """Return the answer-key gap IDs used to score domain-mined distractors."""
+    if not isinstance(raw_distractors, list):
+        return set()
+    ids: set[str] = set()
+    for item in raw_distractors:
+        if isinstance(item, str):
+            candidate = item.strip()
+        elif isinstance(item, dict):
+            candidate = str(item.get("gap_id") or item.get("id") or "").strip()
+        else:
+            candidate = ""
+        if candidate:
+            ids.add(candidate)
+    return ids
+
+
 def discovery_gap_benchmark(
     fired: set[str],
     must_fire: set[str],
     target_fire: set[str],
     must_not_fire: set[str],
     known_false_positives: set[str],
+    distractors: set[str] | None = None,
     gap_details: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, object]:
     """Precision/recall/F1 over the answer-key-labeled discovery gap universe.
@@ -166,14 +184,19 @@ def discovery_gap_benchmark(
     """
     expected_positive = set(must_fire) | set(target_fire)
     expected_negative = set(must_not_fire)
+    distractor_set = set(distractors or set())
     true_positive = fired & expected_positive
     false_positive = fired & expected_negative
     known_false_positive = false_positive & known_false_positives
     new_false_positive = false_positive - known_false_positives
+    distractor_false_positive = fired & distractor_set
     precision = _ratio(len(true_positive), len(true_positive) + len(false_positive))
     recall = _ratio(len(true_positive), len(expected_positive))
     required_recall = _ratio(len(fired & must_fire), len(must_fire))
     target_recall = _ratio(len(fired & target_fire), len(target_fire))
+    distractor_false_positive_rate = _ratio(
+        len(distractor_false_positive), len(distractor_set), default=0.0
+    )
     by_lens: dict[str, dict[str, float | int]] = {}
     details = gap_details or {}
     for gap_id in sorted(expected_positive):
@@ -191,6 +214,10 @@ def discovery_gap_benchmark(
         "false_positive_total": len(false_positive),
         "known_false_positive_total": len(known_false_positive),
         "new_false_positive_total": len(new_false_positive),
+        "distractor_total": len(distractor_set),
+        "distractor_false_positive_total": len(distractor_false_positive),
+        "distractor_false_positive_rate": distractor_false_positive_rate,
+        "distractor_false_positives": sorted(distractor_false_positive),
         "precision": precision,
         "recall": recall,
         "f1": _f1(precision, recall),
@@ -582,13 +609,23 @@ def run_fixture(
     must_not_fire = set(key["must_not_fire"])
     known_fp = set(key.get("known_false_positives", []))
     target = set(key.get("target_fire", []))
+    raw_distractors = key.get("distractors", [])
+    distractors = distractor_gap_ids(raw_distractors)
 
     missing = sorted(must_fire - fired)
     false_positives = sorted(fired & must_not_fire)
     new_false_positives = sorted((fired & must_not_fire) - known_fp)
     fixed_known_fp = sorted(known_fp - fired)
     target_detected = sorted(fired & target)
-    gap_benchmark = discovery_gap_benchmark(fired, must_fire, target, must_not_fire, known_fp, gap_details)
+    gap_benchmark = discovery_gap_benchmark(
+        fired,
+        must_fire,
+        target,
+        must_not_fire,
+        known_fp,
+        distractors,
+        gap_details,
+    )
 
     brief_key = key.get("brief", {})
     brief_target = [s for s in brief_key.get("target_populated", []) if s in BRIEF_TRACKED_SECTIONS]
@@ -680,6 +717,10 @@ def run_fixture(
         "gap_precision": gap_benchmark["precision"],
         "gap_recall": gap_benchmark["recall"],
         "gap_f1": gap_benchmark["f1"],
+        "distractor_total": len(distractors),
+        "distractors": raw_distractors,
+        "distractor_false_positives": gap_benchmark["distractor_false_positives"],
+        "distractor_false_positive_rate": gap_benchmark["distractor_false_positive_rate"],
         "target_fire_total": len(target),
         "target_fire_detected": target_detected,
         "target_recall": round(len(target_detected) / len(target), 3) if target else 1.0,
@@ -1353,6 +1394,13 @@ def run_all() -> int:
             "avg_gap_f1_variance": round(
                 sum(row["repeat_variance"]["f1"] for row in results) / len(results), 6
             ),
+            "fixtures_with_distractors": sum(1 for r in results if r["distractor_total"]),
+            "avg_distractor_false_positive_rate": round(
+                sum(float(r["distractor_false_positive_rate"]) for r in results) / len(results), 3
+            ),
+            "total_distractor_false_positives": sum(
+                len(r["distractor_false_positives"]) for r in results
+            ),
             "avg_target_recall": round(sum(r["target_recall"] for r in results) / len(results), 3),
             "avg_target_recall_with_annotations": round(
                 sum(r["target_recall"] for r in annotated_results) / len(annotated_results), 3
@@ -1433,10 +1481,11 @@ def run_all() -> int:
             f"backlog_stories={r['backlog_story_count']} "
             f"backlog_no_invent={r['backlog_no_invention_rate']:.2f} "
             f"backlog_slicing={r['backlog_slicing_accuracy']:.2f} "
-            f"story_quality={r['story_quality_min_score']:.2f} "
-            f"knowledge_units={r['knowledge_ledger_total']} "
-            f"new_fp={len(r['new_false_positives'])}"
-        )
+                f"story_quality={r['story_quality_min_score']:.2f} "
+                f"knowledge_units={r['knowledge_ledger_total']} "
+                f"distractor_fp={len(r['distractor_false_positives'])}/{r['distractor_total']} "
+                f"new_fp={len(r['new_false_positives'])}"
+            )
         for gap in r["missing_must_fire"]:
             print(f"         missing: {gap}")
         for gap in r["new_false_positives"]:
@@ -1474,10 +1523,12 @@ def run_all() -> int:
         f"Summary: baseline_ok={s['baseline_ok']} avg_recall={s['avg_recall_must_fire']:.2f} "
         f"avg_gap_p/r/f1={s['avg_gap_precision']:.2f}/{s['avg_gap_recall']:.2f}/{s['avg_gap_f1']:.2f} "
         f"repeat={s['repeat_count']} "
-        f"var_p/r/f1={s['avg_gap_precision_variance']:.6f}/"
-        f"{s['avg_gap_recall_variance']:.6f}/"
-        f"{s['avg_gap_f1_variance']:.6f} "
-        f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
+            f"var_p/r/f1={s['avg_gap_precision_variance']:.6f}/"
+            f"{s['avg_gap_recall_variance']:.6f}/"
+            f"{s['avg_gap_f1_variance']:.6f} "
+            f"distractor_fp={s['total_distractor_false_positives']}/"
+            f"{s['fixtures_with_distractors']}fx "
+            f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
