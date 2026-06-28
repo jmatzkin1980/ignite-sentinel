@@ -41,6 +41,8 @@ Story lifecycle and DoR/DoD gates also enter this layer. `/story-status` creates
 
 Semantic impact review is a trace signal, not an auto-regeneration rule. When `/sync` sees a change note with scope/meaning cues such as "no longer", "replace", "out of scope", or "instead", it marks the `may_impact` links from that `CHG-*` as suspicious and writes them into the impact report plus `/health`. Cosmetic edits without semantic cues do not mark suspicious links. BA review decides whether downstream PRD/spec/backlog artifacts must be regenerated.
 
+The episodic timeline exposes the temporal dimension of that trail (IMP-126). `/retrieve PROJECT_ID --timeline` returns a read-only, newest-first list of "what changed and when" — changes, their impact reports and metabolism log, gap-resolution reports, and client/domain interactions — each event carrying its `indexed_at`, `iteration`, `trace_ids`, and source location. It is derived from the chunks already indexed (it reuses `iteration`/timestamps, persists nothing, and does not duplicate the graph), accepts optional `--limit`, `--artifact-type`, and `--trace-id` filters, and needs no `--query`/`--workflow`. To bias ordinary retrieval toward recent context instead of pure relevance, add `--order recency`: the same shortlist is reordered newest-first (score breaks ties), while the default `--order relevance` leaves ranking unchanged. Both work identically with or without LanceDB and a semantic model.
+
 ## Memory Layer
 
 Memory lives at:
