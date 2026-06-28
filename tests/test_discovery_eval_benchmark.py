@@ -26,6 +26,7 @@ class DiscoveryEvalBenchmarkTests(unittest.TestCase):
             target_fire={"GAP-T"},
             must_not_fire={"GAP-C"},
             known_false_positives=set(),
+            distractors={"GAP-C", "GAP-D"},
             gap_details={
                 "GAP-A": {"lens": "product"},
                 "GAP-B": {"lens": "product"},
@@ -40,12 +41,32 @@ class DiscoveryEvalBenchmarkTests(unittest.TestCase):
         self.assertEqual(metrics["f1"], 0.4)
         self.assertEqual(metrics["required_recall"], 0.5)
         self.assertEqual(metrics["target_recall"], 0.0)
+        self.assertEqual(metrics["distractor_total"], 2)
+        self.assertEqual(metrics["distractor_false_positive_total"], 1)
+        self.assertEqual(metrics["distractor_false_positive_rate"], 0.5)
+        self.assertEqual(metrics["distractor_false_positives"], ["GAP-C"])
         self.assertEqual(metrics["by_lens"]["product"]["recall"], 0.5)
 
     def test_repeat_variance_is_population_variance(self):
         runner = _load_runner()
         self.assertEqual(runner.metric_variance([0.5, 1.0]), 0.0625)
         self.assertEqual(runner.metric_variance([1.0]), 0.0)
+
+    def test_distractor_gap_ids_accepts_cited_objects(self):
+        runner = _load_runner()
+        self.assertEqual(
+            runner.distractor_gap_ids(
+                [
+                    {
+                        "gap_id": "GAP-AUTH-MODEL",
+                        "source_quote": "The dashboard is internal to Support.",
+                        "rationale": "Internal users are named; auth model is not a missing gap here.",
+                    },
+                    "GAP-SCOPE",
+                ]
+            ),
+            {"GAP-AUTH-MODEL", "GAP-SCOPE"},
+        )
 
     def test_repeat_variance_groups_by_fixture(self):
         runner = _load_runner()
