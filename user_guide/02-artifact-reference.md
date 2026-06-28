@@ -274,7 +274,7 @@ This is the first structured step from raw client language toward AI-friendly sp
 
 When confirmed gap answers are already written in EARS syntax, Sentinel appends them under `Normalized Requirements (EARS)` as `REQ-EARS-*` rows with pattern, statement, and source. Generated PRD/spec/backlog artifacts cite those IDs; the source of truth remains this file.
 
-`/maturity` and `/validate` also score this file through `requirement_quality` (IMP-111). The linter is non-blocking and never rewrites prose; it cites exact fragments when a statement contains vague or non-measurable terms, passive voice, missing verification cues, or cannot be normalized to a recognized EARS pattern. This signal is about requirement testability, separate from `/quality`, which scores generated stories later.
+`/maturity` and `/validate` also score this file through `requirement_quality` (IMP-111/IMP-130). The linter is non-blocking and never rewrites prose; it cites exact fragments when a statement contains vague or non-measurable terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, or cannot be normalized to a recognized EARS pattern. Ambiguity-like findings include `category` and `why_it_matters` so the warning explains the risk instead of only flagging a word. This signal is about requirement testability, separate from `/quality`, which scores generated stories later.
 
 ### `project-brief.md`
 
@@ -713,7 +713,7 @@ This is a local retrieval index and fallback. It is not the source of truth.
 
 Once `03_specs/prd.md` exists, `/maturity` and `/status` also expose `maturity_metrics.prd_section_readiness` (IMP-041): numbered PRD sections 1-13, per-section status, evidence citation count, `coverage_score`, and feeding gaps for poor sections. `/specs` returns the same block plus `specs_gate`; strict blocking is opt-in through workspace config and reports `SPECS_BELOW_THRESHOLD` instead of silently pushing weak PRD sections downstream.
 
-After IMP-111/IMP-129, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows, including ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, and prose that is not EARS-normalizable. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
+After IMP-111/IMP-129/IMP-130, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows, including ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, and prose that is not EARS-normalizable. Ambiguous/compound/quantifier warnings include category plus why-it-matters rationale. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
 
 ## Regeneration Diffs
 

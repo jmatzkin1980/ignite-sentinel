@@ -154,7 +154,7 @@ Blocks when open, answered, or partially closed gaps have severities configured 
 
 `/maturity` also computes development certainty from the discovery knowledge ledger. The additive `development_readiness` block evaluates the mature requirement rubric as a 16-area matrix by Ignite lens. Each cell is `CONFIRMED`, `ASSUMED`, or `OPEN`, carries evidence or `[PENDING INPUT]`, contributes to lens/global scores, and reports an explicit Crystallization Gate verdict. The gate is informational by default; it does not silently force downstream progress or close gaps.
 
-`/maturity` also exposes `maturity_metrics.requirement_quality` (IMP-111/IMP-129). This non-blocking score inspects `02_requirements/requirements.md` statements, including `REQ-001` and confirmed `REQ-EARS-*` rows, and cites fragments that contain vague/non-measurable terms, compound statements, unanchored quantifiers, passive voice, missing verification signals, or prose that is not normalizable to an EARS pattern. It helps the BA see whether the evidence is testable enough; it does not rewrite the requirement or change readiness gates.
+`/maturity` also exposes `maturity_metrics.requirement_quality` (IMP-111/IMP-129/IMP-130). This non-blocking score inspects `02_requirements/requirements.md` statements, including `REQ-001` and confirmed `REQ-EARS-*` rows, and cites fragments that contain vague/non-measurable terms, compound statements, unanchored quantifiers, passive voice, missing verification signals, or prose that is not normalizable to an EARS pattern. Ambiguity-like signals include a declared category and a short "why it matters" explanation so the BA can tell whether the risk is temporal, scope, quantity, or subjective wording. It helps the BA see whether the evidence is testable enough; it does not rewrite the requirement or change readiness gates.
 
 ## `gaps`
 
@@ -680,7 +680,7 @@ Outputs:
 
 `/maturity` and `/status` expose a quantified `maturity_metrics` block: `gap_closure_rate`, `open_gaps_by_severity`, per-artifact `artifact_evidence_scores` (same scoring as `/validate`), `requirement_quality_score`, a combined `maturity_score` (0.0–1.0), and `trend_vs_previous_run` comparing consecutive `/maturity` runs. Use the trend to see whether new evidence is actually maturing the requirement.
 
-`requirement_quality` is the IMP-111/IMP-129 requirement linter result. It scores each requirement statement and lists cited warning fragments for ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, or statements that are not EARS-normalizable. This is separate from `/quality`: `/maturity` scores requirement prose before specs/backlog, while `/quality` scores generated user stories against INVEST/SPIDR/Lawrence.
+`requirement_quality` is the IMP-111/IMP-129/IMP-130 requirement linter result. It scores each requirement statement and lists cited warning fragments for ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, or statements that are not EARS-normalizable. Ambiguous/compound/quantifier findings also carry `category` and `why_it_matters` fields. This is separate from `/quality`: `/maturity` scores requirement prose before specs/backlog, while `/quality` scores generated user stories against INVEST/SPIDR/Lawrence.
 
 Once a project brief exists, the block also carries `brief_section_readiness` (IMP-025): each narrative brief section (1-6) as `populated`/`pending`, an overall `coverage_score`, and, for each poor section, the gaps that feed it — the same signal the soft `/brief` gate uses.
 
@@ -705,7 +705,7 @@ Checks:
 - edges pointing to missing nodes
 - expected semantic sections in PRD, specs, and stories
 
-Requirement quality (non-blocking): the report includes `requirement_quality`, the same IMP-111 linter exposed by `/maturity`. It cites the exact requirement fragments that are vague, passive, missing verification cues, or not normalizable to EARS. These warnings never change `verdict`; structural validity remains separate from requirement testability.
+Requirement quality (non-blocking): the report includes `requirement_quality`, the same IMP-111/IMP-130 linter exposed by `/maturity`. It cites the exact requirement fragments that are vague, passive, missing verification cues, or not normalizable to EARS, and explains ambiguity-like findings by category. These warnings never change `verdict`; structural validity remains separate from requirement testability.
 
 Semantic quality (non-blocking): the report includes a `semantic_quality` block that scores `project-brief.md`, `prd.md`, and `specs.md` by comparing evidence-backed signals (quoted personas/FR statements, populated KPIs, EARS rows, source citations, evidence triggers) against `[PENDING INPUT]` / `[PENDING DOMAIN CONTEXT]` markers. A PRD compiled from real evidence should classify as `evidence-backed` or `mixed`; `scaffolding` means the artifact is still mostly structure or pending content. Warnings never change the verdict: they tell you how mature the content is, not whether the structure is valid.
 

@@ -71,6 +71,10 @@ class EarsClassifyTests(unittest.TestCase):
         signal_ids = {item["id"] for item in result["signals"]}
         self.assertIn("compound_statement", signal_ids)
         self.assertNotIn("missing_verification", signal_ids)
+        compound = next(item for item in result["signals"] if item["id"] == "compound_statement")
+        self.assertEqual(compound["category"], "scope")
+        self.assertIn("Why it matters", compound["message"])
+        self.assertIn("why_it_matters", compound)
 
     def test_requirement_quality_does_not_treat_nominal_list_as_compound(self):
         result = score_requirement_quality(
@@ -90,10 +94,24 @@ class EarsClassifyTests(unittest.TestCase):
         self.assertFalse(
             any(item["id"] == "ambiguous_term" and "various" in item["fragment"] for item in signals)
         )
+        categories = {
+            item["category"] for item in signals if item["id"] == "unanchored_quantifier"
+        }
+        self.assertIn("temporal", categories)
+        self.assertIn("quantity", categories)
 
     def test_requirement_quality_allows_vague_term_with_nearby_numeric_anchor(self):
         result = score_requirement_quality("When report opens, system shall load fast within 2 seconds.")
         self.assertNotIn("unanchored_quantifier", {item["id"] for item in result["signals"]})
+
+    def test_requirement_quality_explains_ambiguous_terms_by_category(self):
+        result = score_requirement_quality("The system shall provide a nice dashboard.")
+        ambiguous = next(item for item in result["signals"] if item["id"] == "ambiguous_term")
+        self.assertEqual(ambiguous["severity"], "medium")
+        self.assertEqual(ambiguous["category"], "subjective")
+        self.assertIn("Why it matters", ambiguous["message"])
+        self.assertIn("observable criteria", ambiguous["why_it_matters"])
+        self.assertIn("nice", ambiguous["fragment"])
 
     def test_requirements_markdown_quality_scores_primary_and_ears_rows(self):
         report = requirements_quality_report(
