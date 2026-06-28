@@ -713,7 +713,7 @@ This is a local retrieval index and fallback. It is not the source of truth.
 
 Once `03_specs/prd.md` exists, `/maturity` and `/status` also expose `maturity_metrics.prd_section_readiness` (IMP-041): numbered PRD sections 1-13, per-section status, evidence citation count, `coverage_score`, and feeding gaps for poor sections. `/specs` returns the same block plus `specs_gate`; strict blocking is opt-in through workspace config and reports `SPECS_BELOW_THRESHOLD` instead of silently pushing weak PRD sections downstream.
 
-After IMP-111, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
+After IMP-111/IMP-129, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows, including ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, and prose that is not EARS-normalizable. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
 
 ## Regeneration Diffs
 

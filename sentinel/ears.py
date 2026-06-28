@@ -62,6 +62,84 @@ AMBIGUOUS_TERMS: tuple[str, ...] = (
     "amigable",
 )
 
+UNANCHORED_QUANTIFIER_TERMS: tuple[str, ...] = (
+    "as needed",
+    "fast",
+    "quick",
+    "soon",
+    "various",
+    "several",
+    "many",
+    "multiple",
+    "frequent",
+    "frequently",
+    "often",
+    "rapid",
+    "rapido",
+    "rapida",
+    "rapidez",
+    "pronto",
+    "varios",
+    "varias",
+    "muchos",
+    "muchas",
+    "frecuente",
+    "frecuentemente",
+)
+
+_ACTION_VERBS = (
+    "allow",
+    "approve",
+    "audit",
+    "block",
+    "calculate",
+    "create",
+    "delete",
+    "display",
+    "export",
+    "flag",
+    "import",
+    "log",
+    "notify",
+    "record",
+    "reject",
+    "route",
+    "send",
+    "show",
+    "store",
+    "update",
+    "validate",
+    "aprobar",
+    "auditar",
+    "bloquear",
+    "calcular",
+    "crear",
+    "eliminar",
+    "enviar",
+    "exportar",
+    "importar",
+    "marcar",
+    "mostrar",
+    "notificar",
+    "permitir",
+    "rechazar",
+    "registrar",
+    "rutear",
+    "validar",
+)
+_ACTION_VERB_RE = "|".join(re.escape(verb) for verb in _ACTION_VERBS)
+_COMPOUND_ACTION_RE = re.compile(
+    rf"\b(?:and|or|y|o)\s+(?:then\s+|entonces\s+)?(?:{_SHALL}\s+)?(?:{_ACTION_VERB_RE})\b",
+    re.I,
+)
+_NUMERIC_ANCHOR_RE = re.compile(
+    r"\b(?:\d+(?:[.,]\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|"
+    r"uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b|"
+    r"(?:%|percent|por ciento|seconds?|segundos?|minutes?|minutos?|hours?|horas?|days?|dias|días|"
+    r"sla|kpi|metric|métrica|metrica|threshold|umbral)",
+    re.I,
+)
+
 _PASSIVE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(?:is|are|was|were|be|been|being)\s+(?:\w+\s+){0,2}\w+(?:ed|en)\b", re.I),
     re.compile(r"\b(?:es|son|fue|fueron|sera|seran|será|serán)\s+(?:\w+\s+){0,2}\w+(?:ado|ada|ados|adas|ido|ida|idos|idas)\b", re.I),
@@ -137,7 +215,30 @@ def score_requirement_quality(text: str) -> dict[str, object]:
                 "fragment": _excerpt(normalized),
             }
         )
+    compound = _compound_statement_fragment(normalized)
+    if compound:
+        signals.append(
+            {
+                "id": "compound_statement",
+                "severity": "medium",
+                "message": "Statement appears to combine more than one required system action.",
+                "fragment": compound,
+            }
+        )
+    unanchored_quantifiers = _matched_unanchored_quantifiers(normalized)
+    for term in unanchored_quantifiers:
+        signals.append(
+            {
+                "id": "unanchored_quantifier",
+                "severity": "medium",
+                "message": f"Vague quantity or timing term lacks a nearby numeric anchor: {term}.",
+                "fragment": _excerpt_around(normalized, term),
+            }
+        )
+    unanchored_terms = {term.lower() for term in unanchored_quantifiers}
     for term in _matched_ambiguous_terms(normalized):
+        if term.lower() in unanchored_terms:
+            continue
         signals.append(
             {
                 "id": "ambiguous_term",
@@ -249,6 +350,35 @@ def requirement_statements_from_markdown(markdown_text: str) -> list[dict[str, s
             continue
         statements.append({"id": cells[0], "statement": cells[2], "source": cells[3]})
     return statements
+
+
+def _compound_statement_fragment(text: str) -> str:
+    match = _COMPOUND_ACTION_RE.search(text)
+    if not match:
+        return ""
+    return _excerpt(text)
+
+
+def _matched_unanchored_quantifiers(text: str) -> list[str]:
+    lowered = text.lower()
+    matches: list[str] = []
+    for term in UNANCHORED_QUANTIFIER_TERMS:
+        if not re.search(rf"(?<!\w){re.escape(term)}(?!\w)", lowered, re.I):
+            continue
+        if _has_nearby_numeric_anchor(text, term):
+            continue
+        matches.append(term)
+    return matches[:5]
+
+
+def _has_nearby_numeric_anchor(text: str, term: str) -> bool:
+    lowered = text.lower()
+    index = lowered.find(term.lower())
+    if index < 0:
+        return False
+    start = max(0, index - 60)
+    end = min(len(text), index + len(term) + 60)
+    return bool(_NUMERIC_ANCHOR_RE.search(text[start:end]))
 
 
 def _matched_ambiguous_terms(text: str) -> list[str]:
