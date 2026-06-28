@@ -154,7 +154,7 @@ Blocks when open, answered, or partially closed gaps have severities configured 
 
 `/maturity` also computes development certainty from the discovery knowledge ledger. The additive `development_readiness` block evaluates the mature requirement rubric as a 16-area matrix by Ignite lens. Each cell is `CONFIRMED`, `ASSUMED`, or `OPEN`, carries evidence or `[PENDING INPUT]`, contributes to lens/global scores, and reports an explicit Crystallization Gate verdict. The gate is informational by default; it does not silently force downstream progress or close gaps.
 
-`/maturity` also exposes `maturity_metrics.requirement_quality` (IMP-111). This non-blocking score inspects `02_requirements/requirements.md` statements, including `REQ-001` and confirmed `REQ-EARS-*` rows, and cites fragments that contain vague/non-measurable terms, passive voice, missing verification signals, or prose that is not normalizable to an EARS pattern. It helps the BA see whether the evidence is testable enough; it does not rewrite the requirement or change readiness gates.
+`/maturity` also exposes `maturity_metrics.requirement_quality` (IMP-111/IMP-129). This non-blocking score inspects `02_requirements/requirements.md` statements, including `REQ-001` and confirmed `REQ-EARS-*` rows, and cites fragments that contain vague/non-measurable terms, compound statements, unanchored quantifiers, passive voice, missing verification signals, or prose that is not normalizable to an EARS pattern. It helps the BA see whether the evidence is testable enough; it does not rewrite the requirement or change readiness gates.
 
 ## `gaps`
 
@@ -680,7 +680,7 @@ Outputs:
 
 `/maturity` and `/status` expose a quantified `maturity_metrics` block: `gap_closure_rate`, `open_gaps_by_severity`, per-artifact `artifact_evidence_scores` (same scoring as `/validate`), `requirement_quality_score`, a combined `maturity_score` (0.0–1.0), and `trend_vs_previous_run` comparing consecutive `/maturity` runs. Use the trend to see whether new evidence is actually maturing the requirement.
 
-`requirement_quality` is the IMP-111 requirement linter result. It scores each requirement statement and lists cited warning fragments for ambiguous terms, passive voice, missing verification cues, or statements that are not EARS-normalizable. This is separate from `/quality`: `/maturity` scores requirement prose before specs/backlog, while `/quality` scores generated user stories against INVEST/SPIDR/Lawrence.
+`requirement_quality` is the IMP-111/IMP-129 requirement linter result. It scores each requirement statement and lists cited warning fragments for ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, or statements that are not EARS-normalizable. This is separate from `/quality`: `/maturity` scores requirement prose before specs/backlog, while `/quality` scores generated user stories against INVEST/SPIDR/Lawrence.
 
 Once a project brief exists, the block also carries `brief_section_readiness` (IMP-025): each narrative brief section (1-6) as `populated`/`pending`, an overall `coverage_score`, and, for each poor section, the gaps that feed it — the same signal the soft `/brief` gate uses.
 

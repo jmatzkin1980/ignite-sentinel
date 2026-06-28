@@ -64,6 +64,37 @@ class EarsClassifyTests(unittest.TestCase):
         passive = score_requirement_quality("The alert shall be displayed when the queue is stale.")
         self.assertIn("passive_voice", {item["id"] for item in passive["signals"]})
 
+    def test_requirement_quality_flags_compound_statement(self):
+        result = score_requirement_quality(
+            "When expense submitted, system shall validate amount and notify approver within 5 minutes."
+        )
+        signal_ids = {item["id"] for item in result["signals"]}
+        self.assertIn("compound_statement", signal_ids)
+        self.assertNotIn("missing_verification", signal_ids)
+
+    def test_requirement_quality_does_not_treat_nominal_list_as_compound(self):
+        result = score_requirement_quality(
+            "When dashboard opens, system shall show ticket volume, resolution time, and backlog ageing within 5 seconds."
+        )
+        self.assertNotIn("compound_statement", {item["id"] for item in result["signals"]})
+
+    def test_requirement_quality_flags_unanchored_quantifier_separately(self):
+        result = score_requirement_quality("The system shall load reports quickly and support various filters.")
+        signals = result["signals"]
+        signal_ids = {item["id"] for item in signals}
+        self.assertIn("unanchored_quantifier", signal_ids)
+        quantifier_fragments = [
+            item["fragment"] for item in signals if item["id"] == "unanchored_quantifier"
+        ]
+        self.assertTrue(any("various" in fragment for fragment in quantifier_fragments))
+        self.assertFalse(
+            any(item["id"] == "ambiguous_term" and "various" in item["fragment"] for item in signals)
+        )
+
+    def test_requirement_quality_allows_vague_term_with_nearby_numeric_anchor(self):
+        result = score_requirement_quality("When report opens, system shall load fast within 2 seconds.")
+        self.assertNotIn("unanchored_quantifier", {item["id"] for item in result["signals"]})
+
     def test_requirements_markdown_quality_scores_primary_and_ears_rows(self):
         report = requirements_quality_report(
             "# Requirement Register - DEMO\n\n"
