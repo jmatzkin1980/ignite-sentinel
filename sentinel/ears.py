@@ -35,6 +35,7 @@ AMBIGUOUS_TERMS: tuple[str, ...] = (
     "intuitive",
     "nice",
     "quick",
+    "quickly",
     "robust",
     "seamless",
     "simple",
@@ -66,6 +67,7 @@ UNANCHORED_QUANTIFIER_TERMS: tuple[str, ...] = (
     "as needed",
     "fast",
     "quick",
+    "quickly",
     "soon",
     "various",
     "several",
@@ -86,6 +88,70 @@ UNANCHORED_QUANTIFIER_TERMS: tuple[str, ...] = (
     "frecuente",
     "frecuentemente",
 )
+
+_TEMPORAL_AMBIGUITY_TERMS = {
+    "as needed",
+    "fast",
+    "quick",
+    "quickly",
+    "soon",
+    "frequent",
+    "frequently",
+    "often",
+    "rapid",
+    "rapido",
+    "rapida",
+    "rapidez",
+    "pronto",
+    "frecuente",
+    "frecuentemente",
+}
+_QUANTITY_AMBIGUITY_TERMS = {
+    "various",
+    "several",
+    "many",
+    "multiple",
+    "varios",
+    "varias",
+    "muchos",
+    "muchas",
+}
+_SCOPE_AMBIGUITY_TERMS = {
+    "adequate",
+    "appropriate",
+    "flexible",
+    "robust",
+    "adecuado",
+    "adecuada",
+    "flexible",
+    "robusto",
+    "robusta",
+}
+_SUBJECTIVE_AMBIGUITY_TERMS = {
+    "easy",
+    "efficient",
+    "intuitive",
+    "nice",
+    "seamless",
+    "simple",
+    "user friendly",
+    "usable",
+    "better",
+    "mejor",
+    "facil",
+    "intuitivo",
+    "intuitiva",
+    "eficiente",
+    "simple",
+    "usable",
+    "amigable",
+}
+_AMBIGUITY_CATEGORY_WHY: dict[str, str] = {
+    "temporal": "Timing words need an explicit threshold or SLA before QA can verify them.",
+    "scope": "Scope or multi-action wording hides which behavior, owner, or boundary must be implemented and tested.",
+    "quantity": "Quantity words need counts, ranges, or thresholds before acceptance can be measured.",
+    "subjective": "Subjective quality words need observable criteria before teams can implement or test them consistently.",
+}
 
 _ACTION_VERBS = (
     "allow",
@@ -218,34 +284,39 @@ def score_requirement_quality(text: str) -> dict[str, object]:
     compound = _compound_statement_fragment(normalized)
     if compound:
         signals.append(
-            {
-                "id": "compound_statement",
-                "severity": "medium",
-                "message": "Statement appears to combine more than one required system action.",
-                "fragment": compound,
-            }
+            _quality_signal(
+                "compound_statement",
+                "medium",
+                "Compound scope statement appears to combine more than one required system action.",
+                compound,
+                "scope",
+            )
         )
     unanchored_quantifiers = _matched_unanchored_quantifiers(normalized)
     for term in unanchored_quantifiers:
+        category = _ambiguity_category_for_term(term)
         signals.append(
-            {
-                "id": "unanchored_quantifier",
-                "severity": "medium",
-                "message": f"Vague quantity or timing term lacks a nearby numeric anchor: {term}.",
-                "fragment": _excerpt_around(normalized, term),
-            }
+            _quality_signal(
+                "unanchored_quantifier",
+                "medium",
+                f"Unanchored {category} term lacks a nearby numeric anchor: {term}.",
+                _excerpt_around(normalized, term),
+                category,
+            )
         )
     unanchored_terms = {term.lower() for term in unanchored_quantifiers}
     for term in _matched_ambiguous_terms(normalized):
         if term.lower() in unanchored_terms:
             continue
+        category = _ambiguity_category_for_term(term)
         signals.append(
-            {
-                "id": "ambiguous_term",
-                "severity": "medium",
-                "message": f"Ambiguous or non-measurable term: {term}.",
-                "fragment": _excerpt_around(normalized, term),
-            }
+            _quality_signal(
+                "ambiguous_term",
+                "medium",
+                f"Ambiguous {category} term: {term}.",
+                _excerpt_around(normalized, term),
+                category,
+            )
         )
     passive = _passive_match(normalized)
     if passive:
@@ -350,6 +421,35 @@ def requirement_statements_from_markdown(markdown_text: str) -> list[dict[str, s
             continue
         statements.append({"id": cells[0], "statement": cells[2], "source": cells[3]})
     return statements
+
+
+def _quality_signal(
+    signal_id: str,
+    severity: str,
+    message: str,
+    fragment: str,
+    category: str,
+) -> dict[str, str]:
+    why_it_matters = _AMBIGUITY_CATEGORY_WHY[category]
+    return {
+        "id": signal_id,
+        "severity": severity,
+        "category": category,
+        "message": f"{message} Category: {category}. Why it matters: {why_it_matters}",
+        "why_it_matters": why_it_matters,
+        "fragment": fragment,
+    }
+
+
+def _ambiguity_category_for_term(term: str) -> str:
+    normalized = term.lower()
+    if normalized in _TEMPORAL_AMBIGUITY_TERMS:
+        return "temporal"
+    if normalized in _QUANTITY_AMBIGUITY_TERMS:
+        return "quantity"
+    if normalized in _SCOPE_AMBIGUITY_TERMS:
+        return "scope"
+    return "subjective"
 
 
 def _compound_statement_fragment(text: str) -> str:
