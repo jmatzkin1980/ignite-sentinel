@@ -109,6 +109,15 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         trace_ids=[change_id],
     )
     reindex_workspace(project_id)
+    # IMP-127: emit a focused, pointer-only context pack for the change instead of
+    # expecting the BA to re-read whole artifacts. Read-only and degradation-safe.
+    focus_pack = ContextBroker(project_id).build_focus_pack(
+        "sync_focus",
+        focus_query_for_change(note, text),
+        limit=6,
+        max_chars=1600,
+        global_budget_chars=4000,
+    )
     mark_source_processed(project_id, source, "synced", change_id)
     mark_source_processed(project_id, target, "change_copy", change_id)
     mark_source_processed(project_id, impact_path, "impact_report", impact_id)
@@ -144,6 +153,7 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "knowledge_metabolism": metabolism,
         "staleness": stale_result,
         "suspicious_trace_links": suspicious_links,
+        "context_pack": focus_pack.get("path"),
     }
 
 
@@ -263,6 +273,13 @@ def mark_suspicious_trace_links(
         )
     save_graph(project_id, graph)
     return suspicious
+
+
+def focus_query_for_change(note: str, change_text: str, limit: int = 600) -> str:
+    """Compact query for the change focus pack (IMP-127): operator note first,
+    then the head of the change text. Bounded so retrieval stays cheap."""
+    combined = f"{note}\n{change_text}".strip()
+    return combined[:limit]
 
 
 def sync_detection_text(base: Path, change_text: str) -> str:

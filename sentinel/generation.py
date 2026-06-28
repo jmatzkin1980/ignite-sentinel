@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from .memory import ContextBroker, get_multi_domain_context
+from .memory import ContextBroker, apply_pack_disclosure_budget, get_multi_domain_context
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
@@ -481,6 +481,7 @@ def build_backlog_generation_context(
                     "artifact_type": row.get("artifact_type", "artifact"),
                     "domain": row.get("domain", "unknown"),
                     "section_path": row.get("section_path", ""),
+                    "chunk_id": row.get("chunk_id", ""),
                     "summary": row.get("summary", row.get("text", ""))[: int(retrieval["summary_chars"])],
                     "why_retrieved": row.get("why_retrieved", ""),
                     "trace_ids": row.get("trace_ids", []),
@@ -490,6 +491,7 @@ def build_backlog_generation_context(
                 for row in results
             ],
         }
+    disclosure_budget = apply_pack_disclosure_budget(sections, int(plan.get("global_budget_chars", 0)))
     domain_snapshot = domain_context_snapshot(project_id)
     pack = {
         "project_id": project_id,
@@ -499,6 +501,7 @@ def build_backlog_generation_context(
         "domain_context_snapshot": domain_snapshot,
         "ears_requirements": load_ears_requirements(project_id),
         "sections": sections,
+        "disclosure_budget": disclosure_budget,
         "domain_context_coverage": [],
         "per_story": {},
     }
@@ -874,6 +877,7 @@ def build_specs_generation_context(
                     "artifact_type": row.get("artifact_type", "artifact"),
                     "domain": row.get("domain", "unknown"),
                     "section_path": row.get("section_path", ""),
+                    "chunk_id": row.get("chunk_id", ""),
                     "summary": row.get("summary", row.get("text", ""))[: int(retrieval["summary_chars"])],
                     "why_retrieved": row.get("why_retrieved", ""),
                     "trace_ids": row.get("trace_ids", []),
@@ -883,6 +887,7 @@ def build_specs_generation_context(
                 for row in results
             ],
         }
+    disclosure_budget = apply_pack_disclosure_budget(sections, int(plan.get("global_budget_chars", 0)))
     coverage_map: dict[str, str] = {}
     for section, payload in sections.items():
         count = len(payload.get("results", []))
@@ -898,6 +903,7 @@ def build_specs_generation_context(
         "coverage_score": round(covered / len(coverage_map), 3) if coverage_map else 0.0,
         "sections_total": len(coverage_map),
         "sections_with_evidence": covered,
+        "disclosure_budget": disclosure_budget,
         "sections": sections,
     }
     write_json(workspace_path(project_id) / "08_context_packs" / "specs_generation.json", pack)

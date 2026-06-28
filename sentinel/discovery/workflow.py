@@ -158,6 +158,17 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     )
     index_context_folders(project_id, broker)
 
+    # IMP-127: discovery is the highest-volume phase; emit a focused, pointer-only
+    # context pack so downstream review consults focus instead of reading whole
+    # artifacts. Read-only and degradation-safe (empty pack if nothing retrievable).
+    focus_pack = broker.build_focus_pack(
+        "discovery_focus",
+        req_text[:600],
+        limit=6,
+        max_chars=1600,
+        global_budget_chars=4000,
+    )
+
     update_state(
         project_id,
         phase="discovery_completed",
@@ -197,6 +208,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "lens_review_id": lens_review_id,
         "knowledge_ledger_id": ledger_id,
         "requirement_unit_ids": unit_node_ids,
+        "context_pack": focus_pack.get("path"),
     }
 
 

@@ -874,6 +874,129 @@ class ContextBroker:
             "events": events,
         }
 
+    def build_focus_pack(
+        self,
+        workflow: str,
+        query: str,
+        *,
+        limit: int = 5,
+        max_chars: int = 1200,
+        summary_chars: int = 240,
+        global_budget_chars: int = 0,
+        artifact_type: str | None = None,
+        domain: str | None = None,
+        trace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """IMP-127: emit a focused, pointer-only context pack for a high-volume flow.
+
+        Brings the progressive-disclosure pattern (retrieve + ``summary_only`` +
+        budget) to flows like ``/sync`` and discovery that historically read whole
+        artifacts. The pack carries only summaries plus ``read_plan`` pointers (no
+        verbatim body), respects a global character budget, and de-duplicates
+        repeated chunks. It degrades gracefully: without LanceDB or a semantic
+        model the underlying ``retrieve`` still returns lexical hits; if nothing is
+        retrievable the pack is simply empty (no error).
+        """
+        results = self.retrieve(
+            query,
+            workflow,
+            limit=limit,
+            artifact_type=artifact_type,
+            domain=domain,
+            trace_id=trace_id,
+            max_chars=max_chars,
+            summary_only=True,
+        )
+        pointers = [
+            {
+                "artifact_id": row.get("artifact_id", "N/A"),
+                "artifact_type": row.get("artifact_type", "artifact"),
+                "domain": row.get("domain", "unknown"),
+                "section_path": row.get("section_path", ""),
+                "chunk_id": row.get("chunk_id", ""),
+                "summary": str(row.get("summary", row.get("text", "")))[:summary_chars],
+                "why_retrieved": row.get("why_retrieved", ""),
+                "trace_ids": row.get("trace_ids", []),
+                "read_plan": row.get("read_plan", {}),
+            }
+            for row in results
+        ]
+        sections = {"focus": {"results": pointers}}
+        disclosure_budget = apply_pack_disclosure_budget(sections, global_budget_chars)
+        pointers = sections["focus"]["results"]
+        pack = {
+            "project_id": self.project_id,
+            "workflow": workflow,
+            "query": query,
+            "backend": self.backend,
+            "candidate_source": self.last_candidate_source,
+            "count": len(pointers),
+            "disclosure_budget": disclosure_budget,
+            "pointers": pointers,
+        }
+        safe_workflow = re.sub(r"[^A-Za-z0-9_-]+", "-", workflow).strip("-") or "context"
+        pack_path = workspace_path(self.project_id) / "08_context_packs" / f"{safe_workflow}_focus.json"
+        write_json(pack_path, pack)
+        pack["path"] = str(pack_path.as_posix())
+        return pack
+
+
+def apply_pack_disclosure_budget(sections: dict[str, Any], global_budget_chars: int = 0) -> dict[str, Any]:
+    """IMP-127: progressive-disclosure budgeting across a multi-section pack.
+
+    Two token-saving passes over the per-section ``results`` (processed in
+    declaration order, so earlier sections win):
+
+    1. **Cross-section dedup** — a chunk already shown in an earlier section is
+       dropped from later sections ("no repite chunks entre secciones").
+    2. **Global character ceiling** — once the cumulative summary length crosses
+       ``global_budget_chars`` (when > 0), further chunks are dropped.
+
+    To avoid starving coverage, each section always keeps at least its first
+    (strongest) result even if it is a duplicate or over budget; only the
+    *additional* repeats/overflow are trimmed. Mutates each section's ``results``
+    in place, annotates per-section ``disclosure_deduped``/``disclosure_truncated``
+    counts, and returns a budget summary for the pack.
+    """
+    seen_chunks: set[str] = set()
+    used_chars = 0
+    deduped_total = 0
+    truncated_total = 0
+    kept_total = 0
+    for section in sections.values():
+        kept: list[dict[str, Any]] = []
+        section_deduped = 0
+        section_truncated = 0
+        for row in section.get("results", []):
+            chunk_id = str(row.get("chunk_id") or "")
+            summary_len = len(str(row.get("summary", "")))
+            is_dup = bool(chunk_id) and chunk_id in seen_chunks
+            over_budget = bool(global_budget_chars) and used_chars + summary_len > global_budget_chars
+            # Keep at least one result per section that had evidence; trim the rest.
+            if (is_dup or over_budget) and kept:
+                if is_dup:
+                    section_deduped += 1
+                else:
+                    section_truncated += 1
+                continue
+            if chunk_id:
+                seen_chunks.add(chunk_id)
+            used_chars += summary_len
+            kept_total += 1
+            kept.append(row)
+        section["results"] = kept
+        section["disclosure_deduped"] = section_deduped
+        section["disclosure_truncated"] = section_truncated
+        deduped_total += section_deduped
+        truncated_total += section_truncated
+    return {
+        "global_budget_chars": global_budget_chars,
+        "used_chars": used_chars,
+        "kept_chunks": kept_total,
+        "deduped_chunks": deduped_total,
+        "truncated_chunks": truncated_total,
+    }
+
 
 def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     graph = read_json(graph_path(project_id), {"nodes": [], "edges": []})

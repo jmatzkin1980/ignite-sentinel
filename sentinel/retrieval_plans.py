@@ -82,6 +82,10 @@ def normalize_plan(workflow: str, data: dict[str, Any]) -> dict[str, Any]:
     return {
         "workflow": str(data.get("workflow", workflow)),
         "version": int(data.get("version", 1)),
+        # IMP-127: optional global character ceiling across all pack sections.
+        # 0 means "no global cap" so plans that omit it keep prior behavior; the
+        # cross-section chunk dedup applies regardless.
+        "global_budget_chars": int(data.get("global_budget_chars", 0)),
         "sections": normalized_sections,
     }
 
