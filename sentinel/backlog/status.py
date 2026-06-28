@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ LEGAL_TRANSITIONS = {
     "Blocked": {"Draft", "Ready", "In Progress", "Stale"},
     "Stale": {"Draft", "Ready", "Blocked"},
 }
+
+AC_FREEZE_VERSION = 1
 
 
 def normalize_story_status(value: str) -> str:
@@ -112,6 +115,10 @@ def update_story_status(
     if next_status == "Done" and gate_result["strict"] and not gate_result["dod"]["passed"]:
         raise StoryStatusError("DoD gate blocks Done: " + "; ".join(gate_result["dod"]["missing"]))
 
+    freeze_record = None
+    if next_status == "Ready":
+        freeze_record = register_acceptance_criteria_freeze(project_id, story_id, story_path)
+
     lifecycle = story_lifecycle_state(project_id)
     lifecycle[story_id] = {
         "status": next_status,
@@ -146,6 +153,7 @@ def update_story_status(
         "dod": gate_result["dod"],
         "warnings": transition_warnings(next_status, gate_result),
         "evidence": evidence_record,
+        "acceptance_criteria_freeze": freeze_record,
         "backlog_board": board["path"],
         "change_id": change_id,
         "path": str(story_path.as_posix()),
@@ -193,6 +201,206 @@ def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
         if len(cells) >= 2:
             items.append({"id": cells[0], "classification": cells[1]})
     return items
+
+
+def register_acceptance_criteria_freeze(project_id: str, story_id: str, story_path: Path) -> dict[str, Any]:
+    state = read_json(state_path(project_id), {})
+    freezes = state.get("acceptance_criteria_freezes", {})
+    if not isinstance(freezes, dict):
+        freezes = {}
+    existing = freezes.get(story_id)
+    if isinstance(existing, dict) and existing.get("items"):
+        return existing
+
+    text = story_path.read_text(encoding="utf-8")
+    record = {
+        "version": AC_FREEZE_VERSION,
+        "story_id": story_id,
+        "frozen_at": utc_now(),
+        "source": f"04_backlog/{story_id}.md",
+        "trigger": "/story-status --set Ready",
+        "items": acceptance_snapshot_from_items(acceptance_snapshot_from_story_markdown(text)),
+    }
+    freezes[story_id] = record
+    update_state(project_id, acceptance_criteria_freezes=freezes)
+    return record
+
+
+def audit_acceptance_criteria_freezes(project_id: str, stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    state = read_json(state_path(project_id), {})
+    freezes = state.get("acceptance_criteria_freezes", {})
+    if not isinstance(freezes, dict) or not freezes:
+        return []
+
+    deltas: list[dict[str, Any]] = []
+    for story in stories:
+        story_id = str(story.get("id", "")).strip()
+        freeze = freezes.get(story_id)
+        if not isinstance(freeze, dict):
+            continue
+        frozen_items = keyed_acceptance_items(freeze.get("items", []))
+        current_items = keyed_acceptance_items(acceptance_snapshot_from_items(story.get("acceptance", [])))
+        for ac_id, frozen in frozen_items.items():
+            current = current_items.get(ac_id)
+            if current is None:
+                deltas.append(acceptance_delta(story_id, ac_id, "removed", frozen, None))
+                continue
+            if frozen.get("hash") != current.get("hash"):
+                deltas.append(acceptance_delta(story_id, ac_id, "changed", frozen, current))
+        for ac_id, current in current_items.items():
+            if ac_id not in frozen_items:
+                deltas.append(acceptance_delta(story_id, ac_id, "added_after_freeze", None, current))
+
+    if deltas:
+        report_path = write_acceptance_criteria_delta_report(project_id, deltas)
+        state = read_json(state_path(project_id), {})
+        delta_history = state.get("acceptance_criteria_deltas", [])
+        if not isinstance(delta_history, list):
+            delta_history = []
+        delta_history.append(
+            {
+                "version": AC_FREEZE_VERSION,
+                "recorded_at": utc_now(),
+                "path": report_path.relative_to(workspace_path(project_id)).as_posix(),
+                "delta_count": len(deltas),
+            }
+        )
+        update_state(project_id, acceptance_criteria_deltas=delta_history)
+        add_acceptance_delta_trace(project_id, report_path, deltas)
+    return deltas
+
+
+def acceptance_snapshot_from_story_markdown(text: str) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    for line in text.splitlines():
+        if not line.startswith("| AC-"):
+            continue
+        cells = parse_table_rows(line, strip_code_ticks=False)[0]
+        if len(cells) >= 2:
+            item = {"id": cells[0], "classification": cells[1]}
+            if len(cells) >= 3:
+                item["criterion"] = cells[2]
+            items.append(item)
+    return items
+
+
+def keyed_acceptance_items(items: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(items, list):
+        return {}
+    return {
+        str(item.get("id", "")).strip(): item
+        for item in items
+        if isinstance(item, dict) and str(item.get("id", "")).strip()
+    }
+
+
+def acceptance_snapshot_from_items(items: Any) -> list[dict[str, str]]:
+    if not isinstance(items, list):
+        return []
+    snapshot: list[dict[str, str]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        ac_id = str(item.get("id", "")).strip()
+        if not ac_id:
+            continue
+        classification = str(item.get("classification", "acceptance")).strip() or "acceptance"
+        criterion = criterion_text(item)
+        fingerprint = f"{ac_id}\n{classification}\n{criterion}"
+        snapshot.append(
+            {
+                "id": ac_id,
+                "classification": classification,
+                "criterion": criterion,
+                "hash": sha256(fingerprint.encode("utf-8")).hexdigest(),
+            }
+        )
+    return snapshot
+
+
+def criterion_text(item: dict[str, Any]) -> str:
+    if item.get("criterion"):
+        return normalize_ac_text(str(item.get("criterion", "")))
+    parts = [
+        str(item.get("given", "")).strip(),
+        str(item.get("when", "")).strip(),
+        str(item.get("then", "")).strip(),
+    ]
+    if any(parts):
+        return normalize_ac_text(f"Given {parts[0]}, When {parts[1]}, Then {parts[2]}.")
+    return ""
+
+
+def normalize_ac_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def acceptance_delta(
+    story_id: str,
+    ac_id: str,
+    change_type: str,
+    frozen: dict[str, Any] | None,
+    current: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "story_id": story_id,
+        "ac_id": ac_id,
+        "change_type": change_type,
+        "frozen": frozen or {},
+        "current": current or {},
+    }
+
+
+def write_acceptance_criteria_delta_report(project_id: str, deltas: list[dict[str, Any]]) -> Path:
+    path = workspace_path(project_id) / "04_backlog" / "acceptance_criteria_deltas.md"
+    timestamp = utc_now()
+    rows = "\n".join(
+        "| {story} | `{ac}` | {kind} | {before} | {after} |".format(
+            story=delta["story_id"],
+            ac=delta["ac_id"],
+            kind=delta["change_type"],
+            before=markdown_cell(delta.get("frozen", {}).get("criterion", "N/A")),
+            after=markdown_cell(delta.get("current", {}).get("criterion", "N/A")),
+        )
+        for delta in deltas
+    )
+    path.write_text(
+        f"""# Acceptance Criteria Delta Report - {project_id}
+
+Generated: {timestamp}
+
+This report records explicit diffs against acceptance criteria frozen by `/story-status --set Ready`.
+Existing frozen criteria must not change silently during backlog regeneration; new criteria are listed as `added_after_freeze` for review.
+
+| Story | AC | Change | Frozen Criterion | Current Criterion |
+| --- | --- | --- | --- | --- |
+{rows}
+""",
+        encoding="utf-8",
+    )
+    return path
+
+
+def markdown_cell(value: Any) -> str:
+    text = normalize_ac_text(str(value or "N/A"))
+    return text.replace("|", "\\|")
+
+
+def add_acceptance_delta_trace(project_id: str, report_path: Path, deltas: list[dict[str, Any]]) -> str:
+    delta_id = add_node(
+        project_id,
+        "CHG",
+        "acceptance_criteria_delta",
+        report_path,
+        "Acceptance criteria delta report",
+        status="review-needed",
+        domain="quality",
+    )
+    for delta in deltas:
+        story_node = story_node_id(project_id, str(delta.get("story_id", "")))
+        if story_node:
+            add_edge(project_id, delta_id, story_node, "records_acceptance_delta_for")
+    return delta_id
 
 
 def trace_from_frontmatter(text: str) -> list[str]:
