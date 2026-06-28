@@ -669,6 +669,7 @@ Checks:
 - blocking gaps
 - unbacked metrics
 - memory indexing coverage
+- needs-context gate (IMP-127): a soft warning when the project holds enough indexed memory to warrant focused retrieval but has no focus context pack. The trigger is indexed volume, not whether LanceDB is present, so it fires identically in `json-hybrid`. Soft by default; it only becomes a blocking finding when `needs_context_gate.strict` is opted in. The machine-readable `needs_context_gate` block is included in `health_report.json`.
 
 Outputs:
 
@@ -740,6 +741,8 @@ Creates:
 - impact report
 - refreshed `knowledge_state.*` and `development_readiness.json` when knowledge moves
 - `Knowledge Ledger Metabolism` and downstream staleness sections in the impact report
+- an `Associative Impact Candidates (BA review)` section when a semantic embedder is active and a reworded change relates to an assumption by meaning (IMP-125) — cited suggestions only; nothing is auto-closed or auto-invalidated
+- a focused, pointer-only context pack `08_context_packs/sync_focus.json` (IMP-127) so review consults focus instead of re-reading whole artifacts; its path is returned as `context_pack`
 - `may_impact` edges to downstream artifacts
 - source manifest entries for processed files
 - LanceDB `ba_memory` rows for change and impact chunks
@@ -768,6 +771,19 @@ Write a reusable context pack:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --write-pack
+```
+
+Bias retrieval toward recent context instead of pure relevance (IMP-126). `--order relevance` (default) keeps the existing ranking; `--order recency` reorders the same shortlist newest-first (score breaks ties):
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --query "SLA risk" --workflow sync --order recency
+```
+
+Query the read-only episodic timeline of "what changed and when" (IMP-126) — changes, their impact reports and metabolism log, gap-resolution reports, and client/domain interactions, newest first. `--timeline` needs no `--query`/`--workflow` and accepts optional `--limit`, `--artifact-type`, and `--trace-id`:
+
+```powershell
+python -m sentinel /retrieve PROJECT_ID --timeline
+python -m sentinel /retrieve PROJECT_ID --timeline --artifact-type change --limit 10
 ```
 
 Output:
