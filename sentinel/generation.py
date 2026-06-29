@@ -601,6 +601,7 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "story_id": story["id"],
         "title": story["title"],
         "type": story["type"],
+        "domain": story.get("domain", "functional"),
         "status": status,
         "story_status": story.get("status", "Draft"),
         "owner": story.get("owner", ""),

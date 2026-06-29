@@ -73,13 +73,18 @@ def apply_lifecycle_to_stories(project_id: str, stories: list[dict[str, Any]]) -
         owner = str(previous.get("owner", "")).strip()
         story["status"] = status
         story["owner"] = owner
-        merged[story_id] = {"status": status, "owner": owner}
+        merged[story_id] = {
+            **(previous if isinstance(previous, dict) else {}),
+            "status": status,
+            "owner": owner,
+        }
     for story_id, previous in lifecycle.items():
         if story_id not in active_ids:
             continue
         merged.setdefault(
             story_id,
             {
+                **(previous if isinstance(previous, dict) else {}),
                 "status": str(previous.get("status", "Draft")),
                 "owner": str(previous.get("owner", "")).strip(),
             },
@@ -142,6 +147,10 @@ def update_story_status(
     story_node = story_node_id(project_id, story_id)
     if story_node:
         add_edge(project_id, change_id, story_node, "updates_story_status")
+    if next_status != current_status and next_status in {"In Progress", "In Review", "Done"}:
+        from .hooks import mark_stale_stories_for_activity_divergence
+
+        mark_stale_stories_for_activity_divergence(project_id, story_id, change_id=change_id)
     board = backlog_status(project_id)
 
     return {
