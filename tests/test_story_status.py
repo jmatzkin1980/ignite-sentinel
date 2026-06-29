@@ -51,6 +51,30 @@ class StoryStatusTests(unittest.TestCase):
         os.chdir(self.old_cwd)
         shutil.rmtree(self.temp, ignore_errors=True)
 
+    def add_peer_story(self, story_id: str, source_unit: str, domain: str | None = None) -> None:
+        readiness_path = self.ws / "08_context_packs" / "implementation_readiness.json"
+        readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
+        peer = {
+            **readiness["stories"][0],
+            "story_id": story_id,
+            "source_unit": source_unit,
+            "trace": ["REQ-001", "PRD-001", "SPEC-001", source_unit],
+            "story_status": "Draft",
+        }
+        if domain is not None:
+            peer["domain"] = domain
+        readiness["stories"].append(peer)
+        readiness_path.write_text(json.dumps(readiness, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        story_text = (self.ws / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
+        story_text = story_text.replace("US-001", story_id).replace("SPEC-U-001", source_unit)
+        (self.ws / "04_backlog" / f"{story_id}.md").write_text(story_text, encoding="utf-8")
+
+        state_path = self.ws / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["story_lifecycle"][story_id] = {"status": "Draft", "owner": ""}
+        state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+
     def test_story_status_updates_state_frontmatter_and_trace(self):
         self.assertEqual(
             main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
@@ -119,6 +143,46 @@ class StoryStatusTests(unittest.TestCase):
         self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "Done"]), 1)
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "Draft")
+
+    def test_story_status_marks_shared_source_unit_peer_stale_by_activity_divergence(self):
+        self.add_peer_story("US-002", "SPEC-U-001")
+
+        self.assertEqual(
+            main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
+            0,
+        )
+        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "In Progress"]), 0)
+
+        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "In Progress")
+        peer = state["story_lifecycle"]["US-002"]
+        self.assertEqual(peer["status"], "Stale")
+        self.assertEqual(peer["stale_reason"], "activity_divergence")
+        self.assertEqual(peer["stale_group_kind"], "source_unit")
+        self.assertEqual(peer["stale_group_value"], "SPEC-U-001")
+        self.assertEqual(peer["stale_trigger_story"], "US-001")
+
+        readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+        peer_item = next(item for item in readiness["stories"] if item["story_id"] == "US-002")
+        self.assertEqual(peer_item["story_status"], "Stale")
+        self.assertEqual(peer_item["staleness"]["reason"], "activity_divergence")
+
+    def test_story_status_marks_domain_peer_stale_when_source_unit_has_no_peers(self):
+        readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+        self.add_peer_story("US-002", "SPEC-U-002", domain=readiness["stories"][0]["domain"])
+
+        self.assertEqual(
+            main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
+            0,
+        )
+        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "In Progress"]), 0)
+
+        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        peer = state["story_lifecycle"]["US-002"]
+        self.assertEqual(peer["status"], "Stale")
+        self.assertEqual(peer["stale_reason"], "activity_divergence")
+        self.assertEqual(peer["stale_group_kind"], "domain")
+        self.assertEqual(peer["stale_group_value"], readiness["stories"][0]["domain"])
 
     def test_backlog_regeneration_preserves_story_lifecycle(self):
         self.assertEqual(

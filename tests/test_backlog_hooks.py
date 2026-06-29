@@ -90,6 +90,8 @@ class BacklogHooksTests(unittest.TestCase):
             if payload.get("status") == "Stale"
         }
         self.assertEqual(list(stale_by_story), ["US-001"])
+        self.assertIn("/sync change", stale_by_story["US-001"]["stale_reason"])
+        self.assertNotEqual(stale_by_story["US-001"]["stale_reason"], "activity_divergence")
         self.assertEqual(stale_by_story["US-001"]["stale_spec_units"], [changed_unit])
         self.assertNotEqual(state["story_lifecycle"]["US-002"]["status"], "Stale")
         refreshed = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
