@@ -3,12 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-from .core.markdown import parse_frontmatter
+from .compilers.specs import spec_unit_snapshot, spec_unit_statement
+from .core.markdown import parse_frontmatter, parse_table_rows
 from .ears import requirements_quality_report
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
 from .core.graph import load_graph, parents_of
-from .workspace import state_path, workspace_path
+from .workspace import read_json, state_path, workspace_path
 
 
 def validate_project(project_id: str) -> dict[str, object]:
@@ -224,6 +225,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_ears_specs_continuity(project_id, base, checks, warnings)
     check_fr_specs_continuity(project_id, base, checks, warnings)
     check_spec_unit_pointers(project_id, base, checks, warnings)
+    check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
 
     return {
         "verdict": "WARN" if warnings else "CLEAN",
@@ -400,6 +402,68 @@ def check_spec_unit_pointers(
     checks.append({"id": "spec_unit_pointers", "status": "WARN" if issues else "PASS", "layer": "spec_unit->source", "artifact": "03_specs/units/", "units": len(unit_paths), "issues": issues})
 
 
+def check_spec_unit_story_handoff_fidelity(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    readiness_path = base / "08_context_packs" / "implementation_readiness.json"
+    if not readiness_path.exists():
+        checks.append({"id": "spec_unit_story_handoff", "status": "SKIP", "layer": "spec_unit->story", "artifact": "04_backlog/"})
+        return
+    readiness = read_json(readiness_path, {})
+    stories = readiness.get("stories", []) if isinstance(readiness, dict) else []
+    if not isinstance(stories, list) or not stories:
+        checks.append({"id": "spec_unit_story_handoff", "status": "SKIP", "layer": "spec_unit->story", "artifact": "04_backlog/"})
+        return
+    units = {
+        str(unit_id).strip(): spec_unit_statement(str(data.get("text", "")))
+        for unit_id, data in spec_unit_snapshot(base).items()
+        if isinstance(data, dict)
+    }
+    issues = 0
+    checked = 0
+    for item in stories:
+        if not isinstance(item, dict):
+            continue
+        story_id = str(item.get("story_id", "")).strip()
+        source_unit = str(item.get("source_unit", "")).strip()
+        if not story_id or not source_unit or source_unit not in units:
+            continue
+        statement = str(units[source_unit]).strip()
+        if not statement:
+            continue
+        story_path = base / "04_backlog" / f"{story_id}.md"
+        if not story_path.exists():
+            continue
+        checked += 1
+        acceptance = story_acceptance_criteria(read_text(story_path))
+        statement_key = normalize_handoff_text(statement)
+        if any(statement_key in normalize_handoff_text(str(row.get("criterion", ""))) for row in acceptance):
+            continue
+        issues += 1
+        snippet = statement if len(statement) <= 96 else statement[:93] + "..."
+        add_consistency_warning(
+            warnings,
+            "spec_unit_story_handoff",
+            "spec_unit->story",
+            relative_to_workspace(base, story_path),
+            f"{story_id} does not preserve the confirmed {source_unit} statement inside story acceptance criteria: {snippet}",
+            f"python -m sentinel /backlog {project_id}",
+        )
+    checks.append(
+        {
+            "id": "spec_unit_story_handoff",
+            "status": "SKIP" if checked == 0 else ("WARN" if issues else "PASS"),
+            "layer": "spec_unit->story",
+            "artifact": "04_backlog/",
+            "stories": checked,
+            "issues": issues,
+        }
+    )
+
+
 def ids_in_file(path: Path, pattern: re.Pattern[str]) -> set[str]:
     return set(pattern.findall(read_text(path)))
 
@@ -412,6 +476,23 @@ def read_text(path: Path) -> str:
 
 def unit_texts_exist(base: Path) -> bool:
     return any((base / "03_specs" / "units").glob("SPEC-U-*.md"))
+
+
+def story_acceptance_criteria(text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for line in text.splitlines():
+        if not line.startswith("| AC-"):
+            continue
+        cells = parse_table_rows(line, strip_code_ticks=False)[0]
+        if len(cells) >= 3:
+            rows.append({"id": cells[0], "classification": cells[1], "criterion": cells[2]})
+    return rows
+
+
+def normalize_handoff_text(text: str) -> str:
+    normalized = str(text).replace("`", " ").lower()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
 
 
 def pointer_resolves(base: Path, pointer: str) -> bool:

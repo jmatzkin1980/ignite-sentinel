@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
+from sentinel.compilers.specs import spec_unit_snapshot, spec_unit_statement
 from sentinel.validation import validate_project
 
 
@@ -20,6 +21,23 @@ Users: support team leads.
 In scope: read-only dashboard for ticket volume and SLA breach risk. Out of scope: editing tickets.
 
 Metric: reduce preparation effort by 30 percent in the first release month.
+"""
+
+
+HANDOFF_RAW = """# Operations Risk Dashboard
+
+Objective: let operations leads review risk queues before the daily meeting.
+
+Users: operations leads.
+
+In scope: read-only risk dashboard for open queues.
+"""
+
+HANDOFF_ANSWER = """### GAP-ACCEPTANCE
+- Answer: When queue metrics are available, the system shall display open risk queues.
+- Owner / source: Client workshop
+- Evidence reference: Synthetic EARS response
+- Decision status: confirmed
 """
 
 
@@ -52,6 +70,20 @@ class CrossArtifactConsistencyTests(unittest.TestCase):
         self.assertEqual(main(["specs", project_id]), 0)
         return self.temp / "workspaces" / project_id
 
+    def prepare_handoff_project(self, project_id: str = "CONSISTENT_HANDOFF") -> Path:
+        raw = self.temp / f"{project_id.lower()}-handoff-raw.md"
+        answers = self.temp / f"{project_id.lower()}-handoff-answers.md"
+        raw.write_text(HANDOFF_RAW, encoding="utf-8")
+        answers.write_text(HANDOFF_ANSWER, encoding="utf-8")
+        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["ingest", project_id, "--source", str(raw)]), 0)
+        self.assertEqual(main(["resolve-gaps", project_id, "--source", str(answers)]), 0)
+        self.assertEqual(main(["brief", project_id]), 0)
+        self.assertEqual(main(["specs", project_id]), 0)
+        self.assertEqual(main(["backlog", project_id]), 0)
+        self.assertEqual(main(["quality", project_id]), 0)
+        return self.temp / "workspaces" / project_id
+
     def test_validate_reports_clean_cross_artifact_consistency_for_complete_fixture(self):
         self.prepare_project()
 
@@ -77,6 +109,47 @@ class CrossArtifactConsistencyTests(unittest.TestCase):
         self.assertIn("SPEC-U-001 has a dangling source pointer", messages)
         self.assertIn("spec_unit->source", {warning["layer"] for warning in consistency["warnings"]})
         self.assertIn("python -m sentinel /specs BROKEN_POINTER", {warning["suggested_command"] for warning in consistency["warnings"]})
+
+    def test_validate_reports_clean_handoff_fidelity_for_generated_backlog(self):
+        self.prepare_handoff_project("CONSISTENT_HANDOFF")
+
+        result = validate_project("CONSISTENT_HANDOFF")
+
+        self.assertEqual(result["verdict"], "VALID")
+        consistency = result["cross_artifact_consistency"]
+        handoff = next(check for check in consistency["checks"] if check["id"] == "spec_unit_story_handoff")
+        self.assertEqual(handoff["status"], "PASS")
+        self.assertGreater(handoff["stories"], 0)
+        self.assertEqual(handoff["issues"], 0)
+
+    def test_synthetic_handoff_statement_loss_warns_without_blocking(self):
+        workspace = self.prepare_handoff_project("BROKEN_HANDOFF")
+        units = spec_unit_snapshot(workspace)
+        statement = spec_unit_statement(str(units["SPEC-U-001"]["text"]))
+        story_path = workspace / "04_backlog" / "US-001.md"
+        story_text = story_path.read_text(encoding="utf-8")
+        story_path.write_text(
+            story_text.replace(
+                statement,
+                "the backlog story silently rephrases the expected behavior.",
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_project("BROKEN_HANDOFF")
+
+        self.assertEqual(result["verdict"], "VALID")
+        consistency = result["cross_artifact_consistency"]
+        self.assertEqual(consistency["verdict"], "WARN")
+        handoff = next(check for check in consistency["checks"] if check["id"] == "spec_unit_story_handoff")
+        self.assertEqual(handoff["status"], "WARN")
+        self.assertEqual(handoff["issues"], 1)
+        messages = "\n".join(warning["message"] for warning in consistency["warnings"])
+        self.assertIn("US-001 does not preserve the confirmed SPEC-U-001 statement", messages)
+        self.assertIn(
+            "python -m sentinel /backlog BROKEN_HANDOFF",
+            {warning["suggested_command"] for warning in consistency["warnings"]},
+        )
 
 
 if __name__ == "__main__":
