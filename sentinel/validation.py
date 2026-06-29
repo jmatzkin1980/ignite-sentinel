@@ -5,6 +5,7 @@ import re
 
 from .compilers.specs import spec_unit_snapshot, spec_unit_statement
 from .core.markdown import parse_frontmatter, parse_table_rows
+from .decisions import register_gate_override
 from .ears import requirements_quality_report
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
@@ -12,7 +13,7 @@ from .core.graph import load_graph, parents_of
 from .workspace import read_json, state_path, workspace_path
 
 
-def validate_project(project_id: str) -> dict[str, object]:
+def validate_project(project_id: str, override_source: Path | None = None) -> dict[str, object]:
     findings: list[str] = []
     base = workspace_path(project_id)
     if not base.exists():
@@ -52,7 +53,7 @@ def validate_project(project_id: str) -> dict[str, object]:
     consistency_warnings = [str(item["message"]) for item in cross_consistency.get("warnings", []) if isinstance(item, dict)]
 
     verdict = "VALID" if not findings else "INVALID"
-    return {
+    result = {
         "verdict": verdict,
         "findings": findings,
         "semantic_quality": semantic_quality,
@@ -60,6 +61,15 @@ def validate_project(project_id: str) -> dict[str, object]:
         "cross_artifact_consistency": cross_consistency,
         "warnings": [*quality_warnings, *requirement_warnings, *consistency_warnings],
     }
+    if override_source:
+        result["override"] = register_gate_override(
+            project_id,
+            "validate",
+            override_source,
+            verdict=verdict,
+            findings=[*findings, *result["warnings"]],
+        )
+    return result
 
 
 def resolve_path(base: Path, path_value: str) -> Path:

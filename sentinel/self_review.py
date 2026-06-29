@@ -1,28 +1,15 @@
 from __future__ import annotations
 
-import json
-import re
 import shutil
 from pathlib import Path
 from typing import Any
 
-from .discovery import (
-    AnnotationError,
-    count_gaps,
-    parse_gap_rows,
-    readiness_stage_for_counts,
-    render_gaps,
-    validate_agent_gaps,
-)
+from .core.graph import add_edge, add_node, load_graph
+from .decisions import load_decision_source, render_decision_register, unique_path, validate_cited_decisions
+from .discovery import count_gaps, parse_gap_rows, readiness_stage_for_counts, render_gaps, validate_agent_gaps
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
-from .core.graph import add_edge, add_node, load_graph
-from .core.io import read_json as core_read_json
 from .workspace import read_json, update_state, workspace_path
-
-
-DECISION_RISKS = {"low", "med", "medium", "high"}
-REVERSIBILITY_VALUES = {"easy", "moderate", "hard-to-reverse", "irreversible"}
 
 
 def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
@@ -32,7 +19,7 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     if not specs_sources_exist(base):
         raise RuntimeError("Cannot self-review before /specs creates PRD/spec artifacts.")
 
-    data = load_self_review_source(source)
+    data = load_decision_source(source, label="self-review source")
     grounding_text = self_review_grounding_text(base)
     gaps = validate_agent_gaps(data, grounding_text, origin="self-review")
     decisions = validate_self_review_decisions(data, grounding_text)
@@ -99,7 +86,13 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
 
     broker = ContextBroker(project_id)
     broker.index_artifact(review_id, "self_review", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[review_id])
-    broker.index_artifact("SELF-REVIEW-DECISIONS", "decision_register", register_path, register_path.read_text(encoding="utf-8"), trace_ids=[review_id, *decision_ids])
+    broker.index_artifact(
+        "SELF-REVIEW-DECISIONS",
+        "decision_register",
+        register_path,
+        register_path.read_text(encoding="utf-8"),
+        trace_ids=[review_id, *decision_ids],
+    )
     reindex_workspace(project_id)
     mark_source_processed(project_id, source, "self_review_applied", review_id)
     mark_source_processed(project_id, report_path, "self_review_report", review_id)
@@ -129,61 +122,8 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     }
 
 
-def load_self_review_source(source: Path) -> dict[str, Any]:
-    try:
-        data = core_read_json(source, {})
-    except json.JSONDecodeError as exc:
-        raise AnnotationError(f"Invalid JSON in self-review source: {exc}") from exc
-    if not isinstance(data, dict):
-        raise AnnotationError("Self-review source must be a JSON object.")
-    return data
-
-
 def validate_self_review_decisions(data: dict[str, Any], grounding_text: str) -> list[dict[str, str]]:
-    raw = data.get("decisions", [])
-    if raw is None:
-        raw = []
-    if not isinstance(raw, list):
-        raise AnnotationError("self-review decisions must be a list.")
-    decisions: list[dict[str, str]] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            raise AnnotationError("Each self-review decision must be an object.")
-        decision_id = str(item.get("id", "")).strip().upper()
-        if not re.match(r"^DEC-[A-Z0-9-]+$", decision_id):
-            raise AnnotationError(f"{decision_id or '<missing>'}: decision id must start with DEC-.")
-        title = str(item.get("title", "")).strip() or decision_id
-        decision = str(item.get("decision", "")).strip()
-        if not decision:
-            raise AnnotationError(f"{decision_id}: decision text is required.")
-        lens = str(item.get("lens", "product")).strip().lower() or "product"
-        risk = str(item.get("risk", "")).strip().lower()
-        if risk not in DECISION_RISKS:
-            raise AnnotationError(f"{decision_id}: risk must be one of {', '.join(sorted(DECISION_RISKS))}.")
-        reversibility = str(item.get("reversibility", "")).strip().lower()
-        if reversibility not in REVERSIBILITY_VALUES:
-            raise AnnotationError(
-                f"{decision_id}: reversibility must be one of {', '.join(sorted(REVERSIBILITY_VALUES))}."
-            )
-        evidence = str(item.get("evidence", "")).strip()
-        if not evidence:
-            raise AnnotationError(f"{decision_id}: evidence is required.")
-        if evidence not in grounding_text:
-            raise AnnotationError(f"{decision_id}: evidence quote is not found verbatim in PRD/spec evidence.")
-        consequence = str(item.get("consequence", "")).strip()
-        decisions.append(
-            {
-                "id": decision_id,
-                "title": title,
-                "lens": lens,
-                "risk": "med" if risk == "medium" else risk,
-                "reversibility": reversibility,
-                "decision": decision,
-                "evidence": evidence,
-                "consequence": consequence,
-            }
-        )
-    return decisions
+    return validate_cited_decisions(data, grounding_text, label="self-review")
 
 
 def specs_sources_exist(base: Path) -> bool:
@@ -206,7 +146,7 @@ def self_review_grounding_text(base: Path) -> str:
     context = base / "08_context_packs"
     if context.exists():
         paths.extend(sorted(context.glob("**/*.md")))
-    chunks = []
+    chunks: list[str] = []
     for path in paths:
         try:
             chunks.append(path.read_text(encoding="utf-8"))
@@ -255,47 +195,7 @@ Skipped duplicate gaps: {skipped_block}
 """
 
 
-def render_decision_register(project_id: str, decisions: list[dict[str, str]]) -> str:
-    blocks = []
-    for item in decisions:
-        blocks.append(
-            f"""## {item['id']} - {item['title']}
-
-- Lens: `{item['lens']}`
-- Risk: `{item['risk']}`
-- Reversibility: `{item['reversibility']}`
-- Status: `pending_review`
-- Evidence: {item['evidence']}
-
-Decision:
-{item['decision']}
-
-Consequence:
-{item['consequence'] or 'TBD'}
-"""
-        )
-    body = "\n".join(blocks) or "_No hard-to-reverse decisions registered._\n"
-    return f"""# Hard-To-Reverse Decision Register - {project_id}
-
-This register is generated by `/self-review`. It records decisions that deserve
-BA/Product review before downstream agents treat them as stable execution facts.
-
-{body}
-"""
-
-
 def project_language(project_id: str) -> str:
     state = read_json(workspace_path(project_id) / "state.json", {})
     language = str(state.get("project_language") or "en")
     return language if language in {"es", "en"} else "en"
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    stem, suffix = path.stem, path.suffix
-    for index in range(2, 1000):
-        candidate = path.with_name(f"{stem}-{index}{suffix}")
-        if not candidate.exists():
-            return candidate
-    raise RuntimeError(f"Cannot create unique path for {path}")

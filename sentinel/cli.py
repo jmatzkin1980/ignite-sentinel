@@ -174,6 +174,8 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("maturity", "specs", "backlog-status", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
         command = sub.add_parser(name)
         command.add_argument("project_id")
+        if name in {"backlog-status", "quality", "validate"}:
+            command.add_argument("--override")
     reindex_p = sub.add_parser("reindex")
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
@@ -362,12 +364,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "backlog-status":
             from .backlog.rollup import backlog_status
 
-            result = backlog_status(args.project_id)
+            result = backlog_status(args.project_id, override_source=Path(args.override) if args.override else None)
             print_json(result)
         elif args.command == "quality":
             from .quality import generate_quality
 
-            result = generate_quality(args.project_id)
+            result = generate_quality(args.project_id, override_source=Path(args.override) if args.override else None)
             print_json(result)
         elif args.command == "health":
             from .health import run_health
@@ -385,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "validate":
             from .validation import validate_project
 
-            result = validate_project(args.project_id)
+            result = validate_project(args.project_id, override_source=Path(args.override) if args.override else None)
             print_json(result)
             postflight_command(args.command, project_id, result)
             return 0 if result["verdict"] == "VALID" else 1

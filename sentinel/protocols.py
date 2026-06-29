@@ -72,7 +72,8 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
     if command not in PROJECT_COMMANDS or not project_id:
         return
 
-    if command in MUTATING_COMMANDS | {"trace"}:
+    has_override = isinstance(result, dict) and bool(result.get("override"))
+    if command in MUTATING_COMMANDS | {"trace"} or (command == "validate" and has_override):
         from .traceability import write_mermaid_graph, write_traceability_matrix
 
         write_traceability_matrix(project_id)
