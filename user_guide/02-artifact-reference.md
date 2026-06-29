@@ -580,7 +580,7 @@ Generated test-case set linked to a user story.
 
 ### `backlog_readiness_audit.md`
 
-Backlog readiness audit linked to user stories. It now contains a dynamic story census with INVEST/SPIDR score, status, per-check findings, and a non-blocking verdict. The checks preserve the existing slicing model: governed slicing pattern, vertical story or concrete `EPIC-002` enabler boundary, small-but-valuable scope, AC coverage, traceability, and explicit dependencies. The same result is machine-readable in `state.json#story_quality` and feeds the DoR warning item `story_quality_invest` after `/quality` runs.
+Backlog readiness audit linked to user stories. It now contains a dynamic story census with INVEST/SPIDR score, status, per-check findings, and a non-blocking verdict. The checks preserve the existing slicing model: governed slicing pattern, vertical story or concrete `EPIC-002` enabler boundary, small-but-valuable scope, AC coverage, traceability, and explicit dependencies. In addition, each story now includes a parallel structural INVEST table with one signal per letter (`Independent`, `Negotiable`, `Valuable`, `Estimable`, `Small`, `Testable`) plus the supporting trace/dependency/AC evidence, without changing the existing verdict. The same result is machine-readable in `state.json#story_quality` and feeds the DoR warning item `story_quality_invest` after `/quality` runs.
 
 ## `06_traceability/`
 
