@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from hashlib import sha256
 from pathlib import Path
 
 from sentinel.cli import main
@@ -59,6 +60,10 @@ class StoryStatusTests(unittest.TestCase):
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "Ready")
         self.assertEqual(state["story_lifecycle"]["US-001"]["owner"], "Delivery Lead")
+        freeze = state["acceptance_criteria_freezes"]["US-001"]
+        self.assertEqual(freeze["version"], 1)
+        self.assertEqual(freeze["trigger"], "/story-status --set Ready")
+        self.assertTrue(freeze["items"][0]["criterion"].startswith("Given "))
         story = (self.ws / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
         self.assertIn("status: Ready", story)
         self.assertIn('owner: "Delivery Lead"', story)
@@ -131,6 +136,30 @@ class StoryStatusTests(unittest.TestCase):
         readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
         self.assertEqual(readiness["stories"][0]["story_status"], "Ready")
         self.assertEqual(readiness["stories"][0]["owner"], "Delivery Lead")
+
+    def test_backlog_regeneration_records_acceptance_delta_after_freeze(self):
+        self.assertEqual(
+            main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
+            0,
+        )
+        state_path = self.ws / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        frozen = state["acceptance_criteria_freezes"]["US-001"]["items"][0]
+        frozen["criterion"] = "Given previous approved behavior, When backlog regenerates, Then the delta is explicit."
+        fingerprint = f"{frozen['id']}\n{frozen['classification']}\n{frozen['criterion']}"
+        frozen["hash"] = sha256(fingerprint.encode("utf-8")).hexdigest()
+        state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        self.assertEqual(main(["backlog", "STATUS"]), 0)
+
+        report = (self.ws / "04_backlog" / "acceptance_criteria_deltas.md").read_text(encoding="utf-8")
+        self.assertIn("changed", report)
+        self.assertIn("previous approved behavior", report)
+        self.assertIn("queue metrics", report)
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["acceptance_criteria_deltas"][-1]["delta_count"], 1)
+        graph = (self.ws / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+        self.assertIn('"type": "acceptance_criteria_delta"', graph)
 
     def test_story_with_domain_context_passes_dor(self):
         (self.ws / "00_raw" / "02_technology_context" / "tech.md").write_text(

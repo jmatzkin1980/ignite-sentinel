@@ -531,6 +531,8 @@ The slicing strategy is loaded from `sentinel/slicing/backlog_slicing_model.json
 
 `--with-task-seeds` is optional and should be used only when a downstream consumer explicitly asks for task-seed intentions. When enabled, each story receives a `Task Seed Contract` and `implementation_readiness.json` receives `task_seed_contract`; these seeds are derived from acceptance criteria and confirmed critical surfaces. They are not task execution: Sentinel does not estimate, assign, schedule, execute, or manage them, and downstream planning may expand, reorder, or discard them while preserving story scope and traceability. Default `/backlog` omits this section.
 
+If story marked `Ready`, `/backlog` compares regenerated acceptance criteria with frozen `state.json#acceptance_criteria_freezes` snapshot. changed, removed, or newly added criteria after freeze written to `04_backlog/acceptance_criteria_deltas.md` and traced review-needed; approved contract no longer replaced without explicit diff trail.
+
 `/backlog` also refreshes `04_backlog/BACKLOG.md`, a BA-facing board with summary counts, rollup by epic, status lanes, owners, readiness scores, and blockers. The board is generated from governed workspace artifacts; never edit it by hand.
 
 `/backlog` also emits `04_backlog/SLICE-PLAN.md` and `08_context_packs/slice_plan.json`. The slice plan sequences concrete `EPIC-002` enablers before dependent value stories, groups stories into parallelizable waves, defines checkpoints, and mirrors a per-story handoff pack with position, DoR/DoD state, `execution_contract`, `retrieval_plan`, anchors, validation contract, dependencies and trace IDs. This is a handoff contract, not tasking: Sentinel does not create downstream task IDs, estimates, or implementation steps.
@@ -572,7 +574,7 @@ python -m sentinel /story-status PROJECT_ID --story US-001 --set Done --evidence
 
 Run this only after `/backlog` has created story files. Allowed states are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, and `Stale`. Sentinel validates legal transitions, evaluates DoR/DoD gates, updates `state.json`, updates the target `04_backlog/US-NNN.md` frontmatter, lifecycle section and checklists, appends `04_backlog/status_log.md`, refreshes `04_backlog/BACKLOG.md`, and records traceability plus the command protocol log.
 
-`/story-status` is the only supported mutation path for story status or owner. `/backlog` preserves existing status/owner values when it regenerates stories and writes DoR/DoD results into `implementation_readiness.json` plus `state.json#story_gates`.
+`/story-status` is the only supported mutation path for story status or owner. setting story `Ready` is explicit approval marker current acceptance criteria: Sentinel stores versioned snapshot in `state.json#acceptance_criteria_freezes`. `/backlog` preserves existing status/owner values when it regenerates stories, writes DoR/DoD results into `implementation_readiness.json` plus `state.json#story_gates`, and records AC diffs in `04_backlog/acceptance_criteria_deltas.md` when regenerated criteria diverge frozen snapshot.
 
 `backlog_gate` follows the existing soft-gate pattern:
 

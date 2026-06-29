@@ -7,7 +7,7 @@ from typing import Any
 
 from .memory import ContextBroker, apply_pack_disclosure_budget, get_multi_domain_context
 from .backlog.hooks import assert_backlog_privacy_clean
-from .backlog.status import apply_lifecycle_to_stories
+from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .backlog.rollup import backlog_status
 from .core.markdown import parse_table_rows
@@ -311,6 +311,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
     enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
     all_story_specs = [*story_specs, *enabler_specs]
     apply_lifecycle_to_stories(project_id, all_story_specs)
+    audit_acceptance_criteria_freezes(project_id, all_story_specs)
     if with_task_seeds:
         attach_task_seed_contracts(all_story_specs)
     readiness_pack = build_implementation_readiness_pack(project_id, all_story_specs, backlog_context)

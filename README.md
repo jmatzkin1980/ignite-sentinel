@@ -104,7 +104,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/backlog` | Derive epics/stories/AC from Spec Units; emit `SLICE-PLAN.md` + readiness packs |
 | `/backlog --with-task-seeds` | Add optional task-seed contracts (bounded intentions, never executed) |
 | `/backlog-status` | Refresh the BA-facing `04_backlog/BACKLOG.md` rollup board |
-| `/story-status` | Govern a story's lifecycle, owner, and DoR/DoD gates (not manual edits) |
+| `/story-status` | Govern lifecycle, owner, DoR/DoD gates, and Ready-time AC freeze |
 | `/refine-backlog` | Merge cited agent refinement proposals (`origin: agent`, BA review) |
 | `/implementation-feedback` | Metabolize downstream findings into traced gaps / DoD |
 | `/quality` | Score stories (INVEST/SPIDR/Lawrence); write test cases + dynamic audit |
@@ -261,7 +261,7 @@ See the [Scenarios guide](user_guide/12-scenarios.md) for situation-by-situation
 - **Progressive disclosure per story.** `backlog_generation.json` keeps the aggregate view plus a `per_story.US-NNN` mini-context; each retrieved result carries a `read_plan` (`source_path`, `section_path`, line anchors) propagated into story execution signals so an agent jumps from summary to the exact source range.
 - **Deterministic handoff, no tasking.** `SLICE-PLAN.md` + `slice_plan.json` order enablers first, then parallelizable waves with checkpoints, per-story handoff packs, and a pre-handoff DoR gate (warns by default; blocks only when `backlog_gate.strict` is on). It stops at the seam — Ignite exposes ordering and context, but never creates task IDs or executes implementation.
 - **Optional task seeds.** `/backlog --with-task-seeds` adds bounded intentions traced to AC and critical surfaces; default omits them, and even opt-in seeds never execute, estimate, assign, or schedule.
-- **Governed lifecycle + rollup.** `/story-status` moves a story through `Draft → Ready → In Progress → In Review → Done` (+ `Blocked`/`Stale`), assigns owner, evaluates DoR/DoD, and refreshes `BACKLOG.md`. `/backlog` preserves status/owner across regeneration.
+- **Governed lifecycle + rollup.** `/story-status` moves a story through `Draft → Ready → In Progress → In Review → Done` (+ `Blocked`/`Stale`), assigns owner, evaluates DoR/DoD, and refreshes `BACKLOG.md`. Marking a story `Ready` freezes its current acceptance criteria in `state.json`; later `/backlog` regeneration records explicit AC deltas in `04_backlog/acceptance_criteria_deltas.md` instead of replacing the approved contract silently. `/backlog` preserves status/owner across regeneration.
 - **Quality that scores, not just lists.** `/quality` scores each story against the governed INVEST/SPIDR/Lawrence model and writes the dynamic `backlog_readiness_audit.md`, feeding non-blocking DoR warnings via `state.json#story_gates`.
 - **Closed feedback loop.** `/implementation-feedback` lets downstream agents return findings (dependencies, gaps, invalid AC, missing surfaces); Sentinel traces them, may open `GAP-FEEDBACK-*`, may mark stories `Stale`, and feeds DoD — without rewriting backlog scope.
 - **Privacy at the seam.** Backlog handoff/validation runs a deterministic local scan over `04_backlog/` for credentials, private endpoints, emails, or private identifiers. It warns by default, blocks only with `privacy_scan.mode: block`, and can be disabled with `privacy_scan.mode: off`.
