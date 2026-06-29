@@ -5,10 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
-from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
+from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
-
 
 REQUIRED_AC_CLASSES = {"fail-to-pass", "pass-to-pass", "evidence"}
 STORY_QUALITY_MIN_SCORE = 0.8
@@ -49,6 +48,16 @@ BEHAVIOR_TERMS = {
     "notificar",
     "bloquear",
 }
+INVEST_SIGNAL_ORDER = (
+    ("I", "Independent"),
+    ("N", "Negotiable"),
+    ("V", "Valuable"),
+    ("E", "Estimable"),
+    ("S", "Small"),
+    ("T", "Testable"),
+)
+UPSTREAM_TRACE_PREFIXES = ("SPEC-", "REQ-", "FR-", "JTBD-", "RULE-", "KPI-")
+STORY_REFERENCE_PREFIXES = ("US-",)
 
 
 def generate_quality(project_id: str) -> dict[str, object]:
@@ -59,16 +68,15 @@ def generate_quality(project_id: str) -> dict[str, object]:
 
     readiness_by_story = implementation_readiness_by_story(project_id)
     quality_results: dict[str, dict[str, Any]] = {}
-    created = []
+    created: list[str] = []
     for index, story in enumerate(stories, start=1):
         story_path = resolve_story_path(story["path"])
-        story_text = ""
-        if story_path.exists():
-            story_text = story_path.read_text(encoding="utf-8")
+        story_text = story_path.read_text(encoding="utf-8") if story_path.exists() else ""
         criteria = extract_acceptance_criteria(story_text)
         criterion_details = extract_acceptance_details(story_text)
         readiness_item = readiness_by_story.get(story["id"], {})
         quality_results[story["id"]] = evaluate_story_quality(story, story_text, criterion_details, readiness_item)
+
         tc_path = base / "05_quality" / f"TC-{index:03d}.md"
         tc_path.write_text(render_test_case(project_id, story["id"], criteria), encoding="utf-8")
         tc_id = add_node(project_id, "TC", "test_case", tc_path, f"Test coverage for {story['id']}", domain="quality")
@@ -114,7 +122,7 @@ def generate_quality(project_id: str) -> dict[str, object]:
     return {"test_cases": created, "count": len(created), "audit": str(audit_path), "story_quality": quality_results}
 
 
-def resolve_story_path(path_value: str):
+def resolve_story_path(path_value: str) -> Path:
     path = Path(path_value)
     if path.is_absolute():
         return path
@@ -122,7 +130,7 @@ def resolve_story_path(path_value: str):
 
 
 def extract_acceptance_criteria(text: str) -> list[str]:
-    criteria = []
+    criteria: list[str] = []
     for line in text.splitlines():
         classified = re.match(r"\|\s*(AC-\d+(?:-\d+)?)\s*\|\s*([^|]+?)\s*\|\s*(.+?)\s*\|", line)
         if classified:
@@ -157,11 +165,7 @@ def implementation_readiness_by_story(project_id: str) -> dict[str, dict[str, An
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
     pack = read_json(path, {})
     stories = pack.get("stories", []) if isinstance(pack, dict) else []
-    return {
-        str(item.get("story_id", "")): item
-        for item in stories
-        if isinstance(item, dict) and item.get("story_id")
-    }
+    return {str(item.get("story_id", "")): item for item in stories if isinstance(item, dict) and item.get("story_id")}
 
 
 def story_for_gate(story: dict[str, Any], story_text: str, readiness_item: dict[str, Any]) -> dict[str, Any]:
@@ -206,7 +210,8 @@ def evaluate_story_quality(
         quality_check(
             "slicing_pattern_governed",
             slicing.startswith("Cross-Cutting Enabler /")
-            or slicing in {
+            or slicing
+            in {
                 "Workflow Step / Happy Path",
                 "Rules / Regression Slice",
                 "Data / External Dependency",
@@ -218,7 +223,7 @@ def evaluate_story_quality(
         quality_check(
             "vertical_slice",
             (is_enabler and bool(enables)) or (not is_enabler and not layer_only and has_behavior),
-            "Story must describe an end-to-end behavior or a concrete enabler boundary, not an isolated technical layer.",
+            "Story must describe end-to-end behavior or a concrete enabler boundary, not an isolated technical layer.",
         ),
         quality_check(
             "small_but_valuable",
@@ -247,7 +252,7 @@ def evaluate_story_quality(
         quality_check(
             "independent_dependencies",
             all("[PENDING" not in item for item in dependencies),
-            "Dependencies must be explicit and must not hide a pending layer-only prerequisite.",
+            "Dependencies must be explicit and must not hide a layer-only prerequisite.",
             dependencies=dependencies,
         ),
     ]
@@ -256,6 +261,17 @@ def evaluate_story_quality(
     warnings = [str(item["warning"]) for item in checks if not item["passed"]]
     status = "PASS" if score >= 1.0 else "WARN" if score >= STORY_QUALITY_MIN_SCORE else "FAIL"
     verdict = "ready-for-handoff" if status == "PASS" else "review-before-handoff"
+    signals = invest_audit(
+        story,
+        readiness,
+        criteria=criteria,
+        ac_classes=ac_classes,
+        trace=trace,
+        dependencies=dependencies,
+        enables=enables,
+        source_unit=source_unit,
+    )
+    signal_count = sum(1 for item in signals.values() if item.get("passed"))
     return {
         "story_id": story_id,
         "score": score,
@@ -264,7 +280,124 @@ def evaluate_story_quality(
         "threshold": STORY_QUALITY_MIN_SCORE,
         "checks": checks,
         "warnings": warnings,
+        "invest_audit": signals,
+        "invest_audit_summary": {"passed": signal_count, "total": len(INVEST_SIGNAL_ORDER)},
     }
+
+
+def invest_audit(
+    story: dict[str, Any],
+    readiness_item: dict[str, Any],
+    *,
+    criteria: list[dict[str, str]],
+    ac_classes: set[str],
+    trace: list[str],
+    dependencies: list[str],
+    enables: list[str],
+    source_unit: str,
+) -> dict[str, dict[str, Any]]:
+    story_type = str(readiness_item.get("type") or story.get("type") or "").strip()
+    is_enabler = story_type == "cross_cutting_enabler"
+    acceptance_ids = [str(item.get("id", "")).strip() for item in criteria if str(item.get("id", "")).strip()]
+    upstream_trace = unique_strings(
+        ([source_unit] if source_unit else [])
+        + [item for item in trace if item.startswith(UPSTREAM_TRACE_PREFIXES)]
+    )
+    story_trace = [item for item in trace if item.startswith(STORY_REFERENCE_PREFIXES)]
+    explicit_dependencies = [item for item in dependencies if item.strip()]
+    pending_dependencies = [item for item in explicit_dependencies if "[PENDING" in item.upper()]
+    readiness_score = float(readiness_item.get("readiness_score", 0.0) or 0.0)
+
+    signals = {
+        "I": invest_signal(
+            "Independent",
+            not explicit_dependencies and not story_trace and bool(upstream_trace or (is_enabler and enables)),
+            "No prerequisite story or pending dependency is required to start this slice."
+            if not explicit_dependencies and not story_trace and bool(upstream_trace or (is_enabler and enables))
+            else "Structural coupling is still visible through prerequisite stories, explicit dependencies, or missing upstream anchors.",
+            source_unit=source_unit,
+            trace=trace,
+            dependencies=explicit_dependencies,
+            enables=enables,
+        ),
+        "N": invest_signal(
+            "Negotiable",
+            bool(acceptance_ids) and bool(upstream_trace or enables),
+            "The story is framed as a traced outcome contract with acceptance coverage."
+            if bool(acceptance_ids) and bool(upstream_trace or enables)
+            else "Negotiability is weak because the story lacks traced outcome anchors or acceptance coverage.",
+            trace=upstream_trace or trace,
+            acceptance_ids=acceptance_ids,
+            acceptance_classes=sorted(ac_classes),
+        ),
+        "V": invest_signal(
+            "Valuable",
+            bool(upstream_trace) or bool(enables),
+            "Value is anchored to upstream requirements or to enabled downstream stories."
+            if bool(upstream_trace) or bool(enables)
+            else "No structural value anchor was found in upstream trace or enabled stories.",
+            source_unit=source_unit,
+            trace=upstream_trace,
+            enables=enables,
+        ),
+        "E": invest_signal(
+            "Estimable",
+            bool(acceptance_ids) and not pending_dependencies and bool(upstream_trace or enables),
+            "Scope, dependencies, and acceptance coverage are explicit enough to estimate."
+            if bool(acceptance_ids) and not pending_dependencies and bool(upstream_trace or enables)
+            else "Estimability is weakened by pending dependencies or a missing acceptance/trace contract.",
+            trace=upstream_trace or trace,
+            dependencies=explicit_dependencies,
+            pending_dependencies=pending_dependencies,
+            acceptance_classes=sorted(ac_classes),
+            readiness_score=readiness_score,
+        ),
+        "S": invest_signal(
+            "Small",
+            ((not is_enabler and bool(source_unit)) or (is_enabler and bool(enables)))
+            and len(explicit_dependencies) <= 1
+            and len(upstream_trace) <= 2,
+            "The slice stays bounded to one upstream unit with limited prerequisite coupling."
+            if (((not is_enabler and bool(source_unit)) or (is_enabler and bool(enables))) and len(explicit_dependencies) <= 1 and len(upstream_trace) <= 2)
+            else "The slice looks broad because upstream scope or prerequisite coupling is not tightly bounded.",
+            source_unit=source_unit,
+            trace=upstream_trace,
+            dependencies=explicit_dependencies,
+            enables=enables,
+        ),
+        "T": invest_signal(
+            "Testable",
+            REQUIRED_AC_CLASSES.issubset(ac_classes) and bool(acceptance_ids),
+            "Classified acceptance criteria cover fail-to-pass, pass-to-pass, and evidence paths."
+            if REQUIRED_AC_CLASSES.issubset(ac_classes) and bool(acceptance_ids)
+            else "The acceptance contract is not yet rich enough to test this slice independently.",
+            acceptance_ids=acceptance_ids,
+            acceptance_classes=sorted(ac_classes),
+        ),
+    }
+    return signals
+
+
+def invest_signal(label: str, passed: bool, finding: str, **evidence: Any) -> dict[str, Any]:
+    compact_evidence = {key: value for key, value in evidence.items() if value not in ("", [], {}, None)}
+    return {
+        "label": label,
+        "passed": bool(passed),
+        "finding": finding,
+        "evidence": compact_evidence,
+    }
+
+
+def unique_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        item = str(value).strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        ordered.append(item)
+    return ordered
 
 
 def type_from_story_text(text: str) -> str:
@@ -279,7 +412,7 @@ def quality_check(key: str, passed: bool, warning: str, **extra: Any) -> dict[st
 
 
 def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str:
-    rows = "\n".join(f"| TC step for {criterion.split(':', 1)[0]} | {criterion} |" for criterion in criteria)
+    rows = "\n".join(f"| TC step {criterion.split(':', 1)[0]} | {criterion} |" for criterion in criteria)
     return f"""# Test Case Set - {story_id}
 
 - Project: `{project_id}`
@@ -295,21 +428,17 @@ def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str
 ## Automation Notes
 
 - Prepare valid input data for the happy path.
-- Prepare missing or invalid input data for validation paths.
+- Prepare missing and invalid input data for validation paths.
 - Separate fail-to-pass checks, pass-to-pass regression checks, and evidence checks when classifications are present.
-- Assert that trace IDs remain visible in the artifact chain.
+- Assert trace IDs remain visible in the artifact chain.
 """
 
 
 def render_backlog_audit(project_id: str, stories: list[dict[str, str]], quality_results: dict[str, dict[str, Any]]) -> str:
     verdict = quality_audit_verdict(quality_results)
-    rows = "\n".join(
-        render_audit_row(story, quality_results.get(story["id"], {}))
-        for story in stories
-    )
+    rows = "\n".join(render_audit_row(story, quality_results.get(story["id"], {})) for story in stories)
     detail_sections = "\n\n".join(
-        render_story_quality_detail(story["id"], quality_results.get(story["id"], {}))
-        for story in stories
+        render_story_quality_detail(story["id"], quality_results.get(story["id"], {})) for story in stories
     )
     return f"""# Backlog Readiness Audit - {project_id}
 
@@ -335,7 +464,8 @@ This audit checks whether backlog items are ready for downstream execution using
 - [x] Each story is checked for end-to-end behavior or a concrete enabler boundary.
 - [x] Acceptance criteria coverage checks fail-to-pass, pass-to-pass, and evidence expectations.
 - [x] Traceability checks connect story -> SPEC-U/REQ or concrete enabler evidence -> AC -> TC.
-- [x] Findings are non-blocking by default and feed DoR warnings through `state.json#story_gates`.
+- [x] Parallel INVEST audit now surfaces structural signals for Independent, Negotiable, Valuable, Estimable, Small, and Testable without changing the current verdict.
+- [x] Findings remain non-blocking by default and feed DoR warnings through `state.json#story_gates`.
 """
 
 
@@ -365,8 +495,58 @@ def render_story_quality_detail(story_id: str, result: dict[str, Any]) -> str:
         for item in checks
         if isinstance(item, dict)
     )
+    audit = result.get("invest_audit", {}) if isinstance(result, dict) else {}
+    summary = result.get("invest_audit_summary", {}) if isinstance(result, dict) else {}
+    invest_rows = render_invest_audit_rows(audit)
     return f"""### {story_id}
 
 | Check | Status | Finding |
 | --- | --- | --- |
-{rows or '| story_quality | WARN | No quality evaluation was available. |'}"""
+{rows or '| story_quality | WARN | No quality evaluation was available. |'}
+
+#### Parallel INVEST Audit
+
+Passed `{int(summary.get('passed', 0))}/{int(summary.get('total', len(INVEST_SIGNAL_ORDER)))}` structural signals.
+
+| Letter | Signal | Status | Finding | Evidence |
+| --- | --- | --- | --- | --- |
+{invest_rows}
+"""
+
+
+def render_invest_audit_rows(audit: dict[str, Any]) -> str:
+    if not isinstance(audit, dict) or not audit:
+        return "| - | INVEST audit | WARN | No parallel INVEST audit was available. | n/a |"
+    rows: list[str] = []
+    for letter, label in INVEST_SIGNAL_ORDER:
+        item = audit.get(letter, {}) if isinstance(audit.get(letter, {}), dict) else {}
+        rows.append(
+            "| {letter} | {label} | {status} | {finding} | {evidence} |".format(
+                letter=letter,
+                label=label,
+                status="PASS" if item.get("passed") else "WARN",
+                finding=item.get("finding", "No finding."),
+                evidence=render_invest_evidence(item.get("evidence", {})),
+            )
+        )
+    return "\n".join(rows)
+
+
+def render_invest_evidence(evidence: dict[str, Any]) -> str:
+    if not isinstance(evidence, dict) or not evidence:
+        return "n/a"
+    parts: list[str] = []
+    for key, value in evidence.items():
+        if isinstance(value, list):
+            if not value:
+                continue
+            rendered = ", ".join(f"`{item}`" for item in value)
+        elif isinstance(value, float):
+            rendered = f"{value:.2f}"
+        else:
+            text = str(value).strip()
+            if not text:
+                continue
+            rendered = f"`{text}`"
+        parts.append(f"{key}: {rendered}")
+    return "; ".join(parts) if parts else "n/a"
