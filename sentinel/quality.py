@@ -6,6 +6,7 @@ from typing import Any
 
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .core.graph import add_edge, add_node, nodes_by_type
+from .decisions import register_gate_override
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
 
@@ -60,7 +61,7 @@ UPSTREAM_TRACE_PREFIXES = ("SPEC-", "REQ-", "FR-", "JTBD-", "RULE-", "KPI-")
 STORY_REFERENCE_PREFIXES = ("US-",)
 
 
-def generate_quality(project_id: str) -> dict[str, object]:
+def generate_quality(project_id: str, override_source: Path | None = None) -> dict[str, object]:
     base = workspace_path(project_id)
     stories = nodes_by_type(project_id, "user_story")
     if not stories:
@@ -118,8 +119,24 @@ def generate_quality(project_id: str) -> dict[str, object]:
         trace_ids=[audit_id, *[story["id"] for story in stories]],
     )
 
+    verdict = quality_audit_verdict(quality_results)
+    result: dict[str, object] = {
+        "test_cases": created,
+        "count": len(created),
+        "audit": str(audit_path),
+        "verdict": verdict,
+        "story_quality": quality_results,
+    }
+    if override_source:
+        result["override"] = register_gate_override(
+            project_id,
+            "quality",
+            override_source,
+            verdict=verdict,
+            findings=quality_override_findings(quality_results),
+        )
     update_state(project_id, phase="quality_completed")
-    return {"test_cases": created, "count": len(created), "audit": str(audit_path), "story_quality": quality_results}
+    return result
 
 
 def resolve_story_path(path_value: str) -> Path:
@@ -478,6 +495,18 @@ def quality_audit_verdict(quality_results: dict[str, dict[str, Any]]) -> str:
     if "FAIL" in statuses:
         return "ATTENTION"
     return "PARTIAL"
+
+
+def quality_override_findings(quality_results: dict[str, dict[str, Any]]) -> list[str]:
+    findings: list[str] = []
+    for story_id, result in quality_results.items():
+        status = str(result.get("status", "UNKNOWN"))
+        warnings = [str(item) for item in result.get("warnings", []) if str(item).strip()]
+        if warnings:
+            findings.extend(f"{story_id}: {warning}" for warning in warnings)
+        elif status != "PASS":
+            findings.append(f"{story_id}: quality audit status is {status}.")
+    return findings
 
 
 def render_audit_row(story: dict[str, str], result: dict[str, Any]) -> str:
