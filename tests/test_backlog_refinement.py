@@ -108,6 +108,61 @@ class BacklogRefinementTests(unittest.TestCase):
         report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
         self.assertIn("citation not found verbatim", report)
 
+    def test_refinement_accepts_measurable_enabler_candidate(self):
+        draft = {
+            "proposals": [
+                {
+                    "id": "BREF-EN-001",
+                    "kind": "enabler-candidate",
+                    "target_stories": ["US-001"],
+                    "source_units": ["SPEC-U-001"],
+                    "enables_stories": ["US-001"],
+                    "supports_boundary": "Risk dashboard open-queue rendering depends on confirmed queue metrics freshness.",
+                    "enabled_capability": "Risk dashboard can render open queues only when queue metrics freshness is confirmed.",
+                    "verification_method": "Run a backlog acceptance fixture with current queue metrics and stale queue metrics.",
+                    "risk_reduced": "Prevents implementing queue views without a measurable freshness contract.",
+                    "objective_evidence": "Acceptance evidence includes current and stale queue metric fixture results.",
+                    "recommendation": "Add a cross-cutting queue metrics freshness enabler.",
+                    "rationale": "The Spec Unit names queue metrics as the observable trigger for the dashboard.",
+                    "citations": [EARS],
+                }
+            ]
+        }
+
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 0)
+
+        accepted = json.loads(
+            (self.ws / "04_backlog" / "refinements" / "accepted_refinements.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(accepted[0]["enabled_capability"], draft["proposals"][0]["enabled_capability"])
+        self.assertEqual(accepted[0]["verification_method"], draft["proposals"][0]["verification_method"])
+        epic = (self.ws / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+        self.assertIn("Enabled capability / Capacidad habilitada", epic)
+        self.assertIn("Verification / Verificacion", epic)
+
+    def test_refinement_rejects_enabler_without_verification_method(self):
+        draft = {
+            "proposals": [
+                {
+                    "kind": "enabler-candidate",
+                    "target_stories": ["US-001"],
+                    "source_units": ["SPEC-U-001"],
+                    "enables_stories": ["US-001"],
+                    "supports_boundary": "Risk dashboard open-queue rendering depends on confirmed queue metrics freshness.",
+                    "enabled_capability": "Risk dashboard can render open queues only when queue metrics freshness is confirmed.",
+                    "risk_reduced": "Prevents implementing queue views without a measurable freshness contract.",
+                    "objective_evidence": "Acceptance evidence includes current and stale queue metric fixture results.",
+                    "recommendation": "Add a cross-cutting queue metrics freshness enabler.",
+                    "rationale": "The Spec Unit names queue metrics as the observable trigger for the dashboard.",
+                    "citations": [EARS],
+                }
+            ]
+        }
+
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
+        self.assertIn("requires verification_method", report)
+
     def test_refinement_rejects_loose_enabler_boundary(self):
         draft = {
             "proposals": [
@@ -117,6 +172,8 @@ class BacklogRefinementTests(unittest.TestCase):
                     "source_units": ["SPEC-U-001"],
                     "enables_stories": ["US-001"],
                     "supports_boundary": "Generic setup so the internal tool accessible precondition is met.",
+                    "enabled_capability": "Risk dashboard can render open queues only when queue metrics freshness is confirmed.",
+                    "verification_method": "Run a backlog acceptance fixture with current queue metrics and stale queue metrics.",
                     "risk_reduced": "Generic environment availability.",
                     "objective_evidence": "Environment available.",
                     "recommendation": "Create a broad setup enabler.",

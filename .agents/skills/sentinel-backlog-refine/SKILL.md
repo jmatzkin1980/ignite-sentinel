@@ -21,7 +21,7 @@ Use this skill when the backlog already exists and an agent has a proposed impro
 - Use only existing story IDs and `SPEC-U-*` IDs unless the proposal kind is `missing-story`.
 - Do not propose refinements over `[PENDING INPUT]` stories or pending Spec Units.
 - Express slicing recommendations inside the existing INVEST/SPIDR/Lawrence model; do not alter the model.
-- Enabler candidates must name the supported boundary, enabled stories, risk reduced, and objective evidence. Reject generic setup, environment availability, broad hardening, or vague accessibility as enablers unless tied to confirmed project functionality and completion evidence.
+- Enabler candidates must name the supported boundary, enabled stories, concrete `enabled_capability`, measurable `verification_method`, risk reduced, and objective evidence. Reject generic setup, environment availability, broad hardening, or vague accessibility as enablers unless tied to confirmed project functionality and completion evidence.
 - Accepted proposals are governed backlog refinements for BA review. They do not automatically rewrite stories, create scope, or replace the enabler boundary.
 
 ## JSON Shape
