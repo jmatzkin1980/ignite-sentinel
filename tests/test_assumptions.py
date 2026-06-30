@@ -8,10 +8,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel.assumptions import AssumptionError, apply_assumptions, validate_assumptions
+from sentinel.assumptions import (
+    AssumptionError,
+    apply_assumptions,
+    assumption_projection_rows,
+    assumptions_projection,
+    validate_assumptions,
+)
 from sentinel.cli import main
 from sentinel.discovery import parse_gap_rows
+from sentinel.health import run_health
 from sentinel.maturity import generate_project_brief, maturity_metrics
+from sentinel.status import project_status
 
 
 RAW = (
@@ -53,6 +61,45 @@ class AssumptionValidationTests(unittest.TestCase):
     def test_invalid_lens_rejected(self):
         with self.assertRaises(AssumptionError):
             validate_assumptions({"assumptions": [_assumption(lens="finance")]}, RAW)
+
+    def test_projection_rows_include_only_assumed_rows(self):
+        rows = [
+            {
+                "id": "ASM-001",
+                "statement": "First",
+                "risk": "high",
+                "owner": "BA",
+                "closes_gap": "GAP-001",
+                "status": "ASSUMED",
+                "justification": "Quote one",
+            },
+            {
+                "id": "ASM-002",
+                "statement": "Second",
+                "risk": "low",
+                "owner": "BA",
+                "closes_gap": "",
+                "status": "CONFIRMED",
+                "justification": "Quote two",
+            },
+        ]
+
+        projection = assumption_projection_rows(rows)
+
+        self.assertEqual(
+            projection,
+            [
+                {
+                    "id": "ASM-001",
+                    "statement": "First",
+                    "risk": "high",
+                    "owner": "BA",
+                    "closes_gap": "GAP-001",
+                    "status": "ASSUMED",
+                    "basis_quote": "Quote one",
+                }
+            ],
+        )
 
 
 class AssumptionLifecycleTests(unittest.TestCase):
@@ -101,6 +148,19 @@ class AssumptionLifecycleTests(unittest.TestCase):
         assumptions_md = (self.ws / "01_discovery" / "assumptions.md").read_text(encoding="utf-8")
         self.assertIn("ASM-TECH-METRICS-SOURCE", assumptions_md)
         self.assertIn("Technology Lead", assumptions_md)
+
+        projection = assumptions_projection("ASM")
+        self.assertEqual(projection["summary"]["assumed"], 1)
+        self.assertEqual(projection["assumptions"][0]["id"], "ASM-TECH-METRICS-SOURCE")
+        self.assertEqual(
+            projection["assumptions"][0]["basis_quote"],
+            "The dashboard reads queue metrics from the existing support metrics service.",
+        )
+        projection_path = self.ws / "08_context_packs" / "assumptions_projection.json"
+        persisted = json.loads(projection_path.read_text(encoding="utf-8"))
+        self.assertEqual(persisted["assumptions"], projection["assumptions"])
+        self.assertEqual(project_status("ASM")["assumptions_projection"]["assumed"], 1)
+        self.assertEqual(run_health("ASM")["assumptions_projection"]["assumed"], 1)
 
         graph = (self.ws / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
         self.assertIn('"type": "assumption_register"', graph)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .backlog.rollup import backlog_status
+from .assumptions import assumptions_projection
 from .discovery import parse_gap_rows
 from .knowledge.ledger import knowledge_ledger_summary
 from .maturity import maturity_metrics
@@ -15,6 +16,7 @@ def project_status(project_id: str) -> dict[str, object]:
     counts = state.get("gap_counts") or count_gap_rows(gaps)
     next_step = recommend_next_step(state, counts)
     metrics = maturity_metrics(project_id)
+    assumption_projection = assumptions_projection(project_id)
     return {
         "project_id": project_id,
         "phase": state.get("phase", "unknown"),
@@ -25,6 +27,7 @@ def project_status(project_id: str) -> dict[str, object]:
         "gap_counts": counts,
         "maturity_metrics": metrics,
         "development_readiness": metrics.get("development_readiness", {}),
+        "assumptions_projection": assumption_projection["summary"],
         "last_change_id": state.get("last_change_id"),
         "last_gap_resolution_id": state.get("last_gap_resolution_id"),
         "prd_composition_count": state.get("prd_composition_count", 0),

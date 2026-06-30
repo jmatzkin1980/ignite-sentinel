@@ -316,7 +316,7 @@ workspaces/PROJECT_ID/
   05_quality/                 # test cases, dynamic backlog readiness audit
   06_traceability/            # graph, matrix, command protocol log
   07_changes/                 # client responses, meetings, mail/slack, domain updates
-  08_context_packs/           # focused retrieval packs + exports
+  08_context_packs/           # focused retrieval packs + exports, including assumptions_projection.json
   memory.lancedb/             # local retrieval index (reconstructible)
   state.json   sentinel.config.yaml
 ```

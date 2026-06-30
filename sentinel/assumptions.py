@@ -10,7 +10,7 @@ from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import read_json as core_read_json
 from .core.markdown import parse_table_rows
-from .workspace import read_json, state_path, update_state, workspace_path
+from .workspace import read_json, state_path, update_state, workspace_path, write_json
 
 
 class AssumptionError(RuntimeError):
@@ -144,6 +144,50 @@ def load_assumptions(project_id: str) -> list[dict[str, str]]:
     if not path.exists():
         return []
     return assumption_rows(path.read_text(encoding="utf-8"))
+
+
+def assumption_projection_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    projected: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("status", "").upper() != "ASSUMED":
+            continue
+        projected.append(
+            {
+                "id": row.get("id", ""),
+                "statement": row.get("statement", ""),
+                "risk": row.get("risk", ""),
+                "owner": row.get("owner", ""),
+                "closes_gap": row.get("closes_gap", ""),
+                "status": row.get("status", ""),
+                "basis_quote": row.get("justification", ""),
+            }
+        )
+    return projected
+
+
+def assumptions_projection(project_id: str) -> dict[str, Any]:
+    rows = load_assumptions(project_id)
+    assumptions = assumption_projection_rows(rows)
+    high_risk = [row["id"] for row in assumptions if row.get("risk", "").lower() == "high"]
+    return {
+        "project_id": project_id,
+        "source": "01_discovery/assumptions.md",
+        "source_of_truth": "01_discovery/assumptions.md",
+        "artifact": "08_context_packs/assumptions_projection.json",
+        "assumptions": assumptions,
+        "summary": {
+            "total_assumptions": len(rows),
+            "assumed": len(assumptions),
+            "high_risk_assumed": len(high_risk),
+            "high_risk_assumption_ids": high_risk,
+        },
+    }
+
+
+def persist_assumptions_projection(project_id: str) -> Path:
+    path = workspace_path(project_id) / "08_context_packs" / "assumptions_projection.json"
+    write_json(path, assumptions_projection(project_id))
+    return path
 
 
 def persist_assumptions(project_id: str, rows: list[dict[str, str]]) -> Path:
@@ -320,6 +364,7 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
         trace_ids=[assumption_id],
     )
     summary = summarize_assumptions(merged)
+    projection_path = persist_assumptions_projection(project_id)
     state = read_json(state_path(project_id), {})
     updates = {
         "last_assumption_id": assumption_id,
@@ -328,6 +373,7 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
     }
     artifacts = dict(state.get("artifacts", {}))
     artifacts["assumptions"] = str(assumption_path.as_posix())
+    artifacts["assumptions_projection"] = str(projection_path.as_posix())
     updates["artifacts"] = artifacts
     update_state(project_id, **updates)
     from .discovery import refresh_knowledge_ledger
