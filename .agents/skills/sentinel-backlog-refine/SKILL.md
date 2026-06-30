@@ -18,6 +18,7 @@ Use this skill when the backlog already exists and an agent has a proposed impro
 ## Proposal Rules
 
 - Every proposal must include verbatim `citations[]` from local source-of-truth files.
+- Optional `discarded_alternative` may capture `{ "option": "...", "reason": "..." }` when another option was considered and rejected; include it only when it adds BA decision context.
 - Use only existing story IDs and `SPEC-U-*` IDs unless the proposal kind is `missing-story`.
 - Do not propose refinements over `[PENDING INPUT]` stories or pending Spec Units.
 - Express slicing recommendations inside the existing INVEST/SPIDR/Lawrence model; do not alter the model.
@@ -37,6 +38,10 @@ Use this skill when the backlog already exists and an agent has a proposed impro
       "slicing_pattern": "Data / External Dependency",
       "recommendation": "Refine the story boundary to isolate the confirmed data dependency first.",
       "rationale": "The cited Spec Unit confirms the dependency and acceptance surface.",
+      "discarded_alternative": {
+        "option": "Split all dashboard queues into separate stories immediately.",
+        "reason": "The cited evidence only confirms the first data dependency slice."
+      },
       "citations": ["verbatim local quote"]
     }
   ]

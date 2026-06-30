@@ -141,6 +141,9 @@ def validate_proposal_shape(
             return "empty citation"
         if quote not in evidence_text:
             return f"citation not found verbatim in source of truth: {quote}"
+    discarded_reason = validate_discarded_alternative(proposal.get("discarded_alternative"))
+    if discarded_reason:
+        return discarded_reason
     target_stories = normalized_list(proposal.get("target_stories", proposal.get("target_story", [])))
     source_units = normalized_list(proposal.get("source_units", proposal.get("source_unit", [])))
     if kind != "missing-story" and not target_stories:
@@ -163,6 +166,17 @@ def validate_proposal_shape(
         reason = validate_enabler_candidate(proposal, story_index)
         if reason:
             return reason
+    return ""
+
+
+def validate_discarded_alternative(value: Any) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, dict):
+        return "discarded_alternative must be an object"
+    for field in ("option", "reason"):
+        if not str(value.get(field, "")).strip():
+            return f"discarded_alternative requires {field}"
     return ""
 
 
@@ -214,6 +228,12 @@ def normalize_proposal(proposal: dict[str, Any], proposal_id: str) -> dict[str, 
     enables = normalized_list(proposal.get("enables_stories", []))
     if enables:
         normalized["enables_stories"] = enables
+    discarded = proposal.get("discarded_alternative")
+    if isinstance(discarded, dict):
+        option = str(discarded.get("option", "")).strip()
+        reason = str(discarded.get("reason", "")).strip()
+        if option and reason:
+            normalized["discarded_alternative"] = {"option": option, "reason": reason}
     return normalized
 
 
@@ -333,8 +353,25 @@ def render_refinement_row(item: dict[str, Any]) -> str:
             recommendation_parts.append(f"Enabled capability / Capacidad habilitada: {enabled_capability}")
         if verification_method:
             recommendation_parts.append(f"Verification / Verificacion: {verification_method}")
+    discarded = item.get("discarded_alternative")
+    if isinstance(discarded, dict):
+        option = safe_cell(discarded.get("option", ""), 100)
+        reason = safe_cell(discarded.get("reason", ""), 120)
+        if option and reason:
+            recommendation_parts.append(f"Discarded alternative / Alternativa descartada: {option} - {reason}")
     recommendation = "<br>".join(recommendation_parts)
     return f"| `{item.get('id', '?')}` | {item.get('kind', '?')} | {target} | {units} | {recommendation} | {citations} |"
+
+
+def discarded_alternative_note(item: dict[str, Any]) -> str:
+    discarded = item.get("discarded_alternative")
+    if not isinstance(discarded, dict):
+        return "N/A"
+    option = safe_cell(discarded.get("option", ""), 80)
+    reason = safe_cell(discarded.get("reason", ""), 120)
+    if not option or not reason:
+        return "N/A"
+    return f"Discarded alternative: {option} - {reason}"
 
 
 def write_refinement_report(
@@ -345,9 +382,9 @@ def write_refinement_report(
 ) -> Path:
     path = workspace_path(project_id) / "04_backlog" / "refinements" / "refinement_report.md"
     accepted_rows = "\n".join(
-        f"| {item['id']} | {item['kind']} | {', '.join(item.get('target_stories', [])) or 'N/A'} | agent |"
+        f"| {item['id']} | {item['kind']} | {', '.join(item.get('target_stories', [])) or 'N/A'} | agent | {discarded_alternative_note(item)} |"
         for item in accepted
-    ) or "| N/A | N/A | N/A | N/A |"
+    ) or "| N/A | N/A | N/A | N/A | N/A |"
     rejected_rows = "\n".join(
         f"| {item['id']} | {item.get('kind', '?')} | {item['reason']} |" for item in rejected
     ) or "| N/A | N/A | N/A |"
@@ -358,8 +395,8 @@ Source: `{source.as_posix()}`
 
 ## Accepted Proposals
 
-| Proposal | Kind | Target | Origin |
-| --- | --- | --- | --- |
+| Proposal | Kind | Target | Origin | Notes |
+| --- | --- | --- | --- | --- |
 {accepted_rows}
 
 ## Rejected Proposals

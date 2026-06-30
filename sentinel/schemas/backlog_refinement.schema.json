@@ -51,6 +51,15 @@
           "slicing_pattern": { "type": "string" },
           "recommendation": { "type": "string", "minLength": 1 },
           "rationale": { "type": "string", "minLength": 1 },
+          "discarded_alternative": {
+            "type": "object",
+            "required": ["option", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "option": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          },
           "citations": {
             "type": "array",
             "minItems": 1,

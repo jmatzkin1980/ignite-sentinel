@@ -90,6 +90,60 @@ class BacklogRefinementTests(unittest.TestCase):
         self.assertIn('"relation": "refined_by"', graph)
         self.assertIn('"relation": "proposes_refinement_for"', graph)
 
+    def test_refinement_merges_discarded_alternative_context(self):
+        draft = {
+            "proposals": [
+                {
+                    "id": "BREF-ALT-001",
+                    "kind": "reslice",
+                    "target_stories": ["US-001"],
+                    "source_units": ["SPEC-U-001"],
+                    "slicing_pattern": "Data / External Dependency",
+                    "recommendation": "Keep story focused on confirmed queue metrics dependency.",
+                    "rationale": "The Spec Unit names queue metrics as observable trigger response.",
+                    "discarded_alternative": {
+                        "option": "Split the dashboard by every queue field immediately.",
+                        "reason": "The cited evidence only confirms open queue metrics for the first slice.",
+                    },
+                    "citations": [EARS],
+                }
+            ]
+        }
+
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 0)
+
+        accepted = json.loads(
+            (self.ws / "04_backlog" / "refinements" / "accepted_refinements.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(accepted[0]["discarded_alternative"], draft["proposals"][0]["discarded_alternative"])
+        epic = (self.ws / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+        story = (self.ws / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
+        report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
+        self.assertIn("Discarded alternative / Alternativa descartada", epic)
+        self.assertIn("Split the dashboard by every queue field immediately.", story)
+        self.assertIn("Discarded alternative: Split the dashboard", report)
+
+    def test_refinement_rejects_incomplete_discarded_alternative(self):
+        draft = {
+            "proposals": [
+                {
+                    "kind": "reslice",
+                    "target_stories": ["US-001"],
+                    "source_units": ["SPEC-U-001"],
+                    "recommendation": "Keep story focused on confirmed queue metrics dependency.",
+                    "rationale": "The Spec Unit names queue metrics as observable trigger response.",
+                    "discarded_alternative": {
+                        "option": "Split the dashboard by every queue field immediately.",
+                    },
+                    "citations": [EARS],
+                }
+            ]
+        }
+
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
+        self.assertIn("discarded_alternative requires reason", report)
+
     def test_refinement_rejects_fabricated_citation(self):
         draft = {
             "proposals": [
