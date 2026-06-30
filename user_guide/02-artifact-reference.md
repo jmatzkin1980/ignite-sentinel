@@ -385,6 +385,8 @@ Sentinel derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` fil
 
 Each story records both `Slicing Pattern` and `Slicing Rationale`. The pattern is selected from the existing declarative slicing catalog according to the shape of the Spec Unit, without changing the cross-cutting enabler boundary.
 
+Spec Unit frontmatter may optionally declare `expected_evidence` with `kind` and `rationale`, for example `kind: quality` when a downstream decision should be justified by Quality evidence rather than a product inference. `/validate` treats mismatches as non-blocking `cross_artifact_consistency` warnings; it never changes structural validity.
+
 This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
 
 Agent-authored backlog refinement can be merged through `/refine-backlog`. Accepted proposals appear under an `Agent Backlog Refinements` subsection with `Origin: agent`, target stories, source units, recommendations, and verbatim citations. Sentinel accepts only proposals grounded in local source-of-truth artifacts, rejects pending stubs/units, and treats enabler candidates as concrete cross-cutting work only when they satisfy the existing `EPIC-002` boundary.

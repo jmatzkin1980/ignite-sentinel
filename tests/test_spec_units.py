@@ -8,7 +8,9 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
+from sentinel.core.markdown import frontmatter_bounds
 from sentinel.traceability import load_graph
+from sentinel.validation import validate_project
 
 
 RAW = """# Client Request: Support Operations Dashboard
@@ -75,6 +77,50 @@ class SpecUnitGenerationTests(unittest.TestCase):
         self.assertEqual(nodes["REQ-EARS-001"]["type"], "ears_requirement")
         self.assertIn({"from": "PRD-001", "to": "SPEC-U-001", "relation": "decomposes"}, graph["edges"])
         self.assertIn({"from": "SPEC-U-001", "to": "REQ-EARS-001", "relation": "traces_to"}, graph["edges"])
+
+    def test_expected_evidence_contract_warns_on_incongruent_spec_unit_sources(self):
+        self.assertEqual(main(["init", "EVIDENCE"]), 0)
+        self.assertEqual(main(["ingest", "EVIDENCE", "--source", str(self.raw)]), 0)
+        self.assertEqual(main(["resolve-gaps", "EVIDENCE", "--source", str(self.answers)]), 0)
+        self.assertEqual(main(["brief", "EVIDENCE"]), 0)
+        self.assertEqual(main(["specs", "EVIDENCE"]), 0)
+
+        result = validate_project("EVIDENCE")
+        evidence_check = next(
+            check
+            for check in result["cross_artifact_consistency"]["checks"]
+            if check["id"] == "expected_evidence_contract"
+        )
+        self.assertEqual(evidence_check["status"], "SKIP")
+
+        unit_path = self.temp / "workspaces" / "EVIDENCE" / "03_specs" / "units" / "SPEC-U-001.md"
+        text = unit_path.read_text(encoding="utf-8")
+        bounds = frontmatter_bounds(text)
+        self.assertIsNotNone(bounds)
+        start, end = bounds
+        frontmatter = text[start:end]
+        text = (
+            text[:start]
+            + frontmatter
+            + "\nexpected_evidence:\n  kind: quality\n  rationale: Quality must provide regression evidence for this decision."
+            + text[end:]
+        )
+        unit_path.write_text(text, encoding="utf-8")
+
+        result = validate_project("EVIDENCE")
+        evidence_check = next(
+            check
+            for check in result["cross_artifact_consistency"]["checks"]
+            if check["id"] == "expected_evidence_contract"
+        )
+        self.assertEqual(evidence_check["status"], "WARN")
+        self.assertTrue(
+            any(
+                warning.get("check") == "expected_evidence_mismatch"
+                and "expects `quality` evidence" in warning.get("message", "")
+                for warning in result["cross_artifact_consistency"]["warnings"]
+            )
+        )
 
 
 if __name__ == "__main__":
