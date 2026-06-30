@@ -10,6 +10,7 @@ from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .backlog.rollup import backlog_status
+from .assumptions import persist_assumptions_projection
 from .core.markdown import parse_table_rows
 from .compilers.backlog import (
     build_agent_execution_contract,
@@ -563,6 +564,7 @@ def build_implementation_readiness_pack(
     pack["stale_spec_units"] = state.get("stale_spec_units", [])
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
     write_json(path, pack)
+    persist_assumptions_projection(project_id)
     ContextBroker(project_id).index_artifact(
         "IMPL-READINESS",
         "implementation_readiness",

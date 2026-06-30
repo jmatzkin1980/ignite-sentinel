@@ -6,6 +6,7 @@ from .backlog.hooks import evaluate_backlog_privacy
 from .gaps import blocking_severities, is_blocking, parse_gap_table
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
+from .assumptions import assumptions_projection
 from .protocols import evaluate_needs_context
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, update_state, workspace_path, write_json
@@ -75,6 +76,7 @@ def run_health(project_id: str) -> dict[str, object]:
             warnings.append(needs_context["message"])
 
     verdict = "CLEAN" if not findings else "DIRTY"
+    assumption_projection = assumptions_projection(project_id)
     report_path = base / "06_traceability" / "health_report.md"
     report_path.write_text(render_health(project_id, verdict, findings, warnings), encoding="utf-8")
     write_json(
@@ -86,6 +88,7 @@ def run_health(project_id: str) -> dict[str, object]:
             "memory_backend": broker.backend,
             "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
             "needs_context_gate": needs_context,
+            "assumptions_projection": assumption_projection["summary"],
         },
     )
     update_state(project_id, health=verdict)
@@ -97,6 +100,7 @@ def run_health(project_id: str) -> dict[str, object]:
         "memory_backend": broker.backend,
         "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
         "needs_context_gate": needs_context,
+        "assumptions_projection": assumption_projection["summary"],
     }
 
 

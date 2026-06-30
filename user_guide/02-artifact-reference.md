@@ -556,6 +556,12 @@ The pack also stores a domain context snapshot hash. If Technology, Design, Qual
 
 If `/specs` is regenerated after this pack exists, Sentinel adds `stale_spec_units`: changed `SPEC-U-*` units with their delta status and report path. Implementation agents should treat those entries as a review signal before executing stories that cite the affected unit.
 
+### `08_context_packs/assumptions_projection.json`
+
+Machine-readable projection of unresolved governed assumptions.
+
+It is derived from `01_discovery/assumptions.md`; the Markdown register remains the source of truth. The projection contains only rows whose status is `ASSUMED`, with `id`, `statement`, `risk`, `owner`, `closes_gap`, `status`, and `basis_quote`, plus summary counts for downstream agents that need to filter unverified assumptions without reparsing Markdown.
+
 ### `08_context_packs/slice_plan.json`
 
 Machine-readable mirror of `04_backlog/SLICE-PLAN.md`.
