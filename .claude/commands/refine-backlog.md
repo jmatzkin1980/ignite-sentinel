@@ -12,7 +12,7 @@ Parse `PROJECT_ID` and `--source PATH` from:
 /refine-backlog PROJECT_ID --source PATH
 ```
 
-The `--source` file is JSON with `proposals[]`. Each proposal declares a kind (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), target stories or source units as applicable, a recommendation, rationale, and verbatim `citations[]` from local source-of-truth evidence.
+The `--source` file is JSON with `proposals[]`. Each proposal declares a kind (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), target stories or source units as applicable, a recommendation, rationale, and verbatim `citations[]` from local source-of-truth evidence. `enabler-candidate` proposals must also declare enabled stories, supported boundary, concrete `enabled_capability`, measurable `verification_method`, risk reduced, and objective evidence.
 
 Run from the repository root:
 

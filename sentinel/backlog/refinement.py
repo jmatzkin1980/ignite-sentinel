@@ -173,7 +173,13 @@ def validate_enabler_candidate(proposal: dict[str, Any], story_index: dict[str, 
     for story_id in enables:
         if story_id not in story_index:
             return f"enabler-candidate enables unknown story: {story_id}"
-    required = ("supports_boundary", "risk_reduced", "objective_evidence")
+    required = (
+        "supports_boundary",
+        "enabled_capability",
+        "verification_method",
+        "risk_reduced",
+        "objective_evidence",
+    )
     for field in required:
         if not str(proposal.get(field, "")).strip():
             return f"enabler-candidate requires {field}"
@@ -195,7 +201,14 @@ def normalize_proposal(proposal: dict[str, Any], proposal_id: str) -> dict[str, 
         "rationale": str(proposal.get("rationale", "")).strip(),
         "citations": [str(item).strip() for item in proposal.get("citations", [])],
     }
-    for optional in ("slicing_pattern", "supports_boundary", "risk_reduced", "objective_evidence"):
+    for optional in (
+        "slicing_pattern",
+        "supports_boundary",
+        "enabled_capability",
+        "verification_method",
+        "risk_reduced",
+        "objective_evidence",
+    ):
         if str(proposal.get(optional, "")).strip():
             normalized[optional] = str(proposal.get(optional)).strip()
     enables = normalized_list(proposal.get("enables_stories", []))
@@ -312,7 +325,15 @@ def render_refinement_row(item: dict[str, Any]) -> str:
     target = ", ".join(item.get("target_stories", [])) or "N/A"
     units = ", ".join(item.get("source_units", [])) or "N/A"
     citations = "; ".join(f"`{safe_cell(quote, 80)}`" for quote in item.get("citations", []))
-    recommendation = safe_cell(item.get("recommendation", ""), 180)
+    recommendation_parts = [safe_cell(item.get("recommendation", ""), 180)]
+    if item.get("kind") == "enabler-candidate":
+        enabled_capability = safe_cell(item.get("enabled_capability", ""), 120)
+        verification_method = safe_cell(item.get("verification_method", ""), 120)
+        if enabled_capability:
+            recommendation_parts.append(f"Enabled capability / Capacidad habilitada: {enabled_capability}")
+        if verification_method:
+            recommendation_parts.append(f"Verification / Verificacion: {verification_method}")
+    recommendation = "<br>".join(recommendation_parts)
     return f"| `{item.get('id', '?')}` | {item.get('kind', '?')} | {target} | {units} | {recommendation} | {citations} |"
 
 
