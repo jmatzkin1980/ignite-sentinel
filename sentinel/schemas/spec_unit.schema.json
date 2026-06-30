@@ -2,21 +2,61 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Ignite Sentinel Spec Unit",
   "type": "object",
-  "required": ["id", "status", "trace_ids", "sources"],
+  "required": [
+    "id",
+    "status",
+    "trace_ids",
+    "sources"
+  ],
   "properties": {
-    "id": { "type": "string", "pattern": "^SPEC-U-[0-9]{3}$" },
-    "status": { "type": "string", "enum": ["evidence-backed", "mixed", "pending"] },
+    "id": {
+      "type": "string",
+      "pattern": "^SPEC-U-[0-9]{3}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "evidence-backed",
+        "mixed",
+        "pending"
+      ]
+    },
     "trace_ids": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "ears": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^REQ-EARS-[0-9]{3}$" }
+      "items": {
+        "type": "string",
+        "pattern": "^REQ-EARS-[0-9]{3}$"
+      }
     },
     "sources": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
+    },
+    "expected_evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "rationale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

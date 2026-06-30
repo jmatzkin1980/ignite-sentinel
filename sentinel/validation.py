@@ -235,6 +235,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_ears_specs_continuity(project_id, base, checks, warnings)
     check_fr_specs_continuity(project_id, base, checks, warnings)
     check_spec_unit_pointers(project_id, base, checks, warnings)
+    check_expected_evidence_contract(project_id, base, checks, warnings)
     check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
 
     return {
@@ -410,6 +411,77 @@ def check_spec_unit_pointers(
                     f"python -m sentinel /specs {project_id}",
                 )
     checks.append({"id": "spec_unit_pointers", "status": "WARN" if issues else "PASS", "layer": "spec_unit->source", "artifact": "03_specs/units/", "units": len(unit_paths), "issues": issues})
+
+
+EXPECTED_EVIDENCE_SOURCE_MARKERS = {
+    "client": ("00_raw", "02_requirements", "client", "requirements.md", "workshop"),
+    "customer": ("00_raw", "02_requirements", "client", "requirements.md", "workshop"),
+    "business": ("00_raw", "02_requirements", "client", "requirements.md", "workshop"),
+    "business_rule": ("00_raw", "02_requirements", "client", "requirements.md", "workshop"),
+    "quality": ("quality", "05_quality"),
+    "design": ("design", "prototype", "ux"),
+    "technology": ("technology", "technical", "architecture", "backend", "frontend", "sad"),
+    "technical": ("technology", "technical", "architecture", "backend", "frontend", "sad"),
+    "prd": ("03_specs/prd.md", "prd"),
+    "spec": ("03_specs", "spec"),
+    "assumption": ("assumption", "assumptions"),
+    "decision": ("decision", "decisions"),
+}
+
+
+def check_expected_evidence_contract(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    unit_paths = sorted((base / "03_specs" / "units").glob("SPEC-U-*.md"))
+    declared = 0
+    issues = 0
+    for path in unit_paths:
+        frontmatter = parse_frontmatter(read_text(path))
+        expected = frontmatter.get("expected_evidence")
+        if not isinstance(expected, dict):
+            continue
+        kind = str(expected.get("kind", "")).strip()
+        rationale = str(expected.get("rationale", "")).strip()
+        if not kind:
+            continue
+        declared += 1
+        sources = frontmatter.get("sources", [])
+        if not isinstance(sources, list):
+            sources = []
+        if expected_evidence_matches_sources(kind, [str(source) for source in sources]):
+            continue
+        issues += 1
+        detail = f" Rationale: {rationale}" if rationale else ""
+        add_consistency_warning(
+            warnings,
+            "expected_evidence_mismatch",
+            "spec_unit->source",
+            relative_to_workspace(base, path),
+            f"{path.stem} expects `{kind}` evidence, but its cited sources do not match that expectation.{detail}",
+            f"python -m sentinel /specs {project_id}",
+        )
+    checks.append(
+        {
+            "id": "expected_evidence_contract",
+            "status": "SKIP" if declared == 0 else ("WARN" if issues else "PASS"),
+            "layer": "spec_unit->source",
+            "artifact": "03_specs/units/",
+            "declared": declared,
+            "issues": issues,
+        }
+    )
+
+
+def expected_evidence_matches_sources(kind: str, sources: list[str]) -> bool:
+    normalized_kind = re.sub(r"[^a-z0-9]+", "_", kind.lower()).strip("_")
+    markers = EXPECTED_EVIDENCE_SOURCE_MARKERS.get(normalized_kind)
+    if markers is None:
+        return True
+    evidence_text = "\n".join(sources).lower()
+    return any(marker in evidence_text for marker in markers)
 
 
 def check_spec_unit_story_handoff_fidelity(

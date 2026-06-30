@@ -283,7 +283,7 @@ Other governed channels, each validated against verbatim local evidence:
 
 Backlog is intentionally stable after generation. Domain context updates should usually be consumed through `/reindex`, `/retrieve`, and `implementation_readiness.json`; rerun `/backlog` only when the new evidence materially changes story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
-`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `requirement_quality`, `semantic_quality`, and `cross_artifact_consistency` emit non-blocking warnings (vague requirement prose with category/why-it-matters detail, scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift, and lost spec-unit handoff statements in backlog acceptance criteria) as corrective guidance.
+`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `requirement_quality`, `semantic_quality`, and `cross_artifact_consistency` emit non-blocking warnings (vague requirement prose with category/why-it-matters detail, scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift, expected-evidence mismatches on Spec Units, and lost spec-unit handoff statements in backlog acceptance criteria) as corrective guidance.
 
 ## Command protocol
 

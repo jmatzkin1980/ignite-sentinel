@@ -58,7 +58,7 @@ def is_separator_row(cells: list[str]) -> bool:
 
 
 def parse_frontmatter(text: str) -> dict[str, Any]:
-    """Parse the small YAML frontmatter subset emitted by Sentinel artifacts."""
+    """Parse small YAML frontmatter subset emitted by Sentinel artifacts."""
     block = frontmatter_block(text)
     if block is None:
         return {}
@@ -67,10 +67,20 @@ def parse_frontmatter(text: str) -> dict[str, Any]:
     for raw_line in block.splitlines():
         if not raw_line.strip():
             continue
-        if raw_line.startswith("  - ") and current_key:
+        stripped_line = raw_line.lstrip()
+        if stripped_line.startswith("- ") and current_key:
             values = data.setdefault(current_key, [])
             if isinstance(values, list):
-                values.append(raw_line[4:].strip())
+                values.append(stripped_line[2:].strip())
+            continue
+        if raw_line.startswith("  ") and current_key and ":" in raw_line:
+            values = data.setdefault(current_key, {})
+            if values == []:
+                values = {}
+                data[current_key] = values
+            if isinstance(values, dict):
+                key, value = raw_line.strip().split(":", 1)
+                values[key.strip()] = value.strip().strip('"')
             continue
         if ":" in raw_line and not raw_line.startswith(" "):
             key, value = raw_line.split(":", 1)
@@ -86,6 +96,10 @@ def render_frontmatter(data: dict[str, Any]) -> str:
         if isinstance(value, list):
             lines.append(f"{key}:")
             lines.extend(frontmatter_list([str(item) for item in value]).splitlines())
+        elif isinstance(value, dict):
+            lines.append(f"{key}:")
+            for subkey, subvalue in value.items():
+                lines.append(f"  {subkey}: {subvalue}")
         else:
             lines.append(f"{key}: {value}")
     lines.append("---")

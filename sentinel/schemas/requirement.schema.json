@@ -9,6 +9,15 @@
     "status": { "type": "string" },
     "domains": { "type": "array", "items": { "type": "string" } },
     "statement": { "type": "string" },
+    "expected_evidence": {
+      "type": "object",
+      "required": ["kind", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
     "ears": {
       "type": "object",
       "required": ["pattern", "source_ids"],
