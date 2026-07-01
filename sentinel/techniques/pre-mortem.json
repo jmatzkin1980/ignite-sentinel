@@ -4,6 +4,10 @@
   "category": "failure-analysis",
   "default": true,
   "prompt": "Imagine the project failed six months after release. Identify what the requirement failed to ask, per Ignite lens.",
+  "calibration": {
+    "business": "Use business-facing wording: outcomes, policy, users, acceptance, and decision ownership; avoid implementation jargon.",
+    "technical": "Use technical wording: data contracts, interfaces, constraints, failure modes, observability, and implementation surfaces."
+  },
   "evidence_contract": "Every finding must cite a verbatim local evidence fragment or remain outside the runtime merge.",
   "output_focus": [
     "failure mode",

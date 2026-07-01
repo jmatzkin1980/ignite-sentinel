@@ -4,6 +4,10 @@
   "category": "assumption",
   "default": true,
   "prompt": "Name the hidden assumptions that make the request seem easy, then invert each one and ask what evidence would prove the inverted case false.",
+  "calibration": {
+    "business": "Use business-facing wording: outcomes, policy, users, acceptance, and decision ownership; avoid implementation jargon.",
+    "technical": "Use technical wording: data contracts, interfaces, constraints, failure modes, observability, and implementation surfaces."
+  },
   "evidence_contract": "Only assumptions grounded in local evidence can become challenge gaps; otherwise they stay narrative notes.",
   "output_focus": [
     "hidden assumption",

@@ -26,6 +26,7 @@ TECHNIQUE_ORDER = (
 )
 
 VALID_CATEGORIES = {"failure-analysis", "lens-role", "assumption", "adversarial", "decomposition", "stakeholder"}
+VALID_RESPONDENT_PROFILES = {"business", "technical"}
 TECHNIQUE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -75,6 +76,7 @@ def _normalize_technique(data: dict, fallback_id: str) -> dict:
     name = str(data.get("name", "")).strip()
     prompt = str(data.get("prompt", "")).strip()
     evidence_contract = str(data.get("evidence_contract", "")).strip()
+    calibration = normalize_technique_calibration(data.get("calibration", {}))
     if not name or not prompt or not evidence_contract:
         raise ValueError(f"{technique_id}: name, prompt, and evidence_contract are required.")
     return {
@@ -83,9 +85,22 @@ def _normalize_technique(data: dict, fallback_id: str) -> dict:
         "category": category,
         "default": bool(data.get("default", False)),
         "prompt": prompt,
+        "calibration": calibration,
         "evidence_contract": evidence_contract,
         "output_focus": [str(item).strip() for item in data.get("output_focus", []) if str(item).strip()],
     }
+
+
+def normalize_technique_calibration(raw: object) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        return {}
+    calibration: dict[str, str] = {}
+    for key, value in raw.items():
+        profile = normalize_respondent_profile(str(key))
+        text = str(value).strip()
+        if profile and text:
+            calibration[profile] = text
+    return calibration
 
 
 def technique_by_id(technique_id: str, techniques_dir: Path | str | None = None) -> dict | None:
@@ -94,6 +109,45 @@ def technique_by_id(technique_id: str, techniques_dir: Path | str | None = None)
         if technique["id"] == normalized:
             return technique
     return None
+
+
+def normalize_respondent_profile(value: str | None) -> str | None:
+    normalized = re.sub(r"[^a-záéíóúñü]+", "_", str(value or "").lower()).strip("_")
+    aliases = {
+        "business": "business",
+        "negocio": "business",
+        "business_owner": "business",
+        "domain": "business",
+        "technical": "technical",
+        "tecnico": "technical",
+        "técnico": "technical",
+        "technology": "technical",
+        "engineering": "technical",
+    }
+    profile = aliases.get(normalized)
+    return profile if profile in VALID_RESPONDENT_PROFILES else None
+
+
+def technique_prompt(
+    technique_id: str,
+    *,
+    respondent_profile: str | None = None,
+    techniques_dir: Path | str | None = None,
+) -> str:
+    technique = technique_by_id(technique_id, techniques_dir)
+    if technique is None:
+        return str(technique_id or "")
+    prompt = str(technique["prompt"])
+    profile = normalize_respondent_profile(respondent_profile)
+    if not profile:
+        return prompt
+    calibration = technique.get("calibration", {})
+    if not isinstance(calibration, dict):
+        return prompt
+    calibrated = str(calibration.get(profile, "")).strip()
+    if not calibrated:
+        return prompt
+    return f"{prompt} Respondent calibration: {calibrated}"
 
 
 def known_technique_ids(techniques_dir: Path | str | None = None) -> set[str]:
