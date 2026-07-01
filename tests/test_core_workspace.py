@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 from sentinel.core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
@@ -61,6 +62,29 @@ class CoreWorkspaceTests(unittest.TestCase):
 
         workspace_update_state("CORE", phase="brief_completed")
         self.assertEqual(read_json(path, {})["phase"], "brief_completed")
+
+    def test_core_io_normal_write_after_read_has_no_conflict_warning(self):
+        path = workspace_path("CORE") / "state.json"
+        write_json(path, {"project_id": "CORE", "phase": "initialized"})
+        read_json(path, {})
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            write_json(path, {"project_id": "CORE", "phase": "updated"})
+
+        self.assertEqual(caught, [])
+        self.assertEqual(read_json(path, {})["phase"], "updated")
+
+    def test_core_io_warns_when_file_changed_between_read_and_write(self):
+        path = workspace_path("CORE") / "state.json"
+        write_json(path, {"project_id": "CORE", "phase": "initialized"})
+        self.assertEqual(read_json(path, {})["phase"], "initialized")
+        path.write_text('{"project_id": "CORE", "phase": "external"}\n', encoding="utf-8")
+
+        with self.assertWarnsRegex(RuntimeWarning, "Optimistic write conflict detected"):
+            write_json(path, {"project_id": "CORE", "phase": "updated"})
+
+        self.assertEqual(read_json(path, {})["phase"], "updated")
 
     def test_core_graph_facade_uses_traceability_contract(self):
         node_id = add_node("CORE", "REQ", "requirement", workspace_path("CORE") / "req.md", "Requirement")
