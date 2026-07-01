@@ -8,11 +8,16 @@ from sentinel.backlog.rollup import collect_story_rows
 from sentinel.backlog.status import acceptance_from_story_markdown as story_acceptance_rows
 from sentinel.backlog.status import trace_from_frontmatter, update_story_frontmatter
 from sentinel.core.markdown import (
+    clear_markdown_parse_cache,
     frontmatter_list,
+    markdown_parse_cache_stats,
     parse_frontmatter,
+    parse_frontmatter_file,
     parse_table_rows,
+    parse_table_rows_file,
     render_frontmatter,
     table_to_dicts,
+    table_to_dicts_file,
     update_frontmatter_keys,
 )
 from sentinel.discovery import parse_gap_rows
@@ -304,6 +309,58 @@ sources:
                 )
             finally:
                 os.chdir(old_cwd)
+
+
+class MarkdownFileParseCacheTests(unittest.TestCase):
+    def setUp(self):
+        clear_markdown_parse_cache()
+        self.temp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        clear_markdown_parse_cache()
+        for path in sorted(self.temp.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                path.rmdir()
+        self.temp.rmdir()
+
+    def test_parse_table_rows_file_hits_cache(self):
+        path = self.temp / "table.md"
+        path.write_text("| ID | Status |\n| --- | --- |\n| `GAP-001` | OPEN |\n", encoding="utf-8")
+
+        self.assertEqual(parse_table_rows_file(path, skip_separator_rows=True)[1], ["GAP-001", "OPEN"])
+        self.assertEqual(parse_table_rows_file(path, skip_separator_rows=True)[1], ["GAP-001", "OPEN"])
+
+        self.assertEqual(markdown_parse_cache_stats()["hits"], 1)
+
+    def test_parse_table_rows_file_invalidates_when_file_changes(self):
+        path = self.temp / "table.md"
+        path.write_text("| ID | Status |\n| --- | --- |\n| GAP-001 | OPEN |\n", encoding="utf-8")
+        self.assertEqual(parse_table_rows_file(path, skip_separator_rows=True)[1], ["GAP-001", "OPEN"])
+
+        path.write_text("| ID | Status |\n| --- | --- |\n| GAP-001 | CLOSED |\n", encoding="utf-8")
+
+        self.assertEqual(parse_table_rows_file(path, skip_separator_rows=True)[1], ["GAP-001", "CLOSED"])
+        self.assertEqual(markdown_parse_cache_stats()["entries"], 1)
+
+    def test_file_parse_cache_does_not_expose_mutable_cached_value(self):
+        path = self.temp / "table.md"
+        path.write_text("| ID | Status |\n| --- | --- |\n| GAP-001 | OPEN |\n", encoding="utf-8")
+
+        first = table_to_dicts_file(path)
+        first[0]["ID"] = "MUTATED"
+
+        self.assertEqual(table_to_dicts_file(path)[0]["ID"], "GAP-001")
+
+    def test_parse_frontmatter_file_uses_cache(self):
+        path = self.temp / "artifact.md"
+        path.write_text("---\nstatus: OPEN\n---\n\nBody", encoding="utf-8")
+
+        self.assertEqual(parse_frontmatter_file(path)["status"], "OPEN")
+        self.assertEqual(parse_frontmatter_file(path)["status"], "OPEN")
+
+        self.assertEqual(markdown_parse_cache_stats()["hits"], 1)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,53 @@
 from __future__ import annotations
 
+from copy import deepcopy
+from pathlib import Path
 from typing import Any
+
+
+_MARKDOWN_PARSE_CACHE: dict[tuple[Path, int, int, str, tuple[tuple[str, Any], ...]], Any] = {}
+_MARKDOWN_PARSE_CACHE_HITS = 0
+_MARKDOWN_PARSE_CACHE_MISSES = 0
+
+
+def clear_markdown_parse_cache() -> None:
+    global _MARKDOWN_PARSE_CACHE_HITS, _MARKDOWN_PARSE_CACHE_MISSES
+    _MARKDOWN_PARSE_CACHE.clear()
+    _MARKDOWN_PARSE_CACHE_HITS = 0
+    _MARKDOWN_PARSE_CACHE_MISSES = 0
+
+
+def markdown_parse_cache_stats() -> dict[str, int]:
+    return {
+        "entries": len(_MARKDOWN_PARSE_CACHE),
+        "hits": _MARKDOWN_PARSE_CACHE_HITS,
+        "misses": _MARKDOWN_PARSE_CACHE_MISSES,
+    }
+
+
+def _cache_key(path: Path, parser: str, options: dict[str, Any]) -> tuple[Path, int, int, str, tuple[tuple[str, Any], ...]]:
+    normalized = path.expanduser().resolve(strict=False)
+    stat = normalized.stat()
+    return normalized, stat.st_mtime_ns, stat.st_size, parser, tuple(sorted(options.items()))
+
+
+def _cached_markdown_parse(path: Path, parser: str, options: dict[str, Any], parse) -> Any:
+    global _MARKDOWN_PARSE_CACHE_HITS, _MARKDOWN_PARSE_CACHE_MISSES
+    key = _cache_key(path, parser, options)
+    if key in _MARKDOWN_PARSE_CACHE:
+        _MARKDOWN_PARSE_CACHE_HITS += 1
+        return deepcopy(_MARKDOWN_PARSE_CACHE[key])
+    _MARKDOWN_PARSE_CACHE_MISSES += 1
+    result = parse(path.read_text(encoding="utf-8"))
+    normalized, _, _, _, option_items = key
+    for stale_key in [
+        existing
+        for existing in _MARKDOWN_PARSE_CACHE
+        if existing[0] == normalized and existing[3] == parser and existing[4] == option_items
+    ]:
+        _MARKDOWN_PARSE_CACHE.pop(stale_key, None)
+    _MARKDOWN_PARSE_CACHE[key] = result
+    return deepcopy(result)
 
 
 def parse_table_rows(
@@ -27,6 +74,30 @@ def parse_table_rows(
     return rows
 
 
+def parse_table_rows_file(
+    path: Path,
+    *,
+    strip_code_ticks: bool = True,
+    skip_separator_rows: bool = False,
+    require_pipe: bool = True,
+) -> list[list[str]]:
+    return _cached_markdown_parse(
+        path,
+        "parse_table_rows",
+        {
+            "strip_code_ticks": strip_code_ticks,
+            "skip_separator_rows": skip_separator_rows,
+            "require_pipe": require_pipe,
+        },
+        lambda text: parse_table_rows(
+            text,
+            strip_code_ticks=strip_code_ticks,
+            skip_separator_rows=skip_separator_rows,
+            require_pipe=require_pipe,
+        ),
+    )
+
+
 def table_to_dicts(
     text: str,
     headers: list[str] | None = None,
@@ -42,6 +113,23 @@ def table_to_dicts(
         {key: row[index] if index < len(row) else "" for index, key in enumerate(keys)}
         for row in data_rows
     ]
+
+
+def table_to_dicts_file(
+    path: Path,
+    headers: list[str] | None = None,
+    *,
+    strip_code_ticks: bool = True,
+) -> list[dict[str, str]]:
+    return _cached_markdown_parse(
+        path,
+        "table_to_dicts",
+        {
+            "headers": tuple(headers or []),
+            "strip_code_ticks": strip_code_ticks,
+        },
+        lambda text: table_to_dicts(text, headers=headers, strip_code_ticks=strip_code_ticks),
+    )
 
 
 def split_table_row(line: str, *, strip_code_ticks: bool = True) -> list[str]:
@@ -88,6 +176,10 @@ def parse_frontmatter(text: str) -> dict[str, Any]:
             value = value.strip()
             data[current_key] = [] if value == "" else value.strip('"')
     return data
+
+
+def parse_frontmatter_file(path: Path) -> dict[str, Any]:
+    return _cached_markdown_parse(path, "parse_frontmatter", {}, parse_frontmatter)
 
 
 def render_frontmatter(data: dict[str, Any]) -> str:
