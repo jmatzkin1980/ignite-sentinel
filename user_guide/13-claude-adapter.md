@@ -100,9 +100,11 @@ Enable and run:
 
 ```powershell
 python -m pip install -e .[mcp]
-python -m sentinel.mcp --describe   # list the 18 tools
+python -m sentinel.mcp --describe   # list the 31 tools
 python -m sentinel.mcp              # start the stdio server
 ```
+
+**Structured gap elicitation (IMP-143).** Among the tools, `sentinel_gap_elicitation` (`project_id`, `gap_id`) returns a structured MCP *elicitation request* for a single `GAP-*` — the cited candidate options (IMP-113) presented as a schema-typed prompt — **only when the connected client declares elicitation capability**. If the client does not support elicitation, the tool degrades gracefully to the exact behavior of `sentinel_gaps` (plain text). It never depends on the capability and stays fully local (no remote MCP).
 
 Claude Desktop / Claude Code configuration:
 

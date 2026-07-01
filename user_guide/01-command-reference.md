@@ -223,6 +223,8 @@ python -m sentinel /challenge PROJECT_ID --source PATH
 
 Validation is identical to `/annotate` (declared lens, severity range, verbatim evidence — never invented). On success the gaps are tagged `origin: challenge`, merged into `gaps.md`, and a traced, indexed `01_discovery/challenge_report.md` is written grouping findings by lens with the technique that surfaced each one.
 
+**Respondent calibration (IMP-142).** If the delivered domain context declares an explicit `respondent_profile` (`business` or `technical`, see `/context-request`), `/challenge` calibrates the *wording and length* of each technique prompt to that audience using the per-technique `calibration` block in `sentinel/techniques/*.json`; the technique, lens, and objective are unchanged — only the phrasing. The declared profile and the calibrated prompts are shown in `challenge_report.md`. The profile is never inferred: with no declared `respondent_profile`, the output is identical to the uncalibrated behavior.
+
 Outputs:
 
 - updated `01_discovery/gaps.md` (gaps with `origin: challenge`)
@@ -424,6 +426,8 @@ Allowed domains:
 Output:
 
 - `08_context_packs/requests/[domain]_context_request.md`
+
+**Declaring the respondent profile (IMP-142).** When the delivered domain context is authored for a known audience, the file can carry a `respondent_profile: technical` or `respondent_profile: business` frontmatter key. `/challenge` uses it to calibrate the phrasing of elicitation prompts to that audience (see `/challenge`). Declare it only when the profile is explicitly known — never when it is merely implied by folder, role, title, or free text; absent the key, behavior is unchanged.
 
 ## `status`
 
