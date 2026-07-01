@@ -1,0 +1,16 @@
+{
+  "quotes": [
+    {
+      "source": "00_raw/client.md",
+      "quote": "El portal permite registrar reclamos con motivo y descripcion."
+    },
+    {
+      "source": "00_raw/client.md",
+      "quote": "El SLA inicial es responder dentro de 48 horas habiles."
+    },
+    {
+      "source": "08_context_packs/technology/context.md",
+      "quote": "El supervisor puede cerrar el reclamo despues de revisar la respuesta."
+    }
+  ]
+}
