@@ -32,4 +32,4 @@ sentinel = "sentinel.cli:main"
 packages = ["sentinel"]
 
 [tool.setuptools.package-data]
-sentinel = ["schemas/*.json", "templates/*.md", "templates/*.json", "lenses/*.json", "techniques/*.json", "retrieval_plans/*.json", "slicing/*.json"]
+sentinel = ["schemas/*.json", "templates/*.md", "templates/*.json", "lenses/*.json", "techniques/*.json", "retrieval_plans/*.json", "slicing/*.json", "handoff_contracts/*.json"]

@@ -7,6 +7,7 @@ from .compilers.specs import spec_unit_snapshot, spec_unit_statement
 from .core.markdown import parse_frontmatter, parse_table_rows
 from .decisions import register_gate_override
 from .ears import requirements_quality_report
+from .handoff_contracts import load_handoff_contract_registry
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
 from .core.graph import load_graph, parents_of
@@ -437,6 +438,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_spec_unit_pointers(project_id, base, checks, warnings)
     check_expected_evidence_contract(project_id, base, checks, warnings)
     check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
+    check_handoff_contracts(project_id, base, checks, warnings)
 
     return {
         "verdict": "WARN" if warnings else "CLEAN",
@@ -744,6 +746,102 @@ def check_spec_unit_story_handoff_fidelity(
             "issues": issues,
         }
     )
+
+
+def check_handoff_contracts(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    registry = load_handoff_contract_registry()
+    contracts = registry.get("contracts", []) if isinstance(registry, dict) else []
+    if not isinstance(contracts, list) or not contracts:
+        checks.append({"id": "handoff_contracts", "status": "SKIP", "layer": "handoff_contract", "artifact": ""})
+        return
+
+    for contract in contracts:
+        if not isinstance(contract, dict):
+            continue
+        contract_id = str(contract.get("id", "")).strip()
+        edge = str(contract.get("edge", "")).strip()
+        existing_check = str(contract.get("existing_check", "")).strip()
+        required_fields = contract.get("required_fields", [])
+        if not contract_id or not edge:
+            continue
+        if existing_check:
+            checks.append(
+                {
+                    "id": f"handoff_contract:{contract_id}",
+                    "status": "REFERENCED",
+                    "layer": edge,
+                    "artifact": str(contract.get("artifact", "")),
+                    "existing_check": existing_check,
+                    "issues": 0,
+                }
+            )
+            continue
+        if not isinstance(required_fields, list) or not required_fields:
+            checks.append(
+                {
+                    "id": f"handoff_contract:{contract_id}",
+                    "status": "SKIP",
+                    "layer": edge,
+                    "artifact": str(contract.get("artifact", "")),
+                    "issues": 0,
+                }
+            )
+            continue
+
+        artifact = str(contract.get("artifact", "")).strip()
+        artifact_path = base / artifact
+        if not artifact or not artifact_path.exists():
+            checks.append(
+                {
+                    "id": f"handoff_contract:{contract_id}",
+                    "status": "SKIP",
+                    "layer": edge,
+                    "artifact": artifact,
+                    "declared_fields": len(required_fields),
+                    "issues": 0,
+                }
+            )
+            continue
+        text = normalize_handoff_text(read_text(artifact_path))
+        missing = [
+            field
+            for field in required_fields
+            if isinstance(field, dict) and not handoff_contract_field_present(text, field)
+        ]
+        for field in missing:
+            field_id = str(field.get("id", "")).strip()
+            add_consistency_warning(
+                warnings,
+                "handoff_contract",
+                edge,
+                artifact,
+                f"{contract_id} declares `{field_id}` for {edge}, but {artifact} does not expose that field.",
+                f"python -m sentinel /brief {project_id}",
+            )
+        checks.append(
+            {
+                "id": f"handoff_contract:{contract_id}",
+                "status": "WARN" if missing else "PASS",
+                "layer": edge,
+                "artifact": artifact,
+                "contract_id": contract_id,
+                "declared_fields": len(required_fields),
+                "missing_fields": [str(field.get("id", "")).strip() for field in missing],
+                "issues": len(missing),
+            }
+        )
+
+
+def handoff_contract_field_present(normalized_text: str, field: dict[str, object]) -> bool:
+    markers = field.get("markers", [])
+    if not isinstance(markers, list):
+        return False
+    return any(normalize_handoff_text(str(marker)) in normalized_text for marker in markers if str(marker).strip())
 
 
 def ids_in_file(path: Path, pattern: re.Pattern[str]) -> set[str]:
