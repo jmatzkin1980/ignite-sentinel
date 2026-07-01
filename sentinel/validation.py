@@ -204,6 +204,206 @@ def semantic_quality_report(base: Path) -> tuple[dict[str, dict[str, object]], l
     return report, warnings
 
 
+CLAIM_STOPWORDS = {
+    "a",
+    "al",
+    "and",
+    "ante",
+    "as",
+    "con",
+    "de",
+    "del",
+    "dentro",
+    "during",
+    "el",
+    "en",
+    "for",
+    "from",
+    "la",
+    "las",
+    "los",
+    "of",
+    "para",
+    "por",
+    "que",
+    "se",
+    "the",
+    "to",
+    "un",
+    "una",
+    "y",
+}
+CLAIM_SKIP_PREFIXES = (
+    "source:",
+    "sources:",
+    "fuente:",
+    "fuentes:",
+    "evidence:",
+    "evidencia:",
+    "trace:",
+    "traza:",
+)
+
+
+def artifact_faithfulness_report(
+    artifact_text: str,
+    evidence_quotes: list[str] | list[dict[str, object]],
+    *,
+    artifact: str = "artifact",
+) -> dict[str, object]:
+    """Score atomic generated claims against local verbatim evidence quotes.
+
+    This is an eval helper, not a runtime gate. It intentionally favors
+    deterministic token coverage over semantic inference so unsupported claims
+    remain visible in synthetic fixtures.
+    """
+    evidence_items = normalize_faithfulness_evidence(evidence_quotes)
+    claims = extract_atomic_claims(artifact_text)
+    evaluated = []
+    for index, claim in enumerate(claims, start=1):
+        support = best_claim_support(claim["text"], evidence_items)
+        evaluated.append(
+            {
+                "id": f"CLM-{index:03d}",
+                "artifact": artifact,
+                "text": claim["text"],
+                "supported": support["supported"],
+                "support_source": support["source"],
+                "support_quote": support["quote"],
+                "token_coverage": support["token_coverage"],
+                "reason": support["reason"],
+            }
+        )
+    supported = sum(1 for claim in evaluated if claim["supported"])
+    total = len(evaluated)
+    return {
+        "artifact": artifact,
+        "claim_count": total,
+        "supported_claim_count": supported,
+        "unsupported_claim_count": total - supported,
+        "score": round(supported / total, 3) if total else 1.0,
+        "claims": evaluated,
+    }
+
+
+def normalize_faithfulness_evidence(evidence_quotes: list[str] | list[dict[str, object]]) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    for index, item in enumerate(evidence_quotes, start=1):
+        if isinstance(item, dict):
+            quote = str(item.get("quote", "")).strip()
+            source = str(item.get("source", f"evidence:{index}")).strip()
+        else:
+            quote = str(item).strip()
+            source = f"evidence:{index}"
+        if quote:
+            items.append({"source": source or f"evidence:{index}", "quote": quote})
+    return items
+
+
+def extract_atomic_claims(markdown_text: str) -> list[dict[str, str]]:
+    claims: list[dict[str, str]] = []
+    in_fence = False
+    in_frontmatter = False
+    for raw_line in markdown_text.splitlines():
+        line = raw_line.strip()
+        if line == "---" and not claims:
+            in_frontmatter = not in_frontmatter
+            continue
+        if in_frontmatter:
+            continue
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not line:
+            continue
+        if line.startswith("#") or re.fullmatch(r"\|?[\s:\-|]+\|?", line):
+            continue
+        line = re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", line)
+        cells = parse_table_rows(line) if line.startswith("|") and line.endswith("|") else []
+        fragments = cells[0] if cells else [line]
+        for fragment in fragments:
+            for sentence in split_claim_fragments(fragment):
+                if is_atomic_claim(sentence):
+                    claims.append({"text": sentence})
+    return claims
+
+
+def split_claim_fragments(text: str) -> list[str]:
+    cleaned = re.sub(r"`([^`]+)`", r"\1", text)
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+    cleaned = re.sub(r"[*_]{1,3}", "", cleaned)
+    cleaned = cleaned.strip(" -|\t")
+    parts = re.split(r"(?<=[.!?;])\s+|\s+[•]\s+", cleaned)
+    return [part.strip(" .;:") for part in parts if part.strip(" .;:")]
+
+
+def is_atomic_claim(text: str) -> bool:
+    lowered = text.strip().lower()
+    if any(lowered.startswith(prefix) for prefix in CLAIM_SKIP_PREFIXES):
+        return False
+    normalized = normalize_claim_text(text)
+    if not normalized:
+        return False
+    if any(normalized.startswith(prefix.rstrip(":")) for prefix in CLAIM_SKIP_PREFIXES):
+        return False
+    tokens = claim_tokens(text)
+    return len(tokens) >= 3
+
+
+def best_claim_support(claim_text: str, evidence_items: list[dict[str, str]]) -> dict[str, object]:
+    claim_normalized = normalize_claim_text(claim_text)
+    claim_tokens_set = set(claim_tokens(claim_text))
+    claim_numbers = set(re.findall(r"\d+(?:[.,]\d+)?", claim_text))
+    best = {
+        "supported": False,
+        "source": None,
+        "quote": None,
+        "token_coverage": 0.0,
+        "reason": "no_evidence",
+    }
+    for item in evidence_items:
+        quote = item["quote"]
+        quote_normalized = normalize_claim_text(quote)
+        quote_tokens_set = set(claim_tokens(quote))
+        if claim_normalized and claim_normalized in quote_normalized:
+            return {
+                "supported": True,
+                "source": item["source"],
+                "quote": quote,
+                "token_coverage": 1.0,
+                "reason": "exact_substring",
+            }
+        if not claim_tokens_set:
+            continue
+        coverage = len(claim_tokens_set & quote_tokens_set) / len(claim_tokens_set)
+        numbers_match = not claim_numbers or claim_numbers <= set(re.findall(r"\d+(?:[.,]\d+)?", quote))
+        if coverage > float(best["token_coverage"]):
+            best = {
+                "supported": coverage >= 0.78 and numbers_match,
+                "source": item["source"],
+                "quote": quote,
+                "token_coverage": round(coverage, 3),
+                "reason": "token_overlap" if numbers_match else "number_mismatch",
+            }
+    return best
+
+
+def claim_tokens(text: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", normalize_claim_text(text))
+        if len(token) > 2 and token not in CLAIM_STOPWORDS
+    ]
+
+
+def normalize_claim_text(text: str) -> str:
+    normalized = str(text).lower()
+    normalized = re.sub(r"`([^`]+)`", r"\1", normalized)
+    normalized = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", normalized)
+    normalized = re.sub(r"[^a-z0-9áéíóúñü]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
 def requirement_quality_validation(base: Path) -> tuple[dict[str, object], list[str]]:
     path = base / "02_requirements" / "requirements.md"
     if not path.exists():
