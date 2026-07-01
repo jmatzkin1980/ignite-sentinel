@@ -65,6 +65,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
+    ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
 
@@ -100,6 +101,78 @@ def describe_tools() -> list[dict[str, object]]:
         {"name": f"sentinel_{name}", "description": description, "required": required}
         for name, description, required in TOOL_SPECS
     ]
+
+
+def client_supports_elicitation(capabilities: object) -> bool:
+    if not capabilities:
+        return False
+    if isinstance(capabilities, str):
+        try:
+            capabilities = json.loads(capabilities)
+        except json.JSONDecodeError:
+            return False
+    if isinstance(capabilities, list | tuple | set):
+        return "elicitation" in capabilities
+    if not isinstance(capabilities, dict):
+        return False
+    if capabilities.get("elicitation") is not None:
+        return True
+    nested = capabilities.get("capabilities")
+    return isinstance(nested, dict) and nested.get("elicitation") is not None
+
+
+def gap_elicitation(project_id: str, gap_id: str, client_capabilities: object | None = None) -> dict[str, object]:
+    if not client_supports_elicitation(client_capabilities):
+        return run_cli(["gaps", project_id])
+
+    from .discovery import candidate_options_for_gap, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
+    from .workspace import load_config, workspace_path
+
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        return {"exit_code": 1, "error": f"Gap artifact not found for project {project_id}; run sentinel_gaps first."}
+
+    language = str(load_config(project_id).get("project_language", "es") or "es").lower()
+    normalized_gap_id = str(gap_id or "").strip().upper()
+    gap = next(
+        (item for item in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if item.get("id") == normalized_gap_id),
+        None,
+    )
+    if gap is None:
+        return {"exit_code": 1, "error": f"Gap not found: {normalized_gap_id}"}
+
+    options = candidate_options_for_gap(gap, language)
+    properties = {
+        "answer": {"type": "string"},
+        "status": {"type": "string", "enum": ["confirmed", "not_applicable", "unknown"]},
+        "evidence": {"type": "string"},
+    }
+    if options:
+        properties["selected_option"] = {
+            "type": "string",
+            "enum": [option["label"] for option in options],
+        }
+
+    output = {
+        "type": "mcp_elicitation_request",
+        "spec": "2025-06-18",
+        "project_id": project_id,
+        "gap_id": normalized_gap_id,
+        "question": gap.get("question", ""),
+        "lens": gap.get("lens", ""),
+        "severity": gap.get("severity", ""),
+        "evidence": gap.get("evidence_mention", ""),
+        "unblocks": unblocks_for_gap(normalized_gap_id, language),
+        "expected_format": expected_format_for_gap(normalized_gap_id, language),
+        "candidate_options": options,
+        "schema": {
+            "type": "object",
+            "required": ["answer", "status", "evidence"],
+            "properties": properties,
+        },
+    }
+    return {"exit_code": 0, "output": output}
 
 
 def build_server():
@@ -263,6 +336,10 @@ def build_server():
     @server.tool(name="sentinel_self_review", description=TOOL_SPECS[29][1])
     def sentinel_self_review(project_id: str, source: str) -> dict:
         return run_cli(["self-review", project_id, "--source", source])
+
+    @server.tool(name="sentinel_gap_elicitation", description=TOOL_SPECS[30][1])
+    def sentinel_gap_elicitation(project_id: str, gap_id: str, client_capabilities: str = "") -> dict:
+        return gap_elicitation(project_id, gap_id, client_capabilities)
 
     return server
 
