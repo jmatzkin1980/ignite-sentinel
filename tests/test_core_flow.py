@@ -988,9 +988,10 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 30)
+        self.assertEqual(len(names), 31)
         for expected in ("sentinel_dashboard", "sentinel_view", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_self_review", "sentinel_assume", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status"):
             self.assertIn(expected, names)
+        self.assertIn("sentinel_gap_elicitation", names)
 
         result = run_cli(["init", "MCPX"])
         self.assertEqual(result["exit_code"], 0)
@@ -1005,7 +1006,7 @@ Second section paragraph.
             from sentinel.mcp import build_server
 
             tools = asyncio.new_event_loop().run_until_complete(build_server().list_tools())
-            self.assertEqual(len(tools), 30)
+            self.assertEqual(len(tools), 31)
 
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"
