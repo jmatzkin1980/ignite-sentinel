@@ -6,7 +6,8 @@ import shutil
 from pathlib import Path
 
 from ..lens_registry import known_lenses, load_lens_checks
-from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label
+from ..domain_context import respondent_profile_from_domain_context
+from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label, technique_prompt
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
@@ -1064,8 +1065,19 @@ def render_challenge_report(
     skipped: list[str],
     data: dict,
     language: str = "en",
+    respondent_profile: str | None = None,
 ) -> str:
     techniques = _technique_by_gap(data)
+    catalog_line = f"Technique catalog: `sentinel/techniques/*.json`. Default set: {default_technique_summary()}."
+    if respondent_profile:
+        calibrated_prompts = "\n".join(
+            f"- `{technique_id}`: {technique_prompt(technique_id, respondent_profile=respondent_profile)}"
+            for technique_id in default_challenge_technique_ids()
+        )
+        catalog_line = (
+            f"{catalog_line}\n\nDeclared respondent profile: `{respondent_profile}`.\n\n"
+            f"Calibrated technique prompts:\n{calibrated_prompts}"
+        )
     by_lens: dict[str, list[dict[str, str]]] = {}
     for gap in merged:
         by_lens.setdefault(gap["lens"], []).append(gap)
@@ -1091,7 +1103,7 @@ severity range, verbatim evidence) before merging as a gap — never written by 
 
 ## Challenge Findings By Lens
 
-Technique catalog: `sentinel/techniques/*.json`. Default set: {default_technique_summary()}.
+{catalog_line}
 
 {lens_section}
 
@@ -1116,6 +1128,7 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
+    respondent_profile = respondent_profile_from_domain_context(base)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
         raise RuntimeError("Cannot challenge before /ingest creates 01_discovery/gaps.md.")
@@ -1151,7 +1164,10 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
     shutil.copyfile(source, stored)
 
     report_path = base / "01_discovery" / "challenge_report.md"
-    report_path.write_text(render_challenge_report(project_id, source.stem, merged_new, skipped, data, language), encoding="utf-8")
+    report_path.write_text(
+        render_challenge_report(project_id, source.stem, merged_new, skipped, data, language, respondent_profile),
+        encoding="utf-8",
+    )
 
     graph_nodes = load_graph(project_id).get("nodes", [])
     challenge_id = add_node(

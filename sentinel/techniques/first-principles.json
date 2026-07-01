@@ -4,6 +4,10 @@
   "category": "decomposition",
   "default": false,
   "prompt": "Decompose the request into irreducible user, value, data, rule, interface, quality, and governance facts; flag facts that are implied but not evidenced.",
+  "calibration": {
+    "business": "Use business-facing wording: outcomes, policy, users, acceptance, and decision ownership; avoid implementation jargon.",
+    "technical": "Use technical wording: data contracts, interfaces, constraints, failure modes, observability, and implementation surfaces."
+  },
   "evidence_contract": "Every implied fact must either cite local evidence or remain a pending question.",
   "output_focus": [
     "irreducible fact",

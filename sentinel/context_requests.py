@@ -97,6 +97,10 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 
 {prompts['deliverables']}
 
+## Declaración opcional de perfil
+
+Si conocés explícitamente el perfil principal del respondente, agregá frontmatter `respondent_profile: technical` o `respondent_profile: business` en el archivo de contexto entregado. No lo declares si solo se deduce por carpeta, rol, título o texto libre.
+
 ## Restricciones
 
 - Mantener source of truth en archivos versionables del workspace.
@@ -126,6 +130,10 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
 ## Expected Deliverables
 
 {prompts['deliverables']}
+
+## Optional Profile Declaration
+
+When the main respondent profile is explicitly known, add `respondent_profile: technical` or `respondent_profile: business` frontmatter to the delivered context file. Do not declare it when it is only implied by folder, role, title, or free text.
 
 ## Constraints
 

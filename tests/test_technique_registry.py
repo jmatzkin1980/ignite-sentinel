@@ -32,7 +32,28 @@ class TechniqueRegistryShapeTests(unittest.TestCase):
             self.assertIn(technique["category"], technique_registry.VALID_CATEGORIES)
             self.assertTrue(technique["name"])
             self.assertTrue(technique["prompt"])
+            self.assertIn("business", technique["calibration"])
+            self.assertIn("technical", technique["calibration"])
             self.assertTrue(technique["evidence_contract"])
+
+    def test_technique_prompt_preserves_default_without_declared_profile(self):
+        technique = technique_registry.technique_by_id("pre-mortem")
+
+        self.assertEqual(technique["prompt"], technique_registry.technique_prompt("pre-mortem"))
+        self.assertEqual(
+            technique["prompt"],
+            technique_registry.technique_prompt("pre-mortem", respondent_profile="architect"),
+        )
+
+    def test_technique_prompt_uses_declared_profile_calibration(self):
+        technique = technique_registry.technique_by_id("pre-mortem")
+
+        technical = technique_registry.technique_prompt("pre-mortem", respondent_profile="technical")
+        business = technique_registry.technique_prompt("pre-mortem", respondent_profile="negocio")
+
+        self.assertIn(technique["prompt"], technical)
+        self.assertIn(technique["calibration"]["technical"], technical)
+        self.assertIn(technique["calibration"]["business"], business)
 
     def test_report_uses_registry_labels_without_changing_merge_contract(self):
         report = render_challenge_report(
@@ -52,6 +73,13 @@ class TechniqueRegistryShapeTests(unittest.TestCase):
         )
         self.assertIn("Technique catalog: `sentinel/techniques/*.json`", report)
         self.assertIn("per-lens role-play", report)
+
+    def test_report_materializes_calibrated_prompts_for_declared_profile(self):
+        report = render_challenge_report("CHL", "source", [], [], {}, respondent_profile="technical")
+
+        self.assertIn("Declared respondent profile: `technical`", report)
+        self.assertIn("Calibrated technique prompts:", report)
+        self.assertIn("implementation surfaces", report)
 
 
 class AddTechniqueWithoutPythonTests(unittest.TestCase):

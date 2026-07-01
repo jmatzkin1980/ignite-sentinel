@@ -4,6 +4,10 @@
   "category": "stakeholder",
   "default": false,
   "prompt": "Rotate through likely stakeholders and ask what each one would need to approve, operate, test, support, or audit the requirement.",
+  "calibration": {
+    "business": "Use business-facing wording: outcomes, policy, users, acceptance, and decision ownership; avoid implementation jargon.",
+    "technical": "Use technical wording: data contracts, interfaces, constraints, failure modes, observability, and implementation surfaces."
+  },
   "evidence_contract": "Stakeholder concerns must be grounded in the local requirement or domain context before becoming gaps.",
   "output_focus": [
     "stakeholder concern",
