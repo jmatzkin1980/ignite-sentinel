@@ -8,7 +8,7 @@ import warnings
 from pathlib import Path
 
 from sentinel.core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
-from sentinel.core.io import append_text, read_json, write_json
+from sentinel.core.io import append_text, clear_read_json_cache, read_json, read_json_cache_stats, write_json
 from sentinel.core.paths import graph_path, memory_path, source_manifest_path, state_path, workspace_path
 from sentinel.core.state import update_state
 from sentinel.workspace import (
@@ -29,6 +29,7 @@ class CoreWorkspaceTests(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.old_cwd)
         shutil.rmtree(self.temp, ignore_errors=True)
+        clear_read_json_cache()
 
     def test_core_paths_match_workspace_shims(self):
         self.assertEqual(workspace_path("CORE"), workspace_workspace_path("CORE"))
@@ -85,6 +86,37 @@ class CoreWorkspaceTests(unittest.TestCase):
             write_json(path, {"project_id": "CORE", "phase": "updated"})
 
         self.assertEqual(read_json(path, {})["phase"], "updated")
+
+    def test_read_json_cache_hits_and_invalidates_on_write(self):
+        path = workspace_path("CORE") / "state.json"
+        clear_read_json_cache()
+        write_json(path, {"project_id": "CORE", "phase": "initialized"})
+
+        self.assertEqual(read_json(path, {})["phase"], "initialized")
+        self.assertEqual(read_json(path, {})["phase"], "initialized")
+        self.assertEqual(read_json_cache_stats()["hits"], 1)
+
+        write_json(path, {"project_id": "CORE", "phase": "updated"})
+        self.assertEqual(read_json(path, {})["phase"], "updated")
+        self.assertEqual(read_json_cache_stats()["misses"], 2)
+
+    def test_read_json_cache_does_not_expose_mutable_cached_value(self):
+        path = workspace_path("CORE") / "state.json"
+        clear_read_json_cache()
+        write_json(path, {"items": ["a"]})
+
+        first = read_json(path, {})
+        first["items"].append("mutated")
+
+        self.assertEqual(read_json(path, {})["items"], ["a"])
+
+    def test_read_json_missing_path_default_is_not_cached(self):
+        path = workspace_path("CORE") / "missing.json"
+        clear_read_json_cache()
+
+        self.assertEqual(read_json(path, {"missing": True}), {"missing": True})
+        self.assertEqual(read_json(path, []), [])
+        self.assertEqual(read_json_cache_stats()["entries"], 0)
 
     def test_core_graph_facade_uses_traceability_contract(self):
         node_id = add_node("CORE", "REQ", "requirement", workspace_path("CORE") / "req.md", "Requirement")
