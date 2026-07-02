@@ -18,6 +18,22 @@ class AssumptionError(RuntimeError):
 
 
 RISK_LEVELS = {"low", "med", "medium", "high"}
+UNCERTAINTY_LEVELS = {"low", "med", "medium", "high"}
+
+
+def normalize_level(value: object, *, default: str = "med") -> str:
+    level = str(value or default).strip().lower()
+    if level == "medium":
+        return "med"
+    return level
+
+
+def assumption_priority_signal(risk: str, uncertainty: str) -> str:
+    if risk == "high" and uncertainty == "high":
+        return "test before advancing"
+    if risk == "high" or uncertainty == "high":
+        return "watch closely"
+    return "monitor"
 
 
 def load_assumption_source(source: Path) -> dict[str, Any]:
@@ -84,11 +100,12 @@ def validate_assumptions(data: dict[str, Any], grounding_text: str) -> list[dict
         owner = str(raw.get("owner", "")).strip()
         if not owner:
             raise AssumptionError(f"{assumption_id}: owner is required and must be human-owned.")
-        risk = str(raw.get("risk", "")).strip().lower()
-        if risk == "medium":
-            risk = "med"
+        risk = normalize_level(raw.get("risk"), default="")
         if risk not in {"low", "med", "high"}:
             raise AssumptionError(f"{assumption_id}: risk must be low, med, or high.")
+        uncertainty = normalize_level(raw.get("uncertainty"), default="med")
+        if uncertainty not in {"low", "med", "high"}:
+            raise AssumptionError(f"{assumption_id}: uncertainty must be low, med, or high.")
         justification = str(raw.get("justification", raw.get("evidence", ""))).strip()
         if not justification:
             raise AssumptionError(f"{assumption_id}: justification/evidence quote is required.")
@@ -107,6 +124,8 @@ def validate_assumptions(data: dict[str, Any], grounding_text: str) -> list[dict
                 "statement": statement,
                 "owner": owner,
                 "risk": risk,
+                "uncertainty": uncertainty,
+                "priority_signal": assumption_priority_signal(risk, uncertainty),
                 "justification": justification,
                 "closes_gap": closes_gap,
                 "status": "ASSUMED",
@@ -124,16 +143,31 @@ def assumption_rows(text: str) -> list[dict[str, str]]:
         cells = parse_table_rows(stripped)[0]
         if len(cells) < 8 or not cells[0].startswith("ASM-"):
             continue
+        if len(cells) >= 10:
+            uncertainty = normalize_level(cells[5])
+            priority_signal = cells[6]
+            justification = cells[7]
+            closes_gap = cells[8]
+            status = cells[9]
+        else:
+            uncertainty = "med"
+            priority_signal = assumption_priority_signal(normalize_level(cells[4]), uncertainty)
+            justification = cells[5]
+            closes_gap = cells[6]
+            status = cells[7]
+        risk = normalize_level(cells[4])
         rows.append(
             {
                 "id": cells[0],
                 "lens": cells[1],
                 "statement": cells[2].replace("\\|", "|"),
                 "owner": cells[3],
-                "risk": cells[4],
-                "justification": cells[5].replace("\\|", "|"),
-                "closes_gap": "" if cells[6] in {"-", "N/A"} else cells[6],
-                "status": cells[7],
+                "risk": risk,
+                "uncertainty": uncertainty,
+                "priority_signal": priority_signal,
+                "justification": justification.replace("\\|", "|"),
+                "closes_gap": "" if closes_gap in {"-", "N/A"} else closes_gap,
+                "status": status,
             }
         )
     return rows
@@ -151,24 +185,41 @@ def assumption_projection_rows(rows: list[dict[str, str]]) -> list[dict[str, str
     for row in rows:
         if row.get("status", "").upper() != "ASSUMED":
             continue
+        risk = normalize_level(row.get("risk"))
+        uncertainty = normalize_level(row.get("uncertainty"))
         projected.append(
             {
                 "id": row.get("id", ""),
                 "statement": row.get("statement", ""),
-                "risk": row.get("risk", ""),
+                "risk": risk,
+                "uncertainty": uncertainty,
+                "priority_signal": assumption_priority_signal(risk, uncertainty),
                 "owner": row.get("owner", ""),
                 "closes_gap": row.get("closes_gap", ""),
                 "status": row.get("status", ""),
                 "basis_quote": row.get("justification", ""),
             }
         )
-    return projected
+    order = {"high": 0, "med": 1, "low": 2}
+    return sorted(
+        projected,
+        key=lambda row: (
+            order.get(row.get("risk", "med"), 1),
+            order.get(row.get("uncertainty", "med"), 1),
+            row.get("id", ""),
+        ),
+    )
 
 
 def assumptions_projection(project_id: str) -> dict[str, Any]:
     rows = load_assumptions(project_id)
     assumptions = assumption_projection_rows(rows)
     high_risk = [row["id"] for row in assumptions if row.get("risk", "").lower() == "high"]
+    test_before_advancing = [
+        row["id"]
+        for row in assumptions
+        if row.get("risk") == "high" and row.get("uncertainty") == "high"
+    ]
     return {
         "project_id": project_id,
         "source": "01_discovery/assumptions.md",
@@ -180,6 +231,8 @@ def assumptions_projection(project_id: str) -> dict[str, Any]:
             "assumed": len(assumptions),
             "high_risk_assumed": len(high_risk),
             "high_risk_assumption_ids": high_risk,
+            "test_before_advancing": len(test_before_advancing),
+            "test_before_advancing_ids": test_before_advancing,
         },
     }
 
@@ -235,50 +288,65 @@ def update_assumption_statuses(
 
 def render_assumptions(project_id: str, rows: list[dict[str, str]]) -> str:
     table = "\n".join(
-        "| {id} | {lens} | {statement} | {owner} | {risk} | {justification} | {closes_gap} | {status} |".format(
+        "| {id} | {lens} | {statement} | {owner} | {risk} | {uncertainty} | {priority_signal} | {justification} | {closes_gap} | {status} |".format(
             id=row["id"],
             lens=row["lens"],
             statement=escape_table(row["statement"]),
             owner=escape_table(row["owner"]),
-            risk=row["risk"],
+            risk=normalize_level(row["risk"]),
+            uncertainty=normalize_level(row.get("uncertainty")),
+            priority_signal=assumption_priority_signal(
+                normalize_level(row["risk"]),
+                normalize_level(row.get("uncertainty")),
+            ),
             justification=escape_table(row["justification"]),
             closes_gap=row.get("closes_gap") or "-",
             status=row.get("status", "ASSUMED"),
         )
         for row in rows
-    ) or "| N/A | N/A | No assumptions registered. | N/A | N/A | N/A | N/A | N/A |"
+    ) or "| N/A | N/A | No assumptions registered. | N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
     return f"""# Assumptions - {project_id}
 
 Governed assumptions are explicit BA-owned decisions used when a gap cannot be
 confirmed yet but the team chooses to proceed with visible risk. They do not
-turn uncertainty into confirmed scope. Each row has a human owner, risk level,
-local cited basis, and optional provisional gap link.
+turn uncertainty into confirmed scope. Each row has human owner, importance
+(`risk`), uncertainty, local cited basis, and optional provisional gap link.
+`high` risk plus `high` uncertainty is a non-blocking "test before advancing"
+signal for BA prioritization.
 
-| Assumption ID | Lens | Statement | Owner | Risk | Justification / Evidence | Closes Gap | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| Assumption ID | Lens | Statement | Owner | Risk | Uncertainty | Priority Signal | Justification / Evidence | Closes Gap | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {table}
 """
 
 
 def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
     by_risk = {"low": 0, "med": 0, "high": 0}
+    by_uncertainty = {"low": 0, "med": 0, "high": 0}
     high_risk_blocking: list[str] = []
+    test_before_advancing: list[str] = []
     by_lens: dict[str, int] = {}
     by_status: dict[str, int] = {}
     for row in rows:
-        risk = row.get("risk", "med")
+        risk = normalize_level(row.get("risk"))
+        uncertainty = normalize_level(row.get("uncertainty"))
         by_risk[risk] = by_risk.get(risk, 0) + 1
+        by_uncertainty[uncertainty] = by_uncertainty.get(uncertainty, 0) + 1
         by_lens[row.get("lens", "product")] = by_lens.get(row.get("lens", "product"), 0) + 1
         status = row.get("status", "ASSUMED").upper()
         by_status[status] = by_status.get(status, 0) + 1
         if risk == "high" and row.get("closes_gap"):
             high_risk_blocking.append(row["closes_gap"])
+        if risk == "high" and uncertainty == "high":
+            test_before_advancing.append(row["id"])
     return {
         "total": len(rows),
         "by_risk": by_risk,
+        "by_uncertainty": by_uncertainty,
         "by_lens": by_lens,
         "by_status": by_status,
         "high_risk_gap_ids": sorted(set(high_risk_blocking)),
+        "test_before_advancing_ids": sorted(set(test_before_advancing)),
     }
 
 

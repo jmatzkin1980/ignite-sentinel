@@ -180,6 +180,8 @@ class MigratedMarkdownCallSiteTests(unittest.TestCase):
                     "statement": "Statement",
                     "owner": "Jose",
                     "risk": "med",
+                    "uncertainty": "med",
+                    "priority_signal": "monitor",
                     "justification": "Evidence basis",
                     "closes_gap": "GAP-001",
                     "status": "ASSUMED",

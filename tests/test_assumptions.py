@@ -49,6 +49,8 @@ class AssumptionValidationTests(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "ASSUMED")
         self.assertEqual(rows[0]["owner"], "Technology Lead")
         self.assertEqual(rows[0]["risk"], "med")
+        self.assertEqual(rows[0]["uncertainty"], "med")
+        self.assertEqual(rows[0]["priority_signal"], "monitor")
 
     def test_missing_owner_rejected(self):
         with self.assertRaises(AssumptionError):
@@ -62,16 +64,31 @@ class AssumptionValidationTests(unittest.TestCase):
         with self.assertRaises(AssumptionError):
             validate_assumptions({"assumptions": [_assumption(lens="finance")]}, RAW)
 
-    def test_projection_rows_include_only_assumed_rows(self):
+    def test_invalid_uncertainty_rejected(self):
+        with self.assertRaises(AssumptionError):
+            validate_assumptions({"assumptions": [_assumption(uncertainty="certain")]}, RAW)
+
+    def test_projection_rows_include_only_assumed_rows_riskiest_first(self):
         rows = [
             {
                 "id": "ASM-001",
                 "statement": "First",
                 "risk": "high",
+                "uncertainty": "low",
                 "owner": "BA",
                 "closes_gap": "GAP-001",
                 "status": "ASSUMED",
                 "justification": "Quote one",
+            },
+            {
+                "id": "ASM-003",
+                "statement": "Third",
+                "risk": "high",
+                "uncertainty": "high",
+                "owner": "BA",
+                "closes_gap": "GAP-003",
+                "status": "ASSUMED",
+                "justification": "Quote three",
             },
             {
                 "id": "ASM-002",
@@ -90,9 +107,22 @@ class AssumptionValidationTests(unittest.TestCase):
             projection,
             [
                 {
+                    "id": "ASM-003",
+                    "statement": "Third",
+                    "risk": "high",
+                    "uncertainty": "high",
+                    "priority_signal": "test before advancing",
+                    "owner": "BA",
+                    "closes_gap": "GAP-003",
+                    "status": "ASSUMED",
+                    "basis_quote": "Quote three",
+                },
+                {
                     "id": "ASM-001",
                     "statement": "First",
                     "risk": "high",
+                    "uncertainty": "low",
+                    "priority_signal": "watch closely",
                     "owner": "BA",
                     "closes_gap": "GAP-001",
                     "status": "ASSUMED",

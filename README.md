@@ -83,7 +83,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/challenge` | Advanced elicitation from a declarative technique registry, optionally calibrated to a declared `respondent_profile` |
 | `/scrutinize` | Deep multi-lens scrutiny against raw input and domain context |
 | `/self-review` | Skeptical PRD/spec review: cited gaps plus hard-to-reverse decisions |
-| `/assume` | Register BA-owned governed assumptions with owner, risk, and cited basis |
+| `/assume` | Register BA-owned governed assumptions with owner, importance/risk, uncertainty, and cited basis |
 | `/resolve-gaps` | Process answered gaps; normalize confirmed functional ones to EARS |
 | `/maturity` | Evaluate readiness for specs/backlog (gates + requirement quality + telemetry + development certainty) |
 | `/brief` | Compile the evidence-backed project brief |

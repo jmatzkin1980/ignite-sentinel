@@ -248,6 +248,14 @@ def parse_assumption_rows(text: str) -> list[dict[str, str]]:
     assumptions: list[dict[str, str]] = []
     for cells in markdown_table_rows(text):
         if len(cells) >= 8 and cells[0].startswith("ASM-"):
+            if len(cells) >= 10:
+                justification = cells[7]
+                closes_gap = cells[8]
+                status = cells[9]
+            else:
+                justification = cells[5]
+                closes_gap = cells[6]
+                status = cells[7]
             assumptions.append(
                 {
                     "id": cells[0],
@@ -255,9 +263,9 @@ def parse_assumption_rows(text: str) -> list[dict[str, str]]:
                     "statement": cells[2],
                     "owner": cells[3],
                     "risk": cells[4],
-                    "justification": cells[5],
-                    "closes_gap": strip_ticks(cells[6]) if cells[6] not in {"-", "N/A"} else "",
-                    "status": cells[7],
+                    "justification": justification,
+                    "closes_gap": strip_ticks(closes_gap) if closes_gap not in {"-", "N/A"} else "",
+                    "status": status,
                 }
             )
     return assumptions
