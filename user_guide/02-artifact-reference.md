@@ -754,6 +754,7 @@ Cada lente tiene una lista `checks`; cada check declara:
   - `mention_requires_counterpart` (IMP-117): fin de la falsa madurez para **conceptos-superficie** (métrica/kpi/indicador, auth/login/permiso/rol). Dispara **solo** cuando el concepto está nombrado (`triggers` presente) y falta su contracara (`counterparts`); si el concepto no se menciona, no pregunta nada. Severidad `medium` (madura sin bloquear); ancla la pregunta a la mención citada.
   - `metric_without_source`: dispara cuando hay una métrica cuantitativa pero no aparece ninguno de los `suppressors` (palabras de fuente/baseline).
 - `evidence_scope`: qué texto lee la regla — `source | technical | design | quality | frontend | all`.
+- `weak_word_smell`: dispara cuando una frase del catálogo `sentinel/smells/*.json` aparece como wording débil; emite `evidence_mention` y `smell_mechanism`, y funciona como señal de revisión, no como bloqueo automático.
 - `why` (opcional): la experiencia de campo que motiva el check; notas del equipo, se muestran en el context-request.
 
 ### Cómo agregar conocimiento a un lente (sin tocar Python)
@@ -773,8 +774,9 @@ Cada lente tiene una lista `checks`; cada check declara:
    }
    ```
 
-3. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
-4. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
+3. Para smells de wording, agregá o reutilizá categorías en `sentinel/smells/weak_words.json` y referencialas desde el check con `catalog` y `categories`; por ejemplo, `quality` y `business` consumen categorías conservadoras bilingües para frases como calidad/importancia/reglas vagas.
+4. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
+5. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
 
 Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`target_fire` como positivos esperados, `must_not_fire` como negativos etiquetados y `distractors` para candidatos plausibles minados del mismo dominio que no deberían disparar) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean. El reporte de `python tests/evals/run_discovery_evals.py` incluye `gap_benchmark` con precision/recall/F1, recall por lente, `distractor_false_positive_rate` y varianza opcional entre corridas si definís `SENTINEL_EVAL_REPEAT=N`.
 

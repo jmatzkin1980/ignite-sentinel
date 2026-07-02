@@ -136,6 +136,18 @@
         "método de medición"
       ],
       "why": "Nombrar una metrica/kpi/indicador sin su definicion, fuente o umbral no la hace medible; la contracara ausente ancla la pregunta en vez de apagarla (IMP-117)."
+    },
+    {
+      "id": "GAP-BUSINESS-RULE-WEAK-WORD-SMELL",
+      "severity": "low",
+      "rule": "weak_word_smell",
+      "evidence_scope": "source",
+      "description": "Business rules are named with weak wording instead of explicit thresholds, exceptions, or decision logic.",
+      "catalog": "weak_words",
+      "categories": [
+        "weak_business_rule_evidence"
+      ],
+      "why": "Un smell de reglas vagas no bloquea por si solo, pero senala que la frase nombra reglas sin mecanismo decisional verificable."
     }
   ]
 }

@@ -1,0 +1,66 @@
+{
+  "id": "weak_words",
+  "description": "Conservative bilingual requirements-smell markers for weak wording. These are discovery review signals, not maturity gates.",
+  "categories": {
+    "weak_quality_evidence": [
+      {
+        "term": "quality matters",
+        "mechanism": "names quality without testable expectation"
+      },
+      {
+        "term": "quality is important",
+        "mechanism": "names quality without testable expectation"
+      },
+      {
+        "term": "important",
+        "mechanism": "importance adjective without measurable target"
+      },
+      {
+        "term": "successful once",
+        "mechanism": "success phrasing lacks acceptance criteria"
+      },
+      {
+        "term": "success depends on",
+        "mechanism": "success phrasing lacks acceptance criteria"
+      },
+      {
+        "term": "la calidad importa",
+        "mechanism": "names quality without testable expectation"
+      },
+      {
+        "term": "es importante",
+        "mechanism": "importance adjective without measurable target"
+      },
+      {
+        "term": "sera exitoso cuando",
+        "mechanism": "success phrasing lacks acceptance criteria"
+      },
+      {
+        "term": "será exitoso cuando",
+        "mechanism": "success phrasing lacks acceptance criteria"
+      }
+    ],
+    "weak_business_rule_evidence": [
+      {
+        "term": "business rules around",
+        "mechanism": "rule area named without thresholds, exceptions, or decision logic"
+      },
+      {
+        "term": "rules around",
+        "mechanism": "rule area named without thresholds, exceptions, or decision logic"
+      },
+      {
+        "term": "business rules",
+        "mechanism": "rule concept named without decision logic"
+      },
+      {
+        "term": "reglas alrededor",
+        "mechanism": "rule area named without thresholds, exceptions, or decision logic"
+      },
+      {
+        "term": "reglas de negocio",
+        "mechanism": "rule concept named without decision logic"
+      }
+    ]
+  }
+}

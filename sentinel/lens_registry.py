@@ -34,7 +34,9 @@ from .core.io import read_json, read_json_resource
 from .resources import package_json_files
 
 _DEFAULT_LENSES_DIR = Path(__file__).resolve().parent / "lenses"
+_DEFAULT_SMELLS_DIR = Path(__file__).resolve().parent / "smells"
 LENSES_DIR = _DEFAULT_LENSES_DIR
+SMELLS_DIR = _DEFAULT_SMELLS_DIR
 
 # Deterministic load order keeps gap emission stable. Lens files not listed
 # here are appended alphabetically, so a brand-new lens still loads.
@@ -46,6 +48,7 @@ VALID_RULES = {
     "mention_requires_counterpart",
     "metric_without_source",
     "hypothetical_without_event",
+    "weak_word_smell",
 }
 VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
 
@@ -58,11 +61,37 @@ def load_lens_checks(lenses_dir: Path | str | None = None) -> list[dict]:
     return _load_path_cached(str(directory))
 
 
+def load_smell_catalog(smells_dir: Path | str | None = None) -> dict[str, dict]:
+    """Return requirements-smell catalogs keyed by catalog id."""
+    if smells_dir is None and SMELLS_DIR == _DEFAULT_SMELLS_DIR:
+        return _load_smell_package_cached()
+    directory = Path(smells_dir) if smells_dir is not None else SMELLS_DIR
+    return _load_smell_path_cached(str(directory))
+
+
 @lru_cache(maxsize=8)
 def _load_path_cached(directory: str) -> tuple:
     path = Path(directory)
     by_name = {f.stem: f for f in sorted(path.glob("*.json"))}
     return _load_ordered_lenses(by_name)
+
+
+@lru_cache(maxsize=8)
+def _load_smell_path_cached(directory: str) -> dict[str, dict]:
+    catalogs: dict[str, dict] = {}
+    for source in sorted(Path(directory).glob("*.json")):
+        data = read_json(source, {})
+        catalogs[data.get("id", source.stem)] = data
+    return catalogs
+
+
+@lru_cache(maxsize=1)
+def _load_smell_package_cached() -> dict[str, dict]:
+    catalogs: dict[str, dict] = {}
+    for source in package_json_files("smells"):
+        data = read_json_resource(source, {})
+        catalogs[data.get("id", source.name.removesuffix(".json"))] = data
+    return catalogs
 
 
 @lru_cache(maxsize=1)

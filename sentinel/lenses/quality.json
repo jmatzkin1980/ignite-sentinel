@@ -68,6 +68,18 @@
         "timeframe"
       ],
       "why": "Sin NFR/KPI medibles el PRD no gobierna performance, seguridad ni confiabilidad."
+    },
+    {
+      "id": "GAP-QUALITY-WEAK-WORD-SMELL",
+      "severity": "low",
+      "rule": "weak_word_smell",
+      "evidence_scope": "quality",
+      "description": "Quality, success, or importance is described with weak wording instead of testable criteria or measurable targets.",
+      "catalog": "weak_words",
+      "categories": [
+        "weak_quality_evidence"
+      ],
+      "why": "Los smells de wording no bloquean madurez por si solos, pero senalan frases que parecen cerrar calidad sin hacerla verificable."
     }
   ]
 }
