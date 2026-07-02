@@ -334,11 +334,12 @@ The source JSON contains `assumptions[]`. Each item declares:
 - `lens`: one Ignite lens
 - `statement`: the assumption being made
 - `owner`: human owner, such as BA, Product Owner, or domain lead
-- `risk`: `low`, `med`, or `high`
+- `risk`: `low`, `med`, or `high`; this is importance/impact
+- `uncertainty`: `low`, `med`, or `high`; omitted legacy rows default to `med`
 - `justification`: verbatim local evidence quote
 - `closes_gap`: optional `GAP-*` provisionally addressed by the assumption
 
-The runtime validates the lens, owner, risk, and local quote; writes `01_discovery/assumptions.md`; traces and indexes the assumption register; and refreshes `knowledge_state.md/json` with `ASSUMED` units. Assumptions do not become confirmed evidence: high-risk linked assumptions remain visible in `/maturity` and `/status`, and downstream artifacts cite them as assumptions.
+The runtime validates lens, owner, risk, uncertainty, local quote; writes `01_discovery/assumptions.md`; traces and indexes the assumption register; and refreshes `knowledge_state.md/json` with `ASSUMED` units. Assumptions do not become confirmed evidence: high-risk linked assumptions remain visible in `/maturity` and `/status`, and downstream artifacts cite them as assumptions. `risk=high` plus `uncertainty=high` is surfaced as a non-blocking "test before advancing" priority signal.
 
 Outputs:
 
