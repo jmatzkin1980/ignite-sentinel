@@ -20,7 +20,9 @@
     "GAP-PRD-PERSONA-DETAIL",
     "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "GAP-PRODUCT-ASIS-TOBE",
-    "GAP-TECH-DATA-SOURCE"
+    "GAP-TECH-DATA-SOURCE",
+    "GAP-QUALITY-WEAK-WORD-SMELL",
+    "GAP-BUSINESS-RULE-WEAK-WORD-SMELL"
   ],
   "must_not_fire": [
     "GAP-OBJECTIVE",
@@ -50,6 +52,16 @@
     "GAP-TECH-DATA-SOURCE": {
       "lens": "technical",
       "severity": "medium",
+      "origin": "checklist"
+    },
+    "GAP-QUALITY-WEAK-WORD-SMELL": {
+      "lens": "quality",
+      "severity": "low",
+      "origin": "checklist"
+    },
+    "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": {
+      "lens": "business",
+      "severity": "low",
       "origin": "checklist"
     }
   },

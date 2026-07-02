@@ -5,7 +5,7 @@ import re
 import shutil
 from pathlib import Path
 
-from ..lens_registry import known_lenses, load_lens_checks
+from ..lens_registry import known_lenses, load_lens_checks, load_smell_catalog
 from ..domain_context import respondent_profile_from_domain_context
 from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label, technique_prompt
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
@@ -453,6 +453,41 @@ def has_positive_token_evidence(evidence: str, tokens: tuple[str, ...] | list[st
     return False
 
 
+def weak_word_terms(check: dict) -> list[dict[str, str]]:
+    catalog_id = check.get("catalog", "weak_words")
+    catalogs = load_smell_catalog()
+    catalog = catalogs.get(catalog_id, {})
+    categories = check.get("categories", ())
+    selected = categories or catalog.get("categories", {}).keys()
+    terms: list[dict[str, str]] = []
+    for category in selected:
+        for term in catalog.get("categories", {}).get(category, ()):
+            if isinstance(term, str):
+                terms.append({"term": term, "mechanism": category})
+            elif isinstance(term, dict) and term.get("term"):
+                terms.append(
+                    {
+                        "term": str(term["term"]),
+                        "mechanism": str(term.get("mechanism", category)),
+                    }
+                )
+    terms.extend({"term": str(token), "mechanism": "custom"} for token in check.get("tokens", ()))
+    return terms
+
+
+def first_weak_word_smell(text: str, evidence: str, check: dict) -> tuple[str, str] | None:
+    for item in weak_word_terms(check):
+        term = item["term"].strip().lower()
+        if not term or term not in evidence:
+            continue
+        sentence = next(
+            (candidate for candidate in split_evidence_sentences(text) if term in candidate.lower()),
+            term,
+        )
+        return sentence, item["mechanism"]
+    return None
+
+
 def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=None) -> list[dict[str, str]]:
     """Detect gaps by applying the declarative lens checklist (IMP-033).
 
@@ -524,6 +559,14 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             if metric_match and not any(token in metric_sentence for token in check.get("suppressors", ())):
                 gap["evidence_mention"] = metric_match.group(0)
                 gaps.append(gap)
+        if rule == "weak_word_smell":
+            smell = first_weak_word_smell(text, evidence, check)
+            if not smell:
+                continue
+            sentence, mechanism = smell
+            gap["evidence_mention"] = sentence
+            gap["smell_mechanism"] = mechanism
+            gaps.append(gap)
         if rule == "hypothetical_without_event":
             trigger = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
             if not trigger:
