@@ -1,5 +1,5 @@
 ---
-description: Run advanced elicitation (pre-mortem, per-lens role-play, assumption inversion) and merge findings as gaps (origin: challenge).
+description: Run advanced elicitation (pre-mortem, per-lens role-play, assumption inversion, JTBD Four Forces) and merge findings as gaps (origin: challenge).
 ---
 
 # Ignite Challenge
@@ -12,7 +12,7 @@ Parse `PROJECT_ID` and `--source PATH` from:
 /challenge PROJECT_ID --source PATH
 ```
 
-First run advanced elicitation over the maturing requirement, per lens (invariant #1): pre-mortem ("the project failed at 6 months — what did we fail to ask?"), role-play by lens (operator, auditor, attacker...), and assumption inversion. Capture findings in a JSON `--source` file: a `gaps` array (each gap has `id`, `lens`, `severity`, `question`, a verbatim `evidence` quote from the raw input, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.
+First run advanced elicitation over the maturing requirement, per lens (invariant #1): pre-mortem ("the project failed at 6 months — what did we fail to ask?"), role-play by lens (operator, auditor, attacker...), assumption inversion, and JTBD Four Forces (push, pull, anxiety, habit). JTBD findings must cite concrete past events or local observations; hypothetical preference phrasing is only a low-severity guardrail. Capture findings in a JSON `--source` file: a `gaps` array (each gap has `id`, `lens`, `severity`, `question`, a verbatim `evidence` quote from the raw input, and an optional `technique`), plus optional `premortem` and `assumptions_inverted` arrays.
 
 Run from the repository root:
 
