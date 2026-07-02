@@ -1,0 +1,15 @@
+{
+  "_comment": "IMP-156 deepening pass: the intake looks complete but leaves a privacy/data-retention requirement implicit.",
+  "gaps": [
+    {
+      "id": "GAP-DATA-RETENTION",
+      "lens": "compliance",
+      "severity": "high",
+      "question": "What retention, deletion, access logging, and redistribution limits apply to exported raw customer comments and account notes?",
+      "evidence": "CSV export includes raw customer comments and account notes.",
+      "description": "The requirement confirms raw customer text and account notes are exported, but does not state retention, deletion, audit, or downstream handling rules for that sensitive data."
+    }
+  ],
+  "ambiguities": [],
+  "assumptions": []
+}

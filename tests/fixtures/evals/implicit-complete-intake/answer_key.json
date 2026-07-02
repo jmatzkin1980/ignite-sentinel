@@ -1,0 +1,46 @@
+{
+  "fixture": "implicit-complete-intake",
+  "language": "en",
+  "expected_language": "en",
+  "deliberate_omissions": [
+    "retention, deletion, audit, and redistribution limits for exported customer comments and account notes"
+  ],
+  "must_fire": [],
+  "must_not_fire": [
+    "GAP-USERS",
+    "GAP-SCOPE"
+  ],
+  "known_false_positives": [],
+  "target_fire": [
+    "GAP-DATA-RETENTION"
+  ],
+  "target_fire_rationale": "The lexical checklist should not infer the hidden retention requirement from a seemingly complete intake; the agentic deepening pass must surface it.",
+  "implicit_requirements": [
+    {
+      "id": "IR-RETENTION-EXPORT",
+      "description": "Sensitive exported customer comments and account notes require explicit retention, deletion, audit, and redistribution rules.",
+      "expect_gap": "GAP-DATA-RETENTION",
+      "requires": "annotate"
+    }
+  ],
+  "annotate": {
+    "expected_gap_details": {
+      "GAP-DATA-RETENTION": {
+        "lens": "compliance",
+        "severity": "high",
+        "origin": "agent"
+      }
+    }
+  },
+  "brief": {
+    "target_populated": [
+      "1",
+      "2",
+      "3"
+    ],
+    "target_pending": []
+  },
+  "lifecycle_guards": {
+    "skip_downstream_generation": true
+  }
+}

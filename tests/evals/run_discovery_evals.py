@@ -227,6 +227,66 @@ def discovery_gap_benchmark(
     }
 
 
+def implicit_elicitation_benchmark(
+    fired: set[str],
+    raw_implicit_requirements: object,
+) -> dict[str, object]:
+    """Score whether deepening surfaced answer-keyed implicit requirements."""
+    if not isinstance(raw_implicit_requirements, list):
+        raw_implicit_requirements = []
+
+    total = 0
+    detected_total = 0
+    detected: list[str] = []
+    missing: list[str] = []
+    by_channel: dict[str, dict[str, float | int]] = {}
+
+    for raw_item in raw_implicit_requirements:
+        if not isinstance(raw_item, dict):
+            continue
+        ir_id = str(raw_item.get("id") or "").strip()
+        expect_gap = str(raw_item.get("expect_gap") or "").strip()
+        if not expect_gap:
+            continue
+
+        raw_requires = raw_item.get("requires", "unknown")
+        if isinstance(raw_requires, str):
+            channels = [raw_requires.strip() or "unknown"]
+        elif isinstance(raw_requires, list):
+            channels = [str(channel).strip() or "unknown" for channel in raw_requires]
+        else:
+            channels = ["unknown"]
+
+        total += 1
+        was_detected = expect_gap in fired
+        if was_detected:
+            detected_total += 1
+            detected.append(ir_id or expect_gap)
+        else:
+            missing.append(ir_id or expect_gap)
+
+        for channel in channels:
+            bucket = by_channel.setdefault(
+                channel,
+                {"expected": 0, "detected": 0, "ratio": 0.0},
+            )
+            bucket["expected"] = int(bucket["expected"]) + 1
+            if was_detected:
+                bucket["detected"] = int(bucket["detected"]) + 1
+
+    for bucket in by_channel.values():
+        bucket["ratio"] = _ratio(int(bucket["detected"]), int(bucket["expected"]), default=0.0)
+
+    return {
+        "total": total,
+        "detected_total": detected_total,
+        "ratio": _ratio(detected_total, total, default=0.0),
+        "detected": sorted(detected),
+        "missing": sorted(missing),
+        "by_channel": by_channel,
+    }
+
+
 def repeat_variance_for_results(repeated_results: list[list[dict]]) -> dict[str, dict[str, float]]:
     if not repeated_results:
         return {}
@@ -626,6 +686,10 @@ def run_fixture(
         distractors,
         gap_details,
     )
+    implicit_elicitation = implicit_elicitation_benchmark(
+        fired,
+        key.get("implicit_requirements", []),
+    )
 
     brief_key = key.get("brief", {})
     brief_target = [s for s in brief_key.get("target_populated", []) if s in BRIEF_TRACKED_SECTIONS]
@@ -717,6 +781,9 @@ def run_fixture(
         "gap_precision": gap_benchmark["precision"],
         "gap_recall": gap_benchmark["recall"],
         "gap_f1": gap_benchmark["f1"],
+        "implicit_elicitation": implicit_elicitation,
+        "elicitation_ratio": implicit_elicitation["ratio"],
+        "implicit_elicitation_ratio": implicit_elicitation["ratio"],
         "distractor_total": len(distractors),
         "distractors": raw_distractors,
         "distractor_false_positives": gap_benchmark["distractor_false_positives"],
@@ -1373,6 +1440,24 @@ def run_all() -> int:
         if (d / "assumptions.json").exists()
     ]
     assumed_fixtures = sum(1 for d in fixture_dirs if (d / "assumptions.json").exists())
+    implicit_results = [r for r in results if r["implicit_elicitation"]["total"]]
+    implicit_annotated_results = [
+        r for r in annotated_results if r["implicit_elicitation"]["total"]
+    ]
+    implicit_ratio = (
+        round(sum(r["implicit_elicitation_ratio"] for r in implicit_results) / len(implicit_results), 3)
+        if implicit_results
+        else 0.0
+    )
+    implicit_ratio_with_annotations = (
+        round(
+            sum(r["implicit_elicitation_ratio"] for r in implicit_annotated_results)
+            / len(implicit_annotated_results),
+            3,
+        )
+        if implicit_annotated_results
+        else 0.0
+    )
 
     report = {
         "date": date.today().isoformat(),
@@ -1404,6 +1489,13 @@ def run_all() -> int:
             "avg_target_recall": round(sum(r["target_recall"] for r in results) / len(results), 3),
             "avg_target_recall_with_annotations": round(
                 sum(r["target_recall"] for r in annotated_results) / len(annotated_results), 3
+            ),
+            "implicit_elicitation_fixtures": len(implicit_results),
+            "avg_implicit_elicitation_ratio": implicit_ratio,
+            "avg_implicit_elicitation_ratio_with_annotations": implicit_ratio_with_annotations,
+            "implicit_elicitation_delta": round(
+                implicit_ratio_with_annotations - implicit_ratio,
+                3,
             ),
             "annotated_fixtures": annotated_fixtures,
             "scrutinized_fixtures": scrutinized_fixtures,
@@ -1475,6 +1567,9 @@ def run_all() -> int:
             f"{float(r['gap_benchmark']['recall']):.2f}/"
             f"{float(r['gap_benchmark']['f1']):.2f} "
             f"target={len(r['target_fire_detected'])}/{r['target_fire_total']} "
+            f"implicit={r['implicit_elicitation']['detected_total']}/"
+            f"{r['implicit_elicitation']['total']}:"
+            f"{float(r['implicit_elicitation_ratio']):.2f} "
             f"brief={len(r['brief_target_populated'])}/{len(r['brief_target_sections'])} "
             f"prd={len(r['prd_target_populated'])}/{len(r['prd_target_sections'])} "
             f"spec_scaffold={r['specs_scaffolding_count']} "
@@ -1528,9 +1623,13 @@ def run_all() -> int:
             f"{s['avg_gap_f1_variance']:.6f} "
             f"distractor_fp={s['total_distractor_false_positives']}/"
             f"{s['fixtures_with_distractors']}fx "
-            f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
+        f"avg_target_recall={s['avg_target_recall']:.2f} lexical / "
         f"{s['avg_target_recall_with_annotations']:.2f} with /annotate "
         f"({s['annotated_fixtures']} annotated fixtures, IMP-021) "
+        f"implicit_elicitation={s['avg_implicit_elicitation_ratio']:.2f} lexical / "
+        f"{s['avg_implicit_elicitation_ratio_with_annotations']:.2f} with /annotate "
+        f"delta={s['implicit_elicitation_delta']:.2f} "
+        f"({s['implicit_elicitation_fixtures']} fixtures, IMP-156) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
         f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
         f"development_readiness_ok={s['development_readiness_ok']} (IMP-068) "
