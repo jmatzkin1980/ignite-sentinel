@@ -23,8 +23,9 @@ class TechniqueRegistryShapeTests(unittest.TestCase):
         ids = [item["id"] for item in techniques]
         self.assertGreaterEqual(len(ids), 6)
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertEqual(("pre-mortem", "role-play", "assumption-inversion"), CHALLENGE_TECHNIQUES)
+        self.assertEqual(("pre-mortem", "role-play", "assumption-inversion", "jtbd-forces"), CHALLENGE_TECHNIQUES)
         self.assertEqual(CHALLENGE_TECHNIQUES, technique_registry.default_challenge_technique_ids())
+        self.assertIn("jtbd-forces", ids)
         self.assertIn("red-blue-team", ids)
         self.assertIn("first-principles", ids)
         self.assertIn("stakeholder-round-robin", ids)

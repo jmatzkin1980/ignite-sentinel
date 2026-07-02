@@ -20,12 +20,21 @@ TECHNIQUE_ORDER = (
     "pre-mortem",
     "role-play",
     "assumption-inversion",
+    "jtbd-forces",
     "red-blue-team",
     "first-principles",
     "stakeholder-round-robin",
 )
 
-VALID_CATEGORIES = {"failure-analysis", "lens-role", "assumption", "adversarial", "decomposition", "stakeholder"}
+VALID_CATEGORIES = {
+    "failure-analysis",
+    "lens-role",
+    "assumption",
+    "jtbd",
+    "adversarial",
+    "decomposition",
+    "stakeholder",
+}
 VALID_RESPONDENT_PROFILES = {"business", "technical"}
 TECHNIQUE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 

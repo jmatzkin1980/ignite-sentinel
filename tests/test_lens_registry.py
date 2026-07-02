@@ -36,6 +36,17 @@ class LensRegistryShapeTests(unittest.TestCase):
                             for c in lens_registry.load_lens_checks()))
         self.assertTrue(any(c["id"] == "GAP-DESIGN-FLOW" and c["lens"] == "design"
                             for c in lens_registry.load_lens_checks()))
+        self.assertTrue(any(c["id"] == "GAP-HYPOTHETICAL-ANCHOR" and c["lens"] == "product"
+                            for c in lens_registry.load_lens_checks()))
+
+    def test_hypothetical_guardrail_requires_event_anchor(self):
+        hypothetical = "Would you use a dashboard if it could show queue risk before standup?"
+        gaps = {g["id"]: g for g in detect_gaps(hypothetical)}
+        self.assertIn("GAP-HYPOTHETICAL-ANCHOR", gaps)
+        self.assertIn("Would you use", gaps["GAP-HYPOTHETICAL-ANCHOR"]["evidence_mention"])
+
+        anchored = "Last week in support, the operations lead said a dashboard is needed before standup."
+        self.assertNotIn("GAP-HYPOTHETICAL-ANCHOR", {g["id"] for g in detect_gaps(anchored)})
 
 
 class AddCheckWithoutPythonTests(unittest.TestCase):

@@ -56,7 +56,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("validate", "Validate structure plus non-blocking semantic quality scores.", ["project_id"]),
     ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, or backlog.", ["project_id", "artifact"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
-    ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, and assumption inversion; writes challenge_report.md.", ["project_id", "source"]),
+    ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
     ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger.", ["project_id", "source"]),
     ("assume", "Register governed BA-owned assumptions with risk, local cited basis, optional provisional gap link, and ledger refresh.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),

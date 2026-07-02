@@ -524,6 +524,18 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             if metric_match and not any(token in metric_sentence for token in check.get("suppressors", ())):
                 gap["evidence_mention"] = metric_match.group(0)
                 gaps.append(gap)
+        if rule == "hypothetical_without_event":
+            trigger = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
+            if not trigger:
+                continue
+            if any(token in evidence for token in check.get("event_anchors", ())):
+                continue
+            sentence = next(
+                (sentence for sentence in split_evidence_sentences(text) if trigger in sentence.lower()),
+                trigger,
+            )
+            gap["evidence_mention"] = sentence
+            gaps.append(gap)
     return gaps
 
 
