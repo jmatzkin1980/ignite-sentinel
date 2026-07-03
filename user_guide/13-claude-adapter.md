@@ -121,3 +121,9 @@ Claude Desktop / Claude Code configuration:
 ```
 
 Tools are named `sentinel_init`, `sentinel_ingest`, `sentinel_maturity`, etc. Gate violations return structured errors with the failing reason, so the client can recommend the right prior step. Without the optional `mcp` package, everything else (chat adapters, CLI) keeps working and `/doctor` reports a WARN.
+
+## Governed-Artifact Verifier Hook (Optional, IMP-146)
+
+The repo ships a read-only verifier subagent, `.claude/agents/ignite-verifier.md`, plus an **opt-in** `PostToolUse` hook example under `.claude/hooks/`. When enabled (by copying the example block into your local `.claude/settings.local.json`), any `Write`/`Edit` that touches a governed artifact (`project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) spawns the verifier with an isolated context and tools restricted to `Read, Grep, Glob` (explicit denylist of `Write/Edit/Bash/Agent`). It checks the change against local cited evidence — no invention, criterion continuity, governed mutation channel — and reports `VERIFIED` or `BLOCKED` with cited findings; it never auto-corrects, and the BA/main agent decides.
+
+Nothing activates by default: adopters without Claude Code (or without Agent-hook support) are unaffected and can run the same verification through the governed `/self-review` channel. Hooks can be bypassed by writes outside the editor tools, so this is one enforcement layer; the runtime-side complements are the brief phase-close self-correction (IMP-145) and the generated-artifact checksum check (IMP-147). Setup and the manual smoke test live in `.claude/hooks/README.md`.

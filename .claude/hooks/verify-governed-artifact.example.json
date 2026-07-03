@@ -1,0 +1,17 @@
+{
+  "_comment": "IMP-146 opt-in: copy the 'hooks' block into your local .claude/settings.local.json (not versioned). Requires Claude Code with Agent-hook support; see .claude/hooks/README.md for the fallback.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "agent",
+            "agent": "ignite-verifier",
+            "prompt": "A governed Ignite Sentinel artifact was just written or edited: $CLAUDE_TOOL_INPUT_FILE_PATH. Verify it per your instructions and report VERIFIED or BLOCKED with cited findings. Only act if the path matches workspaces/*/02_requirements/project-brief.md, workspaces/*/03_specs/*.md or workspaces/*/04_backlog/*.md; otherwise reply SKIPPED (not a governed artifact)."
+          }
+        ]
+      }
+    ]
+  }
+}
