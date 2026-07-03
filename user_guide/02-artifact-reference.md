@@ -32,8 +32,9 @@ Typical fields:
 - `story_gates`
 - `story_quality`
 - `story_acceptance_evidence`
+- `artifact_hashes`
 
-Use this file to understand where the project is in the workflow. `story_lifecycle` is the governed ledger for current `US-NNN` status and owner; `story_gates` stores the latest DoR/DoD evaluation per story; `story_quality` stores the latest `/quality` score for the governed INVEST/SPIDR/Lawrence story model; `story_acceptance_evidence` records local evidence artifacts attached for Done; `implementation_feedback` records open downstream findings that may stale stories or block DoD. Mutate lifecycle and evidence only through `/story-status`; submit downstream findings only through `/implementation-feedback`; refresh quality through `/quality`.
+Use this file to understand where the project is in the workflow. `artifact_hashes` is the deterministic sha256 registry of governed artifacts, refreshed by every mutating command (IMP-147); `/health` compares it against current bytes to flag out-of-CLI edits. `story_lifecycle` is the governed ledger for current `US-NNN` status and owner; `story_gates` stores the latest DoR/DoD evaluation per story; `story_quality` stores the latest `/quality` score for the governed INVEST/SPIDR/Lawrence story model; `story_acceptance_evidence` records local evidence artifacts attached for Done; `implementation_feedback` records open downstream findings that may stale stories or block DoD. Mutate lifecycle and evidence only through `/story-status`; submit downstream findings only through `/implementation-feedback`; refresh quality through `/quality`.
 
 ## `sentinel.config.yaml`
 
