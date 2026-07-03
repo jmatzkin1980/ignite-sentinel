@@ -7,6 +7,7 @@ from .gaps import blocking_severities, is_blocking, parse_gap_table
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .assumptions import assumptions_projection
+from .drift import derived_drift_warnings
 from .protocols import evaluate_needs_context, snapshot_governed_artifact_hashes
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
@@ -61,6 +62,7 @@ def run_health(project_id: str) -> dict[str, object]:
             findings.append(f"{story['id']} is not linked to an epic.")
     warnings.extend(domain_context_freshness_findings(project_id, base))
     warnings.extend(out_of_cli_edit_warnings(project_id, base))
+    warnings.extend(derived_drift_warnings(project_id))
     findings.extend(backlog_lifecycle_findings(project_id))
     findings.extend(knowledge_staleness_findings(project_id))
     findings.extend(suspicious_trace_link_findings(project_id))
