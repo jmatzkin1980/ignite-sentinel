@@ -78,6 +78,7 @@ from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slice_plan import generate_slice_plan
 from .core.graph import add_edge, add_node, nodes_by_type, upsert_node
+from .drift import record_derived_source_fingerprint
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
 
@@ -275,6 +276,9 @@ def generate_specs(project_id: str) -> dict[str, object]:
         specs_gate=gate_result,
         specs_gate_warnings=specs_warnings,
     )
+    # IMP-148: snapshot the fingerprint of the sources specs was generated from,
+    # so /health can later flag specs that drifted from the brief/requirements.
+    record_derived_source_fingerprint(project_id, "specs")
     return {
         "prd_id": prd_id,
         "spec_id": spec_id,
@@ -424,6 +428,8 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
         health="CLEAN",
         metrics={"requirements": 1, "gaps_open": 0, "decisions_pending": 1, "user_stories": len(story_ids), "epics": len(epic_ids)},
     )
+    # IMP-148: snapshot the fingerprint of the specs the backlog was derived from.
+    record_derived_source_fingerprint(project_id, "backlog")
     return {
         "epic_id": epic_id,
         "story_id": story_ids[0],
