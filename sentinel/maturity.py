@@ -443,7 +443,8 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     threshold = float(gate.get("threshold", 0.5))
     strict = bool(gate.get("strict", False))
     language = config.get("project_language") if config.get("project_language") in {"es", "en"} else "en"
-    readiness = brief_section_readiness(brief_path.read_text(encoding="utf-8"))
+    brief_text = brief_path.read_text(encoding="utf-8")
+    readiness = brief_section_readiness(brief_text)
     below = float(readiness["coverage_score"]) < threshold
     warnings = brief_gate_warnings(readiness, language) if below else []
     # IMP-118: soft governing gate on per-RU implementability. By default it
@@ -463,6 +464,15 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     gap_counts = count_gaps(parse_gap_rows(gaps_text))
     readiness_stage = readiness_stage_for_counts(gap_counts)
     has_blocking_gaps = bool(gap_counts.get("blocking_open", 0))
+    # IMP-145: Specification Self-Correction. Before the brief phase closes,
+    # re-read each confirmed criterion (closed-gap answer, verbatim) and confirm
+    # the compiled brief actually carries it. A discrepancy aborts the close and
+    # asks for BA intervention; the check never rewrites criterion or artifact.
+    discovery = base / "01_discovery"
+    ssc_answers = parse_gap_answers(
+        read_optional(discovery / "identity_seeds.md") + "\n" + read_optional(discovery / "decisions.md")
+    )
+    ssc_findings = spec_self_correction_findings(brief_text, ssc_answers)
     result = {
         "project_id": project_id,
         "project_brief": str(brief_path),
@@ -472,7 +482,15 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
         "brief_gate": {"threshold": threshold, "strict": strict, "below_threshold": below},
         "implementability": impl_summary,
         "implementability_gate": {"strict": impl_strict, "not_implementable_units": not_implementable},
+        "self_correction": {"findings": ssc_findings, "criteria_checked": len(ssc_answers)},
     }
+    if ssc_findings and not has_blocking_gaps:
+        # Only the actual phase close (the advance to READY_FOR_SPECS) is
+        # guarded; while blocking gaps keep the phase open, findings are
+        # reported but the normal blocked stage is preserved.
+        update_state(project_id, phase="brief_self_correction_failed", readiness_stage="SELF_CORRECTION_FAILED")
+        result["blocked"] = True
+        return result
     if strict and below:
         update_state(project_id, phase="brief_below_threshold", readiness_stage="BRIEF_BELOW_THRESHOLD")
         result["blocked"] = True
@@ -490,6 +508,34 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     )
     result["blocked"] = False
     return result
+
+
+def spec_self_correction_findings(brief_text: str, gap_answers: dict[str, dict[str, str]]) -> list[str]:
+    """IMP-145 Specification Self-Correction at the brief phase close.
+
+    Re-reads each confirmed criterion (a closed gap's verbatim answer) that is
+    routed to a brief narrative section and confirms the compiled brief carries
+    both the gap id and the verbatim statement. Answers whose gap has no brief
+    section route are consumed by other artifacts and are out of scope. Any
+    discrepancy is a hard faithfulness failure: the brief silently dropped
+    confirmed scope, so the phase close must abort instead of self-adjusting.
+    """
+    from .discovery.workflow import brief_section_for_gap
+
+    findings: list[str] = []
+    normalized_brief = " ".join(brief_text.split())
+    for gap_id, payload in gap_answers.items():
+        if brief_section_for_gap(gap_id) is None:
+            continue
+        statement = " ".join(str(payload.get("statement", "")).split())
+        if not statement:
+            continue
+        if gap_id not in brief_text or statement not in normalized_brief:
+            findings.append(
+                f"Self-correction: confirmed answer for `{gap_id}` is not carried by the brief "
+                f'(criterion: "{statement[:160]}").'
+            )
+    return findings
 
 
 def parse_blocking_gaps(text: str, blocking_severities: set[str]) -> list[str]:
@@ -705,6 +751,18 @@ def compile_brief_sections(
     scope_out = (f"- Out of scope: {_cite(out_scope, language)}" if out_scope
                  else ("- Out of scope: se rastrea en `GAP-SCOPE`." if es else "- Out of scope: tracked by `GAP-SCOPE`."))
     blocks["3"] = f"{asis_line}\n{tobe_line}\n{scope_in}\n{scope_out}"
+
+    # IMP-145: a confirmed closed-gap answer is stronger evidence than a signal
+    # heuristically extracted from raw input, so sections 1-3 must always carry
+    # their routed answers. Raw-derived narrative stays; missing answer bullets
+    # are appended instead of being silently replaced by extraction output.
+    for section in ("1", "2", "3"):
+        answers_block = _gap_answer_block(gap_answers, section, language)
+        if not answers_block:
+            continue
+        missing = [line for line in answers_block.splitlines() if line not in blocks[section]]
+        if missing:
+            blocks[section] = blocks[section] + "\n" + "\n".join(missing)
 
     # --- Sections 4-6: populated only from confirmed gap answers; else PENDING ---
     blocks["4"] = _gap_answer_block(gap_answers, "4", language) or (project_id and _assumption_block(project_id, "4", language)) or _pending("GAP-DESIGN-FLOW", language)
