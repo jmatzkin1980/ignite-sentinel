@@ -7,9 +7,9 @@ from .gaps import blocking_severities, is_blocking, parse_gap_table
 from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .assumptions import assumptions_projection
-from .protocols import evaluate_needs_context
+from .protocols import evaluate_needs_context, snapshot_governed_artifact_hashes
 from .core.graph import children_of, load_graph, parents_of
-from .workspace import load_config, memory_path, read_json, update_state, workspace_path, write_json
+from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
@@ -60,6 +60,7 @@ def run_health(project_id: str) -> dict[str, object]:
         if not any(parent.startswith("EPIC-") for parent in parents_of(project_id, story["id"])):
             findings.append(f"{story['id']} is not linked to an epic.")
     warnings.extend(domain_context_freshness_findings(project_id, base))
+    warnings.extend(out_of_cli_edit_warnings(project_id, base))
     findings.extend(backlog_lifecycle_findings(project_id))
     findings.extend(knowledge_staleness_findings(project_id))
     findings.extend(suspicious_trace_link_findings(project_id))
@@ -121,6 +122,38 @@ def render_health(project_id: str, verdict: str, findings: list[str], warnings: 
 
 {warning_rows}
 """
+
+
+def out_of_cli_edit_warnings(project_id: str, base) -> list[str]:
+    """IMP-147: warn when a governed artifact was edited outside the CLI.
+
+    A mutating command is the only sanctioned writer of governed artifacts and
+    snapshots their sha256 into `state.json#artifact_hashes` on postflight. Here
+    we recompute the current hashes and compare: any file whose bytes differ
+    from the last CLI-produced snapshot was edited by hand (or by a `Bash`
+    write that bypassed the editor hooks of IMP-146). This is a persistent,
+    cross-process/session check — unlike the in-memory optimistic-conflict
+    snapshot of IMP-144, which only spans a single process. Purely
+    deterministic hash comparison; it only warns, never blocks or reverts.
+    """
+    state = read_json(state_path(project_id), {})
+    registered = state.get("artifact_hashes", {})
+    if not isinstance(registered, dict) or not registered:
+        return []
+    current = snapshot_governed_artifact_hashes(project_id)
+    edited = sorted(
+        rel
+        for rel, digest in registered.items()
+        if rel in current and current[rel] != digest
+    )
+    if not edited:
+        return []
+    return [
+        f"Governed artifact edited outside the CLI: {rel}. "
+        "Its bytes differ from the last command-produced version; regenerate it "
+        "through the owning Sentinel command instead of hand-editing."
+        for rel in edited
+    ]
 
 
 def domain_context_freshness_findings(project_id: str, base) -> list[str]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,28 @@ from .workspace import load_config, read_json, state_path, update_state, utc_now
 # IMP-127: default volume above which a project is considered to "need context"
 # (focused retrieval) rather than whole-artifact reading.
 NEEDS_CONTEXT_MIN_CHUNKS = 12
+
+# IMP-147: governed artifacts whose bytes may only change through a Sentinel
+# command. Their checksum is snapshotted after every mutating command, so a
+# later mismatch means the file was edited outside the CLI.
+GOVERNED_ARTIFACT_GLOBS = (
+    "01_discovery/gaps.md",
+    "02_requirements/requirements.md",
+    "02_requirements/project-brief.md",
+    "03_specs/*.md",
+    "04_backlog/*.md",
+)
+
+
+def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
+    """Deterministic sha256 registry of governed artifacts (IMP-147)."""
+    base = workspace_path(project_id)
+    hashes: dict[str, str] = {}
+    for pattern in GOVERNED_ARTIFACT_GLOBS:
+        for path in sorted(base.glob(pattern)):
+            if path.is_file():
+                hashes[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashes
 
 READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
 MUTATING_COMMANDS = {
@@ -89,12 +112,17 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         "summary": summarize_result(result),
     }
     command_log.append(entry)
-    update_state(
-        project_id,
-        last_command=command,
-        last_command_at=entry["timestamp"],
-        command_log=command_log[-25:],
-    )
+    state_updates: dict[str, Any] = {
+        "last_command": command,
+        "last_command_at": entry["timestamp"],
+        "command_log": command_log[-25:],
+    }
+    if command in MUTATING_COMMANDS:
+        # IMP-147: a mutating command is the only sanctioned writer of governed
+        # artifacts, so refresh their checksum registry here. /health compares
+        # current bytes against this snapshot to flag out-of-CLI edits.
+        state_updates["artifact_hashes"] = snapshot_governed_artifact_hashes(project_id)
+    update_state(project_id, **state_updates)
     write_command_protocol_log(project_id, command_log[-25:])
 
 
