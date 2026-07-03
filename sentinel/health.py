@@ -41,7 +41,9 @@ def run_health(project_id: str) -> dict[str, object]:
     memory = broker.data
     indexed_paths = {item["source_path"] for item in memory.get("artifacts", [])}
     for node in graph.get("nodes", []):
-        if node.get("path") and node["path"] not in indexed_paths and node["type"] not in {"acceptance_criteria"}:
+        # source_synthesis is deliberately never indexed (IMP-160): it is verbatim
+        # citations of already-indexed raw sources, so absence from memory is by design.
+        if node.get("path") and node["path"] not in indexed_paths and node["type"] not in {"acceptance_criteria", "source_synthesis"}:
             findings.append(f"{node['id']} is not indexed in memory.")
 
     node_types = {node.get("type") for node in graph.get("nodes", [])}

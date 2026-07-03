@@ -1007,6 +1007,12 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
         path_value = node.get("path")
         if not path_value:
             continue
+        # IMP-160: the per-source synthesis is composed of verbatim citations of
+        # already-indexed raw sources; indexing it would duplicate that evidence
+        # and let the derived document displace the real source in the retrieval
+        # shortlist. Its graph node carries the lineage; memory skips it.
+        if node.get("type") == "source_synthesis":
+            continue
         path = Path(path_value)
         if not path.is_absolute():
             path = Path.cwd() / path

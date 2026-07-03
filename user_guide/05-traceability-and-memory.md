@@ -197,6 +197,8 @@ These context folders are input owned by the relevant domains. Sentinel retrieve
 
 `00_raw/source_manifest.json` records which source files have already been processed, including hash, status, and related event ID. Autonomous sync uses this manifest to detect new or modified inputs.
 
+The per-source synthesis (`01_discovery/source_synthesis.md`, IMP-160) is deliberately **never indexed** into memory: it is composed of verbatim citations of raw sources that are already indexed, so indexing it would duplicate that evidence and could let the derived document displace the real source in the retrieval shortlist. Its traceability is carried by the graph (`source_synthesis` node linked from the raw input), and `/health` does not flag its absence from memory.
+
 ## Context Packs
 
 Context packs are retrieval snapshots for Codex workflows.

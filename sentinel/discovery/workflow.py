@@ -21,6 +21,7 @@ METRIC_RE = re.compile(
     r"(\d+(?:[.,]\d+)?\s?(?:%|percent|por ciento|porcentaje)|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))",
     re.I,
 )
+RAW_SYNTHESIS_EXTENSIONS = {".md", ".txt", ".html", ".htm"}
 
 
 def ingest(project_id: str, source: Path) -> dict[str, str]:
@@ -34,6 +35,8 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     mark_source_processed(project_id, source, "initial_ingested")
     mark_source_processed(project_id, raw_target, "raw_copy")
     raw_id = add_node(project_id, "RAW", "raw_input", raw_target, source.stem, domain="product")
+    source_synthesis_path = base / "01_discovery" / "source_synthesis.md"
+    source_synthesis_path.write_text(render_source_synthesis(project_id, base), encoding="utf-8")
     requirement_units = extract_requirement_units(text, raw_id, raw_target)
     units_path = base / "01_discovery" / "requirement_units.md"
     units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
@@ -121,6 +124,16 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     add_edge(project_id, dec_id, ledger_id, "consolidated_by")
     add_edge(project_id, lens_review_id, ledger_id, "informs")
     add_edge(project_id, ledger_id, req_id, "grounds")
+    source_synthesis_id = add_node(
+        project_id,
+        "DISC",
+        "source_synthesis",
+        source_synthesis_path,
+        "Per-source synthesis",
+        domain="product",
+    )
+    add_edge(project_id, raw_id, source_synthesis_id, "summarized_by")
+    add_edge(project_id, source_synthesis_id, req_id, "grounds")
 
     broker = ContextBroker(project_id)
     broker.index_artifact(raw_id, "raw_input", raw_target, text, trace_ids=[raw_id])
@@ -157,6 +170,11 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         ledger_md_path.read_text(encoding="utf-8"),
         trace_ids=[raw_id, seed_id, gap_id, dec_id, ledger_id],
     )
+    # IMP-160: the per-source synthesis is a derived lineage artifact composed of
+    # verbatim citations of already-indexed raw sources. Indexing it would duplicate
+    # that evidence in memory and let the derived document displace the real source
+    # in the retrieval shortlist (observed under lancedb-ann candidates), so it is
+    # deliberately NOT indexed — the graph nodes/edges carry its traceability.
     index_context_folders(project_id, broker)
 
     # IMP-127: discovery is the highest-volume phase; emit a focused, pointer-only
@@ -187,6 +205,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
             "discovery_log": str(discovery_log_path.as_posix()),
             "lens_review": str(lens_review_path.as_posix()),
             "requirement_units": str(units_path.as_posix()),
+            "source_synthesis": str(source_synthesis_path.as_posix()),
             "knowledge_state": str(ledger_md_path.as_posix()),
             "knowledge_state_json": str(ledger_json_path.as_posix()),
         },
@@ -208,6 +227,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "discovery_log_id": discovery_log_id,
         "lens_review_id": lens_review_id,
         "knowledge_ledger_id": ledger_id,
+        "source_synthesis_id": source_synthesis_id,
         "requirement_unit_ids": unit_node_ids,
         "context_pack": focus_pack.get("path"),
     }
@@ -2497,6 +2517,102 @@ def render_digest(project_id: str, text: str, raw_id: str, req_id: str, gap_id: 
 ## Summary
 
 {extract_requirement(text)}
+"""
+
+
+def markdown_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ").strip()
+
+
+def raw_sources_for_synthesis(base: Path) -> list[Path]:
+    raw_dir = base / "00_raw"
+    if not raw_dir.exists():
+        return []
+    return [
+        path
+        for path in sorted(raw_dir.iterdir(), key=lambda item: item.name.lower())
+        if path.is_file() and path.suffix.lower() in RAW_SYNTHESIS_EXTENSIONS
+    ]
+
+
+def citation_for_source(text: str) -> str:
+    sentences = split_evidence_sentences(text)
+    if sentences:
+        return sentences[0]
+    for line in text.splitlines():
+        clean = line.strip(" -\t")
+        if clean:
+            return clean
+    return "[PENDING INPUT]"
+
+
+def citation_for_unit(text: str, unit: dict[str, str]) -> str:
+    mention = str(unit.get("evidence_mention", "")).strip().lower()
+    if mention:
+        for sentence in split_evidence_sentences(text):
+            if mention in sentence.lower():
+                return sentence
+        for sentence in requirement_sentences(text):
+            if mention in sentence.lower():
+                return sentence
+    return str(unit.get("evidence_mention", "")).strip() or citation_for_source(text)
+
+
+def source_synthesis_entries(base: Path) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for path in raw_sources_for_synthesis(base):
+        text = path.read_text(encoding="utf-8")
+        source_ref = f"00_raw/{path.name}"
+        units = extract_requirement_units(text, raw_id=source_ref, source=path)
+        if units:
+            for unit in units:
+                entries.append(
+                    {
+                        "source": source_ref,
+                        "unit": unit["label"],
+                        "citation": citation_for_unit(text, unit),
+                    }
+                )
+        else:
+            entries.append(
+                {
+                    "source": source_ref,
+                    "unit": extract_requirement(text),
+                    "citation": citation_for_source(text),
+                }
+            )
+    return entries
+
+
+def render_source_synthesis(project_id: str, base: Path) -> str:
+    entries = source_synthesis_entries(base)
+    per_source_rows = "\n".join(
+        f"| `{entry['source']}` | {markdown_cell(entry['unit'])} | {markdown_cell(entry['citation'])} |"
+        for entry in entries
+    )
+    cross_source_rows = "\n".join(
+        f"| {index} | `{entry['source']}` | {markdown_cell(entry['unit'])} | {markdown_cell(entry['citation'])} |"
+        for index, entry in enumerate(entries, start=1)
+    )
+    if not per_source_rows:
+        per_source_rows = "| N/A | No source synthesis available. | N/A |"
+    if not cross_source_rows:
+        cross_source_rows = "| N/A | N/A | No source synthesis available. | N/A |"
+    return f"""# Source Synthesis - {project_id}
+
+Sentinel synthesizes each raw source separately before cross-source review. Cross-source rows keep their own source and verbatim citation so divergent inputs are not merged into one uncited claim.
+
+## Per-Source Synthesis
+
+| Source | Source-local unit | Verbatim citation |
+| --- | --- | --- |
+{per_source_rows}
+
+## Cross-Source Review Inputs
+
+| Item | Source | Preserved unit | Preserved citation |
+| --- | --- | --- | --- |
+{cross_source_rows}
 """
 
 
