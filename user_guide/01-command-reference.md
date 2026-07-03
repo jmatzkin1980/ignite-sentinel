@@ -130,6 +130,7 @@ Creates or updates:
 
 - raw source copy
 - requirement register
+- per-source synthesis (`01_discovery/source_synthesis.md`) with preserved source citations
 - cited discovery-only requirement units (`01_discovery/requirement_units.md`) when named surfaces/capabilities are present
 - gap report
 - decision log
