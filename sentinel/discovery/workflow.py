@@ -27,6 +27,10 @@ RAW_SYNTHESIS_EXTENSIONS = {".md", ".txt", ".html", ".htm"}
 def ingest(project_id: str, source: Path) -> dict[str, str]:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
+    # IMP-150: snapshot the previous Requirement Units before this ingest
+    # overwrites them, so a re-ingest can emit a governed ADDED/MODIFIED/REMOVED
+    # delta view of what capabilities changed.
+    previous_requirement_units = requirement_unit_snapshot(base)
     text = source.read_text(encoding="utf-8")
     language = resolve_project_language(load_config(project_id).get("project_language", "auto"), text)
     context = load_domain_context(base)
@@ -54,6 +58,10 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         add_edge(project_id, raw_id, unit_id, "decomposes_into")
         add_edge(project_id, unit_id, req_id, "analyzes")
     units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
+    # IMP-150: on re-ingest, emit the read-only RU delta view (governed signal only).
+    requirement_unit_delta_path = write_requirement_unit_delta(
+        project_id, base, previous_requirement_units, requirement_units
+    )
 
     gaps = detect_unit_anchored_gaps(text, context, requirement_units)
     gap_path = base / "01_discovery" / "gaps.md"
@@ -229,6 +237,9 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "knowledge_ledger_id": ledger_id,
         "source_synthesis_id": source_synthesis_id,
         "requirement_unit_ids": unit_node_ids,
+        "requirement_unit_deltas": (
+            str(requirement_unit_delta_path.as_posix()) if requirement_unit_delta_path else None
+        ),
         "context_pack": focus_pack.get("path"),
     }
 
@@ -328,6 +339,118 @@ Requirement Units are discovery-time analysis units. They are cited from raw inp
 | --- | --- | --- | --- | --- |
 {rows}
 """
+
+
+def requirement_unit_snapshot(base: Path) -> dict[str, dict[str, str]]:
+    """Parse the current requirement_units.md into a label-keyed snapshot (IMP-150).
+
+    Keyed by the RU label (the named capability), not the positional RU id, so a
+    re-ingest that renumbers units still diffs by *what capability* changed.
+    """
+    units_path = base / "01_discovery" / "requirement_units.md"
+    if not units_path.exists():
+        return {}
+    snapshot: dict[str, dict[str, str]] = {}
+    for row in parse_table_rows(units_path.read_text(encoding="utf-8")):
+        if not row or not RU_ID_RE.match(row[0].strip().strip("`")):
+            continue
+        label = row[1].strip() if len(row) > 1 else ""
+        key = " ".join(label.lower().split())
+        if key:
+            snapshot[key] = {
+                "id": row[0].strip().strip("`"),
+                "label": label,
+                "evidence": row[2].strip().strip("`") if len(row) > 2 else "",
+            }
+    return snapshot
+
+
+def requirement_unit_delta_entries(
+    previous: dict[str, dict[str, str]], units: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """ADDED/MODIFIED/REMOVED/UNCHANGED per RU label between two ingest iterations."""
+    current: dict[str, dict[str, str]] = {}
+    for unit in units:
+        key = " ".join(str(unit.get("label", "")).lower().split())
+        if key:
+            current[key] = {
+                "id": str(unit.get("id", "")),
+                "label": str(unit.get("label", "")),
+                "evidence": str(unit.get("evidence_mention", "")),
+            }
+    entries: list[dict[str, str]] = []
+    for key in sorted(set(previous) | set(current)):
+        was, now = previous.get(key), current.get(key)
+        if was and not now:
+            status, ref = "REMOVED", was
+        elif now and not was:
+            status, ref = "ADDED", now
+        elif was and now and was.get("evidence") != now.get("evidence"):
+            status, ref = "MODIFIED", now
+        else:
+            status, ref = "UNCHANGED", (now or was)
+        entries.append(
+            {
+                "status": status,
+                "id": ref.get("id", ""),
+                "label": ref.get("label", ""),
+                "evidence": ref.get("evidence", ""),
+            }
+        )
+    return entries
+
+
+def render_requirement_unit_delta(project_id: str, entries: list[dict[str, str]]) -> str:
+    def rows(status: str) -> str:
+        rendered = [
+            f"| `{e['id']}` | {e['label']} | `{e['evidence']}` |"
+            for e in entries
+            if e["status"] == status
+        ]
+        return "\n".join(rendered) or "| N/A | None. | N/A |"
+
+    return f"""# Requirement Unit Deltas - {project_id}
+
+Read-only governed view of how the cited Requirement Units changed between the previous and the latest ingest iteration (IMP-150). It signals ADDED / MODIFIED / REMOVED capabilities with their verbatim evidence so divergent iterations stay visible. It never opens, closes, or rewrites gaps or units — the BA reconciles.
+
+## Added
+
+| RU ID | Label | Evidence Mention |
+| --- | --- | --- |
+{rows("ADDED")}
+
+## Modified
+
+| RU ID | Label | Evidence Mention |
+| --- | --- | --- |
+{rows("MODIFIED")}
+
+## Removed
+
+| RU ID | Label | Evidence Mention |
+| --- | --- | --- |
+{rows("REMOVED")}
+"""
+
+
+def write_requirement_unit_delta(
+    project_id: str,
+    base: Path,
+    previous: dict[str, dict[str, str]],
+    units: list[dict[str, str]],
+) -> Path | None:
+    """Write the RU delta view on re-ingest (IMP-150); None on the first ingest.
+
+    Always rewritten on re-ingest so the view reflects the latest iteration (a
+    stale delta never lingers); an unchanged re-ingest yields an empty-section
+    view rather than no file.
+    """
+    if not previous:
+        return None
+    entries = requirement_unit_delta_entries(previous, units)
+    path = base / "01_discovery" / "requirement_unit_deltas.md"
+    path.write_text(render_requirement_unit_delta(project_id, entries), encoding="utf-8")
+    return path
 
 
 PERSONA_HINTS = (
