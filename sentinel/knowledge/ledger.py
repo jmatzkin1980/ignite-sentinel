@@ -4,9 +4,20 @@ from pathlib import Path
 from typing import Any
 
 from ..core.markdown import parse_table_rows
+from ..core.time import utc_now
 from ..workspace import read_json, write_json, workspace_path
 
 LEDGER_STATUSES = {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"}
+
+
+def current_units(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ledger units valid as of now — those with ``invalid_at`` unset (IMP-152).
+
+    The bitemporal foundation for invalidate-not-delete (IMP-153) and as-of
+    queries (IMP-155): a current fact carries ``invalid_at = None``; a superseded
+    one keeps its row with ``invalid_at`` set instead of being dropped.
+    """
+    return [unit for unit in units if unit.get("invalid_at") is None]
 
 
 def materialize_knowledge_ledger(
@@ -22,12 +33,22 @@ def materialize_knowledge_ledger(
     The ledger consolidates existing source-of-truth artifacts. It does not infer
     new facts; unsupported knowledge remains OPEN with explicit pending input.
     """
+    materialized_at = utc_now()
     units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
+    # IMP-152: stamp bitemporal validity on each fact. valid_at = when the system
+    # recorded this fact as valid (this materialization); invalid_at = None while
+    # current. The ledger is a projection rebuilt from the current SSoT tables, so
+    # every materialized unit is current here; IMP-153 sets invalid_at on
+    # superseded facts and keeps them instead of dropping them.
+    for unit in units:
+        unit.setdefault("valid_at", materialized_at)
+        unit.setdefault("invalid_at", None)
     summary = summarize_units(units)
     payload = {
         "project_id": project_id,
         "artifact": "knowledge_state",
         "version": 1,
+        "materialized_at": materialized_at,
         "statuses": sorted(LEDGER_STATUSES),
         "summary": summary,
         "units": units,
