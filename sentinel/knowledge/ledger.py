@@ -175,6 +175,105 @@ def promotion_events(project_id: str) -> list[dict[str, Any]]:
     return events if isinstance(events, list) else []
 
 
+ORIGIN_LINK_TYPES = {"seed", "gap", "decision", "assumption", "source", "artifact", "parent"}
+
+
+def _current_as_of(unit: dict[str, Any], timestamp: str) -> bool:
+    """True when ``unit``'s bitemporal window covers ``timestamp``.
+
+    Timestamps are the ledger's UTC ISO-8601 strings (``utc_now``): fixed width and
+    a single offset, so a lexicographic comparison is a correct chronological one and
+    sidesteps ``fromisoformat`` incompatibilities across Python versions.
+    """
+    valid_at = unit.get("valid_at")
+    if not valid_at or str(valid_at) > timestamp:
+        return False
+    invalid_at = unit.get("invalid_at")
+    return invalid_at is None or str(invalid_at) > timestamp
+
+
+def as_of(project_id: str, timestamp: str) -> list[dict[str, Any]]:
+    """IMP-155: read-only as-of query over the bitemporal ledger.
+
+    Reconstruct the facts that were current at ``timestamp`` purely from the validity
+    windows persisted by IMP-152/153 — no parallel index. A fact was current-then when
+    it was already valid (``valid_at <= timestamp``) and not yet invalidated
+    (``invalid_at`` unset or ``> timestamp``). Both the live ``units`` and the
+    append-only ``invalidated_units`` history are scanned, so a timestamp before an
+    invalidation returns the superseded fact as it stood then, and one after it returns
+    the current replacement instead.
+    """
+    ts = str(timestamp or "").strip()
+    if not ts:
+        return []
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return []
+    units = payload.get("units", []) or []
+    invalidated = payload.get("invalidated_units", []) or []
+    return [unit for unit in [*units, *invalidated] if _current_as_of(unit, ts)]
+
+
+def lineage(project_id: str, unit_or_id: str | dict[str, Any]) -> dict[str, Any]:
+    """IMP-155: read-only lineage of a ledger fact.
+
+    Trace a fact back to its cited origin — the verbatim ``evidence`` and the origin
+    ``links`` (seed/gap/decision/assumption/source/artifact/parent) that anchor it in
+    the traceability graph — alongside its bitemporal window and, when present, its
+    supersession edge (IMP-153) and promotion history (IMP-154). Derived entirely from
+    what IMP-152/153/154 persist; it opens no parallel structure and mutates nothing.
+    Returns ``{}`` when the unit id is unknown.
+    """
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        payload = {}
+    units = payload.get("units", []) or []
+    invalidated = payload.get("invalidated_units", []) or []
+    events = payload.get("promotion_events", []) or []
+    unit = _resolve_ledger_unit(unit_or_id, [*units, *invalidated])
+    if unit is None:
+        return {}
+    origin = [
+        link
+        for link in unit.get("links", []) or []
+        if isinstance(link, dict) and link.get("type") in ORIGIN_LINK_TYPES
+    ]
+    result: dict[str, Any] = {
+        "id": unit.get("id"),
+        "statement": unit.get("statement"),
+        "status": unit.get("status"),
+        "valid_at": unit.get("valid_at"),
+        "invalid_at": unit.get("invalid_at"),
+        "evidence": unit.get("evidence", {}),
+        "origin": origin,
+    }
+    if unit.get("superseded_by"):
+        result["superseded_by"] = unit.get("superseded_by")
+        result["supersession_reason"] = unit.get("supersession_reason")
+    ref = assumption_link_target(unit)
+    if ref:
+        related = [event for event in events if str(event.get("origin_ref")) == ref]
+        if related:
+            result["promotion_events"] = related
+    return result
+
+
+def _resolve_ledger_unit(
+    unit_or_id: str | dict[str, Any], pool: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    if isinstance(unit_or_id, dict):
+        return unit_or_id
+    target = str(unit_or_id or "").strip()
+    if not target:
+        return None
+    for unit in pool:
+        if str(unit.get("id")) == target:
+            return unit
+    return None
+
+
 def materialize_knowledge_ledger(
     project_id: str,
     seeds_text: str,
