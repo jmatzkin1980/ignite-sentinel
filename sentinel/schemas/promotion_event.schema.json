@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/promotion_event.schema.json",
+  "title": "Ignite Sentinel Promotion Event",
+  "description": "IMP-154: a typed, append-only audit event recording when a governed fact is promoted to (or revoked from) persistent semantic memory. Additive projection over the ledger's governed signals, never a second source of truth.",
+  "type": "object",
+  "required": ["id", "node_type", "trigger_type", "origin_ref", "status", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^PROMO-[0-9]{3,}$"
+    },
+    "node_type": {
+      "type": "string",
+      "const": "promotion_event"
+    },
+    "trigger_type": {
+      "type": "string",
+      "description": "Closed enum of governed promotion triggers; anything outside fails visibly rather than degrading to a generic event.",
+      "enum": ["embedding_threshold", "human_decision", "gap_closed", "associative_metabolism"]
+    },
+    "origin_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Citable reference for the promoted fact (e.g. the assumption id), used as the deterministic novelty-gate identity."
+    },
+    "statement": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["promoted", "revoked"]
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

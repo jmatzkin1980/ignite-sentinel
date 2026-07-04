@@ -9,6 +9,22 @@ from ..workspace import read_json, write_json, workspace_path
 
 LEDGER_STATUSES = {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"}
 
+# IMP-154: promotion event. A closed enum of the governed triggers that can move a
+# fact from ephemeral discovery into persistent semantic memory. A trigger outside
+# this set fails visibly instead of degrading to a generic "other" event.
+PROMOTION_TRIGGER_TYPES = {
+    "embedding_threshold",
+    "human_decision",
+    "gap_closed",
+    "associative_metabolism",
+}
+PROMOTION_STATUSES = {"promoted", "revoked"}
+
+
+class UnknownPromotionTrigger(ValueError):
+    """IMP-154: a promotion whose ``trigger_type`` is not in the closed enum must
+    fail visibly, never degrade to a generic event."""
+
 
 def current_units(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Ledger units valid as of now — those with ``invalid_at`` unset (IMP-152).
@@ -78,6 +94,87 @@ def record_superseded_units(
     return entries
 
 
+def active_promotions(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """origin_ref -> latest promotion event for facts currently promoted.
+
+    Reads the append-only ``promotion_events`` history in order, so the latest
+    ``revoked`` event for an ``origin_ref`` removes it from the active set.
+    """
+    latest: dict[str, dict[str, Any]] = {}
+    for event in events:
+        ref = str(event.get("origin_ref") or "").strip()
+        if ref:
+            latest[ref] = event
+    return {ref: event for ref, event in latest.items() if event.get("status") == "promoted"}
+
+
+def record_promotion_event(
+    project_id: str,
+    *,
+    trigger_type: str,
+    origin_ref: str,
+    statement: str = "",
+    status: str = "promoted",
+) -> dict[str, Any] | None:
+    """IMP-154: emit a typed promotion event when a fact is promoted to (or revoked
+    from) persistent semantic memory.
+
+    The event ``{id, node_type, trigger_type, origin_ref, statement, status,
+    timestamp}`` is appended to the ledger payload's ``promotion_events`` history,
+    which ``materialize_knowledge_ledger`` carries forward across rebuilds exactly
+    like ``invalidated_units``. This is an additive audit projection over the
+    already-governed signals — never a second source of truth for the facts.
+
+    Deterministic novelty gate, never an LLM judgement: a fact already promoted
+    under the same ``origin_ref`` does not re-fire, and a fact that is not currently
+    promoted cannot be revoked. A ``trigger_type`` outside the closed enum raises
+    ``UnknownPromotionTrigger`` (fail-visible). Revocation appends a ``revoked``
+    event; the original ``promoted`` event stays intact.
+    """
+    if trigger_type not in PROMOTION_TRIGGER_TYPES:
+        raise UnknownPromotionTrigger(
+            f"unknown promotion trigger_type {trigger_type!r}; expected one of {sorted(PROMOTION_TRIGGER_TYPES)}"
+        )
+    if status not in PROMOTION_STATUSES:
+        raise ValueError(f"unknown promotion status {status!r}; expected one of {sorted(PROMOTION_STATUSES)}")
+    ref = str(origin_ref or "").strip()
+    if not ref:
+        return None
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return None
+    events = list(payload.get("promotion_events", []))
+    active = active_promotions(events)
+    # Deterministic novelty gate: known content does not re-fire, and there is
+    # nothing to revoke for a fact that is not currently promoted.
+    if status == "promoted" and ref in active:
+        return None
+    if status == "revoked" and ref not in active:
+        return None
+    event = {
+        "id": f"PROMO-{len(events) + 1:03d}",
+        "node_type": "promotion_event",
+        "trigger_type": trigger_type,
+        "origin_ref": ref,
+        "statement": statement,
+        "status": status,
+        "timestamp": utc_now(),
+    }
+    events.append(event)
+    payload["promotion_events"] = events
+    write_json(json_path, payload)
+    return event
+
+
+def promotion_events(project_id: str) -> list[dict[str, Any]]:
+    """The append-only promotion event history for a project (IMP-154)."""
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    events = payload.get("promotion_events", []) if isinstance(payload, dict) else []
+    return events if isinstance(events, list) else []
+
+
 def materialize_knowledge_ledger(
     project_id: str,
     seeds_text: str,
@@ -97,9 +194,16 @@ def materialize_knowledge_ledger(
     # IMP-153: carry forward the append-only history of invalidated (superseded)
     # facts across this rebuild, so invalidate-not-delete survives the ledger
     # being re-materialized from the current SSoT tables.
-    previous_invalidated = read_json(json_path, {}).get("invalidated_units", [])
+    previous_payload = read_json(json_path, {})
+    previous_invalidated = previous_payload.get("invalidated_units", [])
     if not isinstance(previous_invalidated, list):
         previous_invalidated = []
+    # IMP-154: carry forward the append-only promotion event history across this
+    # rebuild too, so typed promotions/revocations survive re-materialization from
+    # the current SSoT tables (same guarantee as invalidated_units).
+    previous_promotions = previous_payload.get("promotion_events", [])
+    if not isinstance(previous_promotions, list):
+        previous_promotions = []
     units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
     # IMP-152: stamp bitemporal validity on each fact. valid_at = when the system
     # recorded this fact as valid (this materialization); invalid_at = None while
@@ -119,6 +223,7 @@ def materialize_knowledge_ledger(
         "summary": summary,
         "units": units,
         "invalidated_units": previous_invalidated,
+        "promotion_events": previous_promotions,
     }
     md_path = base / "01_discovery" / "knowledge_state.md"
     write_json(json_path, payload)

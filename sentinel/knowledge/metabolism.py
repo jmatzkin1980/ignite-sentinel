@@ -8,7 +8,7 @@ from ..assumptions import load_assumptions, update_assumption_statuses
 from ..development_readiness import compute_development_readiness
 from ..discovery import refresh_knowledge_ledger
 from ..workspace import read_json, update_state, workspace_path
-from .ledger import record_superseded_units
+from .ledger import record_promotion_event, record_superseded_units
 
 INVALIDATION_TOKENS = (
     "invalid",
@@ -75,6 +75,13 @@ def metabolize_knowledge(
     # assumptions' units with their OPEN successors; preserve the pre-change
     # versions in the ledger's append-only history with a typed supersession edge.
     superseded = record_superseded_units(project_id, before_units, after_units, invalidated_assumptions)
+    # IMP-154: emit typed promotion events for the governed signals already computed
+    # this pass — never a re-detection or a second source of truth. An assumption
+    # moving ASSUMED->VALIDATED (its gap closed with evidence) is a promotion from
+    # ephemeral to persistent semantic memory; one whose backing assumption was
+    # invalidated is revoked. The deterministic novelty gate in record_promotion_event
+    # keeps known content from re-firing.
+    promotions = record_promotion_events(project_id, assumption_result, evidence)
     unit_ids = impacted_knowledge_units(before_units, after_units, validated_gap_ids, invalidated_assumptions)
     stale_artifacts = downstream_stale_artifacts(base) if unit_ids else []
     payload = {
@@ -84,6 +91,10 @@ def metabolize_knowledge(
         "invalidated_assumptions": assumption_result.get("invalidated", []),
         "impacted_knowledge_units": unit_ids,
         "superseded_units": [{"id": e.get("id"), "superseded_by": e.get("superseded_by")} for e in superseded],
+        "promotion_events": [
+            {"id": e.get("id"), "trigger_type": e.get("trigger_type"), "origin_ref": e.get("origin_ref"), "status": e.get("status")}
+            for e in promotions
+        ],
         "associative_findings": associative_findings,
         "knowledge_state": str(ledger["md_path"].as_posix()),
         "development_readiness": str((base / "01_discovery" / "development_readiness.json").as_posix()),
@@ -102,6 +113,43 @@ def metabolize_knowledge(
         },
     )
     return payload
+
+
+def record_promotion_events(
+    project_id: str,
+    assumption_result: dict[str, Any],
+    evidence: str,
+) -> list[dict[str, Any]]:
+    """IMP-154: project this pass's governed assumption transitions as typed
+    promotion events (additive audit trail, not a second source of truth).
+
+    A newly VALIDATED assumption (its gap closed with evidence) promotes its fact
+    into persistent semantic memory with ``trigger_type='gap_closed'`` and the
+    assumption id as the citable ``origin_ref``. An assumption that was invalidated
+    revokes its earlier promotion. The novelty gate in ``record_promotion_event``
+    means only assumptions that were actually promoted get a revocation, and no
+    promotion re-fires for already-known content.
+    """
+    events: list[dict[str, Any]] = []
+    for assumption_id in assumption_result.get("validated", []):
+        event = record_promotion_event(
+            project_id,
+            trigger_type="gap_closed",
+            origin_ref=assumption_id,
+            statement=evidence,
+        )
+        if event:
+            events.append(event)
+    for assumption_id in assumption_result.get("invalidated", []):
+        event = record_promotion_event(
+            project_id,
+            trigger_type="gap_closed",
+            origin_ref=assumption_id,
+            status="revoked",
+        )
+        if event:
+            events.append(event)
+    return events
 
 
 def detect_invalidated_assumptions(project_id: str, text: str) -> set[str]:
