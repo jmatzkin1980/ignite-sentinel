@@ -469,6 +469,8 @@ python -m sentinel /specs PROJECT_ID
 
 Fails if maturity is `BLOCKED`.
 
+Foundation drift soft gate (IMP-151): before generating, `/specs` checks whether its foundation drifted since the last generation — i.e. whether the brief/requirements the recorded specs fingerprint (IMP-148) was built from have changed — and returns any `foundation_warnings` recommending you reconcile before relying on the output. It is a soft signal by default; opt-in `drift_gate.strict` blocks instead. It never rewrites anything. `/backlog` runs the same gate over its foundation (specs, and the brief behind it), so a stale upstream `specs` is surfaced there too.
+
 Output:
 
 - `03_specs/prd.md`
