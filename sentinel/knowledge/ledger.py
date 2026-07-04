@@ -20,6 +20,64 @@ def current_units(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [unit for unit in units if unit.get("invalid_at") is None]
 
 
+def assumption_link_target(unit: dict[str, Any]) -> str | None:
+    """The assumption id a ledger unit is anchored to, from its links (or None)."""
+    for link in unit.get("links", []) or []:
+        if isinstance(link, dict) and link.get("type") == "assumption" and link.get("target"):
+            return str(link["target"])
+    return None
+
+
+def record_superseded_units(
+    project_id: str,
+    before_units: list[dict[str, Any]],
+    after_units: list[dict[str, Any]],
+    invalidated_assumption_ids: set[str] | list[str],
+) -> list[dict[str, Any]]:
+    """IMP-153: invalidate-not-delete + typed supersession.
+
+    Reusing the invalidation already detected upstream (IMP-125
+    ``detect_invalidated_assumptions``) — this never re-detects — record the
+    pre-change ledger unit(s) for each invalidated assumption in the ledger's
+    append-only ``invalidated_units`` history, stamped ``invalid_at`` and linked
+    by a typed ``superseded_by`` edge to their current replacement, instead of
+    letting the rebuild silently drop the prior version. The current ledger stays
+    the single source of truth for live facts; this only preserves history.
+    """
+    ids = {str(a).upper() for a in invalidated_assumption_ids}
+    if not ids:
+        return []
+    now = utc_now()
+    replacements = {
+        assumption_link_target(unit).upper(): unit.get("id")
+        for unit in after_units
+        if assumption_link_target(unit)
+    }
+    entries: list[dict[str, Any]] = []
+    for unit in before_units:
+        target = assumption_link_target(unit)
+        if target and target.upper() in ids and unit.get("invalid_at") is None:
+            entries.append(
+                {
+                    **unit,
+                    "invalid_at": now,
+                    "superseded_by": replacements.get(target.upper()),
+                    "supersession_reason": "assumption_invalidated",
+                }
+            )
+    if not entries:
+        return []
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return []
+    history = list(payload.get("invalidated_units", []))
+    history.extend(entries)
+    payload["invalidated_units"] = history
+    write_json(json_path, payload)
+    return entries
+
+
 def materialize_knowledge_ledger(
     project_id: str,
     seeds_text: str,
@@ -34,6 +92,14 @@ def materialize_knowledge_ledger(
     new facts; unsupported knowledge remains OPEN with explicit pending input.
     """
     materialized_at = utc_now()
+    base = workspace_path(project_id)
+    json_path = base / "01_discovery" / "knowledge_state.json"
+    # IMP-153: carry forward the append-only history of invalidated (superseded)
+    # facts across this rebuild, so invalidate-not-delete survives the ledger
+    # being re-materialized from the current SSoT tables.
+    previous_invalidated = read_json(json_path, {}).get("invalidated_units", [])
+    if not isinstance(previous_invalidated, list):
+        previous_invalidated = []
     units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
     # IMP-152: stamp bitemporal validity on each fact. valid_at = when the system
     # recorded this fact as valid (this materialization); invalid_at = None while
@@ -52,9 +118,8 @@ def materialize_knowledge_ledger(
         "statuses": sorted(LEDGER_STATUSES),
         "summary": summary,
         "units": units,
+        "invalidated_units": previous_invalidated,
     }
-    base = workspace_path(project_id)
-    json_path = base / "01_discovery" / "knowledge_state.json"
     md_path = base / "01_discovery" / "knowledge_state.md"
     write_json(json_path, payload)
     md_path.write_text(render_knowledge_state(project_id, units, summary), encoding="utf-8")

@@ -8,6 +8,7 @@ from ..assumptions import load_assumptions, update_assumption_statuses
 from ..development_readiness import compute_development_readiness
 from ..discovery import refresh_knowledge_ledger
 from ..workspace import read_json, update_state, workspace_path
+from .ledger import record_superseded_units
 
 INVALIDATION_TOKENS = (
     "invalid",
@@ -70,6 +71,10 @@ def metabolize_knowledge(
     ledger = refresh_knowledge_ledger(project_id, broker)
     readiness = compute_development_readiness(project_id, persist=True)
     after_units = ledger["payload"].get("units", [])
+    # IMP-153: invalidate-not-delete. The rebuild replaced the invalidated
+    # assumptions' units with their OPEN successors; preserve the pre-change
+    # versions in the ledger's append-only history with a typed supersession edge.
+    superseded = record_superseded_units(project_id, before_units, after_units, invalidated_assumptions)
     unit_ids = impacted_knowledge_units(before_units, after_units, validated_gap_ids, invalidated_assumptions)
     stale_artifacts = downstream_stale_artifacts(base) if unit_ids else []
     payload = {
@@ -78,6 +83,7 @@ def metabolize_knowledge(
         "validated_assumptions": assumption_result.get("validated", []),
         "invalidated_assumptions": assumption_result.get("invalidated", []),
         "impacted_knowledge_units": unit_ids,
+        "superseded_units": [{"id": e.get("id"), "superseded_by": e.get("superseded_by")} for e in superseded],
         "associative_findings": associative_findings,
         "knowledge_state": str(ledger["md_path"].as_posix()),
         "development_readiness": str((base / "01_discovery" / "development_readiness.json").as_posix()),
