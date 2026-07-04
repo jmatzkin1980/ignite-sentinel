@@ -53,22 +53,28 @@ def record_derived_source_fingerprint(project_id: str, derived: str) -> dict[str
     return fingerprint
 
 
-def derived_drift_warnings(project_id: str) -> list[str]:
-    """IMP-149: governed drift detection — signal, never rewrite.
+# IMP-151: which derived artifacts form the "foundation" a phase builds on.
+# /specs builds on the brief/requirements (i.e. on the `specs` derivation);
+# /backlog builds on specs, which in turn builds on the brief — so a stale
+# upstream `specs` is the more valuable "don't build on sand" signal.
+FOUNDATION_FOR_PHASE: dict[str, tuple[str, ...]] = {
+    "specs": ("specs",),
+    "backlog": ("specs", "backlog"),
+}
 
-    For each derived artifact with a recorded fingerprint (IMP-148), recompute
-    the current source hashes and compare. If a source changed since the derived
-    artifact was generated, the derived artifact drifted from the cited source it
-    came from — report it and name which source(s) changed. This upgrades the
-    exists-based ``metabolism.downstream_stale_artifacts`` (which only lists which
-    downstream files exist) to a fingerprint-based check that detects real
-    divergence. It only warns; the BA decides whether to regenerate through the
-    owning command or mark the change immaterial. Nothing is rewritten.
+
+def _drifted_sources(project_id: str) -> dict[str, list[str]]:
+    """Per-derived list of source paths that changed since generation (IMP-148/149).
+
+    Shared core: for each derived artifact with a recorded fingerprint, compare
+    the recorded source hashes against the current bytes and return the changed
+    sources. Empty when there is no registry (pre-IMP-148 workspaces) or nothing
+    drifted.
     """
     registry = read_json(state_path(project_id), {}).get("derived_source_fingerprints", {})
     if not isinstance(registry, dict) or not registry:
-        return []
-    warnings: list[str] = []
+        return {}
+    drifted: dict[str, list[str]] = {}
     for derived in DERIVED_SOURCE_MAP:
         recorded = registry.get(derived)
         if not isinstance(recorded, dict) or not recorded:
@@ -76,10 +82,45 @@ def derived_drift_warnings(project_id: str) -> list[str]:
         current = source_fingerprint(project_id, DERIVED_SOURCE_MAP[derived])
         changed = sorted(rel for rel, digest in recorded.items() if current.get(rel) != digest)
         if changed:
+            drifted[derived] = changed
+    return drifted
+
+
+def derived_drift_warnings(project_id: str) -> list[str]:
+    """IMP-149: governed drift detection in /health — signal, never rewrite.
+
+    If a derived artifact's source changed since generation, report it and name
+    which source(s) changed. Upgrades the exists-based
+    ``metabolism.downstream_stale_artifacts`` to a fingerprint-based divergence
+    check. It only warns; the BA decides whether to regenerate or mark the change
+    immaterial. Nothing is rewritten.
+    """
+    return [
+        f"Derived artifact `{derived}` may have DRIFTED: its source(s) changed since "
+        f"generation: {', '.join(changed)}. Reconcile by regenerating /{derived} through "
+        "the CLI once the change is reviewed, or confirm the change is immaterial. "
+        "Nothing was rewritten."
+        for derived, changed in _drifted_sources(project_id).items()
+    ]
+
+
+def foundation_drift_warnings(project_id: str, phase: str) -> list[str]:
+    """IMP-151: soft-gate warning when a phase's foundation drifted since generation.
+
+    Reuses the IMP-149 drift computation, scoped to the derived artifacts that
+    make up ``phase``'s foundation, and frames it as a "don't build on a stale
+    foundation" recommendation. It only warns — the BA decides whether to
+    reconcile (regenerate the stale upstream) or proceed; nothing is blocked
+    unless ``drift_gate.strict`` is opted in by the caller.
+    """
+    drifted = _drifted_sources(project_id)
+    warnings: list[str] = []
+    for derived in FOUNDATION_FOR_PHASE.get(phase, ()):
+        changed = drifted.get(derived)
+        if changed:
             warnings.append(
-                f"Derived artifact `{derived}` may have DRIFTED: its source(s) changed since "
-                f"generation: {', '.join(changed)}. Reconcile by regenerating /{derived} through "
-                "the CLI once the change is reviewed, or confirm the change is immaterial. "
-                "Nothing was rewritten."
+                f"Foundation for /{phase} may be STALE: `{derived}` was generated before its "
+                f"source(s) changed ({', '.join(changed)}). Regenerate /{derived} through the CLI "
+                f"before relying on /{phase}, or confirm the change is immaterial. Nothing was rewritten."
             )
     return warnings

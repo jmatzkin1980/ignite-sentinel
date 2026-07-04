@@ -81,7 +81,7 @@ privacy_scan:
   mode: warn
 ```
 
-For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict`, `implementability_gate.strict`, and `privacy_scan.mode` are opt-in hardening controls: their defaults keep handoff non-blocking while still surfacing warnings. `implementability_gate.strict` (IMP-118) blocks the advance to `READY_FOR_SPECS` at `/brief` when any Requirement Unit has a non-inferable open gap; by default it only warns.
+For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict`, `implementability_gate.strict`, `drift_gate.strict`, and `privacy_scan.mode` are opt-in hardening controls: their defaults keep handoff non-blocking while still surfacing warnings. `drift_gate.strict` (IMP-151) blocks `/specs` and `/backlog` when their foundation drifted since generation; by default it only warns via `foundation_warnings`. `implementability_gate.strict` (IMP-118) blocks the advance to `READY_FOR_SPECS` at `/brief` when any Requirement Unit has a non-inferable open gap; by default it only warns.
 
 `project_language` controls the language used for human-facing generated artifacts. Supported values:
 

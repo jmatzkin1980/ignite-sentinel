@@ -78,7 +78,7 @@ from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
 from .slice_plan import generate_slice_plan
 from .core.graph import add_edge, add_node, nodes_by_type, upsert_node
-from .drift import record_derived_source_fingerprint
+from .drift import foundation_drift_warnings, record_derived_source_fingerprint
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 
 
@@ -156,12 +156,31 @@ Review this artifact against the triggering change before downstream handoff. Th
     return diff_id
 
 
+def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> list[str]:
+    """IMP-151: compute the foundation-drift warnings for a phase; block only in strict mode.
+
+    Soft by default (returns warnings for the caller to surface). Opt-in
+    ``drift_gate.strict`` escalates a stale foundation into a hard block, mirroring
+    the ``backlog_gate``/``implementability_gate`` pattern. Never rewrites anything.
+    """
+    warnings = foundation_drift_warnings(project_id, phase)
+    gate = config.get("drift_gate", {}) if isinstance(config.get("drift_gate", {}), dict) else {}
+    if warnings and bool(gate.get("strict", False)):
+        raise RuntimeError(
+            f"Cannot run /{phase} while its foundation is stale (drift_gate.strict): "
+            + " ".join(warnings)
+        )
+    return warnings
+
+
 def generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
         raise RuntimeError("Cannot generate specs while requirement maturity is BLOCKED.")
     base = workspace_path(project_id)
     config = load_config(project_id)
+    # IMP-151: soft gate — warn when the foundation drifted since last generation.
+    foundation_warnings = enforce_foundation_drift_gate(project_id, "specs", config)
     req_path = base / "02_requirements" / "requirements.md"
     brief_path = base / "02_requirements" / "project-brief.md"
     source_path = brief_path if brief_path.exists() else req_path
@@ -286,6 +305,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
         "path": str(specs_path),
         "prd_section_readiness": prd_readiness,
         "warnings": specs_warnings,
+        "foundation_warnings": foundation_warnings,
         "specs_gate": gate_result,
         "spec_unit_delta": {
             "path": str(spec_unit_delta["path"].as_posix()),
@@ -307,6 +327,9 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
         generate_specs(project_id)
         specs = nodes_by_type(project_id, "spec")
     base = workspace_path(project_id)
+    # IMP-151: soft gate — warn when backlog's foundation (specs, and the brief
+    # behind it) drifted since generation. Blocks only under drift_gate.strict.
+    backlog_foundation_warnings = enforce_foundation_drift_gate(project_id, "backlog", load_config(project_id))
     spec_path = base / "03_specs" / "specs.md"
     prd_path = base / "03_specs" / "prd.md"
     spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
@@ -442,6 +465,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
         "slice_plan": slice_plan["path"],
         "slice_plan_json": slice_plan["json_path"],
         "task_seed_contracts": "enabled" if with_task_seeds else "disabled",
+        "foundation_warnings": backlog_foundation_warnings,
     }
 
 
