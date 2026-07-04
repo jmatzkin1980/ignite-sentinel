@@ -51,3 +51,35 @@ def record_derived_source_fingerprint(project_id: str, derived: str) -> dict[str
     registry[derived] = fingerprint
     update_state(project_id, derived_source_fingerprints=registry)
     return fingerprint
+
+
+def derived_drift_warnings(project_id: str) -> list[str]:
+    """IMP-149: governed drift detection — signal, never rewrite.
+
+    For each derived artifact with a recorded fingerprint (IMP-148), recompute
+    the current source hashes and compare. If a source changed since the derived
+    artifact was generated, the derived artifact drifted from the cited source it
+    came from — report it and name which source(s) changed. This upgrades the
+    exists-based ``metabolism.downstream_stale_artifacts`` (which only lists which
+    downstream files exist) to a fingerprint-based check that detects real
+    divergence. It only warns; the BA decides whether to regenerate through the
+    owning command or mark the change immaterial. Nothing is rewritten.
+    """
+    registry = read_json(state_path(project_id), {}).get("derived_source_fingerprints", {})
+    if not isinstance(registry, dict) or not registry:
+        return []
+    warnings: list[str] = []
+    for derived in DERIVED_SOURCE_MAP:
+        recorded = registry.get(derived)
+        if not isinstance(recorded, dict) or not recorded:
+            continue
+        current = source_fingerprint(project_id, DERIVED_SOURCE_MAP[derived])
+        changed = sorted(rel for rel, digest in recorded.items() if current.get(rel) != digest)
+        if changed:
+            warnings.append(
+                f"Derived artifact `{derived}` may have DRIFTED: its source(s) changed since "
+                f"generation: {', '.join(changed)}. Reconcile by regenerating /{derived} through "
+                "the CLI once the change is reviewed, or confirm the change is immaterial. "
+                "Nothing was rewritten."
+            )
+    return warnings
