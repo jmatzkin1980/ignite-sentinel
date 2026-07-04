@@ -132,6 +132,7 @@ Creates or updates:
 - requirement register
 - per-source synthesis (`01_discovery/source_synthesis.md`) with preserved source citations
 - cited discovery-only requirement units (`01_discovery/requirement_units.md`) when named surfaces/capabilities are present
+- on a re-ingest, a read-only requirement-unit delta view (`01_discovery/requirement_unit_deltas.md`, IMP-150) showing ADDED/MODIFIED/REMOVED capabilities vs. the previous iteration — a governed signal only, it never opens/closes/rewrites gaps or units
 - gap report
 - decision log
 - digest
