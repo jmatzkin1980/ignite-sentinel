@@ -60,10 +60,12 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-domain-request",
     "sentinel-gap-response",
     "sentinel-health",
+    "sentinel-implementation-feedback",
     "sentinel-maturity",
     "sentinel-privacy-local-first",
     "sentinel-project-brief",
     "sentinel-quality",
+    "sentinel-self-review",
     "sentinel-specs",
     "sentinel-sync",
 ]
