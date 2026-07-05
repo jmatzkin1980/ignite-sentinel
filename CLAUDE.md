@@ -12,7 +12,7 @@ Framework repo-local y local-first para que un BA/Product madure requerimientos 
 
 1. `AGENTS.md` (reglas operativas y working agreements).
 2. `docs/evolution/00-baseline-2026-06-10.md` (estado validado del repo; carpeta local git-ignored — si no existe, pedirla al usuario).
-3. `docs/evolution/01-roadmap.md` y `02-backlog-mejoras.md` (qué evolucionar y en qué orden).
+3. `docs/evolution/10-base-conocimiento-AAAA-MM-DD.md` §8 (estado vivo + próximo paso — **punto único de entrada** para retomar; reemplaza al viejo `01-roadmap`/`02-backlog-mejoras`, ahora en `archivo/`).
 4. `user_guide/00-user-guide.md` y `01-command-reference.md` para uso del CLI.
 
 Nota: los handoffs históricos (`general-proyecto.md`, `ignite_vnext_final_handoff.md`) viven fuera del repo, en la carpeta personal de handoffs del usuario. No forman parte del proyecto ni deben versionarse; ante conflicto con ellos, prevalece el código actual.
@@ -89,9 +89,9 @@ Nota de entorno: `lancedb` es opcional (IMP-013). Sin él, el framework opera en
 ```text
 sentinel/          runtime Python (cli, discovery, generation, memory, sync, health, validation, protocols...)
 sentinel/core/     primitivas compartidas: markdown, IO JSON/texto, rutas de workspace, state.json, grafo y tiempo UTC
-tests/             unittest suite (17 tests)
-.codex/ .kilo/     adapters Codex y Kilo Code
-user_guide/        documentación de usuario (00-12)
+tests/             unittest suite
+.codex/ .kilo/     adapters Codex y Kilo Code (skills canónicas en .codex/skills/, espejos en .agents/ y .claude/)
+user_guide/        documentación de usuario (00-16)
 input/             staging local de inputs (no versionado)
 workspaces/        workspaces por proyecto (solo _template versionado)
 docs/evolution/    memoria operativa local (baseline, roadmap, backlog) — git-ignored, NO se publica
@@ -102,9 +102,9 @@ Nota para mantenedores: `sentinel/workspace.py` conserva shims de compatibilidad
 
 ## Cómo trabajar una mejora del framework
 
-1. Elegir un ítem `IMP-*` de `docs/evolution/02-backlog-mejoras.md` (respetando prioridades del roadmap).
+1. Elegir el próximo ítem `IMP-*` desde `docs/evolution/10-base-conocimiento-AAAA-MM-DD.md` §8 (estado vivo; el viejo `02-backlog-mejoras.md` quedó desfasado en `archivo/`).
 2. Crear branch de trabajo desde `main`.
 3. Implementar tocando runtime + tests + adapters + docs según aplique.
 4. Correr suite de tests y `/doctor`; smoke test de lifecycle si cambió runtime.
-5. Actualizar el estado del ítem en `02-backlog-mejoras.md`.
+5. Actualizar el estado del ítem en §8 del `10-base-conocimiento-AAAA-MM-DD.md` local.
 6. Abrir PR; no mergear sin revisión.

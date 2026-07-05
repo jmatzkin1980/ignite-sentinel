@@ -6,24 +6,38 @@ Ignite Sentinel includes repo-local Codex skills under:
 .codex/skills/
 ```
 
-Skills provide progressive disclosure. Codex sees the skill metadata first and loads the body only when the workflow applies.
+Skills provide progressive disclosure. The agent sees the skill metadata first and loads the body only when the workflow applies.
+
+`.codex/skills/` is the canonical source. The same skills are mirrored byte-for-byte to `.agents/skills/` (Agent Skills standard readers) and `.claude/skills/` (Claude Code) by `python -m sentinel.adapters`; every skill carries validated `name`/`description` frontmatter (checked by `/doctor`), so agents can auto-trigger them from the description alone.
 
 Skills delegate deterministic work to the same local CLI used by Kilo Code and terminal workflows. The normal command is `python -m sentinel ...`; if `python` is unavailable in Codex Desktop or VS Code, use the repo-local launcher `.\installers\sentinel.ps1 ...` from the repository root.
 
 ## Available Skills
 
+All 21 canonical skills, grouped by lifecycle activity:
+
 | Skill | Use When |
 | --- | --- |
 | `sentinel-discovery` | Ingesting raw client/stakeholder requirements |
-| `sentinel-maturity` | Checking readiness before specs/backlog |
+| `sentinel-annotate` | Contributing semantic gaps the lexical checklist missed (agent proposal) |
+| `sentinel-challenge` | Stress-testing what is not being said with the 7 registry elicitation techniques |
+| `sentinel-scrutiny` | Systematic multi-lens scrutiny; `--mode implementability-probe` pre-flight per `RU-*` |
+| `sentinel-assume` | Registering governed BA-owned assumptions (risk × uncertainty priority signal) |
+| `sentinel-gap-response` | Processing answered discovery gaps and reporting the knowledge metabolism |
+| `sentinel-maturity` | Checking readiness before specs/backlog (metrics + development readiness matrix) |
+| `sentinel-project-brief` | Generating or refreshing the mature project brief (per-section readiness + gates) |
+| `sentinel-domain-request` | Asking domains for deeper context packs |
 | `sentinel-specs` | Generating PRD and AI-friendly specs |
-| `sentinel-backlog` | Generating epics, stories, and acceptance criteria |
+| `sentinel-compose` | Proposing cited PRD narrative through `/compose` (never hand-edits) |
+| `sentinel-self-review` | Adversarial pass over PRD/specs: cited findings + hard-to-reverse decisions |
+| `sentinel-backlog` | Generating and operating the governed backlog (lifecycle, AC freeze, board) |
+| `sentinel-backlog-refine` | Proposing cited backlog refinements through `/refine-backlog` |
+| `sentinel-implementation-feedback` | Downstream agents reporting blockers as governed feedback |
 | `sentinel-quality` | Generating quality/test coverage |
 | `sentinel-sync` | Processing feedback, meetings, or changes |
 | `sentinel-health` | Auditing health, traceability, and indexing |
-| `sentinel-gap-response` | Processing answered discovery gaps |
-| `sentinel-project-brief` | Generating or refreshing the mature project brief |
-| `sentinel-domain-request` | Asking domains for deeper context packs |
+| `sentinel-dashboard` | Generating and interpreting the portfolio dashboard |
+| `sentinel-command-router` | Executing `/COMMAND` chat commands and routing to the right skill |
 | `sentinel-privacy-local-first` | Enforcing local-only privacy rules |
 
 ## How To Ask Codex
@@ -226,4 +240,24 @@ python -m sentinel /health PROJECT_ID
 ```
 
 The post-tool hook also attempts to index edited workspace `.md` and `.txt` artifacts into local memory. Run `/reindex PROJECT_ID` if a workflow depends on fresh context.
+
+### Agentic proposal channels
+
+`sentinel-annotate`, `sentinel-challenge`, `sentinel-scrutiny`, `sentinel-assume`, `sentinel-compose`, `sentinel-backlog-refine`, and `sentinel-self-review` share the same shape: the agent authors a JSON payload with verbatim local citations, the matching command validates and merges it with a typed `origin`, and the runtime never lets the agent edit artifacts directly. Each skill documents its exact payload contract (field names, enums, and what the runtime rejects). All seven close with an identical **Agentic Spirit** block: never paraphrase a rejected citation (shorten to the exact verbatim substring or drop the finding), assign severity for the lifecycle (critical/high block maturity), write client-facing text in the workspace's `project_language`, and prefer `/retrieve --write-pack` focus packs over reading all of `00_raw/`.
+
+### `sentinel-self-review`
+
+Adversarial pass over generated PRD/specs before handoff: cited skeptical gaps (`origin: self-review`) plus hard-to-reverse `DEC-*` decisions with risk and reversibility, registered under `03_specs/self_review/` for BA review. The runtime never rewrites PRD/specs.
+
+### `sentinel-implementation-feedback`
+
+Lightweight contract for downstream planners/implementers/testers hitting a blocker in a story: finding types `new-dependency | gap | ac-challenge | surface-not-covered`, mandatory evidence, and what acceptance triggers (`GAP-FEEDBACK-*`, scoped `Stale`, the `implementation_feedback_resolved` DoD gate). Written for agents that do not carry the BA context.
+
+### `sentinel-command-router`
+
+Maps `/COMMAND PROJECT_ID [OPTIONS]` chat messages (also `sentinel /COMMAND` and `ignite /COMMAND` forms) to CLI executions for every manifest command, then routes to the matching skill for interpretation. A drift guard keeps it complete against the command manifest.
+
+### `sentinel-dashboard`
+
+Generates the local, read-only portfolio dashboard (`/dashboard`) and interprets its sections for status questions that do not name an exact command.
 

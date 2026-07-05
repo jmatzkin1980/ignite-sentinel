@@ -80,6 +80,12 @@ Claude sessions load `CLAUDE.md` automatically, so you can also describe the sit
 
 Claude maps the intent to the right lifecycle sequence, runs the CLI, and summarizes generated artifacts, gaps, health, and the next recommended step.
 
+## Skills (model-invoked)
+
+The 21 canonical skills under `.codex/skills/` are mirrored byte-for-byte to `.claude/skills/`, so Claude Code registers them as model-invocable skills: every skill carries validated `name`/`description` frontmatter (enforced by `/doctor` and the repo test suite), and Claude auto-triggers the right one from the description when the conversation matches — "the client answered the gaps" loads `sentinel-gap-response`, "this AC can't hold" loads `sentinel-implementation-feedback`, and so on, without the user naming the skill.
+
+Full catalog and per-skill responsibilities: [Codex Skills Guide](04-codex-skills-guide.md) (same skills, same contracts — only the mirror directory differs). The seven agentic proposal skills close with an identical Agentic Spirit block (verbatim-citation discipline, lifecycle-based severity, project language, focus-first retrieval); a drift guard keeps skill content aligned with the runtime (technique registry, command manifest, assumption schema).
+
 ## Rules Claude follows in this repo
 
 - Generated artifacts are mutated only through Sentinel CLI commands, never by editing downstream outputs by hand.
