@@ -104,8 +104,11 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
             ("Mapa de dependencias", "Dependency Map"),
             ("Trazabilidad", "Traceability"),
         )
+        # Case-insensitive: the Spanish compiler emits sentence-case headings
+        # ("Resumen ejecutivo...") while these anchors are title-case.
+        prd_text_fold = prd_text.casefold()
         for es_section, en_section in required_pairs:
-            if es_section not in prd_text and en_section not in prd_text:
+            if es_section.casefold() not in prd_text_fold and en_section.casefold() not in prd_text_fold:
                 findings.append(f"PRD missing section: {es_section}/{en_section}.")
 
     spec_path = base / "03_specs" / "specs.md"
