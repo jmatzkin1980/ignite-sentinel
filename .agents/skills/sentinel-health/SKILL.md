@@ -11,7 +11,7 @@ Use this skill as the final gate for any Sentinel workflow.
 
 1. Run `python -m sentinel /health PROJECT_ID`.
 2. Review `workspaces/PROJECT_ID/06_traceability/health_report.md`.
-3. If verdict is `DIRTY`, fix the findings and rerun health.
+3. If verdict is `DIRTY`, fix each finding **by running the governed command that owns the artifact** and rerun health. Health findings are never fixed by editing artifacts.
 4. Use `python -m sentinel /trace PROJECT_ID` when findings mention traceability.
 
 ## Rules
@@ -19,6 +19,10 @@ Use this skill as the final gate for any Sentinel workflow.
 - Health is based on versionable artifacts and deterministic checks.
 - LanceDB or fallback memory cannot override source files.
 - Metrics without explicit source or baseline are findings.
+- **Out-of-CLI edit detection (IMP-147):** every mutating command snapshots the sha256 of the governed artifacts into `state.json#artifact_hashes`; `/health` recomputes and compares. A mismatch means someone hand-edited a governed artifact — recommend regenerating it through its owning Sentinel command. Never "fix" the mismatch by editing the file back or touching `state.json`; the check warns, it does not revert.
+- **Knowledge staleness:** after a change moves knowledge units, `state.json#knowledge_staleness` lists the downstream artifacts now stale. The finding clears only when those artifacts are regenerated via their commands (`/health` compares each artifact's mtime against the marker's `recorded_at`); unrelated passes do not clear it.
+- **`needs_context` gate:** when workspace memory has too little indexed context for reliable downstream retrieval, `/health` raises it — as a warning by default, as a blocking finding in strict mode. The remediation is upstream: add/ingest domain context and `/reindex`, not proceed anyway.
+- Domain context freshness: if domain context files changed after specs/backlog generation, health flags the stale derivation — regenerate via `/reindex` + the owning command before handoff.
 - `/validate` also emits a non-blocking `semantic_quality` block (IMP-006): per-artifact score and classification (`evidence-backed` / `mixed` / `scaffolding`) for brief, PRD, and specs, plus `warnings`. Use it to decide whether downstream handoff content is mature, separate from structural validity.
 - `/validate` also emits non-blocking `cross_artifact_consistency` warnings (IMP-045/IMP-134): brief->PRD continuity, confirmed `REQ-EARS-*` coverage in specs/spec units, FR extraction coverage, resolvable spec-unit source pointers, orphan EARS references, and lost `SPEC-U-*` statements between specs and backlog acceptance criteria. Report the layer, artifact, and suggested corrective command without treating the warning as a failed structural verdict.
 - If BA/Product intentionally proceeds despite `/validate`, use `--override PATH` with cited `decisions[]` in `DEC-*` shape. Sentinel writes the rationale to `06_traceability/gate_overrides/` but keeps the structural `VALID` / `INVALID` result unchanged.
