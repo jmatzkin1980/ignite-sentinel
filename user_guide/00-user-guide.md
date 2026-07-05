@@ -220,7 +220,7 @@ Beyond the deterministic checklist, the agent operating the framework can contri
 /challenge PROJECT_ID --source findings.json
 ```
 
-`/annotate` merges semantic gaps the agent found while reading the raw input; `/challenge` runs advanced elicitation (pre-mortem, per-lens role-play, assumption inversion) and writes a `challenge_report.md`. Both validate every finding against a verbatim quote from the raw input before merging (the agent proposes with evidence; the runtime never invents), tagging them `origin: agent` / `origin: challenge`. The merged gaps then flow through `/resolve-gaps` like any other.
+`/annotate` merges semantic gaps the agent found while reading the raw input; `/challenge` runs advanced elicitation from the declarative technique registry — pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces by default; red/blue team, first principles, and stakeholder round-robin opt-in — and writes a `challenge_report.md`. Both validate every finding against a verbatim quote from the raw input before merging (the agent proposes with evidence; the runtime never invents), tagging them `origin: agent` / `origin: challenge`. The merged gaps then flow through `/resolve-gaps` like any other.
 
 ### 4. Resolve Structured Gap Answers
 

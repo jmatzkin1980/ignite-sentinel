@@ -197,7 +197,7 @@ If you prefer the exact command (after the agent writes the findings file):
 sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json   (Codex)
 ```
 
-**What Sentinel does:** The agent runs the default `/challenge` techniques per lens — pre-mortem, role-play (operator, auditor, attacker...), and assumption inversion — from the declarative catalog in `sentinel/techniques/*.json`. Each finding is validated against the raw input exactly like `/annotate`, merged as a gap tagged `origin: challenge`, and summarized in a versionable report.
+**What Sentinel does:** The agent runs the default `/challenge` techniques per lens — pre-mortem, role-play (operator, auditor, attacker...), assumption inversion, and JTBD Four Forces — from the declarative catalog in `sentinel/techniques/*.json` (red/blue team, first principles, and stakeholder round-robin are opt-in additions). Each finding is validated against the raw input exactly like `/annotate`, merged as a gap tagged `origin: challenge`, and summarized in a versionable report.
 
 **Main outputs:**
 
