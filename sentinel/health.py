@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 
 from .backlog.hooks import evaluate_backlog_privacy
 from .gaps import blocking_severities, is_blocking, parse_gap_table
@@ -205,6 +207,24 @@ def knowledge_staleness_findings(project_id: str) -> list[str]:
     units = [str(item) for item in payload.get("impacted_knowledge_units", []) if item]
     if not artifacts:
         return []
+    # The prescribed remediation is regenerating the listed artifacts: one
+    # regenerated strictly after the knowledge change (mtime > recorded_at)
+    # is refreshed and stops counting as stale. Markers without recorded_at
+    # (pre-fix workspaces) keep the conservative always-stale behavior.
+    recorded_at = str(payload.get("recorded_at", ""))
+    if recorded_at:
+        pending = []
+        for item in artifacts:
+            path = Path(item)
+            if not path.exists():
+                continue
+            mtime_iso = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat()
+            if mtime_iso > recorded_at:
+                continue
+            pending.append(item)
+        if not pending:
+            return []
+        artifacts = pending
     detail = f" Impacted knowledge units: {', '.join(units)}." if units else ""
     return [
         "Knowledge changed after downstream artifacts were generated; refresh affected brief/PRD/spec/backlog before implementation handoff."

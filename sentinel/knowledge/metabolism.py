@@ -7,7 +7,7 @@ from typing import Any
 from ..assumptions import load_assumptions, update_assumption_statuses
 from ..development_readiness import compute_development_readiness
 from ..discovery import refresh_knowledge_ledger
-from ..workspace import read_json, update_state, workspace_path
+from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
 from .ledger import record_promotion_event, record_superseded_units
 
 INVALIDATION_TOKENS = (
@@ -101,17 +101,26 @@ def metabolize_knowledge(
         "readiness_summary": readiness.get("summary", {}),
         "downstream_stale_artifacts": stale_artifacts,
     }
-    update_state(
-        project_id,
+    update_kwargs: dict[str, Any] = dict(
         knowledge_ledger_summary=ledger["payload"].get("summary", {}),
         development_readiness=readiness.get("summary", {}),
         last_knowledge_metabolism=payload,
-        knowledge_staleness={
+    )
+    # A pass without knowledge movement must not clear a pending staleness
+    # marker: the marker is satisfied by regenerating the listed artifacts
+    # (/health compares their mtime against recorded_at), not by unrelated
+    # changes flowing through the metabolism.
+    state = read_json(state_path(project_id), {})
+    pending = state.get("knowledge_staleness", {})
+    pending_artifacts = pending.get("downstream_artifacts", []) if isinstance(pending, dict) else []
+    if unit_ids or not pending_artifacts:
+        update_kwargs["knowledge_staleness"] = {
             "change_id": change_id,
             "impacted_knowledge_units": unit_ids,
             "downstream_artifacts": stale_artifacts,
-        },
-    )
+            "recorded_at": utc_now(),
+        }
+    update_state(project_id, **update_kwargs)
     return payload
 
 
