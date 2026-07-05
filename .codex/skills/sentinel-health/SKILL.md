@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-health
-description: Use when Codex needs to audit Ignite Sentinel project health, traceability, open gaps, unbacked metrics, orphan stories, and memory indexing status.
+description: "Use when auditing an Ignite Sentinel workspace before or after downstream work: /health findings (traceability, blocking gaps, unbacked metrics, memory indexing, staleness), /validate structural verdict plus non-blocking semantic-quality and cross-artifact consistency warnings, and gate overrides with cited DEC-* decisions. Trigger on 'is the workspace healthy', a DIRTY verdict, validation warnings, or the final pre-handoff check."
 ---
 
 # Sentinel Health

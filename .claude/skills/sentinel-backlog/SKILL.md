@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-backlog
-description: Use when Codex needs to transform mature Ignite Sentinel specs into AI-friendly epics, user stories, and acceptance criteria with traceability.
+description: "Use when transforming mature Ignite Sentinel specs into the governed backlog and operating it: /backlog derivation from SPEC-U-* units, SLICE-PLAN ordering, story lifecycle and owners via /story-status, the BA board via /backlog-status, downstream findings via /implementation-feedback, and the INVEST/SPIDR/Lawrence slicing model. Trigger on 'generate the backlog', epic/user-story/acceptance-criteria work, story status changes, or implementation handoff."
 ---
 
 # Sentinel Backlog

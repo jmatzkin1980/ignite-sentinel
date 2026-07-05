@@ -1,6 +1,6 @@
 ---
 name: sentinel-challenge
-description: Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running pre-mortem, per-lens role-play, and assumption inversion to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md.
+description: "Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running pre-mortem, per-lens role-play, and assumption inversion to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md."
 ---
 
 # Sentinel Challenge

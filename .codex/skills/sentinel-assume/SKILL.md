@@ -1,6 +1,6 @@
 ---
 name: sentinel-assume
-description: Register governed BA-owned assumptions in Ignite Sentinel through /assume, with every assumption carrying a human owner, risk, optional gap link, and a verbatim local evidence basis.
+description: "Register governed BA-owned assumptions in Ignite Sentinel through /assume, with every assumption carrying a human owner, risk, optional gap link, and a verbatim local evidence basis."
 ---
 
 # Sentinel Assume

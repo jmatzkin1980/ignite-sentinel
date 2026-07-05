@@ -1,6 +1,6 @@
 ---
 name: sentinel-project-brief
-description: Use when Codex needs to generate or refresh the Ignite Sentinel mature project brief after discovery gaps and seeds are stable enough.
+description: "Use when generating or refreshing the Ignite Sentinel project brief once discovery gaps and seeds are stable: check /status and /maturity, run /brief, review the compiled brief, and treat open critical/high gaps as blockers for downstream specs/backlog. Trigger on 'generate the brief', a brief refresh after new answers, or handoff-readiness questions."
 ---
 
 # Sentinel Project Brief

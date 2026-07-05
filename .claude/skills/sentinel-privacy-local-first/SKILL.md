@@ -1,6 +1,6 @@
 ---
 name: sentinel-privacy-local-first
-description: Use when Codex needs to enforce Ignite Sentinel local-only privacy rules for client requirements, code, memory, retrieval, and exports.
+description: "Use whenever Ignite Sentinel project data, client documents, code, memory, retrieval, or exports are involved and the local-only privacy rules must hold: no remote MCP, external vector databases, or external embedding services for client content; export only through audited commands. Trigger on sharing, sending, uploading, or exporting anything derived from a workspace."
 ---
 
 # Sentinel Privacy Local First

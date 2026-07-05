@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-quality
-description: Use when Codex needs to generate or audit Ignite Sentinel quality artifacts, test cases, automation notes, and acceptance-criteria coverage for generated user stories.
+description: "Use when generating or auditing Ignite Sentinel quality artifacts after backlog generation: /quality test cases, the dynamic backlog readiness audit, INVEST/SPIDR/Lawrence story scoring, and US->TC traceability checks. Trigger on 'generate test cases', story quality scoring, DoR warnings, or acceptance-criteria coverage questions."
 ---
 
 # Sentinel Quality

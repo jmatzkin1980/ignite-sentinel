@@ -1,6 +1,6 @@
 ---
 name: sentinel-annotate
-description: Use when an agent has read a raw client requirement for Ignite Sentinel and wants to contribute the semantic gaps, ambiguities, and implicit assumptions it detected — gaps the lexical checklist misses because a reassuring keyword is present. Produces the structured analysis that `/annotate` validates and merges with `origin: agent`.
+description: "Use when an agent has read a raw client requirement for Ignite Sentinel and wants to contribute the semantic gaps, ambiguities, and implicit assumptions it detected — gaps the lexical checklist misses because a reassuring keyword is present. Produces the structured analysis that `/annotate` validates and merges with `origin: agent`."
 ---
 
 # Sentinel Annotate

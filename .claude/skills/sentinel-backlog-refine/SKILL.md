@@ -1,6 +1,6 @@
 ---
 name: sentinel-backlog-refine
-description: Use when Codex needs to propose governed backlog refinements through the sanctioned `/refine-backlog` channel, with every proposal grounded in verbatim local source-of-truth citations.
+description: "Use when proposing governed backlog refinements through the sanctioned /refine-backlog channel: reslicing, split/merge, missing stories, or enabler candidates, every proposal grounded in verbatim source-of-truth citations and landing as agent-origin proposals for BA review. Trigger on 'this story is too big', slicing improvements, enabler candidates, or backlog restructuring ideas."
 ---
 
 # Sentinel Backlog Refine

@@ -1,6 +1,6 @@
 ---
 name: sentinel-dashboard
-description: Use when Codex needs to generate, open, present, or interpret the Ignite Sentinel workspace dashboard; when the user asks for project status, portfolio status, pending work, workspace health, or "show me the dashboard" without naming an exact CLI command.
+description: "Use when generating, opening, presenting, or interpreting the Ignite Sentinel workspace dashboard; when the user asks for project status, portfolio status, pending work, workspace health, or 'show me the dashboard' without naming an exact CLI command."
 ---
 
 # Sentinel Dashboard
