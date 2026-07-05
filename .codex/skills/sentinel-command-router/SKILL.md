@@ -15,6 +15,10 @@ Translate short chat commands into Sentinel CLI executions.
 - `/ingest PROJECT_ID --source PATH`
 - `/maturity PROJECT_ID`
 - `/gaps PROJECT_ID`
+- `/annotate PROJECT_ID --source ANALYSIS.json`
+- `/challenge PROJECT_ID --source ANALYSIS.json`
+- `/scrutinize PROJECT_ID --source ANALYSIS.json [--lens LENS] [--mode implementability-probe]`
+- `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
@@ -27,9 +31,13 @@ Translate short chat commands into Sentinel CLI executions.
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID`
+- `/self-review PROJECT_ID --source FINDINGS.json`
 - `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID`
 - `/backlog PROJECT_ID --with-task-seeds`
+- `/backlog-status PROJECT_ID`
+- `/story-status PROJECT_ID --story US-NNN --set STATE [--owner "NAME"] [--evidence PATH]`
+- `/refine-backlog PROJECT_ID --source PROPOSALS.json`
 - `/implementation-feedback PROJECT_ID --source PATH`
 - `/quality PROJECT_ID`
 - `/trace PROJECT_ID`
@@ -62,6 +70,10 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 ## Routing
 
 - `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
+- `/annotate`: use `sentinel-annotate` to author the analysis JSON before executing.
+- `/challenge`: use `sentinel-challenge` to author the findings JSON before executing.
+- `/scrutinize` (both modes): use `sentinel-scrutiny` to author the findings JSON before executing.
+- `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.
 - `/brief`: use `sentinel-project-brief`.
@@ -69,18 +81,20 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
 - `/dashboard`: use `sentinel-dashboard`.
 - `/specs`: use `sentinel-specs`.
+- `/self-review`: use `sentinel-self-review` to author the cited findings/decisions JSON before executing.
 - `/compose`: use `sentinel-compose`.
-- `/backlog`: use `sentinel-backlog`.
-- `/implementation-feedback`: use `sentinel-backlog`; accepted findings are traced feedback, not direct backlog rewrites.
+- `/backlog`, `/backlog-status`, `/story-status`: use `sentinel-backlog` (lifecycle and board rules live there).
+- `/refine-backlog`: use `sentinel-backlog-refine`; proposals land as cited agent-origin overlays, never direct rewrites.
+- `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/status`, `/export`: summarize the CLI result and generated artifact path.
 
 ## Safety
 
-- Do not edit generated workspace artifacts by hand unless the user explicitly asks for a manual correction.
+- Never edit generated workspace artifacts by hand; mutation flows only through Sentinel commands. If the user insists on a manual correction, warn that `/health` will flag the out-of-CLI edit and recommend the owning command instead.
 - Do not close gaps manually when a structured client response can be processed with `/resolve-gaps`.
-- After manual edits to workspace `.md` or `.txt` artifacts, run `/reindex PROJECT_ID` so LanceDB memory matches the versionable files.
+- After source inputs change (files under `00_raw/` context folders or new client material), run `/reindex PROJECT_ID` so memory matches the versionable files.
 - Before executing a task that depends on project context, prefer `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW --write-pack` over loading the whole workspace.
 - Do not commit project workspace data unless explicitly approved.
 - If a Codex UI intercepts `/init` or another slash command before it reaches the agent, tell the user to send `sentinel /init PROJECT_ID`.

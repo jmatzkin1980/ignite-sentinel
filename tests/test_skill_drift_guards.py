@@ -7,11 +7,12 @@ the runtime's own source of truth (commands manifest, technique registry,
 assumption schema) so that kind of drift fails `verify.ps1` instead of passing
 silently.
 
-Known, deliberate drift is registered below as explicit DEBT sets. The debt
-assertions are self-cleaning: they also assert the entry is STILL missing, so
-the content PR that fixes a skill must delete the corresponding debt entry —
-the ledger can only shrink. IMP-164 burned down CHALLENGE_DEBT and
-ASSUME_RUNTIME_EXTRA; ROUTER_DEBT remains for IMP-167.
+The original debt ledger (ROUTER_DEBT, CHALLENGE_DEBT, ASSUME_RUNTIME_EXTRA)
+was self-cleaning: each entry also asserted the drift was STILL present, so the
+content PR fixing a skill had to delete its entry. IMP-164 burned down
+CHALLENGE_DEBT and ASSUME_RUNTIME_EXTRA; IMP-167 burned down ROUTER_DEBT.
+The ledger is now empty — new deliberate drift must register a new DEBT set
+following the same pattern.
 """
 from __future__ import annotations
 
@@ -30,18 +31,6 @@ SKILLS = REPO / ".codex" / "skills"
 # The generic entry point is documented by the router as the `sentinel
 # /COMMAND` prefix form, not as a literal `/sentinel` slash command.
 ROUTER_EXEMPT = {"sentinel"}
-
-# Commands the router does not document yet; burned down by IMP-167.
-ROUTER_DEBT = {
-    "annotate",
-    "challenge",
-    "scrutinize",
-    "self-review",
-    "assume",
-    "backlog-status",
-    "refine-backlog",
-    "story-status",
-}
 
 
 def skill_text(name: str) -> str:
@@ -81,13 +70,8 @@ class RouterMentionGuardTests(unittest.TestCase):
     def test_router_documents_every_manifest_command(self):
         text = skill_text("sentinel-command-router")
         manifest = set(manifest_command_names())
-        self.assertLessEqual(ROUTER_DEBT, manifest, "debt entries must be real manifest commands")
         for command in sorted(manifest - ROUTER_EXEMPT):
-            token = f"/{command}"
-            if command in ROUTER_DEBT:
-                self.assertNotIn(token, text, f"{token} is now documented: delete it from ROUTER_DEBT")
-            else:
-                self.assertIn(token, text, f"router skill does not document {token}")
+            self.assertIn(f"/{command}", text, f"router skill does not document /{command}")
 
 
 class ChallengeMentionGuardTests(unittest.TestCase):
