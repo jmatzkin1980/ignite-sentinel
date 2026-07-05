@@ -50,6 +50,7 @@ Checks:
 - repository quick start
 - Codex skills and hooks adapter
 - required Codex skills
+- skill frontmatter metadata (`FAIL` when a canonical skill's name/description is missing or unparseable, `WARN` when the description names a specific agent)
 - Kilo Code agents adapter
 - Kilo Code slash commands
 - Kilo Code repo config

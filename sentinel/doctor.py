@@ -115,6 +115,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "workspaces/_template/07_changes/03_domain_updates", "workspace domain updates template"),
         write_check(root),
         *codex_skill_checks(root),
+        *skill_metadata_checks(root),
         *kilo_command_checks(root),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -157,6 +158,44 @@ def path_check(root: Path, relative: str, label: str) -> dict[str, str]:
         "status": "PASS" if path.exists() else "FAIL",
         "detail": str(path),
     }
+
+
+def skill_metadata_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-163: validate that every canonical skill carries usable metadata.
+
+    The name+description frontmatter is the only triggering signal the
+    generated surfaces (.claude/skills, .agents/skills) expose to a model, so
+    a skill whose frontmatter is missing, unparseable, or mislabeled is
+    silently invisible or mistargeted on every surface — the H5 audit found
+    10 of 19 in that state while the existence-only check stayed green.
+    Structural problems FAIL; agent-specific wording only WARNs.
+    """
+    from .core.markdown import parse_frontmatter
+
+    checks: list[dict[str, str]] = []
+    for skill in REQUIRED_CODEX_SKILLS:
+        label = f"Codex skill metadata: {skill}"
+        path = root / ".codex" / "skills" / skill / "SKILL.md"
+        if not path.exists():
+            checks.append({"name": label, "status": "FAIL", "detail": "SKILL.md missing"})
+            continue
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8-sig"))
+        name = str(frontmatter.get("name", "")).strip()
+        description = str(frontmatter.get("description", "")).strip()
+        if not name or not description:
+            status = "FAIL"
+            detail = "frontmatter must parse with a non-empty name and description"
+        elif name != skill:
+            status = "FAIL"
+            detail = f"frontmatter name '{name}' does not match directory '{skill}'"
+        elif "codex" in description.lower():
+            status = "WARN"
+            detail = "description names a specific agent; keep it agent-neutral (mirrored to every surface)"
+        else:
+            status = "PASS"
+            detail = str(path)
+        checks.append({"name": label, "status": status, "detail": detail})
+    return checks
 
 
 def write_check(root: Path) -> dict[str, str]:
