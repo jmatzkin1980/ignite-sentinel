@@ -9,8 +9,9 @@ silently.
 
 Known, deliberate drift is registered below as explicit DEBT sets. The debt
 assertions are self-cleaning: they also assert the entry is STILL missing, so
-the content PR that fixes a skill (IMP-164/167) must delete the corresponding
-debt entry — the ledger can only shrink.
+the content PR that fixes a skill must delete the corresponding debt entry —
+the ledger can only shrink. IMP-164 burned down CHALLENGE_DEBT and
+ASSUME_RUNTIME_EXTRA; ROUTER_DEBT remains for IMP-167.
 """
 from __future__ import annotations
 
@@ -41,19 +42,6 @@ ROUTER_DEBT = {
     "refine-backlog",
     "story-status",
 }
-
-# Registry techniques the challenge skill does not teach yet; burned down by IMP-164.
-CHALLENGE_DEBT = {
-    "jtbd-forces",
-    "red-blue-team",
-    "first-principles",
-    "stakeholder-round-robin",
-}
-
-# IMP-157 added these to the runtime (assumptions.py priority signal), but
-# neither assumption.schema.json nor the assume skill carries them yet;
-# both are updated by IMP-164, which must then delete this set.
-ASSUME_RUNTIME_EXTRA = {"uncertainty", "importance"}
 
 
 def skill_text(name: str) -> str:
@@ -105,12 +93,8 @@ class RouterMentionGuardTests(unittest.TestCase):
 class ChallengeMentionGuardTests(unittest.TestCase):
     def test_challenge_teaches_every_registry_technique(self):
         text = skill_text("sentinel-challenge")
-        self.assertLessEqual(CHALLENGE_DEBT, set(TECHNIQUE_ORDER), "debt entries must be real techniques")
         for technique in TECHNIQUE_ORDER:
-            if technique in CHALLENGE_DEBT:
-                self.assertNotIn(technique, text, f"{technique} is now taught: delete it from CHALLENGE_DEBT")
-            else:
-                self.assertIn(technique, text, f"challenge skill does not teach registry technique {technique}")
+            self.assertIn(technique, text, f"challenge skill does not teach registry technique {technique}")
 
 
 class AssumeContractGuardTests(unittest.TestCase):
@@ -120,10 +104,3 @@ class AssumeContractGuardTests(unittest.TestCase):
         schema_fields = set(schema["properties"]["assumptions"]["items"]["properties"])
         for field in sorted(schema_fields):
             self.assertIn(field, text, f"assume skill does not document schema field '{field}'")
-        for field in sorted(ASSUME_RUNTIME_EXTRA):
-            self.assertNotIn(
-                field,
-                schema_fields,
-                f"'{field}' reached assumption.schema.json: delete it from ASSUME_RUNTIME_EXTRA",
-            )
-            self.assertNotIn(field, text, f"'{field}' is now documented: delete it from ASSUME_RUNTIME_EXTRA")

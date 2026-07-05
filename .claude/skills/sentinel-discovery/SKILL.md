@@ -23,6 +23,17 @@ Use this skill to start or refresh discovery for a project.
 7. Share `01_discovery/gaps.md` with the client or domain owner when maturity is blocked.
 8. Run `python -m sentinel /health PROJECT_ID` before downstream specs or backlog work.
 
+## Deepening Cycle After `/gaps`
+
+The lexical checklist behind `/gaps` is the floor, not the ceiling. Once `gaps.md` exists, chain the agentic deepening passes — each has its own skill with the full contract:
+
+1. `/annotate` (skill `sentinel-annotate`) — first pass, run it always: contribute the semantic gaps you detected by actually reading the raw input (ambiguity hiding behind a reassuring keyword, implicit assumptions the checklist cannot see).
+2. `/challenge` (skill `sentinel-challenge`) — when the requirement looks complete and needs pressure: registry elicitation techniques (pre-mortem, role-play, assumption inversion, JTBD forces, plus the extended set) to surface what is NOT being said.
+3. `/scrutinize` (skill `sentinel-scrutiny`) — when domain context folders have content or the lenses need a systematic pass: unstated assumptions, contradictions, mentions without counterpart, domain conflicts.
+4. `/assume` (skill `sentinel-assume`) — only on an explicit BA decision to move forward over a gray area: governed, owned, cited assumptions instead of silent guesses.
+
+Run 1 always; 2 and 3 when their trigger fits; 4 never on your own initiative. All four propose through governed commands — none of them closes gaps or edits artifacts directly.
+
 ## Memory
 
 - Sentinel uses local LanceDB memory under `workspaces/PROJECT_ID/memory.lancedb/`.
@@ -45,4 +56,4 @@ Use this skill to start or refresh discovery for a project.
 - Lenses run per unit (IMP-116): when Requirement Units exist, each gap is anchored to the `RU-*` whose cited evidence explains it (the `Unit` column in the `gaps.md` trace table), and each unit's evidence is scoped on its own so a trigger token present in one unit cannot suppress an inquisitive gap that belongs to another. Document-level gaps and legacy workspaces leave `Unit` as `N/A`. Do not remove the column.
 - Discovery applies an inquisitive tier: when the input mentions a surface (screen, portal, api, integration) without describing its counterpart (journey, UI states, contracts, failure behavior, architecture input), the gap fires anyway and anchors the question to the detected mention (`evidence_mention`, rendered as "Evidence that triggers the question" in `gaps.md`). A bare mention never suppresses a question.
 - Counterpart anchoring for surface concepts (IMP-117): naming a metric/KPI/indicator or auth/login/permission/role without its counterpart (definition/formula/source/threshold for metrics; auth method/permission model/role catalog for access) does not count as coverage — it raises a cited `medium` gap (`GAP-METRIC-DEFINITION`, `GAP-AUTH-MODEL`) instead of passing. If the concept is not named at all, nothing fires; if the counterpart is present, it is suppressed.
-- Implementability probe (IMP-119): `/scrutinize --mode implementability-probe` is the pre-flight, per-`RU-*` mirror of `/implementation-feedback`. A coding agent declares, per Requirement Unit, what it is missing to implement, as cited gaps. Each probe finding requires a `unit` (`RU-NNN`) anchor plus a verbatim local citation, and uses `finding_type` `missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`; accepted findings merge as `origin: implementability-probe`. Like scrutiny, the probe only signals — it never auto-resolves a gap or invents the unit it claims is unimplementable.
+- Implementability probe (IMP-119): `/scrutinize --mode implementability-probe` is the pre-flight, per-`RU-*` mirror of `/implementation-feedback`, where a coding agent declares what it is missing to implement each unit. Full contract (unit anchoring, probe finding types, report) in the `sentinel-scrutiny` skill.

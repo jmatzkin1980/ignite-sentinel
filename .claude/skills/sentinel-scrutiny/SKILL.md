@@ -1,6 +1,6 @@
 ---
 name: sentinel-scrutiny
-description: "Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger."
+description: "Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context, or a pre-flight implementability probe. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger; covers `--mode implementability-probe`, the per-RU pass where a coding agent declares what it is missing to implement."
 ---
 
 # Sentinel Scrutiny
@@ -44,6 +44,40 @@ After `/ingest` has created `gaps.md` and `knowledge_state.md`, especially when 
 - `question`: the concrete question a BA can send to the client or domain owner.
 - `evidence`: a verbatim substring from local raw input or domain context. No quote, no finding.
 - `description`: concise statement of the missing, conflicting, or assumed knowledge.
+
+## Implementability Probe Mode
+
+`/scrutinize` has a second mode — the pre-flight, per-`RU-*` mirror of `/implementation-feedback`. A coding agent declares, per Requirement Unit, what it is missing to implement, **before** touching code:
+
+```powershell
+python -m sentinel /scrutinize PROJECT_ID --source PATH --mode implementability-probe
+```
+
+Differences from the default scrutiny mode:
+
+- Every finding must anchor to an existing Requirement Unit: add `"unit": "RU-NNN"` to each gap. The runtime validates the id against the workspace's extracted units; the probe cites real units, never invents them. If no `RU-*` units exist yet, run discovery first.
+- `finding_type` uses the probe vocabulary instead: `missing-context | non-inferable-gap | ambiguous-for-implementation`.
+- Accepted findings merge with `origin: implementability-probe` and the runtime writes a per-unit `01_discovery/implementability_probe_report.md`.
+- The probe only signals: it never auto-resolves a gap and never declares a unit implementable. The BA routes each finding like any other gap.
+
+Example probe finding:
+
+```json
+{
+  "gaps": [
+    {
+      "id": "GAP-PROBE-INVOICE-CONTRACT",
+      "lens": "technical",
+      "severity": "high",
+      "finding_type": "non-inferable-gap",
+      "unit": "RU-003",
+      "question": "Which system is the authoritative source for invoice status, and what is its contract?",
+      "evidence": "invoices must reflect the latest status",
+      "description": "The unit needs an integration whose contract cannot be inferred from any local source."
+    }
+  ]
+}
+```
 
 ## Rules
 
