@@ -1,6 +1,6 @@
 ---
 name: sentinel-gap-response
-description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions."
+description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions."
 ---
 
 # Sentinel Gap Response
@@ -18,12 +18,26 @@ python -m sentinel /resolve-gaps PROJECT_ID --source PATH
 
 3. Review `workspaces/PROJECT_ID/07_changes/00_client_responses/*_gap_resolution_report.md`.
 4. Review `workspaces/PROJECT_ID/01_discovery/gap_resolution_log.md`.
-5. Run:
+5. Summarize the `knowledge_metabolism` block of the result (see below).
+6. Run:
 
 ```powershell
 python -m sentinel /maturity PROJECT_ID
 python -m sentinel /status PROJECT_ID
 ```
+
+## Post-Response Metabolism (report it, do not just close gaps)
+
+Every `/resolve-gaps` pass metabolizes the confirmed knowledge and returns a `knowledge_metabolism` block. Your summary must cover what actually moved, not only the closed/open counts:
+
+- `validated_assumptions`: `ASM-*` rows whose linked gap closed with evidence flipped `ASSUMED` → `VALIDATED` in `01_discovery/assumptions.md`; each flip is also projected as a typed **promotion event** (`trigger_type: gap_closed`) in the knowledge ledger.
+- `invalidated_assumptions`: assumptions contradicted by the response. The pre-change ledger unit is preserved in the append-only history with its supersessor (`superseded_units` — invalidate-not-delete); the promotion is revoked, never erased.
+- `impacted_knowledge_units`: the ledger units the change touched; `knowledge_state.md`/`.json` and `01_discovery/development_readiness.json` are rebuilt (report `readiness_summary` movement).
+- `downstream_stale_artifacts`: brief/PRD/specs/backlog artifacts now stale. The runtime records a `knowledge_staleness` marker in `state.json`; `/health` reports DIRTY until those artifacts are **regenerated via their governed commands** — never edited by hand.
+
+## Candidate Options Never Close Gaps
+
+`gaps.md` response sections can include "Cited candidate options (not selected)": options derived from local citations to make answering easier. They are elicitation aids — **an option is not an answer**. Never mark a gap closed because a candidate option looks right; the client/BA/owner must confirm an actual answer with decision status. Keep that framing when you present gaps or draft response requests.
 
 ## Rules
 
