@@ -1,6 +1,6 @@
 ---
 name: sentinel-challenge
-description: "Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running pre-mortem, per-lens role-play, and assumption inversion to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md."
+description: "Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running the registry's elicitation techniques (pre-mortem, role-play, assumption inversion, JTBD forces, red/blue team, first principles, stakeholder round-robin) to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md."
 ---
 
 # Sentinel Challenge
@@ -13,14 +13,33 @@ After `/ingest` (and optionally `/annotate`), when the requirement is maturing a
 
 ## Techniques (run per lens — invariant #1)
 
-1. **Pre-mortem**: assume the project failed six months after launch. For each lens (business, product, quality, technical, compliance, delivery, design), ask "what did we fail to ask that caused this failure?".
-2. **Role-play by lens**: step into the lens's adversarial role — operator, auditor, attacker, support agent, regulator — and ask what that role would need that the input never mentions.
-3. **Assumption inversion**: list the implicit assumptions, invert each ("what if the opposite is true?"), and surface the gap the inversion exposes.
+The catalog is the runtime registry (`sentinel/techniques/*.json`); tag each finding with the technique id. Run the four **default** techniques on every pass; add the three **extended** ones when their trigger fits.
+
+Default set:
+
+1. **Pre-mortem** (`pre-mortem`): assume the project failed six months after launch. For each lens (business, product, quality, technical, compliance, delivery, design), ask "what did we fail to ask that caused this failure?".
+2. **Role-play by lens** (`role-play`): step into the lens's adversarial role — operator, auditor, attacker, support agent, regulator — and ask what that role would need that the input never mentions.
+3. **Assumption inversion** (`assumption-inversion`): list the implicit assumptions, invert each ("what if the opposite is true?"), and surface the gap the inversion exposes.
+4. **JTBD Four Forces** (`jtbd-forces`): stress-test the requirement through the push of the current situation, the pull of the new solution, the anxiety about switching, and the habit/inertia holding the old behavior. **Anti-hypothetical guardrail:** anchor every force in a concrete past event, observed quote, or local evidence — a purely hypothetical preference question ("would you use X?") stays a narrative note and never merges as a gap.
+
+Extended set (opt-in):
+
+5. **Red/blue team** (`red-blue-team`): red-team the requirement for misuse, failure, ambiguity, and invalid success claims; blue-team the minimum evidence needed to defend it. Use for security-, audit-, or abuse-sensitive requirements.
+6. **First principles** (`first-principles`): decompose the request into irreducible user, value, data, rule, interface, quality, and governance facts; flag facts that are implied but not evidenced. Use for novel or over-packaged requirements ("just like X but…").
+7. **Stakeholder round-robin** (`stakeholder-round-robin`): rotate through likely stakeholders and ask what each would need to approve, operate, test, support, or audit the requirement. Use when many actors orbit the requirement but only one voice wrote it.
+
+## Respondent calibration (`respondent_profile`)
+
+Technique prompts calibrate their wording to the declared profile of whoever will answer the questions: `business` (outcomes, policy, users, acceptance — no implementation jargon) or `technical` (data contracts, interfaces, constraints, failure modes).
+
+- **How it is declared:** frontmatter `respondent_profile: technical` or `respondent_profile: business` in a domain context file under `workspaces/PROJECT_ID/00_raw/` context folders. The runtime honors only that explicit declaration; folder names, roles, titles, and free text are deliberately ignored. Aliases normalize (`negocio`/`domain` → business; `técnico`/`technology`/`engineering` → technical).
+- **What it changes:** `/challenge` picks the profile up automatically and appends each technique's calibration line to its prompt in `challenge_report.md`. Validation rules do not change — evidence contracts stay identical.
+- **What you do:** when the BA tells you who will answer (e.g. "the client's CTO"), suggest adding that frontmatter to the relevant context file (context files are domain-owned source input, so the BA adds it), and write your `question` fields in that register too.
 
 ## Workflow
 
 1. Read `workspaces/PROJECT_ID/00_raw/` and `01_discovery/gaps.md`.
-2. Run the three techniques per lens. Keep findings grounded: each must tie to a verbatim quote from the raw input (evidence or explicit silence — invariant #3).
+2. Run the default techniques per lens, plus any extended technique whose trigger fits. Keep findings grounded: each must tie to a verbatim quote from the raw input (evidence or explicit silence — invariant #3).
 3. Write a JSON file (schema below). Run `python -m sentinel /challenge PROJECT_ID --source PATH`.
 4. Report merged and skipped gap IDs and updated gap counts. The merged gaps flow through the normal `/resolve-gaps` → `/maturity` → gate lifecycle like any other gap, tagged `origin: challenge`, and a traced `01_discovery/challenge_report.md` is written.
 
@@ -45,7 +64,7 @@ After `/ingest` (and optionally `/annotate`), when the requirement is maturing a
 ```
 
 - `id`, `lens`, `severity`, `question`, `evidence`, `description`: identical rules to `/annotate`. Evidence must be a verbatim substring of the raw input or the whole challenge is rejected.
-- `technique` (optional): `pre-mortem | role-play | assumption-inversion`, shown per gap in the challenge report.
+- `technique` (optional): any registry id — `pre-mortem | role-play | assumption-inversion | jtbd-forces | red-blue-team | first-principles | stakeholder-round-robin` — shown per gap in the challenge report.
 - `premortem` / `assumptions_inverted` (optional): narrative captured in `challenge_report.md` for the BA.
 
 ## Rules

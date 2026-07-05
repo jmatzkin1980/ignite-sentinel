@@ -1,6 +1,6 @@
 ---
 name: sentinel-assume
-description: "Register governed BA-owned assumptions in Ignite Sentinel through /assume, with every assumption carrying a human owner, risk, optional gap link, and a verbatim local evidence basis."
+description: "Register governed BA-owned assumptions in Ignite Sentinel through /assume, with every assumption carrying a human owner, risk (importance), uncertainty with a derived priority signal, optional gap link, and a verbatim local evidence basis."
 ---
 
 # Sentinel Assume
@@ -21,10 +21,22 @@ Do not use web or remote sources for client/project content.
 
 - Every assumption must use an Ignite lens: business, product, design, technical, quality, compliance, or delivery.
 - Every assumption needs a human owner. Use the BA, Product Owner, domain lead, or named role supplied by the user; never use "AI" as owner.
-- Every assumption needs risk: `low`, `med`, or `high`.
+- Every assumption needs risk: `low`, `med`, or `high` (`medium` normalizes to `med`).
+- `uncertainty` is optional: `low`, `med`, or `high`; defaults to `med`. It feeds the priority signal — see the rubric below.
 - Every assumption needs a verbatim local quote as `justification`.
 - `closes_gap` is provisional visibility only. It does not turn the gap into confirmed evidence.
 - High-risk assumptions linked to gaps must be called out in the summary.
+
+## Prioritization Rubric (risk × uncertainty)
+
+`risk` captures **importance** — the impact if the assumption turns out wrong; `uncertainty` captures how unvalidated it is. The runtime derives a `priority_signal` per assumption from that matrix:
+
+| risk \ uncertainty | low / med | high |
+|---|---|---|
+| **low / med** | monitor | watch closely |
+| **high** | watch closely | **test before advancing** |
+
+"Test before advancing" is a non-blocking signal: it tells the BA to validate that assumption first; it does not gate any command. Report the risk/uncertainty counts and call out every high-risk × high-uncertainty assumption in your summary.
 
 ## Source JSON
 
@@ -39,6 +51,7 @@ Create a local JSON file shaped like this:
       "statement": "The dashboard will use the existing metrics service as the provisional source of queue risk data.",
       "owner": "Technology Lead",
       "risk": "med",
+      "uncertainty": "high",
       "justification": "The dashboard reads queue metrics from the existing support metrics service.",
       "closes_gap": "GAP-TECH-DATA-SOURCE"
     }
@@ -46,7 +59,7 @@ Create a local JSON file shaped like this:
 }
 ```
 
-The quote in `justification` must appear verbatim in local evidence.
+The full contract lives in `sentinel/schemas/assumption.schema.json`. The quote in `justification` must appear verbatim in local evidence (`evidence` is accepted as an alias for `justification`).
 
 ## Command
 
