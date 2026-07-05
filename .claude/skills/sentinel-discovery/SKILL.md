@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-discovery
-description: Use when Codex needs to ingest raw client requirements for Ignite Sentinel, extract requirements, gaps, assumptions, risks, pending decisions, and seed traceability for a project workspace.
+description: "Use when starting or refreshing Ignite Sentinel discovery for a project: ingest raw client requirements, regenerate the shareable gaps document, review discovery artifacts, or decide whether missing information becomes a gap. Covers /init, /ingest, /gaps, focused retrieval, RU-* requirement units, gap statuses and the evidence-or-silence rules. Trigger on new client input, 'run discovery', 'ingest this requirement', or any gaps.md work."
 ---
 
 # Sentinel Discovery

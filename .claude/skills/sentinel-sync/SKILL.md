@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-sync
-description: Use when Codex needs to ingest a client change, meeting note, stakeholder feedback, or internal refinement into Ignite Sentinel and calculate traceability impact before updating specs or backlog.
+description: "Use when new information arrives after discovery — meeting notes, client mail, Slack, domain updates, HTML prototypes, late blockers — and must become traceable change instead of silent scope creep: /sync impact analysis and CHG nodes, autonomous detection of new or modified sources, /reindex and /retrieve for change context. Trigger on 'the client sent a change', new meeting minutes, modified domain context, or anything that may mutate requirements, specs or backlog."
 ---
 
 # Sentinel Sync

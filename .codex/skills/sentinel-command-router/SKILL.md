@@ -1,6 +1,6 @@
 ---
 name: sentinel-command-router
-description: Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal.
+description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal."
 ---
 
 # Sentinel Command Router

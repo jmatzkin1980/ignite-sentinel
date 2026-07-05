@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-maturity
-description: Use when Codex needs to evaluate whether an Ignite Sentinel requirement is mature enough to generate specs or backlog, including domain readiness and blocking gap detection.
+description: "Use when deciding whether an Ignite Sentinel requirement is mature enough to generate specs or backlog: run /maturity, read the maturity report and its metrics (gap closure rate, maturity score, trend), and recommend gap resolution when readiness is BLOCKED. Trigger on 'is it ready', 'can we generate specs/backlog yet', maturity checks, or a downstream command blocked by maturity."
 ---
 
 # Sentinel Maturity

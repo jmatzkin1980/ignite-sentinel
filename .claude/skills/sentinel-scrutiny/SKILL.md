@@ -1,6 +1,6 @@
 ---
 name: sentinel-scrutiny
-description: Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger.
+description: "Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger."
 ---
 
 # Sentinel Scrutiny

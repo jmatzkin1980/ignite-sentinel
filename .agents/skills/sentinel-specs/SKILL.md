@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-specs
-description: Use when Codex needs to generate PRD and AI-friendly specification artifacts from mature Ignite Sentinel requirements while preserving source traceability.
+description: "Use when generating or reviewing the Ignite Sentinel PRD and AI-friendly specification layer with /specs: the human PRD, the compact spec index, bounded SPEC-U-* execution units, retrieval plans, and the REQ->PRD->SPEC trace. Trigger on 'generate the PRD', 'generate specs', spec-unit questions, or preparing the downstream handoff from a mature brief."
 ---
 
 # Sentinel Specs

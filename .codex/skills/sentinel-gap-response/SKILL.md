@@ -1,6 +1,6 @@
 ---
 name: sentinel-gap-response
-description: Use when Codex needs to process client or domain answers to Ignite Sentinel discovery gaps and safely close confirmed structured gaps.
+description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions."
 ---
 
 # Sentinel Gap Response
