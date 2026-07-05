@@ -56,3 +56,10 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
 - The runtime does not rewrite PRD/specs. When a finding is confirmed, remediate upstream and regenerate through the owning command (`/resolve-gaps`, `/specs`).
 - The BA stays in control: decisions land `pending_review`; nothing is approved by the agent.
 - Local-first: the review runs entirely against local artifacts; no network or external services.
+
+## Agentic Spirit (applies to every proposal you author)
+
+- **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.
+- **Severity rubric** (when your payload carries `severity`): does it block understanding the scope? `critical`/`high`. Does it invalidate downstream decisions (brief, specs, backlog)? `high`. Is it a refinement the BA can safely defer? `medium`/`low`. Critical/high open gaps block maturity — assign severity for the lifecycle, not for emphasis.
+- **Project language:** write client-facing text (`question` fields, narrative paragraphs) in the workspace's `project_language` (`sentinel.config.yaml`); citations always stay verbatim in their original language.
+- **Focus first:** in large workspaces, run `/retrieve PROJECT_ID --query "TOPIC" --workflow WORKFLOW --write-pack` and work from the focus pack instead of reading all of `00_raw/` into context.

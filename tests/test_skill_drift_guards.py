@@ -32,6 +32,21 @@ SKILLS = REPO / ".codex" / "skills"
 # /COMMAND` prefix form, not as a literal `/sentinel` slash command.
 ROUTER_EXEMPT = {"sentinel"}
 
+# IMP-168: every agentic proposal skill carries the same closing spirit block
+# (citation rejection loop, severity rubric, project language, focus first).
+# The block is repeated inline because skill readers scope to one skill
+# directory — a shared references/ file across skills would not resolve.
+SPIRIT_HEADER = "## Agentic Spirit (applies to every proposal you author)"
+SPIRIT_SKILLS = (
+    "sentinel-annotate",
+    "sentinel-challenge",
+    "sentinel-scrutiny",
+    "sentinel-assume",
+    "sentinel-compose",
+    "sentinel-backlog-refine",
+    "sentinel-self-review",
+)
+
 
 def skill_text(name: str) -> str:
     return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8-sig")
@@ -79,6 +94,23 @@ class ChallengeMentionGuardTests(unittest.TestCase):
         text = skill_text("sentinel-challenge")
         for technique in TECHNIQUE_ORDER:
             self.assertIn(technique, text, f"challenge skill does not teach registry technique {technique}")
+
+
+class AgenticSpiritBlockGuardTests(unittest.TestCase):
+    def test_spirit_block_is_identical_across_agentic_skills(self):
+        def closing_block(name: str) -> str:
+            text = skill_text(name)
+            start = text.find(SPIRIT_HEADER)
+            self.assertNotEqual(start, -1, f"{name} does not carry the agentic spirit block")
+            return text[start:].strip()
+
+        reference = closing_block(SPIRIT_SKILLS[0])
+        for name in SPIRIT_SKILLS[1:]:
+            self.assertEqual(
+                closing_block(name),
+                reference,
+                f"{name}: agentic spirit block diverged from {SPIRIT_SKILLS[0]} — keep the wording identical in all {len(SPIRIT_SKILLS)} skills",
+            )
 
 
 class AssumeContractGuardTests(unittest.TestCase):
