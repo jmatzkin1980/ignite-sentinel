@@ -1,26 +1,31 @@
-"""Optional Ignite Sentinel pre-tool guardrail.
+"""Optional Ignite Sentinel pre-tool guardrail (Codex surface).
 
-This hook is intentionally conservative: deterministic CLI validation remains
-the enforcement layer. Use it as a repo-local reminder when wiring Codex hooks.
+Thin shim over ``sentinel.hooks_logic`` (IMP-172). Intentionally conservative:
+it SIGNALS a non-blocking local-first reminder and never blocks a mutation —
+deterministic CLI validation plus ``/health`` remain the enforcement layer. The
+governed-artifact deny for Claude Code arrives as a separate hook in IMP-179.
+If the shared logic cannot be imported it fails open (allow).
 """
 
 from __future__ import annotations
 
-BLOCKED_PATH_PARTS = (".roo/", "04_temp/")
+import sys
+from pathlib import Path
 
 
 def pre_tool_use(tool_name: str, args: dict, context: dict | None = None) -> dict:
-    path = str(args.get("path", "") if isinstance(args, dict) else "")
-    for blocked in BLOCKED_PATH_PARTS:
-        if blocked in path.replace("\\", "/"):
-            return {
-                "decision": "block",
-                "reason": f"Ignite Sentinel vNext does not use deprecated path segment: {blocked}",
-            }
-    normalized = path.replace("\\", "/")
-    if normalized.endswith((".md", ".txt", ".json")) and "workspaces/" not in normalized and "/input/" not in normalized and "ignite-sentinel/" in normalized:
-        return {
-            "decision": "allow",
-            "reason": "Warning: client/project artifacts should stay under `workspaces/PROJECT_ID/` or `input/`; continuing as non-blocking local-first guardrail.",
-        }
-    return {"decision": "allow", "reason": "No Sentinel guardrail violation detected."}
+    logic = _load_logic()
+    if logic is None:
+        return {"decision": "allow", "reason": "Sentinel guardrail unavailable."}
+    return logic.pre_tool_use_decision(tool_name, args, context)
+
+
+def _load_logic():
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    try:
+        from sentinel import hooks_logic
+    except ImportError:
+        return None
+    return hooks_logic
