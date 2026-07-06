@@ -1,0 +1,234 @@
+# PRD - [PROJECT_ID]
+
+# [PROJECT_ID] - Strategic Foundation
+
+## 1. Resumen ejecutivo y planteamiento del problema
+
+This PRD expands the mature discovery brief into a human-readable product document for Business, Product, Technology, Design, Quality, and Delivery. It must explain what will be implemented, why it matters, how success is measured, and which evidence justifies each downstream decision.
+
+- Mature source: `02_requirements/project-brief.md`
+- Discovery handoff: `02_requirements/project-brief.md` when present
+- Trace anchors: `REQ-001`, `PRD-001`
+- Context pack used: `08_context_packs/specs_generation.json`
+
+### Problem / Pain
+
+- Iniciativa: Tablero de riesgo operativo _(fuente: `00_raw/`)_
+- Resultado: "Objetivo: que los lideres de operaciones revisen las colas de riesgo antes de la reunion diaria." _(fuente: `00_raw/`)_
+- KPI: `30 por ciento` from "Metrica: reducir la preparacion manual un 30 por ciento en el primer mes de release." _(fuente: `00_raw/`)_
+
+### Expected Outcome
+
+The outcome above is compiled from source evidence. Any missing outcome or measurement detail remains tracked in discovery gaps rather than invented here.
+
+## 2. Alcance del proyecto
+
+### In Scope
+
+- `[PENDING INPUT]` - resolver `GAP-PRODUCT-ASIS-TOBE` before treating this section as evidence-backed.
+- In scope: "Alcance: tablero de solo lectura de colas abiertas." _(fuente: `00_raw/`)_
+- Out of scope: "Fuera de alcance: editar casos." _(fuente: `00_raw/`)_
+
+### Out of Scope
+
+Items not backed by the brief, confirmed seeds, decisions, or retrieved domain context stay outside the PRD scope until a traced `/sync` or gap-resolution event confirms them.
+
+## 3. Usuarios y personas
+
+| ID | Persona Evidence | Source |
+| --- | --- | --- |
+| P-01 | Usuarios: lideres de operaciones. | `REQ-001`, `00_raw/` |
+
+# [PROJECT_ID] - Core Requirements
+
+## 4. Requerimientos funcionales
+
+| ID | Requirement | Priority | Source |
+| --- | --- | --- | --- |
+| FR-E01 | Cuando haya metricas de cola disponibles, el sistema debe mostrar las colas de riesgo abiertas. | Must Have | `REQ-EARS-001` |
+| FR-E02 | Cuando un caso incumpla el SLA, el sistema debe marcar la cola como riesgo alto. | Must Have | `REQ-EARS-002` |
+| FR-E03 | Cuando una cola no tenga casos abiertos, el sistema debe ocultar los indicadores de riesgo. | Must Have | `REQ-EARS-003` |
+| FR-E04 | Mientras los datos de riesgo esten desactualizados, el sistema debe mostrar una advertencia de datos obsoletos. | Must Have | `REQ-EARS-004` |
+| FR-E05 | Si el servicio de metricas no esta disponible, entonces el sistema debe mostrar estado de riesgo desconocido. | Must Have | `REQ-EARS-005` |
+| FR-E06 | Donde el registro de auditoria este habilitado, el sistema debe registrar el acceso al tablero. | Must Have | `REQ-EARS-006` |
+| FR-A07 | Cuando haya metricas de cola disponibles, el sistema debe mostrar las colas de riesgo abiertas. _(`GAP-ACCEPTANCE` / `CHG-001`)_ | Must Have | `identity_seeds.md` |
+
+### Requerimientos EARS confirmados
+
+| ID | EARS Pattern | Testable Statement | Source |
+| --- | --- | --- | --- |
+| `REQ-EARS-001` | event | Cuando haya metricas de cola disponibles, el sistema debe mostrar las colas de riesgo abiertas. | GAP-ACCEPTANCE` / `CHG-001 |
+| `REQ-EARS-002` | event | Cuando un caso incumpla el SLA, el sistema debe marcar la cola como riesgo alto. | GAP-ACCEPTANCE` / `CHG-002 |
+| `REQ-EARS-003` | event | Cuando una cola no tenga casos abiertos, el sistema debe ocultar los indicadores de riesgo. | GAP-ACCEPTANCE` / `CHG-003 |
+| `REQ-EARS-004` | state | Mientras los datos de riesgo esten desactualizados, el sistema debe mostrar una advertencia de datos obsoletos. | GAP-ACCEPTANCE` / `CHG-004 |
+| `REQ-EARS-005` | unwanted | Si el servicio de metricas no esta disponible, entonces el sistema debe mostrar estado de riesgo desconocido. | GAP-ACCEPTANCE` / `CHG-005 |
+| `REQ-EARS-006` | optional | Donde el registro de auditoria este habilitado, el sistema debe registrar el acceso al tablero. | GAP-ACCEPTANCE` / `CHG-006 |
+
+### FR-01 Acceptance Criteria
+
+Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers, or functional evidence above. Criteria that are still missing remain visible in discovery gaps and must not be invented in this PRD.
+
+## 5. Requerimientos no funcionales
+
+- `[PENDING INPUT]` - resolver `GAP-PRD-NFR-KPI` before treating this section as evidence-backed.
+- `[PENDING INPUT]` - resolver `GAP-TECH-NFR` before treating this section as evidence-backed.
+
+## 6. Criterios de exito del negocio (KPIs)
+
+| KPI ID | Description | Target | Measurement Method | Source |
+| --- | --- | --- | --- | --- |
+| KPI-01 | Metrica: reducir la preparacion manual un 30 por ciento en el primer mes de release. | 30 por ciento | Confirmed evidence or gap response | `REQ-001`, `00_raw/` |
+
+# [PROJECT_ID] - Trazabilidad de trabajos
+
+## 7. Jobs to Be Done
+
+### 7a. Core Functional Job
+
+**JTBD-01:** When the primary user faces the source scenario, they need to complete the primary job so that the expected business or operational outcome is achieved. `[Source: REQ-001]`
+
+### 7b. Related / Secondary Jobs
+
+**JTBD-02:** When an operator, owner, or downstream system participates in the workflow, they need confirmed data, rules, and failure behavior so that the capability remains reliable and auditable.
+
+**JTBD-03:** When Quality validates the workflow, it needs acceptance criteria, edge cases, regression expectations, and traceability.
+
+### 7c. Emotional and Social Jobs
+
+**JTBD-E01:** When users rely on the new capability, they need confidence that the state/result is explainable and backed by confirmed evidence.
+
+`[PENDING INPUT] - GAP-PRD-GLOSSARY-GOVERNANCE`: confirm whether a social/reputational job exists.
+
+### 7d. Bidirectional Traceability Table (Audit)
+
+| Req ID | Req Description | JTBD ID | Status | Notes |
+| --- | --- | --- | --- | --- |
+| FR-01 | Primary end-to-end capability | JTBD-01 | OK | |
+| FR-02 | Preserve unchanged behavior | JTBD-02 | OK | |
+| FR-03 | Data/integration signals | JTBD-02 | OK | |
+| FR-04 | User-facing states/copy | JTBD-01 | OK | |
+| FR-05 | Traceability to AC/tests | JTBD-03 | OK | |
+| -- | Social job | JTBD-S01 | PENDING | No explicit source unless confirmed. |
+
+## Traceability Gaps
+
+- `GAP-PRD-FR-AC`: functional requirements and ACs may need refinement from domain context.
+- `GAP-PRD-NFR-KPI`: NFR/KPI targets, measurement owner, and timeframe should be confirmed before release commitment.
+- `GAP-PRD-DEPENDENCIES-ROADMAP`: owners, dependencies, MVP, and roadmap may need delivery confirmation.
+
+# [PROJECT_ID] - Execution Plan
+
+## 8. Dependency Map
+
+| Dep ID | Dependency | Type | Description | Owner | Impact if Unavailable | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| DEP-01 | Primary product/domain owner | Business | Confirms scope, value, and acceptance. | `[PENDING INPUT]` | PRD cannot be accepted. | `GAP-PRD-DEPENDENCIES-ROADMAP` |
+| DEP-02 | Technology owner / source system | Technical | Confirms integrations, data ownership, contracts, and constraints. | `[PENDING INPUT]` | Implementation may block or invent architecture. | `GAP-TECH-DATA-SOURCE` |
+| DEP-03 | Design/content owner | Design | Confirms journeys, states, copy, and prototype needs. | `[PENDING INPUT]` | UI/backlog may miss user states. | `GAP-DESIGN-FLOW` |
+| DEP-04 | Quality owner | Quality | Confirms test strategy, evidence, and regression scope. | `[PENDING INPUT]` | Stories may not be testable. | `GAP-QUALITY-HANDOFF` |
+
+## 9. Risks And Assumptions
+
+### 9a. Assumption Register
+
+| ID | Assumption | Impact if Wrong | Source Basis | Status |
+| --- | --- | --- | --- | --- |
+| ASM-01 | Details absent from confirmed evidence remain pending and must not be silently converted into backlog scope. | Rework and loss of trust. | Sentinel guardrail | Active |
+| ASM-02 | Domain context in memory is sufficient to draft PRD sections, with gaps where evidence is missing. | PRD may be too generic. | `08_context_packs/specs_generation.json` | Active |
+
+### 9b. Risk Register
+
+| ID | Risk | Likelihood | Impact | Mitigation | Source |
+| --- | --- | --- | --- | --- | --- |
+| RSK-01 | PRD section appears complete but is based on weak evidence. | Medium | High | Cite sources and keep `[PENDING INPUT]` markers. | `GAP-PRD-*` |
+| RSK-02 | Backlog agents load too much context or miss key domain signals. | Medium | Medium | Use `specs.md` retrieval plan and context pack. | `SPEC-001` |
+| RSK-03 | Sensitive data leaks into generated artifacts. | Low | High | Keep local-only privacy rules and sanitize shareable outputs. | Privacy guardrail |
+
+## 10. MVP, Nice-to-Haves, And Roadmap
+
+### MVP Scope
+
+- FR-01 through FR-05 when supported by confirmed evidence.
+- Must include traceability and acceptance criteria for each story.
+
+### Nice-to-Haves
+
+- Any feature not tied to a confirmed outcome, acceptance criterion, or dependency owner.
+
+### Roadmap
+
+- Phase 1: close blocking PRD readiness gaps and confirm MVP.
+- Phase 2: generate backlog slices from `specs.md` retrieval plan.
+- Phase 3: quality audit and traceability validation.
+
+## 11. Mandatory Constraints
+
+- Source of truth remains workspace files; memory is retrieval aid only.
+- Do not include sensitive raw payloads, credentials, URLs, account IDs, or client-specific private facts in generated framework artifacts unless explicitly approved.
+- Every downstream artifact must preserve `REQ -> PRD -> SPEC -> EPIC -> US -> AC -> TC` lineage where applicable.
+
+## 12. Suggested Or Assigned Team
+
+| Role | Responsibility | Source |
+| --- | --- | --- |
+| Product / BA | Own PRD narrative, scope, FRs, KPIs, and pending inputs. | `PRD-001` |
+| Technology | Own architecture, integration, contracts, source-of-truth, and NFR feasibility. | `CTX-TECH` |
+| Design | Own journeys, states, copy, accessibility, and prototype evidence. | `CTX-DESIGN` |
+| Quality | Own acceptance strategy, tests, regression, evidence, and readiness audit. | `CTX-QUALITY` |
+| Delivery | Own dependencies, owners, timeline, rollout, and release constraints. | `GAP-DELIVERY-READINESS` |
+
+## 13. Glossary
+
+| Term | Definition | First Used In |
+| --- | --- | --- |
+| Mature requirement | Discovery output with blocking gaps closed or explicitly accepted as non-blocking. | Summary |
+| PRD | Human/business product document explaining what and why. | Summary |
+| Specs | Agent-friendly execution contract for progressive disclosure and backlog generation. | Traceability |
+| Pending input | Explicit missing information that must not be invented. | Governance |
+
+# [PROJECT_ID] - Governance
+
+## Output Enhancement Suggestions
+
+### Missing Information Notes
+
+- `[PENDING INPUT - Personas]`: resolve `GAP-PRD-PERSONA-DETAIL`.
+- `[PENDING INPUT - FR/AC]`: refine FRs and ACs from confirmed product and quality evidence.
+- `[PENDING INPUT - NFR/KPI]`: confirm measurable targets, owners, method, and timeframe.
+- `[PENDING INPUT - Dependencies/Roadmap]`: confirm owners, MVP, phases, dates, and rollout constraints.
+- `[PENDING INPUT - Glossary/Governance]`: confirm mandatory terms, constraints, audit expectations, and decisions.
+
+### Context Retrieved From Memory
+
+| PRD / Specs Need | Retrieved Signal | Artifact | Trace |
+| --- | --- | --- | --- |
+| strategic_foundation | ## 1. Identidad y Valor  Iniciativa: Tablero de riesgo operativo _(fuente: `00_raw/`)_  Dolor principal: - Domains: product, functional, quality  Resultado y métricas: - Resultado | `REQ-003` | REQ-003 |
+| personas | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| functional_requirements | - `GAP-BUSINESS-RULES` (business, medium): Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. - `GAP-PRD-PERSONA-D | `REQ-003` | REQ-003 |
+| nfr_kpi | ## 5. Lente Tecnico: Datos, Conectividad y Arquitectura  - [PENDING INPUT]: sin evidencia en el input; se rastrea en `GAP-TECH-DATA-SOURCE`. Aportar en el context pack del dominio. | `REQ-003` | REQ-003 |
+| jtbd_traceability | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| execution_plan | - `GAP-BUSINESS-RULES` (business, medium): Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. - `GAP-PRD-PERSONA-D | `REQ-003` | REQ-003 |
+| governance | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| backlog_handoff | - PRD can expand this brief only from confirmed seeds, decisions, context folders, and traceable source material. - Specs must preserve system boundaries, data ownership, UX states | `REQ-003` | REQ-003 |
+
+### Proposed Next Meeting Agenda
+
+1. Resolve PRD readiness gaps that affect MVP scope.
+2. Confirm FR priorities and acceptance criteria with Product/Quality.
+3. Confirm technical dependencies and source-of-truth ownership.
+4. Confirm roadmap, owners, rollout constraints, and governance.
+
+# Session Audit Trail
+
+| Field | Value |
+| --- | --- |
+| Version | 1.0 |
+| Mode | GENERATED_FROM_SENTINEL |
+| Source | `02_requirements/project-brief.md` |
+| Context Pack | `08_context_packs/specs_generation.json` |
+
+## Decisions Made
+
+1. PRD sections are populated only from brief, traceable artifacts, and focused memory retrieval.
+2. Missing evidence remains visible as `[PENDING INPUT]` or a `GAP-*` reference.
+3. `specs.md` is the downstream agent contract and should be used before backlog slicing.
