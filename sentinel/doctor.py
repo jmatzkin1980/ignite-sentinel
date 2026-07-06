@@ -4,6 +4,7 @@ import importlib.util
 import importlib.metadata
 import os
 import platform
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -125,6 +126,9 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *codex_skill_checks(root),
         *skill_metadata_checks(root),
         *kilo_agent_metadata_checks(root),
+        *hook_governance_checks(root),
+        launcher_exit_code_check(root),
+        *agentic_surface_checks(root),
         *kilo_command_checks(root),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -255,6 +259,86 @@ def workspace_template_check(root: Path) -> dict[str, str]:
     if missing:
         return {"name": label, "status": "FAIL", "detail": "missing dirs vs WORKSPACE_DIRS: " + ", ".join(missing)}
     return {"name": label, "status": "PASS", "detail": f"{len(WORKSPACE_DIRS)} dirs match WORKSPACE_DIRS"}
+
+
+_HAND_EDIT_INVITATION = re.compile(r"manual artifact edits|patch", re.IGNORECASE)
+# Tools a read-only verifier agent must never hold. Its frontmatter allowlist and
+# its declared denylist must not contradict each other.
+_DANGEROUS_AGENT_TOOLS = ("Write", "Edit", "Bash", "Agent")
+
+
+def hook_governance_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-177 (H1): content check for the Codex hooks + shared hook logic.
+
+    IMP-172 extirpated the hand-edit/patching invitations and re-anchored the
+    guardrail; the existence-only check could not tell if one crept back. FAIL if
+    a forbidden invitation reappears in the hook surface.
+    """
+    checks: list[dict[str, str]] = []
+    sources = sorted((root / ".codex" / "hooks").glob("*.py"))
+    shared = root / "sentinel" / "hooks_logic.py"
+    if shared.exists():
+        sources.append(shared)
+    for source in sources:
+        label = f"hook governance: {source.name}"
+        text = source.read_text(encoding="utf-8")
+        if _HAND_EDIT_INVITATION.search(text):
+            checks.append({"name": label, "status": "FAIL", "detail": "contains a hand-edit/patching invitation"})
+        else:
+            checks.append({"name": label, "status": "PASS", "detail": str(source)})
+    return checks
+
+
+def launcher_exit_code_check(root: Path) -> dict[str, str]:
+    """IMP-177 (H1): the PowerShell launcher must propagate the CLI exit code
+    (BUG G1, IMP-171). Without it, every gate is invisible to scripts/agents."""
+    label = "launcher exit-code propagation"
+    launcher = root / "installers" / "sentinel.ps1"
+    if not launcher.exists():
+        return {"name": label, "status": "FAIL", "detail": f"{launcher} missing"}
+    if "exit $LASTEXITCODE" in launcher.read_text(encoding="utf-8"):
+        return {"name": label, "status": "PASS", "detail": str(launcher)}
+    return {"name": label, "status": "FAIL", "detail": "sentinel.ps1 no longer propagates `exit $LASTEXITCODE`"}
+
+
+def agentic_surface_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-177 (doc 38 E2, local/deterministic agentic-surface audit): the opt-in
+    hook example JSON must parse, and the read-only verifier agent's tools
+    allowlist must not contain any tool its own denylist forbids.
+    """
+    from .core.io import read_json
+    from .core.markdown import parse_frontmatter
+
+    checks: list[dict[str, str]] = []
+
+    example = root / ".claude" / "hooks" / "verify-governed-artifact.example.json"
+    label = "agentic surface: hook example JSON parses"
+    if not example.exists():
+        checks.append({"name": label, "status": "FAIL", "detail": f"{example} missing"})
+    else:
+        try:
+            read_json(example)
+            checks.append({"name": label, "status": "PASS", "detail": str(example)})
+        except ValueError as exc:  # JSONDecodeError is a ValueError
+            checks.append({"name": label, "status": "FAIL", "detail": f"invalid JSON: {exc}"})
+
+    agent = root / ".claude" / "agents" / "ignite-verifier.md"
+    label = "agentic surface: verifier tool allowlist coherent"
+    if not agent.exists():
+        checks.append({"name": label, "status": "FAIL", "detail": f"{agent} missing"})
+    else:
+        text = agent.read_text(encoding="utf-8-sig")
+        frontmatter = parse_frontmatter(text)
+        allowed = {tool.strip() for tool in str(frontmatter.get("tools", "")).split(",") if tool.strip()}
+        conflicts = sorted(allowed.intersection(_DANGEROUS_AGENT_TOOLS))
+        if conflicts:
+            checks.append({"name": label, "status": "FAIL", "detail": "allowlist grants denylisted tools: " + ", ".join(conflicts)})
+        elif "Denylist" not in text:
+            checks.append({"name": label, "status": "FAIL", "detail": "verifier no longer declares its denylist"})
+        else:
+            checks.append({"name": label, "status": "PASS", "detail": f"tools={sorted(allowed)}"})
+
+    return checks
 
 
 def write_check(root: Path) -> dict[str, str]:
