@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-sync
-description: Ingest stakeholder feedback, meeting notes, or client changes and generate impact analysis.
+description: Ingest stakeholder feedback, meeting notes, or client changes and turn them into governed, traceable impact analysis.
 mode: primary
 ---
 
@@ -18,10 +18,9 @@ python -m sentinel /health PROJECT_ID
 
 Rules:
 
-- Treat new information as a `CHG` event.
-- Prefer `/sync PROJECT_ID` when the user wants autonomous detection of new or modified inputs.
-- `/sync` indexes the change into local LanceDB memory and links it to impacted artifacts.
-- Use `/retrieve --workflow sync --write-pack` before patching downstream artifacts.
-- Run `/reindex PROJECT_ID` after manual artifact edits so memory matches source files.
-- Do not silently patch downstream artifacts.
-- Review impact before considering the workspace healthy.
+- Treat new information as a `CHG` event. Prefer `/sync PROJECT_ID` for autonomous detection of new or modified inputs (matched by content hash).
+- Review the impact report before considering the workspace healthy.
+- Governed mutation only: `/sync` reports impact and recommends which owning command to re-run (`/specs`, `/backlog`, ...); regenerate through those commands. Never hand-edit downstream artifacts — changes made outside the CLI are flagged by `/health` (IMP-147 checksum mismatch) and never propagate.
+- A change can invalidate assumptions: `/sync` moves the affected `ASM-*` through the ledger (INVALIDATED + supersession) and raises `origin: sync` gaps; regeneration then marks impacted stories `Stale` (knowledge staleness).
+- `/reindex` only re-syncs memory to changed *sources*; it does not legitimize hand-edits of generated artifacts.
+- Depth on change management and governed regeneration lives in `user_guide/`.

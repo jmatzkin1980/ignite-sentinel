@@ -74,6 +74,16 @@ REQUIRED_CLAUDE_COMMANDS = manifest_command_names()
 
 REQUIRED_KILO_COMMANDS = manifest_command_names()
 
+REQUIRED_KILO_AGENTS = [
+    "sentinel-backlog",
+    "sentinel-discovery",
+    "sentinel-health",
+    "sentinel-maturity",
+    "sentinel-quality",
+    "sentinel-specs",
+    "sentinel-sync",
+]
+
 
 def run_doctor(root: Path | None = None) -> dict[str, Any]:
     root = (root or Path.cwd()).resolve()
@@ -118,6 +128,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         write_check(root),
         *codex_skill_checks(root),
         *skill_metadata_checks(root),
+        *kilo_agent_metadata_checks(root),
         *kilo_command_checks(root),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -193,6 +204,37 @@ def skill_metadata_checks(root: Path) -> list[dict[str, str]]:
         elif "codex" in description.lower():
             status = "WARN"
             detail = "description names a specific agent; keep it agent-neutral (mirrored to every surface)"
+        else:
+            status = "PASS"
+            detail = str(path)
+        checks.append({"name": label, "status": status, "detail": detail})
+    return checks
+
+
+def kilo_agent_metadata_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-173: validate that every handcrafted Kilo agent carries usable
+    frontmatter. Kilo has no skills — these 7 agents are its model-facing depth —
+    and they are handcrafted (no generator), so the existence-only check left the
+    same false-green gap IMP-163 closed for skills. Mirrors skill_metadata_checks.
+    """
+    from .core.markdown import parse_frontmatter
+
+    checks: list[dict[str, str]] = []
+    for agent in REQUIRED_KILO_AGENTS:
+        label = f"Kilo agent metadata: {agent}"
+        path = root / ".kilo" / "agents" / f"{agent}.md"
+        if not path.exists():
+            checks.append({"name": label, "status": "FAIL", "detail": "agent file missing"})
+            continue
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8-sig"))
+        name = str(frontmatter.get("name", "")).strip()
+        description = str(frontmatter.get("description", "")).strip()
+        if not name or not description:
+            status = "FAIL"
+            detail = "frontmatter must parse with a non-empty name and description"
+        elif name != agent:
+            status = "FAIL"
+            detail = f"frontmatter name '{name}' does not match file '{agent}'"
         else:
             status = "PASS"
             detail = str(path)
