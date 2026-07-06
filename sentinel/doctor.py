@@ -120,11 +120,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "input/technology_context", "input technology context scaffold"),
         path_check(root, "input/design_context", "input design context scaffold"),
         path_check(root, "input/interactions", "input interactions scaffold"),
-        path_check(root, "workspaces/_template", "workspace template scaffold"),
-        path_check(root, "workspaces/_template/00_raw/00_client_requirement", "workspace client requirement template"),
-        path_check(root, "workspaces/_template/00_raw/02_technology_context", "workspace technology context template"),
-        path_check(root, "workspaces/_template/00_raw/03_design_context", "workspace design context template"),
-        path_check(root, "workspaces/_template/07_changes/03_domain_updates", "workspace domain updates template"),
+        workspace_template_check(root),
         write_check(root),
         *codex_skill_checks(root),
         *skill_metadata_checks(root),
@@ -240,6 +236,25 @@ def kilo_agent_metadata_checks(root: Path) -> list[dict[str, str]]:
             detail = str(path)
         checks.append({"name": label, "status": status, "detail": detail})
     return checks
+
+
+def workspace_template_check(root: Path) -> dict[str, str]:
+    """IMP-175 (E1): the versioned `workspaces/_template` scaffold must match the
+    `WORKSPACE_DIRS` list that `/init` actually builds from — the single source of
+    truth. Deriving the check from `WORKSPACE_DIRS` keeps the two from drifting
+    (the audit found _template had lost `08_context_packs/requests`+`exports`)
+    while `/doctor` path-checked a third, partial subset.
+    """
+    from .workspace import WORKSPACE_DIRS
+
+    label = "workspace template scaffold"
+    base = root / "workspaces" / "_template"
+    if not base.is_dir():
+        return {"name": label, "status": "FAIL", "detail": f"{base} missing"}
+    missing = [relative for relative in WORKSPACE_DIRS if not (base / relative).is_dir()]
+    if missing:
+        return {"name": label, "status": "FAIL", "detail": "missing dirs vs WORKSPACE_DIRS: " + ", ".join(missing)}
+    return {"name": label, "status": "PASS", "detail": f"{len(WORKSPACE_DIRS)} dirs match WORKSPACE_DIRS"}
 
 
 def write_check(root: Path) -> dict[str, str]:
