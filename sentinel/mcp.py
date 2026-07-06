@@ -65,8 +65,14 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
+    ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown or MDX through the audited local export channel.", ["project_id", "artifact"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
+
+# Look up descriptions by tool name so tool registrations do not depend on the
+# positional index of TOOL_SPECS (IMP-176 F4: inserting a tool used to silently
+# shift every later `TOOL_SPECS[N][1]` reference).
+TOOL_DESCRIPTIONS: dict[str, str] = {name: description for name, description, _ in TOOL_SPECS}
 
 
 def run_cli(arguments: list[str]) -> dict[str, object]:
@@ -195,50 +201,50 @@ def build_server():
         ),
     )
 
-    @server.tool(name="sentinel_doctor", description=TOOL_SPECS[0][1])
+    @server.tool(name="sentinel_doctor", description=TOOL_DESCRIPTIONS["doctor"])
     def sentinel_doctor() -> dict:
         return run_cli(["doctor"])
 
-    @server.tool(name="sentinel_dashboard", description=TOOL_SPECS[1][1])
+    @server.tool(name="sentinel_dashboard", description=TOOL_DESCRIPTIONS["dashboard"])
     def sentinel_dashboard(open_browser: bool = False) -> dict:
         arguments = ["dashboard"]
         if open_browser:
             arguments.append("--open")
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_init", description=TOOL_SPECS[2][1])
+    @server.tool(name="sentinel_init", description=TOOL_DESCRIPTIONS["init"])
     def sentinel_init(project_id: str) -> dict:
         return run_cli(["init", project_id])
 
-    @server.tool(name="sentinel_ingest", description=TOOL_SPECS[3][1])
+    @server.tool(name="sentinel_ingest", description=TOOL_DESCRIPTIONS["ingest"])
     def sentinel_ingest(project_id: str, source: str) -> dict:
         return run_cli(["ingest", project_id, "--source", source])
 
-    @server.tool(name="sentinel_gaps", description=TOOL_SPECS[4][1])
+    @server.tool(name="sentinel_gaps", description=TOOL_DESCRIPTIONS["gaps"])
     def sentinel_gaps(project_id: str) -> dict:
         return run_cli(["gaps", project_id])
 
-    @server.tool(name="sentinel_resolve_gaps", description=TOOL_SPECS[5][1])
+    @server.tool(name="sentinel_resolve_gaps", description=TOOL_DESCRIPTIONS["resolve_gaps"])
     def sentinel_resolve_gaps(project_id: str, source: str) -> dict:
         return run_cli(["resolve-gaps", project_id, "--source", source])
 
-    @server.tool(name="sentinel_maturity", description=TOOL_SPECS[6][1])
+    @server.tool(name="sentinel_maturity", description=TOOL_DESCRIPTIONS["maturity"])
     def sentinel_maturity(project_id: str) -> dict:
         return run_cli(["maturity", project_id])
 
-    @server.tool(name="sentinel_brief", description=TOOL_SPECS[7][1])
+    @server.tool(name="sentinel_brief", description=TOOL_DESCRIPTIONS["brief"])
     def sentinel_brief(project_id: str) -> dict:
         return run_cli(["brief", project_id])
 
-    @server.tool(name="sentinel_context_request", description=TOOL_SPECS[8][1])
+    @server.tool(name="sentinel_context_request", description=TOOL_DESCRIPTIONS["context_request"])
     def sentinel_context_request(project_id: str, domain: str) -> dict:
         return run_cli(["context-request", project_id, "--domain", domain])
 
-    @server.tool(name="sentinel_status", description=TOOL_SPECS[9][1])
+    @server.tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
     def sentinel_status(project_id: str) -> dict:
         return run_cli(["status", project_id])
 
-    @server.tool(name="sentinel_sync", description=TOOL_SPECS[10][1])
+    @server.tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "") -> dict:
         arguments = ["sync", project_id]
         if source:
@@ -247,76 +253,96 @@ def build_server():
             arguments += ["--note", note]
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_reindex", description=TOOL_SPECS[11][1])
+    @server.tool(name="sentinel_reindex", description=TOOL_DESCRIPTIONS["reindex"])
     def sentinel_reindex(project_id: str) -> dict:
         return run_cli(["reindex", project_id])
 
-    @server.tool(name="sentinel_retrieve", description=TOOL_SPECS[12][1])
-    def sentinel_retrieve(project_id: str, query: str, workflow: str = "discovery") -> dict:
-        return run_cli(["retrieve", project_id, "--query", query, "--workflow", workflow])
+    @server.tool(name="sentinel_retrieve", description=TOOL_DESCRIPTIONS["retrieve"])
+    def sentinel_retrieve(
+        project_id: str,
+        query: str = "",
+        workflow: str = "discovery",
+        order: str = "relevance",
+        timeline: bool = False,
+        write_pack: bool = False,
+    ) -> dict:
+        arguments = ["retrieve", project_id]
+        if query:
+            arguments += ["--query", query]
+        if workflow:
+            arguments += ["--workflow", workflow]
+        if order and order != "relevance":
+            arguments += ["--order", order]
+        if timeline:
+            arguments.append("--timeline")
+        if write_pack:
+            arguments.append("--write-pack")
+        return run_cli(arguments)
 
-    @server.tool(name="sentinel_specs", description=TOOL_SPECS[13][1])
+    @server.tool(name="sentinel_specs", description=TOOL_DESCRIPTIONS["specs"])
     def sentinel_specs(project_id: str) -> dict:
         return run_cli(["specs", project_id])
 
-    @server.tool(name="sentinel_backlog", description=TOOL_SPECS[14][1])
+    @server.tool(name="sentinel_backlog", description=TOOL_DESCRIPTIONS["backlog"])
     def sentinel_backlog(project_id: str, with_task_seeds: bool = False) -> dict:
         arguments = ["backlog", project_id]
         if with_task_seeds:
             arguments.append("--with-task-seeds")
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_quality", description=TOOL_SPECS[15][1])
+    @server.tool(name="sentinel_quality", description=TOOL_DESCRIPTIONS["quality"])
     def sentinel_quality(project_id: str) -> dict:
         return run_cli(["quality", project_id])
 
-    @server.tool(name="sentinel_trace", description=TOOL_SPECS[16][1])
+    @server.tool(name="sentinel_trace", description=TOOL_DESCRIPTIONS["trace"])
     def sentinel_trace(project_id: str) -> dict:
         return run_cli(["trace", project_id])
 
-    @server.tool(name="sentinel_health", description=TOOL_SPECS[17][1])
+    @server.tool(name="sentinel_health", description=TOOL_DESCRIPTIONS["health"])
     def sentinel_health(project_id: str) -> dict:
         return run_cli(["health", project_id])
 
-    @server.tool(name="sentinel_validate", description=TOOL_SPECS[18][1])
+    @server.tool(name="sentinel_validate", description=TOOL_DESCRIPTIONS["validate"])
     def sentinel_validate(project_id: str) -> dict:
         return run_cli(["validate", project_id])
 
-    @server.tool(name="sentinel_view", description=TOOL_SPECS[19][1])
+    @server.tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
     def sentinel_view(project_id: str, artifact: str, open_browser: bool = False) -> dict:
         arguments = ["view", project_id, "--artifact", artifact]
         if open_browser:
             arguments.append("--open")
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_annotate", description=TOOL_SPECS[20][1])
+    @server.tool(name="sentinel_annotate", description=TOOL_DESCRIPTIONS["annotate"])
     def sentinel_annotate(project_id: str, source: str) -> dict:
         return run_cli(["annotate", project_id, "--source", source])
 
-    @server.tool(name="sentinel_challenge", description=TOOL_SPECS[21][1])
+    @server.tool(name="sentinel_challenge", description=TOOL_DESCRIPTIONS["challenge"])
     def sentinel_challenge(project_id: str, source: str) -> dict:
         return run_cli(["challenge", project_id, "--source", source])
 
-    @server.tool(name="sentinel_scrutinize", description=TOOL_SPECS[22][1])
-    def sentinel_scrutinize(project_id: str, source: str, lens: str = "") -> dict:
+    @server.tool(name="sentinel_scrutinize", description=TOOL_DESCRIPTIONS["scrutinize"])
+    def sentinel_scrutinize(project_id: str, source: str, lens: str = "", mode: str = "") -> dict:
         arguments = ["scrutinize", project_id, "--source", source]
         if lens:
             arguments += ["--lens", lens]
+        if mode:
+            arguments += ["--mode", mode]
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_assume", description=TOOL_SPECS[23][1])
+    @server.tool(name="sentinel_assume", description=TOOL_DESCRIPTIONS["assume"])
     def sentinel_assume(project_id: str, source: str) -> dict:
         return run_cli(["assume", project_id, "--source", source])
 
-    @server.tool(name="sentinel_compose", description=TOOL_SPECS[24][1])
+    @server.tool(name="sentinel_compose", description=TOOL_DESCRIPTIONS["compose"])
     def sentinel_compose(project_id: str, source: str) -> dict:
         return run_cli(["compose", project_id, "--source", source])
 
-    @server.tool(name="sentinel_refine_backlog", description=TOOL_SPECS[25][1])
+    @server.tool(name="sentinel_refine_backlog", description=TOOL_DESCRIPTIONS["refine_backlog"])
     def sentinel_refine_backlog(project_id: str, source: str) -> dict:
         return run_cli(["refine-backlog", project_id, "--source", source])
 
-    @server.tool(name="sentinel_story_status", description=TOOL_SPECS[26][1])
+    @server.tool(name="sentinel_story_status", description=TOOL_DESCRIPTIONS["story_status"])
     def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "") -> dict:
         arguments = ["story-status", project_id, "--story", story, "--set", status]
         if owner:
@@ -325,19 +351,23 @@ def build_server():
             arguments += ["--evidence", evidence]
         return run_cli(arguments)
 
-    @server.tool(name="sentinel_backlog_status", description=TOOL_SPECS[27][1])
+    @server.tool(name="sentinel_backlog_status", description=TOOL_DESCRIPTIONS["backlog_status"])
     def sentinel_backlog_status(project_id: str) -> dict:
         return run_cli(["backlog-status", project_id])
 
-    @server.tool(name="sentinel_implementation_feedback", description=TOOL_SPECS[28][1])
+    @server.tool(name="sentinel_implementation_feedback", description=TOOL_DESCRIPTIONS["implementation_feedback"])
     def sentinel_implementation_feedback(project_id: str, source: str) -> dict:
         return run_cli(["implementation-feedback", project_id, "--source", source])
 
-    @server.tool(name="sentinel_self_review", description=TOOL_SPECS[29][1])
+    @server.tool(name="sentinel_self_review", description=TOOL_DESCRIPTIONS["self_review"])
     def sentinel_self_review(project_id: str, source: str) -> dict:
         return run_cli(["self-review", project_id, "--source", source])
 
-    @server.tool(name="sentinel_gap_elicitation", description=TOOL_SPECS[30][1])
+    @server.tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
+    def sentinel_export(project_id: str, artifact: str, format: str = "md") -> dict:
+        return run_cli(["export", project_id, "--artifact", artifact, "--format", format])
+
+    @server.tool(name="sentinel_gap_elicitation", description=TOOL_DESCRIPTIONS["gap_elicitation"])
     def sentinel_gap_elicitation(project_id: str, gap_id: str, client_capabilities: str = "") -> dict:
         return gap_elicitation(project_id, gap_id, client_capabilities)
 

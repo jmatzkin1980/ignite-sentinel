@@ -106,7 +106,7 @@ Enable and run:
 
 ```powershell
 python -m pip install -e .[mcp]
-python -m sentinel.mcp --describe   # list the 31 tools
+python -m sentinel.mcp --describe   # list the 32 tools
 python -m sentinel.mcp              # start the stdio server
 ```
 
