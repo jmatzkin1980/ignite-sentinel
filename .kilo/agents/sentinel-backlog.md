@@ -1,6 +1,6 @@
-﻿---
+---
 name: sentinel-backlog
-description: Generate epics, user stories, and acceptance criteria from mature specs.
+description: Turn mature specs into the governed backlog — epics, vertical user stories, acceptance criteria, and the story lifecycle.
 mode: primary
 ---
 
@@ -10,27 +10,21 @@ Run:
 
 ```powershell
 python -m sentinel /backlog PROJECT_ID
+python -m sentinel /backlog-status PROJECT_ID
+python -m sentinel /story-status PROJECT_ID --story US-NNN --set STATE [--evidence FILE]
 python -m sentinel /quality PROJECT_ID
 python -m sentinel /trace PROJECT_ID
 python -m sentinel /health PROJECT_ID
-python -m sentinel /validate PROJECT_ID
 ```
 
 Rules:
 
-- If the user describes a desired backlog outcome instead of giving an exact command, run the appropriate Sentinel backlog workflow when gates allow it and summarize generated artifacts plus blockers.
-- Generate one Markdown file per epic as the primary human review artifact, plus `US-00x.md` story mirrors for traceability and quality tooling.
-- Generate vertical, value-oriented stories. Apply INVEST pragmatically: `Small` means small but still independently valuable, testable, and useful.
-- Derive value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files. One evidence-backed Spec Unit should become one vertical story.
-- If no functional Spec Unit exists, keep a single `[PENDING INPUT]` backlog stub and push the issue upstream through gaps or `/specs`; do not expand a fixed placeholder story list.
-- Every value story must trace to an epic, `SPEC-U-*`, spec index, PRD, requirement, `REQ-EARS-*`, and acceptance criteria when available.
-- Treat `sentinel/slicing/backlog_slicing_model.json` as the declarative source for the existing INVEST, vertical slicing, SPIDR, Lawrence, small-but-valuable and enabler-boundary model.
-- Review each story's `Slicing Pattern` and `Slicing Rationale`; the runtime selects them from that model according to the shape of the Spec Unit.
-- Use living domain context from Technology, Design, Quality, Delivery, and Product folders through local retrieval. Do not invent missing commands, files, design tokens, regression suites, data contracts, or blast-radius boundaries.
-- Keep `[PENDING DOMAIN CONTEXT]` visible when a domain contract is missing.
-- Include `Domain Context Coverage`, `Agent Execution Contract`, and `Retrieval Plan For Execution Agents` in stories.
-- `/backlog` must create `08_context_packs/backlog_generation.json` and `08_context_packs/implementation_readiness.json`.
-- Treat `implementation_readiness.json` as the downstream handoff contract for planning, implementation, and testing agents.
-- Cross-cutting enablers are valid only when they are concrete implementation work that must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
-- Generic setup, broad hardening, environment availability, or vague accessibility/operability work are preconditions or external tasks unless tied to specific project functionality and objective completion evidence.
-- Acceptance criteria must be declarative Given/When/Then scenarios and classify fail-to-pass, pass-to-pass, and evidence expectations.
+- Requires ingest, maturity not `BLOCKED`, and health not `DIRTY`; if a gate blocks, report the blocker instead of forcing generation.
+- Derive vertical, value-oriented stories from confirmed `03_specs/units/SPEC-U-NNN.md`; one evidence-backed Spec Unit becomes one story. Apply INVEST/SPIDR/Lawrence via `sentinel/slicing/backlog_slicing_model.json`; `Small` still means independently valuable and testable.
+- If no functional Spec Unit exists, keep a single `[PENDING INPUT]` stub and push the issue upstream through gaps or `/specs`; do not invent a placeholder story list.
+- If `/backlog` reports `foundation_warnings`, explain them and recommend regenerating the foundation — do not force generation.
+- `/story-status` is the only channel for story state, owner, and DoD evidence. Moving a story to `Ready` freezes its acceptance criteria; later changes are recorded in `04_backlog/acceptance_criteria_deltas.md`, never by editing the frozen AC in place.
+- `/backlog-status` regenerates `04_backlog/BACKLOG.md` from governed state; never hand-edit `BACKLOG.md`, `US-NNN.md`, `state.json`, or gate evidence. Downstream blockers return through `/implementation-feedback` (finding types: new-dependency, gap, ac-challenge, surface-not-covered), never as silent scope changes.
+- Every value story traces to an epic, `SPEC-U-*`, PRD, requirement, and acceptance criteria; keep `[PENDING DOMAIN CONTEXT]` visible when a domain contract is missing.
+- Acceptance criteria are declarative Given/When/Then scenarios and classify fail-to-pass, pass-to-pass, and evidence expectations.
+- `/backlog` writes `08_context_packs/backlog_generation.json` and `implementation_readiness.json` (the downstream handoff contract). Depth lives in `user_guide/`.
