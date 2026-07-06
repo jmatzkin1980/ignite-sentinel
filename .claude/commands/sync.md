@@ -20,13 +20,11 @@ python -m sentinel /sync PROJECT_ID
 python -m sentinel /sync PROJECT_ID --source PATH --note "NOTE"
 ```
 
-Without `--source`, Sentinel scans known input and workspace context folders, detects new or modified files by hash, processes each novelty as a `CHG` event, and indexes the result into local LanceDB memory.
+Without `--source`, Sentinel scans known input and workspace context folders, detects new or modified files by hash, processes each novelty as a `CHG` event, and indexes the result into local LanceDB memory. With `--source`, Sentinel processes only the specified file.
 
-With `--source`, Sentinel processes only the specified file.
+A change can invalidate prior assumptions: the ledger moves the affected `ASM-*` (invalidated_assumption, superseded) and raises `origin: sync` gaps, and impacted downstream artifacts are marked stale. The impact report also surfaces associative candidates worth reviewing. The command protocol records the sync anchor in `06_traceability/command_protocol_log.md` and refreshes trace views after the mutation.
 
-The command protocol records the sync anchor in `06_traceability/command_protocol_log.md` and refreshes trace views after the mutation.
-
-Summarize the change ID, impacted artifacts, and newly detected gaps. Recommend a focused context pack before patching downstream artifacts:
+Summarize the change ID, impacted artifacts, and newly detected gaps, then regenerate any affected downstream artifact through its owning command (never by hand). Pull a focused context pack first:
 
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "change topic" --workflow sync --write-pack
