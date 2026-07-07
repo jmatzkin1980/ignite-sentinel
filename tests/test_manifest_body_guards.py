@@ -16,7 +16,8 @@ import unittest
 from sentinel.adapters import load_manifest
 from sentinel.technique_registry import TECHNIQUE_ORDER
 
-FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|patch", re.IGNORECASE)
+# Matches the verb "patch"/"patching" in prose, not identifiers like `apply_patch`.
+FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|(?<!\w)patch", re.IGNORECASE)
 
 # Runtime vocabulary each body must carry so it cannot silently fall behind the
 # semantics/options that affect invocation.

@@ -35,7 +35,14 @@
         "**/*token*",
         "**/__pycache__/**",
         "dist/**",
-        "build/**"
+        "build/**",
+        // IMP-179: governed artifacts are regenerated only via their owning
+        // command (/brief, /specs, /backlog), never hand-edited. Kilo's editor
+        // cannot write them directly; the CLI (commands.allow) still regenerates
+        // them. Mirrors the Codex hook block and the Claude PreToolUse deny.
+        "workspaces/*/02_requirements/project-brief.md",
+        "workspaces/*/03_specs/*.md",
+        "workspaces/*/04_backlog/*.md"
       ]
     },
     "commands": {

@@ -1,10 +1,15 @@
 """Optional Ignite Sentinel pre-tool guardrail (Codex surface).
 
-Thin shim over ``sentinel.hooks_logic`` (IMP-172). Intentionally conservative:
-it SIGNALS a non-blocking local-first reminder and never blocks a mutation —
-deterministic CLI validation plus ``/health`` remain the enforcement layer. The
-governed-artifact deny for Claude Code arrives as a separate hook in IMP-179.
-If the shared logic cannot be imported it fails open (allow).
+Thin shim over ``sentinel.hooks_logic``. Two responsibilities:
+- IMP-179: BLOCK a hand Write/Edit to a governed artifact (project-brief.md,
+  03_specs/*.md, 04_backlog/*.md) — the deterministic policy that mirrors the
+  Claude PreToolUse deny and the Kilo ``file.deny`` globs, so every surface
+  enforces invariant #1 (mutate only via the owning CLI command). It blocks only
+  illegitimate hand-edits; legitimate mutation flows through the CLI.
+- IMP-172: otherwise SIGNAL a non-blocking local-first reminder.
+
+If the shared logic cannot be imported it fails open (allow); the runtime
+checksum guard (IMP-147) and the agent instructions remain the defense in depth.
 """
 
 from __future__ import annotations

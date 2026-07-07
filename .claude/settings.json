@@ -1,0 +1,16 @@
+{
+  "_comment": "IMP-179: versioned default framework policy. A deterministic PreToolUse command hook denies hand Write/Edit of governed Ignite Sentinel artifacts (project-brief.md, 03_specs/*.md, 04_backlog/*.md); regenerate them through their owning command (/brief, /specs, /backlog). This is tier 1 (works in any Claude Code version). The deep, opt-in ignite-verifier (tier 3, PostToolUse) is enabled separately via .claude/settings.local.json — see .claude/hooks/README.md. The BA who needs a deliberate bypass has the CLI.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/deny-governed-artifact-write.py"
+          }
+        ]
+      }
+    ]
+  }
+}
