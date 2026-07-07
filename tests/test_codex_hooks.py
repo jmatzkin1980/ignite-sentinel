@@ -15,7 +15,8 @@ from sentinel import hooks_logic
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
-FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|patch", re.IGNORECASE)
+# Matches the verb "patch"/"patching" in prose, not identifiers like `apply_patch`.
+FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|(?<!\w)patch", re.IGNORECASE)
 
 
 def _load_hook(filename):
@@ -28,8 +29,9 @@ def _load_hook(filename):
 
 class HooksLogicDecisions(unittest.TestCase):
     def test_pre_allows_and_is_silent_for_workspace_path(self):
+        # A non-governed workspace path: no misplacement warning, and no deny.
         result = hooks_logic.pre_tool_use_decision(
-            "Write", {"path": "workspaces/DEMO/02_requirements/project-brief.md"}
+            "Write", {"path": "workspaces/DEMO/01_discovery/gaps.md"}
         )
         self.assertEqual(result["decision"], "allow")
         self.assertNotIn("Warning", result["reason"])
@@ -62,10 +64,17 @@ class HooksLogicDecisions(unittest.TestCase):
         )
         self.assertIn("project_language", result["reason"])
 
-    def test_decisions_never_block(self):
-        for path in ("", "workspaces/DEMO/03_specs/prd.md", "/etc/passwd", "somewhere/07_changes/x.md"):
+    def test_decisions_allow_for_non_governed_paths(self):
+        # Non-governed paths are never blocked. (Governed-artifact writes DO block
+        # in pre — IMP-179 — covered by tests/test_governed_artifact_deny.py.)
+        for path in ("", "workspaces/DEMO/01_discovery/gaps.md", "/etc/passwd", "somewhere/07_changes/x.md"):
             self.assertEqual(hooks_logic.pre_tool_use_decision("Write", {"path": path})["decision"], "allow")
             self.assertEqual(hooks_logic.post_tool_use_decision("Write", {"path": path})["decision"], "allow")
+
+    def test_post_never_blocks_even_governed(self):
+        # PostToolUse is verification-only; it never blocks, even for a governed artifact.
+        result = hooks_logic.post_tool_use_decision("Write", {"path": "workspaces/DEMO/03_specs/prd.md"})
+        self.assertEqual(result["decision"], "allow")
 
     def test_bad_args_are_tolerated(self):
         for args in (None, {}, {"path": None}, "not-a-dict"):

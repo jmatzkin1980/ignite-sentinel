@@ -261,7 +261,9 @@ def workspace_template_check(root: Path) -> dict[str, str]:
     return {"name": label, "status": "PASS", "detail": f"{len(WORKSPACE_DIRS)} dirs match WORKSPACE_DIRS"}
 
 
-_HAND_EDIT_INVITATION = re.compile(r"manual artifact edits|patch", re.IGNORECASE)
+# Catch the verb "patch"/"patching" in prose, not identifiers like `apply_patch`
+# (a real tool name) or `dispatch` — the lookbehind rejects a preceding word char.
+_HAND_EDIT_INVITATION = re.compile(r"manual artifact edits|(?<!\w)patch", re.IGNORECASE)
 # Tools a read-only verifier agent must never hold. Its frontmatter allowlist and
 # its declared denylist must not contradict each other.
 _DANGEROUS_AGENT_TOOLS = ("Write", "Edit", "Bash", "Agent")

@@ -17,7 +17,8 @@ from sentinel.doctor import REQUIRED_KILO_AGENTS, kilo_agent_metadata_checks
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = REPO_ROOT / ".kilo" / "agents"
-FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|patch", re.IGNORECASE)
+# Matches the verb "patch"/"patching" in prose, not identifiers like `apply_patch`.
+FORBIDDEN_INVITATIONS = re.compile(r"manual artifact edits|(?<!\w)patch", re.IGNORECASE)
 
 # Minimum capability mentions each agent must carry so it cannot silently drift
 # behind the runtime again. Tokens are stable runtime vocabulary, not prose.
