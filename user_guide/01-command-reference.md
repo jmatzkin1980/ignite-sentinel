@@ -175,6 +175,8 @@ Use this before sharing gaps with a client or domain owner.
 
 When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited candidate options. They are shortcuts for BA/client selection, not automatic answers; `/resolve-gaps` still closes only confirmed or not-applicable responses.
 
+The `/gaps` result also carries non-blocking `momtest_warnings` (IMP-180): any elicited question phrased as a hypothetical or future opinion ("would you like…?", "¿le gustaría…?") instead of asking about a concrete past event is flagged with the question cited. This is the Mom-Test principle — ask what actually happened, not what someone imagines they would do. It signals, it never blocks, and questions about future *system* capacity (load, scale) are exempt. The same warnings are folded into `/validate`.
+
 ## `annotate`
 
 Merge an agentic semantic analysis of the raw input into discovery gaps (IMP-021). The deterministic checklist decides gaps by token presence/absence and therefore misses what is *named but not defined* (a reassuring keyword like "security is important" suppresses the gap). The agent operating Sentinel is the only component that reads meaning; `/annotate` is its sanctioned channel — it proposes, the runtime validates and persists.

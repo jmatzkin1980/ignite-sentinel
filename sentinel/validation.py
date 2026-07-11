@@ -6,7 +6,9 @@ import re
 from .compilers.specs import spec_unit_snapshot, spec_unit_statement
 from .core.markdown import parse_frontmatter, parse_table_rows
 from .decisions import register_gate_override
+from .discovery.momtest import momtest_warning_line, scan_questions
 from .ears import requirements_quality_report
+from .gaps import parse_gap_table
 from .handoff_contracts import load_handoff_contract_registry
 from .ids import prefix_for_node_type
 from .maturity import brief_section_readiness, prd_section_readiness
@@ -52,6 +54,7 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
     requirement_quality, requirement_warnings = requirement_quality_validation(base)
     cross_consistency = cross_artifact_consistency(project_id, base)
     consistency_warnings = [str(item["message"]) for item in cross_consistency.get("warnings", []) if isinstance(item, dict)]
+    momtest_warnings = momtest_gap_warnings(base)
 
     verdict = "VALID" if not findings else "INVALID"
     result = {
@@ -60,7 +63,7 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
         "semantic_quality": semantic_quality,
         "requirement_quality": requirement_quality,
         "cross_artifact_consistency": cross_consistency,
-        "warnings": [*quality_warnings, *requirement_warnings, *consistency_warnings],
+        "warnings": [*quality_warnings, *requirement_warnings, *consistency_warnings, *momtest_warnings],
     }
     if override_source:
         result["override"] = register_gate_override(
@@ -206,6 +209,21 @@ def semantic_quality_report(base: Path) -> tuple[dict[str, dict[str, object]], l
                 f"{result['pending_markers']} pending markers remain."
             )
     return report, warnings
+
+
+def momtest_gap_warnings(base: Path) -> list[str]:
+    """IMP-180: non-blocking Mom-Test warnings over the questions in gaps.md.
+
+    Reads the discovery gaps table and flags any elicited question phrased as a
+    hypothetical/future opinion instead of asking about a concrete past event.
+    Silent when ``gaps.md`` is absent.
+    """
+    path = base / "01_discovery" / "gaps.md"
+    if not path.exists():
+        return []
+    gaps = parse_gap_table(path.read_text(encoding="utf-8"))
+    findings = scan_questions((gap.get("id", ""), gap.get("question", "")) for gap in gaps)
+    return [momtest_warning_line(finding) for finding in findings]
 
 
 CLAIM_STOPWORDS = {
