@@ -49,6 +49,7 @@ Run 1 always; 2 and 3 when their trigger fits; 4 never on your own initiative. A
 - Use `references/requirement-maturity-gap-checklist.md` when deciding whether missing information should become a gap. This checklist covers the sweet spot for Product, Design/prototype readiness, Technology deep-dive readiness, Frontend, Backend, and Quality handoff.
 - Convert missing or ambiguous information into explicit `GAP` entries.
 - Treat `gaps.md` as a human response contract and a framework artifact. Do not strip IDs, response fields, or the trace table.
+- Mom-Test warnings (IMP-180): `/gaps` returns non-blocking `momtest_warnings` when an elicited question is phrased as a hypothetical or future opinion ("would you like…?", "¿le gustaría…?") instead of asking about a concrete past event. Prefer questions about what actually happened; questions about future *system* capacity are exempt. It signals, it never blocks.
 - Gap statuses are `OPEN`, `PARTIALLY_CLOSED`, `ANSWERED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT`, and `NEW_GAP`. Critical/high `OPEN`, `PARTIALLY_CLOSED`, or `ANSWERED` gaps still block maturity.
 - Do not invent metrics, users, scope, functional requirements, acceptance criteria, NFRs, dependencies, roadmap, or governance constraints.
 - Preserve traceability from `RAW` to `RU`, `SEED`, `DISC`, `REQ`, `GAP`, and `DEC`.

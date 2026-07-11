@@ -12,6 +12,7 @@ from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
 from ..gaps import parse_gap_table
+from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
 from ..sources import mark_source_processed
@@ -848,7 +849,27 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     gaps_path.write_text(render_gaps(project_id, existing, req_id, language), encoding="utf-8")
     counts = count_gaps(existing)
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
-    return {"project_id": project_id, "path": str(gaps_path), "gap_counts": counts}
+    return {
+        "project_id": project_id,
+        "path": str(gaps_path),
+        "gap_counts": counts,
+        # IMP-180: non-blocking Mom-Test warnings over the elicited questions.
+        "momtest_warnings": gap_question_warnings(existing, language),
+    }
+
+
+def gap_question_warnings(gaps: list[dict[str, str]], language: str = "en") -> list[dict[str, str]]:
+    """IMP-180: Mom-Test findings over the elicited questions in a gap set.
+
+    Uses each gap's rendered question (agent-authored when present, else the
+    built-in checklist question) so the heuristic covers every elicited question,
+    not only agentic ones. Never blocks — findings carry ``severity: warning``.
+    """
+    pairs = [
+        (gap.get("id", ""), gap.get("question") or question_for_gap(gap.get("id", ""), language))
+        for gap in gaps
+    ]
+    return scan_questions(pairs)
 
 
 def readiness_stage_for_counts(counts: dict[str, int]) -> str:
