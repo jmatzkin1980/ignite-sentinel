@@ -73,6 +73,7 @@ from .compilers.slicing import (
     title_for_spec_unit_story,
     trace_ids_for_spec_unit,
 )
+from .gaps import parse_non_goals
 from .maturity import evaluate, parse_gap_answers, prd_gate_warnings, prd_section_readiness
 from .prd import render_prd_compositions
 from .retrieval_plans import compose_plan_query, load_retrieval_plan, select_source_context
@@ -199,6 +200,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
     seed_text = read_artifact_text(base / "01_discovery" / "identity_seeds.md")
     decision_text = read_artifact_text(base / "01_discovery" / "decisions.md")
     context["gap_answers"] = parse_gap_answers(seed_text + "\n" + decision_text)
+    context["non_goals"] = parse_non_goals(decision_text)
     context["raw_text"] = evidence_text
     state = read_json(state_path(project_id), {})
     language = str(state.get("project_language", "es")).lower()

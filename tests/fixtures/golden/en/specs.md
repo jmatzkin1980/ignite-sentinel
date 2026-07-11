@@ -43,6 +43,10 @@ Outcome and metrics:
 - In scope: "In scope: read-only risk dashboard for open queues." _(source: `00_raw/`)_
 - Out of scope: "Out of scope: editing cases." _(source: `00_raw/`)_
 
+### No-Objetivos (Non-Goals)
+
+- No non-goals recorded: no out-of-scope/not-applicable gap closures or scope decisions exclude work yet. Populated only from governed data; never invented.
+
 ## 4. Lente de Diseno: Flujos y Resiliencia UX
 
 - [PENDING INPUT]: no evidence in client input yet; tracked by `GAP-DESIGN-FLOW`. Provide via the domain context pack.
@@ -53,11 +57,7 @@ Sweet spot: identify affected journeys, screens, decisions, states, and UX const
 
 - [PENDING INPUT]: no evidence in client input yet; tracked by `GAP-TECH-DATA-SOURCE`. Provide via the domain context pack.
 
-Data and contract depth: include key entities, critical fields, and contract direction only when needed; exhaustive dictionaries, schemas, and sequence diagrams belong in the technology context pack.
-
-## 6. Gobernanza y Restricciones
-
-- [PENDING INPUT]: no evidence in clien
+Data and contract depth: include key entities, critical fields, and contract direction
 
 [TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]
 

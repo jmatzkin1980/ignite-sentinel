@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
 from .ears import classify_ears
-from .gaps import parse_gap_responses
+from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
@@ -15,6 +15,10 @@ from .core.io import append_text
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
+# IMP-185: the out-of-scope/not-applicable subset of confirmed closures. A gap
+# closed with one of these is a governed Non-Goal (scope exclusion), not a
+# positive answer.
+NOT_APPLICABLE_STATUSES = {"no aplica", "not applicable", "n/a", "na"}
 PENDING_STATUSES = {"pendiente", "pending", "en revision", "en revisión", "to confirm", "tbd"}
 VAGUE_ANSWERS = {"tbd", "n/a", "na", "?", "no se", "no sé", "no sabemos", "depende", "to be defined", "pendiente", "lo vemos", "veremos"}
 DOMAIN_SOURCE_TOKENS = {
@@ -242,11 +246,12 @@ def materialize_resolution_decisions(project_id: str, closed: list[dict[str, str
         path.write_text("# Decision Log\n\n", encoding="utf-8")
     rows = [
         "\n## Gap Resolution Decisions\n\n",
-        "| Decision ID | Gap ID | Status | Decision | Source |\n",
-        "| --- | --- | --- | --- | --- |\n",
+        "| Decision ID | Gap ID | Status | Decision | Source | Kind |\n",
+        "| --- | --- | --- | --- | --- | --- |\n",
     ]
     for index, gap in enumerate(decisions, start=1):
-        rows.append(f"| AUTO-DEC-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` |\n")
+        kind = NON_GOAL_KIND if normalize_status(gap.get("decision_status", "")) in NOT_APPLICABLE_STATUSES else DECISION_KIND
+        rows.append(f"| AUTO-DEC-{change_id}-{index:03d} | `{gap['id']}` | CONFIRMED | {gap['answer']} | `{change_id}` | {kind} |\n")
     append_text(path, "".join(rows))
     decision_ids = []
     for gap in decisions:

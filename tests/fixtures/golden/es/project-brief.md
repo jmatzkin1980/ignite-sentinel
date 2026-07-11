@@ -26,6 +26,10 @@ Resultado y métricas:
 - In scope: "Alcance: tablero de solo lectura de colas abiertas." _(fuente: `00_raw/`)_
 - Out of scope: "Fuera de alcance: editar casos." _(fuente: `00_raw/`)_
 
+### No-Objetivos (Non-Goals)
+
+- Sin non-goals registrados: no hay cierres out-of-scope/no-aplica ni decisiones de alcance que excluyan trabajo. Se completa solo desde datos gobernados; no se inventa.
+
 ## 4. Lente de Diseno: Flujos y Resiliencia UX
 
 - [PENDING INPUT]: sin evidencia en el input; se rastrea en `GAP-DESIGN-FLOW`. Aportar en el context pack del dominio.

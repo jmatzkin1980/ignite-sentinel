@@ -15,6 +15,7 @@ from ..discovery import (
     prd_section_for_gap,
     split_evidence_sentences,
 )
+from ..gaps import render_non_goals_block
 
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
@@ -189,6 +190,11 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
     ears_block = render_ears_requirements_table(context)
     compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text)
+    non_goals_title = "Non-Goals" if english else "No-Objetivos (Non-Goals)"
+    non_goals_context = context.get("non_goals", []) if isinstance(context, dict) else []
+    non_goals_block = render_non_goals_block(
+        non_goals_context if isinstance(non_goals_context, list) else [], language
+    )
     if extracted_personas:
         persona_rows = "\n".join(
             f'| P-E{i + 1} | "{row["evidence"]}" | `REQ-001` |' for i, row in enumerate(extracted_personas)
@@ -270,6 +276,10 @@ The outcome above is compiled from source evidence. Any missing outcome or measu
 ### Out of Scope
 
 Items not backed by the brief, confirmed seeds, decisions, or retrieved domain context stay outside the PRD scope until a traced `/sync` or gap-resolution event confirms them.
+
+### {non_goals_title}
+
+{non_goals_block}
 
 ## 3. {personas}
 
