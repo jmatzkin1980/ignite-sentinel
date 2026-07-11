@@ -314,6 +314,8 @@ This is the crystallized handoff from iterative discovery into PRD/spec/backlog 
 
 Narrative sections 1–6 are compiled from evidence, not templated (IMP-024). The compiler extracts initiative, objective, metric, actors, as-is/to-be, and scope from the raw client input and from confirmed answers of closed gaps (routed to their section by the IMP-022 gap→section map), citing the source for every claim. A sub-detail with no evidence references the gap that tracks it; a section with no anchor evidence renders an explicit `[PENDING INPUT]` pointing to its gap — never generic TBD or invented text.
 
+Section 3 also carries a governed **`### No-Objetivos (Non-Goals)`** block (IMP-185): scope exclusions projected only from gaps closed out-of-scope/not-applicable (a `/resolve-gaps` closure with decision status `no aplica`/`not applicable`) and scope decisions, each cited by its `GAP-*` id and change source. With no such closures the block shows an explicit "no non-goals recorded" marker — the exclusion is never invented. To add a non-goal, close the relevant gap as not-applicable; do not edit the brief by hand.
+
 The brief should hit the discovery sweet spot: complete enough for Design, Technology, Frontend, Backend, and Quality to start deep analysis, but not so detailed that it becomes their final deliverable. For Technology, this usually means endpoint/event inventory, create/modify/reuse decisions, source-of-truth ownership, constraints, and risks; full request/response contracts, schemas, dictionaries, and diagrams can live in dedicated context packs.
 
 When present, `specs` uses this brief as its mature source instead of the thinner initial `requirements.md`.
@@ -331,6 +333,8 @@ This is the human/business-facing PRD. It explains what is being built, why it m
 The first PRD sections are evidence-compiled rather than filled from a static template. `/specs` reads the mature brief, raw/source evidence, confirmed gap answers, EARS-normalized requirements, decisions, and focused local-memory retrieval. Claims are rendered with source IDs or source hints such as `REQ-*`, `REQ-EARS-*`, `CHG-*`, `DEC-*`, or `00_raw/`. If a section has no supporting evidence, Sentinel leaves `[PENDING INPUT]` with the `GAP-*` that must be resolved instead of inventing scope.
 
 Closed gap answers are routed to PRD sections through the discovery gap map. For example, persona answers feed section 3, functional/acceptance answers feed section 4, and KPI/NFR answers feed sections 5 or 6. This keeps the PRD falsable: a reviewer can trace each populated line back to evidence or see the exact pending gap.
+
+The Scope section (§2) carries a **`### Non-Goals`** block (IMP-185) mirroring the brief's: the same governed scope-exclusion list (gaps closed out-of-scope/not-applicable and scope decisions), each cited by `GAP-*` id and change source, or an explicit "no non-goals recorded" marker when none exist. `/validate` anchors the section bilingually (`No-Objetivos`/`Non-Goals`).
 
 Agent-authored PRD enrichment can be merged through `/compose`. Accepted blocks appear under an `Agent Composition` subsection with `Origin: agent` and paragraph-level citations. Sentinel accepts only paragraphs whose citations are found verbatim in local source-of-truth artifacts, and it refuses to enrich PRD sections that still contain pending markers.
 

@@ -35,6 +35,10 @@ python -m sentinel /brief PROJECT_ID
 
 Never fill a pending section by hand or with unsourced narrative; the brief is compiled, and sections only populate from confirmed answers, seeds, and cited context.
 
+## Non-Goals (governed scope exclusions, IMP-185)
+
+Section 3 carries a `### No-Objetivos (Non-Goals)` block projected only from governed data: gaps closed out-of-scope/not-applicable (a `/resolve-gaps` closure with decision status `no aplica` / `not applicable`) and scope decisions, each entry cited by its `GAP-*` id and change source. With no such closures the block shows the explicit marker "Sin non-goals registrados / No non-goals recorded" — never an invented exclusion. The same governed list feeds the PRD's `### Non-Goals` under Scope (`sentinel-specs`). To add a non-goal, close the relevant gap as not-applicable through `/resolve-gaps`; do not hand-write it.
+
 ## Gates at the Brief Close (explain, never force)
 
 The `/brief` result carries three gates; `blocked: true` plus `readiness_stage` tells you which one fired:

@@ -100,6 +100,7 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
         required_pairs = (
             ("Resumen Ejecutivo", "Executive Summary"),
             ("Alcance", "Scope"),
+            ("No-Objetivos", "Non-Goals"),
             ("Usuarios y personas", "Users And Personas"),
             ("Requerimientos funcionales", "Functional Requirements"),
             ("Acceptance Criteria", "Acceptance Criteria"),

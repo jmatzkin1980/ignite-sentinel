@@ -24,6 +24,24 @@ BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED"}
 DEFAULT_BLOCKING_GAP_SEVERITIES = {"critical", "high"}
 
+# IMP-185: gap closures resolved as out-of-scope/not-applicable are governed
+# Non-Goals. The gap-resolution decisions table tags each row with a Kind so the
+# brief/PRD compilers can project the scope-exclusion rows without re-deriving.
+NON_GOAL_KIND = "non-goal"
+DECISION_KIND = "decision"
+NON_GOAL_MARKER = {
+    "es": (
+        "- Sin non-goals registrados: no hay cierres out-of-scope/no-aplica ni "
+        "decisiones de alcance que excluyan trabajo. Se completa solo desde datos "
+        "gobernados; no se inventa."
+    ),
+    "en": (
+        "- No non-goals recorded: no out-of-scope/not-applicable gap closures or "
+        "scope decisions exclude work yet. Populated only from governed data; "
+        "never invented."
+    ),
+}
+
 
 def blocking_severities(config: dict[str, Any] | None) -> set[str]:
     maturity = config.get("maturity", {}) if isinstance(config, dict) else {}
@@ -134,3 +152,40 @@ def parse_gap_answers(text: str) -> dict[str, dict[str, str]]:
         if len(row) >= 5 and row[1].startswith("GAP-") and row[2].upper() == "CONFIRMED":
             answers.setdefault(row[1], {"statement": row[3], "source": row[4]})
     return answers
+
+
+def parse_non_goals(decisions_text: str) -> list[dict[str, str]]:
+    """Governed Non-Goals from the gap-resolution decisions table (IMP-185).
+
+    Only rows tagged ``Kind == non-goal`` (a gap closed out-of-scope/not-applicable)
+    are projected; each carries its gap id and source so the entry stays cited.
+    No matching rows -> empty list (compilers render the explicit marker, never
+    an invented non-goal).
+    """
+    non_goals: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for row in parse_table_rows(decisions_text, skip_separator_rows=True):
+        if len(row) < 6 or not row[1].startswith("GAP-"):
+            continue
+        if row[5].strip().lower() != NON_GOAL_KIND:
+            continue
+        gap_id = row[1]
+        if gap_id in seen:
+            continue
+        seen.add(gap_id)
+        non_goals.append({"gap_id": gap_id, "statement": row[3], "source": row[4]})
+    return non_goals
+
+
+def render_non_goals_block(non_goals: list[dict[str, str]], language: str) -> str:
+    """Render the governed Non-Goals bullets, or the explicit empty marker."""
+    if not non_goals:
+        return NON_GOAL_MARKER["es" if language == "es" else "en"]
+    lines: list[str] = []
+    for item in non_goals:
+        gap_id = str(item.get("gap_id", "")).strip()
+        statement = str(item.get("statement", "")).strip()
+        source = str(item.get("source", "")).strip()
+        cite = f"`{gap_id}`" + (f" / `{source}`" if source else "")
+        lines.append(f"- {statement} _({cite})_")
+    return "\n".join(lines)

@@ -18,7 +18,7 @@ from .discovery import (
 )
 from .core.markdown import parse_table_rows
 from .ears import requirements_quality_report
-from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table
+from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table, parse_non_goals, render_non_goals_block
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -789,6 +789,7 @@ def render_project_brief(
     coverage = summarize_table_artifact(lens_review_text, "Lens", max_rows=6)
     sec = compile_brief_sections(raw_text, gap_answers or {}, req_text, language, project_id=project_id)
     assumptions = summarize_table_artifact(assumptions_text, "Assumption ID", max_rows=8)
+    non_goals = render_non_goals_block(parse_non_goals(decisions_text), language)
     return f"""# Project Brief - {project_id}
 
 This brief is the mature discovery output. It reflects iterated requirement evidence and is the source handoff for PRD, specs, backlog, acceptance criteria, and tests.
@@ -806,6 +807,10 @@ Depth principle: the brief should be complete enough to guide domain work withou
 ## 3. Lente de Producto: Proceso y Journey
 
 {sec['3']}
+
+### No-Objetivos (Non-Goals)
+
+{non_goals}
 
 ## 4. Lente de Diseno: Flujos y Resiliencia UX
 

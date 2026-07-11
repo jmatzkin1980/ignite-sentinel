@@ -33,6 +33,10 @@ The outcome above is compiled from source evidence. Any missing outcome or measu
 
 Items not backed by the brief, confirmed seeds, decisions, or retrieved domain context stay outside the PRD scope until a traced `/sync` or gap-resolution event confirms them.
 
+### Non-Goals
+
+- No non-goals recorded: no out-of-scope/not-applicable gap closures or scope decisions exclude work yet. Populated only from governed data; never invented.
+
 ## 3. Users And Personas
 
 | ID | Persona Evidence | Source |
