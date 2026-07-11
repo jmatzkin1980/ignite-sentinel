@@ -25,6 +25,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/status PROJECT_ID`
 - `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md`
 - `/export PROJECT_ID --artifact prd --format mdx`
+- `/export PROJECT_ID --artifact gaps --format interview`
 - `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`

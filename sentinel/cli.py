@@ -164,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     export_p = sub.add_parser("export")
     export_p.add_argument("project_id")
     export_p.add_argument("--artifact", required=True, choices=["gaps", "brief", "context-request", "prd"])
-    export_p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx"])
+    export_p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx", "interview"])
     export_p.add_argument("--domain")
 
     backlog_p = sub.add_parser("backlog")
