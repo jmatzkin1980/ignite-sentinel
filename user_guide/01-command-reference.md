@@ -455,6 +455,7 @@ python -m sentinel /export PROJECT_ID --artifact gaps --format md
 python -m sentinel /export PROJECT_ID --artifact brief --format md
 python -m sentinel /export PROJECT_ID --artifact context-request --format md --domain technology
 python -m sentinel /export PROJECT_ID --artifact prd --format mdx
+python -m sentinel /export PROJECT_ID --artifact gaps --format interview
 ```
 
 Output:
@@ -462,6 +463,8 @@ Output:
 - `08_context_packs/exports/`
 
 Markdown export copies the source artifact. PRD MDX export is optional and derived from the artifact block model: it writes `08_context_packs/exports/prd-mdx/index.mdx`, `blocks.json`, and a local `README.md`. Use it only with an offline renderer your team already controls. Sentinel does not install a renderer, call a hosted Plan MCP, or treat MDX as source of truth.
+
+The `interview` format (gaps only) writes `08_context_packs/exports/gaps-interview.md`: the open gaps ordered as a meeting script — blocking gaps first, grouped by lens — each with cited context, the question to ask, and 1-2 probing questions derived from the cited candidate options (never invented; a gap with no local evidence gets none). It is a read-only derived view: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited.
 
 ## `specs`
 

@@ -11,7 +11,7 @@ from ..technique_registry import default_challenge_technique_ids, default_techni
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
-from ..gaps import parse_gap_table
+from ..gaps import is_blocking, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
@@ -2187,6 +2187,127 @@ Client / domain response:
 - Evidence or reference:
 - Decision status:
 """
+
+
+# --- IMP-183: read-only "interview script" export from open gaps -------------
+
+_INTERVIEW_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def interview_probing_for_gap(gap: dict[str, str], language: str = "en") -> list[dict[str, str]]:
+    """1-2 cited probing follow-ups DERIVED from the IMP-113 candidate options.
+
+    Never invents questions: it reuses ``candidate_options_for_gap`` verbatim, so a gap
+    without local evidence (no ``evidence_mention``) yields no probing questions (silence).
+    """
+    return [
+        {"text": option["text"], "citation": option["citation"]}
+        for option in candidate_options_for_gap(gap, language)
+    ]
+
+
+def _interview_gap_entry(number: int, gap: dict[str, str], language: str = "en") -> str:
+    gap_id = gap["id"]
+    lens = gap.get("lens") or lens_for_gap(gap_id)
+    severity = str(gap.get("severity", "")).strip("`").lower()
+    title = human_title_for_gap(gap_id, language)
+    question = str(gap.get("question") or question_for_gap(gap_id, language)).strip()
+    context = evidence_note_for_gap(gap, language)
+    probing = interview_probing_for_gap(gap, language)
+    if language == "es":
+        lines = [f"{number}. {title} (`{gap_id}`, severidad `{severity}`, lente `{lens}`)", ""]
+        if context:
+            lines.append(f"- Contexto citado: {context}")
+        lines.append(f"- Preguntar: {question}")
+        if probing:
+            lines.append("- Preguntas de profundizacion:")
+            for probe in probing:
+                lines.append(f"  - {probe['text']} Cita local: `{probe['citation']}`.")
+        return "\n".join(lines)
+    lines = [f"{number}. {title} (`{gap_id}`, severity `{severity}`, lens `{lens}`)", ""]
+    if context:
+        lines.append(f"- Cited context: {context}")
+    lines.append(f"- Ask: {question}")
+    if probing:
+        lines.append("- Probing questions:")
+        for probe in probing:
+            lines.append(f"  - {probe['text']} Local citation: `{probe['citation']}`.")
+    return "\n".join(lines)
+
+
+def _interview_grouped_sections(
+    gaps: list[dict[str, str]], counter_start: int, language: str
+) -> tuple[list[str], int]:
+    """Render gaps grouped by lens (alphabetical, stable), continuously numbered."""
+    by_lens: dict[str, list[dict[str, str]]] = {}
+    for gap in gaps:
+        lens = gap.get("lens") or lens_for_gap(gap["id"])
+        by_lens.setdefault(lens, []).append(gap)
+    sections: list[str] = []
+    number = counter_start
+    for lens in sorted(by_lens):
+        lens_gaps = sorted(
+            by_lens[lens],
+            key=lambda g: (_INTERVIEW_SEVERITY_ORDER.get(str(g.get("severity", "")).strip("`").lower(), 4), g["id"]),
+        )
+        entries = []
+        for gap in lens_gaps:
+            entries.append(_interview_gap_entry(number, gap, language))
+            number += 1
+        sections.append(f"### {lens}\n\n" + "\n\n".join(entries))
+    return sections, number
+
+
+def render_interview_script(project_id: str, gaps: list[dict[str, str]], language: str = "en") -> str:
+    open_gaps = [gap for gap in gaps if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
+    blocking = [gap for gap in open_gaps if is_blocking(gap)]
+    followup = [gap for gap in open_gaps if not is_blocking(gap)]
+    if language == "es":
+        header = (
+            f"# Guion de entrevista - {project_id}\n\n"
+            "Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion "
+            "(gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion "
+            "salen de las opciones candidatas citadas (IMP-113); nunca se inventan. Este guion "
+            "NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.\n"
+        )
+        blocking_heading = "## Preguntas bloqueantes"
+        followup_heading = "## Preguntas de seguimiento"
+        empty = "_No hay gaps abiertos: no hay preguntas para la entrevista._"
+    else:
+        header = (
+            f"# Interview Script - {project_id}\n\n"
+            "READ-ONLY derived view of the open gaps, ordered as a meeting script "
+            "(blocking gaps first, grouped by lens). Probing questions come from the cited "
+            "candidate options (IMP-113); they are never invented. This script does NOT replace "
+            "`01_discovery/gaps.md` (the source of truth) and closes no gap.\n"
+        )
+        blocking_heading = "## Blocking questions"
+        followup_heading = "## Follow-up questions"
+        empty = "_No open gaps: there are no interview questions._"
+    if not open_gaps:
+        return header + "\n" + empty + "\n"
+    parts = [header]
+    number = 1
+    if blocking:
+        sections, number = _interview_grouped_sections(blocking, number, language)
+        parts.append(blocking_heading + "\n\n" + "\n\n".join(sections))
+    if followup:
+        sections, number = _interview_grouped_sections(followup, number, language)
+        parts.append(followup_heading + "\n\n" + "\n\n".join(sections))
+    return "\n\n".join(parts) + "\n"
+
+
+def build_interview_script(project_id: str) -> str:
+    """Read open gaps from the canonical gaps.md and render the interview script."""
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot export an interview script before /ingest creates 01_discovery/gaps.md.")
+    gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    state = read_json(base / "state.json", {})
+    configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
+    language = configured if configured in {"es", "en"} else "en"
+    return render_interview_script(project_id, gaps, language)
 
 
 def human_title_for_gap(gap_id: str, language: str = "en") -> str:

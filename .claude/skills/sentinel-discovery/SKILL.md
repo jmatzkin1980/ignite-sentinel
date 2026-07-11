@@ -34,6 +34,18 @@ The lexical checklist behind `/gaps` is the floor, not the ceiling. Once `gaps.m
 
 Run 1 always; 2 and 3 when their trigger fits; 4 never on your own initiative. All four propose through governed commands — none of them closes gaps or edits artifacts directly.
 
+## Interview Script Export (IMP-183)
+
+When the BA needs to work the open gaps live in a meeting instead of an async `gaps.md`, generate a read-only interview script:
+
+```powershell
+python -m sentinel /export PROJECT_ID --artifact gaps --format interview
+```
+
+It writes `08_context_packs/exports/gaps-interview.md`: the **open** gaps ordered as a meeting script — **blocking gaps first**, grouped by lens — each with its cited context, the question to ask, and 1-2 **probing questions**. The probing questions are DERIVED from the IMP-113 candidate options, so they are always cited to local evidence; a gap without a local `evidence_mention` gets no probing questions (silence, never invented).
+
+This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note.
+
 ## Memory
 
 - Sentinel uses local LanceDB memory under `workspaces/PROJECT_ID/memory.lancedb/`.

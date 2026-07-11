@@ -17,8 +17,10 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         raise RuntimeError(f"Export source not found: {source}")
     if fmt == "mdx":
         return export_mdx(project_id, artifact, source)
+    if fmt == "interview":
+        return export_interview(project_id, artifact)
     if fmt != "md":
-        raise RuntimeError("Unsupported export format. Use md or mdx.")
+        raise RuntimeError("Unsupported export format. Use md, mdx, or interview.")
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / source.name
@@ -29,6 +31,26 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         "artifact": artifact,
         "format": "md",
         "source": str(source.as_posix()),
+        "path": str(target.as_posix()),
+    }
+
+
+def export_interview(project_id: str, artifact: str) -> dict[str, str]:
+    if artifact.lower() != "gaps":
+        raise RuntimeError("Interview export is currently supported only for --artifact gaps.")
+    from .discovery import build_interview_script
+
+    script = build_interview_script(project_id)
+    export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    target = export_dir / "gaps-interview.md"
+    target.write_text(script, encoding="utf-8")
+    update_state(project_id, last_export=str(target.as_posix()))
+    return {
+        "project_id": project_id,
+        "artifact": "gaps",
+        "format": "interview",
+        "source": str((workspace_path(project_id) / "01_discovery" / "gaps.md").as_posix()),
         "path": str(target.as_posix()),
     }
 
