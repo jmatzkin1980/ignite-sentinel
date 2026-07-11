@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .lens_registry import known_lenses
+from .risk_category_registry import known_risk_categories
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import read_json as core_read_json
@@ -117,6 +118,14 @@ def validate_assumptions(data: dict[str, Any], grounding_text: str) -> list[dict
         closes_gap = str(raw.get("closes_gap", "")).strip().upper()
         if closes_gap and not closes_gap.startswith("GAP-"):
             raise AssumptionError(f"{assumption_id}: closes_gap must be a GAP-* id when present.")
+        risk_category = str(raw.get("risk_category", "")).strip().lower()
+        if risk_category:
+            valid_risk_categories = known_risk_categories()
+            if risk_category not in valid_risk_categories:
+                raise AssumptionError(
+                    f"{assumption_id}: risk_category '{raw.get('risk_category')}' is not declared "
+                    f"({', '.join(sorted(valid_risk_categories))})."
+                )
         validated.append(
             {
                 "id": assumption_id,
@@ -128,6 +137,7 @@ def validate_assumptions(data: dict[str, Any], grounding_text: str) -> list[dict
                 "priority_signal": assumption_priority_signal(risk, uncertainty),
                 "justification": justification,
                 "closes_gap": closes_gap,
+                "risk_category": risk_category,
                 "status": "ASSUMED",
             }
         )
@@ -156,6 +166,9 @@ def assumption_rows(text: str) -> list[dict[str, str]]:
             closes_gap = cells[6]
             status = cells[7]
         risk = normalize_level(cells[4])
+        risk_category = cells[10].strip().lower() if len(cells) >= 11 else ""
+        if risk_category in {"-", "n/a"}:
+            risk_category = ""
         rows.append(
             {
                 "id": cells[0],
@@ -168,6 +181,7 @@ def assumption_rows(text: str) -> list[dict[str, str]]:
                 "justification": justification.replace("\\|", "|"),
                 "closes_gap": "" if closes_gap in {"-", "N/A"} else closes_gap,
                 "status": status,
+                "risk_category": risk_category,
             }
         )
     return rows
@@ -286,26 +300,41 @@ def update_assumption_statuses(
     }
 
 
+def _format_assumption_row(row: dict[str, str], *, include_category: bool) -> str:
+    risk = normalize_level(row["risk"])
+    uncertainty = normalize_level(row.get("uncertainty"))
+    line = "| {id} | {lens} | {statement} | {owner} | {risk} | {uncertainty} | {priority_signal} | {justification} | {closes_gap} | {status} |".format(
+        id=row["id"],
+        lens=row["lens"],
+        statement=escape_table(row["statement"]),
+        owner=escape_table(row["owner"]),
+        risk=risk,
+        uncertainty=uncertainty,
+        priority_signal=assumption_priority_signal(risk, uncertainty),
+        justification=escape_table(row["justification"]),
+        closes_gap=row.get("closes_gap") or "-",
+        status=row.get("status", "ASSUMED"),
+    )
+    if not include_category:
+        return line
+    return f"{line[:-1]}| {row.get('risk_category') or '-'} |"
+
+
+def _assumption_table(rows: list[dict[str, str]], *, include_category: bool) -> str:
+    header = "| Assumption ID | Lens | Statement | Owner | Risk | Uncertainty | Priority Signal | Justification / Evidence | Closes Gap | Status |"
+    separator = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+    if include_category:
+        header = f"{header[:-1]}| Risk Category |"
+        separator = f"{separator[:-1]}| --- |"
+    body = "\n".join(_format_assumption_row(row, include_category=include_category) for row in rows) or (
+        "| N/A | N/A | No assumptions registered. | N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
+        + (" N/A |" if include_category else "")
+    )
+    return f"{header}\n{separator}\n{body}"
+
+
 def render_assumptions(project_id: str, rows: list[dict[str, str]]) -> str:
-    table = "\n".join(
-        "| {id} | {lens} | {statement} | {owner} | {risk} | {uncertainty} | {priority_signal} | {justification} | {closes_gap} | {status} |".format(
-            id=row["id"],
-            lens=row["lens"],
-            statement=escape_table(row["statement"]),
-            owner=escape_table(row["owner"]),
-            risk=normalize_level(row["risk"]),
-            uncertainty=normalize_level(row.get("uncertainty")),
-            priority_signal=assumption_priority_signal(
-                normalize_level(row["risk"]),
-                normalize_level(row.get("uncertainty")),
-            ),
-            justification=escape_table(row["justification"]),
-            closes_gap=row.get("closes_gap") or "-",
-            status=row.get("status", "ASSUMED"),
-        )
-        for row in rows
-    ) or "| N/A | N/A | No assumptions registered. | N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
-    return f"""# Assumptions - {project_id}
+    intro = f"""# Assumptions - {project_id}
 
 Governed assumptions are explicit BA-owned decisions used when a gap cannot be
 confirmed yet but the team chooses to proceed with visible risk. They do not
@@ -314,10 +343,29 @@ turn uncertainty into confirmed scope. Each row has human owner, importance
 `high` risk plus `high` uncertainty is a non-blocking "test before advancing"
 signal for BA prioritization.
 
-| Assumption ID | Lens | Statement | Owner | Risk | Uncertainty | Priority Signal | Justification / Evidence | Closes Gap | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-{table}
 """
+    if not any(row.get("risk_category") for row in rows):
+        return intro + _assumption_table(rows, include_category=False) + "\n"
+
+    from .risk_category_registry import RISK_CATEGORY_ORDER, risk_category_label
+
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        grouped.setdefault(row.get("risk_category") or "", []).append(row)
+    ordered_categories = [category for category in RISK_CATEGORY_ORDER if category in grouped]
+    ordered_categories += [
+        category for category in sorted(grouped) if category and category not in ordered_categories
+    ]
+    if "" in grouped:
+        ordered_categories.append("")
+
+    sections = [
+        "Grouped by Cagan risk category (`risk_category`); rows without one are listed under Uncategorized.",
+    ]
+    for category in ordered_categories:
+        label = risk_category_label(category) if category else "Uncategorized"
+        sections.append(f"## {label}\n\n{_assumption_table(grouped[category], include_category=True)}")
+    return intro + "\n\n".join(sections) + "\n"
 
 
 def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
@@ -327,6 +375,7 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
     test_before_advancing: list[str] = []
     by_lens: dict[str, int] = {}
     by_status: dict[str, int] = {}
+    by_risk_category: dict[str, int] = {}
     for row in rows:
         risk = normalize_level(row.get("risk"))
         uncertainty = normalize_level(row.get("uncertainty"))
@@ -335,6 +384,8 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
         by_lens[row.get("lens", "product")] = by_lens.get(row.get("lens", "product"), 0) + 1
         status = row.get("status", "ASSUMED").upper()
         by_status[status] = by_status.get(status, 0) + 1
+        risk_category = row.get("risk_category") or "uncategorized"
+        by_risk_category[risk_category] = by_risk_category.get(risk_category, 0) + 1
         if risk == "high" and row.get("closes_gap"):
             high_risk_blocking.append(row["closes_gap"])
         if risk == "high" and uncertainty == "high":
@@ -345,6 +396,7 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
         "by_uncertainty": by_uncertainty,
         "by_lens": by_lens,
         "by_status": by_status,
+        "by_risk_category": by_risk_category,
         "high_risk_gap_ids": sorted(set(high_risk_blocking)),
         "test_before_advancing_ids": sorted(set(test_before_advancing)),
     }

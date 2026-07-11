@@ -68,6 +68,20 @@ class AssumptionValidationTests(unittest.TestCase):
         with self.assertRaises(AssumptionError):
             validate_assumptions({"assumptions": [_assumption(uncertainty="certain")]}, RAW)
 
+    def test_risk_category_is_optional_and_normalized(self):
+        rows = validate_assumptions({"assumptions": [_assumption()]}, RAW)
+        self.assertEqual(rows[0]["risk_category"], "")
+
+    def test_valid_risk_category_accepted(self):
+        rows = validate_assumptions({"assumptions": [_assumption(risk_category="Feasibility")]}, RAW)
+        self.assertEqual(rows[0]["risk_category"], "feasibility")
+
+    def test_invalid_risk_category_rejected_with_exact_enum(self):
+        with self.assertRaises(AssumptionError) as ctx:
+            validate_assumptions({"assumptions": [_assumption(risk_category="go-to-market")]}, RAW)
+        message = str(ctx.exception)
+        self.assertIn("feasibility, usability, value, viability", message)
+
     def test_projection_rows_include_only_assumed_rows_riskiest_first(self):
         rows = [
             {
@@ -224,6 +238,27 @@ class AssumptionLifecycleTests(unittest.TestCase):
 
     def test_cli_assume_rejects_invalid_citation(self):
         bad = self._write({"assumptions": [_assumption(justification="fabricated quote")]})
+        self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 1)
+
+    def test_register_groups_by_risk_category_and_readiness_reports_coverage(self):
+        result = apply_assumptions(
+            "ASM",
+            self._write({"assumptions": [_assumption(risk_category="feasibility")]}),
+        )
+        self.assertEqual(result["assumption_summary"]["by_risk_category"], {"feasibility": 1})
+
+        assumptions_md = (self.ws / "01_discovery" / "assumptions.md").read_text(encoding="utf-8")
+        self.assertIn("## Feasibility", assumptions_md)
+        self.assertIn("Risk Category", assumptions_md)
+
+        from sentinel.development_readiness import compute_development_readiness
+
+        readiness = compute_development_readiness("ASM")
+        self.assertIn("feasibility", readiness["summary"]["by_risk_category"])
+        self.assertEqual(readiness["summary"]["by_risk_category"]["feasibility"]["ASSUMED"], 1)
+
+    def test_cli_assume_rejects_invalid_risk_category(self):
+        bad = self._write({"assumptions": [_assumption(risk_category="strategy")]})
         self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 1)
 
 

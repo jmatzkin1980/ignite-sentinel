@@ -185,6 +185,7 @@ class MigratedMarkdownCallSiteTests(unittest.TestCase):
                     "justification": "Evidence basis",
                     "closes_gap": "GAP-001",
                     "status": "ASSUMED",
+                    "risk_category": "",
                 }
             ],
         )

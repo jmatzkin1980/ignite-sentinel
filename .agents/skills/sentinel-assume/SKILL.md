@@ -26,6 +26,7 @@ Do not use web or remote sources for client/project content.
 - Every assumption needs a verbatim local quote as `justification`.
 - `closes_gap` is provisional visibility only. It does not turn the gap into confirmed evidence.
 - High-risk assumptions linked to gaps must be called out in the summary.
+- `risk_category` is optional and separate from `lens` — a lens is whose evidence scope the assumption sits in; `risk_category` is which of Cagan's four product risks it is about: `value`, `usability`, `viability` (business viability), or `feasibility`. Do not conflate the two or try to derive one from the other. Old payloads without `risk_category` remain valid.
 
 ## Prioritization Rubric (risk × uncertainty)
 
@@ -53,13 +54,14 @@ Create a local JSON file shaped like this:
       "risk": "med",
       "uncertainty": "high",
       "justification": "The dashboard reads queue metrics from the existing support metrics service.",
-      "closes_gap": "GAP-TECH-DATA-SOURCE"
+      "closes_gap": "GAP-TECH-DATA-SOURCE",
+      "risk_category": "feasibility"
     }
   ]
 }
 ```
 
-The full contract lives in `sentinel/schemas/assumption.schema.json`. The quote in `justification` must appear verbatim in local evidence (`evidence` is accepted as an alias for `justification`).
+The full contract lives in `sentinel/schemas/assumption.schema.json`. The quote in `justification` must appear verbatim in local evidence (`evidence` is accepted as an alias for `justification`). `risk_category`'s default set (`sentinel/risk_categories/*.json`) can be extended per project with additional categories via a directory override, the same molde as the `/challenge` technique registry — add JSON, not Python; the runtime rejects any value outside the declared set with the exact enum.
 
 ## Command
 
@@ -69,7 +71,7 @@ Run from the repository root:
 python -m sentinel /assume PROJECT_ID --source PATH
 ```
 
-Report accepted assumption IDs, skipped duplicates, risk summary, linked gaps, `01_discovery/assumptions.md`, and refreshed `knowledge_state.md`.
+Report accepted assumption IDs, skipped duplicates, risk summary, linked gaps, `01_discovery/assumptions.md`, and refreshed `knowledge_state.md`. When any assumption carries a `risk_category`, `assumptions.md` groups its register by category (rows without one fall under "Uncategorized") and the development readiness matrix (`/maturity`) reports coverage per category alongside its existing per-lens coverage.
 
 ## Agentic Spirit (applies to every proposal you author)
 

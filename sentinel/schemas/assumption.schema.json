@@ -25,7 +25,12 @@
           "uncertainty": { "type": "string", "enum": ["low", "med", "medium", "high"] },
           "justification": { "type": "string", "minLength": 1 },
           "evidence": { "type": "string", "minLength": 1 },
-          "closes_gap": { "type": "string", "pattern": "^GAP-[A-Z0-9-]+$" }
+          "closes_gap": { "type": "string", "pattern": "^GAP-[A-Z0-9-]+$" },
+          "risk_category": {
+            "type": "string",
+            "enum": ["value", "usability", "viability", "feasibility"],
+            "description": "Optional. Which of Cagan's four product risks the assumption is about. Extensible per project via a risk-category directory override (sentinel/risk_category_registry.py); this enum lists the default four."
+          }
         }
       }
     }
