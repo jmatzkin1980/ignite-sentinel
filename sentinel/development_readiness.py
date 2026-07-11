@@ -113,6 +113,7 @@ def readiness_cell(
             "assumption_id": assumption.get("id", ""),
             "owner": assumption.get("owner", ""),
             "risk": assumption.get("risk", "med"),
+            "risk_category": assumption.get("risk_category", ""),
         }
         links = compact_links(
             [
@@ -176,6 +177,7 @@ def summarize_matrix(matrix: list[dict[str, Any]]) -> dict[str, Any]:
     cells = [cell for area in matrix for cell in area.get("lenses", []) if isinstance(cell, dict)]
     by_status = {status: 0 for status in READINESS_STATUSES}
     by_lens: dict[str, dict[str, int]] = {}
+    by_risk_category: dict[str, dict[str, int]] = {}
     high_risk_assumptions: list[str] = []
     for cell in cells:
         status = str(cell.get("status", "OPEN"))
@@ -186,6 +188,10 @@ def summarize_matrix(matrix: list[dict[str, Any]]) -> dict[str, Any]:
         evidence = cell.get("evidence", {}) if isinstance(cell.get("evidence"), dict) else {}
         if status == "ASSUMED" and evidence.get("risk") == "high":
             high_risk_assumptions.append(str(evidence.get("assumption_id", "")))
+        risk_category = str(evidence.get("risk_category", "")).strip()
+        if risk_category:
+            by_risk_category.setdefault(risk_category, {s: 0 for s in READINESS_STATUSES})
+            by_risk_category[risk_category][status] = by_risk_category[risk_category].get(status, 0) + 1
     score = round(sum(float(cell.get("score", 0.0)) for cell in cells) / len(cells), 3) if cells else 0.0
     lens_scores: dict[str, float] = {}
     for lens in sorted(by_lens):
@@ -199,6 +205,7 @@ def summarize_matrix(matrix: list[dict[str, Any]]) -> dict[str, Any]:
         "cells_total": len(cells),
         "by_status": by_status,
         "by_lens": by_lens,
+        "by_risk_category": by_risk_category,
         "lens_scores": lens_scores,
         "global_score": score,
         "open_cells": open_cells,

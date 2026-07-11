@@ -343,8 +343,9 @@ The source JSON contains `assumptions[]`. Each item declares:
 - `uncertainty`: `low`, `med`, or `high`; omitted legacy rows default to `med`
 - `justification`: verbatim local evidence quote
 - `closes_gap`: optional `GAP-*` provisionally addressed by the assumption
+- `risk_category`: optional `value`, `usability`, `viability`, or `feasibility` (Cagan's four product risks); kept separate from `lens` and extensible per project via a directory override (`sentinel/risk_categories/*.json`), the same default/opt-in pattern as the `/challenge` technique registry
 
-The runtime validates lens, owner, risk, uncertainty, local quote; writes `01_discovery/assumptions.md`; traces and indexes the assumption register; and refreshes `knowledge_state.md/json` with `ASSUMED` units. Assumptions do not become confirmed evidence: high-risk linked assumptions remain visible in `/maturity` and `/status`, and downstream artifacts cite them as assumptions. `risk=high` plus `uncertainty=high` is surfaced as a non-blocking "test before advancing" priority signal.
+The runtime validates lens, owner, risk, uncertainty, local quote, and optional risk category; writes `01_discovery/assumptions.md` (grouped by `risk_category` when any assumption declares one, with rows lacking one listed under Uncategorized); traces and indexes the assumption register; and refreshes `knowledge_state.md/json` with `ASSUMED` units. Assumptions do not become confirmed evidence: high-risk linked assumptions remain visible in `/maturity` and `/status`, and downstream artifacts cite them as assumptions. `risk=high` plus `uncertainty=high` is surfaced as a non-blocking "test before advancing" priority signal.
 
 Outputs:
 
@@ -352,7 +353,7 @@ Outputs:
 - archived source under `01_discovery/assumptions/`
 - refreshed `01_discovery/knowledge_state.md` and `.json`
 - `assumption_register` traceability node
-- `maturity_metrics.assumptions` in `/maturity` and `/status`
+- `maturity_metrics.assumptions` in `/maturity` and `/status`, including per-`risk_category` coverage in the development readiness matrix when declared
 
 ## `resolve-gaps`
 
