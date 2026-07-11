@@ -19,8 +19,10 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         return export_mdx(project_id, artifact, source)
     if fmt == "interview":
         return export_interview(project_id, artifact)
+    if fmt == "faq":
+        return export_faq(project_id, artifact)
     if fmt != "md":
-        raise RuntimeError("Unsupported export format. Use md, mdx, or interview.")
+        raise RuntimeError("Unsupported export format. Use md, mdx, interview, or faq.")
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / source.name
@@ -51,6 +53,26 @@ def export_interview(project_id: str, artifact: str) -> dict[str, str]:
         "artifact": "gaps",
         "format": "interview",
         "source": str((workspace_path(project_id) / "01_discovery" / "gaps.md").as_posix()),
+        "path": str(target.as_posix()),
+    }
+
+
+def export_faq(project_id: str, artifact: str) -> dict[str, str]:
+    if artifact.lower() != "gaps":
+        raise RuntimeError("FAQ export is currently supported only for --artifact gaps.")
+    from .discovery import build_faq
+
+    faq = build_faq(project_id)
+    export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    target = export_dir / "gaps-faq.md"
+    target.write_text(faq, encoding="utf-8")
+    update_state(project_id, last_export=str(target.as_posix()))
+    return {
+        "project_id": project_id,
+        "artifact": "gaps",
+        "format": "faq",
+        "source": str((workspace_path(project_id) / "01_discovery" / "decisions.md").as_posix()),
         "path": str(target.as_posix()),
     }
 
