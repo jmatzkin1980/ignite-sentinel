@@ -21,6 +21,10 @@ class AssumptionError(RuntimeError):
 RISK_LEVELS = {"low", "med", "medium", "high"}
 UNCERTAINTY_LEVELS = {"low", "med", "medium", "high"}
 
+# Priority signal that flags an assumption as risky enough to test before advancing.
+# It is the trigger for IMP-182 cheapest-test candidates.
+TEST_BEFORE_ADVANCING = "test before advancing"
+
 
 def normalize_level(value: object, *, default: str = "med") -> str:
     level = str(value or default).strip().lower()
@@ -225,6 +229,117 @@ def assumption_projection_rows(rows: list[dict[str, str]]) -> list[dict[str, str
     )
 
 
+def _cheapest_test_texts(risk_category: str, language: str) -> list[str]:
+    """Bilingual cheapest-test prompts, shaped by Cagan risk category (IMP-181/182)."""
+    if language == "es":
+        by_category = {
+            "value": "Correr una entrevista corta de problema con el owner o un usuario real para confirmar la necesidad citada antes de comprometer alcance.",
+            "usability": "Probar un prototipo de baja fidelidad del flujo citado con unos pocos usuarios objetivo antes de construirlo.",
+            "viability": "Confirmar la restriccion de negocio citada (costo, pricing o respaldo del stakeholder) con el stakeholder dueno.",
+            "feasibility": "Correr un spike tecnico acotado a la capacidad citada para confirmar que es construible.",
+        }
+        first = by_category.get(
+            risk_category,
+            "Confirmar la base citada directamente con el owner o la fuente antes de avanzar.",
+        )
+        second = "Buscar evidencia local que corrobore la base citada (fuentes, contexto de dominio, interacciones)."
+        return [first, second]
+    by_category = {
+        "value": "Run a short problem interview with the owner or a real user to confirm the cited need before committing scope.",
+        "usability": "Test a low-fidelity prototype of the cited flow with a few target users before building it.",
+        "viability": "Confirm the cited business constraint (cost, pricing, or stakeholder buy-in) with the owning stakeholder.",
+        "feasibility": "Run a timeboxed technical spike limited to the cited capability to confirm it is buildable.",
+    }
+    first = by_category.get(
+        risk_category,
+        "Confirm the cited basis directly with the owner or source before advancing.",
+    )
+    second = "Look for corroborating local evidence for the cited basis (sources, domain context, interactions)."
+    return [first, second]
+
+
+def candidate_experiments_for_assumption(
+    assumption: dict[str, str], language: str = "en"
+) -> list[dict[str, str]]:
+    """Return cited, non-selected cheapest-test candidates for a prioritized assumption.
+
+    Mirror of ``candidate_options_for_gap`` (IMP-113) for assumptions (IMP-182): only
+    assumptions whose ``priority_signal`` is ``test before advancing`` and that carry a
+    local cited basis get candidates. No basis => silence (never invents experiments).
+    This never mutates the assumption; its status only moves through the existing
+    channels (gap response, /sync, BA decision).
+    """
+    if str(assumption.get("status", "ASSUMED")).upper() != "ASSUMED":
+        return []
+    risk = normalize_level(assumption.get("risk"))
+    uncertainty = normalize_level(assumption.get("uncertainty"))
+    signal = assumption.get("priority_signal") or assumption_priority_signal(risk, uncertainty)
+    if str(signal).strip().lower() != TEST_BEFORE_ADVANCING:
+        return []
+    basis = str(assumption.get("justification") or assumption.get("basis_quote") or "").strip()
+    if not basis or basis.upper() == "N/A":
+        return []
+    risk_category = str(assumption.get("risk_category", "")).strip().lower()
+    texts = _cheapest_test_texts(risk_category, language)
+    return [
+        {"label": chr(65 + idx), "text": text, "citation": basis}
+        for idx, text in enumerate(texts)
+    ]
+
+
+def candidate_experiments_markdown(assumption: dict[str, str], language: str = "en") -> str:
+    experiments = candidate_experiments_for_assumption(assumption, language)
+    if not experiments:
+        return ""
+    assumption_id = assumption.get("id", "ASM-???")
+    if language == "es":
+        lines = [f"- {assumption_id}: candidatos de validacion barata citados (no seleccionados):"]
+        for exp in experiments:
+            lines.append(f"  - Opcion {exp['label']}: {exp['text']} Cita local: `{exp['citation']}`.")
+        return "\n".join(lines)
+    lines = [f"- {assumption_id}: cited cheapest-validation candidates (not selected):"]
+    for exp in experiments:
+        lines.append(f"  - Option {exp['label']}: {exp['text']} Local citation: `{exp['citation']}`.")
+    return "\n".join(lines)
+
+
+def cheapest_test_candidates(
+    rows: list[dict[str, str]], language: str = "en"
+) -> dict[str, list[dict[str, str]]]:
+    """Map assumption id -> cited cheapest-test candidates for prioritized assumptions."""
+    result: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        experiments = candidate_experiments_for_assumption(row, language)
+        if experiments:
+            result[row["id"]] = experiments
+    return result
+
+
+def render_cheapest_tests_section(rows: list[dict[str, str]], language: str = "en") -> str:
+    blocks = [
+        block
+        for block in (candidate_experiments_markdown(row, language) for row in rows)
+        if block
+    ]
+    if not blocks:
+        return ""
+    if language == "es":
+        heading = "## Candidatos de validacion barata"
+        intro = (
+            "Para cada supuesto priorizado (`test before advancing`) con base citada, "
+            "candidatos de la prueba mas barata para validarlo. No cambian el estado del "
+            "supuesto: la ASM solo se mueve por respuesta de gap, /sync o decision del BA."
+        )
+    else:
+        heading = "## Cheapest validation candidates"
+        intro = (
+            "For each prioritized assumption (`test before advancing`) with a cited basis, "
+            "candidate cheapest tests to validate it. These never change the assumption's "
+            "status: an ASM only moves through a gap response, /sync, or a BA decision."
+        )
+    return f"{heading}\n\n{intro}\n\n" + "\n".join(blocks)
+
+
 def assumptions_projection(project_id: str) -> dict[str, Any]:
     rows = load_assumptions(project_id)
     assumptions = assumption_projection_rows(rows)
@@ -234,12 +349,14 @@ def assumptions_projection(project_id: str) -> dict[str, Any]:
         for row in assumptions
         if row.get("risk") == "high" and row.get("uncertainty") == "high"
     ]
+    cheapest = cheapest_test_candidates(rows)
     return {
         "project_id": project_id,
         "source": "01_discovery/assumptions.md",
         "source_of_truth": "01_discovery/assumptions.md",
         "artifact": "08_context_packs/assumptions_projection.json",
         "assumptions": assumptions,
+        "cheapest_test_candidates": cheapest,
         "summary": {
             "total_assumptions": len(rows),
             "assumed": len(assumptions),
@@ -247,6 +364,7 @@ def assumptions_projection(project_id: str) -> dict[str, Any]:
             "high_risk_assumption_ids": high_risk,
             "test_before_advancing": len(test_before_advancing),
             "test_before_advancing_ids": test_before_advancing,
+            "cheapest_test_candidate_ids": sorted(cheapest),
         },
     }
 
@@ -344,8 +462,11 @@ turn uncertainty into confirmed scope. Each row has human owner, importance
 signal for BA prioritization.
 
 """
+    tests_section = render_cheapest_tests_section(rows)
+    tests_block = f"\n\n{tests_section}" if tests_section else ""
+
     if not any(row.get("risk_category") for row in rows):
-        return intro + _assumption_table(rows, include_category=False) + "\n"
+        return intro + _assumption_table(rows, include_category=False) + tests_block + "\n"
 
     from .risk_category_registry import RISK_CATEGORY_ORDER, risk_category_label
 
@@ -365,7 +486,7 @@ signal for BA prioritization.
     for category in ordered_categories:
         label = risk_category_label(category) if category else "Uncategorized"
         sections.append(f"## {label}\n\n{_assumption_table(grouped[category], include_category=True)}")
-    return intro + "\n\n".join(sections) + "\n"
+    return intro + "\n\n".join(sections) + tests_block + "\n"
 
 
 def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:

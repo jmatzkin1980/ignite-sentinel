@@ -39,6 +39,8 @@ Every `/resolve-gaps` pass metabolizes the confirmed knowledge and returns a `kn
 
 `gaps.md` response sections can include "Cited candidate options (not selected)": options derived from local citations to make answering easier. They are elicitation aids — **an option is not an answer**. Never mark a gap closed because a candidate option looks right; the client/BA/owner must confirm an actual answer with decision status. Keep that framing when you present gaps or draft response requests.
 
+The same contract holds for assumptions (IMP-182). A **test before advancing** assumption can carry "cited cheapest-validation candidates" in `01_discovery/assumptions.md` (and `cheapest_test_candidates` in `assumptions_projection.json`) — the smallest experiments that would validate it. A **candidate cheapest test is not a validation**: proposing one never moves the assumption. The assumption only flips `ASSUMED` → `VALIDATED`/`INVALIDATED` through the governed channels — this `/resolve-gaps` pass (via a closed linked gap, reported as `validated_assumptions` above), `/sync`, or an explicit BA decision. Present candidates as prompts for the BA to run, never as evidence that the assumption has been tested.
+
 ## Rules
 
 - Auto-close only applies when a `GAP-ID` block has a non-empty `Answer` or `Respuesta` and `Decision status` is `confirmed`, `not applicable`, `confirmado`, or `no aplica`.

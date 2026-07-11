@@ -73,6 +73,16 @@ python -m sentinel /assume PROJECT_ID --source PATH
 
 Report accepted assumption IDs, skipped duplicates, risk summary, linked gaps, `01_discovery/assumptions.md`, and refreshed `knowledge_state.md`. When any assumption carries a `risk_category`, `assumptions.md` groups its register by category (rows without one fall under "Uncategorized") and the development readiness matrix (`/maturity`) reports coverage per category alongside its existing per-lens coverage.
 
+## Cheapest-Test Candidates (IMP-182)
+
+When an assumption reaches the **test before advancing** signal (high risk × high uncertainty) and carries a local cited basis, the runtime proposes 1-3 **cited cheapest-test candidates** — the smallest experiment that would validate it — shaped by its Cagan `risk_category` (`value` → problem interview, `usability` → low-fi prototype, `viability` → business/stakeholder check, `feasibility` → timeboxed spike). They render as a `## Cheapest validation candidates` section in `01_discovery/assumptions.md` and as `cheapest_test_candidates` in `08_context_packs/assumptions_projection.json`.
+
+These are the exact same contract as gap candidate options (IMP-113), mirrored for assumptions:
+
+- **Cited or silent.** Every candidate cites the assumption's verbatim local basis. An assumption without a local basis quote gets **no candidates** — never invent an experiment to fill the space.
+- **Never auto-validates.** Proposing a cheapest test does not move the assumption. Its status changes only through the existing channels: a gap response (`/resolve-gaps`), `/sync`, or an explicit BA decision. The candidate is a prompt for the BA, not a state transition.
+- The candidates are suggestions for the BA to run outside the tool; do not treat "candidate proposed" as "assumption tested."
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

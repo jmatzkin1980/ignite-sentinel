@@ -13,6 +13,9 @@ from sentinel.assumptions import (
     apply_assumptions,
     assumption_projection_rows,
     assumptions_projection,
+    candidate_experiments_for_assumption,
+    cheapest_test_candidates,
+    render_assumptions,
     validate_assumptions,
 )
 from sentinel.cli import main
@@ -146,6 +149,82 @@ class AssumptionValidationTests(unittest.TestCase):
         )
 
 
+class CheapestTestCandidateTests(unittest.TestCase):
+    """IMP-182: cited cheapest-test candidates for prioritized assumptions."""
+
+    def _prioritized(self, **over):
+        base = {
+            "id": "ASM-HH",
+            "lens": "technical",
+            "statement": "The dashboard will provisionally use the existing support metrics service.",
+            "owner": "Technology Lead",
+            "risk": "high",
+            "uncertainty": "high",
+            "priority_signal": "test before advancing",
+            "justification": "The dashboard reads queue metrics from the existing support metrics service.",
+            "closes_gap": "",
+            "status": "ASSUMED",
+            "risk_category": "",
+        }
+        base.update(over)
+        return base
+
+    def test_prioritized_assumption_gets_cited_candidates(self):
+        experiments = candidate_experiments_for_assumption(self._prioritized())
+        self.assertTrue(experiments)
+        self.assertLessEqual(len(experiments), 3)
+        for exp in experiments:
+            self.assertEqual(
+                exp["citation"],
+                "The dashboard reads queue metrics from the existing support metrics service.",
+            )
+        self.assertEqual([e["label"] for e in experiments], ["A", "B"])
+
+    def test_risk_category_shapes_the_first_candidate(self):
+        feasibility = candidate_experiments_for_assumption(self._prioritized(risk_category="feasibility"))
+        self.assertIn("technical spike", feasibility[0]["text"])
+        value = candidate_experiments_for_assumption(self._prioritized(risk_category="value"))
+        self.assertIn("problem interview", value[0]["text"])
+
+    def test_no_local_evidence_means_silence(self):
+        self.assertEqual(candidate_experiments_for_assumption(self._prioritized(justification="")), [])
+        self.assertEqual(candidate_experiments_for_assumption(self._prioritized(justification="N/A")), [])
+
+    def test_non_prioritized_assumption_gets_no_candidates(self):
+        monitor = self._prioritized(risk="low", uncertainty="low", priority_signal="monitor")
+        self.assertEqual(candidate_experiments_for_assumption(monitor), [])
+        watch = self._prioritized(risk="high", uncertainty="low", priority_signal="watch closely")
+        self.assertEqual(candidate_experiments_for_assumption(watch), [])
+
+    def test_non_assumed_status_gets_no_candidates(self):
+        validated = self._prioritized(status="VALIDATED")
+        self.assertEqual(candidate_experiments_for_assumption(validated), [])
+
+    def test_priority_signal_derived_when_absent(self):
+        row = self._prioritized()
+        row.pop("priority_signal")
+        self.assertTrue(candidate_experiments_for_assumption(row))
+
+    def test_register_renders_cheapest_tests_section_only_when_prioritized(self):
+        prioritized = render_assumptions("DEMO", [self._prioritized()])
+        self.assertIn("## Cheapest validation candidates", prioritized)
+        self.assertIn("Local citation:", prioritized)
+        monitor_only = render_assumptions(
+            "DEMO",
+            [self._prioritized(risk="low", uncertainty="low", priority_signal="monitor")],
+        )
+        self.assertNotIn("## Cheapest validation candidates", monitor_only)
+
+    def test_cheapest_test_candidates_map_keys_by_id(self):
+        mapping = cheapest_test_candidates(
+            [
+                self._prioritized(id="ASM-A"),
+                self._prioritized(id="ASM-B", risk="low", uncertainty="low", priority_signal="monitor"),
+            ]
+        )
+        self.assertEqual(sorted(mapping), ["ASM-A"])
+
+
 class AssumptionLifecycleTests(unittest.TestCase):
     def setUp(self):
         self.old_cwd = Path.cwd()
@@ -219,6 +298,30 @@ class AssumptionLifecycleTests(unittest.TestCase):
         metrics = maturity_metrics("ASM")
         self.assertEqual(metrics["assumptions"]["total"], 1)
         self.assertEqual(metrics["assumptions"]["by_risk"]["med"], 1)
+
+    def test_prioritized_assumption_reports_cheapest_tests_without_changing_status(self):
+        apply_assumptions(
+            "ASM",
+            self._write(
+                {"assumptions": [_assumption(risk="high", uncertainty="high", risk_category="feasibility")]}
+            ),
+        )
+        projection = assumptions_projection("ASM")
+        candidates = projection["cheapest_test_candidates"]
+        self.assertIn("ASM-TECH-METRICS-SOURCE", candidates)
+        self.assertEqual(
+            projection["summary"]["cheapest_test_candidate_ids"], ["ASM-TECH-METRICS-SOURCE"]
+        )
+        for exp in candidates["ASM-TECH-METRICS-SOURCE"]:
+            self.assertEqual(
+                exp["citation"],
+                "The dashboard reads queue metrics from the existing support metrics service.",
+            )
+        # Proposing a cheapest test never mutates the assumption: it stays ASSUMED.
+        self.assertEqual(projection["assumptions"][0]["status"], "ASSUMED")
+        register = (self.ws / "01_discovery" / "assumptions.md").read_text(encoding="utf-8")
+        self.assertIn("## Cheapest validation candidates", register)
+        self.assertIn("technical spike", register)
 
     def test_brief_and_prd_cite_governed_assumption_instead_of_pending_section(self):
         self.assertEqual(main(["assume", "ASM", "--source", str(self._write({"assumptions": [_assumption()]}))]), 0)
