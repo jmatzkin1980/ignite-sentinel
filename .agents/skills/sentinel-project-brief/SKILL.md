@@ -49,6 +49,17 @@ The `/brief` result carries three gates; `blocked: true` plus `readiness_stage` 
 
 When a gate blocks, explain why and recommend the prior step (resolve gaps, request context, or review the self-correction findings); do not retry the command hoping for a different verdict.
 
+## Adaptive Decision Ladder (coaching posture)
+
+When a section is pending or a gate blocks, offer the routes as numbered rungs — *use this when…* and the *why* — rather than one directive. Never fill a section by hand. (Posture: the Adaptive Decision Ladder, Peters.)
+
+1. **Chase the feeding gaps** — use this when the pending section is `[PENDING INPUT]` or a gate names blocking `GAP-*`. Route through `/resolve-gaps` (`sentinel-gap-response`). Why: the section only populates from confirmed answers, not from narrative you supply.
+2. **Raise a domain context request** — use this when the section is `[PENDING DOMAIN CONTEXT]` (no client gap feeds it). Route via `sentinel-domain-request`. Why: the missing input is domain knowledge, discoverable without the client.
+3. **Review the self-correction findings** — use this when the close aborts as `SELF_CORRECTION_FAILED`. Why: a confirmed answer dropped from the compiled brief; the fix is to reconcile the discrepancy, not to re-run hoping for a different verdict.
+4. **Advance to specs** — use this when no blocking gaps remain and the coverage/implementability gates are green (or a soft warning the BA accepts). Continue with `sentinel-specs`. Why: the brief is a floor for downstream work — deepen domain packs later rather than blocking the phase now.
+
+Name the rung and the reason; the BA chooses whether to advance or keep maturing.
+
 ## Readiness Check
 
 - The brief should be complete enough to guide PRD, specs, backlog, and acceptance strategy.

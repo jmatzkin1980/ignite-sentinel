@@ -93,3 +93,14 @@ Then move to the next gap. Close everything with a single `/resolve-gaps` at the
 - Preserve `CHG`, `SEED`, and `DEC` trace links created by the command.
 - Gap closure nuances (IMP-010): a substantive answer with `pending` decision becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague/deferred answer (`TBD`, `depende`, short non-answers) never closes a gap even if marked `confirmed` — it stays `PARTIALLY_CLOSED` with a `resolution_note` asking for specifics. Only substantive + confirmed/not-applicable closes. Explain these states to the user when summarizing /resolve-gaps.
 - EARS guidance (IMP-047): for functional or business-rule gaps (`GAP-ACCEPTANCE`, `GAP-BUSINESS-RULES`, `GAP-PRD-FR-AC`), prefer an answer that includes a confirmed EARS statement (`When/If/While/Where/The system shall...` or Spanish variants). If the client answered in prose, do not rewrite it silently; propose a separate EARS reformulation for BA confirmation. The runtime normalizes only confirmed answers that already pass `classify_ears`; confirmed prose is marked `EARS-eligible, not normalized` and counted in `/status`.
+
+## Anti-patterns
+
+Each row is a mistake this skill exists to prevent, with the correction:
+
+- **Closing on a candidate option** — marking a gap closed because a cited option "looks right". → An option is not an answer; only a client/BA/owner confirmation with decision status closes a gap.
+- **Treating a cheapest-test candidate as validation** — flipping an assumption because a validation experiment was proposed. → A proposed test is not evidence; the assumption flips only through a closed linked gap, `/sync`, or an explicit BA decision.
+- **Batching questions** — sending or asking a wall of gaps at once. → In grill mode, one gap per turn: ask, wait, follow the thread.
+- **Closing a vague answer** — accepting `TBD` / "depends" as `confirmed` because the BA is eager to move. → A vague answer stays `PARTIALLY_CLOSED` with a note asking for specifics, even if marked confirmed.
+- **Silently rewriting client prose into a seed or EARS** — normalizing an answer the client did not confirm. → Propose a separate EARS reformulation for BA confirmation; the runtime normalizes only confirmed answers that already pass `classify_ears`.
+- **Hand-editing stale downstream artifacts** — "fixing" a brief/PRD/spec flagged by `downstream_stale_artifacts`. → Regenerate each through its governed command; `/health` stays DIRTY until then.

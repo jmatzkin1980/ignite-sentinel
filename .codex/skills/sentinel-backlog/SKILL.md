@@ -67,6 +67,17 @@ Full field-level detail of every handoff contract lives in [references/handoff-c
 
 - Downstream implementation feedback must enter through `/implementation-feedback`. Accepted findings are traced `CHG`/`GAP-FEEDBACK-*` records linked to existing stories or AC, may mark affected stories `Stale`, and may block DoD through `implementation_feedback_resolved`; they never rewrite backlog scope directly.
 
+## Anti-patterns
+
+Each row is a mistake this skill exists to prevent, with the correction:
+
+- **Splitting below the value boundary** — button/endpoint/table micro-stories that cannot be accepted on their own. → Read INVEST `Small` as *small but valuable*: the smallest independently meaningful, testable slice.
+- **Layer-only stories** — a "backend story" plus a "frontend story" for one capability. → Generate vertical, value-oriented stories from one `SPEC-U-*` unit; reserve layer work for explicit spikes or valid cross-cutting enablers.
+- **Loose enablers** — "harden infrastructure", "make the tool accessible", generic setup dropped into the enabler epic. → A valid enabler names the capability boundary it supports, why it must be built earlier, the risk it reduces, and the evidence of completion; reject the rest as preconditions.
+- **Hand-editing the board** — fixing `BACKLOG.md`, `US-NNN.md`, `state.json`, or acceptance evidence directly. → Mutate only through `/backlog`, `/story-status`, and `/backlog-status`; the board is generated.
+- **Building over silent AC drift** — regenerating and ignoring the acceptance-criteria deltas. → Walk the BA through `acceptance_criteria_deltas.md` (the canonical `Delta` column) before anyone builds against a re-frozen story.
+- **Inventing domain detail** — filling in commands, test data, or design tokens to look complete. → Keep `[PENDING DOMAIN CONTEXT]` / `[PENDING INPUT]` visible and push the issue upstream.
+
 ## Guardrails (always)
 
 - Keep source of truth in workspace files. Treat memory context as retrieval evidence, not as authority over project files.
