@@ -30,7 +30,7 @@ from .core.io import append_text
 from .workspace import read_json, update_state, utc_now, workspace_path
 
 
-def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, object]:
+def sync_change(project_id: str, source: Path, note: str = "", digest: bool = False) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
@@ -108,6 +108,34 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         metabolism_path.read_text(encoding="utf-8"),
         trace_ids=[change_id],
     )
+    # IMP-191: opt-in analysis layer over the ingested interaction. Proposes and
+    # routes (a) gap answers, (b) DEC-* candidates, (c) new gaps, (d) ASM
+    # contradiction signals — all cited verbatim. It writes only the digest
+    # artifacts; it never mutates governed gaps/decisions/assumptions.
+    interaction_digest: dict[str, object] | None = None
+    if digest:
+        from .interaction_digest import build_interaction_digest
+
+        interaction_digest = build_interaction_digest(
+            project_id,
+            change_id,
+            target.as_posix(),
+            text,
+            target_dir=target_dir,
+            stem=source.stem,
+            metabolism=metabolism,
+            new_gaps=gap_merge["merged"],
+        )
+        digest_path = Path(str(interaction_digest["digest_path"]))
+        digest_id = add_node(project_id, "DEC", "interaction_digest", digest_path, "Interaction digest", status="pending")
+        add_edge(project_id, change_id, digest_id, "produces")
+        broker.index_artifact(
+            digest_id,
+            "interaction_digest",
+            digest_path,
+            digest_path.read_text(encoding="utf-8"),
+            trace_ids=[change_id, digest_id],
+        )
     reindex_workspace(project_id)
     # IMP-127: emit a focused, pointer-only context pack for the change instead of
     # expecting the BA to re-read whole artifacts. Read-only and degradation-safe.
@@ -154,10 +182,11 @@ def sync_change(project_id: str, source: Path, note: str = "") -> dict[str, obje
         "staleness": stale_result,
         "suspicious_trace_links": suspicious_links,
         "context_pack": focus_pack.get("path"),
+        "interaction_digest": interaction_digest,
     }
 
 
-def sync_pending_sources(project_id: str, note: str = "autonomous sync") -> dict[str, object]:
+def sync_pending_sources(project_id: str, note: str = "autonomous sync", digest: bool = False) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
@@ -166,7 +195,7 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync") -> dict
     results = []
     for item in pending:
         source = item["path"]
-        result = sync_change(project_id, source, f"{note}; detected={item['reason']}")
+        result = sync_change(project_id, source, f"{note}; detected={item['reason']}", digest=digest)
         result["detected_reason"] = item["reason"]
         results.append(result)
 
