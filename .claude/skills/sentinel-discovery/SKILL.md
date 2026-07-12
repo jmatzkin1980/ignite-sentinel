@@ -46,6 +46,16 @@ It writes `08_context_packs/exports/gaps-interview.md`: the **open** gaps ordere
 
 This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note.
 
+## Resolved-Questions FAQ Export (IMP-186)
+
+The mirror image of the interview script: once gaps are **closed**, project the resolved ones as a traceable FAQ (PR/FAQ working-backwards heritage — resolved questions only, no invented press release):
+
+```powershell
+python -m sentinel /export PROJECT_ID --artifact gaps --format faq
+```
+
+It writes `08_context_packs/exports/gaps-faq.md`: each **question** is an elicited gap and each **answer** is its **CONFIRMED** closure, quoted verbatim from the seed/decision tables (`01_discovery/identity_seeds.md` + `decisions.md`) and cited to the gap id and its source. Only confirmed gaps appear — **open gaps never show up as answered** (they have no CONFIRMED row, so they are structurally excluded; answers are never invented). Like the interview script it is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited. With no confirmed gaps the FAQ is an explicit empty marker. Kept as an export (not a PRD section) to keep the PRD lean.
+
 ## Memory
 
 - Sentinel uses local LanceDB memory under `workspaces/PROJECT_ID/memory.lancedb/`.

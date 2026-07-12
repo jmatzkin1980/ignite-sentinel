@@ -11,7 +11,7 @@ from ..technique_registry import default_challenge_technique_ids, default_techni
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
-from ..gaps import is_blocking, parse_gap_table
+from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
@@ -2308,6 +2308,76 @@ def build_interview_script(project_id: str) -> str:
     configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
     language = configured if configured in {"es", "en"} else "en"
     return render_interview_script(project_id, gaps, language)
+
+
+def build_faq(project_id: str) -> str:
+    """Render a traceable FAQ (resolved questions) from the governed gap ledger.
+
+    Question = an elicited gap; answer = its CONFIRMED closure, quoted verbatim
+    from the seed/decision tables with a citation to the gap and its source.
+    ``parse_gap_answers`` only returns CONFIRMED rows, so open gaps are
+    structurally excluded and never shown as answered (never invented)."""
+    base = workspace_path(project_id)
+    seeds_path = base / "01_discovery" / "identity_seeds.md"
+    decisions_path = base / "01_discovery" / "decisions.md"
+    if not seeds_path.exists() and not decisions_path.exists():
+        raise RuntimeError(
+            "Cannot export a FAQ before gaps are resolved into "
+            "01_discovery/decisions.md or identity_seeds.md."
+        )
+    seed_text = seeds_path.read_text(encoding="utf-8") if seeds_path.exists() else ""
+    decision_text = decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else ""
+    answers = parse_gap_answers(seed_text + "\n" + decision_text)
+    state = read_json(base / "state.json", {})
+    configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
+    language = configured if configured in {"es", "en"} else "en"
+    return render_faq(project_id, answers, language)
+
+
+def render_faq(project_id: str, answers: dict[str, dict[str, str]], language: str = "en") -> str:
+    """Render resolved gaps as a cited FAQ, or an explicit empty marker."""
+    if language == "es":
+        header = (
+            f"# Preguntas resueltas (FAQ) - {project_id}\n\n"
+            "Vista derivada READ-ONLY de los gaps ya cerrados: cada pregunta es un gap "
+            "elicitado y cada respuesta es su cierre CONFIRMADO, citado textualmente desde "
+            "las tablas de seeds/decisiones (`01_discovery/`). Solo aparecen gaps confirmados; "
+            "los gaps abiertos nunca figuran como respondidos. Esta FAQ NO reemplaza a "
+            "`01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.\n"
+        )
+        answer_label = "R"
+        source_label = "Fuente"
+        empty = "_No hay gaps confirmados todavia: la FAQ esta vacia (no se inventan respuestas)._"
+        prefix = "P"
+    else:
+        header = (
+            f"# Resolved Questions (FAQ) - {project_id}\n\n"
+            "READ-ONLY derived view of the already-closed gaps: each question is an elicited "
+            "gap and each answer is its CONFIRMED closure, quoted verbatim from the "
+            "seed/decision tables (`01_discovery/`). Only confirmed gaps appear; open gaps "
+            "never show up as answered. This FAQ does NOT replace `01_discovery/gaps.md` "
+            "(the source of truth) and closes no gap.\n"
+        )
+        answer_label = "A"
+        source_label = "Source"
+        empty = "_No confirmed gaps yet: the FAQ is empty (answers are never invented)._"
+        prefix = "Q"
+    if not answers:
+        return header + "\n" + empty + "\n"
+    parts = [header]
+    number = 1
+    for gap_id, answer in answers.items():
+        title = human_title_for_gap(gap_id, language)
+        statement = str(answer.get("statement", "")).strip()
+        source = str(answer.get("source", "")).strip()
+        cite = f"`{gap_id}`" + (f" / `{source}`" if source else "")
+        parts.append(
+            f"### {prefix}{number}. {title}\n\n"
+            f"- **{answer_label}:** {statement}\n"
+            f"- **{source_label}:** {cite}\n"
+        )
+        number += 1
+    return "\n".join(parts).rstrip() + "\n"
 
 
 def human_title_for_gap(gap_id: str, language: str = "en") -> str:

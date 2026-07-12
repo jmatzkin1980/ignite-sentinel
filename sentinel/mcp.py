@@ -65,7 +65,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
-    ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script through the audited local export channel.", ["project_id", "artifact"]),
+    ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel.", ["project_id", "artifact"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
