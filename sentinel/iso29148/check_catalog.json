@@ -1,0 +1,69 @@
+{
+  "description": "Declarative map (IMP-189): each existing deterministic quality check declares which ISO 29148 characteristics it covers via `covers_29148`. Inert metadata: nothing here executes a check, it only records coverage so the /validate 29148 report can show which characteristics have a check and which are honestly uncovered. A check that maps to no characteristic declares an empty list rather than a forced mapping.",
+  "checks": [
+    {
+      "id": "ears.pattern_conformance",
+      "label": "EARS pattern conformance",
+      "module": "sentinel/ears.py",
+      "imp": "IMP-026",
+      "covers_29148": ["conforming"],
+      "note": "classify_ears / not_ears_normalizable signal: a statement conforms to one of the five EARS patterns or is flagged."
+    },
+    {
+      "id": "ears.ambiguity_signals",
+      "label": "Ambiguity and weak-word signals",
+      "module": "sentinel/ears.py",
+      "imp": "IMP-026",
+      "covers_29148": ["unambiguous"],
+      "note": "ambiguous_term, unanchored_quantifier, and passive_voice signals from score_requirement_quality."
+    },
+    {
+      "id": "ears.compound_statement",
+      "label": "Compound-statement (singularity) signal",
+      "module": "sentinel/ears.py",
+      "imp": "IMP-026",
+      "covers_29148": ["singular"],
+      "note": "Flags a statement that combines more than one required system action."
+    },
+    {
+      "id": "ears.missing_verification",
+      "label": "Missing-verification signal for prose",
+      "module": "sentinel/ears.py",
+      "imp": "IMP-026",
+      "covers_29148": ["verifiable"],
+      "note": "Fires for non-EARS prose lacking any verification, metric, acceptance, or test signal. Does NOT scrutinize well-formed EARS statements — that facet is closed by iso29148.verifiability_anchor."
+    },
+    {
+      "id": "smell.weak_words",
+      "label": "QuRE weak-word smell catalog",
+      "module": "sentinel/smells/weak_words.json",
+      "imp": "IMP-159",
+      "covers_29148": ["unambiguous"],
+      "note": "Bilingual weak-wording markers that name quality/success without a testable expectation."
+    },
+    {
+      "id": "consistency.expected_evidence_contract",
+      "label": "Expected-evidence source contract",
+      "module": "sentinel/validation.py",
+      "imp": "IMP-139",
+      "covers_29148": ["verifiable"],
+      "note": "Checks that a spec unit's declared expected_evidence kind matches its cited sources — verifiability of the evidence trail, not of the statement wording."
+    },
+    {
+      "id": "momtest.hypothetical",
+      "label": "Mom-Test hypothetical-question warning",
+      "module": "sentinel/discovery/momtest.py",
+      "imp": "IMP-180",
+      "covers_29148": [],
+      "note": "Elicitation hygiene: flags an elicited question phrased as a future opinion instead of a concrete past event. This is about how a gap is ASKED, not a characteristic of a requirement statement, so it honestly maps to none of the nine."
+    },
+    {
+      "id": "iso29148.verifiability_anchor",
+      "label": "Requirement-statement verifiability anchor",
+      "module": "sentinel/iso29148.py",
+      "imp": "IMP-189",
+      "covers_29148": ["verifiable"],
+      "note": "NEW rule: flags a requirement statement (including a well-formed EARS one) that carries no measurable or observable acceptance anchor (metric, threshold, acceptance/test signal). Goes beyond expected_evidence, which checks the source trail rather than the statement itself."
+    }
+  ]
+}

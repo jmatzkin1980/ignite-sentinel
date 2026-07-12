@@ -11,6 +11,7 @@ from .ears import requirements_quality_report
 from .gaps import parse_gap_table
 from .handoff_contracts import load_handoff_contract_registry
 from .ids import prefix_for_node_type
+from .iso29148 import coverage_report as iso29148_coverage_report
 from .maturity import brief_section_readiness, prd_section_readiness
 from .core.graph import load_graph, parents_of
 from .workspace import read_json, state_path, workspace_path
@@ -55,6 +56,7 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
     cross_consistency = cross_artifact_consistency(project_id, base)
     consistency_warnings = [str(item["message"]) for item in cross_consistency.get("warnings", []) if isinstance(item, dict)]
     momtest_warnings = momtest_gap_warnings(base)
+    iso29148_coverage = iso29148_standard_coverage(base)
 
     verdict = "VALID" if not findings else "INVALID"
     result = {
@@ -63,6 +65,7 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
         "semantic_quality": semantic_quality,
         "requirement_quality": requirement_quality,
         "cross_artifact_consistency": cross_consistency,
+        "iso29148_coverage": iso29148_coverage,
         "warnings": [*quality_warnings, *requirement_warnings, *consistency_warnings, *momtest_warnings],
     }
     if override_source:
@@ -225,6 +228,19 @@ def momtest_gap_warnings(base: Path) -> list[str]:
     gaps = parse_gap_table(path.read_text(encoding="utf-8"))
     findings = scan_questions((gap.get("id", ""), gap.get("question", "")) for gap in gaps)
     return [momtest_warning_line(finding) for finding in findings]
+
+
+def iso29148_standard_coverage(base: Path) -> dict[str, object]:
+    """IMP-189: ISO 29148 requirement-quality coverage report.
+
+    Joins the declared characteristics with the check catalog and runs the live
+    verifiability rule over ``requirements.md`` when present. Auditability
+    against the standard: honest about which characteristics are covered, which
+    are an open heuristic gap, and which are declared out of scope with a reason.
+    """
+    requirements_path = base / "02_requirements" / "requirements.md"
+    requirements_text = requirements_path.read_text(encoding="utf-8") if requirements_path.exists() else ""
+    return iso29148_coverage_report(requirements_text)
 
 
 CLAIM_STOPWORDS = {

@@ -1,0 +1,69 @@
+{
+  "standard": "ISO/IEC/IEEE 29148:2018",
+  "scope": "individual requirement quality characteristics (clause 9.4.2)",
+  "characteristics": [
+    {
+      "id": "necessary",
+      "label": "Necessary",
+      "description": "The requirement defines a capability, characteristic, or constraint that is genuinely needed; removing it would leave a deficiency.",
+      "when_uncovered": "out_of_scope",
+      "reason": "Necessity is a stakeholder-value judgement. Whether a requirement is truly needed cannot be decided by a local deterministic heuristic without domain knowledge; source traceability (a structural proxy already enforced elsewhere) shows a requirement HAS an origin, not that it is NEEDED. Declaring this covered would simulate coverage."
+    },
+    {
+      "id": "appropriate",
+      "label": "Appropriate",
+      "description": "The requirement is stated at the right level of abstraction: it says what is needed, free of premature implementation or design detail.",
+      "when_uncovered": "heuristic_gap",
+      "reason": "Implementation-leak detection (flagging technology, storage, or UI-mechanic terms inside a requirement statement) is feasible with a deterministic term heuristic but is not yet implemented. It is an honest gap, not out of scope."
+    },
+    {
+      "id": "unambiguous",
+      "label": "Unambiguous",
+      "description": "The requirement has only one possible interpretation; it avoids vague, subjective, or unanchored wording.",
+      "when_uncovered": "heuristic_gap",
+      "reason": ""
+    },
+    {
+      "id": "complete",
+      "label": "Complete",
+      "description": "The requirement fully states the needed capability with no missing information the reader must supply.",
+      "when_uncovered": "out_of_scope",
+      "reason": "Semantic completeness of a requirement against real-world need requires domain knowledge no local deterministic heuristic has. Structural markers ([PENDING INPUT], scaffolding score) flag KNOWN gaps but cannot decide that an otherwise-populated statement is complete. Declaring this covered would simulate coverage (adversarial seed doc 39 §4.6)."
+    },
+    {
+      "id": "singular",
+      "label": "Singular",
+      "description": "The requirement states a single capability; it does not combine multiple requirements into one statement.",
+      "when_uncovered": "heuristic_gap",
+      "reason": ""
+    },
+    {
+      "id": "feasible",
+      "label": "Feasible",
+      "description": "The requirement can be realized within known constraints (technical, cost, schedule, regulatory) with acceptable risk.",
+      "when_uncovered": "out_of_scope",
+      "reason": "Feasibility needs technical, cost, and schedule judgement about a specific solution context. No local deterministic heuristic can decide it; declaring it covered would simulate coverage."
+    },
+    {
+      "id": "verifiable",
+      "label": "Verifiable",
+      "description": "The requirement is stated so that its satisfaction can be checked by inspection, analysis, demonstration, or test, with a measurable or observable acceptance criterion.",
+      "when_uncovered": "heuristic_gap",
+      "reason": ""
+    },
+    {
+      "id": "correct",
+      "label": "Correct",
+      "description": "The requirement accurately represents the stakeholder need it is meant to capture.",
+      "when_uncovered": "out_of_scope",
+      "reason": "Correctness is agreement with the real stakeholder need and requires stakeholder validation, not a local heuristic over the text. Declaring it covered would simulate coverage."
+    },
+    {
+      "id": "conforming",
+      "label": "Conforming",
+      "description": "The requirement follows an approved template, pattern, or standard for its statement (e.g. an EARS pattern).",
+      "when_uncovered": "heuristic_gap",
+      "reason": ""
+    }
+  ]
+}
