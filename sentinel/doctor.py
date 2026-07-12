@@ -62,6 +62,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-gap-response",
     "sentinel-health",
     "sentinel-implementation-feedback",
+    "sentinel-intake-triage",
     "sentinel-maturity",
     "sentinel-privacy-local-first",
     "sentinel-project-brief",
