@@ -68,6 +68,9 @@ def validate_cited_decisions(data: dict[str, Any], grounding_text: str, *, label
         if evidence not in grounding_text:
             raise AnnotationError(f"{decision_id}: evidence quote is not found verbatim in local workspace evidence.")
         consequence = str(item.get("consequence", "")).strip()
+        consequences = parse_consequences(item, decision_id)
+        considered_options = parse_considered_options(item, grounding_text, decision_id)
+        supersedes = parse_supersedes(item, decision_id)
         decisions.append(
             {
                 "id": decision_id,
@@ -78,9 +81,80 @@ def validate_cited_decisions(data: dict[str, Any], grounding_text: str, *, label
                 "decision": decision,
                 "evidence": evidence,
                 "consequence": consequence,
+                "consequences": consequences,
+                "considered_options": considered_options,
+                "supersedes": supersedes,
             }
         )
     return decisions
+
+
+def parse_consequences(item: dict[str, Any], decision_id: str) -> list[str]:
+    """ADR-grade trade-offs (IMP-188). Optional; a decision with no stated
+    trade-off is an ADR anti-pattern, but the field stays optional so existing
+    DEC-* payloads need no migration. Not citation-bound: consequences are
+    forward-looking predictions of the decision, not claims about local evidence.
+    """
+    raw = item.get("consequences")
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list):
+        raise AnnotationError(f"{decision_id}: consequences must be a list of trade-off strings.")
+    result: list[str] = []
+    for entry in raw:
+        text = str(entry).strip()
+        if text:
+            result.append(text)
+    return result
+
+
+def parse_considered_options(item: dict[str, Any], grounding_text: str, decision_id: str) -> list[dict[str, str]]:
+    """Alternatives that were on the table (IMP-188). Optional, but every option
+    must carry a verbatim local citation (cita-o-silencio, molde IMP-113): the
+    point is to record options grounded in real evidence so nobody relitigates
+    them in a later "time-travel" debate.
+    """
+    raw = item.get("considered_options")
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list):
+        raise AnnotationError(f"{decision_id}: considered_options must be a list of cited options.")
+    options: list[dict[str, str]] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise AnnotationError(
+                f"{decision_id}: each considered option must be an object with 'option' and verbatim 'evidence'."
+            )
+        option = str(entry.get("option", "")).strip()
+        if not option:
+            raise AnnotationError(f"{decision_id}: each considered option needs an 'option' label.")
+        evidence = str(entry.get("evidence", "")).strip()
+        if not evidence:
+            raise AnnotationError(
+                f"{decision_id}: considered option '{option}' needs a verbatim evidence quote (options must be cited)."
+            )
+        if evidence not in grounding_text:
+            raise AnnotationError(
+                f"{decision_id}: considered option '{option}' evidence quote is not found verbatim in local workspace evidence."
+            )
+        options.append({"option": option, "evidence": evidence})
+    return options
+
+
+def parse_supersedes(item: dict[str, Any], decision_id: str) -> str:
+    """Supersession pointer (IMP-188). A decision is immutable: it is never
+    edited in place. When it changes, a new DEC-* is emitted that supersedes the
+    prior one (coherente con invalidar-no-borrar, IMP-153). The prior decision's
+    archived source and graph node stay intact; only this back-reference is added.
+    """
+    value = str(item.get("supersedes", "")).strip().upper()
+    if not value:
+        return ""
+    if not re.match(r"^DEC-[A-Z0-9-]+$", value):
+        raise AnnotationError(f"{decision_id}: supersedes must reference a DEC-* id.")
+    if value == decision_id:
+        raise AnnotationError(f"{decision_id}: a decision cannot supersede itself.")
+    return value
 
 
 def workspace_grounding_text(base: Path) -> str:
@@ -104,6 +178,40 @@ def workspace_grounding_text(base: Path) -> str:
     return "\n\n".join(chunks)
 
 
+def render_supersession_line(item: dict[str, Any]) -> str:
+    value = item.get("supersedes")
+    return f"\n- Supersedes: `{value}`" if value else ""
+
+
+def render_considered_options_block(item: dict[str, Any]) -> str:
+    options = item.get("considered_options") or []
+    if not options:
+        return ""
+    lines = "\n".join(f"- **{opt['option']}** - cited: {opt['evidence']}" for opt in options)
+    return f"""
+
+Considered options:
+
+{lines}"""
+
+
+def render_consequences_block(item: dict[str, Any]) -> str:
+    consequences = item.get("consequences") or []
+    if consequences:
+        lines = "\n".join(f"- {text}" for text in consequences)
+        return f"""
+
+Consequences (trade-offs):
+
+{lines}"""
+    legacy = item.get("consequence")
+    return f"""
+
+Consequence:
+
+{legacy or 'TBD'}"""
+
+
 def render_decision_register(project_id: str, decisions: list[dict[str, str]]) -> str:
     blocks = []
     for item in decisions:
@@ -113,22 +221,18 @@ def render_decision_register(project_id: str, decisions: list[dict[str, str]]) -
 - Lens: `{item['lens']}`
 - Risk: `{item['risk']}`
 - Reversibility: `{item['reversibility']}`
-- Status: `pending_review`
-- Evidence: {item['evidence']}
+- Status: `pending_review`{render_supersession_line(item)}
+- Evidence: {item['evidence']}{render_considered_options_block(item)}
 
 Decision:
 
-{item['decision']}
-
-Consequence:
-
-{item['consequence'] or 'TBD'}
+{item['decision']}{render_consequences_block(item)}
 """
         )
     body = "\n".join(blocks) or "_No hard-to-reverse decisions registered._\n"
     return f"""# Hard-To-Reverse Decision Register - {project_id}
 
-This register is generated by `/self-review`. It records decisions that deserve BA/Product review before downstream agents treat them as stable execution facts.
+This register is generated by `/self-review`. It records decisions that deserve BA/Product review before downstream agents treat them as stable execution facts. Decisions are immutable: a superseded decision keeps its original entry and archived source; a new `DEC-*` records the supersession.
 
 {body}
 """
@@ -286,17 +390,13 @@ def render_gate_override_register(project_id: str, entries: list[dict[str, Any]]
 - Underlying verdict: `{item.get('verdict', 'unknown')}`
 - Lens: `{item.get('lens', 'product')}`
 - Risk: `{item.get('risk', 'med')}`
-- Reversibility: `{item.get('reversibility', 'moderate')}`
+- Reversibility: `{item.get('reversibility', 'moderate')}`{render_supersession_line(item)}
 - Evidence: {item.get('evidence', '')}
-- Source: `{item.get('source', '')}`
+- Source: `{item.get('source', '')}`{render_considered_options_block(item)}
 
 Decision:
 
-{item.get('decision', '')}
-
-Consequence:
-
-{item.get('consequence', '') or 'TBD'}
+{item.get('decision', '')}{render_consequences_block(item)}
 
 Findings snapshot:
 {findings}

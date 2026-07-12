@@ -12,7 +12,7 @@ Parse `PROJECT_ID` and `--source PATH` from:
 /self-review PROJECT_ID --source PATH
 ```
 
-The `--source` file is JSON with optional `gaps[]` and `decisions[]`. Gaps follow the governed cited shape (`id`, `lens`, `severity`, `question`, and verbatim `evidence`) and are validated against generated PRD/spec artifacts, then merged as `origin: self-review`. Decisions declare `id` (`DEC-*`), `title`, `lens`, `risk`, `reversibility`, `decision`, verbatim `evidence`, and optional `consequence`.
+The `--source` file is JSON with optional `gaps[]` and `decisions[]`. Gaps follow the governed cited shape (`id`, `lens`, `severity`, `question`, and verbatim `evidence`) and are validated against generated PRD/spec artifacts, then merged as `origin: self-review`. Decisions declare `id` (`DEC-*`), `title`, `lens`, `risk`, `reversibility`, `decision`, and verbatim `evidence`. ADR-grade optional fields (backwards-compatible, no migration): `consequences[]` (trade-offs; a decision with no trade-off is an anti-pattern), `considered_options[]` (each `{option, evidence}` cited verbatim), and `supersedes` (a prior `DEC-*` this one immutably replaces — the superseded entry stays intact).
 
 Run from the repository root:
 

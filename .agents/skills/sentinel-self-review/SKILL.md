@@ -41,14 +41,25 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
       "risk": "high",
       "reversibility": "hard-to-reverse",
       "evidence": "The CRM emits invoice updates nightly",
-      "consequence": "Real-time status expectations must be renegotiated if this holds."
+      "consequences": [
+        "Real-time status expectations must be renegotiated if this holds.",
+        "Downstream specs may need rework if the CRM later exposes a streaming API."
+      ],
+      "considered_options": [
+        { "option": "Real-time sync", "evidence": "The CRM emits invoice updates nightly" }
+      ],
+      "supersedes": "DEC-SELFREVIEW-SYNC-DRAFT"
     }
   ]
 }
 ```
 
 - `gaps[]` (optional): identical rules to `/annotate` — `evidence` must be a verbatim quote from the grounding set or the finding is rejected. Merged entries carry `origin: self-review` and flow through the normal gap lifecycle (new findings turn health `DIRTY`).
-- `decisions[]` (optional): `id` must start with `DEC-`; `decision` and `evidence` (verbatim quote) are required; `risk` is `low | med | high`; `reversibility` is `easy | moderate | hard-to-reverse | irreversible`; `title`, `lens`, and `consequence` are optional. Registered as `DEC-*` nodes with status `pending_review` — visibility for the BA, never auto-approval.
+- `decisions[]` (optional): `id` must start with `DEC-`; `decision` and `evidence` (verbatim quote) are required; `risk` is `low | med | high`; `reversibility` is `easy | moderate | hard-to-reverse | irreversible`; `title` and `lens` are optional. Registered as `DEC-*` nodes with status `pending_review` — visibility for the BA, never auto-approval.
+- ADR-grade optional fields (all backwards-compatible — an old payload without them still validates, no migration):
+  - `consequences[]` (or legacy singular `consequence`): the trade-offs the decision accepts. **A decision with no stated trade-off is an ADR anti-pattern** — if nothing gets harder, it was not really a decision. Consequences are forward-looking, so they are *not* citation-bound.
+  - `considered_options[]`: the alternatives that were on the table, each `{ "option": <label>, "evidence": <verbatim quote> }`. **Every option must be cited** (same verbatim rule as `evidence`) so the choice cannot be relitigated in a later "time-travel" debate; an uncited option is rejected.
+  - `supersedes`: a prior `DEC-*` id this decision replaces. Decisions are **immutable** — never edit a registered `DEC-*`; emit a new one that supersedes it (coherente con invalidar-no-borrar). The superseded decision keeps its original register entry and archived source intact; only the back-reference is recorded.
 
 ## Rules
 
@@ -56,6 +67,15 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
 - The runtime does not rewrite PRD/specs. When a finding is confirmed, remediate upstream and regenerate through the owning command (`/resolve-gaps`, `/specs`).
 - The BA stays in control: decisions land `pending_review`; nothing is approved by the agent.
 - Local-first: the review runs entirely against local artifacts; no network or external services.
+- Immutability: never rewrite a registered `DEC-*` to change its meaning. When a decision changes, author a new one with `supersedes` pointing at the old id; the old entry stays intact.
+
+## Y-Statement (optional short format)
+
+When a full decision record is heavier than the moment warrants, capture the `decision` text as a one-line Y-statement — it forces the trade-off to the surface, which is the ADR discipline in miniature:
+
+> In the context of **\<use case / scenario\>**, facing **\<concern\>**, we decided for **\<option\>** and against **\<alternatives\>**, to achieve **\<quality\>**, accepting **\<downside\>**.
+
+The `and against <alternatives>` clause maps to `considered_options[]` and the `accepting <downside>` clause maps to `consequences[]`; fill those structured fields when you want them cited and traceable, or keep the Y-statement inline when a lightweight note is enough.
 
 ## Agentic Spirit (applies to every proposal you author)
 

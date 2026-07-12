@@ -306,13 +306,19 @@ The source JSON may contain `gaps[]`, `decisions[]`, or both:
       "reversibility": "hard-to-reverse",
       "decision": "The PRD scopes billing submission as a committed workflow.",
       "evidence": "submit invoices for billing",
-      "consequence": "Changing this later may invalidate acceptance criteria and backlog slicing."
+      "consequences": ["Changing this later may invalidate acceptance criteria and backlog slicing."],
+      "considered_options": [
+        { "option": "Defer billing to a later release", "evidence": "submit invoices for billing" }
+      ],
+      "supersedes": "DEC-BILLING-SCOPE-DRAFT"
     }
   ]
 }
 ```
 
 Gap validation reuses the governed cited-gap rules and tags accepted items as `origin: self-review`. Decision validation requires a `DEC-*` id, a declared risk (`low`, `med`, `medium`, or `high`), reversibility (`easy`, `moderate`, `hard-to-reverse`, or `irreversible`), and verbatim local evidence from the generated PRD/spec context.
+
+ADR-grade decision fields are optional and backwards-compatible (an older payload without them still validates — no migration): `consequences[]` records the accepted trade-offs (a decision with no trade-off is an ADR anti-pattern; forward-looking, so not citation-bound); `considered_options[]` records the cited alternatives (each `{option, evidence}`, evidence verbatim, so the choice cannot be relitigated later); and `supersedes` immutably replaces a prior `DEC-*` — the superseded decision keeps its original register entry and archived source, and a new decision records the supersession rather than editing the old one.
 
 Outputs:
 

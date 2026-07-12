@@ -170,6 +170,12 @@ def render_self_review_report(
         f"| `{item['id']}` | {item['risk']} | {item['reversibility']} | {item['decision']} | {item['evidence']} |"
         for item in decisions
     ) or "| N/A | N/A | N/A | No hard-to-reverse decisions registered. | N/A |"
+    supersession = "\n".join(
+        f"- `{item['id']}` supersedes `{item['supersedes']}`"
+        for item in decisions
+        if item.get("supersedes")
+    )
+    supersession_block = f"\n\nSupersessions:\n\n{supersession}\n" if supersession else ""
     skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
     return f"""# Skeptical Self-Review - {project_id}
 
@@ -191,7 +197,7 @@ Skipped duplicate gaps: {skipped_block}
 
 | Decision ID | Risk | Reversibility | Decision | Evidence Cited |
 | --- | --- | --- | --- | --- |
-{decision_rows}
+{decision_rows}{supersession_block}
 """
 
 
