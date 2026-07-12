@@ -471,9 +471,26 @@ Output:
 
 Markdown export copies the source artifact. PRD MDX export is optional and derived from the artifact block model: it writes `08_context_packs/exports/prd-mdx/index.mdx`, `blocks.json`, and a local `README.md`. Use it only with an offline renderer your team already controls. Sentinel does not install a renderer, call a hosted Plan MCP, or treat MDX as source of truth.
 
-The `interview` format (gaps only) writes `08_context_packs/exports/gaps-interview.md`: the open gaps ordered as a meeting script — blocking gaps first, grouped by lens — each with cited context, the question to ask, and 1-2 probing questions derived from the cited candidate options (never invented; a gap with no local evidence gets none). It is a read-only derived view: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited.
+The `interview` format (gaps only) writes `08_context_packs/exports/gaps-interview.md`: the open gaps ordered as a meeting script — blocking gaps first, grouped by lens (or **by stakeholder owner** when a registry exists, see `/stakeholders`) — each with cited context, the question to ask, and 1-2 probing questions derived from the cited candidate options (never invented; a gap with no local evidence gets none). It is a read-only derived view: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited.
 
 The `faq` format (gaps only) writes `08_context_packs/exports/gaps-faq.md`: the mirror image of the interview script, for gaps already **closed**. Each question is an elicited gap and each answer is its **CONFIRMED** closure, quoted verbatim from the seed/decision tables (`01_discovery/`) and cited to the gap id and its source. Only confirmed gaps appear — open gaps never show up as answered (never invented). It is likewise a read-only derived view: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited. With no confirmed gaps the FAQ is an explicit empty marker.
+
+## `stakeholders`
+
+Register or list the governed stakeholder registry and route elicitation by owner (IMP-192).
+
+```powershell
+python -m sentinel /stakeholders PROJECT_ID
+python -m sentinel /stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]
+```
+
+Output:
+
+- `01_discovery/stakeholders.md`
+
+Records who owns which domain/topic. The registry is a **generated artifact, mutable only through this command** — never hand-edited. Each owner governs a `--domain` (a lens: product, technical, business, design, quality) and optionally a `--topic`; `--profile` reuses the IMP-142 `respondent_profile` (`business` | `technical`) and an unrecognized value is dropped rather than invented. Ids auto-assign as `STK-NNN` when `--id` is omitted; a duplicate `--id` is rejected.
+
+The payoff is deterministic routing: with a non-empty registry the `interview` export groups open gaps **by owner** (a gap is matched to an owner by its lens), so the script reads "these questions go to Operations; these to Technology." A gap whose lens has no registered owner is listed under an explicit **unassigned** heading — never a fabricated owner. Power×Interest scoring and communication plans are intentionally out of scope (delivery, not discovery).
 
 ## `specs`
 

@@ -23,6 +23,8 @@ Translate short chat commands into Sentinel CLI executions.
 - `/brief PROJECT_ID`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
 - `/status PROJECT_ID`
+- `/stakeholders PROJECT_ID`
+- `/stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]`
 - `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md`
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
@@ -91,6 +93,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/status`, `/export`: summarize the CLI result and generated artifact path.
+- `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.
 
 ## Safety
 
