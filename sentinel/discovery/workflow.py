@@ -11,6 +11,7 @@ from ..technique_registry import default_challenge_technique_ids, default_techni
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
+from ..deltas import DeltaStatus
 from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
@@ -383,13 +384,13 @@ def requirement_unit_delta_entries(
     for key in sorted(set(previous) | set(current)):
         was, now = previous.get(key), current.get(key)
         if was and not now:
-            status, ref = "REMOVED", was
+            status, ref = DeltaStatus.REMOVED.value, was
         elif now and not was:
-            status, ref = "ADDED", now
+            status, ref = DeltaStatus.ADDED.value, now
         elif was and now and was.get("evidence") != now.get("evidence"):
-            status, ref = "MODIFIED", now
+            status, ref = DeltaStatus.MODIFIED.value, now
         else:
-            status, ref = "UNCHANGED", (now or was)
+            status, ref = DeltaStatus.UNCHANGED.value, (now or was)
         entries.append(
             {
                 "status": status,

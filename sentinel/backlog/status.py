@@ -13,6 +13,7 @@ from .gates import (
 from .rollup import backlog_status
 from ..core.markdown import parse_frontmatter, parse_table_rows, update_frontmatter_keys
 from ..core.graph import add_edge, add_node, nodes_by_type
+from ..deltas import DELTA_LEGEND, delta_marker
 from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 
@@ -364,9 +365,10 @@ def write_acceptance_criteria_delta_report(project_id: str, deltas: list[dict[st
     path = workspace_path(project_id) / "04_backlog" / "acceptance_criteria_deltas.md"
     timestamp = utc_now()
     rows = "\n".join(
-        "| {story} | `{ac}` | {kind} | {before} | {after} |".format(
+        "| {story} | `{ac}` | {delta} | {kind} | {before} | {after} |".format(
             story=delta["story_id"],
             ac=delta["ac_id"],
+            delta=delta_marker(delta["change_type"]),
             kind=delta["change_type"],
             before=markdown_cell(delta.get("frozen", {}).get("criterion", "N/A")),
             after=markdown_cell(delta.get("current", {}).get("criterion", "N/A")),
@@ -380,9 +382,10 @@ Generated: {timestamp}
 
 This report records explicit diffs against acceptance criteria frozen by `/story-status --set Ready`.
 Existing frozen criteria must not change silently during backlog regeneration; new criteria are listed as `added_after_freeze` for review.
+{DELTA_LEGEND}
 
-| Story | AC | Change | Frozen Criterion | Current Criterion |
-| --- | --- | --- | --- | --- |
+| Story | AC | Delta | Change | Frozen Criterion | Current Criterion |
+| --- | --- | --- | --- | --- | --- |
 {rows}
 """,
         encoding="utf-8",

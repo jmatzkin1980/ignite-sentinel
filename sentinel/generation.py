@@ -12,6 +12,7 @@ from .backlog.gates import evaluate_story_gates, update_story_gate_state
 from .backlog.rollup import backlog_status
 from .assumptions import persist_assumptions_projection
 from .core.markdown import parse_table_rows
+from .deltas import DELTA_LEGEND, DeltaStatus, delta_marker
 from .compilers.backlog import (
     build_agent_execution_contract,
     build_domain_context_coverage,
@@ -93,6 +94,43 @@ DOMAIN_CONTEXT_FOLDERS = {
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
+def sections_by_heading(text: str) -> dict[str, str]:
+    """Map each `#`-heading line to the body text until the next heading."""
+    sections: dict[str, str] = {}
+    current: str | None = None
+    body: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("#"):
+            if current is not None:
+                sections.setdefault(current, "\n".join(body).strip())
+            current = line.strip()
+            body = []
+        elif current is not None:
+            body.append(line)
+    if current is not None:
+        sections.setdefault(current, "\n".join(body).strip())
+    return sections
+
+
+def section_delta_entries(old_text: str, new_text: str) -> list[dict[str, str]]:
+    """Mark each affected section with the closed ADDED/MODIFIED/REMOVED enum (IMP-187).
+
+    New/changed sections keep the regenerated document order; removed sections
+    trail at the end. Unchanged sections are omitted (this is a delta view)."""
+    old_sections = sections_by_heading(old_text)
+    new_sections = sections_by_heading(new_text)
+    entries: list[dict[str, str]] = []
+    for heading, body in new_sections.items():
+        if heading not in old_sections:
+            entries.append({"heading": heading, "status": DeltaStatus.ADDED.value})
+        elif old_sections[heading] != body:
+            entries.append({"heading": heading, "status": DeltaStatus.MODIFIED.value})
+    for heading in old_sections:
+        if heading not in new_sections:
+            entries.append({"heading": heading, "status": DeltaStatus.REMOVED.value})
+    return entries
+
+
 def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str, new_text: str) -> str | None:
     """Record a human-readable summary of what changed when an artifact is regenerated (IMP-011).
 
@@ -123,6 +161,13 @@ def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str
     def section_rows(items: list[str]) -> str:
         return "\n".join(f"- {item}" for item in items) or "- None."
 
+    section_deltas = section_delta_entries(old_text, new_text)
+
+    def delta_rows(entries: list[dict[str, str]]) -> str:
+        if not entries:
+            return "| N/A | N/A |"
+        return "\n".join(f"| {delta_marker(e['status'])} | {e['heading']} |" for e in entries)
+
     out_path.write_text(
         f"""# Regeneration Diff - {artifact_label}
 
@@ -130,6 +175,14 @@ def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str
 - Triggering change: `{change_id}`
 - Lines added: {added_lines}
 - Lines removed: {removed_lines}
+
+{DELTA_LEGEND}
+
+## Section Deltas
+
+| Delta | Section |
+| --- | --- |
+{delta_rows(section_deltas)}
 
 ## Sections Added
 
