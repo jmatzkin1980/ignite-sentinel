@@ -7,6 +7,7 @@ from typing import Any
 
 from ..core.graph import add_edge, add_node
 from ..core.markdown import frontmatter_list, parse_frontmatter, parse_table_rows
+from ..deltas import DeltaStatus, delta_marker
 from ..memory import ContextBroker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
 from .prd import render_ears_requirements_table, render_prd_section_context
@@ -106,15 +107,15 @@ def record_spec_unit_delta(
         previous = previous_units.get(unit_id)
         current = current_snapshot.get(unit_id)
         if previous and not current:
-            status = "REMOVED"
+            status = DeltaStatus.REMOVED.value
         elif current and not previous:
-            status = "ADDED"
+            status = DeltaStatus.ADDED.value
         elif previous and current and previous["text"] != current["text"]:
-            status = "MODIFIED"
+            status = DeltaStatus.MODIFIED.value
         else:
-            status = "UNCHANGED"
+            status = DeltaStatus.UNCHANGED.value
         entries.append(spec_unit_delta_entry(unit_id, status, previous, current))
-    changed = [entry for entry in entries if entry["status"] != "UNCHANGED"]
+    changed = [entry for entry in entries if entry["status"] != DeltaStatus.UNCHANGED.value]
     path, delta_id = write_spec_unit_delta_report(project_id, entries, changed)
     update_implementation_readiness_stale_units(project_id, changed, path)
     update_state(
@@ -182,7 +183,7 @@ def write_spec_unit_delta_report(
             rendered.append(
                 "| {unit} | {status} | {frontmatter} | {ears} | {sources} | `{path}` |".format(
                     unit=f"`{item['unit_id']}`",
-                    status=item["status"],
+                    status=delta_marker(item["status"]),
                     frontmatter=", ".join(f"`{field}`" for field in item["frontmatter_changes"]) or "none",
                     ears=delta_value(item["previous_ears"], item["current_ears"]),
                     sources=delta_value(item["previous_sources"], item["current_sources"]),
