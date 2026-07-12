@@ -245,12 +245,14 @@ def build_server():
         return run_cli(["status", project_id])
 
     @server.tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
-    def sentinel_sync(project_id: str, source: str = "", note: str = "") -> dict:
+    def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False) -> dict:
         arguments = ["sync", project_id]
         if source:
             arguments += ["--source", source]
         if note:
             arguments += ["--note", note]
+        if digest:
+            arguments += ["--digest"]
         return run_cli(arguments)
 
     @server.tool(name="sentinel_reindex", description=TOOL_DESCRIPTIONS["reindex"])

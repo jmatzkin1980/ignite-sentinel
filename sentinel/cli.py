@@ -107,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     sync_p.add_argument("project_id")
     sync_p.add_argument("--source")
     sync_p.add_argument("--note", default="")
+    sync_p.add_argument("--digest", action="store_true")
 
     resolve_p = sub.add_parser("resolve-gaps")
     resolve_p.add_argument("project_id")
@@ -261,9 +262,9 @@ def main(argv: list[str] | None = None) -> int:
             from .sync import sync_change, sync_pending_sources
 
             if args.source:
-                result = sync_change(args.project_id, Path(args.source), args.note)
+                result = sync_change(args.project_id, Path(args.source), args.note, digest=args.digest)
             else:
-                result = sync_pending_sources(args.project_id, args.note or "autonomous sync")
+                result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
             from .discovery import regenerate_gaps
