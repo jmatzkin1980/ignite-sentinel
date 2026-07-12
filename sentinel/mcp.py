@@ -66,6 +66,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel.", ["project_id", "artifact"]),
+    ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
@@ -243,6 +244,34 @@ def build_server():
     @server.tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
     def sentinel_status(project_id: str) -> dict:
         return run_cli(["status", project_id])
+
+    @server.tool(name="sentinel_stakeholders", description=TOOL_DESCRIPTIONS["stakeholders"])
+    def sentinel_stakeholders(
+        project_id: str,
+        add: bool = False,
+        id: str = "",
+        name: str = "",
+        domain: str = "",
+        topic: str = "",
+        profile: str = "",
+        notes: str = "",
+    ) -> dict:
+        arguments = ["stakeholders", project_id]
+        if add:
+            arguments.append("--add")
+            if id:
+                arguments += ["--id", id]
+            if name:
+                arguments += ["--name", name]
+            if domain:
+                arguments += ["--domain", domain]
+            if topic:
+                arguments += ["--topic", topic]
+            if profile:
+                arguments += ["--profile", profile]
+            if notes:
+                arguments += ["--notes", notes]
+        return run_cli(arguments)
 
     @server.tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False) -> dict:

@@ -2259,10 +2259,76 @@ def _interview_grouped_sections(
     return sections, number
 
 
-def render_interview_script(project_id: str, gaps: list[dict[str, str]], language: str = "en") -> str:
+def _owner_heading(owner: dict[str, str] | None, language: str) -> str:
+    es = language == "es"
+    if owner is None:
+        return (
+            "Sin dueño asignado (asignar vía `/stakeholders`)"
+            if es
+            else "Unassigned (no stakeholder owner — assign via `/stakeholders`)"
+        )
+    label = "Dueño" if es else "Owner"
+    domain_label = "dominio" if es else "domain"
+    heading = f"{label}: {owner.get('name', '').strip() or owner.get('id', '')} ({domain_label} `{owner.get('domain', '')}`"
+    profile = owner.get("respondent_profile", "").strip()
+    if profile:
+        heading += f", respondent_profile `{profile}`"
+    return heading + ")"
+
+
+def _interview_owner_sections(
+    gaps: list[dict[str, str]],
+    stakeholders: list[dict[str, str]],
+    counter_start: int,
+    language: str,
+) -> tuple[list[str], int]:
+    """IMP-192: group gaps by their assigned stakeholder owner (routed by lens).
+
+    Named owners come first (stable by id); gaps with no owner land in an explicit
+    unassigned bucket last — never an invented owner. Numbering stays continuous.
+    """
+    from ..stakeholders import owner_for_lens
+
+    buckets: dict[str | None, tuple[dict[str, str] | None, list[dict[str, str]]]] = {}
+    for gap in gaps:
+        lens = gap.get("lens") or lens_for_gap(gap["id"])
+        owner = owner_for_lens(lens, stakeholders)
+        key = owner["id"] if owner else None
+        if key not in buckets:
+            buckets[key] = (owner, [])
+        buckets[key][1].append(gap)
+    ordered_keys = sorted([k for k in buckets if k is not None]) + ([None] if None in buckets else [])
+    sections: list[str] = []
+    number = counter_start
+    for key in ordered_keys:
+        owner, owner_gaps = buckets[key]
+        owner_gaps = sorted(
+            owner_gaps,
+            key=lambda g: (_INTERVIEW_SEVERITY_ORDER.get(str(g.get("severity", "")).strip("`").lower(), 4), g["id"]),
+        )
+        entries = []
+        for gap in owner_gaps:
+            entries.append(_interview_gap_entry(number, gap, language))
+            number += 1
+        sections.append(f"### {_owner_heading(owner, language)}\n\n" + "\n\n".join(entries))
+    return sections, number
+
+
+def render_interview_script(
+    project_id: str,
+    gaps: list[dict[str, str]],
+    language: str = "en",
+    stakeholders: list[dict[str, str]] | None = None,
+) -> str:
     open_gaps = [gap for gap in gaps if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
     blocking = [gap for gap in open_gaps if is_blocking(gap)]
     followup = [gap for gap in open_gaps if not is_blocking(gap)]
+    route_by_owner = bool(stakeholders)
+
+    def group(section_gaps: list[dict[str, str]], counter: int) -> tuple[list[str], int]:
+        if route_by_owner:
+            return _interview_owner_sections(section_gaps, stakeholders or [], counter, language)
+        return _interview_grouped_sections(section_gaps, counter, language)
     if language == "es":
         header = (
             f"# Guion de entrevista - {project_id}\n\n"
@@ -2290,10 +2356,10 @@ def render_interview_script(project_id: str, gaps: list[dict[str, str]], languag
     parts = [header]
     number = 1
     if blocking:
-        sections, number = _interview_grouped_sections(blocking, number, language)
+        sections, number = group(blocking, number)
         parts.append(blocking_heading + "\n\n" + "\n\n".join(sections))
     if followup:
-        sections, number = _interview_grouped_sections(followup, number, language)
+        sections, number = group(followup, number)
         parts.append(followup_heading + "\n\n" + "\n\n".join(sections))
     return "\n\n".join(parts) + "\n"
 
@@ -2308,7 +2374,9 @@ def build_interview_script(project_id: str) -> str:
     state = read_json(base / "state.json", {})
     configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
     language = configured if configured in {"es", "en"} else "en"
-    return render_interview_script(project_id, gaps, language)
+    from ..stakeholders import load_stakeholders
+
+    return render_interview_script(project_id, gaps, language, load_stakeholders(project_id))
 
 
 def build_faq(project_id: str) -> str:

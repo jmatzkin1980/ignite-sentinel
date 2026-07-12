@@ -44,7 +44,20 @@ python -m sentinel /export PROJECT_ID --artifact gaps --format interview
 
 It writes `08_context_packs/exports/gaps-interview.md`: the **open** gaps ordered as a meeting script — **blocking gaps first**, grouped by lens — each with its cited context, the question to ask, and 1-2 **probing questions**. The probing questions are DERIVED from the IMP-113 candidate options, so they are always cited to local evidence; a gap without a local `evidence_mention` gets no probing questions (silence, never invented).
 
-This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note.
+This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note. When a stakeholder registry exists (below), the script groups gaps **by owner** instead of by lens.
+
+## Stakeholder Registry + Elicitation Routing (IMP-192)
+
+Record who owns which domain/topic so the interview script can route questions to the right person ("these go to Operations; these to Technology"). The registry is CLI-only:
+
+```powershell
+python -m sentinel /stakeholders PROJECT_ID
+python -m sentinel /stakeholders PROJECT_ID --add --name "Ops Lead" --domain product --profile business --topic "queue risk"
+```
+
+It writes `01_discovery/stakeholders.md`, a **GENERATED artifact — mutate it only through `/stakeholders`, never by hand.** Each owner governs a `--domain` (a lens: product, technical, business, design, quality) and optionally a `--topic`; `--profile` reuses IMP-142 (`business` | `technical`) and an unrecognized value is dropped rather than invented. Ids auto-assign as `STK-NNN` when `--id` is omitted.
+
+Routing is deterministic: a gap is matched to an owner by its lens/domain. With a non-empty registry the interview export groups blocking/follow-up gaps under each owner; a gap whose lens has **no** registered owner is listed under an explicit **"unassigned"** heading — never a fabricated owner. Power×Interest scoring and communication plans stay out of scope (delivery, not discovery).
 
 ## Resolved-Questions FAQ Export (IMP-186)
 

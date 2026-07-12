@@ -41,6 +41,7 @@ COMMANDS = {
     "context-request",
     "status",
     "export",
+    "stakeholders",
 }
 
 
@@ -161,6 +162,16 @@ def main(argv: list[str] | None = None) -> int:
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
     context_request_p.add_argument("--domain", required=True, choices=["technology", "design", "quality", "frontend", "backend"])
+
+    stakeholders_p = sub.add_parser("stakeholders")
+    stakeholders_p.add_argument("project_id")
+    stakeholders_p.add_argument("--add", action="store_true")
+    stakeholders_p.add_argument("--id", dest="stakeholder_id")
+    stakeholders_p.add_argument("--name")
+    stakeholders_p.add_argument("--domain")
+    stakeholders_p.add_argument("--topic", default="")
+    stakeholders_p.add_argument("--profile")
+    stakeholders_p.add_argument("--notes", default="")
 
     export_p = sub.add_parser("export")
     export_p.add_argument("project_id")
@@ -346,6 +357,22 @@ def main(argv: list[str] | None = None) -> int:
             from .status import project_status
 
             result = project_status(args.project_id)
+            print_json(result)
+        elif args.command == "stakeholders":
+            from .stakeholders import add_stakeholder, list_stakeholders
+
+            if args.add:
+                result = add_stakeholder(
+                    args.project_id,
+                    name=args.name or "",
+                    domain=args.domain or "",
+                    stakeholder_id=args.stakeholder_id,
+                    profile=args.profile,
+                    topic=args.topic,
+                    notes=args.notes,
+                )
+            else:
+                result = list_stakeholders(args.project_id)
             print_json(result)
         elif args.command == "export":
             from .export import export_artifact
