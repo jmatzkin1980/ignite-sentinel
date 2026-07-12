@@ -113,6 +113,45 @@ class AgenticSpiritBlockGuardTests(unittest.TestCase):
             )
 
 
+# IMP-190: coaching posture + anti-patterns are per-skill content (each ladder /
+# each anti-pattern list is skill-specific), so unlike the byte-identical spirit
+# block above these are minimum-mention guards — every target skill must carry the
+# section header, but the rungs/rows differ per skill.
+DECISION_LADDER_HEADER = "## Adaptive Decision Ladder"
+DECISION_LADDER_SKILLS = (
+    "sentinel-maturity",
+    "sentinel-health",
+    "sentinel-project-brief",
+    "sentinel-dashboard",
+)
+ANTI_PATTERNS_HEADER = "## Anti-patterns"
+ANTI_PATTERNS_SKILLS = (
+    "sentinel-backlog",
+    "sentinel-specs",
+    "sentinel-gap-response",
+)
+
+
+class DecisionLadderMentionGuardTests(unittest.TestCase):
+    def test_coaching_ladder_present_in_every_decision_skill(self):
+        for name in DECISION_LADDER_SKILLS:
+            self.assertIn(
+                DECISION_LADDER_HEADER,
+                skill_text(name),
+                f"{name} lost its Adaptive Decision Ladder coaching section (IMP-190)",
+            )
+
+
+class AntiPatternsMentionGuardTests(unittest.TestCase):
+    def test_anti_patterns_block_present_in_every_deliverable_skill(self):
+        for name in ANTI_PATTERNS_SKILLS:
+            self.assertIn(
+                ANTI_PATTERNS_HEADER,
+                skill_text(name),
+                f"{name} lost its Anti-patterns block (IMP-190)",
+            )
+
+
 class AssumeContractGuardTests(unittest.TestCase):
     def test_assume_documents_every_contract_field(self):
         text = skill_text("sentinel-assume")
