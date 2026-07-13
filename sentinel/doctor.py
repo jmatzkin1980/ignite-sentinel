@@ -55,6 +55,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-compose",
     "sentinel-backlog",
     "sentinel-backlog-refine",
+    "sentinel-brownfield-harvest",
     "sentinel-command-router",
     "sentinel-dashboard",
     "sentinel-discovery",
