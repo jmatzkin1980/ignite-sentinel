@@ -477,6 +477,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_expected_evidence_contract(project_id, base, checks, warnings)
     check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
     check_handoff_contracts(project_id, base, checks, warnings)
+    check_no_synthetic_citation(project_id, base, checks, warnings)
 
     return {
         "verdict": "WARN" if warnings else "CLEAN",
@@ -938,6 +939,59 @@ def markdown_heading_anchors(text: str) -> set[str]:
         if title:
             anchors.add(title)
     return anchors
+
+
+def check_no_synthetic_citation(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    """IMP-196 negative guard: no governed artifact may cite a synthetic dataset.
+
+    Synthetic handoff datasets (``08_context_packs/synthetic/``) are invented test data,
+    not evidence: they are git-ignored, disposable, and outside the SSoT. This guard scans
+    the governed lifecycle dirs (``00_raw..07_changes``) and flags any artifact that
+    references the synthetic area, so no citation/traceability channel can point at it.
+    """
+    from .synthetic_datasets import (
+        GOVERNED_LIFECYCLE_DIRS,
+        SYNTHETIC_RELATIVE_DIR,
+        references_synthetic,
+    )
+
+    scanned = 0
+    issues = 0
+    for dirname in GOVERNED_LIFECYCLE_DIRS:
+        directory = base / dirname
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*.md")):
+            scanned += 1
+            if references_synthetic(read_text(path)):
+                issues += 1
+                add_consistency_warning(
+                    warnings,
+                    "synthetic_citation",
+                    "citation->synthetic",
+                    relative_to_workspace(base, path),
+                    (
+                        f"{relative_to_workspace(base, path)} references the synthetic dataset "
+                        f"area ({SYNTHETIC_RELATIVE_DIR}); synthetic data is not evidence and "
+                        "must never be cited or traced."
+                    ),
+                    "Remove the reference and ground the artifact on governed evidence.",
+                )
+    checks.append(
+        {
+            "id": "no_synthetic_citation",
+            "status": "WARN" if issues else "PASS",
+            "layer": "citation->synthetic",
+            "artifact": "",
+            "scanned": scanned,
+            "issues": issues,
+        }
+    )
 
 
 def add_consistency_warning(
