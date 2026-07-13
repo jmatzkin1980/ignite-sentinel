@@ -88,6 +88,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/maturity` | Evaluate readiness for specs/backlog (gates + requirement quality + telemetry + development certainty) |
 | `/brief` | Compile the evidence-backed project brief |
 | `/context-request` | Generate a domain-specific context request |
+| `/stakeholders` | Register project stakeholders and route open gaps to their owner in the interview export |
 
 **Specs**
 
@@ -113,7 +114,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 
 | Command | What it does |
 |---------|--------------|
-| `/sync` | Metabolize new/unmapped info (meetings, mail, blockers) as traceable change |
+| `/sync` | Metabolize new/unmapped info (meetings, mail, blockers) as traceable change; `--digest` proposes cited impacts from an unstructured interaction without applying them |
 | `/trace` | (Re)generate the traceability matrix and graph |
 | `/health` | Audit workspace health, staleness, and readiness |
 | `/validate` | Structural validity + non-blocking quality/consistency warnings |
@@ -127,7 +128,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 | `/dashboard` | Generate a local read-only `dashboard.html` portfolio view for all workspaces |
 | `/view` | Generate a local read-only HTML view for one artifact |
 | `/status` | Phase, health, gap counts, telemetry, and next step |
-| `/export` | Export a shareable artifact, including optional local PRD MDX |
+| `/export` | Export a shareable artifact: PRD (MDX), the open-gaps `interview` script, or a traceable `faq` from resolved gaps |
 | `/doctor` | Verify Python, adapter parity, write access, and the optional memory layer |
 | `/sentinel` | Generic fallback to run any command from one entry point |
 
@@ -283,7 +284,7 @@ Other governed channels, each validated against verbatim local evidence:
 
 Backlog is intentionally stable after generation. Domain context updates should usually be consumed through `/reindex`, `/retrieve`, and `implementation_readiness.json`; rerun `/backlog` only when the new evidence materially changes story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
-`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `requirement_quality`, `semantic_quality`, and `cross_artifact_consistency` emit non-blocking warnings (vague requirement prose with category/why-it-matters detail, scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift, expected-evidence mismatches on Spec Units, and lost spec-unit handoff statements in backlog acceptance criteria) as corrective guidance. It also reports `iso29148_coverage`: the nine ISO/IEC/IEEE 29148 requirement-quality characteristics mapped to the deterministic checks that cover them, with characteristics no local heuristic can honestly decide (Complete, Feasible, Correct, Necessary) declared out of scope rather than simulated.
+`/validate` keeps structural validity separate from maturity: it returns non-zero only for structural problems, while `requirement_quality`, `semantic_quality`, and `cross_artifact_consistency` emit non-blocking warnings (vague requirement prose with category/why-it-matters detail, scaffolding content, missing EARS/spec-unit continuity, dangling pointers, PRD/spec drift, expected-evidence mismatches on Spec Units, lost spec-unit handoff statements in backlog acceptance criteria, and any governed artifact that cites the disposable synthetic-dataset area) as corrective guidance. It also reports `iso29148_coverage`: the nine ISO/IEC/IEEE 29148 requirement-quality characteristics mapped to the deterministic checks that cover them, with characteristics no local heuristic can honestly decide (Complete, Feasible, Correct, Necessary) declared out of scope rather than simulated.
 
 ## Command protocol
 
