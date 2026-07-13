@@ -14,11 +14,13 @@ Skills delegate deterministic work to the same local CLI used by Kilo Code and t
 
 ## Available Skills
 
-All 21 canonical skills, grouped by lifecycle activity:
+All 24 canonical skills, grouped by lifecycle activity:
 
 | Skill | Use When |
 | --- | --- |
+| `sentinel-intake-triage` | Triaging a pile of unstructured intake (mails/RFQs/chats) into candidate projects **before** `/init` |
 | `sentinel-discovery` | Ingesting raw client/stakeholder requirements |
+| `sentinel-brownfield-harvest` | Harvesting cited technical context from an existing local codebase (`[OBSERVED]`/`[INFERRED]`) |
 | `sentinel-annotate` | Contributing semantic gaps the lexical checklist missed (agent proposal) |
 | `sentinel-challenge` | Stress-testing what is not being said with the 7 registry elicitation techniques |
 | `sentinel-scrutiny` | Systematic multi-lens scrutiny; `--mode implementability-probe` pre-flight per `RU-*` |
@@ -34,6 +36,7 @@ All 21 canonical skills, grouped by lifecycle activity:
 | `sentinel-backlog-refine` | Proposing cited backlog refinements through `/refine-backlog` |
 | `sentinel-implementation-feedback` | Downstream agents reporting blockers as governed feedback |
 | `sentinel-quality` | Generating quality/test coverage |
+| `sentinel-handoff-datasets` | Generating disposable synthetic datasets for the developer handoff (never governed, never cited) |
 | `sentinel-sync` | Processing feedback, meetings, or changes |
 | `sentinel-health` | Auditing health, traceability, and indexing |
 | `sentinel-dashboard` | Generating and interpreting the portfolio dashboard |

@@ -785,6 +785,14 @@ Explicit file:
 python -m sentinel /sync PROJECT_ID --source path\to\change.md --note "why this change exists"
 ```
 
+Structured digest (opt-in) for an unstructured interaction (meeting transcript, mail, chat):
+
+```powershell
+python -m sentinel /sync PROJECT_ID --source path\to\meeting.md --digest
+```
+
+The digest extracts, with a verbatim citation per line, candidate answers to open gaps (pre-filled into a `PROPOSED` gap-response file that does **not** close anything on its own), `DEC-*` candidates, new gaps, and assumption contradictions reused from the change metabolism. It **proposes and routes, never applies**: it only writes `07_changes/.../interaction_digest.md` and the proposed response file for BA review. No signal means an explicit empty digest.
+
 Creates:
 
 - `CHG` node
