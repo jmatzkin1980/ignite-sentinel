@@ -17,7 +17,7 @@ The catalog is the runtime registry (`sentinel/techniques/*.json`); tag each fin
 
 Default set:
 
-1. **Pre-mortem** (`pre-mortem`): assume the project failed six months after launch. For each lens (business, product, quality, technical, compliance, delivery, design), ask "what did we fail to ask that caused this failure?".
+1. **Pre-mortem** (`pre-mortem`): assume the project failed six months after launch. For each lens (business, product, quality, technical, compliance, delivery, design), ask "what did we fail to ask that caused this failure?". Then **classify each imagined failure mode** using the taxonomy below, so the BA knows where to spend scarce discovery effort.
 2. **Role-play by lens** (`role-play`): step into the lens's adversarial role — operator, auditor, attacker, support agent, regulator — and ask what that role would need that the input never mentions.
 3. **Assumption inversion** (`assumption-inversion`): list the implicit assumptions, invert each ("what if the opposite is true?"), and surface the gap the inversion exposes.
 4. **JTBD Four Forces** (`jtbd-forces`): stress-test the requirement through the push of the current situation, the pull of the new solution, the anxiety about switching, and the habit/inertia holding the old behavior. **Anti-hypothetical guardrail:** anchor every force in a concrete past event, observed quote, or local evidence — a purely hypothetical preference question ("would you use X?") stays a narrative note and never merges as a gap.
@@ -27,6 +27,16 @@ Extended set (opt-in):
 5. **Red/blue team** (`red-blue-team`): red-team the requirement for misuse, failure, ambiguity, and invalid success claims; blue-team the minimum evidence needed to defend it. Use for security-, audit-, or abuse-sensitive requirements.
 6. **First principles** (`first-principles`): decompose the request into irreducible user, value, data, rule, interface, quality, and governance facts; flag facts that are implied but not evidenced. Use for novel or over-packaged requirements ("just like X but…").
 7. **Stakeholder round-robin** (`stakeholder-round-robin`): rotate through likely stakeholders and ask what each would need to approve, operate, test, support, or audit the requirement. Use when many actors orbit the requirement but only one voice wrote it.
+
+## Pre-mortem risk taxonomy (Tigers / Paper Tigers / Elephants)
+
+The pre-mortem technique's imagined failure modes are not equally worth chasing. Classify each one so the pressure-test drives effort where it matters. The catalog is declarative — the labels and their meaning live in `sentinel/techniques/pre-mortem.json` (`risk_taxonomy`) and are echoed into `challenge_report.md`, so this list can never desync:
+
+- **Tiger** — a real, dangerous risk: high likelihood and high impact, already visible in the evidence. **Hunt it**: raise the question that closes it and treat the underlying gap as `high`/`critical` severity.
+- **Paper Tiger** — looks threatening but is low real risk once examined (low likelihood or low impact). **Note it and move on**: don't spend scarce discovery effort; keep any gap at `low`/`medium` severity.
+- **Elephant** — a large, obvious risk that no one is naming (the elephant in the room); the failure mode is the silence itself. **Surface it explicitly** and force it into a decision or a gap; never let it stay unstated.
+
+The taxonomy sets *severity and where to spend effort* — it does not relax the evidence contract: a Tiger still needs a verbatim quote (or explicit silence) to merge as a gap, exactly like any other finding.
 
 ## Respondent calibration (`respondent_profile`)
 

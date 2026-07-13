@@ -7,7 +7,13 @@ from pathlib import Path
 
 from ..lens_registry import known_lenses, load_lens_checks, load_smell_catalog
 from ..domain_context import respondent_profile_from_domain_context
-from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label, technique_prompt
+from ..technique_registry import (
+    default_challenge_technique_ids,
+    default_technique_summary,
+    technique_label,
+    technique_prompt,
+    technique_risk_taxonomy,
+)
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, read_json
 from ..core.markdown import parse_table_rows
@@ -1312,6 +1318,19 @@ def render_challenge_report(
     premortem = _string_list(data.get("premortem"))
     inverted = _string_list(data.get("assumptions_inverted"))
     premortem_block = "\n".join(f"- {item}" for item in premortem) or "- None reported."
+    taxonomy = technique_risk_taxonomy("pre-mortem")
+    if taxonomy:
+        taxonomy_rows = "\n".join(
+            f"| {row['label']} | {row['definition']} | {row['response']} |" for row in taxonomy
+        )
+        taxonomy_block = (
+            "Classify each imagined failure mode so the BA knows where to spend "
+            "scarce discovery effort:\n\n"
+            "| Class | What it is | How to respond |\n| --- | --- | --- |\n"
+            f"{taxonomy_rows}"
+        )
+    else:
+        taxonomy_block = ""
     inverted_block = "\n".join(f"- {item}" for item in inverted) or "- None reported."
     skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
     return f"""# Challenge Report - {project_id}
@@ -1330,6 +1349,8 @@ severity range, verbatim evidence) before merging as a gap — never written by 
 Skipped (already present in gaps.md): {skipped_block}
 
 ## Pre-Mortem (imagined failure modes)
+
+{taxonomy_block}
 
 {premortem_block}
 

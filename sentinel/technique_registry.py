@@ -36,6 +36,9 @@ VALID_CATEGORIES = {
     "stakeholder",
 }
 VALID_RESPONDENT_PROFILES = {"business", "technical"}
+# Closed pre-mortem risk taxonomy (IMP-195): an unknown label is rejected at
+# load time, so an invalid classification is impossible by construction.
+RISK_TAXONOMY_LABELS = ("Tiger", "Paper Tiger", "Elephant")
 TECHNIQUE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -97,7 +100,48 @@ def _normalize_technique(data: dict, fallback_id: str) -> dict:
         "calibration": calibration,
         "evidence_contract": evidence_contract,
         "output_focus": [str(item).strip() for item in data.get("output_focus", []) if str(item).strip()],
+        "risk_taxonomy": normalize_risk_taxonomy(data.get("risk_taxonomy", []), technique_id),
     }
+
+
+def normalize_risk_taxonomy(raw: object, technique_id: str = "") -> list[dict[str, str]]:
+    """Validate an optional pre-mortem risk taxonomy (IMP-195).
+
+    Each entry declares a ``label`` from the closed ``RISK_TAXONOMY_LABELS`` set
+    plus a non-empty ``definition`` and ``response``. An unknown label or a
+    duplicate raises, so the report can never render an invented classification.
+    Absent taxonomy is simply an empty list.
+    """
+    if not raw:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(f"{technique_id}: risk_taxonomy must be a list.")
+    taxonomy: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError(f"{technique_id}: each risk_taxonomy entry must be an object.")
+        label = str(entry.get("label", "")).strip()
+        if label not in RISK_TAXONOMY_LABELS:
+            raise ValueError(
+                f"{technique_id}: risk_taxonomy label must be one of {', '.join(RISK_TAXONOMY_LABELS)}."
+            )
+        if label in seen:
+            raise ValueError(f"{technique_id}: duplicate risk_taxonomy label: {label}.")
+        definition = str(entry.get("definition", "")).strip()
+        response = str(entry.get("response", "")).strip()
+        if not definition or not response:
+            raise ValueError(f"{technique_id}: risk_taxonomy '{label}' needs a definition and a response.")
+        seen.add(label)
+        taxonomy.append({"label": label, "definition": definition, "response": response})
+    return taxonomy
+
+
+def technique_risk_taxonomy(
+    technique_id: str, techniques_dir: Path | str | None = None
+) -> list[dict[str, str]]:
+    technique = technique_by_id(technique_id, techniques_dir)
+    return list(technique.get("risk_taxonomy", [])) if technique else []
 
 
 def normalize_technique_calibration(raw: object) -> dict[str, str]:

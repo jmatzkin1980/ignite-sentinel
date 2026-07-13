@@ -67,6 +67,10 @@ Full field-level detail of every handoff contract lives in [references/handoff-c
 
 - Downstream implementation feedback must enter through `/implementation-feedback`. Accepted findings are traced `CHG`/`GAP-FEEDBACK-*` records linked to existing stories or AC, may mark affected stories `Stale`, and may block DoD through `implementation_feedback_resolved`; they never rewrite backlog scope directly.
 
+## Prioritization frameworks (coaching, the BA chooses)
+
+Ignite governs the backlog and its ordering signals (SLICE-PLAN waves, readiness scores, dependencies) but does **not** impose a prioritization method or auto-rank value stories. When the BA is deciding *what to build first*, [references/prioritization-frameworks.md](references/prioritization-frameworks.md) is an educational menu of nine established frameworks (MoSCoW, Kano, RICE, ICE, WSJF, Value vs Effort, Opportunity Scoring, Cost of Delay, Story Mapping) — what each optimizes for, its inputs, when to reach for it, and its trap. Offer it in the coaching posture the maturity/health skills adopt (their `## Adaptive Decision Ladder`): surface the options and the trade-offs; the BA picks the frame. A score is only as good as its inputs — reach, impact, and effort must rest on cited evidence or explicit assumptions, never invented numbers.
+
 ## Anti-patterns
 
 Each row is a mistake this skill exists to prevent, with the correction:

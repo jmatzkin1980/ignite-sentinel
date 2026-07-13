@@ -83,6 +83,56 @@ class TechniqueRegistryShapeTests(unittest.TestCase):
         self.assertIn("implementation surfaces", report)
 
 
+class PreMortemRiskTaxonomyTests(unittest.TestCase):
+    """IMP-195: Tigers / Paper Tigers / Elephants taxonomy on the pre-mortem technique."""
+
+    def tearDown(self) -> None:
+        technique_registry.clear_cache()
+
+    def test_pre_mortem_declares_the_closed_taxonomy(self):
+        taxonomy = technique_registry.technique_risk_taxonomy("pre-mortem")
+        labels = [row["label"] for row in taxonomy]
+        self.assertEqual(labels, list(technique_registry.RISK_TAXONOMY_LABELS))
+        for row in taxonomy:
+            self.assertTrue(row["definition"])
+            self.assertTrue(row["response"])
+
+    def test_other_techniques_have_empty_taxonomy(self):
+        self.assertEqual(technique_registry.technique_risk_taxonomy("role-play"), [])
+
+    def test_unknown_label_is_rejected(self):
+        with self.assertRaises(ValueError):
+            technique_registry.normalize_risk_taxonomy(
+                [{"label": "Dragon", "definition": "x", "response": "y"}], "pre-mortem"
+            )
+
+    def test_duplicate_label_is_rejected(self):
+        with self.assertRaises(ValueError):
+            technique_registry.normalize_risk_taxonomy(
+                [
+                    {"label": "Tiger", "definition": "a", "response": "b"},
+                    {"label": "Tiger", "definition": "c", "response": "d"},
+                ],
+                "pre-mortem",
+            )
+
+    def test_missing_fields_are_rejected(self):
+        with self.assertRaises(ValueError):
+            technique_registry.normalize_risk_taxonomy(
+                [{"label": "Elephant", "definition": "", "response": "act"}], "pre-mortem"
+            )
+
+    def test_absent_taxonomy_is_empty(self):
+        self.assertEqual(technique_registry.normalize_risk_taxonomy(None), [])
+        self.assertEqual(technique_registry.normalize_risk_taxonomy([]), [])
+
+    def test_challenge_report_surfaces_taxonomy(self):
+        report = render_challenge_report("CHL", "source", [], [], {})
+        for label in technique_registry.RISK_TAXONOMY_LABELS:
+            self.assertIn(label, report)
+        self.assertIn("How to respond", report)
+
+
 class AddTechniqueWithoutPythonTests(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp(prefix="technique_test_")
