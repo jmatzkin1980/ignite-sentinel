@@ -61,6 +61,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-discovery",
     "sentinel-domain-request",
     "sentinel-gap-response",
+    "sentinel-handoff-datasets",
     "sentinel-health",
     "sentinel-implementation-feedback",
     "sentinel-intake-triage",
