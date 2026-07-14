@@ -39,6 +39,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID`
 - `/backlog PROJECT_ID --with-task-seeds`
+- `/backlog PROJECT_ID --story-format user|job`
 - `/backlog-status PROJECT_ID`
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner "NAME"] [--evidence PATH]`
 - `/refine-backlog PROJECT_ID --source PROPOSALS.json`
