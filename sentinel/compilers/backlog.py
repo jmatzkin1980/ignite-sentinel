@@ -243,8 +243,8 @@ def retrieval_plan_for_story(story: dict[str, Any]) -> list[dict[str, str]]:
     return plan
 
 
-def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context: dict[str, Any]) -> str:
-    story_sections = "\n\n".join(render_story_section(story) for story in stories)
+def render_epic(project_id: str, stories: list[dict[str, Any]], backlog_context: dict[str, Any], story_format: str = "user") -> str:
+    story_sections = "\n\n".join(render_story_section(story, story_format) for story in stories)
     story_rows = "\n".join(
         f"| `{story['id']}` | {story['type']} | {story['title']} | {story['label']} | {story['slicing']} | {', '.join(story['dependencies']) or 'None'} | {', '.join(story['trace'])} |"
         for story in stories
@@ -360,8 +360,9 @@ def render_enabler_epic(
     enablers: list[dict[str, Any]],
     value_stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
+    story_format: str = "user",
 ) -> str:
-    story_sections = "\n\n".join(render_story_section(story) for story in enablers)
+    story_sections = "\n\n".join(render_story_section(story, story_format) for story in enablers)
     rows = "\n".join(
         f"| `{story['id']}` | {story['title']} | {', '.join(story['enables'])} | {story['slicing']} | {', '.join(story['trace'])} |"
         for story in enablers
@@ -427,7 +428,44 @@ An item belongs here only when all checks pass:
 """
 
 
-def render_story_section(story: dict[str, Any]) -> str:
+# IMP-198: optional JTBD-native ("job story") phrasing for the story statement.
+# Default is the persona-neutral user-story shape ("As a target user..."), whose
+# output stays byte-identical to pre-IMP-198. The job format leads with the
+# operational situation instead of a persona (so it never invents one) and reuses
+# the same derived goal/benefit fields: a missing outcome surfaces as
+# `[PENDING INPUT]`, never hand-completed, exactly like the user-story format does
+# today. Only the story-statement wording changes — acceptance criteria, slicing
+# and SPEC-U -> EPIC -> US -> AC traceability are unaffected.
+STORY_FORMATS = ("user", "job")
+_JOB_STORY_SITUATION = "the target user faces the operational situation described in the source input"
+
+
+def normalize_story_format(value: str | None) -> str:
+    """Coerce an arbitrary value to a supported story format, defaulting to ``user``."""
+    return value if value in STORY_FORMATS else "user"
+
+
+def render_story_narrative(story: dict[str, Any], story_format: str = "user", *, inline: bool = False) -> str:
+    """Render the story statement in the requested format.
+
+    ``inline`` selects the single-line mirror shape; otherwise the multi-line
+    epic-section shape is produced. The ``user`` branch is intentionally kept
+    byte-identical to the historical rendering.
+    """
+    if story_format == "job":
+        motivation = story["goal"].strip().lower() or "[PENDING INPUT]"
+        outcome = story["benefit"].strip().lower() or "[PENDING INPUT]"
+        if inline:
+            return f"When {_JOB_STORY_SITUATION}, I want {motivation} so I can {outcome}"
+        return f"When {_JOB_STORY_SITUATION},\nI want {motivation},\nSo I can {outcome}"
+    goal = story["goal"].lower()
+    benefit = story["benefit"].lower()
+    if inline:
+        return f"As a target user, I want {goal} so that {benefit}"
+    return f"As a target user,\nI want {goal},\nSo that {benefit}"
+
+
+def render_story_section(story: dict[str, Any], story_format: str = "user") -> str:
     dependencies = ", ".join(story["dependencies"]) or "None"
     acceptance = "\n\n".join(render_gherkin_criterion(item) for item in story["acceptance"])
     owner = story.get("owner") or "[UNASSIGNED]"
@@ -440,9 +478,7 @@ def render_story_section(story: dict[str, Any]) -> str:
 **Lifecycle:** {story.get('status', 'Draft')} / {owner}
 
 **Narrative:**
-As a target user,
-I want {story['goal'].lower()},
-So that {story['benefit'].lower()}
+{render_story_narrative(story, story_format)}
 
 **Slicing Pattern:** {story['slicing']}
 
@@ -645,7 +681,7 @@ def render_bullet_list(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
-def render_story(project_id: str, epic_id: str, story: dict[str, Any]) -> str:
+def render_story(project_id: str, epic_id: str, story: dict[str, Any], story_format: str = "user") -> str:
     rows = "\n".join(
         f"| {criterion['id']} | {criterion.get('classification', 'acceptance')} | Given {criterion['given']}, When {criterion['when']}, Then {criterion['then']}. |"
         for criterion in story["acceptance"]
@@ -670,9 +706,9 @@ trace:
 
 This file mirrors the story embedded in its parent epic so quality and traceability tooling can address the story as an individual node.
 
-## User Story
+## {"Job Story" if story_format == "job" else "User Story"}
 
-As a target user, I want {story['goal'].lower()} so that {story['benefit'].lower()}
+{render_story_narrative(story, story_format, inline=True)}
 
 ## Context References
 

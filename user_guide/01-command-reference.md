@@ -551,9 +551,12 @@ Generate initial epic, user stories, acceptance criteria, and agent-oriented bac
 ```powershell
 python -m sentinel /backlog PROJECT_ID
 python -m sentinel /backlog PROJECT_ID --with-task-seeds
+python -m sentinel /backlog PROJECT_ID --story-format job
 ```
 
 Fails if maturity is `BLOCKED`.
+
+`--story-format` selects how each story statement is phrased. The default `user` keeps the persona-neutral user story (`As a target user, I want ... so that ...`). Passing `job` emits the JTBD-native job story (`When [situation], I want [motivation], so I can [outcome]`) — the natural shape when the input names no persona, so none is invented. It changes only the wording of the story statement: acceptance criteria, slicing, and `SPEC-U -> EPIC -> US -> AC` traceability are unchanged, and a missing outcome stays `[PENDING INPUT]` rather than being hand-completed. The format can also be set once via the `story_format: user|job` field in `sentinel.config.yaml`; the flag overrides the config field.
 
 Outputs:
 

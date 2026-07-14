@@ -25,6 +25,8 @@ REQUIRED_BODY_MENTIONS = {
     "resolve-gaps": ["CLOSED", "ANSWERED", "PARTIALLY_CLOSED", "OPEN", "EARS"],
     "health": ["staleness", "artifact_hashes", "needs_context"],
     "sync": ["ASM-", "origin: sync", "superseded", "associative"],
+    # IMP-198: both invocation-affecting backlog options must stay documented.
+    "backlog": ["with-task-seeds", "story-format"],
 }
 
 

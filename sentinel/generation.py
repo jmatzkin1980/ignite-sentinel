@@ -18,6 +18,7 @@ from .compilers.backlog import (
     build_domain_context_coverage,
     render_backlog_context_summary,
     render_enabler_boundary,
+    normalize_story_format,
     render_enabler_epic,
     render_epic,
     render_slicing_strategy_table,
@@ -373,7 +374,9 @@ def read_artifact_text(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
-def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str, str]:
+def generate_backlog(
+    project_id: str, with_task_seeds: bool = False, story_format: str | None = None
+) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
         raise RuntimeError("Cannot generate backlog while requirement maturity is BLOCKED.")
@@ -384,7 +387,10 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
     base = workspace_path(project_id)
     # IMP-151: soft gate — warn when backlog's foundation (specs, and the brief
     # behind it) drifted since generation. Blocks only under drift_gate.strict.
-    backlog_foundation_warnings = enforce_foundation_drift_gate(project_id, "backlog", load_config(project_id))
+    config = load_config(project_id)
+    backlog_foundation_warnings = enforce_foundation_drift_gate(project_id, "backlog", config)
+    # IMP-198: CLI flag takes precedence over the optional config field; default = user.
+    effective_story_format = normalize_story_format(story_format or config.get("story_format"))
     spec_path = base / "03_specs" / "specs.md"
     prd_path = base / "03_specs" / "prd.md"
     spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
@@ -411,7 +417,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
     previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
-    epic_path.write_text(render_epic(project_id, story_specs, backlog_context), encoding="utf-8")
+    epic_path.write_text(render_epic(project_id, story_specs, backlog_context, effective_story_format), encoding="utf-8")
     record_regeneration_diff(project_id, "EPIC-001.md", previous_epic, epic_path.read_text(encoding="utf-8"))
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
@@ -422,7 +428,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
     active_story_paths: set[Path] = set()
     for index, story_spec in enumerate(story_specs, start=1):
         story_path = base / "04_backlog" / f"US-{index:03d}.md"
-        story_path.write_text(render_story(project_id, epic_id, story_spec), encoding="utf-8")
+        story_path.write_text(render_story(project_id, epic_id, story_spec, effective_story_format), encoding="utf-8")
         active_story_paths.add(story_path)
         story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
         story_ids.append(story_id)
@@ -441,7 +447,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
     if enabler_specs:
         enabler_epic_path = base / "04_backlog" / "EPIC-002-cross-cutting-enablers.md"
         enabler_epic_path.write_text(
-            render_enabler_epic(project_id, enabler_specs, story_specs, backlog_context),
+            render_enabler_epic(project_id, enabler_specs, story_specs, backlog_context, effective_story_format),
             encoding="utf-8",
         )
         enabler_epic_id = add_node(
@@ -457,7 +463,7 @@ def generate_backlog(project_id: str, with_task_seeds: bool = False) -> dict[str
             add_edge(project_id, spec["id"], enabler_epic_id, "decomposes_to")
         for index, enabler_spec in enumerate(enabler_specs, start=len(story_specs) + 1):
             story_path = base / "04_backlog" / f"US-{index:03d}.md"
-            story_path.write_text(render_story(project_id, enabler_epic_id, enabler_spec), encoding="utf-8")
+            story_path.write_text(render_story(project_id, enabler_epic_id, enabler_spec, effective_story_format), encoding="utf-8")
             active_story_paths.add(story_path)
             story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
             story_ids.append(story_id)

@@ -182,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     backlog_p = sub.add_parser("backlog")
     backlog_p.add_argument("project_id")
     backlog_p.add_argument("--with-task-seeds", action="store_true")
+    backlog_p.add_argument("--story-format", choices=("user", "job"), default=None)
 
     for name in ("maturity", "specs", "backlog-status", "quality", "health", "trace", "validate", "gaps", "brief", "status"):
         command = sub.add_parser(name)
@@ -387,7 +388,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "backlog":
             from .generation import generate_backlog
 
-            result = generate_backlog(args.project_id, with_task_seeds=bool(args.with_task_seeds))
+            result = generate_backlog(
+                args.project_id,
+                with_task_seeds=bool(args.with_task_seeds),
+                story_format=args.story_format,
+            )
             print_json(result)
         elif args.command == "backlog-status":
             from .backlog.rollup import backlog_status
