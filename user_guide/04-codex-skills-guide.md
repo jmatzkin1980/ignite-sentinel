@@ -8,7 +8,7 @@ Ignite Sentinel includes repo-local Codex skills under:
 
 Skills provide progressive disclosure. The agent sees the skill metadata first and loads the body only when the workflow applies.
 
-`.codex/skills/` is the canonical source. The same skills are mirrored byte-for-byte to `.agents/skills/` (Agent Skills standard readers) and `.claude/skills/` (Claude Code) by `python -m sentinel.adapters`; every skill carries validated `name`/`description` frontmatter (checked by `/doctor`), so agents can auto-trigger them from the description alone.
+`.codex/skills/` is the canonical source. The same skills are mirrored byte-for-byte to `.agents/skills/` (Agent Skills standard readers) and `.claude/skills/` (Claude Code) by `python -m sentinel.adapters`; every skill carries validated `name`/`description` frontmatter (checked by `/doctor`), so agents can auto-trigger them from the description alone. One skill, `sentinel-privacy-local-first`, is marked **human-only** (`disable-model-invocation: true`) and is invoked deliberately rather than auto-loaded — its non-negotiable rules are always-on in `AGENTS.md`/`CLAUDE.md`. See the [Skill Authoring Checklist](references/skill-authoring-checklist.md) for the writing conventions (leading words, split-by-sequence, context load) and the human-only invocation policy, all partly enforced by `/doctor`.
 
 Skills delegate deterministic work to the same local CLI used by Kilo Code and terminal workflows. The normal command is `python -m sentinel ...`; if `python` is unavailable in Codex Desktop or VS Code, use the repo-local launcher `.\installers\sentinel.ps1 ...` from the repository root.
 
