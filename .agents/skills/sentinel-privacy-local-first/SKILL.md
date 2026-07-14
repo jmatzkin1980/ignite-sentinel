@@ -1,11 +1,16 @@
 ---
 name: sentinel-privacy-local-first
-description: "Use whenever Ignite Sentinel project data, client documents, code, memory, retrieval, or exports are involved and the local-only privacy rules must hold: no remote MCP, external vector databases, or external embedding services for client content; export only through audited commands. Trigger on sharing, sending, uploading, or exporting anything derived from a workspace."
+description: "Deliberate, human-invoked reference for Ignite Sentinel's local-first privacy rules: source of truth in versionable workspace files, no remote MCP / external vector databases / external embedding services for client content, and export only through audited commands. The non-negotiable rules are always-on in AGENTS.md and CLAUDE.md; invoke this skill when you want the full rule set or an export checklist."
+disable-model-invocation: true
 ---
 
 # Sentinel Privacy Local First
 
-Use this skill whenever project data, client documents, code, memory, or exports are involved.
+Invoke this skill deliberately whenever project data, client documents, code, memory, or exports are involved.
+
+## Invocation
+
+This skill is **human-only** (`disable-model-invocation: true`): the model does not auto-load it. That is intentional — the privacy non-negotiables are always-on in `AGENTS.md` and `CLAUDE.md`, so enforcement never depends on a skill firing. This deeper reference is invoked deliberately (by a human, or on explicit request) when the full rule set or an export checklist is needed. See `user_guide/references/skill-authoring-checklist.md` for the human-only convention.
 
 ## Rules
 

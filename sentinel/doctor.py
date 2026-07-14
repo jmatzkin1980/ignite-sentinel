@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .adapters import manifest_command_names, runtime_command_names
+from .adapters import SKILL_TARGET_DIRS, manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
 from .portability import stdlib_purity_violations
 
@@ -128,6 +128,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         write_check(root),
         *codex_skill_checks(root),
         *skill_metadata_checks(root),
+        *skill_invocation_checks(root),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -212,6 +213,82 @@ def skill_metadata_checks(root: Path) -> list[dict[str, str]]:
             status = "PASS"
             detail = str(path)
         checks.append({"name": label, "status": status, "detail": detail})
+    return checks
+
+
+# IMP-200 (H8, doc 40 §2): the sanctioned registry of skills that must NOT be
+# auto-invoked by the model (`disable-model-invocation: true`). Default is auto;
+# human-only is an explicit, conservative opt-in. `sentinel-privacy-local-first`
+# is a deliberate deep reference — its non-negotiable rules are always-on in
+# AGENTS.md/CLAUDE.md, so auto-loading the skill adds nothing and a human-invoked
+# reference is the right posture. Keep this list minimal.
+EXPECTED_HUMAN_ONLY_SKILLS = frozenset({"sentinel-privacy-local-first"})
+
+
+def _skill_is_human_only(frontmatter: dict[str, Any]) -> bool:
+    return str(frontmatter.get("disable-model-invocation", "")).strip().lower() == "true"
+
+
+def skill_invocation_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-200 (H8, doc 40 §2): audit the human-only invocation flag that keeps a
+    governance skill from being auto-loaded by the model. Two guarantees:
+
+    * the set of canonical skills actually carrying `disable-model-invocation:
+      true` matches `EXPECTED_HUMAN_ONLY_SKILLS` — a flag that creeps onto an
+      unlisted skill, or drops off a listed one, FAILs (IMP-163 drift-guard
+      spirit: the policy is explicit, not incidental);
+    * for every sanctioned human-only skill the flag is coherent between the
+      canonical `.codex/skills` source and each generated mirror (`skills_out_of_
+      sync` already enforces byte-identity; this reports the flag directly so a
+      regression names the invocation policy, not just "bytes differ").
+    """
+    from .core.markdown import parse_frontmatter
+
+    checks: list[dict[str, str]] = []
+
+    canonical_flagged: set[str] = set()
+    for skill in REQUIRED_CODEX_SKILLS:
+        path = root / ".codex" / "skills" / skill / "SKILL.md"
+        if not path.exists():
+            continue  # existence is already covered by codex_skill_checks/skill_metadata_checks
+        if _skill_is_human_only(parse_frontmatter(path.read_text(encoding="utf-8-sig"))):
+            canonical_flagged.add(skill)
+
+    label = "skill invocation policy: human-only registry"
+    missing = sorted(EXPECTED_HUMAN_ONLY_SKILLS - canonical_flagged)
+    unexpected = sorted(canonical_flagged - EXPECTED_HUMAN_ONLY_SKILLS)
+    if not missing and not unexpected:
+        detail = "human-only: " + (", ".join(sorted(EXPECTED_HUMAN_ONLY_SKILLS)) or "none")
+        checks.append({"name": label, "status": "PASS", "detail": detail})
+    else:
+        details = []
+        if missing:
+            details.append("missing disable-model-invocation flag: " + ", ".join(missing))
+        if unexpected:
+            details.append("unsanctioned human-only flag: " + ", ".join(unexpected))
+        checks.append({"name": label, "status": "FAIL", "detail": "; ".join(details)})
+
+    for skill in sorted(EXPECTED_HUMAN_ONLY_SKILLS):
+        label = f"skill invocation coherence: {skill}"
+        canonical = root / ".codex" / "skills" / skill / "SKILL.md"
+        if not canonical.exists():
+            checks.append({"name": label, "status": "FAIL", "detail": f".codex/skills/{skill}/SKILL.md missing"})
+            continue
+        if not _skill_is_human_only(parse_frontmatter(canonical.read_text(encoding="utf-8-sig"))):
+            checks.append({"name": label, "status": "FAIL", "detail": "canonical no longer declares disable-model-invocation: true"})
+            continue
+        incoherent: list[str] = []
+        for target in SKILL_TARGET_DIRS:
+            mirror = root / target / skill / "SKILL.md"
+            if not mirror.exists():
+                incoherent.append(f"{target} missing")
+            elif not _skill_is_human_only(parse_frontmatter(mirror.read_text(encoding="utf-8-sig"))):
+                incoherent.append(f"{target} lacks the flag")
+        if incoherent:
+            checks.append({"name": label, "status": "FAIL", "detail": "; ".join(incoherent)})
+        else:
+            checks.append({"name": label, "status": "PASS", "detail": f"human-only coherent across {len(SKILL_TARGET_DIRS)} mirrors"})
+
     return checks
 
 
