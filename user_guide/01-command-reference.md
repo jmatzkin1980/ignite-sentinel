@@ -60,6 +60,7 @@ Checks:
 - user guide and adapter guides
 - portable installers and launchers
 - repo write access
+- agentic surface audit (`FAIL` when a committed hook/settings JSON or `kilo.jsonc` is unparseable; `WARN` when a hook command contains an unambiguously dangerous shell pattern such as `rm -rf`, a download piped to a shell, `sudo`, or `eval`)
 - optional LanceDB dependency and backend mode
 - optional embedding dependencies
 
