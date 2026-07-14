@@ -132,6 +132,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
         *agentic_surface_checks(root),
+        *agentic_surface_audit_checks(root),
         *kilo_command_checks(root),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -342,6 +343,123 @@ def agentic_surface_checks(root: Path) -> list[dict[str, str]]:
             checks.append({"name": label, "status": "FAIL", "detail": "verifier no longer declares its denylist"})
         else:
             checks.append({"name": label, "status": "PASS", "detail": f"tools={sorted(allowed)}"})
+
+    return checks
+
+
+# IMP-199 (H8, doc 40 §2 — AgentShield local-first): deterministic denylist for
+# the agentic-surface audit. Calibrated for ZERO false positives against our own
+# legitimate hook/launcher commands — `python`/`py`/`pwsh`/`powershell`/`sh`
+# invocations of the CLI and launchers, plus `git`/`gh` — so only unambiguously
+# dangerous shell constructs match: recursive force-delete, a download piped
+# straight into a shell, `eval`, `sudo`, and redirection to an absolute path
+# outside the repo (excluding /dev/*).
+_DANGEROUS_SHELL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("recursive force remove (rm -rf)", re.compile(r"\brm\s+-\S*r\S*f|\brm\s+-\S*f\S*r", re.IGNORECASE)),
+    ("download piped to a shell (curl|wget -> sh)", re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z)?sh\b", re.IGNORECASE)),
+    ("shell eval", re.compile(r"\beval\b")),
+    ("privilege escalation (sudo)", re.compile(r"\bsudo\b")),
+    ("redirect to an absolute path outside the repo", re.compile(r">>?\s*(?!/dev/)(?:/[A-Za-z]|[A-Za-z]:[\\/])")),
+)
+
+# JSON keys whose values are human-facing prose (comments, agent prompts), not
+# shell commands. They are still parse-checked, but excluded from the denylist
+# sweep so a benign mention (e.g. discussing an `eval`) never trips a false WARN.
+_PROSE_JSON_KEYS = frozenset({"_comment", "description", "prompt", "instructions", "note"})
+
+# Matches JSONC comments and string literals so the stripper can drop the former
+# while preserving the latter (a naive replace would corrupt a string with `//`).
+_JSONC_COMMENT = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.DOTALL)
+
+
+def _strip_jsonc(text: str) -> str:
+    """Drop `//` and `/* */` comments (and JSONC trailing commas) so json.loads
+    can parse a JSONC document, without corrupting string literals."""
+    def _keep_strings(match: re.Match[str]) -> str:
+        token = match.group(0)
+        return token if token.startswith('"') else ""
+
+    without_comments = _JSONC_COMMENT.sub(_keep_strings, text)
+    return re.sub(r",(\s*[}\]])", r"\1", without_comments)
+
+
+def _iter_command_strings(node: Any, skip_keys: frozenset[str]) -> list[str]:
+    """Collect every string leaf of a parsed JSON document except those directly
+    under a prose key (comments/prompts), which carry no shell commands."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in skip_keys and isinstance(value, str):
+                continue
+            found.extend(_iter_command_strings(value, skip_keys))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_iter_command_strings(item, skip_keys))
+    elif isinstance(node, str):
+        found.append(node)
+    return found
+
+
+def agentic_surface_audit_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-199 (H8, doc 40 §2): sweep the agentic config the framework itself
+    ships and audit it for two failure modes IMP-177's file-specific checks do
+    not cover systematically:
+
+    * every hook/settings JSON (`.claude/`, `.codex/`) and the `kilo.jsonc`
+      example must parse — an unparseable config silently disables governance
+      (FAIL, molde IMP-177);
+    * no command string inside them may contain an unambiguously dangerous shell
+      construct (`_DANGEROUS_SHELL_PATTERNS`) — WARN citing file + pattern.
+
+    Scope is deliberately *our own versioned surface* (doc 40 §4 seed #3): the
+    gitignored `settings.local.json` (the BA's local bypass) and the user's own
+    system are out of scope. Frontmatter name/description validity stays owned by
+    IMP-163/173 and the verifier tool allowlist by IMP-177 — this check does not
+    duplicate them. Zero network, zero LLM.
+    """
+    from .core.io import parse_json, read_json
+
+    checks: list[dict[str, str]] = []
+
+    targets: list[tuple[Path, str]] = []
+    settings = root / ".claude" / "settings.json"
+    if settings.exists():
+        targets.append((settings, "json"))
+    for hook_json in sorted((root / ".claude" / "hooks").glob("*.json")):
+        targets.append((hook_json, "json"))
+    for codex_json in sorted((root / ".codex").rglob("*.json")):
+        if "__pycache__" in codex_json.parts:
+            continue
+        targets.append((codex_json, "json"))
+    kilo = root / "kilo.jsonc"
+    if kilo.exists():
+        targets.append((kilo, "jsonc"))
+
+    for path, kind in targets:
+        label = f"agentic surface audit: {path.relative_to(root).as_posix()}"
+        try:
+            if kind == "jsonc":
+                parsed = parse_json(_strip_jsonc(path.read_text(encoding="utf-8-sig")))
+            else:
+                parsed = read_json(path)
+        except ValueError as exc:  # JSONDecodeError is a ValueError
+            checks.append({"name": label, "status": "FAIL", "detail": f"unparseable {kind.upper()}: {exc}"})
+            continue
+        finding: tuple[str, str] | None = None
+        for command in _iter_command_strings(parsed, _PROSE_JSON_KEYS):
+            for pattern_label, pattern in _DANGEROUS_SHELL_PATTERNS:
+                if pattern.search(command):
+                    finding = (pattern_label, command.strip())
+                    break
+            if finding:
+                break
+        if finding:
+            pattern_label, snippet = finding
+            if len(snippet) > 80:
+                snippet = snippet[:77] + "..."
+            checks.append({"name": label, "status": "WARN", "detail": f"dangerous shell pattern — {pattern_label} — in: {snippet!r}"})
+        else:
+            checks.append({"name": label, "status": "PASS", "detail": str(path)})
 
     return checks
 

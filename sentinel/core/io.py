@@ -94,6 +94,14 @@ def read_json(path: Path, default: Any | None = None) -> Any:
     return deepcopy(data)
 
 
+def parse_json(text: str) -> Any:
+    """Parse a JSON document already held in memory (e.g. JSONC text after its
+    comments were stripped). Centralizes ``json.loads`` so domain code never
+    imports ``json`` directly (enforced by test_core_architecture). Raises
+    ``ValueError`` on malformed input, like the stdlib."""
+    return json.loads(text)
+
+
 def read_json_resource(resource: Any, default: Any | None = None) -> Any:
     try:
         return json.loads(resource.read_text(encoding="utf-8"))
