@@ -104,6 +104,7 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 |---------|--------------|
 | `/backlog` | Derive epics/stories/AC from Spec Units; emit `SLICE-PLAN.md` + readiness packs |
 | `/backlog --with-task-seeds` | Add optional task-seed contracts (bounded intentions, never executed) |
+| `/backlog --story-format user\|job` | Choose the story narrative: classic `user` (default) or JTBD `job` (When…, I want…, so I can…) |
 | `/backlog-status` | Refresh the BA-facing `04_backlog/BACKLOG.md` rollup board |
 | `/story-status` | Govern lifecycle, owner, DoR/DoD gates, and Ready-time AC freeze |
 | `/refine-backlog` | Merge cited agent refinement proposals (`origin: agent`, BA review) |
@@ -142,7 +143,7 @@ cd ignite-sentinel
 python -m sentinel /doctor
 ```
 
-`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, command surface parity between runtime and manifest, skill frontmatter metadata, runtime stdlib purity, best-effort command mentions in operational docs, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports a local-restricted `WARN`, not a failure.
+`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, command surface parity between runtime and manifest, skill frontmatter metadata, skill invocation-policy coherence (human-only `disable-model-invocation` skills match their registry and their mirrors), runtime stdlib purity, best-effort command mentions in operational docs, an agentic surface audit (committed hook/settings/`kilo.jsonc` JSON parses and carries no dangerous shell patterns), write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports a local-restricted `WARN`, not a failure.
 
 Optional layers (only where the environment allows):
 
@@ -262,6 +263,7 @@ See the [Scenarios guide](user_guide/12-scenarios.md) for situation-by-situation
 - **Progressive disclosure per story.** `backlog_generation.json` keeps the aggregate view plus a `per_story.US-NNN` mini-context; each retrieved result carries a `read_plan` (`source_path`, `section_path`, line anchors) propagated into story execution signals so an agent jumps from summary to the exact source range.
 - **Deterministic handoff, no tasking.** `SLICE-PLAN.md` + `slice_plan.json` order enablers first, then parallelizable waves with checkpoints, per-story handoff packs, and a pre-handoff DoR gate (warns by default; blocks only when `backlog_gate.strict` is on). It stops at the seam — Ignite exposes ordering and context, but never creates task IDs or executes implementation.
 - **Optional task seeds.** `/backlog --with-task-seeds` adds bounded intentions traced to AC and critical surfaces; default omits them, and even opt-in seeds never execute, estimate, assign, or schedule.
+- **Story narrative you choose.** Stories render as classic user stories by default; `/backlog --story-format job` (or `story_format: job` in `sentinel.config.yaml`) emits a JTBD job story ("When [situation], I want [motivation], so I can [outcome]") without inventing a persona. Only the narrative wording changes — acceptance criteria, slicing, and traceability are identical, and a missing outcome stays a visible `[PENDING INPUT]`.
 - **Governed lifecycle + rollup.** `/story-status` moves a story through `Draft → Ready → In Progress → In Review → Done` (+ `Blocked`/`Stale`), assigns owner, evaluates DoR/DoD, and refreshes `BACKLOG.md`. Marking a story `Ready` freezes its current acceptance criteria in `state.json`; later `/backlog` regeneration records explicit AC deltas in `04_backlog/acceptance_criteria_deltas.md` instead of replacing the approved contract silently. Advancing a story into active execution may also mark lagging peers `Stale` when the same `source_unit` or fallback `domain` shows significant lifecycle divergence. `/backlog` preserves status/owner across regeneration, including staleness metadata.
 - **Quality that scores, not just lists.** `/quality` scores each story against the governed INVEST/SPIDR/Lawrence model and writes the dynamic `backlog_readiness_audit.md`, feeding non-blocking DoR warnings via `state.json#story_gates`.
 - **Closed feedback loop.** `/implementation-feedback` lets downstream agents return findings (dependencies, gaps, invalid AC, missing surfaces); Sentinel traces them, may open `GAP-FEEDBACK-*`, may mark stories `Stale`, and feeds DoD — without rewriting backlog scope.

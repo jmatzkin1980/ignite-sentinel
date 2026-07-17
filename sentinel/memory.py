@@ -594,6 +594,7 @@ class ContextBroker:
         max_chars: int | None = None,
         summary_only: bool = False,
         order: str = "relevance",
+        recency_weight: float | None = None,
     ) -> list[dict[str, Any]]:
         lancedb_candidates = self._lancedb_candidates(
             query,
@@ -684,8 +685,16 @@ class ContextBroker:
                 }
                 scored.append(row)
         # IMP-123: deterministic recency + domain-coverage re-score over the merged
-        # shortlist before truncation, so fresh context wins lexical ties.
-        rescored = apply_recency_coverage_rescore(scored, query_tokens)
+        # shortlist before truncation, so fresh context wins lexical ties. Callers
+        # that select context by pure relevance (e.g. the backlog execution-contract,
+        # where "which surfaces are affected" must not be swayed by ingestion
+        # freshness) pass recency_weight=0.0 to drop the wall-clock-derived recency
+        # signal, which also makes that retrieval fully deterministic.
+        rescored = apply_recency_coverage_rescore(
+            scored,
+            query_tokens,
+            recency_weight=RECENCY_WEIGHT if recency_weight is None else recency_weight,
+        )
         # IMP-126: optional recency-first ordering exposes the temporal dimension to
         # retrieval. Default "relevance" keeps the IMP-123 score ordering unchanged;
         # "recency" sorts the same shortlist newest-first (score breaks ties).
@@ -1258,14 +1267,19 @@ def apply_recency_coverage_rescore(
     then returns the rows sorted by the re-scored value. Recency is pool-relative:
     the newest chunk in the shortlist scores 1.0 and the oldest 0.0, so a single
     distinct recency yields no differentiation. Network-free; ties are broken by
-    recency then ``chunk_id`` for fully deterministic ordering."""
+    recency then ``chunk_id`` for fully deterministic ordering. When recency is
+    disabled (``recency_weight == 0``), recency is dropped from both the bonus and
+    the tie-break so ordering no longer depends on the wall-clock ``indexed_at`` at
+    all — the caller has opted into pure relevance (e.g. execution-contract surface
+    selection), and the result is fully deterministic for identical inputs."""
     if not rows:
         return rows
+    recency_active = recency_weight != 0
     distinct_keys = sorted({_recency_key(row) for row in rows})
     span = len(distinct_keys) - 1
     recency_norm = {key: (index / span if span else 0.0) for index, key in enumerate(distinct_keys)}
     for row in rows:
-        recency = recency_norm[_recency_key(row)]
+        recency = recency_norm[_recency_key(row)] if recency_active else 0.0
         coverage = domain_coverage(row, query_tokens)
         bonus = recency_weight * recency + coverage_weight * coverage
         row["base_score"] = row["score"]
@@ -1281,7 +1295,11 @@ def apply_recency_coverage_rescore(
             row["why_retrieved"] = f"{row['why_retrieved']}; " + "; ".join(extra)
     return sorted(
         rows,
-        key=lambda row: (row["score"], _recency_key(row), row["chunk_id"]),
+        key=lambda row: (
+            row["score"],
+            _recency_key(row) if recency_active else (0, ""),
+            row["chunk_id"],
+        ),
         reverse=True,
     )
 

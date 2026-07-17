@@ -235,6 +235,10 @@ def build_story_backlog_context(
             section=filters.get("section"),
             max_chars=int(retrieval["budget_chars"]),
             summary_only=True,
+            # The execution contract must pick surfaces/commands by relevance, not by
+            # ingestion freshness; dropping the recency bonus also makes this
+            # retrieval deterministic (recency was the only wall-clock-derived input).
+            recency_weight=0.0,
         )
         if not results and retrieval_domain != domain:
             results = broker.retrieve(
@@ -249,6 +253,7 @@ def build_story_backlog_context(
                 section=filters.get("section"),
                 max_chars=int(retrieval["budget_chars"]),
                 summary_only=True,
+                recency_weight=0.0,
             )
         sections[section] = {
             "query": query,

@@ -56,6 +56,34 @@ class RescoreUnitTests(unittest.TestCase):
         ordered = apply_recency_coverage_rescore(rows, set())
         self.assertEqual([r["chunk_id"] for r in ordered], ["later", "earlier"])
 
+    def test_recency_weight_zero_drops_recency_from_bonus_and_tiebreak(self) -> None:
+        # Same base score, different indexed_at: with recency disabled the ordering
+        # must not depend on indexed_at (wall-clock) at all, only on the
+        # deterministic chunk_id tie-break. This is the guarantee the backlog
+        # execution-contract retrieval relies on to be reproducible.
+        rows = [
+            _row("z-later", 1.0, iteration=2, indexed_at="2026-06-27T00:00:00+00:00"),
+            _row("a-earlier", 1.0, iteration=2, indexed_at="2026-06-01T00:00:00+00:00"),
+        ]
+        ordered = apply_recency_coverage_rescore(rows, set(), recency_weight=0.0)
+        self.assertEqual([r["score"] for r in ordered], [1.0, 1.0])
+        self.assertEqual([r["recency_score"] for r in ordered], [0.0, 0.0])
+        self.assertEqual([r["chunk_id"] for r in ordered], ["z-later", "a-earlier"])
+
+    def test_recency_weight_zero_is_indexed_at_order_invariant(self) -> None:
+        # Swapping the indexed_at values between two equally-scored rows must not
+        # change their order when recency is disabled — proving wall-clock has no
+        # influence on the result.
+        def order(ts_z: str, ts_a: str) -> list[str]:
+            rows = [
+                _row("z", 1.0, iteration=1, indexed_at=ts_z),
+                _row("a", 1.0, iteration=1, indexed_at=ts_a),
+            ]
+            return [r["chunk_id"] for r in apply_recency_coverage_rescore(rows, set(), recency_weight=0.0)]
+
+        early, late = "2026-01-01T00:00:00+00:00", "2026-12-31T00:00:00+00:00"
+        self.assertEqual(order(early, late), order(late, early))
+
     def test_single_recency_adds_no_differentiation(self) -> None:
         rows = [_row("a", 0.9, iteration=1), _row("b", 0.8, iteration=1)]
         ordered = apply_recency_coverage_rescore(rows, set())
@@ -128,6 +156,21 @@ class RescoreIntegrationTests(unittest.TestCase):
         self.assertNotIn("[document:", results[0]["text"])
         self.assertIn("read_plan", results[0])
         self.assertIn("recency boost", results[0]["why_retrieved"])
+
+    def test_retrieve_recency_weight_zero_threads_through_and_disables_recency(self) -> None:
+        text = "notifications service sends alerts to subscribed users"
+        self._index("STALE", text, iteration=1)
+        self._index("FRESH", text, iteration=5)
+        # Recency ON (default): the fresher iteration wins the lexical tie.
+        on = self.broker.retrieve("notifications service alerts users", "specs")
+        self.assertEqual(on[0]["artifact_id"], "FRESH")
+        # Recency OFF: the param threads through to the re-score, the recency bonus
+        # is gone for every row, and freshness no longer promotes FRESH — ordering
+        # falls to the deterministic chunk_id tie-break (STALE > FRESH).
+        off = self.broker.retrieve("notifications service alerts users", "specs", recency_weight=0.0)
+        self.assertTrue(off)
+        self.assertTrue(all(r["recency_score"] == 0.0 for r in off))
+        self.assertEqual(off[0]["artifact_id"], "STALE")
 
     def test_retrieve_is_deterministic_across_runs(self) -> None:
         self._index("A", "auth model and login token validation for the service", iteration=2, domain="technical")
