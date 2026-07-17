@@ -51,6 +51,7 @@ Checks:
 - Codex skills and hooks adapter
 - required Codex skills
 - skill frontmatter metadata (`FAIL` when a canonical skill's name/description is missing or unparseable, `WARN` when the description names a specific agent)
+- skill invocation policy coherence (`FAIL` when the set of skills carrying `disable-model-invocation: true` drifts from the human-only registry, or when that flag disagrees between a canonical skill and its mirrors)
 - Kilo Code agents adapter
 - Kilo Code slash commands
 - Kilo Code repo config
