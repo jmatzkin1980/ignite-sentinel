@@ -34,6 +34,8 @@ dashboard.html
 **/08_context_packs/views/*.html
 # Local evolution/operational memory: not published to the public repo
 docs/
+# Maintainer-local agent memory (resume pointers, process notes): never published
+CLAUDE.local.md
 # Personal handoff documents live outside the repo (IMP-002)
 general-proyecto.md
 ignite_vnext_final_handoff.md

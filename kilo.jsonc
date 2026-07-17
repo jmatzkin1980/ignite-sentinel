@@ -36,7 +36,7 @@
         "**/__pycache__/**",
         "dist/**",
         "build/**",
-        // IMP-179: governed artifacts are regenerated only via their owning
+        // Governed artifacts are regenerated only via their owning
         // command (/brief, /specs, /backlog), never hand-edited. Kilo's editor
         // cannot write them directly; the CLI (commands.allow) still regenerates
         // them. Mirrors the Codex hook block and the Claude PreToolUse deny.
