@@ -19,6 +19,7 @@ PORTABLE_ROOT_FILES = (
     ".gitignore",
     "AGENTS.md",
     "CLAUDE.md",
+    "LICENSE",
     "README.md",
     "kilo.jsonc",
 )
@@ -50,6 +51,7 @@ class BuildPyzTest(unittest.TestCase):
             self.assertIn("sentinel/templates/commands_manifest.json", names)
             self.assertIn("sentinel/techniques/pre-mortem.json", names)
             self.assertIn("sentinel/slicing/backlog_slicing_model.json", names)
+            self.assertIn("LICENSE", names)
             self.assertFalse(any("__pycache__" in name for name in names))
 
             pyz_result = subprocess.run(
