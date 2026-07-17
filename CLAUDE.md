@@ -1,21 +1,18 @@
 # CLAUDE.md - Ignite Sentinel vNext
 
-Instrucciones para sesiones de Claude (Cowork, Claude Code o similar) operando sobre este repositorio. Complementa, no reemplaza, a `AGENTS.md`: leer ambos antes de tocar nada.
+Instrucciones operativas para sesiones de Claude (Claude Code, Claude Desktop/Cowork) sobre este repositorio. Complementa a `AGENTS.md`, que tiene las reglas operativas canónicas comunes a todas las superficies.
 
-> **Audiencia: mantenedores.** Este archivo es para sesiones que **evolucionan el framework** (runtime, tests, adapters, docs). Si solo querés **usar** Ignite para madurar requerimientos en tu propio proyecto, no necesitás nada de acá: alcanzan el [README](README.md) y el [User Guide](user_guide/00-user-guide.md). Las convenciones de evolución de este repo (branches, mantener superficies sincronizadas, manejo de ejemplos/datos) viven en [MAINTAINERS.md](MAINTAINERS.md) y no condicionan tu propio repo ni tus datos.
+> **Dos audiencias.** Casi todo este archivo describe cómo **usar** el framework — aplica a cualquiera que clone Ignite para madurar requerimientos en su propio proyecto; alcanzan el [README](README.md) y el [User Guide](user_guide/00-user-guide.md). Si además vas a **evolucionar el framework** (runtime, tests, adapters, docs), las convenciones de contribución viven en [MAINTAINERS.md](MAINTAINERS.md) y no condicionan tu propio repo ni tus datos.
 
 ## Qué es este proyecto
 
 Framework repo-local y local-first para que un BA/Product madure requerimientos crudos de cliente hasta convertirlos en artefactos trazables: discovery, gaps, project brief, PRD, specs, backlog, test cases y trazabilidad. No es un generador de documentos: es un sistema de maduración de requerimientos con lifecycle gobernado.
 
-## Orden de lectura al iniciar una sesión
+## Orientación
 
-1. `AGENTS.md` (reglas operativas y working agreements).
-2. `docs/evolution/00-baseline-2026-06-10.md` (estado validado del repo; carpeta local git-ignored — si no existe, pedirla al usuario).
-3. `docs/evolution/10-base-conocimiento-AAAA-MM-DD.md` §8 (estado vivo + próximo paso — **punto único de entrada** para retomar; reemplaza al viejo `01-roadmap`/`02-backlog-mejoras`, ahora en `archivo/`).
-4. `user_guide/00-user-guide.md` y `01-command-reference.md` para uso del CLI.
-
-Nota: los handoffs históricos (`general-proyecto.md`, `ignite_vnext_final_handoff.md`) viven fuera del repo, en la carpeta personal de handoffs del usuario. No forman parte del proyecto ni deben versionarse; ante conflicto con ellos, prevalece el código actual.
+- Para **usar** el framework: [README](README.md) + [User Guide](user_guide/00-user-guide.md) (`user_guide/01-command-reference.md` para el CLI).
+- Reglas operativas canónicas comunes a todas las superficies: [AGENTS.md](AGENTS.md) (leerlo antes de tocar runtime).
+- Para **evolucionar** el framework (branches, verificación, mantener superficies sincronizadas): [MAINTAINERS.md](MAINTAINERS.md).
 
 ## Comandos esenciales
 
@@ -102,9 +99,4 @@ Nota para mantenedores: `sentinel/workspace.py` conserva shims de compatibilidad
 
 ## Cómo trabajar una mejora del framework
 
-1. Elegir el próximo ítem `IMP-*` desde `docs/evolution/10-base-conocimiento-AAAA-MM-DD.md` §8 (estado vivo; el viejo `02-backlog-mejoras.md` quedó desfasado en `archivo/`).
-2. Crear branch de trabajo desde `main`.
-3. Implementar tocando runtime + tests + adapters + docs según aplique.
-4. Correr suite de tests y `/doctor`; smoke test de lifecycle si cambió runtime.
-5. Actualizar el estado del ítem en §8 del `10-base-conocimiento-AAAA-MM-DD.md` local.
-6. Abrir PR; no mergear sin revisión.
+El flujo de contribución —crear branch desde `main`, tocar runtime + tests + adapters + docs juntos, verificar con `.\verify.ps1`, abrir PR sin mergear sin revisión— vive en [MAINTAINERS.md](MAINTAINERS.md). La memoria de proceso del mantenedor (roadmap, backlog e ítems en curso) es local y git-ignored: no forma parte del producto publicado.
