@@ -51,7 +51,7 @@ workspaces/PROJECT_ID/01_discovery/gaps.md
 workspaces/PROJECT_ID/01_discovery/requirement_maturity_report.md
 ```
 
-Then ask stakeholders for missing information. The gap document is designed as a conversation artifact: it should be understandable by a client or domain owner, while still preserving the `GAP-ID` structure Sentinel needs to process the answer later.
+Then ask stakeholders for missing information. Register the people behind those answers with `/stakeholders PROJECT_ID --add` so each open gap routes to a named owner and domain. The gap document is designed as a conversation artifact: it should be understandable by a client or domain owner, while still preserving the `GAP-ID` structure Sentinel needs to process the answer later.
 
 When the answered gap document returns:
 
@@ -136,7 +136,8 @@ Use when specs are ready to become execution-oriented backlog.
 
 ```powershell
 python -m sentinel /backlog PROJECT_ID
-python -m sentinel /backlog PROJECT_ID --with-task-seeds   # optional, only when downstream asks for task-seed intentions
+python -m sentinel /backlog PROJECT_ID --with-task-seeds     # optional, only when downstream asks for task-seed intentions
+python -m sentinel /backlog PROJECT_ID --story-format job    # optional, JTBD-native job stories instead of the default user-story wording
 python -m sentinel /quality PROJECT_ID
 python -m sentinel /trace PROJECT_ID
 python -m sentinel /health PROJECT_ID
@@ -224,8 +225,11 @@ Explicit mode:
 
 ```powershell
 python -m sentinel /sync PROJECT_ID --source input\change.md --note "source and intent"
+python -m sentinel /sync PROJECT_ID --source input\mail-thread.md --digest --note "unstructured mail thread"
 python -m sentinel /retrieve PROJECT_ID --query "main change topic" --workflow sync --write-pack
 ```
+
+Use `--digest` when the source is raw, unstructured material — a mail thread, chat export, or meeting transcript — that Sentinel must first metabolize into change events before comparing it against existing artifacts, rather than a curated change file.
 
 Review:
 
