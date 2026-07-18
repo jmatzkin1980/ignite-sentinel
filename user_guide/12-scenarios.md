@@ -36,11 +36,79 @@ If terminal troubleshooting is needed and `python` is unavailable or invalid on 
 .\installers\sentinel.ps1 /status ACME_DASHBOARD
 ```
 
+## Command Coverage Map
+
+Every canonical Sentinel command appears in at least one scenario below. This table is the auditable index; each scenario shows the command in context. For the exhaustive per-command contract (flags, gates, outputs) see [`01-command-reference.md`](01-command-reference.md) and [`02-artifact-reference.md`](02-artifact-reference.md) — the scenarios reference that reference, they do not restate it.
+
+| Command | Scenario(s) |
+| --- | --- |
+| `/init` | A1 |
+| `/ingest` | A1, A7 |
+| `/status` | A1, B1 |
+| `/reindex` | A2, C3, F2 |
+| `/retrieve` | A2, F1 |
+| `/gaps` | A3 |
+| `/annotate` | A4 |
+| `/challenge` | A5 |
+| `/assume` | A8 |
+| `/scrutinize` | A9 |
+| `/stakeholders` | A10 |
+| `/resolve-gaps` | B1, B2 |
+| `/maturity` | B1, B3 |
+| `/brief` | B3 |
+| `/context-request` | C1, C2 |
+| `/sync` | B2, E1, E2, E3, E4, G2 |
+| `/trace` | B2, D4, E3, G1 |
+| `/specs` | D1 |
+| `/self-review` | D6 |
+| `/compose` | D7 |
+| `/backlog` | D2, D3 |
+| `/story-status` | D8 |
+| `/backlog-status` | D9 |
+| `/refine-backlog` | D10 |
+| `/implementation-feedback` | D11 |
+| `/quality` | D4 |
+| `/health` | C3, D5, G1, G2 |
+| `/validate` | D5, G1 |
+| `/export` | F3, F4 |
+| `/view` | F5 |
+| `/dashboard` | G5 |
+| `/doctor` | G4 |
+
+Sub-flags and skills also have dedicated scenarios:
+
+| Flow / skill | Scenario |
+| --- | --- |
+| `/sync --digest` (metabolize an unstructured interaction) | E4 |
+| `/export --format interview` / `--format faq` | F4 |
+| `/scrutinize --mode implementability-probe` | A9 |
+| `sentinel-intake-triage` skill (pre-`/init`) | A6 |
+| `sentinel-brownfield-harvest` skill | A7 |
+| `sentinel-handoff-datasets` skill | G6 |
+
 ## Block A: Discovery Start
 
 ### Scenario A1: A Client Sends The First Requirement Package
 
 **Context:** The client sends the first set of information. It may be a Markdown file, Mermaid diagrams, an HTML prototype, a business note, screenshots curated by Design, system references, or an incomplete bundle of all of those. No project workspace exists yet.
+
+> **Fictional illustration — for copying into a throwaway project, not for seeding here.** The requirement below is invented for this guide (zero real client data) and deliberately incomplete, so discovery has real gaps to surface. Nothing is seeded under `input/`; if you want to run the flow, paste it into your own scratch file first.
+
+```text
+# Internal Expense Approval Tool — Initial Request (FICTIONAL SAMPLE)
+
+We need an internal tool where employees submit expenses and a manager approves them.
+
+- An employee logs in, loads a new expense (amount, date, category, receipt attached) and submits it.
+- Their manager receives it and approves or rejects it. Big expenses should need an extra approval.
+- Finance should be able to see everything and export it for accounting.
+- It has to integrate with our HR system for the employee/manager relationship.
+- Obviously it must be secure and compliant.
+
+Categories are the usual ones (travel, meals, software, etc.). We'll sort out the rest of the details later.
+```
+
+That sample is intentionally vague exactly where a real discovery pass must probe: "big expenses" names no threshold or currency, "an extra approval" names no second role or approval chain, the HR "integration" names no system, protocol, or direction, "secure and compliant" names no concrete rule, and reimbursement, edit/withdraw, and rejection-with-comments flows are simply absent. Running `/init` + `/ingest` on it should produce a `DIRTY` project with those exact gaps — which is the point.
 
 **In VS Code chat, type:**
 
@@ -205,6 +273,118 @@ sentinel /challenge ACME_DASHBOARD --source input\interactions\findings.json   (
 - `01_discovery/challenge_report.md` (findings grouped by lens and technique, plus imagined failures and inverted assumptions)
 
 **How to interpret it:** This is how you surface the risks a client never states. The findings enter the normal `/resolve-gaps` → `/maturity` flow, so the challenge becomes traceable evidence, not a lost conversation.
+
+### Scenario A6: Triage A Pile Of Unstructured Intake Before Starting
+
+**Context:** You were handed a pile of raw intake — a stack of client requests, an RFQ inbox, a thread of mails or chat messages — and it is not yet clear how many projects it should become or what is even in scope. No workspace exists yet, and running `/init` blindly would fuse unrelated value streams into one project.
+
+**What it is for:** The `sentinel-intake-triage` skill turns that pile into a cited, BA-reviewable triage proposal before any workspace exists. It is strictly the pre-`/init` step; once a project exists, new material flows through `/ingest` (fresh evidence) or `/sync` (changes) instead.
+
+**In chat, plain language (recommended):**
+
+```text
+Triage these initial requests for me: group them by theme with a verbatim quote for
+each, propose requirement candidates, tell me whether this is one project or several,
+and flag anything that is noise or out of scope.
+```
+
+**What it needs:** The raw intake items available locally. No command, no workspace, no gates — this is a skill, not a CLI command. Cite-or-silent: every theme, candidate, and out-of-scope call must quote a source item.
+
+**What it produces:** A triage proposal rendered inline (or as a local scratch note, not a governed artifact) — themes grouped with a verbatim citation per source item (`R1`, `R2`, …), one-line requirement candidates, a one-project-or-N recommendation with rationale, and an explicit out-of-scope list. The skill proposes and never runs `/init` itself. Only after you confirm the split do you run `/init PROJECT_ID` then `/ingest` per project, routing each `R#` source to its assigned project so the citations become governed discovery evidence.
+
+### Scenario A7: Harvest An Existing Codebase For Technical Context (Brownfield)
+
+**Context:** The project extends or touches a system that already exists in code, that codebase is available on this machine, and you need its real architecture, surfaces, integrations, data models, and constraints as grounded evidence instead of assumptions.
+
+**What it is for:** The `sentinel-brownfield-harvest` skill reads the existing code and writes cited technical-context docs that the normal `/ingest` then consumes as technical domain evidence — no runtime change. It reads code; it does not interview people (that is `/context-request --domain technology`, see C1), and it is not for greenfield projects (nothing to harvest).
+
+**In chat, plain language (recommended):**
+
+```text
+Harvest the existing system at <local path> for ACME_DASHBOARD: read the code and write
+cited technical context — architecture, integrations, data models, constraints — marking
+every claim OBSERVED or INFERRED.
+```
+
+**What it needs:** The existing system's repository present locally, plus an initialized workspace to write into. Privacy is non-negotiable: the code never leaves the machine (no external service, remote embeddings, or remote MCP), and only genericized patterns/structure are persisted — never client names, system names, endpoints, or credentials.
+
+**What it produces:** One or more Markdown docs under `00_raw/02_technology_context/`, each a set of headings whose every bullet is a single claim tagged `[OBSERVED]` (backed by a code citation) or `[INFERRED]`, with unknowns left as `[PENDING DOMAIN CONTEXT]`. These are ordinary domain-context inputs — not a governed artifact of their own; hand them to `/ingest ACME_DASHBOARD --source ...` so discovery, `/gaps`, and specs can cite the harvested context.
+
+### Scenario A8: Proceed With An Explicit Governed Assumption
+
+**Context:** Discovery surfaced uncertainty the team wants to move past deliberately — not by hiding it and not by pretending it is confirmed. The BA chooses to proceed on a stated assumption, with an owner and a risk attached.
+
+**What it is for:** `/assume` registers governed, BA-owned assumptions so uncertainty stays visible and traceable rather than silently baked into downstream artifacts. Authoring the structured findings is the `sentinel-assume` skill; the runtime validates and merges them.
+
+**In chat, plain language (recommended):**
+
+```text
+We are going to proceed on the assumption that approvals are single-manager for now.
+Register it for ACME_DASHBOARD as a BA-owned assumption, high risk, citing the input,
+and keep it visible in maturity.
+```
+
+Exact command (after the agent writes the assumptions file):
+
+```text
+/assume ACME_DASHBOARD --source input\interactions\assumptions.json   (Kilo)
+sentinel /assume ACME_DASHBOARD --source input\interactions\assumptions.json   (Codex)
+```
+
+**What it needs:** A JSON `assumptions[]` source; each item declares an `ASM-*` id, a lens, the `statement`, a human `owner`, `risk` and `uncertainty` (low/med/high), a verbatim local `justification` quote, and optionally `closes_gap` and a Cagan `risk_category` (value/usability/viability/feasibility). The runtime rejects any assumption without a valid lens, owner, risk, and local quote — it never invents one.
+
+**What it produces:** `01_discovery/assumptions.md` (grouped by `risk_category` when declared), an archived source copy, refreshed `knowledge_state.md/.json` with `ASSUMED` units, an `assumption_register` trace node, and `maturity_metrics.assumptions` surfaced in `/maturity` and `/status`. Assumptions never become confirmed evidence; `risk=high` + `uncertainty=high` shows as a non-blocking "test before advancing" signal.
+
+### Scenario A9: Deep Multi-Lens Scrutiny (And The Implementability Probe)
+
+**Context:** The requirement is maturing and you want a systematic pass that crosses the client's stated requirement with local domain context (Technology, Design, Quality, Delivery, Compliance) to surface unstated assumptions, contradictions, mentions without a counterpart, and domain conflicts. A related need: before a coding agent starts, confirm each requirement unit is actually implementable.
+
+**What it is for:** `/scrutinize` runs deep multi-lens scrutiny and merges cited findings as gaps tagged `origin: scrutiny`. Its `--mode implementability-probe` sub-mode is the pre-flight, per-`RU-*` mirror of `/implementation-feedback` (see D11): the agent declares up front what it is missing to implement each requirement unit. The `sentinel-scrutiny` skill authors the findings.
+
+**In chat, plain language (recommended):**
+
+```text
+Run deep scrutiny on ACME_DASHBOARD crossing the client requirement with the ingested
+technology and quality context; capture contradictions and unstated assumptions as gaps.
+```
+
+Exact commands (after the agent writes the findings file):
+
+```text
+/scrutinize ACME_DASHBOARD --source input\interactions\scrutiny.json [--lens technical]
+/scrutinize ACME_DASHBOARD --mode implementability-probe --source input\interactions\probe.json
+```
+
+For Codex prefix each with `sentinel`.
+
+**What it needs:** A JSON `gaps` array; each finding declares `id`, `lens`, `severity`, `finding_type`, `question`, and verbatim `evidence`, validated against raw input and domain-context folders. `--lens` optionally rejects out-of-lens findings. In probe mode every finding must carry a real `RU-*` `unit` anchor and a probe-specific `finding_type` (`missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`).
+
+**What it produces:** Updated `gaps.md` (gaps tagged `origin: scrutiny`, or `origin: implementability-probe`), `01_discovery/scrutiny_report.md` (or `implementability_probe_report.md` grouped by RU), a copied source, a trace node, refreshed `knowledge_state.*`, and `gap_counts.scrutiny_origin` / `gap_counts.implementability_probe_origin` in `state.json` (visible in `/status`). Nothing is auto-resolved.
+
+### Scenario A10: Register Stakeholders And Route Elicitation By Owner
+
+**Context:** Several people own different domains and topics, and you want the gap questions to reach the right owner instead of a generic "ask the client" bucket.
+
+**What it is for:** `/stakeholders` maintains the governed stakeholder registry and enables deterministic routing: with a non-empty registry the interview export (see F4) groups open gaps by owner. Power×Interest scoring and communication plans are intentionally out of scope (delivery, not discovery).
+
+**In VS Code chat, type:**
+
+```text
+/stakeholders ACME_DASHBOARD
+/stakeholders ACME_DASHBOARD --add --name "Operations Lead" --domain business --topic "approval thresholds"
+```
+
+For Codex prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+Register the Operations Lead as the business owner for approval thresholds in ACME_DASHBOARD, then list the registry.
+```
+
+**What it needs:** For `--add`, a `--name` and a `--domain` (a lens: product, technical, business, design, quality); optionally `--id STK-NNN` (auto-assigned when omitted; a duplicate id is rejected), `--profile business|technical`, `--topic`, and `--notes`. The registry is mutable only through this command — never hand-edited.
+
+**What it produces:** `01_discovery/stakeholders.md`. Downstream, a gap whose lens has no registered owner is listed under an explicit **unassigned** heading in the interview export — never a fabricated owner.
 
 ## Block B: Gap Resolution And Maturity
 
@@ -532,6 +712,151 @@ Check health and validation, then explain what needs to be fixed before continui
 
 **How to interpret it:** This protects the team from generating documentary debt or stories based on unresolved assumptions. Fix gaps, context, traceability, or stale artifacts first.
 
+### Scenario D6: Adversarial Self-Review Of PRD/Specs Before Handoff
+
+**Context:** `/specs` produced a PRD and spec layer, and before backlog handoff you want a skeptical pass — implicit decisions, costly-to-reverse choices, missing reuse/brownfield deltas, assumptions that should stay visible.
+
+**What it is for:** `/self-review` registers cited skeptical findings and hard-to-reverse `DEC-*` decisions **without rewriting the artifacts under review** — the runtime never edits the PRD/specs. The `sentinel-self-review` skill authors the findings.
+
+**In chat, plain language (recommended):**
+
+```text
+Do an adversarial self-review of the ACME_DASHBOARD PRD and specs: flag implicit
+decisions and hard-to-reverse choices, cite the exact text, and register them.
+```
+
+Exact command (after the agent writes the JSON):
+
+```text
+/self-review ACME_DASHBOARD --source input\interactions\self-review.json   (Kilo)
+sentinel /self-review ACME_DASHBOARD --source input\interactions\self-review.json   (Codex)
+```
+
+**What it needs:** `/specs` already run. A JSON source with `gaps[]`, `decisions[]`, or both. Gaps reuse the cited-gap rules; each decision needs a `DEC-*` id, a declared `risk`, a `reversibility`, and verbatim local evidence from the generated PRD/spec context. ADR-grade fields (`consequences[]`, `considered_options[]`, `supersedes`) are optional and backwards-compatible.
+
+**What it produces:** Updated `01_discovery/gaps.md` only when new cited gaps are accepted, an archived source under `03_specs/self_review/`, `self_review_report.md` and `decision_register.md`, trace nodes for the review event and hard-to-reverse decisions, and `gap_counts.self_review_origin` + `last_self_review_id` in `state.json`. It is a review channel, not an automatic repair pass; changing the narrative still goes through upstream evidence, `/compose`, `/sync`, or a regenerated `/specs`.
+
+### Scenario D7: Enrich The PRD Narrative With Cited Agent-Authored Blocks
+
+**Context:** The generated PRD is accurate but thin in places, and an agent can propose better-written narrative — as long as every sentence is backed by local evidence.
+
+**What it is for:** `/compose` merges validated agent-authored narrative blocks into the PRD as an `Agent Composition` subsection tagged `Origin: agent`. It is a falsable enrichment path, not permission to fill unknown scope, and never a hand-edit to `prd.md`. The `sentinel-compose` skill authors the blocks.
+
+**In chat, plain language (recommended):**
+
+```text
+Improve the wording of the ACME_DASHBOARD PRD overview section with agent-authored
+paragraphs, each citing local evidence verbatim.
+```
+
+Exact command:
+
+```text
+/compose ACME_DASHBOARD --source input\interactions\composition.json   (Kilo)
+sentinel /compose ACME_DASHBOARD --source input\interactions\composition.json   (Codex)
+```
+
+**What it needs:** `/specs` already produced `03_specs/prd.md`. A JSON with `blocks[]`; each block names a PRD section and paragraphs, and every paragraph must cite text found verbatim in `00_raw/`, `01_discovery/`, `02_requirements/`, or `07_changes/`. Blocks that target a pending section, cite text not found verbatim, or narrate unresolved pending markers are rejected.
+
+**What it produces:** Updated `03_specs/prd.md` with the `Agent Composition` subsection, an archived source under `03_specs/compositions/`, `accepted_blocks.json`, `composition_report.md`, and a trace node/edge from the PRD to the composition event. On a later `/specs` regeneration only still-valid accepted blocks are reapplied.
+
+### Scenario D8: Move A Story Through Its Governed Lifecycle
+
+**Context:** A backlog exists and a story needs its status or owner updated — marked `Ready` for pickup, `In Progress`, `Done` with acceptance evidence, or `Blocked`.
+
+**What it is for:** `/story-status` is the only supported mutation path for story status or owner. It validates legal transitions and evaluates DoR/DoD gates; you never hand-edit `US-NNN.md`, `state.json`, or `BACKLOG.md`. The `sentinel-backlog` skill covers the lifecycle model.
+
+**In VS Code chat, type:**
+
+```text
+/story-status ACME_DASHBOARD --story US-001 --set Ready --owner "Delivery Lead"
+/story-status ACME_DASHBOARD --story US-001 --set Done --evidence input\interactions\acceptance-evidence.md
+```
+
+For Codex prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+Mark US-001 in ACME_DASHBOARD as Ready and assign the Delivery Lead.
+```
+
+**What it needs:** `/backlog` already run. `--story` and `--set` (one of `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, `Stale`); optional `--owner` and `--evidence PATH`. Marking `Ready` freezes a versioned acceptance-criteria snapshot. The `backlog_gate` is soft by default (warns on missing checklist items); strict opt-in blocks `Ready` when DoR is incomplete and `Done` without traced acceptance evidence.
+
+**What it produces:** Updated `state.json`, the target `US-NNN.md` frontmatter/lifecycle/checklists, an appended `04_backlog/status_log.md`, a refreshed `04_backlog/BACKLOG.md`, copied evidence under `04_backlog/acceptance_evidence/` when `--evidence` is used, and traceability plus the command protocol log.
+
+### Scenario D9: Regenerate The BA Backlog Board
+
+**Context:** Story statuses or gates changed and the team wants the current review board and rollup.
+
+**What it is for:** `/backlog-status` materializes the BA-facing board and rollup from existing source-of-truth artifacts. It only builds the view; it changes no story status, owner, gate evidence, slicing rationale, or the `EPIC-002` enabler boundary.
+
+**In VS Code chat, type:**
+
+```text
+/backlog-status ACME_DASHBOARD
+```
+
+For Codex prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+Refresh the backlog board for ACME_DASHBOARD.
+```
+
+**What it needs:** `/backlog` already created story files. It reads `state.json#story_lifecycle` / `#story_gates`, the `US-NNN.md` files, and `08_context_packs/implementation_readiness.json`.
+
+**What it produces:** `04_backlog/BACKLOG.md` and a persisted `state.json#backlog_rollup`. Do not hand-edit `BACKLOG.md`.
+
+### Scenario D10: Propose Governed Backlog Refinements
+
+**Context:** A story is too big, two should merge, one is missing, or an enabler candidate emerged — and you want it recorded as a reviewable proposal grounded in citations, not a silent rewrite.
+
+**What it is for:** `/refine-backlog` merges validated agent-authored refinement proposals as an `Agent Backlog Refinements` overlay tagged `Origin: agent`. It preserves the existing INVEST/SPIDR/Lawrence and `EPIC-002` enabler-boundary model; the BA still decides what a future regeneration acts on. The `sentinel-backlog-refine` skill authors proposals.
+
+**In chat, plain language (recommended):**
+
+```text
+US-003 is too big for ACME_DASHBOARD — propose a vertical reslice, citing the spec
+units verbatim, as an agent proposal for BA review.
+```
+
+Exact command:
+
+```text
+/refine-backlog ACME_DASHBOARD --source input\interactions\backlog-refinement.json   (Kilo)
+sentinel /refine-backlog ACME_DASHBOARD --source input\interactions\backlog-refinement.json   (Codex)
+```
+
+**What it needs:** `/backlog` already created `04_backlog/EPIC-001.md`, and health not `DIRTY`. A JSON with `proposals[]`; each declares a `kind` (`reslice`, `split-story`, `merge-stories`, `missing-story`, or `enabler-candidate`), targets, a recommendation, rationale, and verbatim citations. Enabler candidates must declare enabled stories, supported boundary, a concrete `enabled_capability`, a measurable `verification_method`, risk reduced, and objective evidence. Proposals targeting unknown/pending stubs, citing text not found verbatim, grounding on pending Spec Units, or promoting loose preconditions into enablers are rejected.
+
+**What it produces:** Updated `04_backlog/EPIC-001.md` and targeted `04_backlog/US-NNN.md` files with the overlay section, an archived source under `04_backlog/refinements/`, `accepted_refinements.json`, `refinement_report.md`, and trace nodes/edges to the refinement event.
+
+### Scenario D11: A Downstream Agent Reports An Implementation Blocker
+
+**Context:** A planning, implementation, or testing agent hits a blocker in a story — a new dependency, a discovery gap, an acceptance criterion that cannot hold, or an uncovered surface — and must report it through governance instead of silently changing scope.
+
+**What it is for:** `/implementation-feedback` records evidence-backed downstream findings for BA/Product review. It does not rewrite stories, acceptance criteria, slicing, or enabler boundaries; it may mark only affected stories `Stale` and may block `Done` via DoD. The `sentinel-implementation-feedback` skill authors findings.
+
+**In chat, plain language (recommended):**
+
+```text
+The implementation of US-002 in ACME_DASHBOARD found the acceptance criterion can't
+hold without an HR-sync dependency. Register it as governed feedback.
+```
+
+Exact command:
+
+```text
+/implementation-feedback ACME_DASHBOARD --source input\interactions\implementation-feedback.json   (Kilo)
+sentinel /implementation-feedback ACME_DASHBOARD --source input\interactions\implementation-feedback.json   (Codex)
+```
+
+**What it needs:** `/backlog` already run. A JSON with `findings[]`; each declares a `type` (`new-dependency`, `gap`, `ac-challenge`, or `surface-not-covered`), a target `story`, optional `acceptance_criteria`, `summary`, `evidence`, optional `source_units` / `gap_id`, `blocks_dod`, and `mark_stale`.
+
+**What it produces:** An archived source under `07_changes/05_implementation_feedback/`, a `feedback_report.md`, an optional `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `state.json#implementation_feedback`, an updated DoD item `implementation_feedback_resolved` on affected stories, and trace nodes/edges. Default gates warn; strict mode blocks closure while open blocking feedback remains.
+
 ## Block E: Change Management
 
 ### Scenario E1: A Stakeholder Sends New Information
@@ -605,6 +930,35 @@ Register them, refresh traceability, and check health.
 
 **How to interpret it:** A meeting should not live only in human memory. If it changes understanding, it should become traceable evidence.
 
+### Scenario E4: Metabolize An Unstructured Interaction Into A Proposed Digest
+
+**Context:** You have an unstructured interaction — a meeting transcript, a client mail, a Slack thread — that probably contains answers to open gaps, decisions, new gaps, and assumption contradictions, but you do not want any of it to close or change anything automatically.
+
+**What it is for:** `/sync --digest` extracts, with a verbatim citation per line, candidate signals from the interaction and routes them for BA review. It **proposes and routes, never applies**: it closes no gap and invalidates no assumption on its own. (For change traceability without extraction, use plain `/sync`; see E1–E3.)
+
+**In VS Code chat, type:**
+
+```text
+/sync ACME_DASHBOARD --source input\interactions\meeting-notes.md --digest
+```
+
+For Codex:
+
+```text
+sentinel /sync ACME_DASHBOARD --source input\interactions\meeting-notes.md --digest
+```
+
+Plain-language option:
+
+```text
+These meeting notes for ACME_DASHBOARD are unstructured. Digest them into proposed gap
+answers and decision candidates for my review — don't close anything automatically.
+```
+
+**What it needs:** An initialized project and a source file holding the unstructured interaction. The `--digest` flag is opt-in on top of `/sync`.
+
+**What it produces:** `07_changes/.../interaction_digest.md` plus a `PROPOSED` gap-response file that does not close anything on its own — candidate answers to open gaps (each cited), `DEC-*` candidates, new gaps, and assumption contradictions. No signal means an explicit empty digest. Review the proposals, then apply the ones you accept through `/resolve-gaps` (structured closure) or a normal `/sync`.
+
 ## Block F: Retrieval And Memory
 
 ### Scenario F1: An Agent Needs Focused Context
@@ -671,6 +1025,56 @@ Export the ACME_DASHBOARD project brief as Markdown so I can share a controlled 
 ```
 
 **How to interpret it:** The export is a controlled copy. The workspace remains the source of truth.
+
+### Scenario F4: Export Gaps As An Interview Script Or A FAQ
+
+**Context:** You are preparing for an elicitation meeting and want the open gaps as a running script; or discovery has matured and you want the closed gaps written up as an answered FAQ.
+
+**What it is for:** `/export --artifact gaps --format interview` writes a meeting script from the **open** gaps; `--format faq` writes the mirror FAQ from the **closed** gaps. Both are read-only derived views — they never replace `01_discovery/gaps.md`, close no gap, and are regenerated rather than hand-edited. (For a plain shareable copy of an artifact, see F3.)
+
+**In VS Code chat, type:**
+
+```text
+/export ACME_DASHBOARD --artifact gaps --format interview
+/export ACME_DASHBOARD --artifact gaps --format faq
+```
+
+For Codex prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+Export the open ACME_DASHBOARD gaps as an interview script for tomorrow's meeting.
+```
+
+**What it needs:** A project with `gaps.md`. The `interview` and `faq` formats apply to the `gaps` artifact only. When a stakeholder registry exists (see A10) the interview script groups questions **by owner** instead of by lens.
+
+**What it produces:** `08_context_packs/exports/gaps-interview.md` — open gaps ordered as a meeting script (blocking first, grouped by lens or owner), each with cited context, the question to ask, and 1–2 probing questions derived from cited candidate options (never invented). Or `08_context_packs/exports/gaps-faq.md` — only confirmed/closed gaps, each answer quoted verbatim from the seed/decision tables and cited to the gap id; open gaps never appear as answered, and with no confirmed gaps the FAQ is an explicit empty marker.
+
+### Scenario F5: Open A Read-Only HTML View Of One Artifact
+
+**Context:** A reviewer wants to read a generated artifact — gaps, brief, PRD, specs, or backlog — in a browser, with navigation, citation chips, and pending/assumption markers, without touching the source.
+
+**What it is for:** `/view` renders one artifact as a self-contained, read-only HTML review surface derived from the Markdown source of truth. It is a rebuildable review view, not a second source of truth, and it never mutates the artifact.
+
+**In VS Code chat, type:**
+
+```text
+/view ACME_DASHBOARD --artifact prd
+/view ACME_DASHBOARD --artifact backlog --open
+```
+
+For Codex prefix with `sentinel`.
+
+Plain-language option:
+
+```text
+Open the ACME_DASHBOARD PRD as an HTML view I can read in the browser.
+```
+
+**What it needs:** The chosen `--artifact` (`gaps`, `brief`, `prd`, `specs`, or `backlog`) already generated. Optional `--open` opens it in the default browser.
+
+**What it produces:** `workspaces/ACME_DASHBOARD/08_context_packs/views/ARTIFACT.html` — self-contained, git-ignored, with section navigation, search, source-line anchors, pending/gap/assumption markers, citation chips resolving against the local traceability graph, and a one-hop mini trace graph. Feedback typed into the view stays in browser `localStorage`; to act on it, `GAP-*` comments use the `/resolve-gaps` answer shape and other comments go through `/sync --source PATH --note "Artifact review feedback"`.
 
 ## Block G: Audit And Framework Maintenance
 
@@ -767,6 +1171,52 @@ Check whether Ignite Sentinel is ready to use on this machine and tell me what t
 ```
 
 **How to interpret it:** If LanceDB fails, Sentinel still works in `json-hybrid` mode; install `python -m pip install -e .[memory]` only when the environment allows vector memory. Semantic embeddings are a separate optional layer (`.[memory-semantic]`) and must use local model files or cache. If `python` is unavailable or points to an invalid Windows alias, use `.\installers\sentinel.ps1 /doctor`. If Kilo does not see commands, confirm VS Code opened the repository root, not a subfolder.
+
+### Scenario G5: See The Whole Portfolio At A Glance
+
+**Context:** You are running several Sentinel projects and want one portfolio overview — phase, health, gaps, backlog rollups — instead of checking each workspace separately.
+
+**What it is for:** `/dashboard` generates a local, read-only HTML portfolio dashboard for every workspace. Unlike project commands it takes no `PROJECT_ID`; it scans all workspaces with a `state.json`, skips `_template`, and never mutates anything or runs follow-up commands. The `sentinel-dashboard` skill maps plain-language status requests to it.
+
+**In VS Code chat, type:**
+
+```text
+/dashboard
+/dashboard --open
+```
+
+For Codex:
+
+```text
+sentinel /dashboard
+```
+
+Plain-language option:
+
+```text
+Show me the portfolio dashboard for all my Ignite workspaces.
+```
+
+**What it needs:** One or more workspaces under `workspaces/`. Optional `--root PATH` and `--open`.
+
+**What it produces:** A single `dashboard.html` in the repository root — self-contained, offline, git-ignored, and rebuildable (not a source of truth). It shows portfolio KPIs, per-workspace phase/health, the lifecycle pipeline, copyable client-response gaps, generated documents in a modal view, backlog rollups, DoR/DoD gates, warnings, and suggested prompts.
+
+### Scenario G6: Generate Synthetic Sample Data For The Developer Handoff
+
+**Context:** Specs and stories exist and a developer handoff needs realistic sample data to exercise the flows — seed a local database, write example requests — before any real data exists.
+
+**What it is for:** The `sentinel-handoff-datasets` skill generates synthetic CSV/JSON/SQL fixtures whose *shape* comes from the governed data models but whose *values* are invented. This data is synthetic by design and therefore **outside governance**: never evidence, never cited, never traced. There is no CLI command for it.
+
+**In chat, plain language (recommended):**
+
+```text
+Generate synthetic sample data for the ACME_DASHBOARD developer handoff from the specs
+and stories — CSV/JSON fixtures, clearly marked as synthetic, disposable.
+```
+
+**What it needs:** Governed specs (`03_specs/`) and user stories (`04_backlog/`) to take the schema from — only the values are invented; the skill never fabricates fields the specs never declared.
+
+**What it produces:** Files under `08_context_packs/synthetic/` — the datasets, a `README.md` manifest carrying the `SYNTHETIC — not evidence` marker and listing which specs/stories each dataset exercises, and a self-ignoring `.gitignore` (`*` + `!.gitignore`) so the area is never committed. No governed artifact may reference it; `/validate`'s `no_synthetic_citation` guard catches any slip. It is disposable scaffolding, regenerated whenever specs change.
 
 ## Choosing Between `/resolve-gaps` And `/sync`
 
