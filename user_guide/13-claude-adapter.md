@@ -40,23 +40,35 @@ python -m sentinel /doctor
 
 ```text
 /doctor
+/dashboard
 /init PROJECT_ID
 /ingest PROJECT_ID --source PATH
 /gaps PROJECT_ID
 /annotate PROJECT_ID --source PATH
 /challenge PROJECT_ID --source PATH
+/scrutinize PROJECT_ID --source PATH [--mode implementability-probe]
+/assume PROJECT_ID --source PATH
 /resolve-gaps PROJECT_ID --source PATH
 /maturity PROJECT_ID
 /brief PROJECT_ID
 /context-request PROJECT_ID --domain DOMAIN
+/stakeholders PROJECT_ID [--add --id ID --name NAME --domain DOMAIN]
 /status PROJECT_ID
 /export PROJECT_ID --artifact ARTIFACT --format md
 /export PROJECT_ID --artifact prd --format mdx
-/sync PROJECT_ID [--source PATH --note "NOTE"]
+/export PROJECT_ID --artifact ARTIFACT --format interview|faq
+/sync PROJECT_ID [--source PATH --note "NOTE" --digest]
 /retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW
 /reindex PROJECT_ID
 /specs PROJECT_ID
-/backlog PROJECT_ID
+/self-review PROJECT_ID --source PATH
+/compose PROJECT_ID --source PATH
+/view PROJECT_ID --artifact ARTIFACT [--open]
+/backlog PROJECT_ID [--with-task-seeds --story-format user|job]
+/backlog-status PROJECT_ID
+/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME --evidence PATH]
+/refine-backlog PROJECT_ID --source PATH
+/implementation-feedback PROJECT_ID --source PATH
 /quality PROJECT_ID
 /trace PROJECT_ID
 /health PROJECT_ID
@@ -82,7 +94,7 @@ Claude maps the intent to the right lifecycle sequence, runs the CLI, and summar
 
 ## Skills (model-invoked)
 
-The 21 canonical skills under `.codex/skills/` are mirrored byte-for-byte to `.claude/skills/`, so Claude Code registers them as model-invocable skills: every skill carries validated `name`/`description` frontmatter (enforced by `/doctor` and the repo test suite), and Claude auto-triggers the right one from the description when the conversation matches — "the client answered the gaps" loads `sentinel-gap-response`, "this AC can't hold" loads `sentinel-implementation-feedback`, and so on, without the user naming the skill.
+The 24 canonical skills under `.codex/skills/` are mirrored byte-for-byte to `.claude/skills/`, so Claude Code registers the 23 model-invocable ones (the human-only `sentinel-privacy-local-first`, marked `disable-model-invocation: true`, is invoked deliberately and never auto-triggered): every skill carries validated `name`/`description` frontmatter (enforced by `/doctor` and the repo test suite), and Claude auto-triggers the right one from the description when the conversation matches — "the client answered the gaps" loads `sentinel-gap-response`, "this AC can't hold" loads `sentinel-implementation-feedback`, and so on, without the user naming the skill.
 
 Full catalog and per-skill responsibilities: [Codex Skills Guide](04-codex-skills-guide.md) (same skills, same contracts — only the mirror directory differs). The seven agentic proposal skills close with an identical Agentic Spirit block (verbatim-citation discipline, lifecycle-based severity, project language, focus-first retrieval); a drift guard keeps skill content aligned with the runtime (technique registry, command manifest, assumption schema).
 

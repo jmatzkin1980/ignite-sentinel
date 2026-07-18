@@ -15,20 +15,25 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "I have a new client requirement in this file" | `/init` → `/ingest` → `/status` | Summarize generated gaps and evidence triggers. |
 | "I read the requirement and spotted gaps the checklist missed" | `/annotate --source analysis.json` → `/status` | Agent proposes semantic gaps with verbatim citations; runtime tags them `origin: agent` and merges. |
 | "Stress-test the requirement — what are we not asking?" / "run a pre-mortem" | `/challenge --source findings.json` → `/status` | Agent runs the registry techniques (pre-mortem, role-play, assumption inversion, JTBD forces by default; red/blue team, first principles, stakeholder round-robin opt-in); runtime validates and merges findings as `origin: challenge` plus a `challenge_report.md`. |
-| "Scrutinize this requirement against domain context" / "run deep lens scrutiny" | `/scrutinize --source scrutiny.json` → `/status` | Agent proposes per-lens findings with verbatim raw or domain-context citations; runtime tags them `origin: scrutiny`, writes `scrutiny_report.md`, and refreshes the knowledge ledger. |
+| "Scrutinize this requirement against domain context" / "run deep lens scrutiny" / "probe what a coding agent is still missing" | `/scrutinize --source scrutiny.json` → `/status` (add `--mode implementability-probe` for the per-RU pre-flight probe) | Agent proposes per-lens findings with verbatim raw or domain-context citations; runtime tags them `origin: scrutiny`, writes `scrutiny_report.md`, and refreshes the knowledge ledger. `--mode implementability-probe` runs a per-RU pass where each RU declares what a coding agent lacks to implement it. |
 | "We need to proceed with this assumption" / "record this as assumed, not confirmed" | `/assume --source assumptions.json` → `/status` | Registers human-owned assumptions with risk (importance), uncertainty, and local cited basis; runtime derives the priority signal ("test before advancing" on high×high), writes `assumptions.md`, refreshes `knowledge_state`, and surfaces assumption risk in maturity/status. |
 | "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes; for functional prose answers, mention any `EARS-eligible, not normalized` count and propose a BA-confirmed EARS rewrite. |
 | "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
 | "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
 | "Technology/Design/Quality updated their context" | `/sync` -> `/reindex` -> `/health` | If backlog exists, expect a freshness warning naming the domain; rerun `/backlog` only for material story/AC/dependency/execution changes. |
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
+| "Metabolize these raw mails / call transcripts / Slack threads" | `/sync --digest --source PATH` → `/health` | Distills UNSTRUCTURED interactions into impact routed by owning channel; use instead of a structured `/sync --source` when the input is raw conversation rather than a curated change file. |
+| "Register a stakeholder / route this elicitation gap to its owner" | `/stakeholders --add --id ID --name NAME --domain DOMAIN` → `/status` | Registers project stakeholders and routes elicitation gaps by owner/domain; list them with plain `/stakeholders`. |
+| "Triage this pile of client requests / decide how many projects it is" | `intake-triage` → `/init` | Groups unstructured intake by theme with a verbatim citation per source before any project exists; hands the BA a one-or-several-projects decision. |
+| "Read the existing codebase so we have technical context" | `brownfield-harvest` → `/ingest` | Harvests observed architecture, surfaces, data models, and constraints into `00_raw/02_technology_context/` as cited discovery evidence, marking each claim `[OBSERVED]` or `[INFERRED]`. |
 | "Ask Technology/Design for their input" | `/context-request --domain DOMAIN` | One request file per domain under `08_context_packs/requests/`. |
 | "Generate PRD and specs" | `/specs` → `/validate` | Report `semantic_quality`, `cross_artifact_consistency`, and any `prd_section_readiness` / `specs_gate` warnings. |
 | "Run a skeptical review of the PRD/specs" | `/self-review --source self-review.json` → `/validate` | Merge cited PRD/spec findings as `origin: self-review` gaps and register hard-to-reverse decisions; do not edit PRD/specs automatically. |
 | "Show me the PRD/spec/brief as a navigable artifact" | `/view --artifact prd|specs|brief|gaps|backlog` | Generates local `08_context_packs/views/ARTIFACT.html`; report source path, marker count, citations, guided-response status, feedback export option, and that it is read-only. |
 | "Export the PRD for our offline MDX renderer" | `/export --artifact prd --format mdx` | Generates local `08_context_packs/exports/prd-mdx/`; explain that it is derived, optional, offline-only, and not the Markdown source of truth. |
+| "Export a shareable interview guide / FAQ from discovery" | `/export --artifact ARTIFACT --format interview\|faq` | Discovery-facing export formats alongside `md`/`mdx`; derived, optional, offline-only artifacts, never the source of truth. |
 | "Merge this agent-written PRD narrative with citations" | `/compose --source composition.json` → `/validate` | Only after `/specs`; every paragraph must cite verbatim local evidence and pending sections stay blocked. |
-| "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. |
+| "Prepare the backlog for implementation handoff" | `/backlog` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Only when gates allow; report `readiness_score` summary and the BA board path. Add `/backlog --story-format job` for JTBD-native (job-story) wording instead of the default user-story form; slicing and traceability are unchanged. |
 | "Prepare optional task seeds for downstream planning" | `/backlog --with-task-seeds` -> `/backlog-status` -> `/quality` -> `/trace` -> `/health` -> `/validate` | Use only when explicitly requested; seeds are intentions traced to AC/critical surfaces, not execution, estimates, assignments, schedules, or managed tasks. |
 | "Show me backlog progress / the BA board" | `/backlog-status` -> `/status` | Generates `04_backlog/BACKLOG.md` from governed lifecycle, gates, and readiness data. |
 | "Show me the dashboard / portfolio status / what is pending across workspaces" | `/dashboard` | Generates local `dashboard.html`; summarize attention signals and do not mutate project artifacts. |
@@ -105,8 +110,12 @@ Use these directly in Kilo chat:
 /status PROJECT_ID
 /export PROJECT_ID --artifact gaps --format md
 /export PROJECT_ID --artifact prd --format mdx
+/export PROJECT_ID --artifact gaps --format interview
 /sync PROJECT_ID
 /sync PROJECT_ID --source input\interactions\client-answer.md --note "client response"
+/sync PROJECT_ID --digest --source input\interactions\raw-mail-thread.md
+/stakeholders PROJECT_ID
+/stakeholders PROJECT_ID --add --id STK-001 --name "Head of Operations" --domain backend
 /retrieve PROJECT_ID --query "dashboard access and data source" --workflow discovery
 /reindex PROJECT_ID
 /specs PROJECT_ID
@@ -218,6 +227,7 @@ This lifecycle is intentionally conservative. It keeps discovery, gap resolution
 /init PROJECT_ID
 /ingest PROJECT_ID --source input\client_requirement\sync-guide.md
 /gaps PROJECT_ID
+/stakeholders PROJECT_ID --add --id STK-001 --name "Head of Operations" --domain backend
 /resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
 /maturity PROJECT_ID
 /brief PROJECT_ID
