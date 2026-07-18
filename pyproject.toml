@@ -4,10 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ignite-sentinel"
-version = "0.1.0"
+version = "0.2.0"
 description = "Repo-local BA/Product requirements operating framework for AI PODs."
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.10"
 dependencies = []
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Documentation",
+]
 
 [project.optional-dependencies]
 memory = [

@@ -22,6 +22,9 @@ def build_pyz(target: Path | str = DEFAULT_TARGET) -> Path:
             "from sentinel.cli import main\n\nraise SystemExit(main())\n",
             encoding="utf-8",
         )
+        license_file = ROOT / "LICENSE"
+        if license_file.exists():
+            shutil.copy2(license_file, staging / "LICENSE")
         zipapp.create_archive(
             staging,
             target=target_path,
