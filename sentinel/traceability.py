@@ -203,7 +203,9 @@ def write_mermaid_graph(project_id: str) -> Path:
     lines = ["flowchart TD"]
     for node in graph.get("nodes", []):
         safe_id = node["id"].replace("-", "_")
-        label = f"{node['id']}\\n{node.get('type', 'artifact')}"
+        # Mermaid does not interpret `\n` inside node labels; it needs `<br/>`
+        # (rendered via htmlLabels) or the line break shows up literally.
+        label = f"{node['id']}<br/>{node.get('type', 'artifact')}"
         lines.append(f'    {safe_id}["{label}"]')
         style = mermaid_style_for_node(node)
         if style:
@@ -212,7 +214,15 @@ def write_mermaid_graph(project_id: str) -> Path:
         source = edge["from"].replace("-", "_")
         target = edge["to"].replace("-", "_")
         relation = edge.get("relation", "relates")
-        lines.append(f"    {source} -->|{relation}| {target}")
+        # Keep the mermaid edge label in parity with the matrix annotation
+        # (write_traceability_matrix): a suspicious edge must carry its warning
+        # here too, else the graph shows a plain arrow and loses the signal.
+        # Quote the label so the parentheses/colon parse cleanly in mermaid.
+        if edge.get("suspicious"):
+            reason = edge.get("suspicion_reason", "review required")
+            lines.append(f'    {source} -->|"{relation} (SUSPICIOUS: {reason})"| {target}')
+        else:
+            lines.append(f"    {source} -->|{relation}| {target}")
     mermaid_path = graph_path(project_id).parent / "traceability_graph.md"
     mermaid_path.write_text("# Traceability Graph\n\n```mermaid\n" + "\n".join(lines) + "\n```\n", encoding="utf-8")
     return mermaid_path
