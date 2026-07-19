@@ -515,11 +515,13 @@ def run_fixture(
     apply_annotation: bool = False,
     apply_scrutiny: bool = False,
     apply_assumptions: bool = False,
+    apply_challenge: bool = False,
 ) -> dict:
     key = json.loads((fixture_dir / "answer_key.json").read_text(encoding="utf-8"))
     requirement = fixture_dir / "requirement.md"
     annotation = fixture_dir / "annotation.json"
     scrutiny = fixture_dir / "scrutiny.json"
+    challenge = fixture_dir / "challenge.json"
     assumptions = fixture_dir / "assumptions.json"
     gap_responses = fixture_dir / "gap_responses.md"
     gap_response_rounds = fixture_dir / "gap_response_rounds"
@@ -549,11 +551,18 @@ def run_fixture(
                     assert main(["scrutinize", project_id, "--source", str(scrutiny)]) == 0, (
                         f"scrutinize failed for {fixture_dir.name}"
                     )
+                # IMP-216: /challenge is an elicitation-phase agentic pass like
+                # /scrutinize — it merges origin:challenge findings into gaps and
+                # skips downstream generation, so it shares the same gates below.
+                if apply_challenge and challenge.exists():
+                    assert main(["challenge", project_id, "--source", str(challenge)]) == 0, (
+                        f"challenge failed for {fixture_dir.name}"
+                    )
                 if apply_assumptions and assumptions.exists():
                     assert main(["assume", project_id, "--source", str(assumptions)]) == 0, (
                         f"assume failed for {fixture_dir.name}"
                     )
-                if not apply_annotation and not apply_scrutiny:
+                if not apply_annotation and not apply_scrutiny and not apply_challenge:
                     response_sources = []
                     if gap_responses.exists():
                         response_sources.append(gap_responses)
@@ -564,7 +573,7 @@ def run_fixture(
                             f"resolve-gaps failed for {fixture_dir.name}: {response_source.name}"
                         )
                 assert main(["brief", project_id]) == 0, f"brief failed for {fixture_dir.name}"
-                if not apply_annotation and not apply_scrutiny and not skip_downstream:
+                if not apply_annotation and not apply_scrutiny and not apply_challenge and not skip_downstream:
                     assert main(["specs", project_id]) == 0, f"specs failed for {fixture_dir.name}"
                     backlog_command = ["backlog", project_id]
                     if key.get("task_seeds", {}).get("with_task_seeds"):
@@ -616,7 +625,7 @@ def run_fixture(
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
-            if apply_annotation or apply_scrutiny or skip_downstream:
+            if apply_annotation or apply_scrutiny or apply_challenge or skip_downstream:
                 prd_status = {section: "pending" for section in PRD_TRACKED_SECTIONS}
                 specs_scaffold = {"ids": [], "count": 0}
                 backlog_derivation = {
@@ -1434,6 +1443,12 @@ def run_all() -> int:
         if (d / "scrutiny.json").exists()
     ]
     scrutinized_fixtures = sum(1 for d in fixture_dirs if (d / "scrutiny.json").exists())
+    challenged_results = [
+        run_fixture(d, apply_challenge=True)
+        for d in fixture_dirs
+        if (d / "challenge.json").exists()
+    ]
+    challenged_fixtures = sum(1 for d in fixture_dirs if (d / "challenge.json").exists())
     assumed_results = [
         run_fixture(d, apply_assumptions=True)
         for d in fixture_dirs
@@ -1500,6 +1515,8 @@ def run_all() -> int:
             "annotated_fixtures": annotated_fixtures,
             "scrutinized_fixtures": scrutinized_fixtures,
             "scrutiny_ok": all(not r["gap_detail_mismatches"] for r in scrutinized_results),
+            "challenged_fixtures": challenged_fixtures,
+            "challenge_ok": all(not r["gap_detail_mismatches"] for r in challenged_results),
             "assumed_fixtures": assumed_fixtures,
             "assumption_ok": all(r["assumption_ok"] for r in assumed_results),
             "development_readiness_ok": all(r["development_readiness_ok"] for r in assumed_results),
@@ -1631,6 +1648,7 @@ def run_all() -> int:
         f"delta={s['implicit_elicitation_delta']:.2f} "
         f"({s['implicit_elicitation_fixtures']} fixtures, IMP-156) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
+        f"challenge_ok={s['challenge_ok']} ({s['challenged_fixtures']} challenged fixtures, IMP-216) "
         f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
         f"development_readiness_ok={s['development_readiness_ok']} (IMP-068) "
         f"metabolism_ok={s['metabolism_ok']} (IMP-069) "

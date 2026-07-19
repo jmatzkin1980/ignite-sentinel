@@ -1,0 +1,16 @@
+{
+  "_comment": "IMP-216 eval input for /challenge: a pre-mortem finding grounded in verbatim raw input. The runtime validates the quote, tags origin challenge, writes challenge_report.md, and refreshes knowledge_state. Distinct from this fixture's scrutiny.json so the two agentic passes are exercised independently.",
+  "gaps": [
+    {
+      "id": "GAP-CHALLENGE-METRIC-FRESHNESS",
+      "lens": "technical",
+      "severity": "high",
+      "technique": "pre-mortem",
+      "question": "Where do ticket volume, resolution time, and backlog ageing come from, and how fresh must they be for a weekly review to be trustworthy?",
+      "evidence": "ticket volume, resolution time, and backlog ageing in one screen",
+      "description": "The three metrics are named but their source system and freshness are unstated; at review time stale or missing data would silently mislead the staffing decision."
+    }
+  ],
+  "premortem": ["Six weeks in, a team lead made a staffing call on backlog ageing that was three days stale because the source feed had silently stopped."],
+  "assumptions_inverted": ["Assumed the three metrics share one trustworthy real-time source; inverted, they may come from disparate exports with different refresh cadences."]
+}
