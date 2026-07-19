@@ -22,6 +22,21 @@ input/**
 !input/quality_context/.gitkeep
 !input/interactions/
 !input/interactions/.gitkeep
+# --- workspaces/ (two audiences — IMP-212) ---
+# MAINTAINER-SCOPE default: this is the PUBLIC framework repo, which must never
+# ship real or test client data, so project workspaces are ignored here. Only the
+# _template scaffold (no client data) is versioned. Every workspace /init creates
+# carries its OWN .gitignore (governing what is versionable INSIDE it), which YOU
+# control in your own repo.
+#
+# Using Ignite in your OWN (typically private) project repo? Your matured
+# workspace IS the versionable source of truth (see AGENTS.md / CLAUDE.md). To
+# version it and collaborate over GitHub, un-ignore your project by adding, per
+# project, BELOW these lines:
+#     !workspaces/<YOUR_PROJECT_ID>/
+# that project's own workspaces/<ID>/.gitignore then keeps memory indexes and
+# generated HTML out. Do not delete the blanket rule wholesale in a fork you push
+# publicly.
 workspaces/*
 !workspaces/.gitkeep
 !workspaces/_template/
@@ -30,6 +45,9 @@ workspaces/*
 *.7z
 *.zip
 .sentinel_doctor_write_test
+# Portfolio dashboard + per-artifact HTML views: regenerable and may embed client
+# content, so ignored repo-wide as a maintainer-safe default (workspace-scoped
+# copies also live in workspaces/_template/.gitignore for un-ignored projects).
 dashboard.html
 **/08_context_packs/views/*.html
 # Local evolution/operational memory: not published to the public repo

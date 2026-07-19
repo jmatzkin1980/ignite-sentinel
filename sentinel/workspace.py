@@ -52,6 +52,20 @@ WORKSPACE_DIRS = [
     "memory.lancedb",
 ]
 
+# IMP-212: written into every workspace so a user who versions their project to
+# collaborate over GitHub keeps reconstructible/regenerable paths out of git while
+# the matured artifacts (the versionable source of truth) stay tracked. The user
+# owns this file in their own repo; the public framework repo ignores workspaces/*
+# wholesale instead (see the root .gitignore, two-audience note).
+WORKSPACE_GITIGNORE = """# Per-workspace ignore rules (IMP-212). You own this in your own project repo.
+# Your matured artifacts (discovery, gaps, brief, PRD, specs, backlog,
+# traceability) ARE the versionable source of truth and stay tracked. The paths
+# below stay OUT because they are reconstructible or regenerable, not evidence:
+memory.lancedb/
+08_context_packs/views/*.html
+08_context_packs/synthetic/
+"""
+
 
 def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
     base = workspace_path(project_id, root)
@@ -83,6 +97,9 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
         write_json(graph_path(project_id, root), {"nodes": [], "edges": []})
     if not config_path(project_id, root).exists():
         config_path(project_id, root).write_text(default_config(project_id), encoding="utf-8")
+    gitignore_file = base / ".gitignore"
+    if not gitignore_file.exists():
+        gitignore_file.write_text(WORKSPACE_GITIGNORE, encoding="utf-8")
     if not memory_path(project_id, root).exists():
         write_json(memory_path(project_id, root), {"chunks": [], "artifacts": [], "trace_edges": []})
     if not source_manifest_path(project_id, root).exists():
