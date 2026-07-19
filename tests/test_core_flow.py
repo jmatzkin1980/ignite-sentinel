@@ -973,6 +973,38 @@ Second section paragraph.
         self.assertIn("/health", by_name["docs command mentions: missing.md"]["detail"])
         self.assertEqual(by_name["docs command mentions: absent.md"]["status"], "WARN")
 
+    def test_doctor_commands_surface_derives_from_runtime(self) -> None:
+        # IMP-213 (H10, F-209-1): the /doctor `commands` surface must derive live
+        # from the runtime, not a hand-maintained list that silently drifts (the
+        # audit found it hardcoded at 29 while the runtime already exposed 32).
+        from sentinel.adapters import runtime_command_names
+
+        report = run_doctor(ROOT.parent)
+        self.assertEqual(report["commands"], runtime_command_names())
+        for command in ("self-review", "implementation-feedback", "stakeholders"):
+            self.assertIn(command, report["commands"])
+
+    def test_kilo_command_allowlist_covers_runtime(self) -> None:
+        # IMP-213 (H10, F-209-2): guard the Kilo permission surface so a newly
+        # added command can no longer silently fall to `default: ask`.
+        from sentinel.doctor import kilo_command_allowlist_check
+
+        repo_check = kilo_command_allowlist_check(ROOT.parent)
+        self.assertEqual(repo_check["status"], "PASS", repo_check["detail"])
+
+        drifted = self.temp / "kilo-drift"
+        drifted.mkdir()
+        (drifted / "kilo.jsonc").write_text(
+            "{\n"
+            "  // narrowed allowlist missing most commands\n"
+            '  "permissions": { "commands": { "allow": ["python -m sentinel /doctor *"] } }\n'
+            "}\n",
+            encoding="utf-8",
+        )
+        drifted_check = kilo_command_allowlist_check(drifted)
+        self.assertEqual(drifted_check["status"], "WARN")
+        self.assertIn("/view", drifted_check["detail"])
+
     def test_skills_materialized_in_standard_directories(self) -> None:
         from sentinel.adapters import skills_out_of_sync
 

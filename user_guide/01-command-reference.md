@@ -467,6 +467,8 @@ python -m sentinel /export PROJECT_ID --artifact gaps --format interview
 python -m sentinel /export PROJECT_ID --artifact gaps --format faq
 ```
 
+`--format` accepts `md` (default), `mdx`, `interview`, and `faq`; `--fmt` is an accepted short alias.
+
 Output:
 
 - `08_context_packs/exports/`
