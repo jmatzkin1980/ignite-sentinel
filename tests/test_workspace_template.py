@@ -9,10 +9,26 @@ import unittest
 from pathlib import Path
 
 from sentinel.doctor import workspace_template_check
-from sentinel.workspace import WORKSPACE_DIRS
+from sentinel.workspace import WORKSPACE_DIRS, WORKSPACE_GITIGNORE, ensure_workspace
 
 REPO = Path(__file__).resolve().parents[1]
 TEMPLATE = REPO / "workspaces" / "_template"
+
+
+class WorkspaceGitignore(unittest.TestCase):
+    def test_init_writes_a_user_controlled_workspace_gitignore(self) -> None:
+        # IMP-212: every workspace carries its own .gitignore so a user versioning
+        # their project keeps reconstructible paths out of git while the matured
+        # artifacts stay tracked. The public framework repo ignores workspaces/*
+        # wholesale instead, so this file never contradicts that maintainer default.
+        with tempfile.TemporaryDirectory() as tmp:
+            base = ensure_workspace("GITIGN", root=Path(tmp))
+            gitignore = base / ".gitignore"
+            self.assertTrue(gitignore.exists())
+            text = gitignore.read_text(encoding="utf-8")
+            self.assertEqual(text, WORKSPACE_GITIGNORE)
+            for path in ("memory.lancedb/", "08_context_packs/views/*.html", "08_context_packs/synthetic/"):
+                self.assertIn(path, text)
 
 
 class TemplateMatchesWorkspaceDirs(unittest.TestCase):
