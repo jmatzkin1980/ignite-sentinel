@@ -15,38 +15,6 @@ from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
 from .portability import stdlib_purity_violations
 
 
-REQUIRED_COMMANDS = [
-    "doctor",
-    "dashboard",
-    "init",
-    "ingest",
-    "retrieve",
-    "sync",
-    "maturity",
-    "specs",
-    "backlog",
-    "backlog-status",
-    "quality",
-    "health",
-    "trace",
-    "validate",
-    "view",
-    "reindex",
-    "gaps",
-    "annotate",
-    "challenge",
-    "scrutinize",
-    "assume",
-    "compose",
-    "refine-backlog",
-    "story-status",
-    "resolve-gaps",
-    "brief",
-    "context-request",
-    "status",
-    "export",
-]
-
 REQUIRED_CODEX_SKILLS = [
     "sentinel-annotate",
     "sentinel-challenge",
@@ -135,6 +103,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *agentic_surface_checks(root),
         *agentic_surface_audit_checks(root),
         *kilo_command_checks(root),
+        kilo_command_allowlist_check(root),
         *claude_command_checks(root),
         memory_dependency_check(),
         semantic_embedder_check(),
@@ -154,7 +123,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
             "python": sys.version.split()[0],
             "executable": sys.executable,
         },
-        "commands": REQUIRED_COMMANDS,
+        "commands": runtime_command_names(),
         "checks": checks,
         "summary": {
             "failures": len(blocking),
@@ -673,6 +642,42 @@ def claude_command_checks(root: Path) -> list[dict[str, str]]:
         path_check(root, f".claude/commands/{command}.md", f"Claude slash command: /{command}")
         for command in REQUIRED_CLAUDE_COMMANDS
     ]
+
+
+def kilo_command_allowlist_check(root: Path) -> dict[str, str]:
+    """IMP-213 (H10, anti-staleness): the kilo.jsonc command allowlist must
+    pre-authorize every runtime command. When it drifts behind the CLI a new
+    command silently falls to `default: ask` — the exact F-209-2 staleness the
+    H10 audit found (13 commands, incl. /dashboard and /view, unlisted). WARN,
+    not FAIL: a missing entry only costs the BA an extra Kilo prompt, it does not
+    break governance. Sibling `.kilo/commands/*.md` doc coverage stays owned by
+    the manifest sync (out_of_sync); this guards the *permission* surface so the
+    allowlist can no longer silently fall behind a newly added command.
+    """
+    from .core.io import parse_json
+
+    label = "kilo.jsonc command allowlist covers runtime"
+    path = root / "kilo.jsonc"
+    if not path.exists():
+        return {"name": label, "status": "WARN", "detail": "kilo.jsonc missing"}
+    try:
+        parsed = parse_json(_strip_jsonc(path.read_text(encoding="utf-8-sig")))
+    except ValueError as exc:  # JSONDecodeError is a ValueError
+        return {"name": label, "status": "WARN", "detail": f"unparseable JSONC: {exc}"}
+    allow = parsed.get("permissions", {}).get("commands", {}).get("allow", [])
+    allow_text = "\n".join(str(entry) for entry in allow)
+    commands = sorted(runtime_command_names())
+    # Match the `/command` token bounded so a prefix never satisfies a longer
+    # sibling (`/backlog` must not count for `/backlog-status`), and a trailing
+    # wildcard-or-newline both count (`/doctor` and `/view *` alike).
+    missing = [
+        command
+        for command in commands
+        if not re.search(rf"/{re.escape(command)}(?![A-Za-z0-9-])", allow_text)
+    ]
+    if missing:
+        return {"name": label, "status": "WARN", "detail": "missing " + ", ".join(f"/{command}" for command in missing)}
+    return {"name": label, "status": "PASS", "detail": f"{len(commands)} commands pre-authorized"}
 
 
 def mcp_dependency_check() -> dict[str, str]:
