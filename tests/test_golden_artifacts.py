@@ -1,5 +1,13 @@
-"""IMP-175: golden/snapshot tests for the generated artifacts (project brief, PRD,
-specs, backlog) in English AND Spanish.
+"""IMP-175: golden/snapshot tests for the generated artifacts in English AND
+Spanish. Covered: discovery gaps, project brief, PRD, specs, backlog, a quality
+test case (TC-001) + the backlog readiness audit, and the traceability matrix.
+
+IMP-215 (H10, F-GOLD-1/2/3) added gaps/quality/trace-matrix coverage. Two
+coverage gaps are deliberately deferred: the `/trace` *mermaid graph* snapshot
+(its render is changed by IMP-214, so its golden lands with/after that PR to
+avoid a merge-order break) and the `/export` MDX / `/view` HTML projections
+(their timestamped, JS-bearing output needs a normalization harness; IMP-208
+already verified their runtime parity).
 
 These replace the 9 dead `sentinel/templates/*.md`: the golden IS the documented,
 executable single source of truth for the compiled markdown shape, killing the
@@ -31,10 +39,14 @@ GOLDEN_DIR = Path(__file__).resolve().parent / "fixtures" / "golden"
 UPDATE = os.environ.get("SENTINEL_UPDATE_GOLDEN") == "1"
 
 ARTIFACTS = {
+    "gaps.md": "01_discovery/gaps.md",
     "project-brief.md": "02_requirements/project-brief.md",
     "prd.md": "03_specs/prd.md",
     "specs.md": "03_specs/specs.md",
     "backlog.md": "04_backlog/BACKLOG.md",
+    "test-case.md": "05_quality/TC-001.md",
+    "quality-audit.md": "05_quality/backlog_readiness_audit.md",
+    "trace-matrix.md": "06_traceability/traceability_matrix.md",
 }
 
 RAW_EN = """# Operations Risk Dashboard
@@ -98,6 +110,11 @@ SCENARIOS = {
 
 def _normalize(text: str, project_id: str) -> str:
     text = text.replace(project_id, "[PROJECT_ID]")
+    # The traceability matrix records node paths as stored in the graph, which
+    # under the test's mkdtemp workspace are absolute (machine-specific tmp
+    # prefix). Collapse anything before `workspaces/[PROJECT_ID]` so the golden
+    # is stable; relative paths (already starting at `workspaces/`) are untouched.
+    text = re.sub(r"[^`\s]*/workspaces/\[PROJECT_ID\]", "workspaces/[PROJECT_ID]", text)
     text = re.sub(
         r"\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:\.\d+)?(?:[+-]\d\d:?\d\d|Z)?",
         "[TIMESTAMP]",
@@ -127,7 +144,7 @@ def _generate(scenario: dict) -> dict[str, str]:
                 answer.write_text(scenario["answer"].format(s=statement, i=index), encoding="utf-8")
                 if main(["resolve-gaps", pid, "--source", str(answer)]) != 0:
                     raise AssertionError(f"resolve-gaps {index} failed")
-            for command in ("brief", "specs", "backlog"):
+            for command in ("brief", "specs", "backlog", "quality", "trace"):
                 if main([command, pid]) != 0:
                     raise AssertionError(f"{command} failed")
         workspace = tmp / "workspaces" / pid
