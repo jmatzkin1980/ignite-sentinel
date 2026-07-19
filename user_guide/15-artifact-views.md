@@ -50,7 +50,14 @@ Blocks preserve exact Markdown slices, so `md -> blocks -> md` remains idempoten
 
 Guided response mode is derived from marker metadata. Business and product gaps are treated as client questions; technology, design, quality, compliance, and delivery gaps are treated as domain questions; governed assumptions are separated for BA review. Drafts stay in browser `localStorage` until exported or routed through a governed command.
 
-The feedback export uses existing Sentinel inputs. Comments anchored to `GAP-*` markers are exported as `### GAP-*` answer blocks with `Answer`, `Owner / source`, `Evidence or reference`, and `Decision status`, so they can be reviewed and passed to `/resolve-gaps`. Other section or marker comments are exported as review Markdown suitable for `/sync --source PATH --note "Artifact review feedback"`.
+The feedback export uses existing Sentinel inputs. Comments anchored to `GAP-*` markers are exported as `### GAP-*` answer blocks with `Answer`, `Owner / source`, `Evidence or reference`, and `Decision status`, so they can be reviewed and passed to `/resolve-gaps`. Other section or marker comments are exported as review Markdown suitable for `/sync --source PATH --note "Artifact review feedback"`. The client's drafted **guided answers** are folded into the same export under a `## Guided Responses` section — answered `GAP-*` items keep the `### GAP-*` / `Answer` / `Decision status` shape for `/resolve-gaps` — so a guided draft is never left stranded in `localStorage`.
+
+There are two local-first ways to hand the export back to the BA, both in the **Feedback Loop** panel:
+
+- **Export Markdown** downloads a `PROJECT-ARTIFACT-feedback.md` file to your machine.
+- **Draft Email To BA** opens a pre-filled draft (subject and body) in your own mail client. It only opens a draft — it never sends automatically — and because `mailto:` cannot carry attachments it reminds you to attach the downloaded `.md`.
+
+The feedback loop lives only in the artifact views; the portfolio dashboard is status-only and has no capture panel by design.
 
 Do not edit generated HTML. If review feedback changes scope or answers a gap, export it as local evidence and route it through `/resolve-gaps`, `/sync`, `/annotate`, or the appropriate governed command.
 

@@ -47,6 +47,7 @@ ARTIFACTS = {
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")
 CITATION_RE = re.compile(r"\[(?:Fuente|Source):[^\]]+\]|`(?:REQ|FR|JTBD|SPEC-U|US|AC|TC|KLU|DEC|CHG|RAW|GAP|ASM)-[^`]+`")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+ORDERED_LIST_RE = re.compile(r"^\d+\.\s+(.*)$")
 
 
 def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
@@ -558,7 +559,7 @@ def strip_inline_markdown(text: str) -> str:
 def markdown_to_html(markdown: str) -> str:
     lines = markdown.splitlines()
     out: list[str] = []
-    in_list = False
+    list_type: str | None = None
     in_code = False
     code_lines: list[str] = []
     paragraph: list[str] = []
@@ -569,10 +570,20 @@ def markdown_to_html(markdown: str) -> str:
             paragraph.clear()
 
     def close_list() -> None:
-        nonlocal in_list
-        if in_list:
-            out.append("</ul>")
-            in_list = False
+        nonlocal list_type
+        if list_type:
+            out.append(f"</{list_type}>")
+            list_type = None
+
+    def open_list(kind: str) -> None:
+        # Switch list container when the marker style changes so ordered items
+        # render inside <ol> and bullets inside <ul> (F-VIEW-1: ordered lists
+        # previously fell through to <p>, losing their numbering).
+        nonlocal list_type
+        if list_type != kind:
+            close_list()
+            out.append(f"<{kind}>")
+            list_type = kind
 
     for line in lines:
         if line.startswith("```"):
@@ -601,10 +612,14 @@ def markdown_to_html(markdown: str) -> str:
             continue
         if line.startswith(("- ", "* ")):
             flush_paragraph()
-            if not in_list:
-                out.append("<ul>")
-                in_list = True
+            open_list("ul")
             out.append("<li>" + inline_markdown(line[2:].strip()) + "</li>")
+            continue
+        ordered = ORDERED_LIST_RE.match(line)
+        if ordered:
+            flush_paragraph()
+            open_list("ol")
+            out.append("<li>" + inline_markdown(ordered.group(1).strip()) + "</li>")
             continue
         paragraph.append(line.strip())
     flush_paragraph()
@@ -777,6 +792,7 @@ HTML_TEMPLATE = r"""<!doctype html>
         <textarea id="feedbackText" placeholder="Write a local anchored comment"></textarea>
         <button class="feedback-action primary" id="saveFeedback">Save Comment</button>
         <button class="feedback-action" id="exportFeedback">Export Markdown</button>
+        <button class="feedback-action" id="mailFeedback">Draft Email To BA</button>
         <button class="feedback-action" id="clearFeedback">Clear Comments</button>
         <pre class="feedback-export" id="feedbackExportText"></pre>
         <div class="feedback-list" id="feedbackList"></div>
@@ -850,6 +866,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     });
     $("saveFeedback").addEventListener("click", saveFeedbackComment);
     $("exportFeedback").addEventListener("click", exportFeedbackMarkdown);
+    $("mailFeedback").addEventListener("click", draftFeedbackEmail);
     $("clearFeedback").addEventListener("click", () => {
       feedbackComments = [];
       persistFeedback();
@@ -1030,6 +1047,21 @@ HTML_TEMPLATE = r"""<!doctype html>
       link.remove();
       URL.revokeObjectURL(url);
     }
+    function draftFeedbackEmail() {
+      // IMP-211 (H10, H-JOSE-1): restore the mailto draft the approved prototype
+      // had (it was lost in the runtime). Local-first: it only opens a pre-filled
+      // draft in the user's own mail client, it never sends. mailto cannot carry
+      // attachments, so remind the reviewer to attach the downloaded .md.
+      const hasGuided = (model.guided_response?.items || []).some(item => String(guidedAnswers[item.id] || "").trim());
+      if (!feedbackComments.length && !hasGuided) {
+        alert("Save at least one comment or guided answer before drafting the email.");
+        return;
+      }
+      const subject = `Artifact review feedback - ${model.project_id} - ${model.artifact}`;
+      const body = buildFeedbackExport(feedbackComments) + "\n\n(If possible, also attach the downloaded .md file - mailto cannot include attachments.)";
+      const recipient = model.ba_email || "";
+      window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
     function buildFeedbackExport(comments) {
       const lines = [
         `# Artifact Review Feedback Export - ${model.project_id}`,
@@ -1040,8 +1072,9 @@ HTML_TEMPLATE = r"""<!doctype html>
         `- Sync command: sentinel /sync ${model.project_id} --source PATH --note "Artifact review feedback"`,
         "",
       ];
-      if (!comments.length) {
-        lines.push("No local comments were saved before export.", "");
+      const guidedLines = buildGuidedResponseExport();
+      if (!comments.length && !guidedLines.length) {
+        lines.push("No local comments or guided responses were saved before export.", "");
         return lines.join("\n");
       }
       comments.forEach(comment => {
@@ -1064,7 +1097,37 @@ HTML_TEMPLATE = r"""<!doctype html>
           lines.push("");
         }
       });
+      if (guidedLines.length) {
+        lines.push("## Guided Responses", "");
+        guidedLines.forEach(line => lines.push(line));
+      }
       return lines.join("\n");
+    }
+    function buildGuidedResponseExport() {
+      // IMP-211 (H10, H-JOSE-1): the client's drafted guided answers used to
+      // stay trapped in localStorage — the exported .md only carried
+      // feedbackComments. Fold them in so the round-trip to /resolve-gaps works.
+      const items = model.guided_response?.items || [];
+      const out = [];
+      items.forEach(item => {
+        const answer = String(guidedAnswers[item.id] || "").trim();
+        if (!answer) return;
+        const prompt = item.question || item.statement || item.expected_format || item.id;
+        if (String(item.id).startsWith("GAP-")) {
+          out.push(`### ${item.id}`);
+          out.push(`- Question: ${singleLine(prompt)}`);
+          out.push(`- Answer: ${singleLine(answer)}`);
+          out.push("- Owner / source: Client guided response");
+          out.push("- Decision status: pending");
+          out.push("");
+        } else {
+          out.push(`### Guided Response: ${item.id}`);
+          out.push(`- Question: ${singleLine(prompt)}`);
+          out.push(`- Answer: ${singleLine(answer)}`);
+          out.push("");
+        }
+      });
+      return out;
     }
     function sectionForTarget(target) {
       if (target.type === "section") return model.sections.find(section => section.id === target.id);

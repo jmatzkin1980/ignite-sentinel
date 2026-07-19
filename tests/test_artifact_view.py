@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sentinel.blocks import blocks_to_markdown
 from sentinel.cli import main
-from sentinel.view import collect_artifact_model
+from sentinel.view import collect_artifact_model, markdown_to_html
 
 
 ROOT = Path(__file__).parent
@@ -94,6 +94,12 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertIn("Guided Response", html)
         self.assertIn("Client progress", html)
         self.assertIn("guided-answer", html)
+        # IMP-211 (H10, H-JOSE-1): the mailto draft button and the guided-answer
+        # export must both be present so the client feedback loop round-trips.
+        self.assertIn("Draft Email To BA", html)
+        self.assertIn("mailto:", html)
+        self.assertIn("buildGuidedResponseExport", html)
+        self.assertIn("## Guided Responses", html)
         self.assertNotIn("__ARTIFACT_DATA__", html)
         self.assertNotIn("<script src=", html)
         self.assertNotIn("http://", html)
@@ -101,6 +107,21 @@ class ArtifactViewTest(unittest.TestCase):
 
         state = json.loads((self.temp / "workspaces" / "GAPVIEW" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["last_command"], "view")
+
+    def test_markdown_to_html_renders_ordered_lists(self) -> None:
+        # IMP-211 (H10, F-VIEW-1): ordered-list markers used to collapse into a
+        # <p>, losing their numbering; they must render as <ol>/<li>.
+        html = markdown_to_html("1. first\n2. second\n3. third")
+        self.assertIn("<ol>", html)
+        self.assertIn("</ol>", html)
+        self.assertEqual(html.count("<li>"), 3)
+        self.assertIn("<li>first</li>", html)
+        self.assertNotIn("<p>1. first", html)
+        # Switching marker style closes the previous container: bullets stay <ul>.
+        mixed = markdown_to_html("- bullet\n1. number")
+        self.assertIn("<ul>", mixed)
+        self.assertIn("</ul>", mixed)
+        self.assertIn("<ol>", mixed)
 
     def test_feedback_export_shape_is_accepted_by_resolve_gaps_and_sync(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
