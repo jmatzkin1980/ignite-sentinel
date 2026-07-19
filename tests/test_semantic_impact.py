@@ -8,7 +8,7 @@ from pathlib import Path
 from sentinel.health import run_health
 from sentinel.discovery import render_gaps
 from sentinel.sync import semantic_change_analysis, sync_change
-from sentinel.traceability import write_traceability_matrix
+from sentinel.traceability import write_mermaid_graph, write_traceability_matrix
 from sentinel.workspace import ensure_workspace, write_json
 
 
@@ -85,6 +85,14 @@ class SemanticImpactTest(unittest.TestCase):
         self.assertIn("semantic-change-cue", report)
         matrix = write_traceability_matrix("IMPACT").read_text(encoding="utf-8")
         self.assertIn("SUSPICIOUS: semantic-change-cue", matrix)
+
+        # IMP-214 (H10, F-TRACE-1/2): the mermaid render must use `<br/>` (not a
+        # literal `\n` mermaid cannot interpret) and must carry the same
+        # SUSPICIOUS annotation the matrix does, so the graph keeps parity.
+        mermaid = write_mermaid_graph("IMPACT").read_text(encoding="utf-8")
+        self.assertIn("REQ-001<br/>requirement", mermaid)
+        self.assertNotIn("\\n", mermaid)
+        self.assertIn("SUSPICIOUS: semantic-change-cue", mermaid)
 
         health = run_health("IMPACT")
         self.assertIn("Semantic change may invalidate downstream trace links", "\n".join(health["findings"]))
