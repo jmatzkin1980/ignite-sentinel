@@ -14,6 +14,7 @@ Each fixture folder contains:
   - `distractors` (IMP-128): domain-mined plausible-but-irrelevant gap candidates. Prefer objects with `gap_id`, verbatim `source_quote`, and `rationale`; the harness reports `distractor_false_positive_rate` separately from baseline pass/fail.
   - `target_fire`: gaps an inquisitive/semantic engine should detect but keyword suppression can miss. `target_recall` is a progress metric.
   - `implicit_requirements` (IMP-156): hidden requirement oracle for inputs that look complete. Each item declares `id`, `description`, `expect_gap`, and `requires` (`annotate`, `challenge`, or `scrutinize`). The harness reports `implicit_elicitation`/`elicitation_ratio` by exact `expect_gap` match, so unrelated extra gaps do not improve the score.
+  - `split` (IMP-222): optional `"tuning"` (default) or `"held_out"`. Held-out fixtures were added after the initial tuning batch to probe generalization (adversarial stress, hidden-requirement oracle) and are reported as a separate set so a memorization gap surfaces instead of averaging into one aggregate. A fixture without the field is tuning data.
   - `expected_language`: project language expected after `/ingest`.
   - `expected_gap_details`: selected stable gap metadata (`lens`, `severity`, `origin`).
   - `annotate.expected_gap_details`: metadata expectations only when the fixture runs through `/annotate`.

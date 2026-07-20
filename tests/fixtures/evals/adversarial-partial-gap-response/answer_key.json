@@ -1,5 +1,6 @@
 {
   "fixture": "adversarial-partial-gap-response",
+  "split": "held_out",
   "language": "en",
   "expected_language": "en",
   "deliberate_omissions": [

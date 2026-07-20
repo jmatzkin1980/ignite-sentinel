@@ -97,6 +97,23 @@ EVAL_CONTEXT_FOLDERS = {
     "interactions": "00_raw/05_interactions",
 }
 
+# IMP-222: eval-hardening 1/2. Fixtures split into a tuning set (the engine was
+# built against these) and a held-out set (added later to probe generalization,
+# never used to tune). A fixture declares its side with ``"split": "held_out"``
+# in answer_key.json; absent/other means tuning. The runner reports the two sets
+# separately so a memorization gap surfaces instead of averaging away.
+TUNING_SPLIT = "tuning"
+HELD_OUT_SPLIT = "held_out"
+
+
+def fixture_split(key: dict) -> str:
+    """Return the tuning/held-out split declared by a fixture answer key.
+
+    Case- and whitespace-insensitive; anything other than ``held_out`` (or an
+    absent marker) is tuning data. Deterministic — no LLM, no I/O."""
+    raw = str(key.get("split", TUNING_SPLIT)).strip().lower()
+    return HELD_OUT_SPLIT if raw == HELD_OUT_SPLIT else TUNING_SPLIT
+
 
 def brief_section_status(brief_md: str) -> dict:
     sections: dict = {}
@@ -771,6 +788,7 @@ def run_fixture(
 
     return {
         "fixture": fixture_dir.name,
+        "split": fixture_split(key),  # IMP-222: tuning vs held-out
         "language": key.get("language", "unknown"),
         "expected_language": expected_language,
         "detected_language": language_detected,
@@ -1716,6 +1734,99 @@ def implementability_probe_eval() -> dict:
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+def collect_baseline_deviations(row: dict) -> list[dict]:
+    """IMP-222 (deviation-point): reproduce the per-fixture ``baseline_ok`` verdict
+    as an ordered list of concrete deviation points instead of one aggregate bool.
+
+    Each record is ``{"field", "expected", "actual"}``. The eight fields mirror
+    exactly the conditions that build ``baseline_ok`` in :func:`run_fixture`, in a
+    stable order, so ``bool(collect_baseline_deviations(row))`` is True iff the
+    fixture's ``baseline_ok`` is False — same signals, finer grain. Deterministic;
+    reads only the row (no LLM, no I/O)."""
+    deviations: list[dict] = []
+    missing = sorted(row.get("missing_must_fire", []))
+    if missing:
+        deviations.append({"field": "must_fire", "expected": "all fired", "actual": {"missing": missing}})
+    new_fps = sorted(row.get("new_false_positives", []))
+    if new_fps:
+        deviations.append({"field": "false_positives", "expected": "none", "actual": {"new": new_fps}})
+    if row.get("language_mismatch"):
+        deviations.append(
+            {"field": "language", "expected": row.get("expected_language"), "actual": row.get("detected_language")}
+        )
+    gap_details = list(row.get("gap_detail_mismatches", []))
+    if gap_details:
+        deviations.append({"field": "gap_details", "expected": "match", "actual": gap_details})
+    if row.get("ears_eligible_mismatch"):
+        deviations.append(
+            {
+                "field": "ears",
+                "expected": list(row.get("ears_expected_eligible_not_normalized", [])),
+                "actual": list(row.get("ears_eligible_not_normalized", [])),
+            }
+        )
+    expected_pending = sorted(row.get("brief_expected_pending_sections", []))
+    matched_pending = sorted(row.get("brief_expected_pending_matched", []))
+    if expected_pending != matched_pending:
+        deviations.append({"field": "brief_pending", "expected": expected_pending, "actual": matched_pending})
+    scaffold = list(row.get("specs_scaffolding_ids", []))
+    if scaffold:
+        deviations.append({"field": "specs_scaffolding", "expected": "none", "actual": scaffold})
+    backlog = list(row.get("backlog_derivation_mismatches", []))
+    if backlog:
+        deviations.append({"field": "backlog_derivation", "expected": "match", "actual": backlog})
+    return deviations
+
+
+def deviation_points_for_results(results: list[dict], gate_results: dict[str, dict]) -> list[dict]:
+    """IMP-222: flatten every baseline deviation (fixture order, then the fixed
+    field order of :func:`collect_baseline_deviations`) plus the standalone agentic
+    gates into one ordered list of deviation points. The first element is the
+    earliest point a run diverges from the expected baseline — the answer to
+    *where*, not just *did it*. Empty iff the whole run matches the baseline."""
+    points: list[dict] = []
+    for row in results:
+        for dev in collect_baseline_deviations(row):
+            points.append({"fixture": row["fixture"], "split": row.get("split", TUNING_SPLIT), **dev})
+    for label, gate in gate_results.items():
+        for mismatch in gate.get("mismatches", []):
+            points.append(
+                {
+                    "fixture": label,
+                    "split": "gate",
+                    "field": "gate",
+                    "expected": "cite-or-silence",
+                    "actual": mismatch,
+                }
+            )
+    return points
+
+
+def split_metrics(results: list[dict], split: str) -> dict:
+    """IMP-222: baseline verdict and headline metrics for one split (tuning or
+    held-out). An absent split is vacuously ``baseline_ok`` so a workspace with no
+    held-out fixtures never fails on emptiness. Deterministic."""
+    subset = [r for r in results if r.get("split", TUNING_SPLIT) == split]
+    if not subset:
+        return {
+            "fixtures_run": 0,
+            "baseline_ok": True,
+            "avg_gap_f1": 0.0,
+            "avg_recall_must_fire": 0.0,
+            "avg_target_recall": 0.0,
+            "deviation_points": 0,
+        }
+    n = len(subset)
+    return {
+        "fixtures_run": n,
+        "baseline_ok": all(r["baseline_ok"] for r in subset),
+        "avg_gap_f1": round(sum(float(r["gap_benchmark"]["f1"]) for r in subset) / n, 3),
+        "avg_recall_must_fire": round(sum(r["recall_must_fire"] for r in subset) / n, 3),
+        "avg_target_recall": round(sum(r["target_recall"] for r in subset) / n, 3),
+        "deviation_points": sum(len(collect_baseline_deviations(r)) for r in subset),
+    }
+
+
 def run_all() -> int:
     fixture_dirs = sorted(d for d in FIXTURES.iterdir() if (d / "answer_key.json").exists())
     if not fixture_dirs:
@@ -1778,12 +1889,28 @@ def run_all() -> int:
         else 0.0
     )
 
+    # IMP-222: held-out split metrics + deviation-point detection.
+    agentic_gates = {
+        "self-review": self_review_result,
+        "compose": compose_result,
+        "context-request": context_request_result,
+        "implementability-probe": implementability_probe_result,
+    }
+    tuning_split = split_metrics(results, TUNING_SPLIT)
+    held_out_split = split_metrics(results, HELD_OUT_SPLIT)
+    deviation_points = deviation_points_for_results(results, agentic_gates)
+
     report = {
         "date": date.today().isoformat(),
         "fixtures": results,
         "summary": {
             "fixtures_run": len(results),
             "baseline_ok": all(r["baseline_ok"] for r in results),
+            "splits": {TUNING_SPLIT: tuning_split, HELD_OUT_SPLIT: held_out_split},
+            "held_out_baseline_ok": held_out_split["baseline_ok"],
+            "tuning_baseline_ok": tuning_split["baseline_ok"],
+            "deviation_points": deviation_points,
+            "first_deviation": deviation_points[0] if deviation_points else None,
             "avg_recall_must_fire": round(sum(r["recall_must_fire"] for r in results) / len(results), 3),
             "avg_gap_precision": round(sum(float(r["gap_benchmark"]["precision"]) for r in results) / len(results), 3),
             "avg_gap_recall": round(sum(float(r["gap_benchmark"]["recall"]) for r in results) / len(results), 3),
@@ -1985,6 +2112,25 @@ def run_all() -> int:
         f"rejection_mismatches={s['total_rejection_scenario_mismatches']} "
         f"lifecycle_guard_mismatches={s['total_lifecycle_guard_mismatches']}"
     )
+    tuning = s["splits"][TUNING_SPLIT]
+    held_out = s["splits"][HELD_OUT_SPLIT]
+    print(
+        f"Splits (IMP-222 generalization): "
+        f"tuning baseline_ok={tuning['baseline_ok']} f1={tuning['avg_gap_f1']:.2f} "
+        f"target_recall={tuning['avg_target_recall']:.2f} ({tuning['fixtures_run']}fx) | "
+        f"held-out baseline_ok={held_out['baseline_ok']} f1={held_out['avg_gap_f1']:.2f} "
+        f"target_recall={held_out['avg_target_recall']:.2f} ({held_out['fixtures_run']}fx)"
+    )
+    if s["deviation_points"]:
+        fd = s["first_deviation"]
+        print(
+            f"First deviation (IMP-222): [{fd['split']}] {fd['fixture']} · field={fd['field']} "
+            f"expected={fd['expected']!r} actual={fd['actual']!r}"
+        )
+        for dp in s["deviation_points"]:
+            print(f"         deviation: [{dp['split']}] {dp['fixture']:24s} {dp['field']}")
+    else:
+        print("Deviation points (IMP-222): none - run matches baseline")
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1
 
