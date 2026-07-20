@@ -2,12 +2,14 @@
 Spanish. Covered: discovery gaps, project brief, PRD, specs, backlog, a quality
 test case (TC-001) + the backlog readiness audit, and the traceability matrix.
 
-IMP-215 (H10, F-GOLD-1/2/3) added gaps/quality/trace-matrix coverage. Two
-coverage gaps are deliberately deferred: the `/trace` *mermaid graph* snapshot
-(its render is changed by IMP-214, so its golden lands with/after that PR to
-avoid a merge-order break) and the `/export` MDX / `/view` HTML projections
-(their timestamped, JS-bearing output needs a normalization harness; IMP-208
-already verified their runtime parity).
+IMP-215 (H10, F-GOLD-1/2/3) added gaps/quality/trace-matrix coverage. IMP-219
+(H11, F-GOLD-4/5) closes the last two deferred surface classes on the same
+populated fixture: the `/trace` *mermaid graph* snapshot and the human-facing
+projections `/view` HTML (5 artifacts) + `/export` mdx/interview/faq. Their
+timestamped, path-bearing, JS-carrying output is stabilized through the shared
+conservative normalization harness in ``tests/golden_normalize.py`` (project id,
+absolute workspace paths, ISO timestamps, bare dates, sha256 hashes -> stable
+placeholders); nothing else is masked, so a dropped section still breaks the golden.
 
 These replace the 9 dead `sentinel/templates/*.md`: the golden IS the documented,
 executable single source of truth for the compiled markdown shape, killing the
@@ -26,14 +28,20 @@ Regenerate intentionally with `SENTINEL_UPDATE_GOLDEN=1` and review the git diff
 import contextlib
 import io
 import os
-import re
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from sentinel.memory import ContextBroker
+
+# `discover -s tests` puts this dir on sys.path; add it explicitly so the sibling
+# harness also resolves when the module is run directly (e.g. `-m unittest
+# tests.test_golden_artifacts`).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from golden_normalize import normalize  # noqa: E402
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "fixtures" / "golden"
 UPDATE = os.environ.get("SENTINEL_UPDATE_GOLDEN") == "1"
@@ -47,7 +55,14 @@ ARTIFACTS = {
     "test-case.md": "05_quality/TC-001.md",
     "quality-audit.md": "05_quality/backlog_readiness_audit.md",
     "trace-matrix.md": "06_traceability/traceability_matrix.md",
+    # IMP-219: the `/trace` mermaid graph, written next to the matrix by the same
+    # `trace` command run below.
+    "trace-graph.md": "06_traceability/traceability_graph.md",
 }
+
+# IMP-219: human-facing `/view` HTML surfaces snapshotted over the same populated
+# workspace. Each artifact key is a supported `/view --artifact` value.
+VIEW_ARTIFACTS = ("gaps", "brief", "prd", "specs", "backlog")
 
 RAW_EN = """# Operations Risk Dashboard
 
@@ -108,24 +123,10 @@ SCENARIOS = {
 }
 
 
-def _normalize(text: str, project_id: str) -> str:
-    text = text.replace(project_id, "[PROJECT_ID]")
-    # The traceability matrix records node paths as stored in the graph, which
-    # under the test's mkdtemp workspace are absolute (machine-specific tmp
-    # prefix). Collapse anything before `workspaces/[PROJECT_ID]` so the golden
-    # is stable; relative paths (already starting at `workspaces/`) are untouched.
-    text = re.sub(r"[^`\s]*/workspaces/\[PROJECT_ID\]", "workspaces/[PROJECT_ID]", text)
-    text = re.sub(
-        r"\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:\.\d+)?(?:[+-]\d\d:?\d\d|Z)?",
-        "[TIMESTAMP]",
-        text,
-    )
-    text = re.sub(r"\d{4}-\d\d-\d\d", "[DATE]", text)
-    return text
-
-
 def _generate(scenario: dict) -> dict[str, str]:
     from sentinel.cli import main
+    from sentinel.export import export_artifact
+    from sentinel.view import generate_artifact_view
 
     pid = scenario["project_id"]
     old_cwd = Path.cwd()
@@ -147,11 +148,32 @@ def _generate(scenario: dict) -> dict[str, str]:
             for command in ("brief", "specs", "backlog", "quality", "trace"):
                 if main([command, pid]) != 0:
                     raise AssertionError(f"{command} failed")
+            # IMP-219: human-facing projections over the now-mature workspace.
+            for view_artifact in VIEW_ARTIFACTS:
+                generate_artifact_view(pid, view_artifact)
+            export_artifact(pid, "prd", "mdx")
+            export_artifact(pid, "gaps", "interview")
+            export_artifact(pid, "gaps", "faq")
         workspace = tmp / "workspaces" / pid
-        return {
-            name: _normalize((workspace / rel).read_text(encoding="utf-8"), pid)
+        produced = {
+            name: normalize((workspace / rel).read_text(encoding="utf-8"), pid)
             for name, rel in ARTIFACTS.items()
         }
+        views = workspace / "08_context_packs" / "views"
+        for view_artifact in VIEW_ARTIFACTS:
+            html = (views / f"{view_artifact}.html").read_text(encoding="utf-8")
+            produced[f"view/{view_artifact}.html"] = normalize(html, pid)
+        exports = workspace / "08_context_packs" / "exports"
+        produced["export/prd.mdx"] = normalize(
+            (exports / "prd-mdx" / "index.mdx").read_text(encoding="utf-8"), pid
+        )
+        produced["export/gaps-interview.md"] = normalize(
+            (exports / "gaps-interview.md").read_text(encoding="utf-8"), pid
+        )
+        produced["export/gaps-faq.md"] = normalize(
+            (exports / "gaps-faq.md").read_text(encoding="utf-8"), pid
+        )
+        return produced
     finally:
         os.chdir(old_cwd)
         shutil.rmtree(tmp, ignore_errors=True)
