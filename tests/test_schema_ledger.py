@@ -1,13 +1,19 @@
 """IMP-177 (I1): schema ledger — every JSON schema is classified and well-formed.
 
-14 of 19 schemas have no runtime consumer: they are documentary contracts for
+11 of 19 schemas have no runtime consumer: they are documentary contracts for
 agents, and nothing kept them following the runtime (`assumption.schema.json`
-drifted three layers before IMP-164; `implementation_feedback`/`promotion_event`
-are one enum change from the same bug). This ledger makes the debt visible and
-self-cleaning: each schema is either runtime-enforced or listed in
-`SCHEMA_DOC_ONLY` with a reason, and the doc-only set may only shrink. IMP-217
-graduated the four agent-gap schemas (annotation/challenge/scrutiny/
-implementability_probe) once a real field/enum drift guard existed for them.
+drifted three layers before IMP-164; `promotion_event` is one enum change from
+the same bug). This ledger makes the debt visible and self-cleaning: each schema
+is either runtime-enforced or listed in `SCHEMA_DOC_ONLY` with a reason, and the
+doc-only set may only shrink. IMP-217 graduated the four agent-gap schemas
+(annotation/challenge/scrutiny/implementability_probe) once a real field/enum
+drift guard existed for them. IMP-221 (H11) graduated the three agent-facing
+*parser* schemas (backlog_refinement/composition/implementation_feedback) the
+same way: each carries an agent-authored payload through a runtime validator, and
+test_agent_parser_schemas ties the schema enums/required fields to that validator.
+The remaining doc-only schemas are documentary *output* contracts — the runtime
+builds those artifacts in code and validates nothing against the file — so there
+is no consumed payload to guard (IMP-221 seed: classify, don't inflate).
 """
 
 import json
@@ -30,6 +36,12 @@ SCHEMA_RUNTIME_ENFORCED = {
     "challenge.schema.json",
     "scrutiny.schema.json",
     "implementability_probe.schema.json",
+    # IMP-221 (H11): the three agent-facing parser schemas are guarded enum/required
+    # -for-required against their runtime validators by test_agent_parser_schemas.py
+    # (validate_proposal_shape / validate_block_shape / validate_finding_shape).
+    "backlog_refinement.schema.json",
+    "composition.schema.json",
+    "implementation_feedback.schema.json",
 }
 
 # Documentary contracts with no drift guard yet, each one field/enum change from
@@ -37,23 +49,20 @@ SCHEMA_RUNTIME_ENFORCED = {
 # shrinks: when a schema gains a real guard, move it to SCHEMA_RUNTIME_ENFORCED
 # and lower MAX_DOC_ONLY.
 SCHEMA_DOC_ONLY = {
-    "acceptance_criteria.schema.json": "documentary AC contract; the runtime builds acceptance criteria in code",
-    "backlog_refinement.schema.json": "agent-facing refinement contract; validated by the runtime parser, not this file",
-    "change.schema.json": "documentary CHG contract",
-    "composition.schema.json": "agent-facing compose contract; validated by the runtime parser",
-    "decision.schema.json": "documentary DEC contract",
-    "gap.schema.json": "documentary gap contract; the runtime hand-rolls gap validation",
-    "implementation_feedback.schema.json": "agent-facing feedback contract; validated by the runtime parser",
-    "knowledge_unit.schema.json": "documentary knowledge-unit contract",
-    "promotion_event.schema.json": "documentary ledger-promotion contract",
-    "requirement.schema.json": "documentary requirement contract",
-    "requirement_unit.schema.json": "documentary RU contract",
-    "spec_unit.schema.json": "documentary SPEC-U contract",
-    "story.schema.json": "documentary US contract",
-    "traceability.schema.json": "documentary trace contract",
+    "acceptance_criteria.schema.json": "documentary AC output contract; the runtime builds acceptance criteria in code",
+    "change.schema.json": "documentary CHG output contract",
+    "decision.schema.json": "documentary DEC output contract",
+    "gap.schema.json": "documentary gap output contract; the runtime hand-rolls gap validation",
+    "knowledge_unit.schema.json": "documentary knowledge-unit output contract",
+    "promotion_event.schema.json": "documentary ledger-promotion output contract",
+    "requirement.schema.json": "documentary requirement output contract",
+    "requirement_unit.schema.json": "documentary RU output contract",
+    "spec_unit.schema.json": "documentary SPEC-U output contract",
+    "story.schema.json": "documentary US output contract",
+    "traceability.schema.json": "documentary trace output contract",
 }
 
-MAX_DOC_ONLY = 14  # lower this whenever a schema graduates to a real drift guard
+MAX_DOC_ONLY = 11  # lower this whenever a schema graduates to a real drift guard
 
 
 def _schema_files() -> set[str]:
