@@ -15,6 +15,9 @@ Two progress metrics travel with the baseline (neither fails the build):
   and should be compiled from it in IMP-039.
 - specs_scaffolding_count: fixed scaffold IDs in specs.md. IMP-042 keeps this
   at zero by decomposing specs into evidence-backed units.
+- context_rot (IMP-223): dilution of the discovery output pack (share that is
+  noise) tracked against workspace size, to surface whether the pack degrades as
+  the workspace grows. Informative only — it never fails the build.
 - backlog metrics: derivation from Spec Units, no-invention, slicing pattern
   baseline, and future per-story anchor/context checks (IMP-061).
 
@@ -105,6 +108,12 @@ EVAL_CONTEXT_FOLDERS = {
 TUNING_SPLIT = "tuning"
 HELD_OUT_SPLIT = "held_out"
 
+# IMP-223: eval-hardening 2/2. Context-rot = how much noise/dilution the
+# discovery output pack accumulates as the workspace grows. Informative only —
+# this threshold flags fixtures for visibility and NEVER gates the pipeline (a
+# metric with no failure baseline must not block the build; doc 43 seed 7).
+CONTEXT_ROT_THRESHOLD = 0.5
+
 
 def fixture_split(key: dict) -> str:
     """Return the tuning/held-out split declared by a fixture answer key.
@@ -113,6 +122,23 @@ def fixture_split(key: dict) -> str:
     absent marker) is tuning data. Deterministic — no LLM, no I/O."""
     raw = str(key.get("split", TUNING_SPLIT)).strip().lower()
     return HELD_OUT_SPLIT if raw == HELD_OUT_SPLIT else TUNING_SPLIT
+
+
+def fixture_input_chars(fixture_dir: Path) -> int:
+    """IMP-223: deterministic workspace-size proxy — character count of the raw
+    requirement plus any domain-context files the fixture carries. This is the
+    x-axis for context-rot-vs-workspace-size (does the pack dilute as the
+    workspace grows?). No LLM, no state, no network."""
+    total = 0
+    requirement = fixture_dir / "requirement.md"
+    if requirement.exists():
+        total += len(requirement.read_text(encoding="utf-8"))
+    context_root = fixture_dir / "domain_context"
+    if context_root.exists():
+        for path in sorted(context_root.rglob("*")):
+            if path.is_file():
+                total += len(path.read_text(encoding="utf-8", errors="ignore"))
+    return total
 
 
 def brief_section_status(brief_md: str) -> dict:
@@ -789,6 +815,7 @@ def run_fixture(
     return {
         "fixture": fixture_dir.name,
         "split": fixture_split(key),  # IMP-222: tuning vs held-out
+        "input_chars": fixture_input_chars(fixture_dir),  # IMP-223: context-rot size axis
         "language": key.get("language", "unknown"),
         "expected_language": expected_language,
         "detected_language": language_detected,
@@ -1827,6 +1854,68 @@ def split_metrics(results: list[dict], split: str) -> dict:
     }
 
 
+def context_rot_signal(row: dict) -> dict:
+    """IMP-223 (eval-hardening 2/2): per-fixture context-rot of the discovery
+    output pack — the fraction of what the pipeline surfaced downstream that is
+    noise, plus the workspace size it was surfaced from.
+
+    ``dilution`` = ``1 - precision`` is the share of the surfaced pack that should
+    not be there; ``distractor_leak`` is the planted-noise subset of that rot;
+    ``pack_size`` is how much was delivered downstream; ``input_chars`` is the
+    workspace size. Deterministic — reads only the row (no LLM, no I/O)."""
+    precision = float(
+        row.get("gap_precision", row.get("gap_benchmark", {}).get("precision", 1.0))
+    )
+    return {
+        "fixture": row.get("fixture", "?"),
+        "split": row.get("split", TUNING_SPLIT),
+        "input_chars": int(row.get("input_chars", 0)),
+        "pack_size": int(row.get("fired_count", 0)),
+        "noise_count": len(row.get("false_positives", [])),
+        "dilution": round(1.0 - precision, 3),
+        "distractor_leak": round(float(row.get("distractor_false_positive_rate", 0.0)), 3),
+    }
+
+
+def context_rot_report(results: list[dict], threshold: float = CONTEXT_ROT_THRESHOLD) -> dict:
+    """IMP-223: aggregate context-rot across fixtures ordered by workspace size, to
+    surface whether the retrieval-informed pack dilutes as the workspace grows.
+
+    ``growth_delta`` is the mean dilution of the larger-workspace half minus the
+    smaller half: positive means the pack accumulates noise as the workspace
+    grows (memory rot). ``threshold`` only *flags* fixtures for visibility and
+    ``rot_ok`` reflects that flag — neither is ever wired into ``baseline_ok`` or
+    the return code, because a metric with no failure baseline must not gate the
+    pipeline (doc 43 seed 7). Deterministic: a pure function of the rows."""
+    signals = sorted(
+        (context_rot_signal(r) for r in results),
+        key=lambda s: (s["input_chars"], s["fixture"]),
+    )
+    n = len(signals)
+    dilutions = [s["dilution"] for s in signals]
+    mean_dilution = round(sum(dilutions) / n, 3) if n else 0.0
+    max_dilution = max(dilutions) if dilutions else 0.0
+    # Split by workspace size into a smaller-half and a larger-half; an odd
+    # median is excluded from both so the halves stay symmetric.
+    half = n // 2
+    lower = dilutions[:half]
+    upper = dilutions[n - half:] if half else []
+    lower_mean = round(sum(lower) / len(lower), 3) if lower else 0.0
+    upper_mean = round(sum(upper) / len(upper), 3) if upper else 0.0
+    flagged = [s["fixture"] for s in signals if s["dilution"] > threshold]
+    return {
+        "fixtures": signals,
+        "mean_dilution": mean_dilution,
+        "max_dilution": max_dilution,
+        "lower_half_mean_dilution": lower_mean,
+        "upper_half_mean_dilution": upper_mean,
+        "growth_delta": round(upper_mean - lower_mean, 3),
+        "threshold": threshold,
+        "flagged": flagged,
+        "rot_ok": not flagged,  # informative — never a gate (doc 43 seed 7)
+    }
+
+
 def run_all() -> int:
     fixture_dirs = sorted(d for d in FIXTURES.iterdir() if (d / "answer_key.json").exists())
     if not fixture_dirs:
@@ -1900,6 +1989,10 @@ def run_all() -> int:
     held_out_split = split_metrics(results, HELD_OUT_SPLIT)
     deviation_points = deviation_points_for_results(results, agentic_gates)
 
+    # IMP-223: context-rot of the output pack across fixtures ordered by
+    # workspace size. Informative only — never feeds baseline_ok/return code.
+    context_rot = context_rot_report(results)
+
     report = {
         "date": date.today().isoformat(),
         "fixtures": results,
@@ -1911,6 +2004,7 @@ def run_all() -> int:
             "tuning_baseline_ok": tuning_split["baseline_ok"],
             "deviation_points": deviation_points,
             "first_deviation": deviation_points[0] if deviation_points else None,
+            "context_rot": context_rot,  # IMP-223: measurement only, never gates
             "avg_recall_must_fire": round(sum(r["recall_must_fire"] for r in results) / len(results), 3),
             "avg_gap_precision": round(sum(float(r["gap_benchmark"]["precision"]) for r in results) / len(results), 3),
             "avg_gap_recall": round(sum(float(r["gap_benchmark"]["recall"]) for r in results) / len(results), 3),
@@ -2131,6 +2225,14 @@ def run_all() -> int:
             print(f"         deviation: [{dp['split']}] {dp['fixture']:24s} {dp['field']}")
     else:
         print("Deviation points (IMP-222): none - run matches baseline")
+    cr = s["context_rot"]
+    print(
+        f"Context-rot (IMP-223, informative): mean_dilution={cr['mean_dilution']:.2f} "
+        f"max={cr['max_dilution']:.2f} growth_delta={cr['growth_delta']:+.2f} "
+        f"(lower={cr['lower_half_mean_dilution']:.2f} upper={cr['upper_half_mean_dilution']:.2f}) "
+        f"rot_ok={cr['rot_ok']} thr={cr['threshold']:.2f}"
+        + (f" flagged={cr['flagged']}" if cr["flagged"] else "")
+    )
     print(f"Report: {out}")
     return 0 if s["baseline_ok"] else 1
 
