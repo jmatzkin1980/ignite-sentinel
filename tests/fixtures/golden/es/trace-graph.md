@@ -4,9 +4,13 @@
 flowchart TD
     RAW_001["RAW-001<br/>raw_input"]
     REQ_001["REQ-001<br/>requirement"]
+    style REQ_001 fill:#f1f5f9,stroke:#475569
     RU_001["RU-001<br/>requirement_unit"]
+    style RU_001 fill:#f1f5f9,stroke:#475569
     RU_002["RU-002<br/>requirement_unit"]
+    style RU_002 fill:#f1f5f9,stroke:#475569
     RU_003["RU-003<br/>requirement_unit"]
+    style RU_003 fill:#f1f5f9,stroke:#475569
     GAP_001["GAP-001<br/>gap_report"]
     style GAP_001 fill:#ffdfba,stroke:#c2410c,stroke-width:2px
     DEC_001["DEC-001<br/>decision_log"]
@@ -42,7 +46,9 @@ flowchart TD
     DEC_008["DEC-008<br/>gap_resolution_report"]
     REQ_003["REQ-003<br/>project_brief"]
     PRD_001["PRD-001<br/>prd"]
+    style PRD_001 fill:#f1f5f9,stroke:#475569
     SPEC_001["SPEC-001<br/>spec"]
+    style SPEC_001 fill:#f1f5f9,stroke:#475569
     SPEC_U_001["SPEC-U-001<br/>spec_unit"]
     REQ_EARS_001["REQ-EARS-001<br/>ears_requirement"]
     SPEC_U_002["SPEC-U-002<br/>spec_unit"]
@@ -56,28 +62,51 @@ flowchart TD
     SPEC_U_006["SPEC-U-006<br/>spec_unit"]
     REQ_EARS_006["REQ-EARS-006<br/>ears_requirement"]
     EPIC_001["EPIC-001<br/>epic"]
+    style EPIC_001 fill:#f1f5f9,stroke:#475569
     US_001["US-001<br/>user_story"]
+    style US_001 fill:#f1f5f9,stroke:#475569
     AC_001["AC-001<br/>acceptance_criteria"]
+    style AC_001 fill:#f1f5f9,stroke:#475569
     US_002["US-002<br/>user_story"]
+    style US_002 fill:#f1f5f9,stroke:#475569
     AC_002["AC-002<br/>acceptance_criteria"]
+    style AC_002 fill:#f1f5f9,stroke:#475569
     US_003["US-003<br/>user_story"]
+    style US_003 fill:#f1f5f9,stroke:#475569
     AC_003["AC-003<br/>acceptance_criteria"]
+    style AC_003 fill:#f1f5f9,stroke:#475569
     US_004["US-004<br/>user_story"]
+    style US_004 fill:#f1f5f9,stroke:#475569
     AC_004["AC-004<br/>acceptance_criteria"]
+    style AC_004 fill:#f1f5f9,stroke:#475569
     US_005["US-005<br/>user_story"]
+    style US_005 fill:#f1f5f9,stroke:#475569
     AC_005["AC-005<br/>acceptance_criteria"]
+    style AC_005 fill:#f1f5f9,stroke:#475569
     US_006["US-006<br/>user_story"]
+    style US_006 fill:#f1f5f9,stroke:#475569
     AC_006["AC-006<br/>acceptance_criteria"]
+    style AC_006 fill:#f1f5f9,stroke:#475569
     EPIC_002["EPIC-002<br/>epic"]
+    style EPIC_002 fill:#f1f5f9,stroke:#475569
     US_007["US-007<br/>user_story"]
+    style US_007 fill:#f1f5f9,stroke:#475569
     AC_007["AC-007<br/>acceptance_criteria"]
+    style AC_007 fill:#f1f5f9,stroke:#475569
     TC_001["TC-001<br/>test_case"]
+    style TC_001 fill:#f1f5f9,stroke:#475569
     TC_002["TC-002<br/>test_case"]
+    style TC_002 fill:#f1f5f9,stroke:#475569
     TC_003["TC-003<br/>test_case"]
+    style TC_003 fill:#f1f5f9,stroke:#475569
     TC_004["TC-004<br/>test_case"]
+    style TC_004 fill:#f1f5f9,stroke:#475569
     TC_005["TC-005<br/>test_case"]
+    style TC_005 fill:#f1f5f9,stroke:#475569
     TC_006["TC-006<br/>test_case"]
+    style TC_006 fill:#f1f5f9,stroke:#475569
     TC_007["TC-007<br/>test_case"]
+    style TC_007 fill:#f1f5f9,stroke:#475569
     QA_001["QA-001<br/>backlog_readiness_audit"]
     style QA_001 fill:#fef9c3,stroke:#a16207
     RAW_001 -->|extracts| REQ_001

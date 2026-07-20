@@ -123,6 +123,34 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertIn("</ul>", mixed)
         self.assertIn("<ol>", mixed)
 
+    def test_markdown_to_html_renders_nested_lists(self) -> None:
+        # IMP-220 (H11, F-VIEW-2): indented sub-items used to flatten (the child
+        # marker fell through to a <p>), losing the hierarchy. They must now nest
+        # a real <ul>/<ol> inside the parent <li>.
+        html = markdown_to_html("- parent\n  - child\n  - sibling\n- second")
+        # Two list containers open and both close: one outer, one nested.
+        self.assertEqual(html.count("<ul>"), 2)
+        self.assertEqual(html.count("</ul>"), 2)
+        self.assertEqual(html.count("<li>"), 4)
+        self.assertEqual(html.count("</li>"), 4)
+        # The child marker no longer leaks into a paragraph.
+        self.assertNotIn("<p>- child", html)
+        self.assertNotIn("<p>", html)
+        # The nested list is opened before the parent <li> is closed, i.e. it
+        # sits inside the parent item rather than after it.
+        self.assertLess(html.index("<ul>\n<li>child"), html.index("<li>second"))
+        # A leaf item keeps its inline close; the parent that gained a nested
+        # list closes on its own line.
+        self.assertIn("<li>child</li>", html)
+        self.assertIn("</ul>\n</li>", html)
+        # Deeper nesting round-trips too (ordered list under a bullet).
+        deep = markdown_to_html("- a\n  1. one\n    - x")
+        self.assertEqual(deep.count("<ul>"), 2)
+        self.assertEqual(deep.count("<ol>"), 1)
+        self.assertEqual(deep.count("<li>"), deep.count("</li>"))
+        self.assertEqual(deep.count("<ul>") + deep.count("<ol>"),
+                         deep.count("</ul>") + deep.count("</ol>"))
+
     def test_feedback_export_shape_is_accepted_by_resolve_gaps_and_sync(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
         self.assertEqual(main(["init", "FEEDBACK"]), 0)

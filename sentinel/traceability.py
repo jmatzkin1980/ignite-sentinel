@@ -239,4 +239,20 @@ def mermaid_style_for_node(node: dict[str, Any]) -> str:
         return "fill:#dcfce7,stroke:#15803d"
     if node_type == "backlog_readiness_audit":
         return "fill:#fef9c3,stroke:#a16207"
+    # F-TRACE-3 (H10 IMP-208 parity audit): the audit confirmed the residual was
+    # the *core chain* rendering unstyled -- exactly these 8 node types, the most
+    # important ones, showed as bare grey boxes while peripheral artifacts were
+    # coloured. Give the spine a single calm fill so it reads at a glance; the
+    # audit did not flag other types, so anything else keeps the mermaid default.
+    if node_type in {
+        "requirement",
+        "requirement_unit",
+        "prd",
+        "spec",
+        "epic",
+        "user_story",
+        "acceptance_criteria",
+        "test_case",
+    }:
+        return "fill:#f1f5f9,stroke:#475569"
     return ""

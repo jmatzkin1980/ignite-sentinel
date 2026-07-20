@@ -559,7 +559,11 @@ def strip_inline_markdown(text: str) -> str:
 def markdown_to_html(markdown: str) -> str:
     lines = markdown.splitlines()
     out: list[str] = []
-    list_type: str | None = None
+    # F-VIEW-2: nested lists. Each open list is a level [indent, kind, li_index,
+    # has_child]; ``li_index`` is where the level's current <li> lives in ``out``
+    # so a leaf can be closed inline (byte-identical to the old single-level
+    # render) while a parent that gained a nested list closes on its own line.
+    list_stack: list[list] = []
     in_code = False
     code_lines: list[str] = []
     paragraph: list[str] = []
@@ -569,21 +573,44 @@ def markdown_to_html(markdown: str) -> str:
             out.append("<p>" + inline_markdown(" ".join(paragraph)) + "</p>")
             paragraph.clear()
 
-    def close_list() -> None:
-        nonlocal list_type
-        if list_type:
-            out.append(f"</{list_type}>")
-            list_type = None
+    def close_li(level: list) -> None:
+        # A leaf li keeps its close inline (<li>x</li> on one line, matching the
+        # pre-nesting output); a parent whose nested list already closed above
+        # gets its </li> on a fresh line so the markup stays well-formed.
+        if level[3]:
+            out.append("</li>")
+        else:
+            out[level[2]] += "</li>"
 
-    def open_list(kind: str) -> None:
-        # Switch list container when the marker style changes so ordered items
-        # render inside <ol> and bullets inside <ul> (F-VIEW-1: ordered lists
-        # previously fell through to <p>, losing their numbering).
-        nonlocal list_type
-        if list_type != kind:
-            close_list()
+    def close_level(level: list) -> None:
+        close_li(level)
+        out.append(f"</{level[1]}>")
+
+    def close_list() -> None:
+        while list_stack:
+            close_level(list_stack.pop())
+
+    def emit_item(indent: int, kind: str, content: str) -> None:
+        # Dedent: close every list deeper than this item.
+        while list_stack and indent < list_stack[-1][0]:
+            close_level(list_stack.pop())
+        if not list_stack or indent > list_stack[-1][0]:
+            # Deeper (or first) list: it nests inside the parent's still-open li.
+            if list_stack:
+                list_stack[-1][3] = True
             out.append(f"<{kind}>")
-            list_type = kind
+            list_stack.append([indent, kind, -1, False])
+        else:
+            # Same level: close the previous sibling, switching the container
+            # when the marker style changes (bullets -> <ul>, numbers -> <ol>).
+            close_li(list_stack[-1])
+            if kind != list_stack[-1][1]:
+                out.append(f"</{list_stack[-1][1]}>")
+                out.append(f"<{kind}>")
+                list_stack[-1][1] = kind
+        out.append("<li>" + inline_markdown(content))
+        list_stack[-1][2] = len(out) - 1
+        list_stack[-1][3] = False
 
     for line in lines:
         if line.startswith("```"):
@@ -610,16 +637,16 @@ def markdown_to_html(markdown: str) -> str:
             level = min(len(heading.group(1)), 6)
             out.append(f"<h{level}>{inline_markdown(heading.group(2))}</h{level}>")
             continue
-        if line.startswith(("- ", "* ")):
+        stripped = line.lstrip(" ")
+        indent = len(line) - len(stripped)
+        if stripped.startswith(("- ", "* ")):
             flush_paragraph()
-            open_list("ul")
-            out.append("<li>" + inline_markdown(line[2:].strip()) + "</li>")
+            emit_item(indent, "ul", stripped[2:].strip())
             continue
-        ordered = ORDERED_LIST_RE.match(line)
+        ordered = ORDERED_LIST_RE.match(stripped)
         if ordered:
             flush_paragraph()
-            open_list("ol")
-            out.append("<li>" + inline_markdown(ordered.group(1).strip()) + "</li>")
+            emit_item(indent, "ol", ordered.group(1).strip())
             continue
         paragraph.append(line.strip())
     flush_paragraph()
