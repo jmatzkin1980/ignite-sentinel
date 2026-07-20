@@ -1417,6 +1417,305 @@ def metabolism_status(ws: Path, key: dict, project_id: str, fixture_dir: Path) -
     return {"ok": not mismatches, "mismatches": mismatches}
 
 
+# ---------------------------------------------------------------------------
+# IMP-218 (H11): eval gates for the four agentic commands H10 verified by hand
+# but that the discovery runner never gated: /self-review, /compose,
+# /context-request, and /scrutinize --mode implementability-probe.
+#
+# Each gate builds an isolated workspace, runs the command over a governed
+# input, and asserts deterministically on emitted artifacts, graph nodes,
+# state counters, and — where the command validates citations — the
+# cite-or-silence invariant (a fabricated citation must be rejected with
+# exit 1). No LLM and no randomness: every assert anchors on structure or
+# exit code, so variance is zero by construction. Tests/fixtures only; the
+# runtime is untouched.
+# ---------------------------------------------------------------------------
+
+COMPLETE_REQUIREMENT = REPO_ROOT / "tests" / "fixtures" / "complete_requirement.md"
+
+# Proven-good raw whose PRD section 1 renders populated (mirrors test_compose).
+COMPOSE_RAW = """# Client Request: Support Operations Dashboard
+
+Objective: reduce support leads' weekly review preparation time.
+
+Users: support team leads.
+
+In scope: read-only dashboard for ticket volume and SLA breach risk. Out of scope: editing tickets.
+
+Metric: reduce preparation effort by 30 percent in the first release month.
+
+Acceptance: support leads can identify SLA breach risk queues before the weekly review.
+"""
+
+
+def _pick_stable_citation(text: str, *, min_len: int = 20, max_len: int = 160) -> str:
+    """First deterministic prose line usable as a verbatim citation.
+
+    Skips headings and table rows so the quote is stable content (byte-identical
+    across runs) and is guaranteed to be a verbatim substring of ``text``.
+    """
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not (min_len <= len(line) <= max_len):
+            continue
+        if line.startswith("#") or line.startswith("|") or line.startswith("- ["):
+            continue
+        return line
+    raise AssertionError("no stable citation line found in grounding text")
+
+
+@contextlib.contextmanager
+def _isolated_workspace():
+    """Temp dir + chdir, mirroring run_fixture's isolation for a single command."""
+    old_cwd = Path.cwd()
+    with tempfile.TemporaryDirectory(prefix="sentinel_eval_agentic_") as temp:
+        os.chdir(temp)
+        try:
+            yield Path(temp)
+        finally:
+            os.chdir(old_cwd)
+
+
+def self_review_eval() -> dict:
+    """Gate /self-review: a cited gap plus a hard-to-reverse decision merge,
+    and a fabricated citation is rejected (cita-o-silencio)."""
+    from sentinel.self_review import self_review_grounding_text
+
+    mismatches: list[str] = []
+    with _isolated_workspace() as temp:
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(["init", "SREV"]) == 0
+            assert main(["ingest", "SREV", "--source", str(COMPLETE_REQUIREMENT)]) == 0
+            assert main(["maturity", "SREV"]) == 0
+            assert main(["specs", "SREV"]) == 0
+        base = temp / "workspaces" / "SREV"
+        quote = _pick_stable_citation(self_review_grounding_text(base))
+        valid = {
+            "gaps": [
+                {
+                    "id": "GAP-SELF-REVIEW-ROLLBACK",
+                    "lens": "product",
+                    "severity": "medium",
+                    "question": "What rollback impact follows from the excluded scope decision?",
+                    "evidence": quote,
+                }
+            ],
+            "decisions": [
+                {
+                    "id": "DEC-SELF-REVIEW-SCOPE-LOCK",
+                    "title": "Excluded scope treated as stable",
+                    "lens": "product",
+                    "risk": "high",
+                    "reversibility": "hard-to-reverse",
+                    "decision": "Treat excluded scope as stable until BA confirms downstream impact.",
+                    "evidence": quote,
+                    "consequence": "Changing this later can invalidate PRD scope, specs, and acceptance criteria.",
+                }
+            ],
+        }
+        valid_src = temp / "self-review.json"
+        valid_src.write_text(json.dumps(valid), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            valid_code = main(["self-review", "SREV", "--source", str(valid_src)])
+
+        if valid_code != 0:
+            mismatches.append("self-review rejected a validly cited review")
+        else:
+            gaps_md = (base / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+            register = (base / "03_specs" / "self_review" / "decision_register.md").read_text(encoding="utf-8")
+            graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            if "GAP-SELF-REVIEW-ROLLBACK" not in gaps_md or "self-review" not in gaps_md:
+                mismatches.append("self-review gap not merged into gaps.md")
+            if "DEC-SELF-REVIEW-SCOPE-LOCK" not in register or "hard-to-reverse" not in register:
+                mismatches.append("hard-to-reverse decision not registered")
+            if '"type": "self_review"' not in graph or '"type": "hard_to_reverse_decision"' not in graph:
+                mismatches.append("self-review graph nodes missing")
+            if state.get("gap_counts", {}).get("self_review_origin", 0) < 1:
+                mismatches.append("self_review_origin gap count not recorded")
+
+        # cite-or-silence: fabricated evidence must be rejected before any merge.
+        fabricated = json.loads(json.dumps(valid))
+        fabricated["gaps"][0]["id"] = "GAP-SELF-REVIEW-FAKE"
+        fabricated["gaps"][0]["evidence"] = "a citation that is absent from local evidence"
+        fabricated["decisions"][0]["id"] = "DEC-SELF-REVIEW-FAKE"
+        fabricated["decisions"][0]["evidence"] = "a citation that is absent from local evidence"
+        fake_src = temp / "self-review-fake.json"
+        fake_src.write_text(json.dumps(fabricated), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            fake_code = main(["self-review", "SREV", "--source", str(fake_src)])
+        if fake_code != 1:
+            mismatches.append("self-review accepted a fabricated citation (cite-or-silence broken)")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def compose_eval() -> dict:
+    """Gate /compose: an agent-authored, verbatim-cited paragraph merges into a
+    populated PRD section, and a fabricated citation is rejected."""
+    from sentinel.prd import PENDING_MARKERS, composition_evidence_text, prd_sections
+
+    mismatches: list[str] = []
+    with _isolated_workspace() as temp:
+        raw = temp / "raw.md"
+        raw.write_text(COMPOSE_RAW, encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(["init", "COMP"]) == 0
+            assert main(["ingest", "COMP", "--source", str(raw)]) == 0
+            assert main(["brief", "COMP"]) == 0
+            assert main(["specs", "COMP"]) == 0
+        base = temp / "workspaces" / "COMP"
+        prd_text = (base / "03_specs" / "prd.md").read_text(encoding="utf-8")
+        sections = prd_sections(prd_text)
+        populated = next(
+            (sid for sid, body in sections.items() if not any(m in body for m in PENDING_MARKERS)),
+            None,
+        )
+        if populated is None:
+            return {"ok": False, "mismatches": ["no populated PRD section available to compose into"]}
+        quote = _pick_stable_citation(composition_evidence_text(base))
+
+        valid = {
+            "blocks": [
+                {
+                    "section": populated,
+                    "paragraphs": [
+                        {
+                            "text": "The PRD narrative restates confirmed, evidence-backed scope for this section.",
+                            "citations": [quote],
+                        }
+                    ],
+                }
+            ]
+        }
+        valid_src = temp / "compose.json"
+        valid_src.write_text(json.dumps(valid), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            valid_code = main(["compose", "COMP", "--source", str(valid_src)])
+        if valid_code != 0:
+            mismatches.append("compose rejected a validly cited block")
+        else:
+            prd_after = (base / "03_specs" / "prd.md").read_text(encoding="utf-8")
+            report = (base / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
+            graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            if "### Agent Composition" not in prd_after or "Origin: agent" not in prd_after:
+                mismatches.append("agent composition not merged into prd.md")
+            if "COMP-001" not in report:
+                mismatches.append("composition report missing block id")
+            if '"type": "prd_composition"' not in graph or '"relation": "composed_by"' not in graph:
+                mismatches.append("prd_composition graph node/edge missing")
+            if state.get("prd_composition_count", 0) < 1:
+                mismatches.append("prd_composition_count not recorded")
+
+        # cite-or-silence: a fabricated citation is rejected and reported.
+        fake = {
+            "blocks": [
+                {
+                    "section": populated,
+                    "paragraphs": [
+                        {"text": "Unsupported narrative.", "citations": ["a citation that is absent from local evidence"]}
+                    ],
+                }
+            ]
+        }
+        fake_src = temp / "compose-fake.json"
+        fake_src.write_text(json.dumps(fake), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            fake_code = main(["compose", "COMP", "--source", str(fake_src)])
+        if fake_code != 1:
+            mismatches.append("compose accepted a fabricated citation (cite-or-silence broken)")
+        else:
+            report = (base / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
+            if "citation not found verbatim" not in report:
+                mismatches.append("compose report did not record the rejected citation")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def context_request_eval() -> dict:
+    """Gate /context-request: each domain pack renders its domain-specific,
+    templated scaffolding (deterministic by construction; anchors on structure)."""
+    mismatches: list[str] = []
+    expected = {
+        "technology": ("endpoints/events", "repositories/components"),
+        "design": ("journeys", "prototype"),
+    }
+    with _isolated_workspace() as temp:
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(["init", "CTXR"]) == 0
+            assert main(["ingest", "CTXR", "--source", str(COMPLETE_REQUIREMENT)]) == 0
+            assert main(["brief", "CTXR"]) == 0
+        base = temp / "workspaces" / "CTXR"
+        for domain, needles in expected.items():
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = main(["context-request", "CTXR", "--domain", domain])
+            path = base / "08_context_packs" / "requests" / f"{domain}_context_request.md"
+            if code != 0 or not path.exists():
+                mismatches.append(f"context-request {domain} did not generate a request pack")
+                continue
+            content = path.read_text(encoding="utf-8")
+            for needle in needles:
+                if needle not in content:
+                    mismatches.append(f"context-request {domain} missing '{needle}'")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
+def implementability_probe_eval() -> dict:
+    """Gate /scrutinize --mode implementability-probe: a unit-anchored, cited
+    finding merges with origin implementability-probe; a fabricated citation is
+    rejected (cita-o-silencio)."""
+    from sentinel.discovery import known_requirement_unit_ids
+
+    mismatches: list[str] = []
+    with _isolated_workspace() as temp:
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(["init", "PROBE"]) == 0
+            assert main(["ingest", "PROBE", "--source", str(COMPLETE_REQUIREMENT)]) == 0
+        base = temp / "workspaces" / "PROBE"
+        units = sorted(known_requirement_unit_ids(base))
+        if not units:
+            return {"ok": False, "mismatches": ["ingest produced no Requirement Units to probe"]}
+        unit = units[0]
+        raw_text = "\n\n".join(p.read_text(encoding="utf-8") for p in sorted((base / "00_raw").rglob("*.md")))
+        quote = _pick_stable_citation(raw_text)
+        finding = {
+            "id": "GAP-PROBE-METRIC-SOURCE",
+            "lens": "business",
+            "severity": "high",
+            "finding_type": "non-inferable-gap",
+            "unit": unit,
+            "question": "What data source feeds the metric shown to the user?",
+            "evidence": quote,
+        }
+        valid_src = temp / "probe.json"
+        valid_src.write_text(json.dumps({"gaps": [finding]}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            valid_code = main(["scrutinize", "PROBE", "--mode", "implementability-probe", "--source", str(valid_src)])
+        if valid_code != 0:
+            mismatches.append("probe rejected a validly cited, unit-anchored finding")
+        else:
+            gaps_md = (base / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
+            report = (base / "01_discovery" / "implementability_probe_report.md").read_text(encoding="utf-8")
+            graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
+            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            if "GAP-PROBE-METRIC-SOURCE" not in gaps_md or "implementability-probe" not in gaps_md:
+                mismatches.append("probe finding not merged with origin implementability-probe")
+            if "Implementability Probe Report" not in report or f"Unit: `{unit}`" not in report:
+                mismatches.append("per-unit probe report not written")
+            if '"type": "implementability_probe"' not in graph or '"relation": "probed_by"' not in graph:
+                mismatches.append("implementability_probe graph node/edge missing")
+            if state.get("gap_counts", {}).get("implementability_probe_origin", 0) < 1:
+                mismatches.append("implementability_probe_origin gap count not recorded")
+
+        fake = dict(finding, id="GAP-PROBE-FAKE", evidence="a citation that is absent from the raw input")
+        fake_src = temp / "probe-fake.json"
+        fake_src.write_text(json.dumps({"gaps": [fake]}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            fake_code = main(["scrutinize", "PROBE", "--mode", "implementability-probe", "--source", str(fake_src)])
+        if fake_code != 1:
+            mismatches.append("probe accepted a fabricated citation (cite-or-silence broken)")
+    return {"ok": not mismatches, "mismatches": mismatches}
+
+
 def run_all() -> int:
     fixture_dirs = sorted(d for d in FIXTURES.iterdir() if (d / "answer_key.json").exists())
     if not fixture_dirs:
@@ -1455,6 +1754,11 @@ def run_all() -> int:
         if (d / "assumptions.json").exists()
     ]
     assumed_fixtures = sum(1 for d in fixture_dirs if (d / "assumptions.json").exists())
+    # IMP-218: agentic commands H10 verified by hand but the runner never gated.
+    self_review_result = self_review_eval()
+    compose_result = compose_eval()
+    context_request_result = context_request_eval()
+    implementability_probe_result = implementability_probe_eval()
     implicit_results = [r for r in results if r["implicit_elicitation"]["total"]]
     implicit_annotated_results = [
         r for r in annotated_results if r["implicit_elicitation"]["total"]
@@ -1517,6 +1821,10 @@ def run_all() -> int:
             "scrutiny_ok": all(not r["gap_detail_mismatches"] for r in scrutinized_results),
             "challenged_fixtures": challenged_fixtures,
             "challenge_ok": all(not r["gap_detail_mismatches"] for r in challenged_results),
+            "self_review_ok": self_review_result["ok"],
+            "compose_ok": compose_result["ok"],
+            "context_request_ok": context_request_result["ok"],
+            "implementability_probe_ok": implementability_probe_result["ok"],
             "assumed_fixtures": assumed_fixtures,
             "assumption_ok": all(r["assumption_ok"] for r in assumed_results),
             "development_readiness_ok": all(r["development_readiness_ok"] for r in assumed_results),
@@ -1630,6 +1938,14 @@ def run_all() -> int:
         matched_pending = set(r["brief_expected_pending_matched"])
         for section in sorted(expected_pending - matched_pending):
             print(f"         brief section expected pending but populated: {section}")
+    for label, gate in (
+        ("self-review", self_review_result),
+        ("compose", compose_result),
+        ("context-request", context_request_result),
+        ("implementability-probe", implementability_probe_result),
+    ):
+        for mismatch in gate["mismatches"]:
+            print(f"  [FAIL] {label}: {mismatch}")
     s = report["summary"]
     print(
         f"Summary: baseline_ok={s['baseline_ok']} avg_recall={s['avg_recall_must_fire']:.2f} "
@@ -1649,6 +1965,9 @@ def run_all() -> int:
         f"({s['implicit_elicitation_fixtures']} fixtures, IMP-156) "
         f"scrutiny_ok={s['scrutiny_ok']} ({s['scrutinized_fixtures']} scrutinized fixtures, IMP-066) "
         f"challenge_ok={s['challenge_ok']} ({s['challenged_fixtures']} challenged fixtures, IMP-216) "
+        f"self_review_ok={s['self_review_ok']} compose_ok={s['compose_ok']} "
+        f"context_request_ok={s['context_request_ok']} "
+        f"implementability_probe_ok={s['implementability_probe_ok']} (IMP-218) "
         f"assumption_ok={s['assumption_ok']} ({s['assumed_fixtures']} assumed fixtures, IMP-067) "
         f"development_readiness_ok={s['development_readiness_ok']} (IMP-068) "
         f"metabolism_ok={s['metabolism_ok']} (IMP-069) "
