@@ -105,6 +105,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *kilo_command_checks(root),
         kilo_command_allowlist_check(root),
         kilo_skill_read_allowlist_check(root),
+        command_description_neutrality_check(),
         *claude_command_checks(root),
         memory_dependency_check(),
         semantic_embedder_check(),
@@ -146,6 +147,55 @@ def path_check(root: Path, relative: str, label: str) -> dict[str, str]:
         "status": "PASS" if path.exists() else "FAIL",
         "detail": str(path),
     }
+
+
+# IMP-224 (H12): the agentic surfaces this repo generates from single source.
+# A `description` is the one string a user reads in the autocomplete of *every*
+# surface, so naming one of them there is wrong on the other two. Word-bounded
+# so ordinary prose never trips it.
+_SURFACE_NAMES = re.compile(r"\b(?:kilo|claude|codex|cursor|gemini|vs ?code)\b", re.IGNORECASE)
+
+
+def surface_leaks(text: str) -> list[str]:
+    """Return the surface names leaked by a description mirrored to every agent.
+
+    `CLAUDE.md`/`AGENTS.md`-style tokens are repo files a description may
+    legitimately cite, not a claim about which agent is running, so a match
+    immediately followed by `.md` does not count as a leak.
+    """
+    leaks: list[str] = []
+    for match in _SURFACE_NAMES.finditer(text):
+        if text[match.end() : match.end() + 3].lower() == ".md":
+            continue
+        leaks.append(match.group(0))
+    return list(dict.fromkeys(leaks))
+
+
+def command_description_neutrality_check() -> dict[str, str]:
+    """IMP-224 (H12): no command `description` in the manifest may name a
+    concrete surface. The manifest is single-source for `.claude/commands/` and
+    `.kilo/commands/` alike, so `doctor` telling every agent it validates "this
+    VS Code workspace" — and `sentinel` advertising "one generic Kilo workflow" —
+    was wrong on two surfaces out of three. `skill_metadata_checks` has carried
+    this invariant for skills since IMP-163; commands had no equivalent, which is
+    exactly why the leak survived. WARN, in the molde of that sibling: the
+    wording misleads, it does not break governance.
+    """
+    from .adapters import load_manifest
+
+    label = "command descriptions stay surface-neutral"
+    try:
+        commands = load_manifest()["commands"]
+    except (OSError, ValueError, KeyError) as exc:
+        return {"name": label, "status": "WARN", "detail": f"unreadable manifest: {exc}"}
+    offenders = [
+        f"/{entry['name']} names {', '.join(leaks)}"
+        for entry in commands
+        if (leaks := surface_leaks(str(entry.get("description", ""))))
+    ]
+    if offenders:
+        return {"name": label, "status": "WARN", "detail": "; ".join(offenders)}
+    return {"name": label, "status": "PASS", "detail": f"{len(commands)} descriptions are agent-neutral"}
 
 
 def skill_metadata_checks(root: Path) -> list[dict[str, str]]:

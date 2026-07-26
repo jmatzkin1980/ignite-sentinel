@@ -1,5 +1,5 @@
 ---
-description: Run any Ignite Sentinel CLI command from one generic Kilo workflow.
+description: Run any Ignite Sentinel CLI command from one generic chat workflow.
 ---
 
 # Ignite Sentinel Generic Command
