@@ -1,5 +1,6 @@
 ---
 description: Validate that Ignite Sentinel is ready in this repository.
+argument-hint: [OPTIONS]
 ---
 
 # Ignite Doctor

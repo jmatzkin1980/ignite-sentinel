@@ -1,5 +1,6 @@
 ---
 description: Run advanced elicitation (pre-mortem, per-lens role-play, assumption inversion, JTBD Four Forces) and merge findings as gaps (origin: challenge).
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Challenge

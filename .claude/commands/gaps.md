@@ -1,5 +1,6 @@
 ---
 description: Regenerate the shareable Ignite Sentinel discovery gaps document.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Gaps

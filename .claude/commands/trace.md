@@ -1,5 +1,6 @@
 ---
 description: Generate or refresh the Ignite traceability matrix and graph.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Trace

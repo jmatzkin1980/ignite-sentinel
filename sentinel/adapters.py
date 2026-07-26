@@ -43,6 +43,11 @@ def render_kilo_command(entry: dict) -> str:
 
 
 def render_claude_command(entry: dict) -> str:
+    # IMP-225 (H12): `argument-hint` is the Claude Code convention for showing the
+    # expected signature in the autocomplete. It is display-only — the body still
+    # receives the arguments through the `$ARGUMENTS` line injected below, which
+    # is the single channel and must not change. Kilo has no such field, so
+    # `render_kilo_command` stays as it is.
     body_lines = entry["body"].splitlines()
     out_lines: list[str] = []
     inserted = False
@@ -53,7 +58,11 @@ def render_claude_command(entry: dict) -> str:
             out_lines.append("Arguments received from the user invocation: `$ARGUMENTS`")
             inserted = True
     body = "\n".join(out_lines).strip("\n")
-    return f"---\ndescription: {entry['description']}\n---\n\n{body}\n"
+    front = [f"description: {entry['description']}"]
+    if entry.get("argument_hint"):
+        front.append(f"argument-hint: {entry['argument_hint']}")
+    front_text = "\n".join(front)
+    return f"---\n{front_text}\n---\n\n{body}\n"
 
 
 def normalized(text: str) -> str:

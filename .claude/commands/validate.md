@@ -1,5 +1,6 @@
 ---
 description: Validate Ignite workspace structure, graph integrity, semantic quality, and cross-artifact consistency.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Validate

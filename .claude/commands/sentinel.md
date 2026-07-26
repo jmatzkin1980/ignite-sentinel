@@ -1,5 +1,6 @@
 ---
 description: Run any Ignite Sentinel CLI command from one generic chat workflow.
+argument-hint: /COMMAND PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Sentinel Generic Command

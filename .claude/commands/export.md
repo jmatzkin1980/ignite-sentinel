@@ -1,5 +1,6 @@
 ---
 description: Export a shareable Ignite Sentinel artifact.
+argument-hint: PROJECT_ID --artifact gaps|brief|context-request|prd [OPTIONS]
 ---
 
 # Ignite Export

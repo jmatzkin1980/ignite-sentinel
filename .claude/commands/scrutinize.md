@@ -1,5 +1,6 @@
 ---
 description: Merge systematic per-lens scrutiny findings as cited gaps (origin: scrutiny) and refresh the knowledge ledger.
+argument-hint: PROJECT_ID --source PATH [OPTIONS]
 ---
 
 # Ignite Scrutinize

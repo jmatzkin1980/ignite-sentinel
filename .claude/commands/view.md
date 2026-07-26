@@ -1,5 +1,6 @@
 ---
 description: Generate a local read-only HTML view for one Sentinel artifact.
+argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|specs [OPTIONS]
 ---
 
 # Ignite View

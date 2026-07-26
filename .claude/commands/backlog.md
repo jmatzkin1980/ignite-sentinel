@@ -1,5 +1,6 @@
 ---
 description: Generate traceable epics, user stories, and acceptance criteria.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Backlog

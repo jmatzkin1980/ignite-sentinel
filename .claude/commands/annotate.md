@@ -1,5 +1,6 @@
 ---
 description: Merge an agentic semantic analysis of the raw input into discovery gaps (origin: agent).
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Annotate

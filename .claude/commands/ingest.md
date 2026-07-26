@@ -1,5 +1,6 @@
 ---
 description: Ingest raw client, domain, or interaction evidence into an Ignite workspace.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Ingest

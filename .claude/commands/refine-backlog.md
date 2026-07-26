@@ -1,5 +1,6 @@
 ---
 description: Merge validated agent-authored backlog refinement proposals with verbatim local citations.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Refine Backlog

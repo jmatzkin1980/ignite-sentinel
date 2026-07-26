@@ -1,5 +1,6 @@
 ---
 description: Merge validated agent-authored PRD narrative blocks with verbatim local citations.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Compose

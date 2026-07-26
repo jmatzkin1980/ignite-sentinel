@@ -1,5 +1,6 @@
 ---
 description: Merge structured downstream implementation feedback into traced backlog feedback without rewriting stories directly.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Implementation Feedback

@@ -1,5 +1,6 @@
 ---
 description: Evaluate whether an Ignite requirement is ready for specs and backlog.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Maturity

@@ -1,5 +1,6 @@
 ---
 description: Generate the PRD and AI-friendly specification when maturity allows it.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Specs
