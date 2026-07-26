@@ -104,6 +104,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *agentic_surface_audit_checks(root),
         *kilo_command_checks(root),
         kilo_command_allowlist_check(root),
+        kilo_skill_read_allowlist_check(root),
         *claude_command_checks(root),
         memory_dependency_check(),
         semantic_embedder_check(),
@@ -678,6 +679,71 @@ def kilo_command_allowlist_check(root: Path) -> dict[str, str]:
     if missing:
         return {"name": label, "status": "WARN", "detail": "missing " + ", ".join(f"/{command}" for command in missing)}
     return {"name": label, "status": "PASS", "detail": f"{len(commands)} commands pre-authorized"}
+
+
+def _glob_matches(pattern: str, path: str) -> bool:
+    """Match a posix-style permission glob against a repo-relative path.
+
+    Not `fnmatch`: there `*` crosses `/`, so a shallow `.agents/*.md` would count
+    as covering `.agents/skills/x/references/y.md` — the exact false PASS this
+    guard exists to catch. Here `*`/`?` stay inside a path segment and only `**`
+    spans separators, which is how Kilo (and every other permission glob) reads
+    them. Case-sensitive by design: the verdict must not depend on the OS.
+    """
+    parts: list[str] = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "*":
+            if pattern[index + 1 : index + 2] == "*":
+                parts.append(".*")
+                index += 2
+                continue
+            parts.append("[^/]*")
+        elif char == "?":
+            parts.append("[^/]")
+        else:
+            parts.append(re.escape(char))
+        index += 1
+    return re.match("".join(parts) + r"\Z", path) is not None
+
+
+def kilo_skill_read_allowlist_check(root: Path) -> dict[str, str]:
+    """IMP-231 (H12): the kilo.jsonc *read* allowlist must cover every directory
+    Kilo discovers skills in (`KILO_DEFAULT_SKILL_DIRS`). Kilo loads
+    `.agents/skills/` by default, but `permissions.file.read` only listed
+    `.kilo/**` and `.codex/**` — so when a skill told Kilo to open its
+    `references/*.md`, layer 3 of progressive disclosure fell to `ask`/deny. The
+    directories come from the shared constant rather than a literal here, so
+    adding a new mirror surfaces the missing permission instead of breaking a
+    flow silently. WARN, not FAIL, in the molde of `kilo_command_allowlist_check`:
+    a gap only costs the BA an extra Kilo prompt, it does not break governance.
+    """
+    from .adapters import KILO_DEFAULT_SKILL_DIRS
+    from .core.io import parse_json
+
+    label = "kilo.jsonc read allowlist covers skill discovery"
+    path = root / "kilo.jsonc"
+    if not path.exists():
+        return {"name": label, "status": "WARN", "detail": "kilo.jsonc missing"}
+    try:
+        parsed = parse_json(_strip_jsonc(path.read_text(encoding="utf-8-sig")))
+    except ValueError as exc:  # JSONDecodeError is a ValueError
+        return {"name": label, "status": "WARN", "detail": f"unparseable JSONC: {exc}"}
+    allow = [str(entry) for entry in parsed.get("permissions", {}).get("file", {}).get("read", [])]
+    # Probe the deepest path a skill can ask for (the progressive-disclosure
+    # reference layer): an allowlist entry that does not reach it does not cover
+    # the directory in practice, however broad it looks at the top level.
+    missing = [
+        directory
+        for directory in KILO_DEFAULT_SKILL_DIRS
+        if not any(
+            _glob_matches(entry, f"{directory}/any-skill/references/any-reference.md") for entry in allow
+        )
+    ]
+    if missing:
+        return {"name": label, "status": "WARN", "detail": "read allowlist misses " + ", ".join(missing)}
+    return {"name": label, "status": "PASS", "detail": f"readable: {', '.join(KILO_DEFAULT_SKILL_DIRS)}"}
 
 
 def mcp_dependency_check() -> dict[str, str]:

@@ -13,7 +13,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel.doctor import REQUIRED_KILO_AGENTS, kilo_agent_metadata_checks
+from sentinel.adapters import KILO_DEFAULT_SKILL_DIRS, SKILL_TARGET_DIRS
+from sentinel.doctor import (
+    REQUIRED_KILO_AGENTS,
+    _glob_matches,
+    kilo_agent_metadata_checks,
+    kilo_skill_read_allowlist_check,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = REPO_ROOT / ".kilo" / "agents"
@@ -87,6 +93,88 @@ class KiloAgentFrontmatterHealthy(unittest.TestCase):
             self.assertEqual(status["sentinel-sync"], "FAIL")   # missing description
             self.assertEqual(status["sentinel-health"], "FAIL")  # name != file
             self.assertEqual(status["sentinel-backlog"], "FAIL")  # file missing
+
+
+class KiloReadsItsSkillDiscoveryDirectories(unittest.TestCase):
+    """IMP-231 (H12): Kilo discovers skills in `.agents/skills/` (Agent Skills
+    compat, loaded by default), but `permissions.file.read` in kilo.jsonc only
+    listed `.kilo/**` and `.codex/**` — so the `references/*.md` layer of
+    progressive disclosure was outside the read allowlist. These guards keep the
+    permission surface tied to the shared discovery constant instead of a
+    hand-maintained literal that can silently drift behind a new mirror.
+    """
+
+    @staticmethod
+    def _read_allowlist(root):
+        from sentinel.core.io import parse_json
+        from sentinel.doctor import _strip_jsonc
+
+        text = (root / "kilo.jsonc").read_text(encoding="utf-8-sig")
+        parsed = parse_json(_strip_jsonc(text))
+        return [str(entry) for entry in parsed["permissions"]["file"]["read"]]
+
+    def test_discovery_constant_points_at_real_skill_mirrors(self):
+        self.assertTrue(KILO_DEFAULT_SKILL_DIRS, "Kilo must discover skills somewhere")
+        for directory in KILO_DEFAULT_SKILL_DIRS:
+            self.assertIn(directory, SKILL_TARGET_DIRS, f"{directory} is not a generated skill mirror")
+            self.assertTrue((REPO_ROOT / directory).is_dir(), f"missing skill mirror: {directory}")
+
+    def test_every_shipped_skill_file_is_inside_the_read_allowlist(self):
+        allow = self._read_allowlist(REPO_ROOT)
+        for directory in KILO_DEFAULT_SKILL_DIRS:
+            files = [item for item in (REPO_ROOT / directory).rglob("*") if item.is_file()]
+            self.assertTrue(files, f"{directory} has no skill files to read")
+            for item in files:
+                relative = item.relative_to(REPO_ROOT).as_posix()
+                self.assertTrue(
+                    any(_glob_matches(entry, relative) for entry in allow),
+                    f"kilo.jsonc file.read does not cover {relative}",
+                )
+
+    def test_permission_glob_matcher_keeps_single_star_inside_a_segment(self):
+        deep = ".agents/skills/sentinel-backlog/references/handoff-contracts.md"
+        self.assertTrue(_glob_matches(".agents/**", deep))
+        self.assertTrue(_glob_matches(".agents/skills/**/references/*.md", deep))
+        self.assertFalse(_glob_matches(".agents/*.md", deep))
+        self.assertFalse(_glob_matches(".agents/skills/*", deep))
+        self.assertFalse(_glob_matches(".codex/**", deep))
+
+    def test_doctor_reports_the_repo_allowlist_healthy(self):
+        check = kilo_skill_read_allowlist_check(REPO_ROOT)
+        self.assertEqual(check["status"], "PASS", check["detail"])
+
+    def test_doctor_warns_when_the_read_allowlist_drifts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "kilo.jsonc").write_text(
+                "{\n"
+                "  // read allowlist that forgot the skill discovery directory\n"
+                '  "permissions": { "file": { "read": [".kilo/**", ".codex/**"] } }\n'
+                "}\n",
+                encoding="utf-8",
+            )
+            check = kilo_skill_read_allowlist_check(root)
+            self.assertEqual(check["status"], "WARN")
+            for directory in KILO_DEFAULT_SKILL_DIRS:
+                self.assertIn(directory, check["detail"])
+
+    def test_doctor_warns_when_the_allowlist_stops_short_of_the_reference_layer(self):
+        # A top-level-only entry looks like coverage but never reaches
+        # `<skill>/references/*.md`, which is exactly what IMP-231 fixes.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "kilo.jsonc").write_text(
+                '{ "permissions": { "file": { "read": [".agents/*.md"] } } }\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
+
+    def test_doctor_warns_when_kilo_config_is_missing_or_unparseable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
+            (root / "kilo.jsonc").write_text("{ not json", encoding="utf-8")
+            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
 
 
 if __name__ == "__main__":

@@ -100,7 +100,19 @@ def out_of_sync(root: Path | None = None) -> list[str]:
 
 
 CANONICAL_SKILLS_DIR = ".codex/skills"
-SKILL_TARGET_DIRS = (".agents/skills", ".claude/skills")
+AGENTS_SKILLS_DIR = ".agents/skills"
+CLAUDE_SKILLS_DIR = ".claude/skills"
+SKILL_TARGET_DIRS = (AGENTS_SKILLS_DIR, CLAUDE_SKILLS_DIR)
+
+# IMP-231 (H12): the skill directories Kilo discovers *by default*. Kilo also
+# reads `.kilo/skills/` and `~/.kilo/skills/`, and `.claude/skills/` only when
+# "Claude Code Compatibility" is enabled — an opt-in this repo does not require,
+# and one that would double-load the same 24 skills, so the Claude mirror stays
+# out on purpose. Whatever is listed here must be covered by the
+# `permissions.file.read` allowlist of `kilo.jsonc`, or progressive disclosure
+# (the `*/references/*.md` layer) falls to `ask`/deny inside Kilo. Guarded by
+# `doctor.kilo_skill_read_allowlist_check`.
+KILO_DEFAULT_SKILL_DIRS = (AGENTS_SKILLS_DIR,)
 
 
 def skill_files(root: Path) -> list[Path]:
