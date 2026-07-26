@@ -11,6 +11,11 @@
         "sentinel/**",
         ".kilo/**",
         ".codex/**",
+        // Skill discovery directory Kilo loads by default (Agent Skills compat).
+        // The 24 skills are mirrored here from `.codex/skills/`; without read
+        // access, layer 3 of progressive disclosure (`*/references/*.md`) falls
+        // to `ask`/deny the moment a skill tells Kilo to open one.
+        ".agents/**",
         "workspaces/**",
         "tests/**",
         "pyproject.toml"
