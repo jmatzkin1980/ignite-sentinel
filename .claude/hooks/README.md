@@ -20,7 +20,7 @@ The decision logic lives once in `sentinel/hooks_logic.py` and is enforced on
 
 - **Claude Code** — this PreToolUse command hook (`permissionDecision: deny`).
 - **Codex** — `.codex/hooks/pre_tool_use_policy.py` returns `decision: block`.
-- **Kilo Code** — `kilo.jsonc` `permissions.file.deny` globs.
+- **Kilo Code** — `kilo.jsonc` `permission.edit` deny rules. Vendor config rather than code we run: declared in Kilo's published schema, confirmed by observing the editor (IMP-235).
 
 It blocks only *illegitimate* hand-edits; the CLI regenerates governed artifacts
 through the command channel, which the hook never sees. Reads are never blocked.

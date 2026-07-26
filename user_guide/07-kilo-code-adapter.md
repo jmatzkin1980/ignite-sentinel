@@ -78,11 +78,11 @@ How to use them:
 
 - Name the skill in chat when you want a specific one: *"Use `sentinel-backlog` to generate the backlog for ACME_DASHBOARD."*
 - Otherwise describe the situation. Skills follow progressive disclosure: the agent sees `name` + `description` first and loads the body only when the workflow applies, so the description is what makes a skill selectable.
-- The deeper `references/*.md` layer of a skill is read on demand. `kilo.jsonc` allows reading `.agents/**` precisely so that layer loads without an extra permission prompt; if you trim that allowlist, skills will still trigger but their references will not load.
+- The deeper `references/*.md` layer of a skill is read on demand, and it needs no configuration: Kilo allows reads by default, so a skill can open its own references without an extra permission prompt. Confirmed live on Kilo Code 7.4.16.
 
-> **Leave "Claude Code Compatibility" off.** With it enabled Kilo loads `.agents/skills/` **and** `.claude/skills/` — in this repo those are byte-identical mirrors, so the same 24 skills are registered twice under the same `name`. Kilo's documentation defines precedence only between project and global scope, not between two compatibility directories holding the same skill, so the outcome of that collision is unspecified. `.agents/skills/` alone covers this repo; that is also why `kilo.jsonc` allows reading `.agents/**` and not `.claude/**`.
+> **Leave "Claude Code Compatibility" off.** With it enabled Kilo loads `.agents/skills/` **and** `.claude/skills/` — in this repo those are byte-identical mirrors, so the same 24 skills are registered twice under the same `name`. Kilo's documentation defines precedence only between project and global scope, not between two compatibility directories holding the same skill, so the outcome of that collision is unspecified. `.agents/skills/` alone covers this repo.
 
-The 7 agents in `.kilo/agents/` and the skills coexist: the agents carry mode, model and permission choices that skills cannot express, and 17 of the 24 skills have no agent counterpart.
+The 7 agents in `.kilo/agents/` and the skills coexist. What each agent actually declares today is `name`, `description` and `mode: primary` — Kilo *supports* per-agent model and permission choices, but this repo does not use them. The practical difference is that an agent body is always in context once you pick that mode, whereas a skill loads when the agent judges it relevant; and 17 of the 24 skills have no agent counterpart.
 
 ## Slash Workflows
 
@@ -144,15 +144,15 @@ kilo.jsonc
 .kilocodeignore
 ```
 
-The config is intentionally conservative:
+`kilo.jsonc` follows the schema Kilo publishes at `https://app.kilo.ai/config.json`, declared in the file's own `$schema` line so VS Code validates it as you edit. Permissions live under the top-level `permission` key, as a map of pattern to `allow` / `ask` / `deny` per tool:
 
-- write access is focused on `workspaces/**`, Sentinel runtime files, guides, and adapter files;
-- `.git/**`, secrets, env files, caches, and build output are denied;
-- known Sentinel commands are allowlisted in `kilo.jsonc`;
-- commands default to ask unless explicitly allowed;
-- reading `.agents/**` is allowed so the skills Kilo loads from `.agents/skills/` can open their own `references/*.md`.
+- `permission.edit` allows edits generally and **denies** the governed artifacts (`project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`), plus `.git/**`, secrets, env files and build output. Governed artifacts are regenerated through their owning command, never typed over.
+- `permission.read` leaves reads open and holds back only local secrets. Skills and their `references/*.md` need no entry.
+- `permission.bash` pre-authorizes the Sentinel CLI with a single `python -m sentinel *` pattern, so adding a command later cannot leave the config behind. Anything not listed falls to Kilo's own default rather than to a stricter rule invented here.
 
-If a new Sentinel command is added later, update both `.kilo/commands/` and `kilo.jsonc` so a cloned laptop gets the same chat experience.
+> **A caveat worth keeping.** These rules are vendor configuration, not code this project runs. The published schema documents the *shape* but not the matching semantics — glob syntax, relative versus absolute paths, precedence between rules. `/doctor` therefore checks that the rules are declared correctly, which is not the same as proving Kilo honours them. If you depend on the governed-artifact deny, confirm it in Kilo with auto-approve off: try to edit a `04_backlog/*.md` and check you are stopped. The two surfaces with deterministic enforcement are Claude Code and Codex, and the CLI gate is what all three share.
+
+If a new Sentinel command is added later, `.kilo/commands/` still needs the new workflow file; `kilo.jsonc` does not, because the CLI is pre-authorized by pattern.
 
 ## In Restricted Environments
 

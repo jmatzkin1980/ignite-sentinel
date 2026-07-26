@@ -3,7 +3,7 @@
 Thin shim over ``sentinel.hooks_logic``. Two responsibilities:
 - IMP-179: BLOCK a hand Write/Edit to a governed artifact (project-brief.md,
   03_specs/*.md, 04_backlog/*.md) — the deterministic policy that mirrors the
-  Claude PreToolUse deny and the Kilo ``file.deny`` globs, so every surface
+  Claude PreToolUse deny and the Kilo ``permission.edit`` deny rules, so every surface
   enforces invariant #1 (mutate only via the owning CLI command). It blocks only
   illegitimate hand-edits; legitimate mutation flows through the CLI.
 - IMP-172: otherwise SIGNAL a non-blocking local-first reminder.

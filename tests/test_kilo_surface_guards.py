@@ -26,7 +26,9 @@ from sentinel.doctor import (
     REQUIRED_KILO_AGENTS,
     _glob_matches,
     kilo_agent_metadata_checks,
-    kilo_skill_read_allowlist_check,
+    kilo_command_allowlist_check,
+    kilo_config_schema_check,
+    kilo_governed_deny_check,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -103,23 +105,16 @@ class KiloAgentFrontmatterHealthy(unittest.TestCase):
             self.assertEqual(status["sentinel-backlog"], "FAIL")  # file missing
 
 
-class KiloReadsItsSkillDiscoveryDirectories(unittest.TestCase):
-    """IMP-231 (H12): Kilo discovers skills in `.agents/skills/` (Agent Skills
-    compat, loaded by default), but `permissions.file.read` in kilo.jsonc only
-    listed `.kilo/**` and `.codex/**` — so the `references/*.md` layer of
-    progressive disclosure was outside the read allowlist. These guards keep the
-    permission surface tied to the shared discovery constant instead of a
-    hand-maintained literal that can silently drift behind a new mirror.
+class KiloSkillDiscoveryDirectories(unittest.TestCase):
+    """The directories Kilo loads skills from must be real generated mirrors.
+
+    IMP-231 tied this to a `permissions.file.read` allowlist in kilo.jsonc;
+    IMP-235 removed that tie because the key does not exist in Kilo's schema, so
+    no allowlist ever applied and the reference layer loads without one
+    (confirmed live on Kilo Code 7.4.16, doc 45 §3.2). What survives is the part
+    that was always true: the constant must point at directories that exist and
+    are generated mirrors, so adding a mirror cannot silently point nowhere.
     """
-
-    @staticmethod
-    def _read_allowlist(root):
-        from sentinel.core.io import parse_json
-        from sentinel.doctor import _strip_jsonc
-
-        text = (root / "kilo.jsonc").read_text(encoding="utf-8-sig")
-        parsed = parse_json(_strip_jsonc(text))
-        return [str(entry) for entry in parsed["permissions"]["file"]["read"]]
 
     def test_discovery_constant_points_at_real_skill_mirrors(self):
         self.assertTrue(KILO_DEFAULT_SKILL_DIRS, "Kilo must discover skills somewhere")
@@ -127,19 +122,18 @@ class KiloReadsItsSkillDiscoveryDirectories(unittest.TestCase):
             self.assertIn(directory, SKILL_TARGET_DIRS, f"{directory} is not a generated skill mirror")
             self.assertTrue((REPO_ROOT / directory).is_dir(), f"missing skill mirror: {directory}")
 
-    def test_every_shipped_skill_file_is_inside_the_read_allowlist(self):
-        allow = self._read_allowlist(REPO_ROOT)
-        for directory in KILO_DEFAULT_SKILL_DIRS:
-            files = [item for item in (REPO_ROOT / directory).rglob("*") if item.is_file()]
-            self.assertTrue(files, f"{directory} has no skill files to read")
-            for item in files:
-                relative = item.relative_to(REPO_ROOT).as_posix()
-                self.assertTrue(
-                    any(_glob_matches(entry, relative) for entry in allow),
-                    f"kilo.jsonc file.read does not cover {relative}",
-                )
+    def test_the_reference_layer_actually_ships(self):
+        # Layer 3 of progressive disclosure has to exist for Kilo to open it.
+        references = [
+            item
+            for directory in KILO_DEFAULT_SKILL_DIRS
+            for item in (REPO_ROOT / directory).rglob("references/*.md")
+        ]
+        self.assertTrue(references, "no skill reference files shipped in the Kilo discovery dirs")
 
-    def test_permission_glob_matcher_keeps_single_star_inside_a_segment(self):
+
+class PermissionGlobMatcher(unittest.TestCase):
+    def test_path_semantics_keep_single_star_inside_a_segment(self):
         deep = ".agents/skills/sentinel-backlog/references/handoff-contracts.md"
         self.assertTrue(_glob_matches(".agents/**", deep))
         self.assertTrue(_glob_matches(".agents/skills/**/references/*.md", deep))
@@ -147,42 +141,146 @@ class KiloReadsItsSkillDiscoveryDirectories(unittest.TestCase):
         self.assertFalse(_glob_matches(".agents/skills/*", deep))
         self.assertFalse(_glob_matches(".codex/**", deep))
 
-    def test_doctor_reports_the_repo_allowlist_healthy(self):
-        check = kilo_skill_read_allowlist_check(REPO_ROOT)
+    def test_command_semantics_let_a_single_star_cross_slashes(self):
+        # IMP-235: `permission.bash` patterns match a command line, where `/` is
+        # an ordinary character. Under path semantics this pattern would miss.
+        command = "python -m sentinel /doctor PROJECT_ID"
+        self.assertTrue(_glob_matches("python -m sentinel *", command, path_semantics=False))
+        self.assertFalse(_glob_matches("python -m sentinel *", command))
+        self.assertFalse(_glob_matches("python -m other *", command, path_semantics=False))
+
+
+class KiloConfigMatchesThePublishedSchema(unittest.TestCase):
+    """IMP-235 (H12): the guard that would have caught the original defect.
+
+    `kilo.jsonc` carried a top-level `permissions` block from 2026-06-03 to
+    2026-07-26. Kilo discarded it wholesale (`Unrecognized key: permissions`)
+    while `/doctor` reported the surface healthy, because every check validated
+    the shape we had invented instead of the one Kilo publishes.
+    """
+
+    @staticmethod
+    def _write(root, body):
+        (root / "kilo.jsonc").write_text(body, encoding="utf-8")
+
+    def test_repo_config_conforms(self):
+        check = kilo_config_schema_check(REPO_ROOT)
         self.assertEqual(check["status"], "PASS", check["detail"])
 
-    def test_doctor_warns_when_the_read_allowlist_drifts(self):
+    def test_the_historical_defect_is_now_caught(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "kilo.jsonc").write_text(
+            self._write(
+                root,
                 "{\n"
-                "  // read allowlist that forgot the skill discovery directory\n"
-                '  "permissions": { "file": { "read": [".kilo/**", ".codex/**"] } }\n'
+                '  "$schema": "https://app.kilo.ai/config.json",\n'
+                '  "permissions": { "file": { "read": [".agents/**"] } }\n'
                 "}\n",
+            )
+            check = kilo_config_schema_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("permissions", check["detail"])
+
+    def test_missing_schema_declaration_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write(root, '{ "permission": { "edit": "ask" } }\n')
+            check = kilo_config_schema_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("$schema", check["detail"])
+
+    def test_unknown_permission_sub_key_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write(
+                root,
+                '{ "$schema": "x", "permission": { "file": { "*": "allow" } } }\n',
+            )
+            check = kilo_config_schema_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("file", check["detail"])
+
+    def test_unknown_action_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write(root, '{ "$schema": "x", "permission": { "edit": { "*": "block" } } }\n')
+            check = kilo_config_schema_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("block", check["detail"])
+
+    def test_action_only_sub_key_rejects_a_pattern_map(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write(root, '{ "$schema": "x", "permission": { "webfetch": { "*": "allow" } } }\n')
+            check = kilo_config_schema_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("bare action", check["detail"])
+
+    def test_missing_or_unparseable_config_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(kilo_config_schema_check(root)["status"], "WARN")
+            self._write(root, "{ not json")
+            self.assertEqual(kilo_config_schema_check(root)["status"], "WARN")
+
+
+class KiloDeniesGovernedArtifactEdits(unittest.TestCase):
+    def test_repo_config_denies_every_governed_glob(self):
+        check = kilo_governed_deny_check(REPO_ROOT)
+        self.assertEqual(check["status"], "PASS", check["detail"])
+
+    def test_dropping_a_governed_glob_warns(self):
+        from sentinel.hooks_logic import GOVERNED_ARTIFACT_GLOBS
+
+        kept = GOVERNED_ARTIFACT_GLOBS[1:]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rules = ", ".join(f'"{glob}": "deny"' for glob in kept)
+            (root / "kilo.jsonc").write_text(
+                '{ "$schema": "x", "permission": { "edit": { "*": "allow", ' + rules + " } } }\n",
                 encoding="utf-8",
             )
-            check = kilo_skill_read_allowlist_check(root)
+            check = kilo_governed_deny_check(root)
             self.assertEqual(check["status"], "WARN")
-            for directory in KILO_DEFAULT_SKILL_DIRS:
-                self.assertIn(directory, check["detail"])
+            self.assertIn(GOVERNED_ARTIFACT_GLOBS[0], check["detail"])
 
-    def test_doctor_warns_when_the_allowlist_stops_short_of_the_reference_layer(self):
-        # A top-level-only entry looks like coverage but never reaches
-        # `<skill>/references/*.md`, which is exactly what IMP-231 fixes.
+    def test_an_allow_entry_does_not_count_as_a_deny(self):
+        from sentinel.hooks_logic import GOVERNED_ARTIFACT_GLOBS
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rules = ", ".join(f'"{glob}": "allow"' for glob in GOVERNED_ARTIFACT_GLOBS)
+            (root / "kilo.jsonc").write_text(
+                '{ "$schema": "x", "permission": { "edit": { ' + rules + " } } }\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(kilo_governed_deny_check(root)["status"], "WARN")
+
+
+class KiloPreAuthorizesTheSentinelCLI(unittest.TestCase):
+    def test_repo_config_pre_authorizes_every_runtime_command(self):
+        check = kilo_command_allowlist_check(REPO_ROOT)
+        self.assertEqual(check["status"], "PASS", check["detail"])
+
+    def test_a_narrow_pattern_leaves_commands_unauthorized(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "kilo.jsonc").write_text(
-                '{ "permissions": { "file": { "read": [".agents/*.md"] } } }\n',
+                '{ "$schema": "x", "permission": { "bash": { "python -m sentinel /doctor": "allow" } } }\n',
                 encoding="utf-8",
             )
-            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
+            check = kilo_command_allowlist_check(root)
+            self.assertEqual(check["status"], "WARN")
+            self.assertIn("/backlog", check["detail"])
 
-    def test_doctor_warns_when_kilo_config_is_missing_or_unparseable(self):
+    def test_an_ask_entry_does_not_count_as_pre_authorization(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
-            (root / "kilo.jsonc").write_text("{ not json", encoding="utf-8")
-            self.assertEqual(kilo_skill_read_allowlist_check(root)["status"], "WARN")
+            (root / "kilo.jsonc").write_text(
+                '{ "$schema": "x", "permission": { "bash": { "python -m sentinel *": "ask" } } }\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(kilo_command_allowlist_check(root)["status"], "WARN")
 
 
 if __name__ == "__main__":

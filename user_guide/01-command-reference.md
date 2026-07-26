@@ -62,6 +62,8 @@ Checks:
 - portable installers and launchers
 - repo write access
 - agentic surface audit (`FAIL` when a committed hook/settings JSON or `kilo.jsonc` is unparseable; `WARN` when a hook command contains an unambiguously dangerous shell pattern such as `rm -rf`, a download piped to a shell, `sudo`, or `eval`)
+- `kilo.jsonc` conformance to the config schema Kilo publishes (`WARN` when `$schema` is missing, or a top-level key, `permission` sub-key or action is not one the schema defines — a key Kilo does not recognize means it silently discards that whole block)
+- `kilo.jsonc` declares a `permission.edit` deny for every governed artifact glob (`WARN` when one is missing)
 - optional LanceDB dependency and backend mode
 - optional embedding dependencies
 
