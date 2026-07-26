@@ -105,7 +105,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *agentic_surface_audit_checks(root),
         *kilo_command_checks(root),
         kilo_command_allowlist_check(root),
-        kilo_skill_read_allowlist_check(root),
+        kilo_config_schema_check(root),
+        kilo_governed_deny_check(root),
         command_description_neutrality_check(),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -823,51 +824,107 @@ def claude_command_checks(root: Path) -> list[dict[str, str]]:
     ]
 
 
-def kilo_command_allowlist_check(root: Path) -> dict[str, str]:
-    """IMP-213 (H10, anti-staleness): the kilo.jsonc command allowlist must
-    pre-authorize every runtime command. When it drifts behind the CLI a new
-    command silently falls to `default: ask` — the exact F-209-2 staleness the
-    H10 audit found (13 commands, incl. /dashboard and /view, unlisted). WARN,
-    not FAIL: a missing entry only costs the BA an extra Kilo prompt, it does not
-    break governance. Sibling `.kilo/commands/*.md` doc coverage stays owned by
-    the manifest sync (out_of_sync); this guards the *permission* surface so the
-    allowlist can no longer silently fall behind a newly added command.
-    """
+# Top-level keys published by Kilo's config schema (https://app.kilo.ai/config.json),
+# snapshotted 2026-07-26 against Kilo Code 7.4.16. IMP-235 exists because nothing
+# ever checked this: the file carried a `permissions` key for seven weeks and Kilo
+# discarded the whole block while `/doctor` stayed green. A third-party schema can
+# grow, so an unknown key is a WARN, not a FAIL — but it can no longer be silent.
+KILO_CONFIG_TOP_LEVEL_KEYS = frozenset(
+    {
+        "$schema", "shell", "logLevel", "server", "command", "skills", "references",
+        "reference", "watcher", "snapshot", "plugin", "share", "autoshare", "autoupdate",
+        "disabled_providers", "enabled_providers", "model", "small_model", "default_agent",
+        "subagent_depth", "username", "mode", "agent", "provider", "mcp", "formatter",
+        "lsp", "instructions", "layout", "permission", "tools", "attachment", "enterprise",
+        "tool_output", "compaction", "experimental",
+        # VS Code extension additions
+        "auto_expand_history", "remote_control", "auto_collapse_reasoning",
+        "terminal_command_display", "code_edit_display", "hide_prompt_training_models",
+        "commit_message",
+    }
+)
+# Sub-keys of `permission` that accept a rule (an action, or a map of
+# pattern -> action). The action-only siblings (`todowrite`, `question`,
+# `webfetch`, `websearch`, `doom_loop`) take a bare action and no pattern map.
+KILO_PERMISSION_RULE_KEYS = frozenset(
+    {
+        "read", "edit", "glob", "grep", "list", "bash", "task", "external_directory",
+        "lsp", "skill", "notebook_read", "notebook_edit", "notebook_execute",
+    }
+)
+KILO_PERMISSION_ACTION_KEYS = frozenset({"todowrite", "question", "webfetch", "websearch", "doom_loop"})
+KILO_PERMISSION_ACTIONS = frozenset({"allow", "ask", "deny"})
+
+
+def _kilo_config(root: Path) -> tuple[dict, str | None]:
+    """Parse `kilo.jsonc`, returning (config, error). Shared by the Kilo checks."""
     from .core.io import parse_json
 
-    label = "kilo.jsonc command allowlist covers runtime"
     path = root / "kilo.jsonc"
     if not path.exists():
-        return {"name": label, "status": "WARN", "detail": "kilo.jsonc missing"}
+        return {}, "kilo.jsonc missing"
     try:
         parsed = parse_json(_strip_jsonc(path.read_text(encoding="utf-8-sig")))
     except ValueError as exc:  # JSONDecodeError is a ValueError
-        return {"name": label, "status": "WARN", "detail": f"unparseable JSONC: {exc}"}
-    allow = parsed.get("permissions", {}).get("commands", {}).get("allow", [])
-    allow_text = "\n".join(str(entry) for entry in allow)
+        return {}, f"unparseable JSONC: {exc}"
+    if not isinstance(parsed, dict):
+        return {}, "kilo.jsonc is not a JSON object"
+    return parsed, None
+
+
+def kilo_command_allowlist_check(root: Path) -> dict[str, str]:
+    """IMP-213 (H10, anti-staleness), re-pointed at the real schema by IMP-235:
+    the Kilo config must pre-authorize every runtime command, or a new command
+    silently costs the BA a prompt (the F-209-2 staleness the H10 audit found:
+    13 commands, incl. /dashboard and /view, unlisted).
+
+    The pre-authorization now lives in `permission.bash` as a map of command
+    pattern -> action, so coverage is what matters, not one entry per command: a
+    single `python -m sentinel *` covers the whole CLI and removes the staleness
+    class by construction. This check therefore matches each runtime command
+    against the patterns instead of grepping for its name. WARN, not FAIL: a gap
+    costs a prompt, it does not break governance. Sibling `.kilo/commands/*.md`
+    doc coverage stays owned by the manifest sync (out_of_sync).
+    """
+    label = "kilo.jsonc pre-authorizes the Sentinel CLI"
+    parsed, error = _kilo_config(root)
+    if error:
+        return {"name": label, "status": "WARN", "detail": error}
+    permission = parsed.get("permission")
+    rules = permission.get("bash") if isinstance(permission, dict) else None
+    patterns = [str(key) for key, action in rules.items() if action == "allow"] if isinstance(rules, dict) else []
     commands = sorted(runtime_command_names())
-    # Match the `/command` token bounded so a prefix never satisfies a longer
-    # sibling (`/backlog` must not count for `/backlog-status`), and a trailing
-    # wildcard-or-newline both count (`/doctor` and `/view *` alike).
+    # Probe the invocation the adapters actually emit, so a pattern that only
+    # matches the bare command name does not look like coverage.
     missing = [
         command
         for command in commands
-        if not re.search(rf"/{re.escape(command)}(?![A-Za-z0-9-])", allow_text)
+        if not any(
+            _glob_matches(pattern, f"python -m sentinel /{command} PROJECT_ID", path_semantics=False)
+            for pattern in patterns
+        )
     ]
     if missing:
-        return {"name": label, "status": "WARN", "detail": "missing " + ", ".join(f"/{command}" for command in missing)}
+        return {"name": label, "status": "WARN", "detail": "not pre-authorized: " + ", ".join(f"/{command}" for command in missing)}
     return {"name": label, "status": "PASS", "detail": f"{len(commands)} commands pre-authorized"}
 
 
-def _glob_matches(pattern: str, path: str) -> bool:
-    """Match a posix-style permission glob against a repo-relative path.
+def _glob_matches(pattern: str, path: str, *, path_semantics: bool = True) -> bool:
+    """Match a permission glob against a repo-relative path or a command line.
 
     Not `fnmatch`: there `*` crosses `/`, so a shallow `.agents/*.md` would count
     as covering `.agents/skills/x/references/y.md` — the exact false PASS this
-    guard exists to catch. Here `*`/`?` stay inside a path segment and only `**`
-    spans separators, which is how Kilo (and every other permission glob) reads
-    them. Case-sensitive by design: the verdict must not depend on the OS.
+    guard exists to catch. With `path_semantics` (the default) `*`/`?` stay inside
+    a path segment and only `**` spans separators, which is how Kilo (and every
+    other permission glob) reads them.
+
+    IMP-235: `permission.bash` patterns are matched against a **command line**,
+    not a path, and there `/` is an ordinary character — `python -m sentinel *`
+    has to cover `python -m sentinel /doctor PROJECT_ID`. Pass
+    `path_semantics=False` for those, so `*` is unrestricted.
+    Case-sensitive by design in both modes: the verdict must not depend on the OS.
     """
+    single = "[^/]" if path_semantics else "."
     parts: list[str] = []
     index = 0
     while index < len(pattern):
@@ -877,51 +934,95 @@ def _glob_matches(pattern: str, path: str) -> bool:
                 parts.append(".*")
                 index += 2
                 continue
-            parts.append("[^/]*")
+            parts.append(f"{single}*")
         elif char == "?":
-            parts.append("[^/]")
+            parts.append(single)
         else:
             parts.append(re.escape(char))
         index += 1
     return re.match("".join(parts) + r"\Z", path) is not None
 
 
-def kilo_skill_read_allowlist_check(root: Path) -> dict[str, str]:
-    """IMP-231 (H12): the kilo.jsonc *read* allowlist must cover every directory
-    Kilo discovers skills in (`KILO_DEFAULT_SKILL_DIRS`). Kilo loads
-    `.agents/skills/` by default, but `permissions.file.read` only listed
-    `.kilo/**` and `.codex/**` — so when a skill told Kilo to open its
-    `references/*.md`, layer 3 of progressive disclosure fell to `ask`/deny. The
-    directories come from the shared constant rather than a literal here, so
-    adding a new mirror surfaces the missing permission instead of breaking a
-    flow silently. WARN, not FAIL, in the molde of `kilo_command_allowlist_check`:
-    a gap only costs the BA an extra Kilo prompt, it does not break governance.
-    """
-    from .adapters import KILO_DEFAULT_SKILL_DIRS
-    from .core.io import parse_json
+def kilo_config_schema_check(root: Path) -> dict[str, str]:
+    """IMP-235 (H12): the Kilo config must conform to the schema Kilo publishes.
 
-    label = "kilo.jsonc read allowlist covers skill discovery"
-    path = root / "kilo.jsonc"
-    if not path.exists():
-        return {"name": label, "status": "WARN", "detail": "kilo.jsonc missing"}
-    try:
-        parsed = parse_json(_strip_jsonc(path.read_text(encoding="utf-8-sig")))
-    except ValueError as exc:  # JSONDecodeError is a ValueError
-        return {"name": label, "status": "WARN", "detail": f"unparseable JSONC: {exc}"}
-    allow = [str(entry) for entry in parsed.get("permissions", {}).get("file", {}).get("read", [])]
-    # Probe the deepest path a skill can ask for (the progressive-disclosure
-    # reference layer): an allowlist entry that does not reach it does not cover
-    # the directory in practice, however broad it looks at the top level.
-    missing = [
-        directory
-        for directory in KILO_DEFAULT_SKILL_DIRS
-        if not any(
-            _glob_matches(entry, f"{directory}/any-skill/references/any-reference.md") for entry in allow
-        )
-    ]
+    This replaces IMP-231's `kilo_skill_read_allowlist_check`, whose premise was
+    false: `permissions.file.read` is not a key Kilo knows, so the allowlist it
+    guarded never applied. Kilo's config is the opencode lineage — the extension
+    declares SCHEMA = https://app.kilo.ai/config.json and rejects unknown
+    top-level keys with `Unrecognized key: <name>`, which is how the defect was
+    finally found: in the VS Code terminal, by eye, seven weeks after the fact.
+
+    So this check guards the shape, not our intent: `$schema` must be declared
+    (that is what makes the editor validate the file), every top-level key must
+    be one the schema publishes, and inside `permission` every sub-key and every
+    action must be known. Unknown keys are WARN rather than FAIL because a
+    third-party schema can grow and this list is a snapshot — but they can no
+    longer pass silently.
+
+    What this check deliberately does NOT claim: that Kilo *enforces* the rules.
+    A structural check over someone else's config is exactly what gave false
+    confidence before. Enforcement is proven only by observing Kilo's behaviour
+    with auto-approve off (doc 45 §3.2).
+    """
+    label = "kilo.jsonc conforms to Kilo's published schema"
+    parsed, error = _kilo_config(root)
+    if error:
+        return {"name": label, "status": "WARN", "detail": error}
+    problems: list[str] = []
+    if "$schema" not in parsed:
+        problems.append("no $schema declared (the editor cannot validate this file)")
+    unknown = sorted(key for key in parsed if key not in KILO_CONFIG_TOP_LEVEL_KEYS)
+    if unknown:
+        problems.append("unrecognized top-level key(s): " + ", ".join(unknown))
+    permission = parsed.get("permission")
+    if permission is not None and not isinstance(permission, (str, dict)):
+        problems.append("permission must be an action string or an object")
+    elif isinstance(permission, str) and permission not in KILO_PERMISSION_ACTIONS:
+        problems.append(f"permission action '{permission}' is not allow/ask/deny")
+    elif isinstance(permission, dict):
+        known = KILO_PERMISSION_RULE_KEYS | KILO_PERMISSION_ACTION_KEYS | {"*"}
+        for key, rule in permission.items():
+            if key not in known:
+                problems.append(f"unrecognized permission sub-key: {key}")
+                continue
+            actions = rule.values() if isinstance(rule, dict) else [rule]
+            if isinstance(rule, dict) and key in KILO_PERMISSION_ACTION_KEYS:
+                problems.append(f"permission.{key} takes a bare action, not a pattern map")
+            for action in actions:
+                if action not in KILO_PERMISSION_ACTIONS:
+                    problems.append(f"permission.{key}: '{action}' is not allow/ask/deny")
+    if problems:
+        return {"name": label, "status": "WARN", "detail": "; ".join(problems)}
+    return {"name": label, "status": "PASS", "detail": f"{len(parsed)} top-level key(s), all published"}
+
+
+def kilo_governed_deny_check(root: Path) -> dict[str, str]:
+    """IMP-235 (H12): the Kilo config must declare a `deny` for every governed
+    artifact glob, so the three surfaces protect the same set (the Claude
+    `PreToolUse` hook and the Codex pre-tool-use policy already do).
+
+    Scope of the claim, stated because IMP-235 exists precisely for over-claiming:
+    this verifies the rule is **declared** in the shape Kilo publishes. It cannot
+    verify Kilo enforces it — the schema documents no matching semantics for these
+    patterns (glob syntax, relative vs absolute paths, precedence), and none is
+    discoverable in the shipped extension. That is confirmed by behaviour, not
+    here. WARN because the deterministic enforcement all surfaces share is the
+    CLI itself; Kilo's config is defence in depth.
+    """
+    from .hooks_logic import GOVERNED_ARTIFACT_GLOBS
+
+    label = "kilo.jsonc denies editing governed artifacts"
+    parsed, error = _kilo_config(root)
+    if error:
+        return {"name": label, "status": "WARN", "detail": error}
+    permission = parsed.get("permission")
+    rules = permission.get("edit") if isinstance(permission, dict) else None
+    denied = {str(key) for key, action in rules.items() if action == "deny"} if isinstance(rules, dict) else set()
+    missing = [glob for glob in GOVERNED_ARTIFACT_GLOBS if glob not in denied]
     if missing:
-        return {"name": label, "status": "WARN", "detail": "read allowlist misses " + ", ".join(missing)}
-    return {"name": label, "status": "PASS", "detail": f"readable: {', '.join(KILO_DEFAULT_SKILL_DIRS)}"}
+        return {"name": label, "status": "WARN", "detail": "permission.edit does not deny " + ", ".join(missing)}
+    return {"name": label, "status": "PASS", "detail": f"{len(GOVERNED_ARTIFACT_GLOBS)} governed globs denied"}
 
 
 def mcp_dependency_check() -> dict[str, str]:

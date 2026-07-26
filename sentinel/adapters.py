@@ -138,10 +138,15 @@ SKILL_TARGET_DIRS = (AGENTS_SKILLS_DIR, CLAUDE_SKILLS_DIR)
 # reads `.kilo/skills/` and `~/.kilo/skills/`, and `.claude/skills/` only when
 # "Claude Code Compatibility" is enabled — an opt-in this repo does not require,
 # and one that would double-load the same 24 skills, so the Claude mirror stays
-# out on purpose. Whatever is listed here must be covered by the
-# `permissions.file.read` allowlist of `kilo.jsonc`, or progressive disclosure
-# (the `*/references/*.md` layer) falls to `ask`/deny inside Kilo. Guarded by
-# `doctor.kilo_skill_read_allowlist_check`.
+# out on purpose.
+#
+# IMP-235 corrected what used to be written here: this constant claimed the
+# directories had to be covered by a `permissions.file.read` allowlist in
+# `kilo.jsonc` or progressive disclosure would fall to `ask`/deny. That key does
+# not exist in Kilo's schema, so no allowlist ever applied — reads are open by
+# default and the `references/*.md` layer loads without any entry. Confirmed live
+# on Kilo Code 7.4.16 (2026-07-26): the 24 skills load from here and a reference
+# file opens without a prompt. See doc 45 §3.2.
 KILO_DEFAULT_SKILL_DIRS = (AGENTS_SKILLS_DIR,)
 
 

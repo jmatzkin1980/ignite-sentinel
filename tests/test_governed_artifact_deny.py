@@ -4,8 +4,13 @@ A governed artifact (project-brief.md, 03_specs/*.md, 04_backlog/*.md) may be
 mutated only through its owning command (invariant #1). This denies a hand
 Write/Edit at the tool boundary. The decision logic lives once in
 sentinel.hooks_logic and is enforced by the Codex hook (block), the Claude
-PreToolUse command hook (deny), and the Kilo file.deny globs — these guards must
-protect the same set. Reads and the CLI itself are never blocked.
+PreToolUse command hook (deny), and the Kilo `permission.edit` deny rules — these
+guards must protect the same set. Reads and the CLI itself are never blocked.
+
+IMP-235 caveat, worth stating because this file used to over-claim: the two hooks
+are deterministic code we run, so their enforcement is proven here. Kilo's side is
+vendor config — this asserts the rule is *declared* in the shape Kilo publishes;
+that Kilo honours it is confirmed by observing the editor, not by this test.
 """
 
 import json
@@ -114,9 +119,20 @@ class CrossSurfaceConsistency(unittest.TestCase):
     """The three surfaces must protect the same governed set."""
 
     def test_kilo_deny_lists_every_governed_glob(self):
-        text = KILO_CONFIG.read_text(encoding="utf-8")
+        # IMP-235: parsed, not a substring match. The substring version passed
+        # for seven weeks while the globs sat under a `permissions` key Kilo
+        # discards outright — present in the text, absent from the config.
+        from sentinel.core.io import parse_json
+        from sentinel.doctor import _strip_jsonc
+
+        parsed = parse_json(_strip_jsonc(KILO_CONFIG.read_text(encoding="utf-8-sig")))
+        rules = parsed["permission"]["edit"]
         for glob in GOVERNED_ARTIFACT_GLOBS:
-            self.assertIn(glob, text, f"kilo.jsonc file.deny is missing governed glob: {glob}")
+            self.assertEqual(
+                rules.get(glob),
+                "deny",
+                f"kilo.jsonc permission.edit does not deny governed glob: {glob}",
+            )
 
     def test_claude_settings_wire_the_pretooluse_deny(self):
         settings = json.loads(CLAUDE_SETTINGS.read_text(encoding="utf-8"))

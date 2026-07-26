@@ -1,97 +1,60 @@
-﻿{
+{
   // Ignite Sentinel repo-local Kilo Code configuration.
-  // Keep permissions narrow for laptop/VDI environments.
-  "permissions": {
-    "file": {
-      "read": [
-        "AGENTS.md",
-        "README.md",
-        "user_guide/**",
-        "installers/**",
-        "sentinel/**",
-        ".kilo/**",
-        ".codex/**",
-        // Skill discovery directory Kilo loads by default (Agent Skills compat).
-        // The 24 skills are mirrored here from `.codex/skills/`; without read
-        // access, layer 3 of progressive disclosure (`*/references/*.md`) falls
-        // to `ask`/deny the moment a skill tells Kilo to open one.
-        ".agents/**",
-        "workspaces/**",
-        "tests/**",
-        "pyproject.toml"
-      ],
-      "write": [
-        "workspaces/**",
-        "user_guide/**",
-        "installers/**",
-        "sentinel/**",
-        ".kilo/agents/**",
-        ".kilo/commands/**",
-        ".codex/skills/**",
-        "tests/**",
-        "README.md",
-        "AGENTS.md"
-      ],
-      "deny": [
-        ".git/**",
-        "**/.env",
-        "**/.env.*",
-        "**/*secret*",
-        "**/*token*",
-        "**/__pycache__/**",
-        "dist/**",
-        "build/**",
-        // Governed artifacts are regenerated only via their owning
-        // command (/brief, /specs, /backlog), never hand-edited. Kilo's editor
-        // cannot write them directly; the CLI (commands.allow) still regenerates
-        // them. Mirrors the Codex hook block and the Claude PreToolUse deny.
-        "workspaces/*/02_requirements/project-brief.md",
-        "workspaces/*/03_specs/*.md",
-        "workspaces/*/04_backlog/*.md"
-      ]
+  //
+  // IMP-235 (H12): this file used to carry a top-level `permissions` block with
+  // `file.read` / `file.write` / `file.deny` arrays and a `commands.allow` list.
+  // Kilo never read any of it: its config is the opencode lineage (the extension
+  // declares SCHEMA = https://app.kilo.ai/config.json) and rejected the whole
+  // block with `Unrecognized key: permissions`. The real key is `permission`
+  // (singular) and its value is a map of pattern -> "allow" | "ask" | "deny" per
+  // tool. The `$schema` line below is what makes the editor validate this file,
+  // so a shape error surfaces immediately instead of staying silent for weeks.
+  //
+  // Scope on purpose: only what PROTECTS is declared here. The old read
+  // allowlist is not ported — it restricted nothing in practice (Kilo allows
+  // reads by default) and reinstating it would only add prompts. Governed
+  // artifacts are what must stay protected, mirroring the Claude PreToolUse hook
+  // and the Codex pre-tool-use policy.
+  "$schema": "https://app.kilo.ai/config.json",
+  "permission": {
+    // Governed artifacts are regenerated only through their owning command
+    // (/brief, /specs, /backlog), never hand-edited. Kilo's editor must not
+    // write them; the CLI still regenerates them (see `bash` below). The
+    // catch-all comes first and the exceptions after, which is the ordering
+    // Kilo's own built-in presets use.
+    "edit": {
+      "*": "allow",
+      "workspaces/*/02_requirements/project-brief.md": "deny",
+      "workspaces/*/03_specs/*.md": "deny",
+      "workspaces/*/04_backlog/*.md": "deny",
+      ".git/**": "deny",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/*secret*": "deny",
+      "**/*token*": "deny",
+      "dist/**": "deny",
+      "build/**": "deny"
     },
-    "commands": {
-      "allow": [
-        "python -m sentinel --help",
-        "python -m sentinel /doctor",
-        "python -m sentinel /init *",
-        "python -m sentinel /ingest *",
-        "python -m sentinel /retrieve *",
-        "python -m sentinel /sync *",
-        "python -m sentinel /maturity *",
-        "python -m sentinel /gaps *",
-        "python -m sentinel /resolve-gaps *",
-        "python -m sentinel /brief *",
-        "python -m sentinel /context-request *",
-        "python -m sentinel /status *",
-        "python -m sentinel /export *",
-        "python -m sentinel /specs *",
-        "python -m sentinel /backlog *",
-        "python -m sentinel /quality *",
-        "python -m sentinel /health *",
-        "python -m sentinel /trace *",
-        "python -m sentinel /validate *",
-        "python -m sentinel /reindex *",
-        "python -m sentinel /dashboard *",
-        "python -m sentinel /stakeholders *",
-        "python -m sentinel /annotate *",
-        "python -m sentinel /challenge *",
-        "python -m sentinel /scrutinize *",
-        "python -m sentinel /assume *",
-        "python -m sentinel /self-review *",
-        "python -m sentinel /compose *",
-        "python -m sentinel /backlog-status *",
-        "python -m sentinel /story-status *",
-        "python -m sentinel /refine-backlog *",
-        "python -m sentinel /implementation-feedback *",
-        "python -m sentinel /view *",
-        "powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 *",
-        "pwsh -ExecutionPolicy Bypass -File installers/sentinel.ps1 *",
-        ".\\installers\\sentinel.ps1 *",
-        "sh installers/sentinel.sh *",
-        "python -m unittest discover -s tests"
-      ],
-      "default": "ask"
+    // Reads stay open (that is Kilo's default anyway); only local secrets are
+    // held back. Skills and their `references/*.md` layer load from
+    // `.agents/skills/` without any entry here.
+    "read": {
+      "*": "allow",
+      "**/.env": "ask",
+      "**/.env.*": "ask",
+      "**/*secret*": "ask",
+      "**/*token*": "ask"
+    },
+    // Pre-authorize the Sentinel CLI so the BA is not prompted for every
+    // lifecycle command. No catch-all is declared: anything not listed falls to
+    // Kilo's own default rather than to a stricter rule invented here.
+    "bash": {
+      "python -m sentinel *": "allow",
+      "python -m sentinel.adapters": "allow",
+      "python -m unittest discover -s tests": "allow",
+      "powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 *": "allow",
+      "pwsh -ExecutionPolicy Bypass -File installers/sentinel.ps1 *": "allow",
+      "sh installers/sentinel.sh *": "allow"
     }
   }
 }

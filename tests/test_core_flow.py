@@ -986,7 +986,9 @@ Second section paragraph.
 
     def test_kilo_command_allowlist_covers_runtime(self) -> None:
         # IMP-213 (H10, F-209-2): guard the Kilo permission surface so a newly
-        # added command can no longer silently fall to `default: ask`.
+        # added command can no longer silently fall to a prompt.
+        # IMP-235: the pre-authorization lives in `permission.bash` (Kilo's real
+        # schema), not in the `permissions.commands.allow` this used to write.
         from sentinel.doctor import kilo_command_allowlist_check
 
         repo_check = kilo_command_allowlist_check(ROOT.parent)
@@ -996,8 +998,9 @@ Second section paragraph.
         drifted.mkdir()
         (drifted / "kilo.jsonc").write_text(
             "{\n"
-            "  // narrowed allowlist missing most commands\n"
-            '  "permissions": { "commands": { "allow": ["python -m sentinel /doctor *"] } }\n'
+            '  "$schema": "https://app.kilo.ai/config.json",\n'
+            "  // narrowed pattern covering only one command\n"
+            '  "permission": { "bash": { "python -m sentinel /doctor *": "allow" } }\n'
             "}\n",
             encoding="utf-8",
         )

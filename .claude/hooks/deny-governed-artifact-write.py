@@ -7,7 +7,7 @@ mutating tool targets a governed Ignite Sentinel artifact (project-brief.md,
 command. This is tier 1 of the defense stack: it works in any Claude Code version
 (command hook, no Agent-hook support required), complementing the deep, opt-in
 `ignite-verifier` (tier 3, PostToolUse). The decision logic is shared with the
-Codex hook and the Kilo `file.deny` globs via sentinel.hooks_logic.
+Codex hook and the Kilo `permission.edit` deny rules via sentinel.hooks_logic.
 
 Wire it (versioned default policy) in .claude/settings.json under
 PreToolUse -> matcher "Write|Edit". Fails open (allows) if anything goes wrong —

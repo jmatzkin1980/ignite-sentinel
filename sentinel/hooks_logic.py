@@ -28,7 +28,9 @@ _LANGUAGE_SENSITIVE_SEGMENTS = ("/01_discovery/", "/02_requirements/", "/07_chan
 # (invariant #1). A hand Write/Edit to one of these is denied at the tool boundary
 # (IMP-179). This is the single source of truth for the protected set, shared by
 # every surface's guard — the Codex hook (block), the Claude PreToolUse hook
-# (deny), and the Kilo `file.deny` globs in kilo.jsonc.
+# (deny), and the Kilo `permission.edit` deny rules in kilo.jsonc. The two hooks
+# are deterministic code we run; Kilo's side is vendor config, so it is declared
+# here and confirmed by observing the editor (IMP-235).
 GOVERNED_ARTIFACT_GLOBS = (
     "workspaces/*/02_requirements/project-brief.md",
     "workspaces/*/03_specs/*.md",

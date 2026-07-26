@@ -201,7 +201,7 @@ Ignite works through repo-local files:
 - Skills are authored in `.codex/skills/` and mirrored by `python -m sentinel.adapters` into the directories the agents actually read: Codex loads `.agents/skills/`, Claude Code loads `.claude/skills/`, and Kilo Code loads `.agents/skills/` by default.
 - Kilo Code reads `.kilo/agents/`.
 - Kilo Code slash workflows live in `.kilo/commands/`.
-- Kilo Code permissions live in `kilo.jsonc`.
+- Kilo Code permissions live in `kilo.jsonc`, under the top-level `permission` key of the schema Kilo publishes (see `user_guide/07-kilo-code-adapter.md`).
 - The CLI works even without either extension.
 
 ## New Laptop Checklist
@@ -238,7 +238,9 @@ Use `py -m sentinel /doctor` if the Windows Python launcher is available, run `.
 
 ### Kilo Does Not Run A Command
 
-Check that the repo root is open in VS Code and that `kilo.jsonc`, `.kilo/agents/`, and `.kilo/commands/` are visible. If the command is not allowed automatically, Kilo may ask for approval because the config defaults to ask for unknown commands.
+Check that the repo root is open in VS Code and that `kilo.jsonc`, `.kilo/agents/`, and `.kilo/commands/` are visible. The Sentinel CLI is pre-authorized in `kilo.jsonc`, so a prompt usually means the invocation differs from the pre-authorized pattern — `py -m sentinel` or `.venv\Scripts\python` instead of `python -m sentinel`, for example. Approving it once is fine; if you want it silent, run it the documented way.
+
+If VS Code shows a configuration warning naming `kilo.jsonc` at startup, that file does not match Kilo's schema and Kilo is ignoring the offending block — fix the shape rather than the symptom. Run `python -m sentinel /doctor`, which checks the file against the keys Kilo publishes.
 
 ## Daily Use
 

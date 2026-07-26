@@ -143,7 +143,7 @@ cd ignite-sentinel
 python -m sentinel /doctor
 ```
 
-`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, command surface parity between runtime and manifest, skill frontmatter metadata, skill invocation-policy coherence (human-only `disable-model-invocation` skills match their registry and their mirrors), runtime stdlib purity, best-effort command mentions in operational docs, an agentic surface audit (committed hook/settings/`kilo.jsonc` JSON parses and carries no dangerous shell patterns), write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports a local-restricted `WARN`, not a failure.
+`/doctor` verifies Python, the repo-local Kilo/Codex/Claude adapters, command surface parity between runtime and manifest, skill frontmatter metadata, skill invocation-policy coherence (human-only `disable-model-invocation` skills match their registry and their mirrors), runtime stdlib purity, best-effort command mentions in operational docs, an agentic surface audit (committed hook/settings/`kilo.jsonc` JSON parses and carries no dangerous shell patterns), conformance of `kilo.jsonc` to the config schema Kilo publishes, write access, and the optional LanceDB memory layer. The core lifecycle has **no mandatory third-party dependencies** — without LanceDB, Sentinel runs the full lifecycle in deterministic `json-hybrid` mode and `/doctor` reports a local-restricted `WARN`, not a failure.
 
 Optional layers (only where the environment allows):
 
