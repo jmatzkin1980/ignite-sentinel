@@ -8,7 +8,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from .adapters import SKILL_TARGET_DIRS, manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
@@ -107,6 +107,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         kilo_command_allowlist_check(root),
         kilo_config_schema_check(root),
         kilo_governed_deny_check(root),
+        claude_settings_schema_check(root),
+        surface_contract_registry_check(root),
         command_description_neutrality_check(),
         *claude_command_checks(root),
         memory_dependency_check(),
@@ -1023,6 +1025,262 @@ def kilo_governed_deny_check(root: Path) -> dict[str, str]:
     if missing:
         return {"name": label, "status": "WARN", "detail": "permission.edit does not deny " + ", ".join(missing)}
     return {"name": label, "status": "PASS", "detail": f"{len(GOVERNED_ARTIFACT_GLOBS)} governed globs denied"}
+
+
+class SurfaceContract(NamedTuple):
+    """One path in this repo that a third-party agent reads as configuration.
+
+    `observed` is the ISO date on which a person watched the surface honour this
+    file, or `""` when nobody ever has. It is maintainer-asserted: no check can
+    confirm it (see `surface_contract_registry_check`).
+    """
+
+    surfaces: tuple[str, ...]
+    live_check: str
+    observed: str
+    note: str = ""
+    shipped: bool = True  # False = git-ignored and per-machine; the repo makes no claim about it
+
+
+# IMP-236 (H12) — the registry of surface contracts.
+#
+# Why a constant and not a table in a document: our unit suite cannot cross the
+# surface boundary. Nothing in it invokes Kilo Code, Claude Code or Codex — and
+# nothing can, a unittest does not open VS Code — so every assertion about these
+# paths has the form "our file says what we believe" and none has the form "the
+# tool did what the file says". `kilo.jsonc` is the precedent: it carried a
+# top-level `permissions` key Kilo does not recognize from 2026-06-03 to
+# 2026-07-26, four items were built on top of it, `/doctor` stayed green the
+# whole time, and one minimal manual check in Kilo found it in a minute. Every
+# contract that ever had a live observation survived; the only one that never
+# had one rotted. A Markdown table of this rots the same way — a constant a
+# check guards does not.
+SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
+    "AGENTS.md": SurfaceContract(
+        surfaces=("Codex", "any agent honouring the AGENTS.md convention"),
+        live_check="Start a Codex session at the repo root and confirm the operating rules are in context (ask it to state a non-negotiable rule it did not read from a file you named).",
+        observed="",
+    ),
+    "CLAUDE.md": SurfaceContract(
+        surfaces=("Claude Code", "Claude Desktop"),
+        live_check="Start a Claude Code session at the repo root; the file is auto-loaded into the session context.",
+        observed="2026-07-26",
+    ),
+    "CLAUDE.local.md": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Same session start as CLAUDE.md: the local file is loaded alongside it.",
+        observed="2026-07-26",
+        note="Git-ignored maintainer memory. Registered because Claude Code loads it, not because the repo ships it.",
+        shipped=False,
+    ),
+    ".agents/skills": SurfaceContract(
+        surfaces=("Codex", "Kilo Code"),
+        live_check="Invoke `sentinel-backlog` on the surface and have it read `references/handoff-contracts.md`; the text must match the repo byte for byte.",
+        observed="2026-07-26",
+        note="Observed in Kilo Code only (24 skills listed, the `references/` layer read). Codex discovery from this directory has never been observed.",
+    ),
+    ".claude/agents": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="`ignite-verifier` appears in the subagent list; with the opt-in PostToolUse hook enabled it runs after a Write/Edit on a governed artifact.",
+        observed="",
+        note="The hand-written inventory that motivated this registry listed 13 contracts and missed this one. Discovery below found it.",
+    ),
+    ".claude/commands": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Type `/` in Claude Code: the commands appear with the `argument-hint` of IMP-225, and running one executes the CLI from the repo root.",
+        observed="",
+    ),
+    ".claude/hooks": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Attempt a Write/Edit on a governed artifact; the deny hook blocks it with an actionable message naming the owning command.",
+        observed="2026-07-07",
+        note="Observed by the IMP-178 smoke (H6). Same observation covers `.claude/settings.json`, which registers the hook.",
+    ),
+    ".claude/settings.json": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Same as `.claude/hooks`: if the deny fires, Claude Code read and applied this file.",
+        observed="2026-07-07",
+    ),
+    ".claude/settings.local.json": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Per-machine file. A permission listed here stops prompting; the opt-in verifier hook enabled here fires after a governed Write/Edit.",
+        observed="",
+        note="Git-ignored, per-machine. Registered because Claude Code reads it; the repo cannot make a claim about its contents.",
+        shipped=False,
+    ),
+    ".claude/skills": SurfaceContract(
+        surfaces=("Claude Code",),
+        live_check="Ask Claude Code to use `sentinel-backlog`; SKILL.md loads and `references/handoff-contracts.md` is readable from it.",
+        observed="",
+    ),
+    ".codex/hooks": SurfaceContract(
+        surfaces=("Codex",),
+        live_check="Attempt a write to a governed artifact in Codex; `pre_tool_use_policy.py` must refuse it.",
+        observed="",
+    ),
+    ".kilo/agents": SurfaceContract(
+        surfaces=("Kilo Code",),
+        live_check="Settings -> Agent Behaviour lists the agents as `custom` with the `description` verbatim from the file.",
+        observed="2026-07-26",
+    ),
+    ".kilo/commands": SurfaceContract(
+        surfaces=("Kilo Code",),
+        live_check="Type `/` in Kilo Code: the commands appear and running one executes the CLI from the repo root.",
+        observed="",
+    ),
+    ".kilocodeignore": SurfaceContract(
+        surfaces=("Kilo Code",),
+        live_check="Ask Kilo Code for a path this file excludes; it must not be read or indexed.",
+        observed="",
+    ),
+    "kilo.jsonc": SurfaceContract(
+        surfaces=("Kilo Code",),
+        live_check="Open the repo in Kilo Code with auto-approve off: no `Configuration is invalid at kilo.jsonc` warning at startup, an edit to a governed artifact is stopped, an unlisted command asks and a listed one does not.",
+        observed="2026-07-26",
+        note="The startup warning of 2026-07-26 proved Kilo reads and validates this file — that is how the seven-week defect surfaced. The `permission` block IMP-235 wrote is declared, not yet observed enforcing.",
+    ),
+}
+
+# Paths inside the surface roots that are NOT contracts, with the reason. Kept
+# separate from the registry so "we own this" is a stated decision rather than
+# an omission.
+SURFACE_CONTRACT_EXEMPT: dict[str, str] = {
+    ".codex/skills": "canonical authoring source read by no agent (IMP-233); mirrored byte-identical to .agents/skills and .claude/skills, which are the contracts",
+}
+
+# Directories a third-party agent owns: every immediate child is a contract
+# until stated otherwise. This is where surfaces actually grow (a new
+# `.claude/output-styles/`, a new `.kilo/rules/`), so discovery here is
+# exhaustive rather than curated.
+SURFACE_CONTRACT_ROOTS = (".agents", ".claude", ".codex", ".kilo")
+
+# Repo-root files agent tools read by convention. Unlike the directories above
+# this list IS curated — a brand-new vendor's root file is only discovered once
+# its name is added here — so it carries names we do not ship yet.
+SURFACE_CONTRACT_ROOT_FILES = (
+    "AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", "GEMINI.md",
+    "kilo.jsonc", "kilo.json", "opencode.jsonc", "opencode.json",
+    ".kilocodeignore", ".cursorrules", ".windsurfrules", ".aiderignore", ".mcp.json",
+)
+
+
+def discover_surface_contracts(root: Path) -> list[str]:
+    """Return the repo-relative paths that look like a third-party surface contract.
+
+    Two sources: every immediate child of `SURFACE_CONTRACT_ROOTS` (exhaustive)
+    and the curated `SURFACE_CONTRACT_ROOT_FILES` (only what is named). Dotfiles
+    and `__pycache__` inside a surface root are tooling residue, not contracts.
+    """
+    found: list[str] = []
+    for name in SURFACE_CONTRACT_ROOTS:
+        base = root / name
+        if not base.is_dir():
+            continue
+        for child in base.iterdir():
+            if child.name.startswith(".") or child.name == "__pycache__":
+                continue
+            found.append(child.relative_to(root).as_posix())
+    for name in SURFACE_CONTRACT_ROOT_FILES:
+        if (root / name).exists():
+            found.append(name)
+    return sorted(found)
+
+
+def surface_contract_registry_check(root: Path) -> dict[str, str]:
+    """IMP-236 (H12): every surface contract in the repo must be registered with
+    the live check that proves it, so adding one without saying how it is
+    verified is visible instead of waiting for someone to trip over it.
+
+    What this check can assert: that no path this repo hands to Kilo Code,
+    Claude Code or Codex is missing from `SURFACE_CONTRACTS`, and that no
+    registered path has silently disappeared.
+
+    What it cannot assert, stated here because over-claiming is the exact defect
+    that produced this item: **that an `observed` date is true.** Nothing in a
+    Python process can confirm a person watched VS Code behave. The date is a
+    maintainer's word; this check only guarantees there is a field to put it in
+    and a procedure written next to it. Treat an entry with `observed=""` as
+    "never verified", not as "verified and undated".
+
+    WARN, not FAIL: an unregistered contract is a gap in method, and the
+    lifecycle keeps working while it is open. It must be loud, not blocking.
+    This is maintainer scope (the `workspaces/` two-audiences rule of IMP-212
+    applies): a user who adds their own file under `.claude/` in their clone
+    trips it too, so the detail points at MAINTAINERS.md rather than assuming
+    the reader is evolving the framework.
+    """
+    label = "surface contracts are registered with a live check"
+    discovered = discover_surface_contracts(root)
+    unregistered = [
+        path for path in discovered
+        if path not in SURFACE_CONTRACTS and path not in SURFACE_CONTRACT_EXEMPT
+    ]
+    vanished = [
+        path for path, contract in sorted(SURFACE_CONTRACTS.items())
+        if contract.shipped and not (root / path).exists()
+    ]
+    problems: list[str] = []
+    if unregistered:
+        problems.append(
+            "read by a third-party surface, with no live check declared (see MAINTAINERS.md, "
+            "\"Surface contracts are verified in the tool\"): " + ", ".join(sorted(unregistered))
+        )
+    if vanished:
+        problems.append("registered but absent from the repo: " + ", ".join(vanished))
+    if problems:
+        return {"name": label, "status": "WARN", "detail": "; ".join(problems)}
+    never = sum(1 for contract in SURFACE_CONTRACTS.values() if not contract.observed)
+    detail = f"{len(SURFACE_CONTRACTS)} contracts registered"
+    if never:
+        detail += f"; {never} never observed live (maintainer-asserted field, not machine-verifiable)"
+    return {"name": label, "status": "PASS", "detail": detail}
+
+
+# Published by SchemaStore, matched to `**/.claude/settings.json` in its catalog.
+# IMP-236 looked for a vendor schema the way IMP-235 did with Kilo — in the
+# shipped binary, not by assumption — and the verdict is written down because a
+# negative result rots as fast as a positive one:
+#   * Anthropic publishes NO settings-schema URL of its own. The Claude Code
+#     2.1.208 binary references `anthropic.com/claude-code/plugin.schema.json`
+#     for plugins and writes `schemastore.org/claude-code-keybindings.json` into
+#     the keybindings file it generates, and has no settings equivalent.
+#   * The settings parser DOES accept the key: its schema opens with
+#     `$schema: A.string().optional().describe("JSON Schema reference for Claude
+#     Code settings")`, and the object ends in `.passthrough()`, so declaring it
+#     cannot invalidate the file.
+#   * SchemaStore's catalog carries "Claude Code Settings" with fileMatch
+#     `**/.claude/settings.json` and `additionalProperties: true` (our `_comment`
+#     from IMP-179 stays valid). Community-maintained, not vendor-authoritative
+#     — which is why the URL lives here with its provenance instead of being
+#     mistaken for a vendor guarantee.
+CLAUDE_SETTINGS_SCHEMA_URL = "https://www.schemastore.org/claude-code-settings.json"
+
+
+def claude_settings_schema_check(root: Path) -> dict[str, str]:
+    """IMP-236 (H12): `.claude/settings.json` must declare the published
+    `$schema`, the same cheap signal IMP-235 added to `kilo.jsonc`.
+
+    It is one line per file and it moves a whole class of failure — a key the
+    tool does not recognize — from "silent for seven weeks" to "underlined in
+    the editor while you type it". WARN: a missing declaration costs the editor
+    hint, it does not break governance.
+    """
+    from .core.io import read_json
+
+    label = "Claude settings declare the published $schema"
+    path = root / ".claude" / "settings.json"
+    if not path.exists():
+        return {"name": label, "status": "WARN", "detail": ".claude/settings.json missing"}
+    try:
+        parsed = read_json(path)
+    except ValueError as exc:  # JSONDecodeError is a ValueError
+        return {"name": label, "status": "WARN", "detail": f"unparseable JSON: {exc}"}
+    declared = parsed.get("$schema") if isinstance(parsed, dict) else None
+    if declared == CLAUDE_SETTINGS_SCHEMA_URL:
+        return {"name": label, "status": "PASS", "detail": CLAUDE_SETTINGS_SCHEMA_URL}
+    if declared:
+        return {"name": label, "status": "WARN", "detail": f"declares {declared}, expected {CLAUDE_SETTINGS_SCHEMA_URL}"}
+    return {"name": label, "status": "WARN", "detail": f"no $schema declared; expected {CLAUDE_SETTINGS_SCHEMA_URL}"}
 
 
 def mcp_dependency_check() -> dict[str, str]:
