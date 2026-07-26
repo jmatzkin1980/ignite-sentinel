@@ -21,7 +21,7 @@ class BrownfieldHarvestSkillTests(unittest.TestCase):
 
     def test_metadata_passes(self):
         checks = {c["name"]: c for c in skill_metadata_checks(REPO)}
-        entry = checks[f"Codex skill metadata: {SKILL}"]
+        entry = checks[f"skill metadata: {SKILL}"]
         self.assertEqual(entry["status"], "PASS", entry.get("detail", ""))
 
     def test_mirrors_in_sync(self):

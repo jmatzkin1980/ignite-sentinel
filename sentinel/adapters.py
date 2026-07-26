@@ -108,6 +108,27 @@ def out_of_sync(root: Path | None = None) -> list[str]:
     return issues
 
 
+# IMP-233 (H12): `.codex/skills` is this repo's canonical *authoring* location and
+# is NOT a discovery path for any surface — not even Codex, whose name it carries
+# for historical reasons. What each agent actually reads (verified against each
+# product's official documentation, 2026-07-26):
+#
+#   | Surface     | Skill discovery directories                                    |
+#   |-------------|----------------------------------------------------------------|
+#   | Codex       | `.agents/skills` (cwd → parent dirs → repo root),               |
+#   |             | `$HOME/.agents/skills`, `/etc/codex/skills`                     |
+#   | Claude Code | `.claude/skills/` (plus user-level and plugin skills)           |
+#   | Kilo Code   | `.kilo/skills/`, `~/.kilo/skills/`, `.agents/skills/` (compat,   |
+#   |             | loaded by default), `.claude/skills/` (only with "Claude Code    |
+#   |             | Compatibility" enabled), plus `skills.paths`/`skills.urls`       |
+#
+# So every surface is served through `SKILL_TARGET_DIRS`, and the mirrors are
+# byte-identical **by design**: one SKILL.md, one behaviour, three surfaces. That
+# identity is enforced by `skills_out_of_sync`, so a per-surface divergence is not
+# a matter of editing one
+# mirror — it would require per-surface rendering (as `render_kilo_command` /
+# `render_claude_command` do for slash commands), which skills do not have today.
+# Writing the surface name into a skill body is therefore a leak, not a variant.
 CANONICAL_SKILLS_DIR = ".codex/skills"
 AGENTS_SKILLS_DIR = ".agents/skills"
 CLAUDE_SKILLS_DIR = ".claude/skills"
@@ -132,9 +153,12 @@ def skill_files(root: Path) -> list[Path]:
 def regenerate_skills(root: Path | None = None) -> dict[str, int]:
     """Materialize the canonical skills into the Agent Skills standard directories (IMP-018).
 
-    `.codex/skills/` is the canonical source. `.agents/skills/` (Codex, Cursor,
-    Gemini CLI and other standard readers) and `.claude/skills/` (Claude Code)
-    are generated copies; edit the canonical source and regenerate.
+    `.codex/skills/` is the canonical source and no agent reads it: the copies
+    under `SKILL_TARGET_DIRS` are what the three surfaces discover (see the
+    per-surface discovery table next to that constant). `.agents/skills/` serves
+    Codex, Kilo (compat, by default) and other standard readers; `.claude/skills/`
+    serves Claude Code. Edit the canonical source and regenerate — never a mirror,
+    and never by hand.
     """
     root = root or Path.cwd()
     base = root / CANONICAL_SKILLS_DIR

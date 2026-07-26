@@ -64,7 +64,7 @@ class SkillMetadataChecksTests(unittest.TestCase):
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text("# Sentinel Annotate\n\nBody without frontmatter.\n", encoding="utf-8")
             checks = {check["name"]: check for check in skill_metadata_checks(root)}
-            broken = checks["Codex skill metadata: sentinel-annotate"]
+            broken = checks["skill metadata: sentinel-annotate"]
             self.assertEqual(broken["status"], "FAIL")
             self.assertIn("frontmatter", broken["detail"])
 
@@ -78,7 +78,7 @@ class SkillMetadataChecksTests(unittest.TestCase):
                 encoding="utf-8",
             )
             checks = {check["name"]: check for check in skill_metadata_checks(root)}
-            self.assertEqual(checks["Codex skill metadata: sentinel-annotate"]["status"], "FAIL")
+            self.assertEqual(checks["skill metadata: sentinel-annotate"]["status"], "FAIL")
 
 
 class RouterMentionGuardTests(unittest.TestCase):

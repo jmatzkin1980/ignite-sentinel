@@ -1,11 +1,19 @@
 """Anti-drift guards for the handcrafted Kilo agents (IMP-173).
 
-Kilo has no skills — the 7 agents in ``.kilo/agents/`` are its model-facing depth
-and are maintained by hand (no generator). Before IMP-173 they were frozen at
-~IMP-058: they invited hand-editing/patching of governed artifacts and knew none
-of the H1-H5 runtime. These guards (mirroring the skill mention-checks of
-IMP-163) fail if a forbidden invitation returns or a required capability mention
-is lost, and lean on the new ``/doctor`` frontmatter check.
+The 7 agents in ``.kilo/agents/`` are maintained by hand (no generator). Before
+IMP-173 they were frozen at ~IMP-058: they invited hand-editing/patching of
+governed artifacts and knew none of the H1-H5 runtime. These guards (mirroring
+the skill mention-checks of IMP-163) fail if a forbidden invitation returns or a
+required capability mention is lost, and lean on the ``/doctor`` frontmatter
+check.
+
+IMP-233 (H12): this module used to open with "Kilo has no skills — the 7 agents
+are its model-facing depth". That premise is false and it is what made the
+progressive-disclosure breakage of IMP-231 invisible for so long: Kilo loads
+``.agents/skills/`` by default, so the same 24 skills operate there, and 17 of
+them have no agent counterpart at all. The agents are Kilo's mode/routing layer,
+not a substitute for skills; whether their duplicated depth should be thinned is
+an open decision (IMP-234), so these guards stay as they are.
 """
 
 import re

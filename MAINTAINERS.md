@@ -10,8 +10,18 @@ The rules below exist because, in this repository, the framework and its trial p
 - **Change via branch + PR.** Don't assume direct push to `main`.
 - **`workspaces/` has two audiences (IMP-212).** The root `.gitignore` ignores `workspaces/*` wholesale here so this public framework repo never ships real or test client data — that is the maintainer-scope default, not a claim that workspaces aren't versionable. They are: for a *user's own* (typically private) project repo, the matured workspace is the versionable source of truth (as `AGENTS.md`/`CLAUDE.md` state). Every workspace `/init` creates carries its own `.gitignore` (from `WORKSPACE_GITIGNORE` in `sentinel/workspace.py`) that the user controls; a user un-ignores their project with `!workspaces/<ID>/`. Never relax the blanket rule in a way that lets a maintainer commit real client data to this public repo.
 - **Evolve surfaces together.** When you change behavior, update runtime (`sentinel/`), tests, skills (`.codex/skills/`, mirrored to `.agents/skills/` and `.claude/skills/`), command adapters (regenerated via `python -m sentinel.adapters`, never by hand), the MCP server (`sentinel/mcp.py`), docs (`README.md`, `user_guide/`), and `/doctor` together, so the cloned-repo experience stays coherent.
+- **Write to the source, never to a mirror.** `.codex/skills/` is a canonical authoring location that *no agent discovers*: Codex reads `.agents/skills`, Claude Code reads `.claude/skills/`, and Kilo Code loads `.agents/skills/` by default. Both mirrors are generated and byte-identical by design — one SKILL.md, one behaviour on three surfaces — and skills have no per-surface rendering, so a surface name written into a skill is a leak, not a variant. The per-surface discovery table lives next to `SKILL_TARGET_DIRS` in `sentinel/adapters.py`.
 - **Verify before pushing.** `.\verify.ps1` (unit suite + `/doctor` + evals) must be green; smoke-test the lifecycle on a `tests/fixtures/evals/` fixture when runtime changed. Don't push while tests or `/doctor` fail.
 - **Tune project domains and maturity gates** in `sentinel.config.yaml`.
+
+## Semantic verification is portable; the automation is not
+
+Two layers check that a governed artifact still matches its cited evidence, and only one of them is portable:
+
+- **`/self-review` is the portable channel.** It is runtime, so it runs identically on Codex, Kilo Code, Claude Code and the bare CLI: it validates skeptical PRD/spec findings and hard-to-reverse `DEC-*` decisions against verbatim local citations, writes `03_specs/self_review/`, merges cited gaps as `origin: self-review`, and never rewrites artifacts by itself.
+- **`ignite-verifier` is surface convenience, not an exclusive capability.** The read-only subagent in `.claude/agents/` plus its opt-in `PostToolUse` hook apply the same doctrine *automatically* after a `Write`/`Edit` on a governed artifact, and only in Claude Code. What a Codex or Kilo user lacks is the automatic trigger, not the verification.
+
+The practical rule when evolving the framework: **no doctrine, gate, or artifact contract may depend on `ignite-verifier` existing.** If a rule matters, it belongs in the runtime — the CLI is the only layer all three surfaces share. The deterministic prohibition on hand-editing governed artifacts is a good model of that: it is enforced on every surface (Claude `PreToolUse` hook, `deny` globs in `kilo.jsonc`, Codex hook), not by a subagent.
 
 ## Working with examples and confidential material
 

@@ -391,7 +391,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         check_names = {check["name"] for check in report["checks"]}
         self.assertIn("Codex Desktop and agent instructions", check_names)
         self.assertIn("Codex hooks adapter", check_names)
-        self.assertIn("Codex skill: sentinel-command-router", check_names)
+        self.assertIn("skill source: sentinel-command-router", check_names)
         self.assertIn("Kilo slash command: /sentinel", check_names)
         self.assertIn("Claude Code and Claude Desktop instructions", check_names)
         self.assertIn("Claude Code slash commands", check_names)

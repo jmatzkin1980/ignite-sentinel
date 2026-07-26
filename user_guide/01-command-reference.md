@@ -48,8 +48,8 @@ Checks:
 - core runtime
 - `AGENTS.md`
 - repository quick start
-- Codex skills and hooks adapter
-- required Codex skills
+- canonical skills source, generated skill mirrors (`.agents/skills`, `.claude/skills`), and Codex hooks adapter
+- required skills present at the canonical source
 - skill frontmatter metadata (`FAIL` when a canonical skill's name/description is missing or unparseable, `WARN` when the description names a specific agent)
 - skill invocation policy coherence (`FAIL` when the set of skills carrying `disable-model-invocation: true` drifts from the human-only registry, or when that flag disagrees between a canonical skill and its mirrors)
 - Kilo Code agents adapter
