@@ -97,6 +97,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *codex_skill_checks(root),
         *skill_metadata_checks(root),
         *skill_invocation_checks(root),
+        skill_spec_compliance_check(root),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -278,7 +279,13 @@ def skill_invocation_checks(root: Path) -> list[dict[str, str]]:
     missing = sorted(EXPECTED_HUMAN_ONLY_SKILLS - canonical_flagged)
     unexpected = sorted(canonical_flagged - EXPECTED_HUMAN_ONLY_SKILLS)
     if not missing and not unexpected:
+        # IMP-232 (H12): name the reach of the policy. `disable-model-invocation`
+        # is a Claude Code vendor field (AGENT_SKILL_VENDOR_FIELDS), so these
+        # skills are human-only *there*; Codex and Kilo ignore the flag and can
+        # still auto-load them. The rules themselves stay always-on via
+        # AGENTS.md/CLAUDE.md, so the gap is scope of the flag, not governance.
         detail = "human-only: " + (", ".join(sorted(EXPECTED_HUMAN_ONLY_SKILLS)) or "none")
+        detail += f" ({AGENT_SKILL_VENDOR_FIELDS['disable-model-invocation']})"
         checks.append({"name": label, "status": "PASS", "detail": detail})
     else:
         details = []
@@ -310,6 +317,108 @@ def skill_invocation_checks(root: Path) -> list[dict[str, str]]:
             checks.append({"name": label, "status": "PASS", "detail": f"human-only coherent across {len(SKILL_TARGET_DIRS)} mirrors"})
 
     return checks
+
+
+# IMP-232 (H12): the Agent Skills standard, verified against the published spec
+# on 2026-07-26. Until now the only guarantees over our 24 skills were byte
+# identity between mirrors (`skills_out_of_sync`) and name/description sanity
+# (`skill_metadata_checks`); nothing checked the limits of the standard itself,
+# so the skills passed by discipline rather than by enforcement.
+AGENT_SKILL_STANDARD_FIELDS = frozenset(
+    {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
+)
+
+# Vendor extensions must be declared here with the surface that honours them, so
+# a field that only works on one agent can never enter silently. Every mirror is
+# byte-identical, so a vendor field ships to all three surfaces regardless: what
+# this registry records is where it actually *does* something.
+AGENT_SKILL_VENDOR_FIELDS = {
+    "disable-model-invocation": "Claude Code only; no-op in Codex and Kilo",
+}
+
+MAX_SKILL_NAME_LENGTH = 64
+MAX_SKILL_DESCRIPTION_LENGTH = 1024
+# Progressive-disclosure budget: a skill longer than this belongs in
+# `references/`, which is the doctrine the standard's own layering encodes.
+MAX_SKILL_LINES = 500
+# Standard: lowercase alphanumerics in hyphen-separated segments — no leading,
+# trailing or doubled hyphen, which `[a-z0-9]+(-[a-z0-9]+)*` already forbids.
+_SKILL_NAME_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+
+
+def skill_spec_violations(root: Path) -> list[str]:
+    """Validate every canonical skill against the Agent Skills standard.
+
+    Deterministic and stdlib-only, in the spirit of the runtime purity guard.
+    Scope is `.codex/skills` (the canonical source): the mirrors are already
+    byte-identical by `skills_out_of_sync`, and scanning the directory rather
+    than `REQUIRED_CODEX_SKILLS` means a skill added without registering it is
+    still held to the spec. Deliberately does *not* re-check `name` == directory
+    or non-empty metadata — those stay owned by `skill_metadata_checks`, so a
+    single defect is reported once, by one check.
+    """
+    from .core.markdown import parse_frontmatter
+
+    base = root / ".codex" / "skills"
+    if not base.is_dir():
+        return [".codex/skills: missing"]
+
+    violations: list[str] = []
+    for directory in sorted(item for item in base.iterdir() if item.is_dir()):
+        skill = directory.name
+        path = directory / "SKILL.md"
+        if not path.exists():
+            violations.append(f"{skill}: SKILL.md missing")
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        frontmatter = parse_frontmatter(text)
+
+        name = str(frontmatter.get("name", "")).strip()
+        if len(name) > MAX_SKILL_NAME_LENGTH:
+            violations.append(f"{skill}: name is {len(name)} chars (max {MAX_SKILL_NAME_LENGTH})")
+        if name and not _SKILL_NAME_PATTERN.match(name):
+            violations.append(f"{skill}: name '{name}' is not lowercase hyphen-separated")
+
+        description = str(frontmatter.get("description", "")).strip()
+        if len(description) > MAX_SKILL_DESCRIPTION_LENGTH:
+            violations.append(
+                f"{skill}: description is {len(description)} chars (max {MAX_SKILL_DESCRIPTION_LENGTH})"
+            )
+
+        lines = len(text.splitlines())
+        if lines > MAX_SKILL_LINES:
+            violations.append(f"{skill}: SKILL.md is {lines} lines (max {MAX_SKILL_LINES}); split into references/")
+
+        unknown = sorted(
+            set(frontmatter) - AGENT_SKILL_STANDARD_FIELDS - set(AGENT_SKILL_VENDOR_FIELDS)
+        )
+        if unknown:
+            violations.append(f"{skill}: undeclared frontmatter field(s): {', '.join(unknown)}")
+
+        for item in sorted(directory.rglob("*")):
+            if not item.is_file():
+                continue
+            relative = item.relative_to(directory)
+            if len(relative.parts) > 2:
+                violations.append(f"{skill}: {relative.as_posix()} nests deeper than one reference level")
+
+    return violations
+
+
+def skill_spec_compliance_check(root: Path) -> dict[str, str]:
+    """IMP-232 (H12): report the Agent Skills spec verdict of
+    `skill_spec_violations`. FAIL, not WARN: an over-long name, an oversize
+    description or an undeclared frontmatter field is how a skill becomes
+    invisible or gets rejected by a surface — structural, like the rest of
+    `skill_metadata_checks`' FAIL branch, not a matter of wording.
+    """
+    label = "skill spec compliance (Agent Skills standard)"
+    violations = skill_spec_violations(root)
+    if violations:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
+    total = len([item for item in (root / ".codex" / "skills").iterdir() if item.is_dir()])
+    vendor = ", ".join(f"{field} ({surface})" for field, surface in sorted(AGENT_SKILL_VENDOR_FIELDS.items()))
+    return {"name": label, "status": "PASS", "detail": f"{total} skills valid; vendor fields: {vendor}"}
 
 
 def kilo_agent_metadata_checks(root: Path) -> list[dict[str, str]]:
