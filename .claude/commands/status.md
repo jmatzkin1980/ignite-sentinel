@@ -1,5 +1,6 @@
 ---
 description: Show project phase, health, language, gap counts, and next step.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Status

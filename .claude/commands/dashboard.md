@@ -1,5 +1,6 @@
 ---
 description: Generate a local read-only HTML portfolio dashboard for all Ignite workspaces.
+argument-hint: [OPTIONS]
 ---
 
 # Ignite Dashboard

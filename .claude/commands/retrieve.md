@@ -1,5 +1,6 @@
 ---
 description: Retrieve a focused context pack for an Ignite workflow.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Retrieve

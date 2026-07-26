@@ -1,5 +1,6 @@
 ---
 description: Generate or refresh the mature Ignite Sentinel project brief.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Brief

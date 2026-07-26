@@ -1,5 +1,6 @@
 ---
 description: Audit Ignite workspace health, gaps, traceability, and readiness.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Health

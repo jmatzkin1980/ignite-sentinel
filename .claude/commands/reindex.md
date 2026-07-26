@@ -1,5 +1,6 @@
 ---
 description: Rebuild Ignite local memory after artifact updates.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Reindex

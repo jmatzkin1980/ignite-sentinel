@@ -1,5 +1,6 @@
 ---
 description: Metabolize client responses, meetings, Slack/email content, or domain updates.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Sync

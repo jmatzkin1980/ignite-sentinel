@@ -1,5 +1,6 @@
 ---
 description: Register or list project stakeholders and route elicitation gaps by owner.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Stakeholders

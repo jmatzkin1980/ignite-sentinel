@@ -1,5 +1,6 @@
 ---
 description: Generate initial quality and test-case coverage from the backlog.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Quality

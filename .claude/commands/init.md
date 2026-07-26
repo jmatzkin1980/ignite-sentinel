@@ -1,5 +1,6 @@
 ---
 description: Create an Ignite Sentinel project workspace.
+argument-hint: PROJECT_ID
 ---
 
 # Ignite Init

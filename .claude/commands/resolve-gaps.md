@@ -1,5 +1,6 @@
 ---
 description: Process a client or domain response to discovery gaps.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Resolve Gaps

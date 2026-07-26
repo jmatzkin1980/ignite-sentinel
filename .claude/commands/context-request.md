@@ -1,5 +1,6 @@
 ---
 description: Generate a domain-specific context request.
+argument-hint: PROJECT_ID --domain technology|design|quality|frontend|backend
 ---
 
 # Ignite Context Request

@@ -1,5 +1,6 @@
 ---
 description: Register BA-owned governed assumptions with risk, uncertainty, cited basis, and ledger visibility.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Assume

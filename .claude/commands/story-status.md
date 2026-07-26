@@ -1,5 +1,6 @@
 ---
 description: Update governed backlog story lifecycle status and owner.
+argument-hint: PROJECT_ID --story US-NNN --set STATE [OPTIONS]
 ---
 
 # Ignite Story Status

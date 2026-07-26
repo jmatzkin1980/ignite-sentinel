@@ -1,5 +1,6 @@
 ---
 description: Run skeptical self-review over generated PRD/specs and register cited gaps plus hard-to-reverse decisions.
+argument-hint: PROJECT_ID --source PATH
 ---
 
 # Ignite Self Review

@@ -1,5 +1,6 @@
 ---
 description: Generate the BA-facing backlog board and rollup by epic/status.
+argument-hint: PROJECT_ID [OPTIONS]
 ---
 
 # Ignite Backlog Status
