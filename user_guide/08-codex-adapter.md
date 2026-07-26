@@ -1,12 +1,14 @@
 ﻿# Codex Adapter
 
-Ignite Sentinel includes repo-local Codex skills under:
+Ignite Sentinel includes 24 repo-local skills. Their canonical source — the only place they are edited — is:
 
 ```text
 .codex/skills/
 ```
 
-These skills provide progressive disclosure for Codex. Each skill is short and delegates deterministic work to:
+**Codex does not read that directory.** Per Codex's documentation it discovers skills in `.agents/skills` (searching the working directory, then its parents, up to the repository root), plus `$HOME/.agents/skills` and `/etc/codex/skills`. This repo generates `.agents/skills/` as a byte-identical mirror of the canonical source with `python -m sentinel.adapters`, which is why the skills work in Codex out of the box. If a skill is not showing up in Codex, check `.agents/skills/` (and rerun the adapter) — editing a mirror by hand is never the fix. See [Repo And Branching Strategy](10-repo-and-branching-strategy.md) for the generation contract.
+
+These skills provide progressive disclosure. Each skill is short and delegates deterministic work to:
 
 ```powershell
 python -m sentinel ...
@@ -34,6 +36,8 @@ python -m sentinel /doctor
 ```
 
 ## Skills
+
+The most used ones; the full catalog of the 24 is in the [Codex Skills Guide](04-codex-skills-guide.md).
 
 | Skill | Purpose |
 | --- | --- |

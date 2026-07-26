@@ -64,8 +64,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "sentinel", "core runtime"),
         path_check(root, "AGENTS.md", "Codex Desktop and agent instructions"),
         path_check(root, "README.md", "repository quick start"),
-        path_check(root, ".codex/skills", "Codex skills adapter (canonical)"),
-        path_check(root, ".agents/skills", "Agent Skills standard directory"),
+        path_check(root, ".codex/skills", "canonical skills source (read by no agent; mirrored)"),
+        path_check(root, ".agents/skills", "Agent Skills standard directory (Codex, Kilo)"),
         path_check(root, ".claude/skills", "Claude Code skills directory"),
         path_check(root, ".codex/hooks", "Codex hooks adapter"),
         path_check(root, ".kilo/agents", "Kilo Code agents adapter"),
@@ -208,12 +208,17 @@ def skill_metadata_checks(root: Path) -> list[dict[str, str]]:
     silently invisible or mistargeted on every surface — the H5 audit found
     10 of 19 in that state while the existence-only check stayed green.
     Structural problems FAIL; agent-specific wording only WARNs.
+
+    IMP-233 (H12): the label reads "skill metadata", not "Codex skill metadata".
+    The file inspected is the canonical source, which no agent discovers; naming a
+    single surface in a check that covers all three was the same doctrine error the
+    labels of `codex_skill_checks` carried.
     """
     from .core.markdown import parse_frontmatter
 
     checks: list[dict[str, str]] = []
     for skill in REQUIRED_CODEX_SKILLS:
-        label = f"Codex skill metadata: {skill}"
+        label = f"skill metadata: {skill}"
         path = root / ".codex" / "skills" / skill / "SKILL.md"
         if not path.exists():
             checks.append({"name": label, "status": "FAIL", "detail": "SKILL.md missing"})
@@ -423,9 +428,15 @@ def skill_spec_compliance_check(root: Path) -> dict[str, str]:
 
 def kilo_agent_metadata_checks(root: Path) -> list[dict[str, str]]:
     """IMP-173: validate that every handcrafted Kilo agent carries usable
-    frontmatter. Kilo has no skills — these 7 agents are its model-facing depth —
-    and they are handcrafted (no generator), so the existence-only check left the
-    same false-green gap IMP-163 closed for skills. Mirrors skill_metadata_checks.
+    frontmatter. These 7 agents are handcrafted (no generator), so the
+    existence-only check left the same false-green gap IMP-163 closed for skills.
+    Mirrors skill_metadata_checks.
+
+    IMP-233 (H12): this docstring used to justify the agents with "Kilo has no
+    skills". That is false — Kilo loads `.agents/skills/` by default, so the 24
+    skills operate there too (see `KILO_DEFAULT_SKILL_DIRS` in `adapters.py`). The
+    agents remain Kilo's mode/routing layer; what to do with the depth they
+    duplicate is an open decision, not an established doctrine.
     """
     from .core.markdown import parse_frontmatter
 
@@ -784,8 +795,16 @@ def optional_dependency_check(module_name: str) -> dict[str, str]:
 
 
 def codex_skill_checks(root: Path) -> list[dict[str, str]]:
+    """Existence of every required skill at its canonical authoring path.
+
+    IMP-233 (H12): the labels say "skill source", not "Codex skill". `.codex/skills`
+    is discovery path for nobody — Codex reads `.agents/skills` — and a label that
+    implied otherwise sent a maintainer debugging a missing skill to the wrong
+    directory. The per-surface discovery table lives next to `SKILL_TARGET_DIRS`
+    in `adapters.py`; `skills_out_of_sync` guards the mirrors themselves.
+    """
     return [
-        path_check(root, f".codex/skills/{skill}/SKILL.md", f"Codex skill: {skill}")
+        path_check(root, f".codex/skills/{skill}/SKILL.md", f"skill source: {skill}")
         for skill in REQUIRED_CODEX_SKILLS
     ]
 

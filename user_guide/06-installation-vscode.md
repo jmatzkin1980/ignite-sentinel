@@ -86,7 +86,7 @@ Unix-like portable launcher:
 sh installers/sentinel.sh /doctor
 ```
 
-`/doctor` checks the runtime, repo structure, `AGENTS.md`, Codex skills and hooks, Kilo agents and slash commands, portable launchers, write access, required dependencies, optional memory dependencies, the active embedder, and whether LanceDB can create a local table in a temporary folder when installed.
+`/doctor` checks the runtime, repo structure, `AGENTS.md`, the skills (canonical source, mirrors, metadata and standard compliance) and Codex hooks, Kilo agents and slash commands, portable launchers, write access, required dependencies, optional memory dependencies, the active embedder, and whether LanceDB can create a local table in a temporary folder when installed.
 
 4. Start a workspace from chat.
 
@@ -198,7 +198,7 @@ The local venv path is intentionally repo-local. It avoids global Python changes
 
 Ignite works through repo-local files:
 
-- Codex reads `.codex/skills/`.
+- Skills are authored in `.codex/skills/` and mirrored by `python -m sentinel.adapters` into the directories the agents actually read: Codex loads `.agents/skills/`, Claude Code loads `.claude/skills/`, and Kilo Code loads `.agents/skills/` by default.
 - Kilo Code reads `.kilo/agents/`.
 - Kilo Code slash workflows live in `.kilo/commands/`.
 - Kilo Code permissions live in `kilo.jsonc`.

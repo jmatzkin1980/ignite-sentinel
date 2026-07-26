@@ -6,11 +6,13 @@ Ignite Sentinel includes a repo-local Kilo Code adapter under:
 .kilo/agents/
 ```
 
-These agents mirror the Codex skills and call the same portable CLI:
+These 7 agents are Kilo's mode layer (each declares its own model, mode and permissions) and call the same portable CLI:
 
 ```powershell
 python -m sentinel ...
 ```
+
+They are **not** Kilo's only model-facing depth: the 24 Sentinel skills also load in Kilo — see [Skills in Kilo](#skills-in-kilo) below.
 
 Before relying on Kilo chat commands in a freshly cloned repository, run the setup check from Kilo chat:
 
@@ -56,6 +58,31 @@ workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
 ```
 
 If `/health` reports that domain context changed after backlog generation, run `/reindex PROJECT_ID` and retrieve focused context before handing work to implementation or test agents. Rerun `/backlog PROJECT_ID` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
+
+## Skills in Kilo
+
+Kilo Code supports the Agent Skills standard, so the 24 Sentinel skills are **not** Codex- or Claude-only. Per Kilo's documentation, it discovers skills in:
+
+```text
+.kilo/skills/           project-level
+~/.kilo/skills/         global
+.agents/skills/         compatibility directory, loaded by default
+.claude/skills/         compatibility directory, only when "Claude Code Compatibility" is enabled
+```
+
+plus any extra location declared through `skills.paths` / `skills.urls` in `kilo.jsonc`.
+
+This repository generates `.agents/skills/` from the canonical `.codex/skills/` (`python -m sentinel.adapters`), so **the 24 skills are available in Kilo on a fresh clone with no extra configuration** — that is the directory Kilo loads by default. Nothing needs to be copied into `.kilo/skills/`.
+
+How to use them:
+
+- Name the skill in chat when you want a specific one: *"Use `sentinel-backlog` to generate the backlog for ACME_DASHBOARD."*
+- Otherwise describe the situation. Skills follow progressive disclosure: the agent sees `name` + `description` first and loads the body only when the workflow applies, so the description is what makes a skill selectable.
+- The deeper `references/*.md` layer of a skill is read on demand. `kilo.jsonc` allows reading `.agents/**` precisely so that layer loads without an extra permission prompt; if you trim that allowlist, skills will still trigger but their references will not load.
+
+> **Leave "Claude Code Compatibility" off.** With it enabled Kilo loads `.agents/skills/` **and** `.claude/skills/` — in this repo those are byte-identical mirrors, so the same 24 skills are registered twice under the same `name`. Kilo's documentation defines precedence only between project and global scope, not between two compatibility directories holding the same skill, so the outcome of that collision is unspecified. `.agents/skills/` alone covers this repo; that is also why `kilo.jsonc` allows reading `.agents/**` and not `.claude/**`.
+
+The 7 agents in `.kilo/agents/` and the skills coexist: the agents carry mode, model and permission choices that skills cannot express, and 17 of the 24 skills have no agent counterpart.
 
 ## Slash Workflows
 
@@ -122,7 +149,8 @@ The config is intentionally conservative:
 - write access is focused on `workspaces/**`, Sentinel runtime files, guides, and adapter files;
 - `.git/**`, secrets, env files, caches, and build output are denied;
 - known Sentinel commands are allowlisted in `kilo.jsonc`;
-- commands default to ask unless explicitly allowed.
+- commands default to ask unless explicitly allowed;
+- reading `.agents/**` is allowed so the skills Kilo loads from `.agents/skills/` can open their own `references/*.md`.
 
 If a new Sentinel command is added later, update both `.kilo/commands/` and `kilo.jsonc` so a cloned laptop gets the same chat experience.
 
