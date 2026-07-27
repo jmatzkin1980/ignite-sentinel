@@ -59,3 +59,6 @@ general-proyecto.md
 ignite_vnext_final_handoff.md
 # Eval run outputs are reproducible; keep reports out of main
 tests/evals/reports/
+# Output of local agent tooling run against this repo (dated per run): local,
+# disposable, and not part of the published product
+PATHFINDER-*/
