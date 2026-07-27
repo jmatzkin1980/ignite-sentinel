@@ -1077,7 +1077,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Codex", "Kilo Code"),
         live_check="Invoke `sentinel-backlog` on the surface and have it read `references/handoff-contracts.md`; the text must match the repo byte for byte.",
         observed="2026-07-26",
-        note="Observed in Kilo Code only (24 skills listed, the `references/` layer read). Codex discovery from this directory has never been observed.",
+        note="Observed on both surfaces: Kilo Code lists the 24 skills and reads the `references/` layer; Codex surfaces them on `/`.",
     ),
     ".claude/agents": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1087,8 +1087,9 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ),
     ".claude/commands": SurfaceContract(
         surfaces=("Claude Code",),
-        live_check="Type `/` in Claude Code: the commands appear with the `argument-hint` of IMP-225, and running one executes the CLI from the repo root.",
-        observed="",
+        live_check="Open a session whose folder is this repo, then type `/gap`: the command appears as `/gaps ... (project)`. Filter rather than scanning the raw `/` list — with plugins installed the project entries sit well below the built-ins.",
+        observed="2026-07-26",
+        note="Discovery reads `.claude/commands` under each workspace directory and the result is memoized per session, so a folder added to a session already running does not surface its commands until the session restarts. The first attempt failed that way and looked like a defect in the files, which were fine.",
     ),
     ".claude/hooks": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1110,8 +1111,9 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ),
     ".claude/skills": SurfaceContract(
         surfaces=("Claude Code",),
-        live_check="Ask Claude Code to use `sentinel-backlog`; SKILL.md loads and `references/handoff-contracts.md` is readable from it.",
-        observed="",
+        live_check="In a session whose folder is this repo, the 24 `sentinel-*` skills are listed as available and scoped to this directory; invoking one loads SKILL.md and can read its `references/` layer.",
+        observed="2026-07-26",
+        note="Same discovery path and per-session memoization as `.claude/commands`.",
     ),
     ".codex/hooks": SurfaceContract(
         surfaces=("Codex",),
@@ -1137,7 +1139,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Kilo Code",),
         live_check="Open the repo in Kilo Code with auto-approve off: no `Configuration is invalid at kilo.jsonc` warning at startup, an edit to a governed artifact is stopped, an unlisted command asks and a listed one does not.",
         observed="2026-07-26",
-        note="The startup warning of 2026-07-26 proved Kilo reads and validates this file — that is how the seven-week defect surfaced. The `permission` block IMP-235 wrote is declared, not yet observed enforcing.",
+        note="Enforcement confirmed by behaviour on 2026-07-26 with auto-approve off: no startup warning, the edit to a governed artifact stopped, an unlisted command asked and the pre-authorized CLI did not. Before that the block had been inert for seven weeks with /doctor green, which is why this registry exists.",
     ),
 }
 
