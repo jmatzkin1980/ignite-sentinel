@@ -10,6 +10,8 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures" / "evals" / "faithfulness_claims"
 REPORTS = REPO_ROOT / "tests" / "evals" / "reports"
 
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_store import write_report  # noqa: E402
 from sentinel.validation import artifact_faithfulness_report  # noqa: E402
 
 
@@ -74,7 +76,8 @@ def fixture_mismatches(answer_key: dict, score: float, unsupported_claims: list[
     return mismatches
 
 
-def main() -> int:
+def build_report() -> dict[str, object]:
+    """Evaluate every fixture and return the report without writing it."""
     fixtures = [path for path in sorted(FIXTURES.iterdir()) if path.is_dir()]
     results = [evaluate_fixture(fixture) for fixture in fixtures]
     faithful = next((result for result in results if result["fixture"] == "faithful"), None)
@@ -94,9 +97,14 @@ def main() -> int:
             "total_unsupported_claims": sum(int(result["unsupported_claim_count"]) for result in results),
         },
     }
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    output = REPORTS / f"faithfulness_claim_eval_{report['date']}.json"
-    output.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    return report
+
+
+def main() -> int:
+    report = build_report()
+    results = report["fixtures"]
+    falsable_ok = report["falsable_ok"]
+    output = write_report("faithfulness_claim_eval", report["date"], report, reports_dir=REPORTS)
 
     print(f"Faithfulness claim evals - {report['date']}")
     for result in results:
@@ -109,7 +117,7 @@ def main() -> int:
         for mismatch in result["mismatches"]:
             print(f"         mismatch: {mismatch}")
     print(f"  falsable_ok={falsable_ok}")
-    print(f"  report={output.relative_to(REPO_ROOT).as_posix()}")
+    print(f"  report={output.relative_to(REPO_ROOT).as_posix() if output else 'disabled (SENTINEL_EVAL_REPORTS=0)'}")
     return 0 if report["summary"]["ok"] else 1
 
 

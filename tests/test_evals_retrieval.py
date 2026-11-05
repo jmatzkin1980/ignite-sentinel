@@ -18,7 +18,9 @@ look-alike distractor content. The test stays green as a non-regression gate
 with a recalibrated (non-saturated) threshold; raising the bar is the job of the
 retrieval-quality items (IMP-121+), which this harness now measures.
 
-A JSON report is written under tests/evals/reports/ each run.
+A JSON report is written under tests/evals/reports/ each run; only the newest
+SENTINEL_EVAL_KEEP_REPORTS (default 5) are kept, and SENTINEL_EVAL_REPORTS=0
+skips writing it (see tests/evals/report_store.py).
 """
 from __future__ import annotations
 
@@ -27,10 +29,14 @@ import io
 import json
 import os
 import shutil
+import sys
 import tempfile
 from datetime import date
 from pathlib import Path
 import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "evals"))
+from report_store import write_report  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "evals"
@@ -198,7 +204,6 @@ class RetrievalEvalTests(unittest.TestCase):
         cls.results = [r for d in sorted(FIXTURES.iterdir())
                        if d.is_dir() and (d / "answer_key.json").exists()
                        for r in [_run_fixture(d, cls.distractors)] if r]
-        REPORTS.mkdir(parents=True, exist_ok=True)
         n = len(cls.results) or 1
         report = {
             "date": date.today().isoformat(),
@@ -214,7 +219,7 @@ class RetrievalEvalTests(unittest.TestCase):
                 "by_embedder": _group_summary([{**r, "embedder": cls.embedder_status["level"]} for r in cls.results], "embedder"),
             },
         }
-        (REPORTS / f"retrieval_eval_{report['date']}.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        write_report("retrieval_eval", report["date"], report, reports_dir=REPORTS)
         cls.report = report
 
     def test_has_section_level_golden_queries(self):
