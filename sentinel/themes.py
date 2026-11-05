@@ -123,6 +123,32 @@ def _read_builtin(name: str) -> dict:
     return json.loads(package_resource(BUILTIN_THEMES_DIR, f"{name}.json").read_text(encoding="utf-8"))
 
 
+def _declarations(theme: dict, mode: str, scheme: str, *, fonts: bool) -> str:
+    parts = [f"color-scheme:{scheme}"]
+    parts += [f"{token}:{value}" for token, value in sorted(theme["tokens"][mode].items())]
+    if fonts:
+        parts += [f"{token}:{theme['tipografia'][field]}" for token, field in FONT_TOKENS.items()]
+    return ";".join(parts) + ";"
+
+
+def emit_root_css(theme: dict) -> str:
+    """CSS custom properties for both modes, deterministic (tokens sorted).
+
+    Light on bare ``:root``; dark under ``prefers-color-scheme`` (unless the
+    viewer forced light) and under an explicit ``[data-theme="dark"]`` toggle.
+    """
+    dark = _declarations(theme, "dark", "dark", fonts=False)
+    return (
+        ":root{" + _declarations(theme, "light", "light", fonts=True) + "}\n"
+        '@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){' + dark + "}}\n"
+        ':root[data-theme="dark"]{' + dark + "}\n"
+    )
+
+
+def theme_css(theme: dict) -> str:
+    return emit_root_css(theme) + "\n" + base_css()
+
+
 def load_theme(name_or_path: str | Path | None = None) -> dict:
     """Load and validate a theme by built-in name or by path to a JSON file."""
     if name_or_path is None:

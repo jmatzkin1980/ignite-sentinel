@@ -96,5 +96,33 @@ class ThemeLoadingTests(_TmpThemeMixin, unittest.TestCase):
         self.assertIn("neutral", str(ctx.exception))
 
 
+class ThemeCssTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.theme = themes.load_theme()
+        self.css = themes.emit_root_css(self.theme)
+
+    def test_root_block_has_light_tokens_and_fonts(self) -> None:
+        self.assertTrue(self.css.startswith(":root{"), self.css[:40])
+        self.assertIn("color-scheme:light", self.css)
+        self.assertIn(f"--bg:{self.theme['tokens']['light']['--bg']}", self.css)
+        self.assertIn("--font:", self.css)
+        self.assertIn("--font-mono:", self.css)
+
+    def test_dark_mode_has_media_and_explicit_blocks(self) -> None:
+        self.assertIn("@media (prefers-color-scheme: dark)", self.css)
+        self.assertIn(':root:not([data-theme="light"])', self.css)
+        self.assertIn(':root[data-theme="dark"]', self.css)
+        self.assertEqual(self.css.count("color-scheme:dark"), 2)
+
+    def test_output_is_deterministic_and_sorted(self) -> None:
+        self.assertEqual(self.css, themes.emit_root_css(self.theme))
+        root_block = self.css[len(":root{") : self.css.index("}")]
+        colour_props = [p.split(":")[0] for p in root_block.split(";") if p.startswith("--") and p.split(":")[0] not in themes.FONT_TOKENS]
+        self.assertEqual(colour_props, sorted(colour_props))
+
+    def test_theme_css_includes_base_css(self) -> None:
+        self.assertTrue(themes.theme_css(self.theme).endswith(themes.base_css()))
+
+
 if __name__ == "__main__":
     unittest.main()
