@@ -312,17 +312,146 @@ Los tintes de fondo y los colores de oscuro que no son de la paleta salen de mez
 
 ---
 
-## 9. Hoja de ruta consolidada
+## 9. Evals, fixtures y espacio en disco
 
-| Fase | Contenido |
-|---|---|
-| **Ahora** | Fix de MCP 2.x; T1 empaquetado; T2 validación de `PROJECT_ID`; T3 `/stakeholders`; CI; `--summary`; `--dry-run`; una única lógica de próximo paso; F1, F2 y F3; launcher `bin/sentinel` |
-| **Siguiente** | Locks y escritura atómica; separar `state.json`; memoria compacta; errores tipados; máquina de estados y matriz de gates; ciclo de vida de `CTX`; `/next`, `/round` y `/handoff`; índices `_index.md`; F4 a F7; paquete de plugin con dos manifiestos; render de skills por superficie; motor de temas HTML |
-| **Después** | Registro único de comandos; catálogos i18n; F8 a F11; reagrupar a unas 10 skills; prueba real de los marketplaces; tema corporativo y artefactos HTML nuevos; puente con llm-wiki |
+> Solo análisis: no se borró, movió ni modificó nada fuera de `proposals/`. Mediciones del 2026-11-05 en la máquina local del mantenedor (Windows, `.venv` con Python 3.14.6 y LanceDB 0.33).
+
+### 9.1 Línea base de verificación [V]
+| Corrida | Resultado | Tiempo | Notas |
+|---|---|---|---|
+| `.\verify.ps1 -SkipEvals` | OK: 823 tests, `/doctor` con 0 fallas y 3 WARN (`sentence_transformers`, `mcp` y embedder semántico, todos opcionales) | Unittest en 665 s | En la nube eran unos 170 s. `verify.ps1` elige `.venv` primero y ahí LanceDB está activo (220 avisos `lance::` en el log); que esa sea la causa de la diferencia es [P]. El log tiene 70.175 líneas y 2,1 MB (confirma T13). El error de MCP 2.x no se reproduce porque `mcp` no está instalado. |
+| `run_discovery_evals.py` | `baseline_ok=True`, 8/8 OK; P/R/F1 promedio 1,00/0,84/0,86; tuning F1 0,97 frente a held-out 0,67; sin desvíos | 79 s | Deja un reporte de 63 KB en `tests/evals/reports/` |
+| `run_faithfulness_claim_evals.py` | `falsable_ok=True` (`faithful` 1,00; `silent_invention` 0,50 con 2 claims sin soporte) | 0,55 s | **No lo corre ni `verify.ps1` ni ningún unittest** |
+
+### 9.2 Espacio: versionado frente a generado [V]
+Los números del clon limpio (golden 3,5 MB, `fixtures/evals` 336 KB, `tests/evals` 300 KB) son de `du`, que redondea por bloque. El peso real de lo versionado es menor: `fixtures/evals` ocupa 74 KB en 52 archivos y `tests/evals` 121 KB en 2 archivos.
+
+**Top 20 por tamaño en disco**
+| # | Ruta | Tamaño | Tipo | Clasificación |
+|---|---|---|---|---|
+| 1 | `.venv/` (4.133 archivos; `lancedb` 162 MB, `pyarrow` 86 MB, `numpy` 54 MB) | 329,7 MB | Ignorado | Conservar (decisión del mantenedor; ver 9.6) |
+| 2 | `.git/objects` (709 objetos sueltos, 5 packs de 6,4 MB, 1 temporal huérfano) | 11,9 MB | Git | Limpiar con `git gc` [P: recupero estimado] |
+| 3 | `sentinel/` + `tests/` `__pycache__/` (9 carpetas) | 4,8 MB | Generado | Limpiar |
+| 4 | `workspaces/H10PARITY/` | 4,4 MB | Workspace de usuario | Solo con confirmación |
+| 5 | `tests/fixtures/golden/*/view/*.html` (10 archivos) | 3,07 MB | Versionado | Regenerable / achicar (9.4) |
+| 6 | `docs/` (memoria local del mantenedor) | 2,7 MB | Ignorado | Conservar |
+| 7 | `tests/evals/reports/` (60 JSON desde junio) | 1,7 MB | Generado | Limpiar con retención |
+| 8 | `sentinel/` (código) | 1,3 MB | Versionado | Conservar |
+| 9 | `tests/*.py` y otros (125 archivos) | 0,7 MB | Versionado | Conservar |
+| 10 | `dist/` (2 archivos) | 0,57 MB | Generado | Limpiar |
+| 11 | `PATHFINDER-2026-07-26/` | 0,46 MB | Generado (herramienta de agente) | Limpiar |
+| 12 | `user_guide/` | 0,32 MB | Versionado | Conservar |
+| 13 | `tests/fixtures/golden/*` Markdown (24 archivos) | 0,30 MB | Versionado | Conservar |
+| 14 | `.claude/` + `.codex/` + `.agents/` (espejos de skills) | 0,52 MB | Versionado | Conservar (F4 de la sección 4 los reduce a overlays) |
+| 15 | `dashboard.html` | 0,18 MB | Generado | Limpiar |
+| 16 | `tests/evals/*.py` (2 runners) | 0,12 MB | Versionado | Conservar |
+| 17 | `tests/fixtures/evals/` (52 archivos) | 0,07 MB | Versionado | Conservar |
+| 18 | `ignite_sentinel.egg-info/` | 0,04 MB | Generado | Limpiar |
+| 19 | Otros 3 workspaces locales en `workspaces/` | 0,06 MB | Workspace de usuario | Solo con confirmación (no se inspeccionó el contenido) |
+| 20 | `%TEMP%`: 44 tempdirs con `workspaces/` (junio y julio, 10 sin permiso de lectura) + 146 tempdirs de `test_momtest` | ≈ 0,8 MB | Fuera del repo | Limpiar |
+
+No existen `build/`, `*.pyz`, `memory.lancedb/` en la raíz ni `08_context_packs/views/` fuera de workspaces. `.gitignore` ya cubre todo lo generado que aparece en la tabla.
+
+**Historial de git [V]**
+- 492 commits.
+- Los blobs más grandes son los goldens HTML de `view/`: 615 KB sin comprimir, unos 69 KB comprimidos.
+- Le siguen, por versiones, `docs/evolution/02-backlog-mejoras.md` (175 KB, hoy ignorado) y `sentinel/discovery/workflow.py` (168 KB).
+- Hay un `sentinel.7z` en el historial (145 KB).
+- Los goldens comprimen unas 9 veces en el pack: 3,4 MB pasan a 527 KB. Achicarlos no reduce el historial, solo el árbol de trabajo y los clones futuros. **No se propone reescribir el historial.**
+
+### 9.3 Inventario de evals y fixtures [V]
+Ningún fixture de `fixtures/evals/` está huérfano: `run_discovery_evals.py:1920` y `test_evals_retrieval.py:198` los descubren por `iterdir()` buscando `answer_key.json`. Los 8 `answer_key` tienen `known_false_positives: []`. La corrida dio 0 FP nuevos, 0 KFP corregidos, 0 `must_fire` faltantes y 0 diferencias de detalle. Hay 4 ids de gap que el runtime no conoce (`GAP-FABRICATED-OPS-DATA`, `GAP-DATA-RETENTION`, `GAP-FEEDBACK-RISK-SOURCE` y `GAP-SCRUTINY-DASHBOARD-JOURNEY`), pero vienen de los inputs agénticos del propio fixture (anotación, feedback, scrutiny) y son intencionales: no están stale.
+
+| Fixture | Split | Lo usan | Protege (IMP) | Estado | Acción |
+|---|---|---|---|---|---|
+| `adversarial-partial-gap-response` | held_out | runner, `test_evals_generalization`, retrieval | Respuesta parcial y anotación fabricada rechazadas, `lifecycle_guards` (IMP-222) | Vigente, F1 1,00 | Conservar |
+| `adversarial-thin-intake` | held_out | runner, generalization, `test_evals_context_rot`, retrieval | Intake mínimo sin inventar; context-rot (IMP-223) | Vigente | Conservar |
+| `implicit-complete-intake` | held_out | runner, generalization | Oráculo de requisitos implícitos (IMP-156); recall léxico 0/1, el techo documentado | Vigente | Conservar |
+| `crm-billing-sync` | tuning | runner, retrieval, `test_blocks` | Ciclo completo en inglés con `gap_responses` → brief, PRD y backlog (IMP-038/061) | Vigente | Conservar |
+| `expense-approval` | tuning | runner, `test_evals_brief`, `test_annotate`, retrieval | Techo léxico: target 0/5 léxico, 5/5 con `/annotate` (IMP-027/156) | Vigente | Conservar |
+| `ops-risk-backlog` | tuning | runner, context_rot, retrieval | Backlog, refinement y feedback de implementación multironda (IMP-048/061) | Vigente | Conservar |
+| `portal-autogestion` | tuning | runner y retrieval (por `iterdir`, sin nombre en el código) | **Único fixture en español**: ruta ES de gaps, brief, PRD y backlog | Vigente | Conservar |
+| `support-dashboard` | tuning | runner, `test_evals_prd`, `test_core_flow`, `test_blocks`, `test_contextual_retrieval`, `test_progressive_disclosure`, retrieval | PRD (IMP-038/039), scrutiny y assume, distractores (IMP-128) | Vigente | Conservar |
+| `_distractors/` (4 dominios) | — | `test_evals_retrieval`, runner | Ruido de retrieval no saturado (IMP-120) | Vigente | Conservar |
+| `faithfulness_claims/` (2 casos) | — | Solo `run_faithfulness_claim_evals.py`, a mano | Regla de no inventar: detecta invención silenciosa | Vigente (pasa) pero **sin cablear** | Conservar y cablear |
+| `complete_requirement.md` | — | Runner + 6 tests | Ciclo feliz | Vigente | Conservar |
+| `incomplete_requirement.md` | — | 3 tests | Gaps sobre input incompleto | Vigente | Conservar |
+| `change_request.md` | — | `test_core_flow` | `/sync` y cambios | Vigente | Conservar |
+| `dashboard/portfolio_snapshot.json` | — | `test_dashboard` | Dashboard de portafolio | Vigente | Conservar |
+
+Runners y tests de métricas: `run_discovery_evals.py` (2.241 líneas) lo usan 6 `test_evals_*` y `test_discovery_eval_benchmark`. `test_backlog_eval_metrics` prueba las métricas con datos sintéticos en tempdir. Conservar todo.
+
+**Duplicados:** no hay. Los 5 fixtures de tuning cubren bloques distintos: backlog, annotate, scrutiny y assume, español, y ciclo base. Consolidar bajaría cobertura a cambio de unos pocos KB.
+
+### 9.4 Goldens [V]
+- **Regeneración:** los 34 los produce y compara `test_golden_artifacts.py` (IMP-175/215/219), con normalización conservadora en `tests/golden_normalize.py`. Se regeneran con `SENTINEL_UPDATE_GOLDEN=1`.
+- **Cobertura:** 17 por idioma (9 artefactos, 5 vistas y 3 exports). **No hay goldens sin test.**
+- **Peso:** los Markdown ocupan 300 KB. Los 10 HTML de `/view` ocupan 3,07 MB, y el 95 % es el `const model = {…}` embebido.
+- **Redundancia del runtime:** ese modelo repite cada sección en `blocks`, `html` y `markdown`, vuelve a incluir los `blocks` arriba y agrega un `mini_graph` por cita (238 KB de citas en `gaps`). Sacar esos duplicados baja los 10 HTML de 3,07 a 1,72 MB, y además reduce el peso de cada `/view` que genera un usuario.
+- **Opciones:**
+  1. Deduplicar el modelo en el runtime. Es el arreglo de raíz y encaja con la sección 8.3.
+  2. Que el golden de vista guarde solo el shell más un resumen estructural (ids de sección, conteos, ids de cita) y deje el contenido a los goldens Markdown, que ya lo fijan [P: estimado de 0,3 MB].
+  3. Un manifiesto de hashes con el diff escrito a una carpeta ignorada cuando falla.
+- **Generar desde semilla:** ya se hace. El test parte de una semilla fija (`RAW_EN/ES` más las sentencias EARS), pero algo versionado tiene que existir para detectar el drift. "Regenerable" significa guardar menos, no guardar nada.
+
+### 9.5 Limpieza de lo que crean los tests [V]
+- La corrida de hoy no dejó tempdirs con `workspaces/`. Los 44 que hay son de junio y julio. El patrón `shutil.rmtree(..., ignore_errors=True)` falla en silencio si un archivo queda abierto, algo habitual en Windows con LanceDB [P: causa de los históricos].
+- `tests/test_momtest.py:114,133` usa `mkdtemp()` sin limpiar: deja 2 directorios por corrida y ya hay 146.
+- `test_evals_retrieval.py:217` escribe `retrieval_eval_<fecha>.json` **dentro del repo en cada unittest**: es un efecto lateral de la suite.
+- Los reportes de evals se pisan por fecha pero se acumulan entre días, sin retención: hay 27 de discovery, 28 de retrieval y 4 de faithfulness.
+
+### 9.6 Propuestas
+1. **Limpieza automática:**
+   - Un helper `tests/_tmp.py` con `workspace_tmpdir()`, que cierre los handles de LanceDB antes de borrar y use `TemporaryDirectory(ignore_cleanup_errors=False)` con reintento. Si igual falla, el test avisa y deja de tolerarlo en silencio.
+   - Arreglar `test_momtest`.
+   - Que `test_evals_retrieval` escriba en un tempdir salvo con `SENTINEL_EVAL_REPORTS=1`.
+2. **Retención de reportes:** los runners se quedan con los últimos N por tipo (por defecto 5) y además guardan `latest_<tipo>.json` para comparar.
+3. **Limpieza local segura:** `python -m sentinel.devtools clean` (o `scripts/clean.py`):
+   - Por defecto `--dry-run`: lista cada ruta, su tamaño y la regla de `.gitignore` que la cubre.
+   - `--apply` borra solo rutas ignoradas y de una lista permitida: `__pycache__`, `dist`, `build`, `*.egg-info`, `*.pyz`, `dashboard.html`, `PATHFINDER-*`, reportes fuera de la retención y tempdirs `sentinel_*` / `tmp*` que tengan `workspaces/` o `01_discovery/`.
+   - `workspaces/*` (salvo `_template`), `docs/`, `.venv/`, `*.local.*` y `.claude/settings.local.json` **nunca entran sin `--include-workspaces` más una confirmación interactiva por workspace**.
+   - Ofrece `git gc` como paso aparte, sin ejecutarlo.
+4. **Evals en dos niveles:**
+   - **Rápido** (CI en cada push): faithfulness (0,5 s), `test_discovery_eval_benchmark`, `test_backlog_eval_metrics` y una muestra de 2 fixtures (uno en inglés y `portal-autogestion` en español).
+   - **Completo** (antes de mergear): `run_discovery_evals.py` (79 s), retrieval con los dos backends y goldens.
+   - Se marcan con `SENTINEL_SLOW=1` o con módulos `tests/slow/`. Medir antes los tiempos por test con un runner que registre la duración [P].
+5. **Cablear faithfulness:** un `test_evals_faithfulness.py` que llame a `evaluate_fixture` y verifique `falsable_ok`. También que `verify.ps1` lo corra en el paso de evals.
+6. **Goldens:** primero deduplicar el modelo de vista en el runtime (opción 1 de 9.4) y regenerar. Si sigue pesando, aplicar la opción 2.
+7. **`.venv`:** documentar dos perfiles, `.[dev]` (unos 40 MB [P]) y `.[dev,lancedb]` (unos 330 MB). El perfil completo es necesario para la cobertura de `lancedb-hybrid`, así que no se propone borrarlo: es una decisión del mantenedor.
+
+**Regla aplicada:** no se propone eliminar ningún fixture, golden ni runner. Todos protegen un gate, la regla de no inventar o una métrica de precisión y recall. Los goldens HTML se achican sin perder lo que verifican (estructura de la vista más contenido fijado por los goldens Markdown).
+
+### 9.7 Acciones ordenadas por espacio recuperado y riesgo
+| # | Acción | Recupera | Riesgo | Tipo |
+|---|---|---|---|---|
+| 1 | Borrar `__pycache__`, `dist/`, `*.egg-info`, `dashboard.html`, `PATHFINDER-*` | ≈ 6,1 MB | Nulo (se regeneran) | Limpiar (local) |
+| 2 | Retención de reportes en 5 por tipo | ≈ 1,5 MB y deja de crecer | Nulo | Limpiar + código |
+| 3 | Tempdirs viejos en `%TEMP%` y arreglo de `test_momtest` | ≈ 0,8 MB y 190 directorios | Bajo (10 sin permiso: borrarlos a mano) | Limpiar + código |
+| 4 | `git gc` | Hasta unos 10 MB [P: hoy 11,9 MB en disco frente a 1,4 MB de un clon limpio] | Bajo (no toca el historial publicado) | Limpiar (local) |
+| 5 | Deduplicar el modelo de `/view` y regenerar los goldens | ≈ 1,35 MB versionados, además de cada vista de usuario | Medio (cambia la salida de `/view`; lo cubre el golden) | Regenerable |
+| 6 | Golden de vista como shell + resumen estructural | ≈ 1,4 MB más [P] | Medio (menos detalle en el diff de la vista) | Regenerable |
+| 7 | Cablear faithfulness y separar evals rápidos y completos | 0 (calidad y tiempo de CI) | Bajo | Código |
+| 8 | Workspaces locales | 4,4 MB | **Alto: datos de usuario** | Solo con confirmación |
+| 9 | Perfil `.[dev]` sin LanceDB | ≈ 290 MB | Pierde la cobertura de LanceDB | Decisión |
+
+**Total recuperable:**
+- **Generado local seguro (1 a 3):** ≈ 8,4 MB, más hasta unos 10 MB de `git gc` [P].
+- **Versionado (5 y 6):** ≈ 1,35 MB verificados y hasta unos 2,8 MB con la opción 2 [P]. Afecta al árbol de trabajo y no al historial.
+- **Fuera de alcance sin decisión:** `.venv` (≈ 290 MB) y workspaces (4,4 MB).
 
 ---
 
-## 10. Fuentes
+## 10. Hoja de ruta consolidada
+
+| Fase | Contenido |
+|---|---|
+| **Ahora** | Fix de MCP 2.x; T1 empaquetado; T2 validación de `PROJECT_ID`; T3 `/stakeholders`; CI; `--summary`; `--dry-run`; una única lógica de próximo paso; F1, F2 y F3; launcher `bin/sentinel`; cablear el eval de faithfulness; arreglar los tempdirs de `test_momtest` y el reporte que escribe `test_evals_retrieval` en el repo; retención de reportes |
+| **Siguiente** | Locks y escritura atómica; separar `state.json`; memoria compacta; errores tipados; máquina de estados y matriz de gates; ciclo de vida de `CTX`; `/next`, `/round` y `/handoff`; índices `_index.md`; F4 a F7; paquete de plugin con dos manifiestos; render de skills por superficie; motor de temas HTML; comando de limpieza local con `--dry-run`; evals en dos niveles en CI; deduplicar el modelo de `/view` y regenerar los goldens |
+| **Después** | Registro único de comandos; catálogos i18n; F8 a F11; reagrupar a unas 10 skills; prueba real de los marketplaces; tema corporativo y artefactos HTML nuevos; puente con llm-wiki; golden de vista como shell + resumen estructural, si hace falta |
+
+---
+
+## 11. Fuentes
 
 - GitHub Spec Kit: https://codemyspec.com/blog/github-spec-kit-guide · https://wiki.at.bitovi.com/wiki/spaces/AIEnabledDevelopment/pages/1799847940/Spec+Kit+-+Analysis
 - OpenSpec: https://openspec.dev/docs/faq · https://codemyspec.com/blog/openspec-explained

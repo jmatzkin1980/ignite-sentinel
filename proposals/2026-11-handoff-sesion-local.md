@@ -10,7 +10,7 @@
 | Ítem | Estado |
 |---|---|
 | Branch | `claude/laughing-pasteur-uwkr3y`, derivado de `main` en `85ad22a` (PR #230) |
-| Commits del branch | `0dc628c` análisis inicial → `846c8a5` sección 8 completada en la sesión local → `4ee83c2` corrección de dos contradicciones de la sección 8 → este handoff |
+| Commits del branch | `0dc628c` análisis inicial → `846c8a5` sección 8 completada en la sesión local → `4ee83c2` corrección de dos contradicciones de la sección 8 → `3a8c002` este handoff → sección 9 (evals, fixtures y disco) en la sesión local |
 | Archivos tocados | Solo `proposals/`. **No se modificó runtime, tests, skills ni adapters.** |
 | PR | Ninguno abierto. No abrir un PR sin pedido explícito, y nunca mergear sin revisión (`MAINTAINERS.md`). |
 | Tipo de trabajo hasta ahora | Análisis y propuestas, no implementación |
@@ -90,6 +90,16 @@ Preferencias del usuario:
 | `python tests/evals/run_discovery_evals.py` | No se corrió |
 | Smoke `/init` + `/ingest` (`crm-billing-sync`) | 19 gaps (1 crítico), health `DIRTY`, `CLIENT_RESPONSE_NEEDED`; `/status` imprime unos 65 KB y `/maturity` unos 35 KB |
 
+**Línea base local (2026-11-05, Windows, `.venv` con Python 3.14.6 y LanceDB):**
+
+| Comando | Resultado |
+|---|---|
+| `.\verify.ps1 -SkipEvals` | OK: 823 tests en 665 s; `/doctor` con 0 fallas y 3 WARN opcionales; `mcp` no instalado, así que el error de MCP 2.x no aparece |
+| `run_discovery_evals.py` | `baseline_ok=True`, 8/8 en 79 s |
+| `run_faithfulness_claim_evals.py` | `falsable_ok=True` en 0,55 s (no está cableado a la suite) |
+
+Detalle en la sección 9 del análisis.
+
 En Windows, la forma recomendada es `.\verify.ps1` (tests, `/doctor` y evals) o `.\verify.ps1 -SkipEvals`. Si `python` abre la Microsoft Store, es el alias de App Execution: usar `py`.
 
 ---
@@ -134,11 +144,22 @@ Para el detalle y la evidencia, ver el análisis. Estos son los que conviene ata
 - [ ] Verificar la sintaxis oficial de los plugins de Codex: `developers.openai.com` no fue accesible desde la nube; se tomó la de llm-wiki.
 - [ ] Verificar los identificadores de arXiv 2608.21298 y 2609.03230 antes de citarlos.
 - [ ] Probar el wheel con `pip install .` no editable en un entorno sano (en la nube falló por un problema de setuptools ajeno al repo).
+- [ ] Evals y disco (sección 9 del análisis):
+  - [ ] cablear `run_faithfulness_claim_evals.py` a la suite y a `verify.ps1`;
+  - [ ] arreglar los tempdirs que deja `test_momtest.py`;
+  - [ ] sacar del repo el reporte que escribe `test_evals_retrieval.py` en cada unittest;
+  - [ ] retención de reportes (últimos 5 por tipo);
+  - [ ] comando de limpieza local con `--dry-run`;
+  - [ ] evals en dos niveles (rápido y completo);
+  - [ ] deduplicar el modelo de `/view` y regenerar los goldens.
+- [ ] Medir los tiempos por test para separar rápidos y lentos, y confirmar si LanceDB explica los 665 s locales frente a los 170 s de la nube.
+- [ ] Estimar el recupero real de `git gc` y el tamaño de un `.venv` con solo `.[dev]`.
 
 **Decisiones que tiene que tomar el usuario:**
 - [ ] Qué fase implementar primero (recomendado abajo).
 - [ ] Si `proposals/` queda en el repo o se mueve a `docs/evolution/` (git-ignored, memoria local del mantenedor).
 - [ ] Si se registran los ítems como IMP en el backlog local (`docs/evolution/02-backlog-mejoras.md`).
+- [ ] Qué hacer con los workspaces locales (`H10PARITY` y otros 3; 4,4 MB) y si se mantiene el `.venv` con LanceDB (≈ 290 MB).
 
 ---
 
@@ -151,10 +172,15 @@ Orden sugerido, de mayor a menor relación entre impacto y riesgo:
    - `packages.find` en `pyproject.toml` más un test que instala el wheel;
    - validar `PROJECT_ID` (regex y contención dentro de `workspaces/`);
    - `/stakeholders` dentro de `MUTATING_COMMANDS` o `READ_ONLY_COMMANDS`.
-2. **CI en GitHub Actions** (Windows y Linux, Python 3.10 y 3.13, con y sin LanceDB, `mcp` 1 y 2) y `verify.sh`.
-3. **Mejoras de uso para agentes:** `--summary` en `/status` y `/maturity`; `--dry-run` en los canales agénticos; una única función de próximo paso.
-4. **Prototipo del motor de temas** sobre `/dashboard`: esquema de tema, `base.css` y flujo modelo → validar → render (sección 8.3, puntos 1 a 3).
-5. Después, seguir la hoja de ruta de la sección 9 del análisis.
+2. **Higiene de tests y evals** (sección 9.6 del análisis), barata y de bajo riesgo:
+   - cablear el eval de faithfulness;
+   - arreglar `test_momtest` y el reporte que escribe `test_evals_retrieval`;
+   - retención de reportes;
+   - script de limpieza con `--dry-run`.
+3. **CI en GitHub Actions** (Windows y Linux, Python 3.10 y 3.13, con y sin LanceDB, `mcp` 1 y 2) y `verify.sh`, con evals en dos niveles: rápido en cada push y completo antes de mergear.
+4. **Mejoras de uso para agentes:** `--summary` en `/status` y `/maturity`; `--dry-run` en los canales agénticos; una única función de próximo paso.
+5. **Prototipo del motor de temas** sobre `/dashboard`: esquema de tema, `base.css` y flujo modelo → validar → render (sección 8.3, puntos 1 a 3). Junto con eso, deduplicar el modelo de `/view` y regenerar los goldens (sección 9.4).
+6. Después, seguir la hoja de ruta de la sección 10 del análisis.
 
 **Cómo trabajar cada ítem** (de `MAINTAINERS.md`):
 - Un branch por ítem desde `main`, o seguir en este branch si el usuario lo prefiere.
