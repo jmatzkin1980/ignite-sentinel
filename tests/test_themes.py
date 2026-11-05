@@ -124,5 +124,43 @@ class ThemeCssTests(unittest.TestCase):
         self.assertTrue(themes.theme_css(self.theme).endswith(themes.base_css()))
 
 
+class ThemeSemanticsTests(unittest.TestCase):
+    AA = 4.5
+
+    def setUp(self) -> None:
+        self.theme = themes.load_theme()
+
+    def test_contrast_ratio_known_values(self) -> None:
+        self.assertEqual(round(themes.contrast_ratio("#000000", "#FFFFFF"), 2), 21.0)
+        self.assertEqual(round(themes.contrast_ratio("#00292E", "#FFFFFF"), 2), 15.48)
+        self.assertEqual(round(themes.contrast_ratio("#BFD732", "#FFFFFF"), 2), 1.62)
+
+    def test_neutral_meets_aa_in_both_modes(self) -> None:
+        for mode in themes.MODES:
+            tokens = self.theme["tokens"][mode]
+            pairs = {"text": ("--text", "--bg"), "text-muted": ("--text-muted", "--bg")}
+            pairs.update({role: (spec["fg"], spec["bg"]) for role, spec in self.theme["semantica"].items()})
+            for name, (fg, bg) in pairs.items():
+                ratio = themes.contrast_ratio(tokens[fg], tokens[bg])
+                with self.subTest(mode=mode, pair=name):
+                    self.assertGreaterEqual(ratio, self.AA, f"{mode}/{name}: {ratio:.2f} < {self.AA}")
+
+    def test_legend_lists_every_role_in_spanish(self) -> None:
+        legend = themes.legend_html(self.theme, "es")
+        for role in ("ok", "info", "warn", "block", "governance"):
+            self.assertIn(f"chip-{role}", legend)
+        self.assertIn("Listo / resuelto", legend)
+
+    def test_legend_falls_back_to_english(self) -> None:
+        self.assertIn("Ready / resolved", themes.legend_html(self.theme, "pt"))
+
+    def test_legend_escapes_labels(self) -> None:
+        theme = copy.deepcopy(self.theme)
+        theme["semantica"]["ok"]["label"] = {"en": "<b>&"}
+        legend = themes.legend_html(theme)
+        self.assertIn("&lt;b&gt;&amp;", legend)
+        self.assertNotIn("<b>", legend)
+
+
 if __name__ == "__main__":
     unittest.main()

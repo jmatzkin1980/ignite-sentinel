@@ -15,6 +15,7 @@ any external URL.
 
 from __future__ import annotations
 
+import html
 import json
 import re
 from pathlib import Path
@@ -147,6 +148,28 @@ def emit_root_css(theme: dict) -> str:
 
 def theme_css(theme: dict) -> str:
     return emit_root_css(theme) + "\n" + base_css()
+
+
+def _relative_luminance(hex_colour: str) -> float:
+    channels = [int(hex_colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast_ratio(fg_hex: str, bg_hex: str) -> float:
+    """WCAG 2.x contrast ratio between two #RRGGBB colours (1.0 to 21.0)."""
+    lighter, darker = sorted((_relative_luminance(fg_hex), _relative_luminance(bg_hex)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def legend_html(theme: dict, language: str = "en") -> str:
+    """Colour legend generated from ``semantica`` (falls back to English labels)."""
+    items = []
+    for role, spec in theme["semantica"].items():
+        labels = spec.get("label", {})
+        text = labels.get(language) or labels.get("en", role)
+        items.append(f'<li><span class="chip chip-{html.escape(role)}">{html.escape(text)}</span></li>')
+    return '<ul class="legend">' + "".join(items) + "</ul>"
 
 
 def load_theme(name_or_path: str | Path | None = None) -> dict:
