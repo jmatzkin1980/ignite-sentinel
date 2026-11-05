@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .core.io import parse_json, read_json_resource
 from .resources import package_resource
 
 BUILTIN_THEMES_DIR = "themes"
@@ -133,7 +134,7 @@ def _read_builtin(name: str) -> dict:
     available = list_builtin_themes()
     if name not in available:
         raise ThemeError(f"unknown theme {name!r}; available: {', '.join(available)}")
-    return json.loads(package_resource(BUILTIN_THEMES_DIR, f"{name}.json").read_text(encoding="utf-8"))
+    return read_json_resource(package_resource(BUILTIN_THEMES_DIR, f"{name}.json"))
 
 
 def _declarations(theme: dict, mode: str, scheme: str, *, fonts: bool) -> str:
@@ -192,7 +193,7 @@ def load_theme(name_or_path: str | Path | None = None) -> dict:
         path = Path(name_or_path)
         try:
             # utf-8-sig: accept the BOM PowerShell's Set-Content -Encoding UTF8 writes.
-            theme = json.loads(path.read_text(encoding="utf-8-sig"))
+            theme = parse_json(path.read_text(encoding="utf-8-sig"))
         except FileNotFoundError as exc:
             raise ThemeError(f"theme file not found: {path}") from exc
         except (OSError, UnicodeDecodeError) as exc:
