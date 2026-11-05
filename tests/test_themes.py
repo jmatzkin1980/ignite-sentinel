@@ -162,5 +162,26 @@ class ThemeSemanticsTests(unittest.TestCase):
         self.assertNotIn("<b>", legend)
 
 
+class ThemeDoctorTests(unittest.TestCase):
+    def test_doctor_theme_check_passes_on_repo(self) -> None:
+        from sentinel.doctor import themes_check
+
+        result = themes_check(ROOT)
+        self.assertEqual(result["status"], "PASS", result)
+
+    def test_doctor_theme_check_fails_on_extra_theme(self) -> None:
+        from sentinel.doctor import themes_check
+
+        result = themes_check(ROOT, builtin=["neutral", "brand"])
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("brand", result["detail"])
+
+    def test_run_doctor_includes_theme_check(self) -> None:
+        from sentinel.doctor import run_doctor
+
+        names = {check["name"] for check in run_doctor(ROOT)["checks"]}
+        self.assertIn("visual themes", names)
+
+
 if __name__ == "__main__":
     unittest.main()

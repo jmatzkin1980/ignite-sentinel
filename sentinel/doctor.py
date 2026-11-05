@@ -75,6 +75,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         path_check(root, "sentinel/templates/commands_manifest.json", "command adapter manifest"),
         command_surface_parity_check(),
         stdlib_purity_check(root),
+        themes_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -744,6 +745,28 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
     if len(violations) > 5:
         detail += f"; +{len(violations) - 5} more"
     return {"name": "stdlib purity", "status": "FAIL", "detail": detail}
+
+
+def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:
+    """IMP-238: built-in visual themes are exactly ``neutral`` and all validate.
+
+    Brand themes never ship in this public repo; they live in a user's local
+    theme directory (IMP-241).
+    """
+    from .themes import DEFAULT_THEME, ThemeError, list_builtin_themes, load_theme
+
+    name = "visual themes"
+    names = list_builtin_themes() if builtin is None else builtin
+    extra = sorted(set(names) - {DEFAULT_THEME})
+    if extra:
+        return {"name": name, "status": "FAIL", "detail": f"only '{DEFAULT_THEME}' may ship in the repo; found: {', '.join(extra)}"}
+    if DEFAULT_THEME not in names:
+        return {"name": name, "status": "FAIL", "detail": f"built-in theme '{DEFAULT_THEME}' is missing"}
+    try:
+        load_theme(DEFAULT_THEME)
+    except ThemeError as exc:
+        return {"name": name, "status": "FAIL", "detail": str(exc)}
+    return {"name": name, "status": "PASS", "detail": f"built-in themes: {DEFAULT_THEME} (valid, light and dark)"}
 
 
 DOC_COMMAND_MENTION_FILES = (
