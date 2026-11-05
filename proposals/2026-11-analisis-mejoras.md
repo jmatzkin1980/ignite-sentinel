@@ -158,22 +158,157 @@ plugins/ignite-sentinel/   (GENERADO por python -m sentinel.adapters)
 
 ---
 
-## 8. Artefactos HTML navegables (incompleto: continuar en sesión local)
+## 8. Artefactos HTML navegables
 
 ### Estado [V]
 `/view` (`view.py`, 1.180 líneas; claro, acento `#0f766e`, sin modo oscuro) y `/dashboard` (`dashboard.py`, 416 líneas; oscuro, acento `#828dff`) son dos sistemas visuales distintos con HTML y CSS dentro de strings de Python.
 
-### Propuesta
-- Sistema de diseño compartido: `sentinel/themes/base.css` más temas JSON por tokens, elegidos con `theme:` en la configuración o `--theme`; plantillas en archivos con `string.Template`.
-- Tema corporativo **inspirado en** (paleta, tipografía, layout), sin logos ni assets de marca en el repo público; los assets oficiales, si hacen falta, como tema local del usuario.
-- Restricciones: sin CDN ni Google Fonts (VDI); todo derivado del modelo de bloques; git-ignored.
-- Artefactos nuevos vía `/view --artifact`: brief en una página, guía de entrevista navegable, scorecard de madurez, explorador de trazabilidad, story map y plan de entregas, reporte de impacto de cambio.
-- Skill portable `sentinel-visual-artifacts`: elige la vista según la intención; el HTML lo genera el runtime.
+### 8.1 Patrones genéricos de las skills locales [V]
+Fuente: cuatro skills de un workspace de BA que generan HTML derivado desde JSON curado. Están documentadas en un contrato común (`derivados-html.md`) y comparten una carpeta de temas JSON. Acá van solo los patrones; no se copian datos, nombres de proyecto ni temas de cliente.
 
-### Pendiente para la sesión local
-1. Leer las skills de `C:\dev\.claude\skills` que generan HTML y extraer **solo patrones genéricos** (navegación, componentes, interacción), sin datos de proyectos o clientes.
-2. Revisar globant.com y derivar tokens: paleta, tipografía, jerarquía, layout y motion.
-3. Completar esta sección y, si se aprueba, prototipar el motor de temas.
+**Pipeline**
+| Patrón | Qué es | Encaje en Ignite |
+|---|---|---|
+| Datos → validar → construir | Solo se edita el JSON a mano. Un validador de solo lectura (ERROR/WARN; exit 1, y también en WARN con `--estricto`) corre antes de cada build. El HTML nunca se edita. | `view.py` se parte en `views/model.py` (vista derivada del grafo y los bloques), `views/validate.py` y `views/render.py`. |
+| Un solo archivo autocontenido | CSS, JS, datos (`const ITEMS=…`) e imágenes (base64) van inline; las librerías de terceros, vendorizadas. | Ya es la restricción VDI; se formaliza como test (cero `http(s)://` en `src` o `href` de recursos). |
+| Salida reproducible | Misma entrada ⇒ mismos bytes. La fecha de corte sale de los datos y nunca del reloj. | Test golden por vista; desbloquea versionar los HTML o compararlos entre baselines (F9). |
+| Ningún número hardcodeado | Los conteos se calculan en el build o en el navegador; la prosa usa `{n_total}` y un placeholder desconocido corta el build. | Elimina el drift entre `/status` y lo que muestra el HTML. |
+| Procedencia embebida | Una sección final con fecha de corte, fecha de build, sha256 (12 caracteres) de los datos y de cada fuente (`FALTA` si no está) y el comando para regenerar. Avisa si el corte supera un umbral de antigüedad. | Se reutilizan los hashes del grafo; es la base visual de los *suspect links* (F4). |
+| Validaciones del derivado | Esquema e ids únicos usables como ancla; cada cita apunta a un documento y una sección que existen y el id aparece en esa sección; prohibido citar por número de línea; huérfanos en los dos sentidos (citado sin registro, registrado sin cita); grafo sin ciclos y con dependencias simétricas; campos calculados ausentes de los datos. | Casi todo existe en `/validate`; falta aplicarlo a la vista antes de escribir el HTML. |
+
+**Navegación**
+- Shell común: barra superior sticky, sidebar sticky con conteos por grupo, menú hamburguesa por debajo de unos 900 px con `aria-expanded`, skip link.
+- Dos modelos, con una regla para elegir:
+  - Un panel visible a la vez, ruteado por `#hash` (`hashchange` + `history.replaceState`), para explorar.
+  - Una página larga con scroll-spy (IntersectionObserver), cuando hay que leer de corrido el resultado filtrado.
+- Todo link `#id` interno pasa por el router, así los deep links funcionan siempre. Breadcrumbs en vistas jerárquicas.
+- Búsqueda de texto sobre un `data-text` precalculado, más selects por enum, un checkbox "solo no resueltos" y el conteo de resultados con `aria-live`.
+
+**Componentes**
+- Chips de estado salidos de un único mapa `enum → (etiqueta, clase de color)`.
+- Leyenda de colores **obligatoria**, generada desde la `semantica` del tema.
+- Tiles KPI y cards en grilla `auto-fit`.
+- Callouts con iconos SVG inline.
+- `<details>` para colapsar.
+- Tablas dentro de un contenedor con scroll horizontal.
+- Tarjetas de veredicto por grupo: barra de progreso, "N de M" y un botón que aplica el filtro correspondiente. Contadas, no puntuadas.
+- Mapa de dependencias con grilla CSS por profundidad calculada, sin coordenadas SVG.
+- Matriz de trazabilidad: una fila por elemento, columnas por paso y un chip de nivel.
+- Visor de diagramas con cadena de degradación: SVG pre-renderizado → SVG con ids namespaced → imagen base64 → mermaid vendorizado → fuente con aviso de "degradado". Zoom y pan, pestañas antes/después, export a SVG (con las variables CSS resueltas) y a PNG.
+
+**Interacción**
+- Estado del lector en `localStorage` con clave por proyecto y versión: checkbox y nota por id, que sobrevive al rebuild.
+- Export del estado a JSON y CSV (con BOM), import desde JSON, reset con confirmación por doble clic.
+- Copiar al portapapeles con confirmación.
+- CSS de impresión: oculta la navegación, expande todo y hace salto de página por sección.
+
+**Evidencia y huecos**
+- La cita es un objeto `{doc, seccion, id}`. Se muestra como "Fuentes (n)" colapsable por ítem o se concentra en la sección de procedencia.
+- Lo desconocido se declara y nunca se rellena:
+  - El centinela `[SIN FUENTE]` se ve como una marca roja.
+  - "No declarado en las fuentes" se ve atenuado.
+  - Una lista `declarados_ausentes[]` de `{campo, por_que}` exigida por el validador.
+  - Niveles `establecido / inferido / sin-sustento`: `inferido` dice de qué se infiere y `sin-sustento` abre un pendiente.
+- Un estado vacío nunca se pinta verde.
+- Si se fuerza el build saltando el validador, el HTML lleva un banner de error.
+
+**Reglas de tema**
+- El tema es un dato con `tokens`, `semantica`, `tipografia` e `isotipo` opcional, y todos los temas tienen las mismas claves.
+- Se elige así: flag, después dato del proyecto, después `generico`. Si falta un token que el CSS usa, el build falla.
+- El tema se elige, no se extrae: el prototipo replica un design system pero no es el design system, y extraer los colores da tonos aproximados y sin significado.
+- Sin isotipo la barra lleva texto: no se inventa un logo. Nunca se rellena con el branding de otro cliente.
+
+**Recurrencia**
+- En las 4 skills (base compartida): cargador de tema con tokens y leyenda; escape HTML con mini-markup; archivo único; validar antes de construir; salida reproducible; conteos calculados; sha y fecha de corte; citas por sección e id; shell con barra superior y sidebar; chips; ARIA.
+- En 2 o 3: router por hash, pestañas, CSS de impresión, KPIs, scroll-spy, registro central de pendientes con chequeo de huérfanos, veredicto contado.
+- **Ausente en las 4:** modo oscuro y atajos de teclado. Ignite debería tener los dos desde el inicio.
+
+### 8.2 Tema corporativo inspirado en Globant
+**Fuente.** globant.com respondió 403 (Imperva, "Error 15") por IP desde el navegador integrado, desde Chrome y desde WebFetch, así que no se pudo inspeccionar el sitio. Los tokens salen del brand guide público: `brand.globant.com/color` y `/typography` **[E]**.
+
+**Paleta oficial [E]**
+| Grupo | Colores |
+|---|---|
+| Primarios | `#BFD732` (verde lima, firma) · `#FFFFFF` · `#00292E` (teal casi negro) · `#38EFA0` |
+| Secundarios | `#39B54A` · `#63E3CF` · `#662D91` · `#E61587` · `#F5F6F7` · `#666666` |
+| Safety | `#00A99D` |
+| Especiales | `#9E005D` · `#F7931E` · `#29ABE2` |
+| Gradientes (solo complemento, máximo uno por pieza, 40°) | `#38EFA0→#96F887→#C0FB73` · `#25F198→#15C9C3` · `#D9E021→#8CC63F` |
+
+Reglas del guide: predomina el blanco; no usar colores fuera de la paleta; no alterar los colores con efectos ni modos de fusión; no abusar de secundarios en una misma composición.
+
+**Contraste WCAG (calculado) [V]**
+| Par | Ratio | Uso permitido |
+|---|---|---|
+| `#00292E` sobre blanco | 15,5 | Texto principal en claro |
+| `#666666` sobre blanco / `#F5F6F7` | 5,7 / 5,3 | Texto secundario |
+| `#662D91` sobre blanco | 8,9 | Links y foco en claro |
+| `#E61587` sobre blanco | 4,4 | Solo texto grande o relleno (no llega a AA normal) |
+| `#BFD732` · `#39B54A` · `#00A99D` sobre blanco | 1,6 · 2,7 · 2,9 | **Nunca como texto en claro**: solo rellenos, bordes y subrayados |
+| `#BFD732` · `#38EFA0` · `#63E3CF` sobre `#00292E` | 9,6 · 10,3 · 9,9 | Texto y acentos en oscuro |
+| `#F7931E` · `#29ABE2` · `#00A99D` sobre `#00292E` | 6,7 · 5,9 · 5,3 | Estados en oscuro |
+| `#E61587` sobre `#00292E` | 3,6 | Solo texto grande o íconos |
+
+**Consecuencia de diseño.**
+- El modo **oscuro** (fondo `#00292E`) es donde la paleta funciona de forma natural como texto.
+- En modo **claro** predomina el blanco: el lima va como acento de superficie (barra activa, subrayado de título, foco). Los estados usan fondo suave, texto `#00292E` y borde o punto de color.
+- El significado nunca depende solo del color: siempre hay etiqueta o ícono, y está la leyenda.
+
+**Mapeo a roles (`semantica`) [propuesta]**
+| Rol | Claro | Oscuro |
+|---|---|---|
+| `bg` / `surface` / `surface-2` | `#FFFFFF` / `#F5F6F7` / `#FFFFFF` + borde | `#00292E` / tinte de `#00292E` / tinte más claro |
+| `text` / `text-muted` | `#00292E` / `#666666` | `#FFFFFF` / `#F5F6F7` atenuado |
+| `accent` (marca) | `#BFD732` como relleno o borde | `#BFD732` |
+| `link` / `focus` | `#662D91` | `#63E3CF` |
+| `ok` (listo, resuelto) | borde `#39B54A` | `#38EFA0` |
+| `info` | borde `#29ABE2` | `#29ABE2` |
+| `warn` (débil, pendiente) | borde `#F7931E` | `#F7931E` |
+| `block` (crítico, bloqueante) | borde `#E61587` | `#E61587` + ícono |
+| `governance` (DEC, ASM) | `#00A99D` (safety) | `#00A99D` |
+
+Los tintes de fondo y los colores de oscuro que no son de la paleta salen de mezclas sobre `#00292E` o `#FFFFFF`, y se documentan en la `procedencia` del tema. Eso choca con la regla "no usar colores fuera de la paleta", así que, si el tema llega a ser oficial, hay que validarlo con el dueño de marca **[P]**.
+
+**Tipografía [E]**
+- Guide: Heebo como primaria (complementada con Roboto para caracteres especiales) y Open Sans como secundaria. Jerarquía por variante (peso o estilo), no solo por tamaño; no tocar el interletrado ni deformar las fuentes.
+- Restricción VDI: sin Google Fonts. Propuesta: el tema declara `font-family: Heebo, "Open Sans", Roboto, system-ui, "Segoe UI", sans-serif` y se ve bien con la fuente instalada o sin ella. Los `.woff2` se pueden vendorizar en el tema local del usuario (Heebo y Open Sans son OFL; Roboto, Apache 2.0/OFL) **[P: confirmar licencias antes de vendorizar]**.
+- Escala propuesta (no viene del guide): 12 / 14 / 16 / 20 / 24 / 32, con títulos en 600–700 y texto en 400.
+
+**Componentes [E]**
+- CTA: borde redondeado de 20 px, con estados hover y active definidos, según el guide.
+- Radio de cards: 8–12 px (propuesta).
+
+**Sin verificar [P]:** layout, grilla y motion del sitio (por el bloqueo). Se puede resolver con capturas o desde otra red. Mientras tanto, los defaults conservadores son: contenedor de 1200–1280 px, grilla de 12 columnas, transiciones de 150–200 ms con `ease-out` y `prefers-reduced-motion` respetado.
+
+**Ubicación.** En el repo público solo van los temas `neutral` (claro y oscuro, default) y el esquema. El tema inspirado en Globant vive como **tema local del usuario** (`~/.ignite/themes/` o una carpeta git-ignored del workspace) con el nombre y la `procedencia` declarados. No se incluyen logo ni isotipo: la barra lleva texto.
+
+### 8.3 Propuesta (actualizada)
+1. **Esquema de tema** `sentinel/themes/schema.json`:
+   - Claves: `tokens` (con bloques `light` y `dark`), `semantica` (rol → significado, para la leyenda), `tipografia`, `isotipo?` y `procedencia`.
+   - Claves idénticas entre temas; si falta un token, el build falla.
+   - Se elige así: `--theme`, después `theme:` del workspace, después `neutral`.
+   - Modo con `prefers-color-scheme` más un toggle persistido.
+2. **Base única** `sentinel/themes/base.css` y shell común (barra superior, sidebar, hamburguesa, router por hash o scroll-spy, skip link, impresión). `/view` y `/dashboard` migran a esa base y dejan de tener dos sistemas visuales.
+3. **Pipeline de vistas** modelo → validar → render, con salida reproducible (test golden), conteos calculados, sección de procedencia (corte, sha del grafo y de las fuentes, comando) y banner si el grafo tiene *suspect links* o el health es `DIRTY`.
+4. **Componentes como funciones Python puras** (chip, kpi, card, callout, legend, matrix, details) sobre `string.Template`. Sin JS de terceros salvo mermaid vendorizado y opcional.
+5. **Evidencia visible:** "Fuentes (n)" por ítem con link a la sección del RAW; `[PENDING INPUT]` y `weakly_evidenced` (F2) con su estilo propio; un estado vacío nunca en verde.
+6. **Circuito de vuelta:** estado del BA (marcas y notas por id) en `localStorage` con clave por proyecto y hash del grafo, exportable a JSON e importable por `/resolve-gaps`. Formaliza el circuito `/view` → comentarios → `/resolve-gaps` de la sección 6.
+7. **Catálogo `/view --artifact`** sobre esos componentes:
+   | Artefacto | Componentes |
+   |---|---|
+   | Brief en una página | Página larga, procedencia, callouts de huecos |
+   | Guía de entrevista navegable | Router por hash, preguntas por `GAP-*`, checkbox y nota persistidos, export |
+   | Scorecard de madurez | KPIs, tarjetas de veredicto contadas con filtro, matriz de gates (sección 3) |
+   | Explorador de trazabilidad | Matriz RAW → TC, chips de nivel, *suspect* resaltado |
+   | Story map y plan de entregas | Grilla por profundidad (dependencias), cards por SLICE |
+   | Impacto de cambio | Antes/después, aristas afectadas, link a `CHG-*` |
+8. **Atajos de teclado** (`/` para buscar, `j`/`k` para navegar, `?` para ayuda) y verificación de AA en un test que calcula el contraste de los pares de `semantica`.
+9. **Skill portable `sentinel-visual-artifacts`:** elige la vista según la intención; el HTML lo genera el runtime.
+
+### Pendiente
+1. Verificar layout, grilla y motion de globant.com, con capturas o desde una red sin el bloqueo.
+2. Aprobar el prototipo del motor de temas (puntos 1 a 3 de 8.3) sobre `/dashboard`, que es la vista más chica.
+3. Decidir si se vendorizan las fuentes en el tema local, después de confirmar las licencias.
 
 ---
 
@@ -206,3 +341,4 @@ plugins/ignite-sentinel/   (GENERADO por python -m sentinel.adapters)
 - Anthropic, Agent Skills: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
 - Codex plugins: https://developers.openai.com/codex/plugins/build · https://github.com/openai/plugins · https://help.openai.com/en/articles/20001504-importing-and-syncing-plugin-marketplaces-from-github
 - llm-wiki: https://github.com/nvk/llm-wiki
+- Globant brand guide: https://brand.globant.com/color/ · https://brand.globant.com/typography/
