@@ -30,8 +30,10 @@ FONT_TOKENS = {"--font": "font", "--font-mono": "font_mono"}
 
 _TOKEN_REF = re.compile(r"var\((--[a-z0-9-]+)")
 _CSS_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
-_HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
-_EXTERNAL = re.compile(r"https?://|url\(|^//", re.IGNORECASE)
+_HEX = re.compile(r"#[0-9A-Fa-f]{6}")  # used with fullmatch
+_TOKEN_KEY = re.compile(r"--[a-z0-9-]+")  # used with fullmatch: keys are emitted into CSS
+_FONT_FORBIDDEN = re.compile(r"[;{}@\\<>]")
+_EXTERNAL = re.compile(r"https?://|url\(|//", re.IGNORECASE)
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
@@ -57,7 +59,8 @@ def _strings(value: Any):
     if isinstance(value, str):
         yield value
     elif isinstance(value, dict):
-        for item in value.values():
+        for key, item in value.items():
+            yield from _strings(key)
             yield from _strings(item)
     elif isinstance(value, list):
         for item in value:
@@ -78,6 +81,8 @@ def validate_theme(theme: dict) -> list[str]:
     for field in FONT_TOKENS.values():
         if not isinstance(typography.get(field), str) or not typography.get(field):
             errors.append(f"missing 'tipografia.{field}'")
+        elif _FONT_FORBIDDEN.search(typography[field]):
+            errors.append(f"tipografia.{field} contains characters not allowed in a font list (; {{ }} @ \\ < >)")
 
     tokens = theme.get("tokens") if isinstance(theme.get("tokens"), dict) else {}
     required = required_tokens()
@@ -89,7 +94,9 @@ def validate_theme(theme: dict) -> list[str]:
         for token in sorted(required - set(mode_tokens)):
             errors.append(f"token {token} missing in {mode} mode")
         for token, value in sorted(mode_tokens.items()):
-            if not isinstance(value, str) or not _HEX.match(value):
+            if not isinstance(token, str) or not _TOKEN_KEY.fullmatch(token):
+                errors.append(f"token name {token!r} in {mode} mode must match --[a-z0-9-]+")
+            if not isinstance(value, str) or not _HEX.fullmatch(value):
                 errors.append(f"token {token} in {mode} mode must be #RRGGBB, got {value!r}")
 
     semantics = theme.get("semantica")
@@ -103,8 +110,13 @@ def validate_theme(theme: dict) -> list[str]:
             label = spec.get("label")
             if not isinstance(label, dict) or not label.get("en"):
                 errors.append(f"semantica.{role} needs label.en")
+            elif not all(isinstance(text, str) for text in label.values()):
+                errors.append(f"semantica.{role} labels must be strings")
             for field in ("fg", "bg", "border"):
                 ref = spec.get(field)
+                if not isinstance(ref, str):
+                    errors.append(f"semantica.{role}.{field} must be a token name string, got {ref!r}")
+                    continue
                 for mode in MODES:
                     if not isinstance(tokens.get(mode), dict) or ref not in tokens[mode]:
                         errors.append(f"semantica.{role}.{field} references {ref} which is not a {mode} token")
@@ -179,13 +191,18 @@ def load_theme(name_or_path: str | Path | None = None) -> dict:
     if isinstance(name_or_path, Path) or str(name_or_path).lower().endswith(".json"):
         path = Path(name_or_path)
         try:
-            theme = json.loads(path.read_text(encoding="utf-8"))
+            # utf-8-sig: accept the BOM PowerShell's Set-Content -Encoding UTF8 writes.
+            theme = json.loads(path.read_text(encoding="utf-8-sig"))
         except FileNotFoundError as exc:
             raise ThemeError(f"theme file not found: {path}") from exc
+        except (OSError, UnicodeDecodeError) as exc:
+            raise ThemeError(f"theme file could not be read as UTF-8 text: {path}: {exc}") from exc
         except json.JSONDecodeError as exc:
             raise ThemeError(f"theme file is not valid JSON: {path}: {exc}") from exc
     else:
         theme = _read_builtin(str(name_or_path))
+    if not isinstance(theme, dict):
+        raise ThemeError(f"theme {str(name_or_path)!r} must be a JSON object")
     errors = validate_theme(theme)
     if errors:
         raise ThemeError(f"invalid theme {theme.get('name', name_or_path)!r}: " + "; ".join(errors))

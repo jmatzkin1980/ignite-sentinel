@@ -748,22 +748,33 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
 
 
 def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:
-    """IMP-238: built-in visual themes are exactly ``neutral`` and all validate.
+    """IMP-238: the checkout's ``sentinel/themes/`` holds only ``neutral`` and ``base.css``.
 
-    Brand themes never ship in this public repo; they live in a user's local
-    theme directory (IMP-241).
+    Inspects ``<root>/sentinel/themes`` (falls back to the installed package when
+    the root is not a framework checkout, e.g. a ``.pyz`` run). Any other theme or
+    file type there (a brand theme, a logo) fails: brand themes live in a user's
+    local theme directory (IMP-241), never in this public repo.
     """
     from .themes import DEFAULT_THEME, ThemeError, list_builtin_themes, load_theme
 
     name = "visual themes"
-    names = list_builtin_themes() if builtin is None else builtin
-    extra = sorted(set(names) - {DEFAULT_THEME})
+    allowed_files = {f"{DEFAULT_THEME}.json", "base.css"}
+    themes_dir = root / "sentinel" / "themes"
+    if builtin is not None:
+        found = {f"{item}.json" for item in builtin} | {"base.css"}
+    elif themes_dir.is_dir():
+        found = {item.name for item in themes_dir.iterdir() if item.is_file()}
+    else:
+        found = {f"{item}.json" for item in list_builtin_themes()} | {"base.css"}
+    extra = sorted(found - allowed_files)
     if extra:
-        return {"name": name, "status": "FAIL", "detail": f"only '{DEFAULT_THEME}' may ship in the repo; found: {', '.join(extra)}"}
-    if DEFAULT_THEME not in names:
-        return {"name": name, "status": "FAIL", "detail": f"built-in theme '{DEFAULT_THEME}' is missing"}
+        return {"name": name, "status": "FAIL", "detail": f"only {', '.join(sorted(allowed_files))} may ship in sentinel/themes/; found: {', '.join(extra)}"}
+    missing = sorted(allowed_files - found)
+    if missing:
+        return {"name": name, "status": "FAIL", "detail": f"missing in sentinel/themes/: {', '.join(missing)}"}
+    target = themes_dir / f"{DEFAULT_THEME}.json" if builtin is None and themes_dir.is_dir() else DEFAULT_THEME
     try:
-        load_theme(DEFAULT_THEME)
+        load_theme(target)
     except ThemeError as exc:
         return {"name": name, "status": "FAIL", "detail": str(exc)}
     return {"name": name, "status": "PASS", "detail": f"built-in themes: {DEFAULT_THEME} (valid, light and dark)"}

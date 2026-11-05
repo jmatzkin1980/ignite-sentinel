@@ -162,7 +162,93 @@ class ThemeSemanticsTests(unittest.TestCase):
         self.assertNotIn("<b>", legend)
 
 
+class ThemeHardeningTests(_TmpThemeMixin, unittest.TestCase):
+    """Final-review findings: CSS injection, robust loading, doctor root."""
+
+    def test_token_key_cannot_inject_css(self) -> None:
+        theme = self._neutral()
+        key = "--z:0}body{background:url(https://e.x/i.png)}:root{--y"
+        for mode in themes.MODES:
+            theme["tokens"][mode][key] = "#000000"
+        self.assertTrue(themes.validate_theme(theme))
+
+    def test_font_cannot_inject_css(self) -> None:
+        theme = self._neutral()
+        theme["tipografia"]["font"] = "x;}@import '//evil.example/a.css';:root{--q:1"
+        errors = themes.validate_theme(theme)
+        self.assertTrue(any("tipografia.font" in e for e in errors), errors)
+
+    def test_hex_with_trailing_newline_is_rejected(self) -> None:
+        theme = self._neutral()
+        theme["tokens"]["light"]["--bg"] = "#FFFFFF\n"
+        self.assertTrue(any("--bg" in e for e in themes.validate_theme(theme)))
+
+    def test_non_object_json_raises_theme_error(self) -> None:
+        path = self._write_theme([])  # type: ignore[arg-type]
+        with self.assertRaises(ThemeError):
+            themes.load_theme(path)
+
+    def test_utf8_bom_and_utf16_files(self) -> None:
+        holder = tempfile.TemporaryDirectory(prefix="sentinel_theme_")
+        self.addCleanup(holder.cleanup)
+        bom = Path(holder.name) / "bom.json"
+        bom.write_text(json.dumps(self._neutral()), encoding="utf-8-sig")
+        self.assertEqual(themes.load_theme(bom)["name"], "neutral")
+        utf16 = Path(holder.name) / "utf16.json"
+        utf16.write_text(json.dumps(self._neutral()), encoding="utf-16")
+        with self.assertRaises(ThemeError):
+            themes.load_theme(utf16)
+
+    def test_directory_path_raises_theme_error(self) -> None:
+        holder = tempfile.TemporaryDirectory(prefix="sentinel_theme_")
+        self.addCleanup(holder.cleanup)
+        folder = Path(holder.name) / "dir.json"
+        folder.mkdir()
+        with self.assertRaises(ThemeError):
+            themes.load_theme(folder)
+
+    def test_non_string_semantics_values_are_reported_not_crashing(self) -> None:
+        theme = self._neutral()
+        theme["semantica"]["ok"]["fg"] = ["--ok-text"]
+        theme["semantica"]["info"]["label"] = {"en": 5}
+        errors = themes.validate_theme(theme)
+        self.assertTrue(any("semantica.ok.fg" in e for e in errors), errors)
+        self.assertTrue(any("semantica.info" in e for e in errors), errors)
+
+
 class ThemeDoctorTests(unittest.TestCase):
+    def _fake_root(self, extra: dict[str, str]) -> Path:
+        holder = tempfile.TemporaryDirectory(prefix="sentinel_theme_root_")
+        self.addCleanup(holder.cleanup)
+        root = Path(holder.name)
+        target = root / "sentinel" / "themes"
+        target.mkdir(parents=True)
+        source = ROOT / "sentinel" / "themes"
+        for name in ("neutral.json", "base.css"):
+            (target / name).write_bytes((source / name).read_bytes())
+        for name, text in extra.items():
+            (target / name).write_text(text, encoding="utf-8")
+        return root
+
+    def test_doctor_theme_check_reads_the_root_checkout(self) -> None:
+        from sentinel.doctor import themes_check
+
+        result = themes_check(self._fake_root({"brand.json": "{}"}))
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("brand.json", result["detail"])
+
+    def test_doctor_theme_check_rejects_brand_assets(self) -> None:
+        from sentinel.doctor import themes_check
+
+        result = themes_check(self._fake_root({"logo.svg": "<svg/>"}))
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("logo.svg", result["detail"])
+
+    def test_doctor_theme_check_passes_on_clean_fake_root(self) -> None:
+        from sentinel.doctor import themes_check
+
+        self.assertEqual(themes_check(self._fake_root({}))["status"], "PASS")
+
     def test_doctor_theme_check_passes_on_repo(self) -> None:
         from sentinel.doctor import themes_check
 
