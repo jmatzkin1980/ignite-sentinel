@@ -1,5 +1,7 @@
 # Análisis de mejoras — Ignite Sentinel vNext (noviembre 2026)
 
+> **CONGELADO 2026-11-05.** Por decisión de Jose, este documento se movió a la memoria local del mantenedor (`docs/evolution/`, git-ignored) y la versión vigente vive allí. Esta copia no se actualiza más y la rama no se mergea a `main`. Las propuestas accionables quedaron como Horizonte 13 en el backlog local.
+
 > Documento de trabajo para mantenedores. Consolida un análisis hecho en una sesión de Claude Code en la nube, para continuarlo en una sesión local. No es documentación de producto ni cambia comportamiento del framework.
 >
 > Convención: **[V]** = verificado en el código o ejecutando comandos; **[E]** = inspiración externa (fuentes al final); **[P]** = pendiente de verificar.

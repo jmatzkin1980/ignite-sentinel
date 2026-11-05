@@ -1,5 +1,7 @@
 # Handoff para la sesión local — Ignite Sentinel vNext (noviembre 2026)
 
+> **CONGELADO 2026-11-05.** Por decisión de Jose, este documento se movió a la memoria local del mantenedor (`docs/evolution/`, git-ignored) y la versión vigente vive allí. Esta copia no se actualiza más y la rama no se mergea a `main`. Las propuestas accionables quedaron como Horizonte 13 en el backlog local.
+
 > Leé este archivo primero. Resume el trabajo hecho en una sesión de Claude Code en la nube y deja todo listo para continuar en una sesión local.
 > El análisis completo, con propuestas, evidencia y fuentes, está en [`2026-11-analisis-mejoras.md`](2026-11-analisis-mejoras.md). Este archivo **no lo repite**: agrega el contexto de la sesión, un mapa del repo, las decisiones tomadas, los pendientes y cómo seguir.
 
