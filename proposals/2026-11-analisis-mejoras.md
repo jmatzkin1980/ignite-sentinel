@@ -173,7 +173,7 @@ Fuente: cuatro skills de un workspace de BA que generan HTML derivado desde JSON
 | Un solo archivo autocontenido | CSS, JS, datos (`const ITEMS=…`) e imágenes (base64) van inline; las librerías de terceros, vendorizadas. | Ya es la restricción VDI; se formaliza como test (cero `http(s)://` en `src` o `href` de recursos). |
 | Salida reproducible | Misma entrada ⇒ mismos bytes. La fecha de corte sale de los datos y nunca del reloj. | Test golden por vista; desbloquea versionar los HTML o compararlos entre baselines (F9). |
 | Ningún número hardcodeado | Los conteos se calculan en el build o en el navegador; la prosa usa `{n_total}` y un placeholder desconocido corta el build. | Elimina el drift entre `/status` y lo que muestra el HTML. |
-| Procedencia embebida | Una sección final con fecha de corte, fecha de build, sha256 (12 caracteres) de los datos y de cada fuente (`FALTA` si no está) y el comando para regenerar. Avisa si el corte supera un umbral de antigüedad. | Se reutilizan los hashes del grafo; es la base visual de los *suspect links* (F4). |
+| Procedencia embebida | Una sección final con fecha de corte, sha256 (12 caracteres) de los datos y de cada fuente (`FALTA` si no está) y el comando para regenerar. Avisa si el corte supera un umbral de antigüedad. | Se reutilizan los hashes del grafo; es la base visual de los *suspect links* (F4). **Sin fecha de build en el HTML**, para no romper la salida reproducible: la fecha de corte y los hashes ya identifican la versión. El aviso de antigüedad se calcula en el navegador contra el reloj del lector, así no afecta los bytes. |
 | Validaciones del derivado | Esquema e ids únicos usables como ancla; cada cita apunta a un documento y una sección que existen y el id aparece en esa sección; prohibido citar por número de línea; huérfanos en los dos sentidos (citado sin registro, registrado sin cita); grafo sin ciclos y con dependencias simétricas; campos calculados ausentes de los datos. | Casi todo existe en `/validate`; falta aplicarlo a la vista antes de escribir el HTML. |
 
 **Navegación**
@@ -289,10 +289,10 @@ Los tintes de fondo y los colores de oscuro que no son de la paleta salen de mez
    - Se elige así: `--theme`, después `theme:` del workspace, después `neutral`.
    - Modo con `prefers-color-scheme` más un toggle persistido.
 2. **Base única** `sentinel/themes/base.css` y shell común (barra superior, sidebar, hamburguesa, router por hash o scroll-spy, skip link, impresión). `/view` y `/dashboard` migran a esa base y dejan de tener dos sistemas visuales.
-3. **Pipeline de vistas** modelo → validar → render, con salida reproducible (test golden), conteos calculados, sección de procedencia (corte, sha del grafo y de las fuentes, comando) y banner si el grafo tiene *suspect links* o el health es `DIRTY`.
+3. **Pipeline de vistas** modelo → validar → render, con salida reproducible (test golden), conteos calculados, sección de procedencia (corte, sha del grafo y de las fuentes, comando; sin fecha de build) y banner si el grafo tiene *suspect links* o el health es `DIRTY`.
 4. **Componentes como funciones Python puras** (chip, kpi, card, callout, legend, matrix, details) sobre `string.Template`. Sin JS de terceros salvo mermaid vendorizado y opcional.
 5. **Evidencia visible:** "Fuentes (n)" por ítem con link a la sección del RAW; `[PENDING INPUT]` y `weakly_evidenced` (F2) con su estilo propio; un estado vacío nunca en verde.
-6. **Circuito de vuelta:** estado del BA (marcas y notas por id) en `localStorage` con clave por proyecto y hash del grafo, exportable a JSON e importable por `/resolve-gaps`. Formaliza el circuito `/view` → comentarios → `/resolve-gaps` de la sección 6.
+6. **Circuito de vuelta:** estado del BA (marcas y notas por id) en `localStorage` con clave por proyecto y versión del esquema de estado, para que sobreviva a los rebuilds (patrón de 8.1). El hash del grafo se guarda **junto al** estado, no en la clave: si al abrir la vista no coincide con el actual, se muestra "hubo cambios desde tus notas" y se marcan las notas cuyos ids ya no existen o cambiaron, sin descartarlas. Exportable a JSON e importable por `/resolve-gaps`. Formaliza el circuito `/view` → comentarios → `/resolve-gaps` de la sección 6.
 7. **Catálogo `/view --artifact`** sobre esos componentes:
    | Artefacto | Componentes |
    |---|---|
