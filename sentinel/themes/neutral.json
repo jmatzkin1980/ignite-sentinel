@@ -1,0 +1,75 @@
+{
+  "name": "neutral",
+  "label": "Neutral",
+  "procedencia": {
+    "origen": "Built-in default theme of Ignite Sentinel (IMP-238). Deliberately brand-free: a document without a brand reads as what it is, a working document.",
+    "paleta": "Slate blue accent and conventional status hues, chosen to avoid colliding with any client identity.",
+    "contraste": "Every text/background pair in semantica, plus text and muted text on the page background, meets WCAG AA (4.5:1) in light and dark mode; tests/test_themes.py enforces it."
+  },
+  "tipografia": {
+    "font": "system-ui, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+    "font_mono": "Consolas, \"Cascadia Mono\", \"SFMono-Regular\", Menlo, monospace"
+  },
+  "isotipo": null,
+  "tokens": {
+    "light": {
+      "--bg": "#FFFFFF",
+      "--surface": "#F6F8FA",
+      "--surface-2": "#EEF2F6",
+      "--line": "#D0D7DE",
+      "--text": "#1F2933",
+      "--text-muted": "#52606D",
+      "--accent": "#2F5D8C",
+      "--link": "#1F5A99",
+      "--focus": "#2F5D8C",
+      "--ok": "#2E7D32",
+      "--ok-soft": "#E8F5E9",
+      "--ok-text": "#1B5E20",
+      "--info": "#1F6FB2",
+      "--info-soft": "#E3F0FB",
+      "--info-text": "#0B4A7D",
+      "--warn": "#B26A00",
+      "--warn-soft": "#FFF4E0",
+      "--warn-text": "#7A4500",
+      "--block": "#B42318",
+      "--block-soft": "#FDECEA",
+      "--block-text": "#8A1C12",
+      "--governance": "#6B3FA0",
+      "--governance-soft": "#F1EAFB",
+      "--governance-text": "#4B2A75"
+    },
+    "dark": {
+      "--bg": "#0F1720",
+      "--surface": "#16212C",
+      "--surface-2": "#1E2B38",
+      "--line": "#2E3D4C",
+      "--text": "#E6EDF3",
+      "--text-muted": "#A7B4C2",
+      "--accent": "#7FB0E0",
+      "--link": "#8CC0F0",
+      "--focus": "#7FB0E0",
+      "--ok": "#4CAF50",
+      "--ok-soft": "#12301A",
+      "--ok-text": "#A5D6A7",
+      "--info": "#4FA3E3",
+      "--info-soft": "#10283D",
+      "--info-text": "#A9D3F5",
+      "--warn": "#E0A040",
+      "--warn-soft": "#33240C",
+      "--warn-text": "#F5CF8C",
+      "--block": "#F06A5E",
+      "--block-soft": "#3A1512",
+      "--block-text": "#F7B4AD",
+      "--governance": "#A98BD8",
+      "--governance-soft": "#261A3A",
+      "--governance-text": "#D6C6F2"
+    }
+  },
+  "semantica": {
+    "ok": {"label": {"en": "Ready / resolved", "es": "Listo / resuelto"}, "fg": "--ok-text", "bg": "--ok-soft", "border": "--ok"},
+    "info": {"label": {"en": "Information", "es": "Información"}, "fg": "--info-text", "bg": "--info-soft", "border": "--info"},
+    "warn": {"label": {"en": "Weak or pending", "es": "Débil o pendiente"}, "fg": "--warn-text", "bg": "--warn-soft", "border": "--warn"},
+    "block": {"label": {"en": "Critical / blocking", "es": "Crítico / bloqueante"}, "fg": "--block-text", "bg": "--block-soft", "border": "--block"},
+    "governance": {"label": {"en": "Decision / assumption", "es": "Decisión / supuesto"}, "fg": "--governance-text", "bg": "--governance-soft", "border": "--governance"}
+  }
+}
