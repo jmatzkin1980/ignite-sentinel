@@ -16,6 +16,23 @@ from sentinel.memory import ContextBroker
 ROOT = Path(__file__).parent
 
 
+
+def setUpModule() -> None:
+    """IMP-241 review: doctor must not read the developer's real ~/.ignite/themes in tests."""
+    import os
+    import tempfile
+
+    global _THEMES_HOME
+    _THEMES_HOME = tempfile.TemporaryDirectory(prefix="sentinel_themes_home_")
+    os.environ["IGNITE_THEMES_DIR"] = _THEMES_HOME.name
+
+
+def tearDownModule() -> None:
+    import os
+
+    os.environ.pop("IGNITE_THEMES_DIR", None)
+    _THEMES_HOME.cleanup()
+
 class SentinelCoreFlowTest(unittest.TestCase):
     def setUp(self) -> None:
         self.old_cwd = Path.cwd()

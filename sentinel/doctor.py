@@ -76,6 +76,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         command_surface_parity_check(),
         stdlib_purity_check(root),
         themes_check(root),
+        user_themes_check(root),
         project_ids_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
@@ -748,6 +749,49 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
     return {"name": "stdlib purity", "status": "FAIL", "detail": detail}
 
 
+def user_themes_check(root: Path) -> dict[str, str]:  # noqa: C901
+    """IMP-241: user-local themes load, declare their provenance and do not shadow built-ins.
+
+    Looks at ``~/.ignite/themes`` (or ``IGNITE_THEMES_DIR``) and every
+    ``workspaces/*/.sentinel/themes``. Findings are WARN, never FAIL: these themes are
+    the user's own and never part of the repo.
+    """
+    from .themes import ThemeError, list_builtin_themes, load_theme, theme_warnings, user_theme_dirs
+    from .workspace import local_themes_rule_present
+
+    name = "user-local themes"
+    folders = list(user_theme_dirs())
+    workspaces = root / "workspaces"
+    findings: list[str] = []
+    if workspaces.is_dir():
+        for workspace in sorted(path for path in workspaces.iterdir() if path.is_dir()):
+            local = workspace / ".sentinel" / "themes"
+            folders.append(local)
+            gitignore = workspace / ".gitignore"
+            ignored = gitignore.is_file() and local_themes_rule_present(gitignore.read_bytes())
+            if local.is_dir() and not ignored:
+                findings.append(f"{workspace.name}: .sentinel/themes exists but the workspace .gitignore does not exclude .sentinel/ (re-run /init {workspace.name}: it only adds what is missing)")
+    builtin = set(list_builtin_themes())
+    count = 0
+    for folder in folders:
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.glob("*.json")):
+            count += 1
+            if path.stem in builtin:
+                findings.append(f"{path.name} uses a built-in name and is ignored (built-ins always win)")
+                continue
+            try:
+                theme = load_theme(path)
+            except ThemeError as exc:
+                findings.append(f"{path.name}: {str(exc).replace(str(path), path.name).replace(path.as_posix(), path.name)}")
+                continue
+            findings += [f"{path.name}: {warning}" for warning in theme_warnings(theme)]
+    if findings:
+        return {"name": name, "status": "WARN", "detail": "; ".join(findings)}
+    return {"name": name, "status": "PASS", "detail": f"{count} local theme(s) valid" if count else "no local themes"}
+
+
 VIEW_TEMPLATES = frozenset(
     {
         "shell.html", "shell.css", "shell.js",
@@ -809,7 +853,7 @@ def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]
     file type there (a brand theme, a logo) fails: brand themes live in a user's
     local theme directory (IMP-241), never in this public repo.
     """
-    from .themes import DEFAULT_THEME, ThemeError, list_builtin_themes, load_theme
+    from .themes import DEFAULT_THEME, ThemeError, list_builtin_themes, load_theme, validate_theme
 
     name = "visual themes"
     allowed_files = {f"{DEFAULT_THEME}.json", "base.css"}
@@ -833,9 +877,13 @@ def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]
             return {"name": name, "status": "FAIL", "detail": f"only the view templates may ship in sentinel/themes/templates/; found: {', '.join(stray)}"}
     target = themes_dir / f"{DEFAULT_THEME}.json" if builtin is None and themes_dir.is_dir() else DEFAULT_THEME
     try:
-        load_theme(target)
+        theme = load_theme(target)
     except ThemeError as exc:
         return {"name": name, "status": "FAIL", "detail": str(exc)}
+    # A path loads as a user theme (provenance optional); the repo theme must always declare it.
+    provenance_errors = [error for error in validate_theme(theme, require_provenance=True) if "procedencia" in error]
+    if provenance_errors:
+        return {"name": name, "status": "FAIL", "detail": "; ".join(provenance_errors)}
     return {"name": name, "status": "PASS", "detail": f"built-in themes: {DEFAULT_THEME} (valid, light and dark)"}
 
 

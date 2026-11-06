@@ -14,7 +14,7 @@ from .core.paths import is_valid_project_id
 from .discovery import parse_gap_rows
 from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
-from .themes import DEFAULT_THEME, legend_html, load_theme
+from .themes import DEFAULT_THEME, legend_html, load_theme, user_theme_dirs
 from .workspace import read_json
 
 
@@ -175,7 +175,7 @@ def render_html(model: dict[str, Any]) -> str:
 
 def generate_dashboard(root: str | Path = ".", open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
     root_path = Path(root).resolve()
-    loaded = load_theme(theme)
+    loaded = load_theme(theme, search_dirs=user_theme_dirs())
     model = collect_dashboard_model(root_path)
     out = root_path / "dashboard.html"
     out.write_text(render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), encoding="utf-8", newline="\n")
