@@ -220,6 +220,19 @@ class GoldenArtifactTests(unittest.TestCase):
             with self.subTest(language=language, artifact=artifact):
                 self.assertEqual(export_projection(model), frozen[f"{language}/{artifact}"])
 
+    def test_view_goldens_stay_within_size_budget(self):
+        """IMP-240: deduplicating the embedded model keeps the 10 view goldens <= 2.1 MB."""
+        total = sum(path.stat().st_size for path in GOLDEN_DIR.glob("*/view/*.html"))
+        self.assertLessEqual(total, 2_100_000, f"view goldens weigh {total} bytes")
+
+    def test_view_goldens_embed_no_absolute_paths(self):
+        import re
+
+        for path in GOLDEN_DIR.glob("*/view/*.html"):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(view=str(path.relative_to(GOLDEN_DIR))):
+                self.assertIsNone(re.search(r'"[A-Za-z]:[\/]|/Users/|/home/|\\Users', text))
+
     def test_english_artifacts_match_golden(self):
         self._run_language("en")
 
