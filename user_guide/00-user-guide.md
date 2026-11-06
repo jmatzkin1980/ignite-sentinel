@@ -340,6 +340,7 @@ By default:
 - [Scenarios](12-scenarios.md): concrete examples of common situations.
 - [Dashboard](14-dashboard.md): read-only portfolio view across local workspaces.
 - [Artifact Views](15-artifact-views.md): read-only local HTML views for gaps, brief, PRD, specs, and backlog, plus optional local PRD MDX export.
+- [Visual Themes](17-themes.md): choose or create a local theme (palette, legend, embedded fonts) for the dashboard and artifact views.
 
 ## Practical Advice
 
