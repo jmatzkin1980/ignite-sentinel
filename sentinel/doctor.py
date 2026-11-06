@@ -768,7 +768,7 @@ def user_themes_check(root: Path) -> dict[str, str]:
             gitignore = workspace / ".gitignore"
             ignored = gitignore.is_file() and any(line.strip() == ".sentinel/" for line in gitignore.read_text(encoding="utf-8").splitlines())
             if local.is_dir() and not ignored:
-                findings.append(f"{workspace.name}: .sentinel/themes exists but the workspace .gitignore does not exclude .sentinel/ (run any command on the workspace to add it)")
+                findings.append(f"{workspace.name}: .sentinel/themes exists but the workspace .gitignore does not exclude .sentinel/ (re-run /init {workspace.name}: it only adds what is missing)")
     builtin = set(list_builtin_themes())
     count = 0
     for folder in folders:
