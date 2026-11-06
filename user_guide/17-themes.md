@@ -12,18 +12,18 @@ python -m sentinel /view PROJECT_ID --artifact prd --theme C:\path\to\acme.json
 
 A theme **name** is looked up in this order:
 
-1. Built-in names (`neutral`) always resolve to the repo theme. A local theme with the same name is ignored, and `/doctor` warns about it.
+1. Built-in names (`neutral`) always resolve to the repo theme, in any letter case. A local theme with the same name is ignored, and `/doctor` warns about it. Names may only contain letters, digits, `-` and `_`.
 2. `/view` only: `workspaces/PROJECT_ID/.sentinel/themes/<name>.json`, a theme for one workspace. The workspace `.gitignore` already excludes `.sentinel/`.
-3. `~/.ignite/themes/<name>.json`, your personal themes. Set `IGNITE_THEMES_DIR` to use another folder.
+3. `~/.ignite/themes/<name>.json`, your personal themes. `IGNITE_THEMES_DIR` **replaces** that folder (an absolute path is recommended; a relative one resolves against the current directory).
 
 Without `--theme`, `/view` uses `theme:` from the workspace config, then `neutral`. A configured theme that fails to load falls back to `neutral` with a warning. A bad `--theme` is an error.
 
 ## Creating a theme
 
-1. Copy the structure of `sentinel/themes/neutral.json`. Keep every key: `name`, `label`, `procedencia`, `tipografia`, `tokens.light`, `tokens.dark`, `semantica`.
+1. Copy the structure of `neutral.json` (in a clone it is `sentinel/themes/neutral.json`; in an installed package it sits in the `sentinel/themes/` folder of the package). Keep every key: `name`, `label`, `procedencia`, `tipografia`, `tokens.light`, `tokens.dark`, `semantica`.
 2. Change the token values (`#RRGGBB`) and the labels. Each role in `semantica` names the tokens it uses, and the legend is generated from it, so every colour on the page has a stated meaning.
 3. Fill `procedencia`: where the palette comes from and who approved it. A theme without it still loads, but `/doctor` reports a warning.
-4. Validate it: `python -m sentinel doctor` lists every local theme under **user-local themes**.
+4. Validate it: `python -m sentinel doctor` lists every local theme under **user-local themes**. It checks `~/.ignite/themes` and `workspaces/*/.sentinel/themes` under the root you run it on.
 
 The validator rejects:
 
@@ -55,6 +55,6 @@ A local theme may embed `.woff2` fonts. They become `data:` URIs inside the page
 }
 ```
 
-- **Files:** the `.woff2` files and the licence text (`OFL.txt`) sit next to the theme JSON, with no sub-folders. Each font is limited to 1.5 MB.
+- **Files:** the `.woff2` files and the licence text (`OFL.txt`) sit next to the theme JSON, as plain files: no sub-folders and no symlinks. A file must really be a woff2 font, and each one is limited to 1.5 MB.
 - **Licence:** use fonts whose licence allows embedding. Heebo, Open Sans and Roboto are under the SIL Open Font License (OFL), and the licence file must travel with them.
 - **Page size:** the fonts are embedded in every page, so keep to the weights you actually use.

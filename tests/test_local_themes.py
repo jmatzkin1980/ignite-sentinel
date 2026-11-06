@@ -75,7 +75,7 @@ class SearchOrderTests(_LocalThemesBase):
     def test_unknown_name_lists_searched_places(self) -> None:
         with self.assertRaises(ThemeError) as ctx:
             themes.load_theme("missing-brand", search_dirs=themes.user_theme_dirs())
-        self.assertIn(str(self.home_themes), str(ctx.exception))
+        self.assertIn("$IGNITE_THEMES_DIR", str(ctx.exception))  # a label, never the absolute home path
         self.assertIn("neutral", str(ctx.exception))
 
     def test_user_theme_dirs_for_a_workspace(self) -> None:
@@ -227,6 +227,114 @@ class SurfaceTests(_LocalThemesBase):
         result = generate_dashboard(self.tmp / "root", theme="acme")
         self.assertEqual(result["theme"], "acme")
         self.assertIn("--theme acme", (self.tmp / "root" / "dashboard.html").read_text(encoding="utf-8"))
+
+
+class ReviewFixTests(_LocalThemesBase):
+    """Final-review findings for IMP-241 (each failed before its fix)."""
+
+    def test_doctor_still_requires_provenance_on_the_repo_theme(self) -> None:
+        from sentinel.doctor import themes_check
+
+        root = self.tmp / "fake"
+        source = Path(__file__).resolve().parents[1] / "sentinel" / "themes"
+        shutil.copytree(source, root / "sentinel" / "themes", ignore=shutil.ignore_patterns("__pycache__"))
+        neutral = root / "sentinel" / "themes" / "neutral.json"
+        data = json.loads(neutral.read_text(encoding="utf-8"))
+        del data["procedencia"]
+        neutral.write_text(json.dumps(data), encoding="utf-8")
+        result = themes_check(root)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("procedencia", result["detail"])
+
+    def test_non_font_bytes_are_rejected(self) -> None:
+        path = self._font_theme(b"not a font at all")
+        with self.assertRaises(ThemeError) as ctx:
+            themes.load_theme(path)
+        self.assertIn("woff2", str(ctx.exception))
+
+    def test_symlinked_font_is_rejected(self) -> None:
+        secret = self.tmp / "secret.txt"
+        secret.write_bytes(b"wOF2 pretend secret")
+        path = self._font_theme(WOFF2_BYTES)
+        font = path.parent / "Heebo-Regular.woff2"
+        font.unlink()
+        try:
+            os.symlink(secret, font)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks need privileges on this machine")
+        with self.assertRaises(ThemeError):
+            themes.load_theme(path)
+
+    def test_resolved_font_must_stay_in_the_theme_folder(self) -> None:
+        # Cross-platform proxy for the symlink rule: the containment check itself.
+        self.assertFalse(themes._inside(self.tmp / "a" / "x.woff2", self.tmp / "b"))
+        self.assertTrue(themes._inside(self.tmp / "b" / "x.woff2", self.tmp / "b"))
+
+    def test_builtin_name_in_any_case_is_not_shadowed(self) -> None:
+        self.write(self.home_themes, self.brand(name="neutral", label="Impostor"), filename="neutral.json")
+        theme = themes.load_theme("Neutral", search_dirs=themes.user_theme_dirs())
+        self.assertEqual(theme["label"], "Neutral")
+
+    def test_theme_names_are_validated_before_lookup(self) -> None:
+        for bad in ("C:acme", "acme:stream", "a b", ".hidden"):
+            with self.subTest(name=bad), self.assertRaises(ThemeError):
+                themes.load_theme(bad, search_dirs=themes.user_theme_dirs())
+
+    def test_underscore_keys_are_rejected_in_input(self) -> None:
+        theme = self.brand()
+        theme["semantica"]["_x"] = copy.deepcopy(theme["semantica"]["ok"])
+        path = self.write(self.home_themes, theme)
+        with self.assertRaises(ThemeError):
+            themes.load_theme(path)
+
+    def test_font_spec_edge_cases(self) -> None:
+        bool_weight = self._font_theme(WOFF2_BYTES, weight=True)
+        with self.assertRaises(ThemeError):
+            themes.load_theme(bool_weight)
+        control = self._font_theme(WOFF2_BYTES, family="Hee\nbo")
+        with self.assertRaises(ThemeError):
+            themes.load_theme(control)
+
+    def test_not_found_message_does_not_print_the_home_path(self) -> None:
+        with self.assertRaises(ThemeError) as ctx:
+            themes.load_theme("missing-brand", search_dirs=themes.user_theme_dirs())
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+
+    def test_gitignore_append_keeps_line_endings_and_detects_variants(self) -> None:
+        from sentinel.workspace import ensure_local_themes_ignored
+
+        lf = self.tmp / "lf.gitignore"
+        lf.write_bytes(b"a/\nb/\n")
+        self.assertTrue(ensure_local_themes_ignored(lf))
+        self.assertNotIn(b"\r\n", lf.read_bytes())
+        self.assertTrue(lf.read_bytes().startswith(b"a/\nb/\n"))
+        crlf = self.tmp / "crlf.gitignore"
+        crlf.write_bytes(b"a/\r\nb/\r\n")
+        ensure_local_themes_ignored(crlf)
+        self.assertNotIn(b"\n.sentinel/\n", crlf.read_bytes().replace(b"\r\n", b"\r\n"))
+        self.assertTrue(crlf.read_bytes().endswith(b".sentinel/\r\n"))
+        for variant in (b"/.sentinel/\n", b".sentinel\n", b".sentinel/*\n", b"\xef\xbb\xbf.sentinel/\n"):
+            path = self.tmp / "variant.gitignore"
+            path.write_bytes(variant)
+            with self.subTest(variant=variant):
+                self.assertFalse(ensure_local_themes_ignored(path))
+        latin = self.tmp / "latin.gitignore"
+        latin.write_bytes("caf\xe9/\n".encode("latin-1"))
+        ensure_local_themes_ignored(latin)  # must not crash
+        self.assertIn(b".sentinel/", latin.read_bytes())
+
+    def _font_theme(self, data: bytes, **font) -> Path:
+        folder = self.home_themes
+        (folder / "Heebo-Regular.woff2").write_bytes(data)
+        (folder / "OFL.txt").write_text("SIL Open Font License 1.1 (synthetic test copy)", encoding="utf-8")
+        theme = self.brand()
+        theme["tipografia"] = {
+            "font": "Heebo, system-ui, sans-serif",
+            "font_mono": "Consolas, monospace",
+            "font_license": "OFL.txt",
+            "font_files": [{"family": "Heebo", "file": "Heebo-Regular.woff2", "weight": 400, "style": "normal", **font}],
+        }
+        return self.write(folder, theme)
 
 
 if __name__ == "__main__":

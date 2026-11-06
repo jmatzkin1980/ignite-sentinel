@@ -31,6 +31,8 @@ DEFAULT_THEME = "neutral"
 USER_THEMES_ENV = "IGNITE_THEMES_DIR"
 WORKSPACE_THEMES_DIR = (".sentinel", "themes")
 MAX_FONT_BYTES = 1_500_000
+RUNTIME_FONT_KEY = "_font_faces"
+WOFF2_MAGIC = b"wOF2"
 MODES = ("light", "dark")
 FONT_TOKENS = {"--font": "font", "--font-mono": "font_mono"}
 
@@ -40,6 +42,7 @@ _HEX = re.compile(r"#[0-9A-Fa-f]{6}")  # used with fullmatch
 _TOKEN_KEY = re.compile(r"--[a-z0-9-]+")  # used with fullmatch: keys are emitted into CSS
 _FONT_FORBIDDEN = re.compile(r"[;{}@\\<>]")
 _EXTERNAL = re.compile(r"https?://|url\(|//", re.IGNORECASE)
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _SAFE_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -67,8 +70,8 @@ def _strings(value: Any):
         yield value
     elif isinstance(value, dict):
         for key, item in value.items():
-            if isinstance(key, str) and key.startswith("_"):
-                continue  # runtime-computed keys (e.g. _font_faces), not theme data
+            if key == RUNTIME_FONT_KEY:
+                continue  # computed at load time from local files, never theme input
             yield from _strings(key)
             yield from _strings(item)
     elif isinstance(value, list):
@@ -135,10 +138,26 @@ def validate_theme(theme: dict, *, require_provenance: bool = True) -> list[str]
                     if not isinstance(tokens.get(mode), dict) or ref not in tokens[mode]:
                         errors.append(f"semantica.{role}.{field} references {ref} which is not a {mode} token")
 
+    for key in _underscore_keys(theme):
+        errors.append(f"keys starting with '_' are reserved for the runtime: {key!r}")
     for text in _strings(theme):
         if _EXTERNAL.search(text):
             errors.append(f"external reference not allowed (local-first): {text!r}")
     return errors
+
+
+def _underscore_keys(value: Any, prefix: str = "") -> list[str]:
+    found: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if isinstance(key, str) and key.startswith("_") and not (prefix == "" and key == RUNTIME_FONT_KEY and isinstance(item, str) and item == ""):
+                found.append(path)
+            found += _underscore_keys(item, path)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found += _underscore_keys(item, f"{prefix}[{index}]")
+    return found
 
 
 def theme_warnings(theme: dict) -> list[str]:
@@ -151,7 +170,7 @@ def theme_warnings(theme: dict) -> list[str]:
 
 def _font_file_errors(typography: dict) -> list[str]:
     files = typography.get("font_files")
-    if files is None:
+    if files is None or files == []:
         return []
     errors: list[str] = []
     if not isinstance(files, list):
@@ -164,11 +183,12 @@ def _font_file_errors(typography: dict) -> list[str]:
             errors.append(f"tipografia.font_files[{index}] must be an object")
             continue
         family, filename = spec.get("family"), spec.get("file")
-        if not isinstance(family, str) or not family or _FONT_FORBIDDEN.search(family) or '"' in family:
+        if not isinstance(family, str) or not family or _FONT_FORBIDDEN.search(family) or '"' in family or _CONTROL.search(family):
             errors.append(f"tipografia.font_files[{index}].family is missing or has characters not allowed in CSS")
         if not isinstance(filename, str) or not _SAFE_FILE.fullmatch(filename) or not filename.lower().endswith(".woff2"):
             errors.append(f"tipografia.font_files[{index}].file must be a .woff2 file name next to the theme (no folders)")
-        if not isinstance(spec.get("weight", 400), int):
+        weight = spec.get("weight", 400)
+        if isinstance(weight, bool) or not isinstance(weight, int) or not 1 <= weight <= 1000:
             errors.append(f"tipografia.font_files[{index}].weight must be an integer")
         if spec.get("style", "normal") not in {"normal", "italic"}:
             errors.append(f"tipografia.font_files[{index}].style must be normal or italic")
@@ -182,16 +202,18 @@ def _embed_fonts(theme: dict, folder: Path) -> str:
     if not files:
         return ""
     license_path = folder / str(typography["font_license"])
-    if not license_path.is_file():
-        raise ThemeError(f"theme {theme.get('name')!r} embeds fonts but its licence file is missing: {typography['font_license']}")
+    if not _plain_file_inside(license_path, folder):
+        raise ThemeError(f"theme {theme.get('name')!r} embeds fonts but its licence file is missing or not a plain file: {typography['font_license']}")
     rules = []
     for spec in files:
         path = folder / spec["file"]
-        if not path.is_file():
-            raise ThemeError(f"theme {theme.get('name')!r}: font file not found: {spec['file']}")
-        data = path.read_bytes()
-        if len(data) > MAX_FONT_BYTES:
+        if not _plain_file_inside(path, folder):
+            raise ThemeError(f"theme {theme.get('name')!r}: font file not found or not a plain file in the theme folder: {spec['file']}")
+        if path.stat().st_size > MAX_FONT_BYTES:
             raise ThemeError(f"theme {theme.get('name')!r}: font {spec['file']} exceeds {MAX_FONT_BYTES} bytes")
+        data = path.read_bytes()
+        if not data.startswith(WOFF2_MAGIC):
+            raise ThemeError(f"theme {theme.get('name')!r}: {spec['file']} is not a woff2 font (bad signature)")
         encoded = base64.b64encode(data).decode("ascii")
         rules.append(
             f'@font-face{{font-family:"{spec["family"]}";font-style:{spec.get("style", "normal")};'
@@ -199,6 +221,28 @@ def _embed_fonts(theme: dict, folder: Path) -> str:
             f"src:url(data:font/woff2;base64,{encoded}) format(\"woff2\");}}"
         )
     return "\n".join(rules) + "\n"
+
+
+def _folder_label(folder: Path) -> str:
+    """A search folder for messages, without the user's absolute home path."""
+    parts = Path(folder).parts
+    if len(parts) >= 2 and parts[-2:] == WORKSPACE_THEMES_DIR:
+        return "<workspace>/" + "/".join(WORKSPACE_THEMES_DIR)
+    if os.environ.get(USER_THEMES_ENV):
+        return f"${USER_THEMES_ENV}"
+    return "~/.ignite/themes"
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    try:
+        return Path(path).resolve().parent == Path(folder).resolve()
+    except OSError:
+        return False
+
+
+def _plain_file_inside(path: Path, folder: Path) -> bool:
+    """A regular file directly in ``folder``: no symlink, no junction, no escape (IMP-241 review)."""
+    return path.is_file() and not path.is_symlink() and _inside(path, folder)
 
 
 def user_theme_dirs(workspace: str | Path | None = None) -> list[Path]:
@@ -236,7 +280,7 @@ def emit_root_css(theme: dict) -> str:
     """
     dark = _declarations(theme, "dark", "dark", fonts=False)
     return (
-        str(theme.get("_font_faces", ""))
+        str(theme.get(RUNTIME_FONT_KEY, ""))
         + ":root{" + _declarations(theme, "light", "light", fonts=True) + "}\n"
         '@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){' + dark + "}}\n"
         ':root[data-theme="dark"]{' + dark + "}\n"
@@ -281,7 +325,12 @@ def load_theme(name_or_path: str | Path | None = None, *, search_dirs: list[Path
         name_or_path = DEFAULT_THEME
     text = str(name_or_path)
     is_path = isinstance(name_or_path, Path) or text.lower().endswith(".json") or "/" in text or "\\" in text
-    if not is_path and text not in list_builtin_themes():
+    builtins = {name.casefold(): name for name in list_builtin_themes()}
+    if not is_path and text.casefold() in builtins:
+        name_or_path = text = builtins[text.casefold()]
+    elif not is_path and search_dirs and not _NAME.fullmatch(text):
+        raise ThemeError(f"theme name {text!r} may only contain letters, digits, '-' and '_' (or pass a path to a .json file)")
+    if not is_path and text not in builtins.values():
         for folder in search_dirs:
             candidate = Path(folder) / f"{text}.json"
             if candidate.is_file():
@@ -289,7 +338,7 @@ def load_theme(name_or_path: str | Path | None = None, *, search_dirs: list[Path
                 break
         else:
             if search_dirs:
-                places = ", ".join(str(Path(folder)) for folder in search_dirs)
+                places = ", ".join(_folder_label(Path(folder)) for folder in search_dirs)
                 raise ThemeError(f"theme {text!r} not found among built-in themes ({', '.join(list_builtin_themes())}) or in {places}")
     user_theme = is_path
     if is_path:
@@ -311,5 +360,5 @@ def load_theme(name_or_path: str | Path | None = None, *, search_dirs: list[Path
     if errors:
         raise ThemeError(f"invalid theme {theme.get('name', name_or_path)!r}: " + "; ".join(errors))
     if user_theme:
-        theme["_font_faces"] = _embed_fonts(theme, Path(name_or_path).parent)
+        theme[RUNTIME_FONT_KEY] = _embed_fonts(theme, Path(name_or_path).parent)
     return theme

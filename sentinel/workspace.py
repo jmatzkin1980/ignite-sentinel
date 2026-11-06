@@ -158,15 +158,22 @@ def ensure_local_themes_ignored(gitignore_file: Path) -> bool:
     Append-only and idempotent: existing rules are never rewritten. Returns True when
     the rule was added.
     """
-    text = gitignore_file.read_text(encoding="utf-8")
-    if any(line.strip() == LOCAL_THEMES_IGNORE_RULE for line in text.splitlines()):
+    raw = gitignore_file.read_bytes()
+    if local_themes_rule_present(raw):
         return False
-    prefix = "" if text.endswith("\n") or not text else "\n"
-    gitignore_file.write_text(
-        text + prefix + "# IMP-241: workspace-local themes (brand palettes, fonts) never enter git.\n" + LOCAL_THEMES_IGNORE_RULE + "\n",
-        encoding="utf-8",
-    )
+    newline = b"\r\n" if b"\r\n" in raw else b"\n"
+    prefix = b"" if not raw or raw.endswith(b"\n") else newline
+    block = prefix + b"# IMP-241: workspace-local themes (brand palettes, fonts) never enter git." + newline + LOCAL_THEMES_IGNORE_RULE.encode("ascii") + newline
+    with open(gitignore_file, "ab") as handle:  # append-only: existing bytes are never rewritten
+        handle.write(block)
     return True
+
+
+def local_themes_rule_present(raw: bytes) -> bool:
+    """True when a .gitignore already excludes .sentinel/ in any common spelling."""
+    text = raw.decode("utf-8", errors="replace").lstrip("\ufeff")
+    variants = {".sentinel", ".sentinel/", "/.sentinel", "/.sentinel/", ".sentinel/*", "/.sentinel/*", ".sentinel/**", "/.sentinel/**"}
+    return any(line.strip().lstrip("\ufeff") in variants for line in text.splitlines())
 
 
 def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:
