@@ -6,8 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- `tools/clean_local.py`: maintainer cleanup that dry-runs by default and, with `--apply`, removes only git-ignored caches and build output, eval reports beyond retention, and leftover test tempdirs; workspaces need `--include-workspaces` plus a per-workspace confirmation.
+- `tests/test_evals_faithfulness.py` runs the faithfulness claim eval (no-invention trap) in the unit suite, and `verify.ps1` runs `run_faithfulness_claim_evals.py` in the evals step.
+
+### Changed
+- Eval reports keep the newest 5 per kind (`SENTINEL_EVAL_KEEP_REPORTS`); `SENTINEL_EVAL_REPORTS=0` disables writing them. The retrieval eval test uses the same retention.
+
 ### Fixed
 - A non-editable install (`pip install .`) now ships every `sentinel` subpackage; it previously failed with `ModuleNotFoundError: sentinel.core`.
+- `tests/test_momtest.py` no longer leaves temporary directories behind on every run.
 
 ## [0.2.0] — 2026-07-17
 
