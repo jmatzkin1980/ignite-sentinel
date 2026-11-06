@@ -14,7 +14,11 @@ import os
 import unittest
 from datetime import datetime, timezone
 
-from sentinel.dashboard import DashboardModelError, collect_dashboard_model, validate_dashboard_model
+import re
+
+from sentinel import themes
+from sentinel.dashboard import DashboardModelError, collect_dashboard_model, render_dashboard, render_html, validate_dashboard_model
+from sentinel.resources import package_resource
 from tests.test_dashboard import DashboardFixtureMixin
 
 FIXED_EPOCH = 1_781_481_600  # 2026-06-15T00:00:00Z
@@ -100,6 +104,84 @@ class DashboardValidationTests(DashboardFixtureMixin, unittest.TestCase):
 
     def test_error_type_is_value_error(self) -> None:
         self.assertTrue(issubclass(DashboardModelError, ValueError))
+
+
+
+class DashboardShellTests(DashboardFixtureMixin, unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        pin_mtimes(self.temp)
+        self.model = collect_dashboard_model(self.temp)
+        self.theme = themes.load_theme()
+        self.html = render_dashboard(self.model, self.theme)
+
+    def test_shell_accessibility_landmarks(self) -> None:
+        self.assertIn('<a class="skip-link" href="#main">', self.html)
+        self.assertIn('<main id="main"', self.html)
+        self.assertRegex(self.html, r'<button class="shell-burger"[^>]*aria-controls="sidebar"[^>]*aria-expanded="false"')
+        self.assertIn('id="sidebar"', self.html)
+
+    def test_mode_toggle_persists_with_guarded_storage(self) -> None:
+        self.assertIn('id="modeToggle"', self.html)
+        self.assertIn("ignite-sentinel:color-mode", self.html)
+        for match in re.finditer(r"localStorage", self.html):
+            before = self.html[max(0, match.start() - 120) : match.start()]
+            self.assertIn("try", before, "every localStorage access sits inside try/catch")
+
+    def test_responsive_and_print_rules(self) -> None:
+        self.assertIn("@media (max-width: 900px)", self.html)
+        self.assertIn("@media print", self.html)
+
+    def test_theme_in_both_modes(self) -> None:
+        self.assertIn(themes.emit_root_css(self.theme), self.html)
+        self.assertIn(':root[data-theme="dark"]', self.html)
+        self.assertIn("prefers-color-scheme: dark", self.html)
+
+    def test_legend_comes_from_theme_semantics(self) -> None:
+        self.assertIn('id="legend"', self.html)
+        self.assertIn(themes.legend_html(self.theme, "es"), self.html)
+
+    def test_provenance_section(self) -> None:
+        provenance = self.model["provenance"]
+        self.assertIn('id="provenance"', self.html)
+        self.assertIn(provenance["cutoff"], self.html)
+        for source in provenance["sources"]:
+            self.assertIn(source["sha256"], self.html)
+        self.assertIn("python -m sentinel /dashboard --theme neutral", self.html)
+
+    def test_sidebar_lists_workspaces(self) -> None:
+        for project_id in ("DASH_BACKLOG_READY", "DASH_CLIENT_WAIT"):
+            self.assertIn(f'data-open-ws="{project_id}"', self.html)
+
+    def test_existing_sections_survive(self) -> None:
+        for needle in ("Ignite Sentinel - Workspaces", "dashboard-data", "section-registry", "mdToHtml", "openDrawer", "Project Brief"):
+            self.assertIn(needle, self.html)
+
+    def test_no_external_urls(self) -> None:
+        self.assertNotRegex(self.html, r"https?://|@import|url\(")
+
+    def test_view_stylesheets_use_only_theme_tokens(self) -> None:
+        for name in ("shell.css", "dashboard.css"):
+            css = package_resource("themes", "templates", name).read_text(encoding="utf-8")
+            self.assertEqual(re.findall(r"#[0-9a-fA-F]{3,8}\b", css), [], name)
+
+    def test_custom_theme_is_applied(self) -> None:
+        theme = copy.deepcopy(self.theme)
+        theme["tokens"]["light"]["--bg"] = "#FAFAF0"
+        self.assertIn("--bg:#FAFAF0", render_dashboard(self.model, theme))
+
+    def test_invalid_model_is_not_rendered(self) -> None:
+        model = copy.deepcopy(self.model)
+        model["kpis"]["total"] = 7
+        with self.assertRaises(DashboardModelError):
+            render_dashboard(model, self.theme)
+
+    def test_render_html_alias_uses_neutral(self) -> None:
+        self.assertEqual(render_html(self.model), self.html)
+
+    def test_two_renders_are_byte_identical(self) -> None:
+        again = render_dashboard(collect_dashboard_model(self.temp), themes.load_theme())
+        self.assertEqual(self.html, again)
 
 
 if __name__ == "__main__":
