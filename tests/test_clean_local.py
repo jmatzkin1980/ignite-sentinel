@@ -57,7 +57,9 @@ class CleanLocalRepoTests(unittest.TestCase):
     def setUp(self) -> None:
         holder = tempfile.TemporaryDirectory(prefix="sentinel_clean_")
         self.addCleanup(holder.cleanup)
-        self.repo = Path(holder.name) / "repo"
+        # resolve(): on Windows runners the temp dir is given with an 8.3 short name
+        # (RUNNER~1) while clean_local reports resolved paths (IMP-246).
+        self.repo = Path(holder.name).resolve() / "repo"
         self.temp_root = Path(holder.name) / "temp"
         self.temp_root.mkdir()
         self.repo.mkdir()

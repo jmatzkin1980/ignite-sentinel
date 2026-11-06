@@ -467,8 +467,11 @@ def relativize_text(project_id: str, text: str) -> str:
     Generated artifacts can carry absolute anchors (e.g. backlog `Anchor: <root>/workspaces/...`).
     The governed Markdown is not touched; only the copy embedded in the page becomes relative.
     """
-    root = workspace_path(project_id).resolve().parent.parent
-    forms = {str(root), root.as_posix(), str(root).replace("\\", "/")}
+    workspace = workspace_path(project_id)
+    roots = {workspace.resolve().parent.parent, workspace.absolute().parent.parent}
+    forms = set()
+    for root in roots:  # both spellings of the root (8.3 short names, junctions; IMP-246)
+        forms |= {str(root), root.as_posix(), str(root).replace("\\", "/")}
     for form in sorted(forms, key=len, reverse=True):
         for sep in ("/", "\\"):
             text = text.replace(form + sep, "")
