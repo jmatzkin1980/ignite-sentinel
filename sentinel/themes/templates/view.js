@@ -34,6 +34,7 @@
       try { localStorage.setItem(provKey, show ? "show" : "hide"); } catch (e) {}
     });
     window.addEventListener("hashchange", () => revealIfHidden(location.hash.slice(1)));
+    revealIfHidden(location.hash.slice(1));
     document.addEventListener("click", event => {
       const link = event.target.closest && event.target.closest('a[href^="#"]');
       if (link) revealIfHidden(link.getAttribute("href").slice(1));
@@ -358,13 +359,14 @@
       try { localStorage.setItem(sourceShaKey, model.provenance.source_sha256); } catch (e) {}
     }
     function targetExists(item) {
-      if (item.target_type === "marker") return model.markers.some(m => m.id === item.target_id);
-      return model.sections.some(s => s.id === (item.section_id || item.target_id));
+      if (item.target_type === "marker") return model.markers.some(m => m.id === item.target_id && (!item.marker || m.marker === item.marker));
+      return model.sections.some(s => s.id === (item.section_id || item.target_id) && (!item.section_path || s.section_path === item.section_path));
     }
     function checkSourceChanged() {
       const stored = storedSourceSha();
       const hasNotes = feedbackComments.length || Object.keys(guidedAnswers).length;
       $("sourceChanged").hidden = !(stored && hasNotes && stored !== model.provenance.source_sha256);
+      if (!stored && hasNotes) rememberSourceSha();
     }
     function applyProvenance(show) {
       document.body.classList.toggle("show-prov", show);

@@ -246,6 +246,96 @@ class ReaderEditionMarkupTests(unittest.TestCase):
         self.assertIn("Show open queues", rendered)
 
 
+class ViewReviewFixTests(_ViewWorkspace):
+    """Final-review findings for IMP-240 (each failed before its fix)."""
+
+    def test_absolute_root_inside_embedded_text_is_relativized(self) -> None:
+        from sentinel.view import relativize_text
+
+        root = self.temp.resolve()
+        for raw in (root.as_posix(), str(root), str(root).replace("\\", "/")):
+            text = f"(Anchor: {raw}/workspaces/{self.project_id}/03_specs/specs.md:1-4)"
+            self.assertEqual(relativize_text(self.project_id, text), f"(Anchor: workspaces/{self.project_id}/03_specs/specs.md:1-4)")
+
+    def test_regenerate_command_does_not_leak_theme_directory(self) -> None:
+        theme_path = self.temp / "my themes" / "brand.json"
+        html = render_artifact_view(collect_artifact_model(self.project_id, "prd"), themes.load_theme(), theme_arg=str(theme_path))
+        self.assertNotIn(str(self.temp), html)
+        self.assertNotIn(self.temp.as_posix(), html)
+        self.assertIn("--theme &quot;brand.json&quot;", html)
+
+    def test_dashboard_regenerate_command_does_not_leak_theme_directory(self) -> None:
+        from sentinel.dashboard import _provenance_section
+
+        section = _provenance_section({"cutoff": "", "sources": []}, str(self.temp / "brand.json"))
+        self.assertNotIn(str(self.temp), section)
+        self.assertIn("brand.json", section)
+
+    def test_configured_theme_quotes_and_comments_are_accepted(self) -> None:
+        from sentinel.view import resolve_view_theme
+        from sentinel.workspace import config_path
+
+        path = config_path(self.project_id)
+        original = path.read_text(encoding="utf-8")
+        self.addCleanup(path.write_text, original, encoding="utf-8")
+        path.write_text(original + '\ntheme: "neutral"  # house style\n', encoding="utf-8")
+        theme, warning = resolve_view_theme(self.project_id, None)[0], resolve_view_theme(self.project_id, None)[2]
+        self.assertEqual(theme["name"], "neutral")
+        self.assertIsNone(warning)
+
+    def test_broken_configured_theme_falls_back_with_warning(self) -> None:
+        from sentinel.view import resolve_view_theme
+        from sentinel.workspace import config_path
+
+        path = config_path(self.project_id)
+        original = path.read_text(encoding="utf-8")
+        self.addCleanup(path.write_text, original, encoding="utf-8")
+        path.write_text(original + "\ntheme: does-not-exist\n", encoding="utf-8")
+        theme, _arg, warning = resolve_view_theme(self.project_id, None)
+        self.assertEqual(theme["name"], "neutral")
+        self.assertIn("does-not-exist", warning)
+
+    def test_orphan_detection_compares_content_not_only_position(self) -> None:
+        html = render_artifact_view(collect_artifact_model(self.project_id, "prd"), themes.load_theme())
+        body = _js_function(html, "function targetExists(item) {")
+        self.assertIn("m.marker === item.marker", body)
+        self.assertIn("s.section_path === item.section_path", body)
+
+    def test_print_shows_provenance_and_deep_links_reveal(self) -> None:
+        html = render_artifact_view(collect_artifact_model(self.project_id, "prd"), themes.load_theme())
+        self.assertIn("body .prov { display: inline !important; }", html)
+        self.assertIn("revealIfHidden(location.hash.slice(1));", html)
+        self.assertIn("scroll-margin-top: calc(var(--shell-top) + 16px)", html)
+
+    def test_source_sha_is_recorded_on_first_load_with_notes(self) -> None:
+        html = render_artifact_view(collect_artifact_model(self.project_id, "prd"), themes.load_theme())
+        body = _js_function(html, "function checkSourceChanged() {")
+        self.assertIn("rememberSourceSha()", body)
+
+    def test_title_is_escaped(self) -> None:
+        model = collect_artifact_model(self.project_id, "prd")
+        model["label"] = "PRD <b>"
+        html = render_artifact_view(model, themes.load_theme())
+        self.assertIn("PRD &lt;b&gt;", html[: html.index("</title>")])
+
+    def test_provenance_wrap_never_crosses_tags(self) -> None:
+        from sentinel.view import markdown_to_html
+
+        rendered = markdown_to_html("Text [Source: `a]b`] end")
+        self.assertNotIn('<span class="prov">[Source: <code>a]</span>', rendered)
+
+    def test_display_path_treats_both_path_styles_as_absolute(self) -> None:
+        from sentinel.view import display_path
+
+        self.assertNotIn("/home/someone", display_path(self.project_id, "/home/someone/x/notes.md"))
+        self.assertNotIn("C:/Users", display_path(self.project_id, "C:/Users/someone/notes.md"))
+
+    def test_linkish_class_has_no_literal_backslashes(self) -> None:
+        from sentinel.view import markdown_to_html
+
+        self.assertIn('<span class="linkish">site</span>', markdown_to_html("see [site](x)"))
+
+
 def _js_function(html: str, signature: str) -> str:
     start = html.find(signature)
     if start < 0:

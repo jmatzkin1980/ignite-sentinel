@@ -84,7 +84,7 @@ main:focus{outline:none}
     .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px; }
     .stat strong { display: block; font-size: 21px; }
     .stat span { color: var(--text-muted); font-size: 12px; }
-    section.artifact-section { padding: 14px 0 24px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+    section.artifact-section { padding: 14px 0 24px; border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--shell-top) + 16px); }
     section.artifact-section.hidden { display: none; }
     .section-meta { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
     .content h1, .content h2, .content h3 { letter-spacing: 0; }
@@ -150,7 +150,7 @@ main:focus{outline:none}
       .view-main { padding: 18px; }
     }
   
-    @media print { aside, .feedback-target, .source-toggle, .prov-toggle, .view-nav { display: none !important; } .layout { display: block; } body .prov { display: inline; } }
+    @media print { aside, .feedback-target, .source-toggle, .prov-toggle, .view-nav { display: none !important; } .layout { display: block; } body .prov { display: inline !important; } }
 
 </style>
 </head>
@@ -281,6 +281,7 @@ main:focus{outline:none}
       try { localStorage.setItem(provKey, show ? "show" : "hide"); } catch (e) {}
     });
     window.addEventListener("hashchange", () => revealIfHidden(location.hash.slice(1)));
+    revealIfHidden(location.hash.slice(1));
     document.addEventListener("click", event => {
       const link = event.target.closest && event.target.closest('a[href^="#"]');
       if (link) revealIfHidden(link.getAttribute("href").slice(1));
@@ -605,13 +606,14 @@ main:focus{outline:none}
       try { localStorage.setItem(sourceShaKey, model.provenance.source_sha256); } catch (e) {}
     }
     function targetExists(item) {
-      if (item.target_type === "marker") return model.markers.some(m => m.id === item.target_id);
-      return model.sections.some(s => s.id === (item.section_id || item.target_id));
+      if (item.target_type === "marker") return model.markers.some(m => m.id === item.target_id && (!item.marker || m.marker === item.marker));
+      return model.sections.some(s => s.id === (item.section_id || item.target_id) && (!item.section_path || s.section_path === item.section_path));
     }
     function checkSourceChanged() {
       const stored = storedSourceSha();
       const hasNotes = feedbackComments.length || Object.keys(guidedAnswers).length;
       $("sourceChanged").hidden = !(stored && hasNotes && stored !== model.provenance.source_sha256);
+      if (!stored && hasNotes) rememberSourceSha();
     }
     function applyProvenance(show) {
       document.body.classList.toggle("show-prov", show);

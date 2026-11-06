@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import html
-import json
 import re
+import sys
+from pathlib import PurePosixPath, PureWindowsPath
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,8 +14,8 @@ from .assumptions import load_assumptions
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
-from .shell import fill, json_for_script, render_shell, template_text
-from .themes import DEFAULT_THEME, legend_html, load_theme
+from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme
 from .workspace import load_config, read_json, workspace_path
 
 
@@ -82,6 +83,11 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     section_summary = summarize_section_readiness(sections)
     for section in sections:
         section.pop("blocks", None)
+        section["markdown"] = relativize_text(project_id, section["markdown"])
+        section["html"] = relativize_text(project_id, section["html"])
+    for fragment in source_fragments.values():
+        if "text" in fragment:
+            fragment["text"] = relativize_text(project_id, fragment["text"])
     return {
         "project_id": project_id,
         "artifact": artifact,
@@ -441,14 +447,28 @@ def display_path(project_id: str, raw_path: str) -> str:
     text = str(raw_path or "").replace("\\", "/").strip()
     if not text:
         return ""
-    candidate = Path(text)
-    if not candidate.is_absolute():
+    if not (PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute()):
         return text
+    candidate = Path(text)
     root = workspace_path(project_id).resolve().parent.parent
     try:
         return candidate.resolve().relative_to(root).as_posix()
     except (ValueError, OSError):
         return candidate.name
+
+
+def relativize_text(project_id: str, text: str) -> str:
+    """Strip the machine-specific project root from embedded text (IMP-240 review).
+
+    Generated artifacts can carry absolute anchors (e.g. backlog `Anchor: <root>/workspaces/...`).
+    The governed Markdown is not touched; only the copy embedded in the page becomes relative.
+    """
+    root = workspace_path(project_id).resolve().parent.parent
+    forms = {str(root), root.as_posix(), str(root).replace("\\", "/")}
+    for form in sorted(forms, key=len, reverse=True):
+        for sep in ("/", "\\"):
+            text = text.replace(form + sep, "")
+    return text
 
 
 def display_node(project_id: str, node: dict[str, Any]) -> dict[str, Any]:
@@ -638,9 +658,12 @@ def _legend_section(theme: dict[str, Any], language: str) -> str:
 
 def _provenance_section(model: dict[str, Any], theme_arg: str) -> str:
     provenance = model["provenance"]
-    command = html.escape(f"python -m sentinel /view {model['project_id']} --artifact {model['artifact']} --theme {theme_arg}")
+    command = html.escape(
+        f"python -m sentinel /view {model['project_id']} --artifact {model['artifact']} --theme {theme_argument_for_display(theme_arg)}"
+    )
+    heading = "Procedencia" if str(model.get("language", "")).lower().startswith("es") else "Provenance"
     return (
-        '<section class="view-section" id="provenance"><h2>Provenance</h2>'
+        f'<section class="view-section" id="provenance"><h2>{heading}</h2>'
         f"<p>Source: <code>{html.escape(model['source_path'])}</code> · sha256 <code>{html.escape(provenance['source_sha256'])}</code> · "
         f'cut-off <time datetime="{html.escape(provenance["cutoff"])}">{html.escape(provenance["cutoff"])}</time> '
         "(the source file's modification time, not the build time).</p>"
@@ -648,18 +671,44 @@ def _provenance_section(model: dict[str, Any], theme_arg: str) -> str:
     )
 
 
-def resolve_view_theme(project_id: str, theme: str | Path | None) -> tuple[dict[str, Any], str | None]:
-    """Theme priority for /view: --theme > workspace config `theme:` > neutral (IMP-238 spec)."""
+def resolve_view_theme(project_id: str, theme: str | Path | None) -> tuple[dict[str, Any], str | None, str | None]:
+    """Theme priority for /view: --theme > workspace config `theme:` > neutral (IMP-238 spec).
+
+    An explicit --theme that fails is a hard error. A configured theme that fails falls back
+    to neutral with a warning, so one bad config line never breaks /view for the whole team.
+    Returns (theme, theme_arg, warning).
+    """
     if theme:
-        return load_theme(theme), str(theme)
-    configured = str(load_config(project_id).get("theme") or "").strip()
-    if configured:
-        return load_theme(configured), configured
-    return load_theme(), None
+        return load_theme(theme), str(theme), None
+    configured = _clean_config_scalar(load_config(project_id).get("theme"))
+    if not configured:
+        return load_theme(), None, None
+    candidates = [configured]
+    if not (PurePosixPath(configured).is_absolute() or PureWindowsPath(configured).is_absolute()) and any(ch in configured for ch in "/\\"):
+        candidates.insert(0, str(workspace_path(project_id) / configured))
+    errors = []
+    for candidate in candidates:
+        try:
+            return load_theme(candidate), configured, None
+        except ThemeError as exc:
+            errors.append(str(exc))
+    return load_theme(), None, f"workspace config theme {configured!r} could not be loaded ({errors[-1]}); using {DEFAULT_THEME}"
+
+
+def _clean_config_scalar(value: object) -> str:
+    """`theme: "x"  # note` -> `x` (the simple YAML reader keeps quotes and inline comments)."""
+    text = str(value or "").strip()
+    if " #" in text:
+        text = text.split(" #", 1)[0].strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return text
 
 
 def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
-    loaded, theme_arg = resolve_view_theme(project_id, theme)
+    loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
+    if theme_warning:
+        print(f"sentinel warning: {theme_warning}", file=sys.stderr)
     model = collect_artifact_model(project_id, artifact)
     rendered = render_artifact_view(model, loaded, theme_arg=theme_arg)
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
@@ -679,6 +728,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
         "cutoff": model["provenance"]["cutoff"],
         "source_sha256": model["provenance"]["source_sha256"],
         "theme": loaded["name"],
+        **({"theme_warning": theme_warning} if theme_warning else {}),
     }
 
 
@@ -793,11 +843,11 @@ def inline_markdown(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
-    escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<span class=\"linkish\">\1</span>", escaped)
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<span class="linkish">\1</span>', escaped)
     return wrap_provenance(escaped)
 
 
-PROVENANCE_HTML_RE = re.compile(r"_\((?:<code>[^<]*</code>|[^<()])*\)_|\[(?:Fuente|Source):[^\]]+\]")
+PROVENANCE_HTML_RE = re.compile(r"_\((?:<code>[^<]*</code>|[^<()])*\)_|\[(?:Fuente|Source):[^\]<]+\]")
 
 
 def wrap_provenance(rendered: str) -> str:

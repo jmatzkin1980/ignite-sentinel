@@ -22,7 +22,7 @@
     .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px; }
     .stat strong { display: block; font-size: 21px; }
     .stat span { color: var(--text-muted); font-size: 12px; }
-    section.artifact-section { padding: 14px 0 24px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+    section.artifact-section { padding: 14px 0 24px; border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--shell-top) + 16px); }
     section.artifact-section.hidden { display: none; }
     .section-meta { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
     .content h1, .content h2, .content h3 { letter-spacing: 0; }
@@ -88,4 +88,4 @@
       .view-main { padding: 18px; }
     }
   
-    @media print { aside, .feedback-target, .source-toggle, .prov-toggle, .view-nav { display: none !important; } .layout { display: block; } body .prov { display: inline; } }
+    @media print { aside, .feedback-target, .source-toggle, .prov-toggle, .view-nav { display: none !important; } .layout { display: block; } body .prov { display: inline !important; } }

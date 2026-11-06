@@ -161,8 +161,13 @@ def _generate(scenario: dict) -> dict[str, str]:
             for name, rel in ARTIFACTS.items()
         }
         views = workspace / "08_context_packs" / "views"
+        roots = {str(tmp.resolve()), tmp.resolve().as_posix(), str(tmp), tmp.as_posix()}
         for view_artifact in VIEW_ARTIFACTS:
             html = (views / f"{view_artifact}.html").read_text(encoding="utf-8")
+            # IMP-240: checked on the RAW page; normalize() would hide the prefix.
+            leaked = [root for root in roots if root and root in html]
+            if leaked:
+                raise AssertionError(f"view/{view_artifact}.html embeds the absolute workspace root: {leaked[0]}")
             produced[f"view/{view_artifact}.html"] = normalize(html, pid)
         exports = workspace / "08_context_packs" / "exports"
         produced["export/prd.mdx"] = normalize(
