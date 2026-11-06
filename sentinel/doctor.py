@@ -1200,8 +1200,8 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ".github/workflows": SurfaceContract(
         surfaces=("GitHub Actions",),
         live_check="Open a pull request and confirm both ci-fast and every ci-full job finish green in the PR's Checks tab (a workflow that parses proves nothing; IMP-246).",
-        observed="",
-        note="Read by GitHub, not by us: the only proof is a run observed on GitHub.",
+        observed="2026-11-06",
+        note="Read by GitHub, not by us: the only proof is a run observed on GitHub. First green run: PR #241, run 42260645975 (ci-fast + 5 ci-full jobs, real mcp 1.30.0 / 2.3.0 and lancedb 0.41.0).",
     ),
     "AGENTS.md": SurfaceContract(
         surfaces=("Codex", "any agent honouring the AGENTS.md convention"),
