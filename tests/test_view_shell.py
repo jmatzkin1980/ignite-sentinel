@@ -163,5 +163,105 @@ class ViewValidationTests(_ViewWorkspace):
         self.assertTrue(issubclass(ViewModelError, ValueError))
 
 
+class ViewShellRenderTests(_ViewWorkspace):
+    def setUp(self) -> None:
+        self.model = collect_artifact_model(self.project_id, "prd")
+        self.theme = themes.load_theme()
+        self.html = render_artifact_view(self.model, self.theme)
+
+    def test_shell_and_theme(self) -> None:
+        self.assertIn('<a class="skip-link" href="#main">', self.html)
+        self.assertIn('aria-expanded="false"', self.html)
+        self.assertIn(themes.emit_root_css(self.theme), self.html)
+        self.assertIn(themes.legend_html(self.theme, "en"), self.html)
+        self.assertIn('id="provenance"', self.html)
+        self.assertIn(self.model["provenance"]["source_sha256"], self.html)
+
+    def test_model_is_embedded_as_json_script(self) -> None:
+        self.assertEqual(embedded_view_model(self.html), json.loads(json.dumps(self.model)))
+
+    def test_existing_feedback_loop_survives(self) -> None:
+        for needle in ("Export Markdown", "Draft Email To BA", "buildGuidedResponseExport", "## Guided Responses",
+                       "sentinel /resolve-gaps", "sentinel /sync", "Client progress", "Source Fragment", "Mini Trace",
+                       "ignite-sentinel:view-feedback:", "ignite-sentinel:view-guided-response:"):
+            self.assertIn(needle, self.html)
+
+    def test_feedback_export_functions_unchanged(self) -> None:
+        # Frozen from the pre-IMP-240 golden: the export JS must stay byte-identical.
+        frozen = (GOLDEN / "view_export_functions.js").read_text(encoding="utf-8").split("\n// ----\n")
+        for fn, expected in zip(("function buildFeedbackExport(comments) {", "function buildGuidedResponseExport() {"), frozen):
+            self.assertEqual(_js_function(self.html, fn), expected.strip("\n"))
+
+    def test_every_local_storage_access_is_guarded(self) -> None:
+        for match in re.finditer(r"localStorage\.(?:get|set)Item", self.html):
+            before = self.html[max(0, match.start() - 160) : match.start()]
+            self.assertIn("try", before, self.html[match.start() - 80 : match.start() + 40])
+
+    def test_source_change_banner_and_orphans(self) -> None:
+        self.assertIn('id="sourceChanged" hidden', self.html)
+        self.assertIn(":source-sha", self.html)
+        self.assertIn("orphaned: target no longer exists", self.html)
+
+    def test_reader_edition_toggle(self) -> None:
+        self.assertIn('id="provToggle"', self.html)
+        self.assertIn("body:not(.show-prov) .prov", self.html)
+        self.assertIn("ignite-sentinel:view-provenance", self.html)
+
+    def test_no_external_urls_and_no_hex_in_view_css(self) -> None:
+        self.assertNotRegex(self.html, r"https?://|@import|<script src=")
+        from sentinel.resources import package_resource
+
+        css = package_resource("themes", "templates", "view.css").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"#[0-9a-fA-F]{3,8}\b", css), [])
+
+    def test_render_is_byte_identical(self) -> None:
+        again = render_artifact_view(collect_artifact_model(self.project_id, "prd"), themes.load_theme())
+        self.assertEqual(self.html, again)
+
+    def test_cli_theme_flag_and_config(self) -> None:
+        import contextlib
+        import io
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(main(["view", self.project_id, "--artifact", "prd", "--theme", "neutral"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["theme"], "neutral")
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["view", self.project_id, "--artifact", "prd", "--theme", "nope"]), 1)
+
+    def test_mcp_view_arguments_forward_theme(self) -> None:
+        from sentinel.mcp import view_arguments
+
+        self.assertEqual(view_arguments("P", "prd"), ["view", "P", "--artifact", "prd"])
+        self.assertEqual(view_arguments("P", "prd", True, "neutral"), ["view", "P", "--artifact", "prd", "--open", "--theme", "neutral"])
+
+
+class ReaderEditionMarkupTests(unittest.TestCase):
+    def test_inline_provenance_is_wrapped_not_removed(self) -> None:
+        from sentinel.view import markdown_to_html
+
+        rendered = markdown_to_html("- Show open queues _(`GAP-ACCEPTANCE` / `CHG-001`)_ [Fuente: acta 3]")
+        self.assertIn('<span class="prov">_(<code>GAP-ACCEPTANCE</code> / <code>CHG-001</code>)_</span>', rendered)
+        self.assertIn('<span class="prov">[Fuente: acta 3]</span>', rendered)
+        self.assertIn("Show open queues", rendered)
+
+
+def _js_function(html: str, signature: str) -> str:
+    start = html.find(signature)
+    if start < 0:
+        return ""
+    depth, index = 0, start
+    while index < len(html):
+        char = html[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return html[start : index + 1]
+        index += 1
+    return ""
+
+
 if __name__ == "__main__":
     unittest.main()

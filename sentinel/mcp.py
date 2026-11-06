@@ -192,6 +192,16 @@ def dashboard_arguments(open_browser: bool = False, theme: str = "") -> list[str
     return arguments
 
 
+def view_arguments(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> list[str]:
+    """CLI arguments for the view tool; ``theme`` is a built-in name or a local theme path."""
+    arguments = ["view", project_id, "--artifact", artifact]
+    if open_browser:
+        arguments.append("--open")
+    if theme:
+        arguments += ["--theme", theme]
+    return arguments
+
+
 def build_server():
     try:
         from mcp.server.fastmcp import FastMCP
@@ -345,11 +355,8 @@ def build_server():
         return run_cli(["validate", project_id])
 
     @server.tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
-    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False) -> dict:
-        arguments = ["view", project_id, "--artifact", artifact]
-        if open_browser:
-            arguments.append("--open")
-        return run_cli(arguments)
+    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> dict:
+        return run_cli(view_arguments(project_id, artifact, open_browser, theme))
 
     @server.tool(name="sentinel_annotate", description=TOOL_DESCRIPTIONS["annotate"])
     def sentinel_annotate(project_id: str, source: str) -> dict:

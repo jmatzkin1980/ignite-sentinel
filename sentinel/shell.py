@@ -27,6 +27,13 @@ LABELS = {
 }
 
 
+def json_for_script(value: object) -> str:
+    """JSON safe inside <script type="application/json">: no </ and no <!-- sequences."""
+    import json
+
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+
+
 def template_text(name: str) -> str:
     return package_resource(*TEMPLATES, name).read_text(encoding="utf-8")
 

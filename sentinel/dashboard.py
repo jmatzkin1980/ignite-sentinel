@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .discovery import parse_gap_rows
-from .shell import fill, render_shell, template_text
+from .shell import fill, json_for_script, render_shell, template_text
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme
 from .workspace import read_json
@@ -138,7 +138,7 @@ def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
 
 
 def _json_for_script(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+    return json_for_script(value)
 
 
 def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg: str | None = None) -> str:

@@ -1,0 +1,54 @@
+<script id="view-data" type="application/json">$data_json</script>
+<header class="view-header">
+    <div class="eyebrow" id="phase"></div>
+    <h1 id="title"></h1>
+    <div class="meta" id="meta"></div>
+    <button class="prov-toggle" id="provToggle" type="button" data-show="Show provenance" data-hide="Hide provenance">Show provenance</button>
+    <div class="source-changed" id="sourceChanged" hidden>The source changed since your notes were saved. Notes whose target no longer exists are marked, not deleted.</div>
+  </header>
+  <div class="layout">
+    <div class="view-main" id="content"></div>
+    <aside>
+      <div class="side-title">Pending And Assumptions</div>
+      <select id="markerFilter" aria-label="Filter markers">
+        <option value="all">All markers</option>
+        <option value="gap">Gaps</option>
+        <option value="pending">Pending input</option>
+        <option value="assumption">Assumptions</option>
+      </select>
+      <div class="pill-list" id="markers"></div>
+      <div class="side-title">Guided Response</div>
+      <div class="guided-panel">
+        <select id="guidedAudienceFilter" aria-label="Filter guided responses">
+          <option value="client">Client questions</option>
+          <option value="domain">Domain questions</option>
+          <option value="ba_assumption">BA / assumptions</option>
+          <option value="all">All guided items</option>
+        </select>
+        <div class="guided-progress" id="guidedProgress"></div>
+        <div class="pill-list" id="guidedResponses"></div>
+      </div>
+      <div class="side-title">Feedback Loop</div>
+      <div class="feedback-panel">
+        <div class="feedback-target-note" id="feedbackTarget"></div>
+        <label>Owner / source<input id="feedbackOwner" value="Artifact review comment"></label>
+        <label>Decision status
+          <select id="feedbackDecision">
+            <option value="pending">pending</option>
+            <option value="confirmed">confirmed</option>
+            <option value="not applicable">not applicable</option>
+          </select>
+        </label>
+        <textarea id="feedbackText" placeholder="Write a local anchored comment"></textarea>
+        <button class="feedback-action primary" id="saveFeedback">Save Comment</button>
+        <button class="feedback-action" id="exportFeedback">Export Markdown</button>
+        <button class="feedback-action" id="mailFeedback">Draft Email To BA</button>
+        <button class="feedback-action" id="clearFeedback">Clear Comments</button>
+        <pre class="feedback-export" id="feedbackExportText"></pre>
+        <div class="feedback-list" id="feedbackList"></div>
+      </div>
+      <div class="side-title">Evidence And Trace</div>
+      <div class="pill-list" id="citations"></div>
+    </aside>
+  </div>
+  

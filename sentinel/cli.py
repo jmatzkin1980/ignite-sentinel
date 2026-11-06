@@ -77,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     view_p.add_argument("project_id")
     view_p.add_argument("--artifact", required=True, choices=sorted(VIEW_ARTIFACTS))
     view_p.add_argument("--open", action="store_true")
+    view_p.add_argument("--theme", default=None, help="built-in theme name or path to a local theme JSON (default: workspace config theme, else neutral)")
 
     init_p = sub.add_parser("init")
     init_p.add_argument("project_id")
@@ -219,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "view":
             from .view import generate_artifact_view
 
-            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open))
+            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open), theme=args.theme)
             print_json(result)
         elif args.command == "ingest":
             from .discovery import ingest
