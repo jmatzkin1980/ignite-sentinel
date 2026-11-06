@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- CI in GitHub Actions (IMP-246):
+  - `ci-fast` runs on every push: unit suite without the slow modules, `/doctor`, faithfulness eval.
+  - `ci-full` runs on every pull request: whole suite, evals, wheel in a clean venv, and a Windows/Linux × Python 3.10/3.13 × LanceDB × `mcp` 1/2 matrix.
+  - Actions are pinned by SHA and run with read-only permissions.
+  - New tools: `verify.sh` (POSIX twin of `verify.ps1`), `tools/run_tests.py --tier fast|full` and `tools/time_tests.py`.
+  - `.github/workflows` is registered as a surface contract, and the app's `.claude/worktrees` scratch folder is exempt.
 - User-local themes (IMP-241): a theme name is looked up in `<workspace>/.sentinel/themes/` (`/view` only), then in `~/.ignite/themes/` (`IGNITE_THEMES_DIR`). Built-in names always win; `.sentinel/` is git-ignored per workspace. User themes may embed licensed `.woff2` fonts as `data:` URIs (no network). `/doctor` warns about local themes that are invalid, lack `procedencia` or shadow a built-in. Guide: `user_guide/17-themes.md`.
 - Visual theme model (`sentinel/themes.py`): validated JSON themes with light/dark tokens, a semantics map that generates the colour legend, and the built-in `neutral` theme (WCAG AA in both modes). `/doctor` checks that `neutral` is the only theme shipped in the repo. Not yet used by views (IMP-239).
 - Common view shell (`sentinel/shell.py`, templates in `sentinel/themes/templates/`): skip link, sticky top bar with a persisted light/dark toggle, sticky sidebar that becomes a hamburger menu below 900 px, print rules.

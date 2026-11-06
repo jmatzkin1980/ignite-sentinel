@@ -67,6 +67,19 @@ class TheRegistryCoversThisRepo(unittest.TestCase):
                 )
 
 
+class Imp246Contracts(unittest.TestCase):
+    """IMP-246: GitHub reads .github/workflows; .claude/worktrees is app scratch, not a contract."""
+
+    def test_github_workflows_are_a_registered_contract(self):
+        self.assertIn(".github", SURFACE_CONTRACT_ROOTS)
+        self.assertIn(".github/workflows", SURFACE_CONTRACTS)
+        self.assertIn("GitHub Actions", SURFACE_CONTRACTS[".github/workflows"].surfaces)
+
+    def test_app_session_worktrees_are_exempt_with_a_reason(self):
+        self.assertIn(".claude/worktrees", SURFACE_CONTRACT_EXEMPT)
+        self.assertTrue(SURFACE_CONTRACT_EXEMPT[".claude/worktrees"].strip())
+
+
 class EveryEntryIsUsable(unittest.TestCase):
     def test_each_entry_names_its_surfaces_and_a_live_procedure(self):
         for path, contract in SURFACE_CONTRACTS.items():

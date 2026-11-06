@@ -25,6 +25,13 @@ class ReportStoreTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory(prefix="sentinel_reports_")
         self.addCleanup(self._tmp.cleanup)
         self.dir = Path(self._tmp.name)
+        # IMP-246: CI runs with SENTINEL_EVAL_REPORTS=0; these tests exercise the
+        # store itself, so they start from a known environment (cases that need
+        # the switch set it explicitly).
+        env = patch.dict(os.environ, {"SENTINEL_EVAL_REPORTS": "1"})
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("SENTINEL_EVAL_KEEP_REPORTS", None)
 
     def _seed(self, kind: str, dates: list[str]) -> None:
         for day in dates:

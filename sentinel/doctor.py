@@ -1197,6 +1197,12 @@ class SurfaceContract(NamedTuple):
 # had one rotted. A Markdown table of this rots the same way — a constant a
 # check guards does not.
 SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
+    ".github/workflows": SurfaceContract(
+        surfaces=("GitHub Actions",),
+        live_check="Open a pull request and confirm both ci-fast and every ci-full job finish green in the PR's Checks tab (a workflow that parses proves nothing; IMP-246).",
+        observed="",
+        note="Read by GitHub, not by us: the only proof is a run observed on GitHub.",
+    ),
     "AGENTS.md": SurfaceContract(
         surfaces=("Codex", "any agent honouring the AGENTS.md convention"),
         live_check="Start a Codex session at the repo root and confirm the operating rules are in context (ask it to state a non-negotiable rule it did not read from a file you named).",
@@ -1289,13 +1295,14 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
 # an omission.
 SURFACE_CONTRACT_EXEMPT: dict[str, str] = {
     ".codex/skills": "canonical authoring source read by no agent (IMP-233); mirrored byte-identical to .agents/skills and .claude/skills, which are the contracts",
+    ".claude/worktrees": "session worktrees the Claude desktop app creates on a maintainer's machine (git-ignored scratch, not configuration any surface reads); IMP-246",
 }
 
 # Directories a third-party agent owns: every immediate child is a contract
 # until stated otherwise. This is where surfaces actually grow (a new
 # `.claude/output-styles/`, a new `.kilo/rules/`), so discovery here is
 # exhaustive rather than curated.
-SURFACE_CONTRACT_ROOTS = (".agents", ".claude", ".codex", ".kilo")
+SURFACE_CONTRACT_ROOTS = (".agents", ".claude", ".codex", ".kilo", ".github")
 
 # Repo-root files agent tools read by convention. Unlike the directories above
 # this list IS curated — a brand-new vendor's root file is only discovered once
