@@ -64,6 +64,8 @@ WORKSPACE_GITIGNORE = """# Per-workspace ignore rules (IMP-212). You own this in
 memory.lancedb/
 08_context_packs/views/*.html
 08_context_packs/synthetic/
+# IMP-241: workspace-local themes (brand palettes, fonts) never enter git.
+.sentinel/
 """
 
 
@@ -100,6 +102,8 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
     gitignore_file = base / ".gitignore"
     if not gitignore_file.exists():
         gitignore_file.write_text(WORKSPACE_GITIGNORE, encoding="utf-8")
+    else:
+        ensure_local_themes_ignored(gitignore_file)
     if not memory_path(project_id, root).exists():
         write_json(memory_path(project_id, root), {"chunks": [], "artifacts": [], "trace_edges": []})
     if not source_manifest_path(project_id, root).exists():
@@ -143,6 +147,33 @@ memory:
     - 00_raw/04_quality_context
     - 00_raw/05_interactions
 """
+
+
+LOCAL_THEMES_IGNORE_RULE = ".sentinel/"
+
+
+def ensure_local_themes_ignored(gitignore_file: Path) -> bool:
+    """IMP-241: append the local-themes rule to a pre-existing workspace .gitignore.
+
+    Append-only and idempotent: existing rules are never rewritten. Returns True when
+    the rule was added.
+    """
+    raw = gitignore_file.read_bytes()
+    if local_themes_rule_present(raw):
+        return False
+    newline = b"\r\n" if b"\r\n" in raw else b"\n"
+    prefix = b"" if not raw or raw.endswith(b"\n") else newline
+    block = prefix + b"# IMP-241: workspace-local themes (brand palettes, fonts) never enter git." + newline + LOCAL_THEMES_IGNORE_RULE.encode("ascii") + newline
+    with open(gitignore_file, "ab") as handle:  # append-only: existing bytes are never rewritten
+        handle.write(block)
+    return True
+
+
+def local_themes_rule_present(raw: bytes) -> bool:
+    """True when a .gitignore already excludes .sentinel/ in any common spelling."""
+    text = raw.decode("utf-8", errors="replace").lstrip("\ufeff")
+    variants = {".sentinel", ".sentinel/", "/.sentinel", "/.sentinel/", ".sentinel/*", "/.sentinel/*", ".sentinel/**", "/.sentinel/**"}
+    return any(line.strip().lstrip("\ufeff") in variants for line in text.splitlines())
 
 
 def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:

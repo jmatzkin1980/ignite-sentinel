@@ -15,7 +15,7 @@ from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
 from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
-from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme
+from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 
 
@@ -678,8 +678,9 @@ def resolve_view_theme(project_id: str, theme: str | Path | None) -> tuple[dict[
     to neutral with a warning, so one bad config line never breaks /view for the whole team.
     Returns (theme, theme_arg, warning).
     """
+    dirs = user_theme_dirs(workspace_path(project_id))
     if theme:
-        return load_theme(theme), str(theme), None
+        return load_theme(theme, search_dirs=dirs), str(theme), None
     configured = _clean_config_scalar(load_config(project_id).get("theme"))
     if not configured:
         return load_theme(), None, None
@@ -689,7 +690,7 @@ def resolve_view_theme(project_id: str, theme: str | Path | None) -> tuple[dict[
     errors = []
     for candidate in candidates:
         try:
-            return load_theme(candidate), configured, None
+            return load_theme(candidate, search_dirs=dirs), configured, None
         except ThemeError as exc:
             errors.append(str(exc))
     return load_theme(), None, f"workspace config theme {configured!r} could not be loaded ({errors[-1]}); using {DEFAULT_THEME}"
