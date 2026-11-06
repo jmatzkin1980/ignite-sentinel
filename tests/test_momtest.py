@@ -110,8 +110,15 @@ class MomTestValidationTest(unittest.TestCase):
         "|---|---|---|---|---|---|---|---|\n"
     )
 
+    def _tmpdir(self) -> Path:
+        # TemporaryDirectory + addCleanup: these dirs used to be left behind in
+        # %TEMP% on every run (two per run, never removed).
+        holder = tempfile.TemporaryDirectory(prefix="sentinel_momtest_")
+        self.addCleanup(holder.cleanup)
+        return Path(holder.name)
+
     def _write_gaps(self, question: str) -> Path:
-        tmp = Path(tempfile.mkdtemp())
+        tmp = self._tmpdir()
         discovery = tmp / "01_discovery"
         discovery.mkdir(parents=True)
         row = f"| GAP-X | product | high | OPEN | `REQ-001` | Desc | {question} | Source input. |\n"
@@ -130,7 +137,7 @@ class MomTestValidationTest(unittest.TestCase):
         self.assertEqual(momtest_gap_warnings(base), [])
 
     def test_missing_gaps_md_is_silent(self) -> None:
-        self.assertEqual(momtest_gap_warnings(Path(tempfile.mkdtemp())), [])
+        self.assertEqual(momtest_gap_warnings(self._tmpdir()), [])
 
 
 if __name__ == "__main__":

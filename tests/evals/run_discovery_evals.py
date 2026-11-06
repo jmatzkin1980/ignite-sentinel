@@ -48,6 +48,8 @@ FIXTURES = REPO_ROOT / "tests" / "fixtures" / "evals"
 REPORTS = REPO_ROOT / "tests" / "evals" / "reports"
 
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from report_store import write_report  # noqa: E402
 from sentinel.cli import main  # noqa: E402
 from sentinel.discovery import parse_gap_rows  # noqa: E402
 
@@ -2100,9 +2102,7 @@ def run_all() -> int:
         },
     }
 
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    out = REPORTS / f"discovery_eval_{report['date']}.json"
-    out.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    out = write_report("discovery_eval", report["date"], report, reports_dir=REPORTS)
 
     print(f"Discovery evals — {report['date']}")
     for r in results:
@@ -2233,7 +2233,7 @@ def run_all() -> int:
         f"rot_ok={cr['rot_ok']} thr={cr['threshold']:.2f}"
         + (f" flagged={cr['flagged']}" if cr["flagged"] else "")
     )
-    print(f"Report: {out}")
+    print(f"Report: {out or 'disabled (SENTINEL_EVAL_REPORTS=0)'}")
     return 0 if s["baseline_ok"] else 1
 
 
