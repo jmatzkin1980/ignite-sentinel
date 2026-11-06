@@ -102,6 +102,8 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
     gitignore_file = base / ".gitignore"
     if not gitignore_file.exists():
         gitignore_file.write_text(WORKSPACE_GITIGNORE, encoding="utf-8")
+    else:
+        ensure_local_themes_ignored(gitignore_file)
     if not memory_path(project_id, root).exists():
         write_json(memory_path(project_id, root), {"chunks": [], "artifacts": [], "trace_edges": []})
     if not source_manifest_path(project_id, root).exists():
@@ -145,6 +147,26 @@ memory:
     - 00_raw/04_quality_context
     - 00_raw/05_interactions
 """
+
+
+LOCAL_THEMES_IGNORE_RULE = ".sentinel/"
+
+
+def ensure_local_themes_ignored(gitignore_file: Path) -> bool:
+    """IMP-241: append the local-themes rule to a pre-existing workspace .gitignore.
+
+    Append-only and idempotent: existing rules are never rewritten. Returns True when
+    the rule was added.
+    """
+    text = gitignore_file.read_text(encoding="utf-8")
+    if any(line.strip() == LOCAL_THEMES_IGNORE_RULE for line in text.splitlines()):
+        return False
+    prefix = "" if text.endswith("\n") or not text else "\n"
+    gitignore_file.write_text(
+        text + prefix + "# IMP-241: workspace-local themes (brand palettes, fonts) never enter git.\n" + LOCAL_THEMES_IGNORE_RULE + "\n",
+        encoding="utf-8",
+    )
+    return True
 
 
 def load_config(project_id: str, root: Path | None = None) -> dict[str, Any]:

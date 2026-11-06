@@ -163,6 +163,40 @@ class DoctorLocalThemesTests(_LocalThemesBase):
             self.assertIn(needle, result["detail"])
 
 
+class LegacyWorkspaceGitignoreTests(_LocalThemesBase):
+    def _legacy_workspace(self) -> Path:
+        from sentinel.cli import main
+        from sentinel.workspace import workspace_path
+
+        old = Path.cwd()
+        os.chdir(self.tmp)
+        self.addCleanup(os.chdir, old)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["init", "LEGACY"]), 0)
+        base = workspace_path("LEGACY")
+        (base / ".gitignore").write_text("memory.lancedb/\n", encoding="utf-8")  # pre-IMP-241 content
+        return base
+
+    def test_ensure_workspace_appends_the_local_themes_rule(self) -> None:
+        from sentinel.workspace import ensure_workspace
+
+        base = self._legacy_workspace()
+        ensure_workspace("LEGACY")
+        ensure_workspace("LEGACY")
+        text = (base / ".gitignore").read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("memory.lancedb/\n"), "existing rules are kept")
+        self.assertEqual(text.count(".sentinel/"), 1)
+
+    def test_doctor_warns_when_local_themes_are_not_ignored(self) -> None:
+        from sentinel.doctor import user_themes_check
+
+        base = self._legacy_workspace()
+        self.write(base / ".sentinel" / "themes", self.brand())
+        result = user_themes_check(self.tmp)
+        self.assertEqual(result["status"], "WARN")
+        self.assertIn(".gitignore", result["detail"])
+
+
 class SurfaceTests(_LocalThemesBase):
     def test_workspace_gitignore_excludes_local_themes(self) -> None:
         from sentinel.workspace import WORKSPACE_GITIGNORE

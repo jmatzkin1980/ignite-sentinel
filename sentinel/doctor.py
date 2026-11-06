@@ -760,10 +760,16 @@ def user_themes_check(root: Path) -> dict[str, str]:
     name = "user-local themes"
     folders = list(user_theme_dirs())
     workspaces = root / "workspaces"
-    if workspaces.is_dir():
-        folders += sorted(path / ".sentinel" / "themes" for path in workspaces.iterdir() if path.is_dir())
-    builtin = set(list_builtin_themes())
     findings: list[str] = []
+    if workspaces.is_dir():
+        for workspace in sorted(path for path in workspaces.iterdir() if path.is_dir()):
+            local = workspace / ".sentinel" / "themes"
+            folders.append(local)
+            gitignore = workspace / ".gitignore"
+            ignored = gitignore.is_file() and any(line.strip() == ".sentinel/" for line in gitignore.read_text(encoding="utf-8").splitlines())
+            if local.is_dir() and not ignored:
+                findings.append(f"{workspace.name}: .sentinel/themes exists but the workspace .gitignore does not exclude .sentinel/ (run any command on the workspace to add it)")
+    builtin = set(list_builtin_themes())
     count = 0
     for folder in folders:
         if not folder.is_dir():
