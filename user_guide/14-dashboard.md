@@ -16,6 +16,23 @@ dashboard.html
 
 The file is self-contained and opens offline. It is intentionally git-ignored because it can embed local workspace Markdown. Treat it as a rebuildable snapshot, not as source of truth.
 
+## Themes and layout
+
+```powershell
+python -m sentinel /dashboard --theme neutral
+python -m sentinel /dashboard --theme C:\path\to\my-theme.json
+```
+
+- `--theme` takes a built-in theme name or the path to a local theme JSON. Only `neutral` ships in the repo; a brand theme stays on your machine.
+- The page follows the system light/dark preference; the top-bar button switches mode and remembers the choice in the browser.
+- The sidebar lists sections and workspaces; below 900 px it collapses into a menu button. A skip link jumps straight to the content.
+- The colour legend is generated from the theme, so every colour has a stated meaning.
+- Printing hides the navigation and the interactive panels.
+
+## Provenance and reproducibility
+
+The **Procedencia** section shows the source cut-off date (the newest modification time among the files read, not the time the HTML was built), the 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces produce byte-identical HTML. The model is validated before rendering (unique ids, counts derived from data); an inconsistent model fails instead of writing a misleading page.
+
 ## From Chat
 
 You can ask for it in natural language:

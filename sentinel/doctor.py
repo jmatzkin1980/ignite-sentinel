@@ -747,6 +747,11 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
     return {"name": "stdlib purity", "status": "FAIL", "detail": detail}
 
 
+VIEW_TEMPLATES = frozenset(
+    {"shell.html", "shell.css", "shell.js", "dashboard-page.html", "dashboard.css", "dashboard.js"}
+)
+
+
 def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:
     """IMP-238: the checkout's ``sentinel/themes/`` holds only ``neutral`` and ``base.css``.
 
@@ -772,6 +777,11 @@ def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]
     missing = sorted(allowed_files - found)
     if missing:
         return {"name": name, "status": "FAIL", "detail": f"missing in sentinel/themes/: {', '.join(missing)}"}
+    templates_dir = themes_dir / "templates"
+    if builtin is None and templates_dir.is_dir():
+        stray = sorted(item.name for item in templates_dir.iterdir() if item.is_file() and item.name not in VIEW_TEMPLATES)
+        if stray:
+            return {"name": name, "status": "FAIL", "detail": f"only the view templates may ship in sentinel/themes/templates/; found: {', '.join(stray)}"}
     target = themes_dir / f"{DEFAULT_THEME}.json" if builtin is None and themes_dir.is_dir() else DEFAULT_THEME
     try:
         load_theme(target)
