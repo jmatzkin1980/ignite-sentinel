@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .discovery import parse_gap_rows
-from .shell import fill, render_shell, template_text
+from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme
 from .workspace import read_json
@@ -138,7 +138,7 @@ def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
 
 
 def _json_for_script(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+    return json_for_script(value)
 
 
 def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg: str | None = None) -> str:
@@ -212,7 +212,7 @@ def _provenance_section(provenance: dict[str, Any], theme_arg: str) -> str:
         for item in provenance.get("sources") or []
     )
     table = f'<table class="prov"><thead><tr><th>Fuente</th><th>sha256 (12)</th></tr></thead><tbody>{rows}</tbody></table>' if rows else "<p>Sin workspaces.</p>"
-    command = html.escape(f"python -m sentinel /dashboard --theme {theme_arg}")
+    command = html.escape(f"python -m sentinel /dashboard --theme {theme_argument_for_display(theme_arg)}")
     return (
         '<section class="dash-section" id="provenance" aria-labelledby="provenance-h"><h2 id="provenance-h">Procedencia</h2>'
         f'<p>Fecha de corte: <time datetime="{cutoff}">{cutoff}</time> <span id="provAge"></span>. Es el mtime mas reciente de las fuentes leidas, no la hora de generacion.</p>'

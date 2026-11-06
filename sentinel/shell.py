@@ -14,6 +14,7 @@ external URLs.
 
 from __future__ import annotations
 
+import html
 from string import Template
 
 from .resources import package_resource
@@ -25,6 +26,25 @@ LABELS = {
     "es": {"skip": "Saltar al contenido", "menu": "Abrir o cerrar el menu", "nav": "Navegacion", "dark": "Modo oscuro", "light": "Modo claro"},
     "en": {"skip": "Skip to content", "menu": "Open or close the menu", "nav": "Navigation", "dark": "Dark mode", "light": "Light mode"},
 }
+
+
+def json_for_script(value: object) -> str:
+    """JSON safe inside <script type="application/json">: no </ and no <!-- sequences."""
+    import json
+
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+
+
+def theme_argument_for_display(theme_arg: str) -> str:
+    """The --theme value for a printed regen command: a built-in name as-is, a path by file name only, quoted.
+
+    Never prints a directory (it can carry a user name or a client folder).
+    """
+    text = str(theme_arg or "").strip()
+    if not any(sep in text for sep in ("/", "\\")) and not text.lower().endswith(".json"):
+        return text
+    name = text.replace("\\", "/").rsplit("/", 1)[-1]
+    return '"' + name.replace('"', "") + '"'
 
 
 def template_text(name: str) -> str:
@@ -40,7 +60,7 @@ def render_shell(*, theme: dict, title: str, heading: str, nav: str, content: st
     return fill(
         "shell.html",
         lang=language,
-        title=title,
+        title=html.escape(title),
         heading=heading,
         theme_css=theme_css(theme),
         shell_css=template_text("shell.css"),

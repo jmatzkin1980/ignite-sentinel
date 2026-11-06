@@ -14,6 +14,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 - `tests/test_evals_faithfulness.py` runs the faithfulness claim eval (no-invention trap) in the unit suite, and `verify.ps1` runs `run_faithfulness_claim_evals.py` in the evals step.
 
 ### Changed
+- `/view` runs on the common shell and themes (IMP-240), with `--theme` (CLI and MCP) and the workspace config `theme:` as fallback.
+  - The embedded model no longer carries `blocks`; trace nodes and source fragments live in shared tables. View goldens drop from 3.2 MB to 1.8 MB.
+  - No wall clock and no absolute paths (provenance: source cut-off and 12-char sha256). `generate_artifact_view` returns `cutoff`, `source_sha256` and `theme` instead of `generated_at`.
+  - Reader edition hides inline provenance behind a toggle.
+  - Notes warn when the source changed and mark orphaned targets.
+  - The feedback export is unchanged.
 - `/dashboard` runs model -> validate -> render: the HTML is byte-for-byte reproducible (no build time, no absolute root), uses only theme tokens, shows the theme legend and a provenance section (source cut-off, `state.json` fingerprints, regeneration command). `generate_dashboard` returns `cutoff` and `theme` instead of `generated_at`.
 - Eval reports keep the newest 5 per kind (`SENTINEL_EVAL_KEEP_REPORTS`); `SENTINEL_EVAL_REPORTS=0` disables writing them. The retrieval eval test uses the same retention.
 

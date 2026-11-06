@@ -748,7 +748,11 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
 
 
 VIEW_TEMPLATES = frozenset(
-    {"shell.html", "shell.css", "shell.js", "dashboard-page.html", "dashboard.css", "dashboard.js"}
+    {
+        "shell.html", "shell.css", "shell.js",
+        "dashboard-page.html", "dashboard.css", "dashboard.js",
+        "view-page.html", "view-nav.html", "view.css", "view.js",
+    }
 )
 
 

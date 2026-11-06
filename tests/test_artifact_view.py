@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel.blocks import blocks_to_markdown
+from sentinel.blocks import blocks_to_markdown, markdown_to_blocks
 from sentinel.cli import main
 from sentinel.view import collect_artifact_model, markdown_to_html
 
@@ -37,8 +37,12 @@ class ArtifactViewTest(unittest.TestCase):
         reconstructed = "\n".join(section["markdown"] for section in model["sections"])
 
         self.assertEqual(reconstructed, source)
-        self.assertEqual(blocks_to_markdown(model["blocks"]), source)
-        self.assertTrue(model["blocks"]["roundtrip"]["idempotent"])
+        # IMP-240: the block model still drives section derivation in Python but is
+        # no longer embedded in the page.
+        self.assertNotIn("blocks", model)
+        block_model = markdown_to_blocks(source, artifact="prd")
+        self.assertEqual(blocks_to_markdown(block_model), source)
+        self.assertTrue(block_model["roundtrip"]["idempotent"])
         self.assertTrue(all("block_id" in section for section in model["sections"]))
         self.assertEqual(model["artifact"], "prd")
         self.assertGreater(model["summary"]["sections"], 1)
@@ -54,12 +58,14 @@ class ArtifactViewTest(unittest.TestCase):
         self.assertEqual(main(["view", "EVIDENCE", "--artifact", "prd"]), 0)
 
         model = collect_artifact_model("EVIDENCE", "prd")
-        with_fragment = [citation for citation in model["citations"] if citation["source_fragment"].get("available")]
+        # IMP-240: trace nodes and fragments live in shared tables keyed by node id.
+        fragments = model["source_fragments"]
+        with_fragment = [citation for citation in model["citations"] if fragments.get(citation["trace_id"], {}).get("available")]
         with_edges = [citation for citation in model["citations"] if citation["mini_graph"]["edges"]]
 
         self.assertTrue(with_fragment)
-        self.assertEqual(with_fragment[0]["trace_node"]["id"], with_fragment[0]["trace_id"])
-        self.assertTrue(with_fragment[0]["source_fragment"]["text"].strip())
+        self.assertEqual(model["graph_nodes"][with_fragment[0]["trace_id"]]["id"], with_fragment[0]["trace_id"])
+        self.assertTrue(fragments[with_fragment[0]["trace_id"]]["text"].strip())
         self.assertTrue(with_edges)
         self.assertGreater(model["summary"]["trace_edges"], 0)
 

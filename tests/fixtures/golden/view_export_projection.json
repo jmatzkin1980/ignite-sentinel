@@ -1,0 +1,4608 @@
+{
+ "en/backlog": {
+  "artifact": "backlog",
+  "ba_email": null,
+  "guided": [],
+  "markers": [],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 4,
+    "line_start": 1,
+    "section_path": "Backlog Board - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 10,
+    "line_start": 5,
+    "section_path": "Backlog Board - [PROJECT_ID] > Summary"
+   },
+   {
+    "id": "section-3",
+    "line_end": 16,
+    "line_start": 11,
+    "section_path": "Backlog Board - [PROJECT_ID] > Epic Rollup"
+   },
+   {
+    "id": "section-4",
+    "line_end": 18,
+    "line_start": 17,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status"
+   },
+   {
+    "id": "section-5",
+    "line_end": 29,
+    "line_start": 19,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Draft"
+   },
+   {
+    "id": "section-6",
+    "line_end": 35,
+    "line_start": 30,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Ready"
+   },
+   {
+    "id": "section-7",
+    "line_end": 41,
+    "line_start": 36,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > In Progress"
+   },
+   {
+    "id": "section-8",
+    "line_end": 47,
+    "line_start": 42,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > In Review"
+   },
+   {
+    "id": "section-9",
+    "line_end": 53,
+    "line_start": 48,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Done"
+   },
+   {
+    "id": "section-10",
+    "line_end": 59,
+    "line_start": 54,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Blocked"
+   },
+   {
+    "id": "section-11",
+    "line_end": 64,
+    "line_start": 60,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Stale"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/04_backlog/BACKLOG.md",
+  "source_relative_path": "04_backlog/BACKLOG.md"
+ },
+ "en/brief": {
+  "artifact": "brief",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Current behavior vs target behavior, stated as a delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "What is the current process, target process, and exact delta between them?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Entry point and step-by-step journey to the affected screen(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "Which user journey, screens, flows, copy, or interaction changes are in scope?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Systems/endpoints involved, source of truth, and owning team.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Named security/privacy/compliance/audit constraints that apply.",
+    "id": "GAP-GOVERNANCE-CONSTRAINTS",
+    "question": "Which security, privacy, compliance, audit, or operational restrictions must be respected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per metric: definition/formula, unit, data source/owner, baseline, and target threshold.",
+    "id": "GAP-METRIC-DEFINITION",
+    "question": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Metric name + baseline source/owner + target value + measurement window.",
+    "id": "GAP-METRIC-SOURCE",
+    "question": "What is the source or baseline for the quantitative metric?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "The first value slice plus what can be deferred and where not to split.",
+    "id": "GAP-BACKLOG-SLICING-READINESS",
+    "question": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencies with owners, environments, dates, and rollout approach.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Capabilities, contracts, persistence/source of truth, and failure behavior.",
+    "id": "GAP-BACKEND-SURFACE",
+    "question": "Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Each enabler with the capability boundary it supports and objective completion evidence.",
+    "id": "GAP-BACKLOG-ENABLERS",
+    "question": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Affected surface(s), states, validations, copy, and analytics events.",
+    "id": "GAP-FRONTEND-SURFACE",
+    "question": "Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Repositories/components, endpoints, and source of truth to inspect.",
+    "id": "GAP-TECH-DEEP-DIVE-INPUT",
+    "question": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Named NFRs with concrete thresholds (latency, retention, availability) and how they are observed.",
+    "id": "GAP-TECH-NFR",
+    "question": "What security, performance, observability, availability, or operational constraints apply?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "The decision/flow/interaction the prototype must validate.",
+    "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "question": "What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "The loading, empty, error, and recovery states for the surface.",
+    "id": "GAP-DESIGN-STATES",
+    "question": "What loading, empty, error, recovery, and accessibility states must be handled?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "One or more EARS or Given/When/Then statements with observable conditions. EARS example: When <trigger>, the system shall <observable response>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "What observable conditions prove the requirement is done?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Quality expectations as bullets: risk areas, test depth, and required evidence.",
+    "id": "GAP-QUALITY",
+    "question": "What quality, testability, risk, or compliance expectations apply?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Critical flows, edge cases, test data, and evidence expectations.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencies with owner, and roadmap phases.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Target environments, rollout strategy, release constraints, and rollback criterion.",
+    "id": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "question": "Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-4"
+   },
+   {
+    "id": "marker-2",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-4",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-6",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-19",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-21",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-23",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-25",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-27",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-28",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-29",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-32",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-34",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-35",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-36",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-37",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-40",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-44",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-46",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-47",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-48",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-49",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-50",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-51",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-52",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-53",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-54",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-55",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-56",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-57",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-58",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-59",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-60",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-61",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-62",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-18"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 6,
+    "line_start": 1,
+    "section_path": "Project Brief - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 17,
+    "line_start": 7,
+    "section_path": "Project Brief - [PROJECT_ID] > 1. Identidad y Valor"
+   },
+   {
+    "id": "section-3",
+    "line_end": 22,
+    "line_start": 18,
+    "section_path": "Project Brief - [PROJECT_ID] > 2. Lente de Negocio: Actores y Necesidades"
+   },
+   {
+    "id": "section-4",
+    "line_end": 29,
+    "line_start": 23,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey"
+   },
+   {
+    "id": "section-5",
+    "line_end": 33,
+    "line_start": 30,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey > No-Objetivos (Non-Goals)"
+   },
+   {
+    "id": "section-6",
+    "line_end": 39,
+    "line_start": 34,
+    "section_path": "Project Brief - [PROJECT_ID] > 4. Lente de Diseno: Flujos y Resiliencia UX"
+   },
+   {
+    "id": "section-7",
+    "line_end": 45,
+    "line_start": 40,
+    "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
+   },
+   {
+    "id": "section-8",
+    "line_end": 51,
+    "line_start": 46,
+    "section_path": "Project Brief - [PROJECT_ID] > 6. Gobernanza y Restricciones"
+   },
+   {
+    "id": "section-9",
+    "line_end": 53,
+    "line_start": 52,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias"
+   },
+   {
+    "id": "section-10",
+    "line_end": 68,
+    "line_start": 54,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Seeds Confirmadas o Pendientes"
+   },
+   {
+    "id": "section-11",
+    "line_end": 74,
+    "line_start": 69,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Decisiones"
+   },
+   {
+    "id": "section-12",
+    "line_end": 78,
+    "line_start": 75,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Supuestos Gobernados"
+   },
+   {
+    "id": "section-13",
+    "line_end": 88,
+    "line_start": 79,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Cobertura Multi-Lente"
+   },
+   {
+    "id": "section-14",
+    "line_end": 93,
+    "line_start": 89,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Inferencias Controladas"
+   },
+   {
+    "id": "section-15",
+    "line_end": 120,
+    "line_start": 94,
+    "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
+   },
+   {
+    "id": "section-16",
+    "line_end": 130,
+    "line_start": 121,
+    "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
+   },
+   {
+    "id": "section-17",
+    "line_end": 139,
+    "line_start": 131,
+    "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
+   },
+   {
+    "id": "section-18",
+    "line_end": 152,
+    "line_start": 140,
+    "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
+   },
+   {
+    "id": "section-19",
+    "line_end": 161,
+    "line_start": 153,
+    "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/02_requirements/project-brief.md",
+  "source_relative_path": "02_requirements/project-brief.md"
+ },
+ "en/gaps": {
+  "artifact": "gaps",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Metric name + baseline source/owner + target value + measurement window.",
+    "id": "GAP-METRIC-SOURCE",
+    "question": "What is the source or baseline for the quantitative metric?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per metric: definition/formula, unit, data source/owner, baseline, and target threshold.",
+    "id": "GAP-METRIC-DEFINITION",
+    "question": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Current behavior vs target behavior, stated as a delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "What is the current process, target process, and exact delta between them?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "The first value slice plus what can be deferred and where not to split.",
+    "id": "GAP-BACKLOG-SLICING-READINESS",
+    "question": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "One or more EARS or Given/When/Then statements with observable conditions. EARS example: When <trigger>, the system shall <observable response>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "What observable conditions prove the requirement is done?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Quality expectations as bullets: risk areas, test depth, and required evidence.",
+    "id": "GAP-QUALITY",
+    "question": "What quality, testability, risk, or compliance expectations apply?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Critical flows, edge cases, test data, and evidence expectations.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Systems/endpoints involved, source of truth, and owning team.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Named NFRs with concrete thresholds (latency, retention, availability) and how they are observed.",
+    "id": "GAP-TECH-NFR",
+    "question": "What security, performance, observability, availability, or operational constraints apply?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Each enabler with the capability boundary it supports and objective completion evidence.",
+    "id": "GAP-BACKLOG-ENABLERS",
+    "question": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Affected surface(s), states, validations, copy, and analytics events.",
+    "id": "GAP-FRONTEND-SURFACE",
+    "question": "Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Capabilities, contracts, persistence/source of truth, and failure behavior.",
+    "id": "GAP-BACKEND-SURFACE",
+    "question": "Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Repositories/components, endpoints, and source of truth to inspect.",
+    "id": "GAP-TECH-DEEP-DIVE-INPUT",
+    "question": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Named security/privacy/compliance/audit constraints that apply.",
+    "id": "GAP-GOVERNANCE-CONSTRAINTS",
+    "question": "Which security, privacy, compliance, audit, or operational restrictions must be respected?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencies with owners, environments, dates, and rollout approach.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencies with owner, and roadmap phases.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Target environments, rollout strategy, release constraints, and rollback criterion.",
+    "id": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "question": "Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Entry point and step-by-step journey to the affected screen(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "Which user journey, screens, flows, copy, or interaction changes are in scope?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "The loading, empty, error, and recovery states for the surface.",
+    "id": "GAP-DESIGN-STATES",
+    "question": "What loading, empty, error, recovery, and accessibility states must be handled?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "The decision/flow/interaction the prototype must validate.",
+    "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "question": "What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-4"
+   },
+   {
+    "id": "marker-2",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-5"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-4",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-6",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-11"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-12"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-16"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-19"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-20"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-19",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-22"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-21",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-24"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-23",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-26"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-25",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-27",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-28",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-29",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-32",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-34",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-35",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-36",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-37",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-40",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-44",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-46",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-47",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-48",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-49",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-50",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-30"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 8,
+    "line_start": 1,
+    "section_path": "Discovery Gaps - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 19,
+    "line_start": 9,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > How To Respond"
+   },
+   {
+    "id": "section-3",
+    "line_end": 21,
+    "line_start": 20,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections"
+   },
+   {
+    "id": "section-4",
+    "line_end": 55,
+    "line_start": 22,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BUSINESS-RULES - Business Rules"
+   },
+   {
+    "id": "section-5",
+    "line_end": 89,
+    "line_start": 56,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-PERSONA-DETAIL - PRD Persona Detail"
+   },
+   {
+    "id": "section-6",
+    "line_end": 131,
+    "line_start": 90,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-METRIC-SOURCE - Metric Source"
+   },
+   {
+    "id": "section-7",
+    "line_end": 173,
+    "line_start": 132,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-METRIC-DEFINITION - Metric Definition"
+   },
+   {
+    "id": "section-8",
+    "line_end": 207,
+    "line_start": 174,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRODUCT-ASIS-TOBE - Current And Target Process"
+   },
+   {
+    "id": "section-9",
+    "line_end": 241,
+    "line_start": 208,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-SLICING-READINESS - Backlog Slicing Readiness"
+   },
+   {
+    "id": "section-10",
+    "line_end": 275,
+    "line_start": 242,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-FR-AC - Functional Requirements And ACs"
+   },
+   {
+    "id": "section-11",
+    "line_end": 309,
+    "line_start": 276,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-ACCEPTANCE - Acceptance Signal"
+   },
+   {
+    "id": "section-12",
+    "line_end": 343,
+    "line_start": 310,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY - Quality Expectations"
+   },
+   {
+    "id": "section-13",
+    "line_end": 377,
+    "line_start": 344,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY-HANDOFF - Quality Handoff"
+   },
+   {
+    "id": "section-14",
+    "line_end": 411,
+    "line_start": 378,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-NFR-KPI - NFRs, KPIs, And Measurement"
+   },
+   {
+    "id": "section-15",
+    "line_end": 445,
+    "line_start": 412,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DATA-SOURCE - Systems And Data Ownership"
+   },
+   {
+    "id": "section-16",
+    "line_end": 479,
+    "line_start": 446,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-NFR - Operational Constraints"
+   },
+   {
+    "id": "section-17",
+    "line_end": 513,
+    "line_start": 480,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-ENABLERS - Valid Cross-Cutting Enablers"
+   },
+   {
+    "id": "section-18",
+    "line_end": 555,
+    "line_start": 514,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-FRONTEND-SURFACE - Frontend Surface"
+   },
+   {
+    "id": "section-19",
+    "line_end": 589,
+    "line_start": 556,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKEND-SURFACE - Backend Surface"
+   },
+   {
+    "id": "section-20",
+    "line_end": 623,
+    "line_start": 590,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DEEP-DIVE-INPUT - Technology Deep Dive"
+   },
+   {
+    "id": "section-21",
+    "line_end": 657,
+    "line_start": 624,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-GOVERNANCE-CONSTRAINTS - Governance Constraints"
+   },
+   {
+    "id": "section-22",
+    "line_end": 691,
+    "line_start": 658,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance"
+   },
+   {
+    "id": "section-23",
+    "line_end": 725,
+    "line_start": 692,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
+   },
+   {
+    "id": "section-24",
+    "line_end": 759,
+    "line_start": 726,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
+   },
+   {
+    "id": "section-25",
+    "line_end": 793,
+    "line_start": 760,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
+   },
+   {
+    "id": "section-26",
+    "line_end": 835,
+    "line_start": 794,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
+   },
+   {
+    "id": "section-27",
+    "line_end": 877,
+    "line_start": 836,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
+   },
+   {
+    "id": "section-28",
+    "line_end": 919,
+    "line_start": 878,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
+   },
+   {
+    "id": "section-29",
+    "line_end": 923,
+    "line_start": 920,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
+   },
+   {
+    "id": "section-30",
+    "line_end": 955,
+    "line_start": 924,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
+   },
+   {
+    "id": "section-31",
+    "line_end": 960,
+    "line_start": 956,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Resolution Trace"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/01_discovery/gaps.md",
+  "source_relative_path": "01_discovery/gaps.md"
+ },
+ "en/prd": {
+  "artifact": "prd",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Current behavior vs target behavior, stated as a delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "What is the current process, target process, and exact delta between them?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "One or more EARS or Given/When/Then statements with observable conditions. EARS example: When <trigger>, the system shall <observable response>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "What observable conditions prove the requirement is done?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Named NFRs with concrete thresholds (latency, retention, availability) and how they are observed.",
+    "id": "GAP-TECH-NFR",
+    "question": "What security, performance, observability, availability, or operational constraints apply?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencies with owner, and roadmap phases.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Systems/endpoints involved, source of truth, and owning team.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Entry point and step-by-step journey to the affected screen(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "Which user journey, screens, flows, copy, or interaction changes are in scope?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Critical flows, edge cases, test data, and evidence expectations.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "ASM-01",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "ASM-02",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "",
+    "id": "GAP-PRD-",
+    "question": "",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencies with owners, environments, dates, and rollout approach.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Personas]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - FR/AC]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - NFR/KPI]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Dependencies/Roadmap]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Glossary/Governance]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-2",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-12"
+   },
+   {
+    "id": "marker-4",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-6",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-12",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-14",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-19",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-21",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-23",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-25",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-27",
+    "marker": "ASM-01",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-28",
+    "marker": "ASM-02",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-29",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-PRD-",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-34"
+   },
+   {
+    "id": "marker-32",
+    "marker": "[PENDING INPUT - Personas]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-34",
+    "marker": "[PENDING INPUT - FR/AC]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-35",
+    "marker": "[PENDING INPUT - NFR/KPI]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-36",
+    "marker": "[PENDING INPUT - Dependencies/Roadmap]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-37",
+    "marker": "[PENDING INPUT - Glossary/Governance]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-40",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-44",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-42"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 2,
+    "line_start": 1,
+    "section_path": "PRD - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 4,
+    "line_start": 3,
+    "section_path": "[PROJECT_ID] - Strategic Foundation"
+   },
+   {
+    "id": "section-3",
+    "line_end": 13,
+    "line_start": 5,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Executive Summary And Problem Statement"
+   },
+   {
+    "id": "section-4",
+    "line_end": 19,
+    "line_start": 14,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Executive Summary And Problem Statement > Problem / Pain"
+   },
+   {
+    "id": "section-5",
+    "line_end": 23,
+    "line_start": 20,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Executive Summary And Problem Statement > Expected Outcome"
+   },
+   {
+    "id": "section-6",
+    "line_end": 25,
+    "line_start": 24,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Project Scope"
+   },
+   {
+    "id": "section-7",
+    "line_end": 31,
+    "line_start": 26,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Project Scope > In Scope"
+   },
+   {
+    "id": "section-8",
+    "line_end": 35,
+    "line_start": 32,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Project Scope > Out of Scope"
+   },
+   {
+    "id": "section-9",
+    "line_end": 39,
+    "line_start": 36,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Project Scope > Non-Goals"
+   },
+   {
+    "id": "section-10",
+    "line_end": 46,
+    "line_start": 40,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 3. Users And Personas"
+   },
+   {
+    "id": "section-11",
+    "line_end": 48,
+    "line_start": 47,
+    "section_path": "[PROJECT_ID] - Core Requirements"
+   },
+   {
+    "id": "section-12",
+    "line_end": 60,
+    "line_start": 49,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Functional Requirements"
+   },
+   {
+    "id": "section-13",
+    "line_end": 71,
+    "line_start": 61,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Functional Requirements > Confirmed EARS Requirements"
+   },
+   {
+    "id": "section-14",
+    "line_end": 75,
+    "line_start": 72,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Functional Requirements > FR-01 Acceptance Criteria"
+   },
+   {
+    "id": "section-15",
+    "line_end": 80,
+    "line_start": 76,
+    "section_path": "[PROJECT_ID] - Core Requirements > 5. Non-Functional Requirements"
+   },
+   {
+    "id": "section-16",
+    "line_end": 86,
+    "line_start": 81,
+    "section_path": "[PROJECT_ID] - Core Requirements > 6. Business Success Criteria (KPIs)"
+   },
+   {
+    "id": "section-17",
+    "line_end": 88,
+    "line_start": 87,
+    "section_path": "[PROJECT_ID] - Jobs Traceability"
+   },
+   {
+    "id": "section-18",
+    "line_end": 90,
+    "line_start": 89,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > 7. Jobs to Be Done"
+   },
+   {
+    "id": "section-19",
+    "line_end": 94,
+    "line_start": 91,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > 7. Jobs to Be Done > 7a. Core Functional Job"
+   },
+   {
+    "id": "section-20",
+    "line_end": 100,
+    "line_start": 95,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > 7. Jobs to Be Done > 7b. Related / Secondary Jobs"
+   },
+   {
+    "id": "section-21",
+    "line_end": 106,
+    "line_start": 101,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > 7. Jobs to Be Done > 7c. Emotional and Social Jobs"
+   },
+   {
+    "id": "section-22",
+    "line_end": 117,
+    "line_start": 107,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > 7. Jobs to Be Done > 7d. Bidirectional Traceability Table (Audit)"
+   },
+   {
+    "id": "section-23",
+    "line_end": 123,
+    "line_start": 118,
+    "section_path": "[PROJECT_ID] - Jobs Traceability > Traceability Gaps"
+   },
+   {
+    "id": "section-24",
+    "line_end": 125,
+    "line_start": 124,
+    "section_path": "[PROJECT_ID] - Execution Plan"
+   },
+   {
+    "id": "section-25",
+    "line_end": 134,
+    "line_start": 126,
+    "section_path": "[PROJECT_ID] - Execution Plan > 8. Dependency Map"
+   },
+   {
+    "id": "section-26",
+    "line_end": 136,
+    "line_start": 135,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions"
+   },
+   {
+    "id": "section-27",
+    "line_end": 143,
+    "line_start": 137,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions > 9a. Assumption Register"
+   },
+   {
+    "id": "section-28",
+    "line_end": 151,
+    "line_start": 144,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions > 9b. Risk Register"
+   },
+   {
+    "id": "section-29",
+    "line_end": 153,
+    "line_start": 152,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap"
+   },
+   {
+    "id": "section-30",
+    "line_end": 158,
+    "line_start": 154,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > MVP Scope"
+   },
+   {
+    "id": "section-31",
+    "line_end": 162,
+    "line_start": 159,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > Nice-to-Haves"
+   },
+   {
+    "id": "section-32",
+    "line_end": 168,
+    "line_start": 163,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > Roadmap"
+   },
+   {
+    "id": "section-33",
+    "line_end": 174,
+    "line_start": 169,
+    "section_path": "[PROJECT_ID] - Execution Plan > 11. Mandatory Constraints"
+   },
+   {
+    "id": "section-34",
+    "line_end": 184,
+    "line_start": 175,
+    "section_path": "[PROJECT_ID] - Execution Plan > 12. Suggested Or Assigned Team"
+   },
+   {
+    "id": "section-35",
+    "line_end": 193,
+    "line_start": 185,
+    "section_path": "[PROJECT_ID] - Execution Plan > 13. Glossary"
+   },
+   {
+    "id": "section-36",
+    "line_end": 195,
+    "line_start": 194,
+    "section_path": "[PROJECT_ID] - Governance"
+   },
+   {
+    "id": "section-37",
+    "line_end": 197,
+    "line_start": 196,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions"
+   },
+   {
+    "id": "section-38",
+    "line_end": 205,
+    "line_start": 198,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Missing Information Notes"
+   },
+   {
+    "id": "section-39",
+    "line_end": 218,
+    "line_start": 206,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Context Retrieved From Memory"
+   },
+   {
+    "id": "section-40",
+    "line_end": 225,
+    "line_start": 219,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Proposed Next Meeting Agenda"
+   },
+   {
+    "id": "section-41",
+    "line_end": 234,
+    "line_start": 226,
+    "section_path": "Session Audit Trail"
+   },
+   {
+    "id": "section-42",
+    "line_end": 239,
+    "line_start": 235,
+    "section_path": "Session Audit Trail > Decisions Made"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/03_specs/prd.md",
+  "source_relative_path": "03_specs/prd.md"
+ },
+ "en/specs": {
+  "artifact": "specs",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Current behavior vs target behavior, stated as a delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "What is the current process, target process, and exact delta between them?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Entry point and step-by-step journey to the affected screen(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "Which user journey, screens, flows, copy, or interaction changes are in scope?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Systems/endpoints involved, source of truth, and owning team.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "One or more EARS or Given/When/Then statements with observable conditions. EARS example: When <trigger>, the system shall <observable response>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "What observable conditions prove the requirement is done?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Rules in EARS form when they describe behavior: If <condition/rule>, then the system shall <response>; include thresholds and exceptions.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "What confirmed information resolves this uncertainty?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-2",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-4",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-6",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-11"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-15",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-14"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 2,
+    "line_start": 1,
+    "section_path": "Specs - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 12,
+    "line_start": 3,
+    "section_path": "Specs - [PROJECT_ID] > Spec Contract"
+   },
+   {
+    "id": "section-3",
+    "line_end": 16,
+    "line_start": 13,
+    "section_path": "Specs - [PROJECT_ID] > Requirement Snapshot"
+   },
+   {
+    "id": "section-4",
+    "line_end": 22,
+    "line_start": 17,
+    "section_path": "Project Brief - [PROJECT_ID]"
+   },
+   {
+    "id": "section-5",
+    "line_end": 33,
+    "line_start": 23,
+    "section_path": "Project Brief - [PROJECT_ID] > 1. Identidad y Valor"
+   },
+   {
+    "id": "section-6",
+    "line_end": 38,
+    "line_start": 34,
+    "section_path": "Project Brief - [PROJECT_ID] > 2. Lente de Negocio: Actores y Necesidades"
+   },
+   {
+    "id": "section-7",
+    "line_end": 45,
+    "line_start": 39,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey"
+   },
+   {
+    "id": "section-8",
+    "line_end": 49,
+    "line_start": 46,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey > No-Objetivos (Non-Goals)"
+   },
+   {
+    "id": "section-9",
+    "line_end": 55,
+    "line_start": 50,
+    "section_path": "Project Brief - [PROJECT_ID] > 4. Lente de Diseno: Flujos y Resiliencia UX"
+   },
+   {
+    "id": "section-10",
+    "line_end": 63,
+    "line_start": 56,
+    "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
+   },
+   {
+    "id": "section-11",
+    "line_end": 75,
+    "line_start": 64,
+    "section_path": "Project Brief - [PROJECT_ID] > Backlog-Relevant Contract"
+   },
+   {
+    "id": "section-12",
+    "line_end": 86,
+    "line_start": 76,
+    "section_path": "Project Brief - [PROJECT_ID] > Spec Units"
+   },
+   {
+    "id": "section-13",
+    "line_end": 99,
+    "line_start": 87,
+    "section_path": "Project Brief - [PROJECT_ID] > Confirmed EARS Requirements"
+   },
+   {
+    "id": "section-14",
+    "line_end": 112,
+    "line_start": 100,
+    "section_path": "Project Brief - [PROJECT_ID] > Progressive Disclosure Context Map"
+   },
+   {
+    "id": "section-15",
+    "line_end": 124,
+    "line_start": 113,
+    "section_path": "Project Brief - [PROJECT_ID] > Retrieval Plan For Backlog Agents"
+   },
+   {
+    "id": "section-16",
+    "line_end": 137,
+    "line_start": 125,
+    "section_path": "Project Brief - [PROJECT_ID] > Backlog Seeds"
+   },
+   {
+    "id": "section-17",
+    "line_end": 144,
+    "line_start": 138,
+    "section_path": "Project Brief - [PROJECT_ID] > Decision And Assumption Trail"
+   },
+   {
+    "id": "section-18",
+    "line_end": 153,
+    "line_start": 145,
+    "section_path": "Project Brief - [PROJECT_ID] > Traceability"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/03_specs/specs.md",
+  "source_relative_path": "03_specs/specs.md"
+ },
+ "es/backlog": {
+  "artifact": "backlog",
+  "ba_email": null,
+  "guided": [],
+  "markers": [],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 4,
+    "line_start": 1,
+    "section_path": "Backlog Board - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 10,
+    "line_start": 5,
+    "section_path": "Backlog Board - [PROJECT_ID] > Summary"
+   },
+   {
+    "id": "section-3",
+    "line_end": 17,
+    "line_start": 11,
+    "section_path": "Backlog Board - [PROJECT_ID] > Epic Rollup"
+   },
+   {
+    "id": "section-4",
+    "line_end": 19,
+    "line_start": 18,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status"
+   },
+   {
+    "id": "section-5",
+    "line_end": 31,
+    "line_start": 20,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Draft"
+   },
+   {
+    "id": "section-6",
+    "line_end": 37,
+    "line_start": 32,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Ready"
+   },
+   {
+    "id": "section-7",
+    "line_end": 43,
+    "line_start": 38,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > In Progress"
+   },
+   {
+    "id": "section-8",
+    "line_end": 49,
+    "line_start": 44,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > In Review"
+   },
+   {
+    "id": "section-9",
+    "line_end": 55,
+    "line_start": 50,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Done"
+   },
+   {
+    "id": "section-10",
+    "line_end": 61,
+    "line_start": 56,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Blocked"
+   },
+   {
+    "id": "section-11",
+    "line_end": 66,
+    "line_start": 62,
+    "section_path": "Backlog Board - [PROJECT_ID] > Board By Status > Stale"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/04_backlog/BACKLOG.md",
+  "source_relative_path": "04_backlog/BACKLOG.md"
+ },
+ "es/brief": {
+  "artifact": "brief",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Comportamiento actual vs objetivo, expresado como delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Punto de entrada y journey paso a paso hasta la(s) pantalla(s) afectada(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Restricciones nombradas de seguridad/privacidad/compliance/auditoría que aplican.",
+    "id": "GAP-GOVERNANCE-CONSTRAINTS",
+    "question": "¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Por métrica: definición/fórmula, unidad, fuente/owner del dato, baseline y umbral objetivo.",
+    "id": "GAP-METRIC-DEFINITION",
+    "question": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Nombre de la métrica + fuente/owner del baseline + valor objetivo + ventana de medición.",
+    "id": "GAP-METRIC-SOURCE",
+    "question": "¿Cuál es la fuente o baseline de la métrica cuantitativa?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "El primer slice de valor más qué se difiere y dónde no conviene cortar.",
+    "id": "GAP-BACKLOG-SLICING-READINESS",
+    "question": "¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencias con owners, ambientes, fechas y enfoque de rollout.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Capacidades, contratos, persistencia/source of truth y comportamiento ante fallas.",
+    "id": "GAP-BACKEND-SURFACE",
+    "question": "¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Cada enabler con el boundary de capacidad que soporta y la evidencia objetiva de completitud.",
+    "id": "GAP-BACKLOG-ENABLERS",
+    "question": "¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Superficie(s) afectada(s), estados, validaciones, copy y eventos de analytics.",
+    "id": "GAP-FRONTEND-SURFACE",
+    "question": "¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Repositorios/componentes, endpoints y source of truth a inspeccionar.",
+    "id": "GAP-TECH-DEEP-DIVE-INPUT",
+    "question": "¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFRs nombrados con umbrales concretos (latencia, retención, disponibilidad) y cómo se observan.",
+    "id": "GAP-TECH-NFR",
+    "question": "¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "La decisión/flujo/interacción que el prototipo debe validar.",
+    "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "question": "¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Los estados de carga, vacío, error y recuperación de la superficie.",
+    "id": "GAP-DESIGN-STATES",
+    "question": "¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Uno o más enunciados EARS o Dado/Cuando/Entonces con condiciones observables. Ejemplo EARS: Cuando ocurre <disparador>, el sistema debe <respuesta observable>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Expectativas de calidad como bullets: áreas de riesgo, profundidad de pruebas y evidencia requerida.",
+    "id": "GAP-QUALITY",
+    "question": "¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Flujos críticos, casos borde, datos de prueba y expectativas de evidencia.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencias con owner y fases del roadmap.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Ambientes objetivo, estrategia de rollout, restricciones de release y criterio de rollback.",
+    "id": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "question": "¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-4"
+   },
+   {
+    "id": "marker-2",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-4",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-6",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-19",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-21",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-23",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-25",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-27",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-28",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-29",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-32",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-34",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-35",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-36",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-37",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-40",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-44",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-46",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-47",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-48",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-49",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-50",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-51",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-52",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-53",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-54",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-55",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-56",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-57",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-58",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-59",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-60",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-61",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-62",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-18"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 6,
+    "line_start": 1,
+    "section_path": "Project Brief - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 17,
+    "line_start": 7,
+    "section_path": "Project Brief - [PROJECT_ID] > 1. Identidad y Valor"
+   },
+   {
+    "id": "section-3",
+    "line_end": 21,
+    "line_start": 18,
+    "section_path": "Project Brief - [PROJECT_ID] > 2. Lente de Negocio: Actores y Necesidades"
+   },
+   {
+    "id": "section-4",
+    "line_end": 28,
+    "line_start": 22,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey"
+   },
+   {
+    "id": "section-5",
+    "line_end": 32,
+    "line_start": 29,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey > No-Objetivos (Non-Goals)"
+   },
+   {
+    "id": "section-6",
+    "line_end": 38,
+    "line_start": 33,
+    "section_path": "Project Brief - [PROJECT_ID] > 4. Lente de Diseno: Flujos y Resiliencia UX"
+   },
+   {
+    "id": "section-7",
+    "line_end": 44,
+    "line_start": 39,
+    "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
+   },
+   {
+    "id": "section-8",
+    "line_end": 50,
+    "line_start": 45,
+    "section_path": "Project Brief - [PROJECT_ID] > 6. Gobernanza y Restricciones"
+   },
+   {
+    "id": "section-9",
+    "line_end": 52,
+    "line_start": 51,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias"
+   },
+   {
+    "id": "section-10",
+    "line_end": 67,
+    "line_start": 53,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Seeds Confirmadas o Pendientes"
+   },
+   {
+    "id": "section-11",
+    "line_end": 73,
+    "line_start": 68,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Decisiones"
+   },
+   {
+    "id": "section-12",
+    "line_end": 77,
+    "line_start": 74,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Supuestos Gobernados"
+   },
+   {
+    "id": "section-13",
+    "line_end": 87,
+    "line_start": 78,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Cobertura Multi-Lente"
+   },
+   {
+    "id": "section-14",
+    "line_end": 92,
+    "line_start": 88,
+    "section_path": "Project Brief - [PROJECT_ID] > 7. Decisiones, Seeds e Inferencias > Inferencias Controladas"
+   },
+   {
+    "id": "section-15",
+    "line_end": 119,
+    "line_start": 93,
+    "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
+   },
+   {
+    "id": "section-16",
+    "line_end": 129,
+    "line_start": 120,
+    "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
+   },
+   {
+    "id": "section-17",
+    "line_end": 138,
+    "line_start": 130,
+    "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
+   },
+   {
+    "id": "section-18",
+    "line_end": 151,
+    "line_start": 139,
+    "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
+   },
+   {
+    "id": "section-19",
+    "line_end": 160,
+    "line_start": 152,
+    "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/02_requirements/project-brief.md",
+  "source_relative_path": "02_requirements/project-brief.md"
+ },
+ "es/gaps": {
+  "artifact": "gaps",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Nombre de la métrica + fuente/owner del baseline + valor objetivo + ventana de medición.",
+    "id": "GAP-METRIC-SOURCE",
+    "question": "¿Cuál es la fuente o baseline de la métrica cuantitativa?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Por métrica: definición/fórmula, unidad, fuente/owner del dato, baseline y umbral objetivo.",
+    "id": "GAP-METRIC-DEFINITION",
+    "question": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Comportamiento actual vs objetivo, expresado como delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "El primer slice de valor más qué se difiere y dónde no conviene cortar.",
+    "id": "GAP-BACKLOG-SLICING-READINESS",
+    "question": "¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Uno o más enunciados EARS o Dado/Cuando/Entonces con condiciones observables. Ejemplo EARS: Cuando ocurre <disparador>, el sistema debe <respuesta observable>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Expectativas de calidad como bullets: áreas de riesgo, profundidad de pruebas y evidencia requerida.",
+    "id": "GAP-QUALITY",
+    "question": "¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Flujos críticos, casos borde, datos de prueba y expectativas de evidencia.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFRs nombrados con umbrales concretos (latencia, retención, disponibilidad) y cómo se observan.",
+    "id": "GAP-TECH-NFR",
+    "question": "¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Cada enabler con el boundary de capacidad que soporta y la evidencia objetiva de completitud.",
+    "id": "GAP-BACKLOG-ENABLERS",
+    "question": "¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Superficie(s) afectada(s), estados, validaciones, copy y eventos de analytics.",
+    "id": "GAP-FRONTEND-SURFACE",
+    "question": "¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Capacidades, contratos, persistencia/source of truth y comportamiento ante fallas.",
+    "id": "GAP-BACKEND-SURFACE",
+    "question": "¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Repositorios/componentes, endpoints y source of truth a inspeccionar.",
+    "id": "GAP-TECH-DEEP-DIVE-INPUT",
+    "question": "¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Restricciones nombradas de seguridad/privacidad/compliance/auditoría que aplican.",
+    "id": "GAP-GOVERNANCE-CONSTRAINTS",
+    "question": "¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencias con owners, ambientes, fechas y enfoque de rollout.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencias con owner y fases del roadmap.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Ambientes objetivo, estrategia de rollout, restricciones de release y criterio de rollback.",
+    "id": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "question": "¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Punto de entrada y journey paso a paso hasta la(s) pantalla(s) afectada(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Los estados de carga, vacío, error y recuperación de la superficie.",
+    "id": "GAP-DESIGN-STATES",
+    "question": "¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "La decisión/flujo/interacción que el prototipo debe validar.",
+    "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "question": "¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-4"
+   },
+   {
+    "id": "marker-2",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-5"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-6"
+   },
+   {
+    "id": "marker-4",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-8"
+   },
+   {
+    "id": "marker-6",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-11"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-12"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-16"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-18"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-19"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-20"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-19",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-22"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-21",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-24"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-23",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-26"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-25",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-27",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-28",
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-29",
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-32",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-34",
+    "marker": "GAP-QUALITY",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-35",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-36",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-37",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-40",
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-44",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-46",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-47",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-48",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-49",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-30"
+   },
+   {
+    "id": "marker-50",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-30"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 8,
+    "line_start": 1,
+    "section_path": "Gaps de Discovery - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 19,
+    "line_start": 9,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Cómo responder"
+   },
+   {
+    "id": "section-3",
+    "line_end": 21,
+    "line_start": 20,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente"
+   },
+   {
+    "id": "section-4",
+    "line_end": 55,
+    "line_start": 22,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BUSINESS-RULES - Reglas de negocio"
+   },
+   {
+    "id": "section-5",
+    "line_end": 89,
+    "line_start": 56,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-PERSONA-DETAIL - Detalle de personas para PRD"
+   },
+   {
+    "id": "section-6",
+    "line_end": 131,
+    "line_start": 90,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-METRIC-SOURCE - Fuente de métrica"
+   },
+   {
+    "id": "section-7",
+    "line_end": 173,
+    "line_start": 132,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-METRIC-DEFINITION - Definición de métrica"
+   },
+   {
+    "id": "section-8",
+    "line_end": 207,
+    "line_start": 174,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo"
+   },
+   {
+    "id": "section-9",
+    "line_end": 241,
+    "line_start": 208,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-SLICING-READINESS - Preparacion de slicing de backlog"
+   },
+   {
+    "id": "section-10",
+    "line_end": 275,
+    "line_start": 242,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-FR-AC - Requerimientos funcionales y criterios de aceptacion"
+   },
+   {
+    "id": "section-11",
+    "line_end": 309,
+    "line_start": 276,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-ACCEPTANCE - Señal de aceptación"
+   },
+   {
+    "id": "section-12",
+    "line_end": 343,
+    "line_start": 310,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY - Expectativas de calidad"
+   },
+   {
+    "id": "section-13",
+    "line_end": 377,
+    "line_start": 344,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY-HANDOFF - Handoff de calidad"
+   },
+   {
+    "id": "section-14",
+    "line_end": 411,
+    "line_start": 378,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-NFR-KPI - NFRs, KPIs y medicion"
+   },
+   {
+    "id": "section-15",
+    "line_end": 445,
+    "line_start": 412,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DATA-SOURCE - Sistemas y ownership de datos"
+   },
+   {
+    "id": "section-16",
+    "line_end": 479,
+    "line_start": 446,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-NFR - Restricciones operativas"
+   },
+   {
+    "id": "section-17",
+    "line_end": 513,
+    "line_start": 480,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-ENABLERS - Enablers transversales validos"
+   },
+   {
+    "id": "section-18",
+    "line_end": 547,
+    "line_start": 514,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-FRONTEND-SURFACE - Superficie frontend"
+   },
+   {
+    "id": "section-19",
+    "line_end": 581,
+    "line_start": 548,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKEND-SURFACE - Superficie backend"
+   },
+   {
+    "id": "section-20",
+    "line_end": 615,
+    "line_start": 582,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DEEP-DIVE-INPUT - Profundización técnica"
+   },
+   {
+    "id": "section-21",
+    "line_end": 649,
+    "line_start": 616,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-GOVERNANCE-CONSTRAINTS - Restricciones de gobernanza"
+   },
+   {
+    "id": "section-22",
+    "line_end": 683,
+    "line_start": 650,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza"
+   },
+   {
+    "id": "section-23",
+    "line_end": 717,
+    "line_start": 684,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
+   },
+   {
+    "id": "section-24",
+    "line_end": 751,
+    "line_start": 718,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
+   },
+   {
+    "id": "section-25",
+    "line_end": 785,
+    "line_start": 752,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
+   },
+   {
+    "id": "section-26",
+    "line_end": 819,
+    "line_start": 786,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
+   },
+   {
+    "id": "section-27",
+    "line_end": 853,
+    "line_start": 820,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
+   },
+   {
+    "id": "section-28",
+    "line_end": 887,
+    "line_start": 854,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
+   },
+   {
+    "id": "section-29",
+    "line_end": 891,
+    "line_start": 888,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
+   },
+   {
+    "id": "section-30",
+    "line_end": 923,
+    "line_start": 892,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
+   },
+   {
+    "id": "section-31",
+    "line_end": 928,
+    "line_start": 924,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Trazabilidad de resolución"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/01_discovery/gaps.md",
+  "source_relative_path": "01_discovery/gaps.md"
+ },
+ "es/prd": {
+  "artifact": "prd",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Comportamiento actual vs objetivo, expresado como delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Uno o más enunciados EARS o Dado/Cuando/Entonces con condiciones observables. Ejemplo EARS: Cuando ocurre <disparador>, el sistema debe <respuesta observable>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
+    "id": "GAP-PRD-NFR-KPI",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "NFRs nombrados con umbrales concretos (latencia, retención, disponibilidad) y cómo se observan.",
+    "id": "GAP-TECH-NFR",
+    "question": "¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
+    "id": "GAP-PRD-FR-AC",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "MVP, dependencias con owner y fases del roadmap.",
+    "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Punto de entrada y journey paso a paso hasta la(s) pantalla(s) afectada(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Flujos críticos, casos borde, datos de prueba y expectativas de evidencia.",
+    "id": "GAP-QUALITY-HANDOFF",
+    "question": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "ASM-01",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "ASM-02",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "",
+    "id": "GAP-PRD-",
+    "question": "",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Dependencias con owners, ambientes, fechas y enfoque de rollout.",
+    "id": "GAP-DELIVERY-READINESS",
+    "question": "¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Personas]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
+    "id": "GAP-PRD-PERSONA-DETAIL",
+    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - FR/AC]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - NFR/KPI]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Dependencies/Roadmap]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT - Glossary/Governance]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "",
+    "id": "GAP-PRD-PERSONA-D",
+    "question": "",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-2",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-12"
+   },
+   {
+    "id": "marker-4",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-6",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-12",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-15"
+   },
+   {
+    "id": "marker-14",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-15",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-21"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-23"
+   },
+   {
+    "id": "marker-19",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-20",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-21",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-22",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-23",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-24",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-25",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-26",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-25"
+   },
+   {
+    "id": "marker-27",
+    "marker": "ASM-01",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-28",
+    "marker": "ASM-02",
+    "section_id": "section-27"
+   },
+   {
+    "id": "marker-29",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-30",
+    "marker": "GAP-PRD-",
+    "section_id": "section-28"
+   },
+   {
+    "id": "marker-31",
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-34"
+   },
+   {
+    "id": "marker-32",
+    "marker": "[PENDING INPUT - Personas]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-34",
+    "marker": "[PENDING INPUT - FR/AC]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-35",
+    "marker": "[PENDING INPUT - NFR/KPI]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-36",
+    "marker": "[PENDING INPUT - Dependencies/Roadmap]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-37",
+    "marker": "[PENDING INPUT - Glossary/Governance]",
+    "section_id": "section-38"
+   },
+   {
+    "id": "marker-38",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-39",
+    "marker": "GAP-PRD-PERSONA-D",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-40",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-41",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-42",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-PRD-PERSONA-D",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-44",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-42"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 2,
+    "line_start": 1,
+    "section_path": "PRD - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 4,
+    "line_start": 3,
+    "section_path": "[PROJECT_ID] - Strategic Foundation"
+   },
+   {
+    "id": "section-3",
+    "line_end": 13,
+    "line_start": 5,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Resumen ejecutivo y planteamiento del problema"
+   },
+   {
+    "id": "section-4",
+    "line_end": 19,
+    "line_start": 14,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Resumen ejecutivo y planteamiento del problema > Problem / Pain"
+   },
+   {
+    "id": "section-5",
+    "line_end": 23,
+    "line_start": 20,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 1. Resumen ejecutivo y planteamiento del problema > Expected Outcome"
+   },
+   {
+    "id": "section-6",
+    "line_end": 25,
+    "line_start": 24,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Alcance del proyecto"
+   },
+   {
+    "id": "section-7",
+    "line_end": 31,
+    "line_start": 26,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Alcance del proyecto > In Scope"
+   },
+   {
+    "id": "section-8",
+    "line_end": 35,
+    "line_start": 32,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Alcance del proyecto > Out of Scope"
+   },
+   {
+    "id": "section-9",
+    "line_end": 39,
+    "line_start": 36,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 2. Alcance del proyecto > No-Objetivos (Non-Goals)"
+   },
+   {
+    "id": "section-10",
+    "line_end": 45,
+    "line_start": 40,
+    "section_path": "[PROJECT_ID] - Strategic Foundation > 3. Usuarios y personas"
+   },
+   {
+    "id": "section-11",
+    "line_end": 47,
+    "line_start": 46,
+    "section_path": "[PROJECT_ID] - Core Requirements"
+   },
+   {
+    "id": "section-12",
+    "line_end": 59,
+    "line_start": 48,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Requerimientos funcionales"
+   },
+   {
+    "id": "section-13",
+    "line_end": 70,
+    "line_start": 60,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Requerimientos funcionales > Requerimientos EARS confirmados"
+   },
+   {
+    "id": "section-14",
+    "line_end": 74,
+    "line_start": 71,
+    "section_path": "[PROJECT_ID] - Core Requirements > 4. Requerimientos funcionales > FR-01 Acceptance Criteria"
+   },
+   {
+    "id": "section-15",
+    "line_end": 79,
+    "line_start": 75,
+    "section_path": "[PROJECT_ID] - Core Requirements > 5. Requerimientos no funcionales"
+   },
+   {
+    "id": "section-16",
+    "line_end": 85,
+    "line_start": 80,
+    "section_path": "[PROJECT_ID] - Core Requirements > 6. Criterios de exito del negocio (KPIs)"
+   },
+   {
+    "id": "section-17",
+    "line_end": 87,
+    "line_start": 86,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos"
+   },
+   {
+    "id": "section-18",
+    "line_end": 89,
+    "line_start": 88,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > 7. Jobs to Be Done"
+   },
+   {
+    "id": "section-19",
+    "line_end": 93,
+    "line_start": 90,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > 7. Jobs to Be Done > 7a. Core Functional Job"
+   },
+   {
+    "id": "section-20",
+    "line_end": 99,
+    "line_start": 94,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > 7. Jobs to Be Done > 7b. Related / Secondary Jobs"
+   },
+   {
+    "id": "section-21",
+    "line_end": 105,
+    "line_start": 100,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > 7. Jobs to Be Done > 7c. Emotional and Social Jobs"
+   },
+   {
+    "id": "section-22",
+    "line_end": 116,
+    "line_start": 106,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > 7. Jobs to Be Done > 7d. Bidirectional Traceability Table (Audit)"
+   },
+   {
+    "id": "section-23",
+    "line_end": 122,
+    "line_start": 117,
+    "section_path": "[PROJECT_ID] - Trazabilidad de trabajos > Traceability Gaps"
+   },
+   {
+    "id": "section-24",
+    "line_end": 124,
+    "line_start": 123,
+    "section_path": "[PROJECT_ID] - Execution Plan"
+   },
+   {
+    "id": "section-25",
+    "line_end": 133,
+    "line_start": 125,
+    "section_path": "[PROJECT_ID] - Execution Plan > 8. Dependency Map"
+   },
+   {
+    "id": "section-26",
+    "line_end": 135,
+    "line_start": 134,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions"
+   },
+   {
+    "id": "section-27",
+    "line_end": 142,
+    "line_start": 136,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions > 9a. Assumption Register"
+   },
+   {
+    "id": "section-28",
+    "line_end": 150,
+    "line_start": 143,
+    "section_path": "[PROJECT_ID] - Execution Plan > 9. Risks And Assumptions > 9b. Risk Register"
+   },
+   {
+    "id": "section-29",
+    "line_end": 152,
+    "line_start": 151,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap"
+   },
+   {
+    "id": "section-30",
+    "line_end": 157,
+    "line_start": 153,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > MVP Scope"
+   },
+   {
+    "id": "section-31",
+    "line_end": 161,
+    "line_start": 158,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > Nice-to-Haves"
+   },
+   {
+    "id": "section-32",
+    "line_end": 167,
+    "line_start": 162,
+    "section_path": "[PROJECT_ID] - Execution Plan > 10. MVP, Nice-to-Haves, And Roadmap > Roadmap"
+   },
+   {
+    "id": "section-33",
+    "line_end": 173,
+    "line_start": 168,
+    "section_path": "[PROJECT_ID] - Execution Plan > 11. Mandatory Constraints"
+   },
+   {
+    "id": "section-34",
+    "line_end": 183,
+    "line_start": 174,
+    "section_path": "[PROJECT_ID] - Execution Plan > 12. Suggested Or Assigned Team"
+   },
+   {
+    "id": "section-35",
+    "line_end": 192,
+    "line_start": 184,
+    "section_path": "[PROJECT_ID] - Execution Plan > 13. Glossary"
+   },
+   {
+    "id": "section-36",
+    "line_end": 194,
+    "line_start": 193,
+    "section_path": "[PROJECT_ID] - Governance"
+   },
+   {
+    "id": "section-37",
+    "line_end": 196,
+    "line_start": 195,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions"
+   },
+   {
+    "id": "section-38",
+    "line_end": 204,
+    "line_start": 197,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Missing Information Notes"
+   },
+   {
+    "id": "section-39",
+    "line_end": 217,
+    "line_start": 205,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Context Retrieved From Memory"
+   },
+   {
+    "id": "section-40",
+    "line_end": 224,
+    "line_start": 218,
+    "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Proposed Next Meeting Agenda"
+   },
+   {
+    "id": "section-41",
+    "line_end": 233,
+    "line_start": 225,
+    "section_path": "Session Audit Trail"
+   },
+   {
+    "id": "section-42",
+    "line_end": 238,
+    "line_start": 234,
+    "section_path": "Session Audit Trail > Decisions Made"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/03_specs/prd.md",
+  "source_relative_path": "03_specs/prd.md"
+ },
+ "es/specs": {
+  "artifact": "specs",
+  "ba_email": null,
+  "guided": [
+   {
+    "audience": "client",
+    "expected_format": "Comportamiento actual vs objetivo, expresado como delta.",
+    "id": "GAP-PRODUCT-ASIS-TOBE",
+    "question": "¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "ba_assumption",
+    "expected_format": "",
+    "id": "[PENDING INPUT]",
+    "question": "",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Punto de entrada y journey paso a paso hasta la(s) pantalla(s) afectada(s).",
+    "id": "GAP-DESIGN-FLOW",
+    "question": "¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Sistemas/endpoints involucrados, source of truth y equipo owner.",
+    "id": "GAP-TECH-DATA-SOURCE",
+    "question": "¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Uno o más enunciados EARS o Dado/Cuando/Entonces con condiciones observables. Ejemplo EARS: Cuando ocurre <disparador>, el sistema debe <respuesta observable>.",
+    "id": "GAP-ACCEPTANCE",
+    "question": "¿Qué condiciones observables demuestran que el requerimiento está terminado?",
+    "response_needed": false,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Reglas en formato EARS cuando describen comportamiento: Si <condición/regla>, entonces el sistema debe <respuesta>; incluir umbrales y excepciones.",
+    "id": "GAP-BUSINESS-RULES",
+    "question": "¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "",
+    "id": "GAP-PRD-PERSONA-D",
+    "question": "",
+    "response_needed": true,
+    "statement": ""
+   }
+  ],
+  "markers": [
+   {
+    "id": "marker-1",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-7"
+   },
+   {
+    "id": "marker-2",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-3",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-9"
+   },
+   {
+    "id": "marker-4",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-5",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-10"
+   },
+   {
+    "id": "marker-6",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-11"
+   },
+   {
+    "id": "marker-7",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-8",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-9",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-10",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-11",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-12",
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-13",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-14",
+    "marker": "GAP-PRD-PERSONA-D",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-15",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-16",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-17",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-14"
+   },
+   {
+    "id": "marker-18",
+    "marker": "GAP-PRD-PERSONA-D",
+    "section_id": "section-14"
+   }
+  ],
+  "project_id": "[PROJECT_ID]",
+  "sections": [
+   {
+    "id": "section-1",
+    "line_end": 2,
+    "line_start": 1,
+    "section_path": "Specs - [PROJECT_ID]"
+   },
+   {
+    "id": "section-2",
+    "line_end": 12,
+    "line_start": 3,
+    "section_path": "Specs - [PROJECT_ID] > Spec Contract"
+   },
+   {
+    "id": "section-3",
+    "line_end": 16,
+    "line_start": 13,
+    "section_path": "Specs - [PROJECT_ID] > Requirement Snapshot"
+   },
+   {
+    "id": "section-4",
+    "line_end": 22,
+    "line_start": 17,
+    "section_path": "Project Brief - [PROJECT_ID]"
+   },
+   {
+    "id": "section-5",
+    "line_end": 33,
+    "line_start": 23,
+    "section_path": "Project Brief - [PROJECT_ID] > 1. Identidad y Valor"
+   },
+   {
+    "id": "section-6",
+    "line_end": 37,
+    "line_start": 34,
+    "section_path": "Project Brief - [PROJECT_ID] > 2. Lente de Negocio: Actores y Necesidades"
+   },
+   {
+    "id": "section-7",
+    "line_end": 44,
+    "line_start": 38,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey"
+   },
+   {
+    "id": "section-8",
+    "line_end": 48,
+    "line_start": 45,
+    "section_path": "Project Brief - [PROJECT_ID] > 3. Lente de Producto: Proceso y Journey > No-Objetivos (Non-Goals)"
+   },
+   {
+    "id": "section-9",
+    "line_end": 54,
+    "line_start": 49,
+    "section_path": "Project Brief - [PROJECT_ID] > 4. Lente de Diseno: Flujos y Resiliencia UX"
+   },
+   {
+    "id": "section-10",
+    "line_end": 62,
+    "line_start": 55,
+    "section_path": "Project Brief - [PROJECT_ID] > 5. Lente Tecnico: Datos, Conectividad y Arquitectura"
+   },
+   {
+    "id": "section-11",
+    "line_end": 74,
+    "line_start": 63,
+    "section_path": "Project Brief - [PROJECT_ID] > Backlog-Relevant Contract"
+   },
+   {
+    "id": "section-12",
+    "line_end": 85,
+    "line_start": 75,
+    "section_path": "Project Brief - [PROJECT_ID] > Spec Units"
+   },
+   {
+    "id": "section-13",
+    "line_end": 98,
+    "line_start": 86,
+    "section_path": "Project Brief - [PROJECT_ID] > Confirmed EARS Requirements"
+   },
+   {
+    "id": "section-14",
+    "line_end": 111,
+    "line_start": 99,
+    "section_path": "Project Brief - [PROJECT_ID] > Progressive Disclosure Context Map"
+   },
+   {
+    "id": "section-15",
+    "line_end": 123,
+    "line_start": 112,
+    "section_path": "Project Brief - [PROJECT_ID] > Retrieval Plan For Backlog Agents"
+   },
+   {
+    "id": "section-16",
+    "line_end": 136,
+    "line_start": 124,
+    "section_path": "Project Brief - [PROJECT_ID] > Backlog Seeds"
+   },
+   {
+    "id": "section-17",
+    "line_end": 143,
+    "line_start": 137,
+    "section_path": "Project Brief - [PROJECT_ID] > Decision And Assumption Trail"
+   },
+   {
+    "id": "section-18",
+    "line_end": 152,
+    "line_start": 144,
+    "section_path": "Project Brief - [PROJECT_ID] > Traceability"
+   }
+  ],
+  "source_path": "workspaces/[PROJECT_ID]/03_specs/specs.md",
+  "source_relative_path": "03_specs/specs.md"
+ }
+}
