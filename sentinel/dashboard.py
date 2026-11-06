@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -105,13 +106,22 @@ SCENARIOS = [
 ]
 
 
+class DashboardModelError(ValueError):
+    """The dashboard model is inconsistent; the HTML is not written."""
+
+
 def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
+    """Collect the portfolio model. Reproducible: no clock, no absolute paths.
+
+    ``provenance.cutoff`` is the newest mtime among the files read (state.json,
+    gaps.md, embedded documents), never the wall clock; every state.json is
+    fingerprinted with the first 12 hex chars of its sha256 (IMP-239).
+    """
     root_path = Path(root).resolve()
     workspaces_dir = root_path / "workspaces"
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     workspaces: list[dict[str, Any]] = []
     if not workspaces_dir.exists():
-        return _portfolio_model(root_path, generated_at, [])
+        return _portfolio_model(root_path, [])
 
     old_cwd = Path.cwd()
     os.chdir(root_path)
@@ -122,7 +132,7 @@ def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
             workspaces.append(_workspace_model(candidate.name, root_path))
     finally:
         os.chdir(old_cwd)
-    return _portfolio_model(root_path, generated_at, workspaces)
+    return _portfolio_model(root_path, workspaces)
 
 
 def render_html(model: dict[str, Any]) -> str:
@@ -144,18 +154,63 @@ def generate_dashboard(root: str | Path = ".", open_browser: bool = False) -> di
     return {
         "path": str(out),
         "count": len(model["workspaces"]),
-        "generated_at": model["generated_at"],
+        "cutoff": model["provenance"]["cutoff"],
         "workspaces": [workspace["project_id"] for workspace in model["workspaces"]],
     }
 
 
-def _portfolio_model(root: Path, generated_at: str, workspaces: list[dict[str, Any]]) -> dict[str, Any]:
+def _portfolio_model(root: Path, workspaces: list[dict[str, Any]]) -> dict[str, Any]:
     return {
-        "generated_at": generated_at,
-        "root": str(root),
         "kpis": _kpis(workspaces),
         "workspaces": workspaces,
+        "provenance": _provenance(root, workspaces),
     }
+
+
+def _provenance(root: Path, workspaces: list[dict[str, Any]]) -> dict[str, Any]:
+    newest = 0.0
+    sources: list[dict[str, str]] = []
+    for workspace in workspaces:
+        project_id = workspace["project_id"]
+        base = root / "workspaces" / project_id
+        state = base / "state.json"
+        sources.append({"path": f"workspaces/{project_id}/state.json", "sha256": hashlib.sha256(state.read_bytes()).hexdigest()[:12]})
+        read = [state, base / "01_discovery" / "gaps.md"] + [root / doc["path"] for doc in workspace.get("documents", [])]
+        for path in read:
+            if path.is_file():
+                newest = max(newest, path.stat().st_mtime)
+    cutoff = datetime.fromtimestamp(int(newest), timezone.utc).isoformat() if newest else ""
+    return {"cutoff": cutoff, "sources": sources}
+
+
+def validate_dashboard_model(model: dict[str, Any]) -> list[str]:
+    """Consistency checks before rendering: unique ids, counts derived, provenance complete."""
+    errors: list[str] = []
+    workspaces = model.get("workspaces") or []
+    ids = [str(ws.get("project_id")) for ws in workspaces]
+    for project_id in sorted({item for item in ids if ids.count(item) > 1}):
+        errors.append(f"duplicate workspace id {project_id!r}")
+    for ws in workspaces:
+        gap_ids = [str(gap.get("id")) for gap in ws.get("gaps_detail") or []]
+        for gap_id in sorted({item for item in gap_ids if gap_ids.count(item) > 1}):
+            errors.append(f"{ws.get('project_id')}: duplicate gap id {gap_id!r}")
+        summary = ws.get("summary") or {}
+        expected_open = _gap_count(ws, "open") + _gap_count(ws, "partially_closed")
+        if "Gaps abiertos" in summary and summary["Gaps abiertos"] != expected_open:
+            errors.append(f"{ws.get('project_id')}: summary 'Gaps abiertos' is {summary['Gaps abiertos']!r}, gap_counts say {expected_open}")
+    expected_kpis = _kpis(workspaces)
+    for key, value in expected_kpis.items():
+        if (model.get("kpis") or {}).get(key) != value:
+            errors.append(f"kpis.{key} is {(model.get('kpis') or {}).get(key)!r}, computed {value}")
+    provenance = model.get("provenance")
+    if not isinstance(provenance, dict) or "cutoff" not in provenance:
+        errors.append("provenance with a cutoff is required")
+    else:
+        fingerprinted = {item.get("path") for item in provenance.get("sources") or []}
+        for project_id in ids:
+            if f"workspaces/{project_id}/state.json" not in fingerprinted:
+                errors.append(f"provenance misses the state.json fingerprint of {project_id!r}")
+    return errors
 
 
 def _workspace_model(project_id: str, root: Path) -> dict[str, Any]:
@@ -410,7 +465,7 @@ function mdInline(s){return esc(s).replace(/`([^`]+)`/g,(m,c)=>"<code>"+esc(c)+"
 function mdToHtml(md){const lines=String(md||"").replace(/\r/g,"").split("\n");let out="",list=null,i=0;const close=()=>{if(list){out+="</"+list+">";list=null}};while(i<lines.length){let ln=lines[i],m;if(/^\s*\|/.test(ln)){const tbl=[];while(i<lines.length&&/^\s*\|/.test(lines[i])){tbl.push(lines[i]);i++}close();const rows=tbl.map(r=>r.trim().replace(/^\||\|$/g,"").split("|").map(c=>c.trim()));const sep=rows[1]&&rows[1].every(c=>/^:?-+:?$/.test(c));const header=rows[0],body=rows.slice(sep?2:1);out+="<table><thead><tr>"+header.map(c=>"<th>"+mdInline(c)+"</th>").join("")+"</tr></thead><tbody>"+body.map(r=>"<tr>"+r.map(c=>"<td>"+mdInline(c)+"</td>").join("")+"</tr>").join("")+"</tbody></table>";continue}if(/^\s*$/.test(ln)){close();i++;continue}if(m=ln.match(/^(#{1,4})\s+(.*)$/)){close();const n=m[1].length;out+="<h"+n+">"+mdInline(m[2])+"</h"+n+">";i++;continue}if(m=ln.match(/^>\s?(.*)$/)){close();out+="<blockquote>"+mdInline(m[1])+"</blockquote>";i++;continue}if(m=ln.match(/^\s*[-*]\s+(.*)$/)){if(list!=="ul"){close();out+="<ul>";list="ul"}out+="<li>"+mdInline(m[1])+"</li>";i++;continue}if(m=ln.match(/^\s*\d+\.\s+(.*)$/)){if(list!=="ol"){close();out+="<ol>";list="ol"}out+="<li>"+mdInline(m[1])+"</li>";i++;continue}close();out+="<p>"+mdInline(ln)+"</p>";i++}close();return out}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#modal").classList.contains("open"))closeModal();else closeDrawer()}});
 $("#q").addEventListener("input",e=>{state.q=e.target.value;renderGrid()});$$("#fHealth button").forEach(b=>b.onclick=()=>{$$("#fHealth button").forEach(x=>x.classList.remove("active"));b.classList.add("active");state.health=b.dataset.v;renderGrid()});$$("#fAttn button").forEach(b=>b.onclick=()=>{$$("#fAttn button").forEach(x=>x.classList.remove("active"));b.classList.add("active");state.attn=b.dataset.v;renderGrid()});
-$("#snapTime").textContent=fmtTime(MODEL.generated_at);renderKpis();renderGrid();
+$("#snapTime").textContent=fmtTime(MODEL.provenance&&MODEL.provenance.cutoff);renderKpis();renderGrid();
 </script>
 </body>
 </html>"""

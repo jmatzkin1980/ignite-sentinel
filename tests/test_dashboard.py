@@ -15,7 +15,9 @@ from sentinel.workspace import ensure_workspace, write_json
 ROOT = Path(__file__).parent
 
 
-class DashboardTest(unittest.TestCase):
+class DashboardFixtureMixin:
+    """Materializes tests/fixtures/dashboard/portfolio_snapshot.json in a temp root."""
+
     def setUp(self) -> None:
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
@@ -27,6 +29,40 @@ class DashboardTest(unittest.TestCase):
         os.chdir(self.old_cwd)
         shutil.rmtree(self.temp)
 
+    def _materialize_fixture(self) -> None:
+        ensure_workspace("_template")
+        for workspace in self.fixture["workspaces"]:
+            project_id = workspace["project_id"]
+            base = ensure_workspace(project_id)
+            state = workspace["state"]
+            state.setdefault("project_id", project_id)
+            state.setdefault("artifacts", {})
+            state.setdefault("updated_at", "2026-06-14T12:00:00+00:00")
+            write_json(base / "state.json", state)
+            gaps = workspace.get("gaps")
+            if gaps:
+                (base / "01_discovery" / "gaps.md").write_text(gaps, encoding="utf-8")
+            for relative, content in workspace.get("documents", {}).items():
+                path = base / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            if project_id == "DASH_BACKLOG_READY":
+                for story_id in ("US-001", "US-002"):
+                    (base / "04_backlog" / f"{story_id}.md").write_text(
+                        f"---\nparent_epic: EPIC-001\nstatus: Ready\n---\n# {story_id} - Synthetic story\n",
+                        encoding="utf-8",
+                    )
+                graph = {
+                    "nodes": [
+                        {"id": "US-001", "type": "user_story", "title": "Ready story"},
+                        {"id": "US-002", "type": "user_story", "title": "Second story"},
+                    ],
+                    "edges": [],
+                }
+                write_json(base / "06_traceability" / "traceability_graph.json", graph)
+
+
+class DashboardTest(DashboardFixtureMixin, unittest.TestCase):
     def test_collect_dashboard_model_reads_portfolio_without_template(self) -> None:
         model = collect_dashboard_model(self.temp)
 
@@ -75,38 +111,6 @@ class DashboardTest(unittest.TestCase):
         result = generate_dashboard(self.temp)
         self.assertEqual(result["count"], 2)
         self.assertIn("DASH_CLIENT_WAIT", result["workspaces"])
-
-    def _materialize_fixture(self) -> None:
-        ensure_workspace("_template")
-        for workspace in self.fixture["workspaces"]:
-            project_id = workspace["project_id"]
-            base = ensure_workspace(project_id)
-            state = workspace["state"]
-            state.setdefault("project_id", project_id)
-            state.setdefault("artifacts", {})
-            state.setdefault("updated_at", "2026-06-14T12:00:00+00:00")
-            write_json(base / "state.json", state)
-            gaps = workspace.get("gaps")
-            if gaps:
-                (base / "01_discovery" / "gaps.md").write_text(gaps, encoding="utf-8")
-            for relative, content in workspace.get("documents", {}).items():
-                path = base / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
-            if project_id == "DASH_BACKLOG_READY":
-                for story_id in ("US-001", "US-002"):
-                    (base / "04_backlog" / f"{story_id}.md").write_text(
-                        f"---\nparent_epic: EPIC-001\nstatus: Ready\n---\n# {story_id} - Synthetic story\n",
-                        encoding="utf-8",
-                    )
-                graph = {
-                    "nodes": [
-                        {"id": "US-001", "type": "user_story", "title": "Ready story"},
-                        {"id": "US-002", "type": "user_story", "title": "Second story"},
-                    ],
-                    "edges": [],
-                }
-                write_json(base / "06_traceability" / "traceability_graph.json", graph)
 
 
 if __name__ == "__main__":
