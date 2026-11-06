@@ -7,6 +7,8 @@ from pathlib import Path
 PROJECT_ID_PATTERN = r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
 _PROJECT_ID_RE = re.compile(PROJECT_ID_PATTERN, re.ASCII)
 PROJECT_ID_EXAMPLE = "ACME_PORTAL"
+# Windows device names cannot be used as folder names reliably (git, zip, Explorer).
+_RESERVED_RE = re.compile(r"(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])", re.IGNORECASE)
 
 
 class InvalidProjectId(ValueError):
@@ -14,7 +16,11 @@ class InvalidProjectId(ValueError):
 
 
 def is_valid_project_id(project_id: object) -> bool:
-    return isinstance(project_id, str) and _PROJECT_ID_RE.fullmatch(project_id) is not None
+    return (
+        isinstance(project_id, str)
+        and _PROJECT_ID_RE.fullmatch(project_id) is not None
+        and _RESERVED_RE.fullmatch(project_id) is None
+    )
 
 
 def validate_project_id(project_id: object, root: Path | None = None) -> str:
@@ -30,10 +36,21 @@ def validate_project_id(project_id: object, root: Path | None = None) -> str:
     )
     if not is_valid_project_id(project_id):
         raise InvalidProjectId(message)
-    workspaces = ((root or repo_root()) / "workspaces").resolve()
-    if workspace_path(str(project_id), root).resolve().parent != workspaces:
-        raise InvalidProjectId(message)
-    return str(project_id)
+    project_id = str(project_id)
+    workspaces_dir = (root or repo_root()) / "workspaces"
+    if workspace_path(project_id, root).resolve().parent != workspaces_dir.resolve():
+        raise InvalidProjectId(
+            f"workspace {project_id!r} resolves outside workspaces/ (a symlink or junction?); "
+            "move it inside workspaces/ or remove the link"
+        )
+    if workspaces_dir.is_dir():
+        for sibling in workspaces_dir.iterdir():
+            if sibling.name != project_id and sibling.name.casefold() == project_id.casefold():
+                raise InvalidProjectId(
+                    f"PROJECT_ID {project_id!r} differs only in letter case from the existing workspace "
+                    f"{sibling.name!r}; use {sibling.name!r} (ids are case-sensitive, Windows folders are not)"
+                )
+    return project_id
 
 
 def repo_root() -> Path:
