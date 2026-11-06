@@ -27,6 +27,7 @@ Regenerate intentionally with `SENTINEL_UPDATE_GOLDEN=1` and review the git diff
 
 import contextlib
 import io
+import json
 import os
 import shutil
 import sys
@@ -160,8 +161,13 @@ def _generate(scenario: dict) -> dict[str, str]:
             for name, rel in ARTIFACTS.items()
         }
         views = workspace / "08_context_packs" / "views"
+        roots = {str(tmp.resolve()), tmp.resolve().as_posix(), str(tmp), tmp.as_posix()}
         for view_artifact in VIEW_ARTIFACTS:
             html = (views / f"{view_artifact}.html").read_text(encoding="utf-8")
+            # IMP-240: checked on the RAW page; normalize() would hide the prefix.
+            leaked = [root for root in roots if root and root in html]
+            if leaked:
+                raise AssertionError(f"view/{view_artifact}.html embeds the absolute workspace root: {leaked[0]}")
             produced[f"view/{view_artifact}.html"] = normalize(html, pid)
         exports = workspace / "08_context_packs" / "exports"
         produced["export/prd.mdx"] = normalize(
@@ -185,6 +191,7 @@ class GoldenArtifactTests(unittest.TestCase):
         # Pin json-hybrid so the golden is identical with or without lancedb.
         with patch.object(ContextBroker, "_connect_lancedb", lambda self: None):
             produced = _generate(scenario)
+        self._check_view_export_contract(language, produced)
         for name, text in produced.items():
             golden_path = GOLDEN_DIR / language / name
             if UPDATE:
@@ -202,6 +209,34 @@ class GoldenArtifactTests(unittest.TestCase):
                 f"{language}/{name} drifted from its golden. If the change is intended, "
                 f"regenerate with SENTINEL_UPDATE_GOLDEN=1 and review the git diff.",
             )
+
+    def _check_view_export_contract(self, language: str, produced: dict[str, str]) -> None:
+        """IMP-240: the feedback export reads exactly the same model fields as before.
+
+        `view_export_projection.json` was frozen from the pre-IMP-240 goldens; the
+        JS export functions are unchanged, so an identical projection means an
+        identical export.
+        """
+        from test_view_shell import embedded_view_model, export_projection
+
+        frozen = json.loads((GOLDEN_DIR / "view_export_projection.json").read_text(encoding="utf-8"))
+        for artifact in VIEW_ARTIFACTS:
+            model = embedded_view_model(produced[f"view/{artifact}.html"])
+            with self.subTest(language=language, artifact=artifact):
+                self.assertEqual(export_projection(model), frozen[f"{language}/{artifact}"])
+
+    def test_view_goldens_stay_within_size_budget(self):
+        """IMP-240: deduplicating the embedded model keeps the 10 view goldens <= 2.1 MB."""
+        total = sum(path.stat().st_size for path in GOLDEN_DIR.glob("*/view/*.html"))
+        self.assertLessEqual(total, 2_100_000, f"view goldens weigh {total} bytes")
+
+    def test_view_goldens_embed_no_absolute_paths(self):
+        import re
+
+        for path in GOLDEN_DIR.glob("*/view/*.html"):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(view=str(path.relative_to(GOLDEN_DIR))):
+                self.assertIsNone(re.search(r'"[A-Za-z]:[\/]|/Users/|/home/|\\Users', text))
 
     def test_english_artifacts_match_golden(self):
         self._run_language("en")

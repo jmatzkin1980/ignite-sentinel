@@ -26,7 +26,8 @@ python -m sentinel /dashboard
 python -m sentinel /dashboard --open
 ```
 
-3. Present the result in plain language: generated path, workspace count, workspaces scanned, and the fact that `dashboard.html` is a local rebuildable snapshot ignored by git.
+   To use a theme other than the built-in `neutral`, add `--theme NAME_OR_PATH` (a local theme JSON path; brand themes never live in the repo).
+3. Present the result in plain language: generated path, workspace count, workspaces scanned, theme, source cut-off date, and the fact that `dashboard.html` is a local rebuildable snapshot ignored by git.
 4. Summarize what needs attention: blocking gaps, DIRTY health, stale backlog/domain context warnings, stories not ready, and the recommended next command shown by the dashboard model.
 
 ## Rules

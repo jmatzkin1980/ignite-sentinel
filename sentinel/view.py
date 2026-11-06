@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import html
-import json
 import re
+import sys
+from pathlib import PurePosixPath, PureWindowsPath
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,7 +14,9 @@ from .assumptions import load_assumptions
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
-from .workspace import read_json, workspace_path
+from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme
+from .workspace import load_config, read_json, workspace_path
 
 
 ARTIFACTS = {
@@ -73,26 +77,36 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     markers = enrich_markers(collect_markers(sections), marker_metadata)
     sections = attach_section_readiness(sections, markers, development_readiness)
     guided_response = collect_guided_response(markers)
-    citations = collect_citations(project_id, sections)
+    citations, graph_nodes, source_fragments = collect_citations(project_id, sections)
     trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
     trace_edges = trace_edges_for_citations(project_id, citations)
     section_summary = summarize_section_readiness(sections)
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    for section in sections:
+        section.pop("blocks", None)
+        section["markdown"] = relativize_text(project_id, section["markdown"])
+        section["html"] = relativize_text(project_id, section["html"])
+    for fragment in source_fragments.values():
+        if "text" in fragment:
+            fragment["text"] = relativize_text(project_id, fragment["text"])
     return {
         "project_id": project_id,
         "artifact": artifact,
         "label": config["label"],
         "phase": config["phase"],
         "language": language,
-        "generated_at": generated_at,
+        "provenance": {
+            "cutoff": datetime.fromtimestamp(int(path.stat().st_mtime), timezone.utc).isoformat(),
+            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        },
         "source_path": f"workspaces/{project_id}/{relative}",
         "source_relative_path": relative,
         "source_line_count": len(text.splitlines()),
-        "blocks": block_model,
         "sections": sections,
         "markers": markers,
         "guided_response": guided_response,
         "citations": citations,
+        "graph_nodes": graph_nodes,
+        "source_fragments": source_fragments,
         "trace": {
             "nodes": trace_nodes,
             "edges": trace_edges,
@@ -387,8 +401,18 @@ def summarize_section_readiness(sections: list[dict[str, Any]]) -> dict[str, int
     return summary
 
 
-def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def collect_citations(
+    project_id: str, sections: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Citations plus the shared tables they point into (IMP-240).
+
+    Trace-node summaries and source fragments used to be copied into every
+    citation (and every mini-graph); they now live once in ``graph_nodes`` and
+    ``source_fragments`` keyed by node id, and each citation keeps only ids.
+    """
     citations: list[dict[str, Any]] = []
+    graph_nodes: dict[str, dict[str, Any]] = {}
+    source_fragments: dict[str, dict[str, Any]] = {}
     graph = load_graph(project_id)
     node_lookup = {str(node.get("id", "")): node for node in graph.get("nodes", [])}
     for section in sections:
@@ -396,6 +420,14 @@ def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[d
             citation = match.group(0)
             trace_id = citation_trace_id(citation)
             trace_node = node_lookup.get(trace_id, {}) if trace_id else {}
+            related = mini_graph_for_node(trace_id, graph)
+            for node in related["nodes"]:
+                graph_nodes.setdefault(node["id"], display_node(project_id, node))
+            mini_graph = {"node_ids": [node["id"] for node in related["nodes"]], "edges": related["edges"]}
+            if trace_node:
+                graph_nodes.setdefault(trace_id, display_node(project_id, trace_node_summary(trace_node)))
+                if trace_id not in source_fragments:
+                    source_fragments[trace_id] = source_fragment_for_node(project_id, trace_node)
             citations.append(
                 {
                     "id": f"citation-{len(citations) + 1}",
@@ -404,12 +436,43 @@ def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[d
                     "section_id": section["id"],
                     "section_path": section["section_path"],
                     "line_start": section["line_start"],
-                    "trace_node": trace_node_summary(trace_node),
-                    "source_fragment": source_fragment_for_node(project_id, trace_node),
-                    "mini_graph": mini_graph_for_node(trace_id, graph),
+                    "mini_graph": mini_graph,
                 }
             )
-    return citations
+    return citations, dict(sorted(graph_nodes.items())), dict(sorted(source_fragments.items()))
+
+
+def display_path(project_id: str, raw_path: str) -> str:
+    """A path safe to embed: never absolute, never machine-specific (IMP-240)."""
+    text = str(raw_path or "").replace("\\", "/").strip()
+    if not text:
+        return ""
+    if not (PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute()):
+        return text
+    candidate = Path(text)
+    root = workspace_path(project_id).resolve().parent.parent
+    try:
+        return candidate.resolve().relative_to(root).as_posix()
+    except (ValueError, OSError):
+        return candidate.name
+
+
+def relativize_text(project_id: str, text: str) -> str:
+    """Strip the machine-specific project root from embedded text (IMP-240 review).
+
+    Generated artifacts can carry absolute anchors (e.g. backlog `Anchor: <root>/workspaces/...`).
+    The governed Markdown is not touched; only the copy embedded in the page becomes relative.
+    """
+    root = workspace_path(project_id).resolve().parent.parent
+    forms = {str(root), root.as_posix(), str(root).replace("\\", "/")}
+    for form in sorted(forms, key=len, reverse=True):
+        for sep in ("/", "\\"):
+            text = text.replace(form + sep, "")
+    return text
+
+
+def display_node(project_id: str, node: dict[str, Any]) -> dict[str, Any]:
+    return {**node, "path": display_path(project_id, node.get("path", ""))}
 
 
 def citation_trace_id(citation: str) -> str:
@@ -445,14 +508,14 @@ def source_fragment_for_node(project_id: str, node: dict[str, Any], *, max_lines
         candidates.append(base / raw_path)
     path = next((candidate for candidate in candidates if candidate.exists() and candidate.is_file()), None)
     if path is None:
-        return {"path": raw_path.replace("\\", "/"), "available": False}
+        return {"path": display_path(project_id, raw_path), "available": False}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
-        return {"path": raw_path.replace("\\", "/"), "available": False}
+        return {"path": display_path(project_id, raw_path), "available": False}
     end = min(len(lines), max_lines)
     return {
-        "path": str(path.as_posix()),
+        "path": display_path(project_id, str(path)),
         "available": True,
         "line_start": 1 if lines else 0,
         "line_end": end,
@@ -508,7 +571,7 @@ def trace_nodes_for_artifact(project_id: str, relative_path: str, artifact: str)
                     "id": node.get("id"),
                     "type": node_type,
                     "title": node.get("title"),
-                    "path": node_path,
+                    "path": display_path(project_id, node_path),
                     "status": node.get("status"),
                     "domain": node.get("domain"),
                 }
@@ -524,17 +587,134 @@ def marker_kind(marker: str) -> str:
     return "pending"
 
 
+class ViewModelError(ValueError):
+    """The /view model is inconsistent; the HTML is not written."""
+
+
+def validate_view_model(model: dict[str, Any]) -> list[str]:
+    """Consistency checks before rendering (IMP-240): unique ids, resolvable refs, derived counts."""
+    errors: list[str] = []
+    sections = model.get("sections") or []
+    markers = model.get("markers") or []
+    citations = model.get("citations") or []
+    for label, items in (("section", sections), ("marker", markers), ("citation", citations)):
+        ids = [str(item.get("id")) for item in items]
+        for item_id in sorted({value for value in ids if ids.count(value) > 1}):
+            errors.append(f"duplicate {label} id {item_id!r}")
+    graph_nodes = model.get("graph_nodes") or {}
+    fragments = model.get("source_fragments") or {}
+    for citation in citations:
+        for node_id in (citation.get("mini_graph") or {}).get("node_ids", []):
+            if node_id not in graph_nodes:
+                errors.append(f"{citation.get('id')}: mini-graph node {node_id!r} is not in graph_nodes")
+        trace_id = citation.get("trace_id")
+        if trace_id and trace_id in graph_nodes and trace_id not in fragments:
+            errors.append(f"{citation.get('id')}: no source fragment entry for {trace_id!r}")
+    summary = model.get("summary") or {}
+    for key, actual in (("sections", len(sections)), ("markers", len(markers)), ("citations", len(citations))):
+        if summary.get(key) != actual:
+            errors.append(f"summary.{key} is {summary.get(key)!r}, the model has {actual}")
+    provenance = model.get("provenance")
+    if not isinstance(provenance, dict) or not provenance.get("cutoff") or not provenance.get("source_sha256"):
+        errors.append("provenance with cutoff and source_sha256 is required")
+    return errors
+
+
+def render_artifact_view(model: dict[str, Any], theme: dict[str, Any], *, theme_arg: str | None = None) -> str:
+    """Validate, then render the artifact inside the common shell (IMP-240).
+
+    Deterministic for a given model and theme: no clock, no absolute paths.
+    """
+    errors = validate_view_model(model)
+    if errors:
+        raise ViewModelError("view model is inconsistent: " + "; ".join(errors))
+    language = "es" if str(model.get("language", "")).lower().startswith("es") else "en"
+    content = (
+        fill("view-page.html", data_json=json_for_script(model))
+        + _legend_section(theme, language)
+        + _provenance_section(model, theme_arg or str(theme.get("name") or DEFAULT_THEME))
+    )
+    return render_shell(
+        theme=theme,
+        title=f"{model['project_id']} · {model['label']} — Ignite Artifact View",
+        heading=str(model["label"]),
+        nav=template_text("view-nav.html"),
+        content=content,
+        page_css=template_text("view.css"),
+        page_js=template_text("view.js"),
+        language=language,
+    )
+
+
 def render_artifact_html(model: dict[str, Any]) -> str:
-    data_json = json.dumps(model, ensure_ascii=False).replace("</", "<\\/")
-    return HTML_TEMPLATE.replace("__ARTIFACT_DATA__", data_json)
+    """Backward-compatible entry point: render with the built-in neutral theme."""
+    return render_artifact_view(model, load_theme())
 
 
-def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False) -> dict[str, Any]:
+def _legend_section(theme: dict[str, Any], language: str) -> str:
+    title = "Leyenda de colores" if language == "es" else "Colour legend"
+    return f'<section class="view-section" id="legend"><h2>{title}</h2>{legend_html(theme, language)}</section>'
+
+
+def _provenance_section(model: dict[str, Any], theme_arg: str) -> str:
+    provenance = model["provenance"]
+    command = html.escape(
+        f"python -m sentinel /view {model['project_id']} --artifact {model['artifact']} --theme {theme_argument_for_display(theme_arg)}"
+    )
+    heading = "Procedencia" if str(model.get("language", "")).lower().startswith("es") else "Provenance"
+    return (
+        f'<section class="view-section" id="provenance"><h2>{heading}</h2>'
+        f"<p>Source: <code>{html.escape(model['source_path'])}</code> · sha256 <code>{html.escape(provenance['source_sha256'])}</code> · "
+        f'cut-off <time datetime="{html.escape(provenance["cutoff"])}">{html.escape(provenance["cutoff"])}</time> '
+        "(the source file's modification time, not the build time).</p>"
+        f"<p>Regenerate: <code>{command}</code></p></section>"
+    )
+
+
+def resolve_view_theme(project_id: str, theme: str | Path | None) -> tuple[dict[str, Any], str | None, str | None]:
+    """Theme priority for /view: --theme > workspace config `theme:` > neutral (IMP-238 spec).
+
+    An explicit --theme that fails is a hard error. A configured theme that fails falls back
+    to neutral with a warning, so one bad config line never breaks /view for the whole team.
+    Returns (theme, theme_arg, warning).
+    """
+    if theme:
+        return load_theme(theme), str(theme), None
+    configured = _clean_config_scalar(load_config(project_id).get("theme"))
+    if not configured:
+        return load_theme(), None, None
+    candidates = [configured]
+    if not (PurePosixPath(configured).is_absolute() or PureWindowsPath(configured).is_absolute()) and any(ch in configured for ch in "/\\"):
+        candidates.insert(0, str(workspace_path(project_id) / configured))
+    errors = []
+    for candidate in candidates:
+        try:
+            return load_theme(candidate), configured, None
+        except ThemeError as exc:
+            errors.append(str(exc))
+    return load_theme(), None, f"workspace config theme {configured!r} could not be loaded ({errors[-1]}); using {DEFAULT_THEME}"
+
+
+def _clean_config_scalar(value: object) -> str:
+    """`theme: "x"  # note` -> `x` (the simple YAML reader keeps quotes and inline comments)."""
+    text = str(value or "").strip()
+    if " #" in text:
+        text = text.split(" #", 1)[0].strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return text
+
+
+def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
+    loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
+    if theme_warning:
+        print(f"sentinel warning: {theme_warning}", file=sys.stderr)
     model = collect_artifact_model(project_id, artifact)
+    rendered = render_artifact_view(model, loaded, theme_arg=theme_arg)
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{artifact}.html"
-    out.write_text(render_artifact_html(model), encoding="utf-8")
+    out.write_text(rendered, encoding="utf-8", newline="\n")
     if open_browser:
         webbrowser.open(out.resolve().as_uri())
     return {
@@ -545,7 +725,10 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
         "markers": model["summary"]["markers"],
         "citations": model["summary"]["citations"],
         "trace_nodes": model["summary"]["trace_nodes"],
-        "generated_at": model["generated_at"],
+        "cutoff": model["provenance"]["cutoff"],
+        "source_sha256": model["provenance"]["source_sha256"],
+        "theme": loaded["name"],
+        **({"theme_warning": theme_warning} if theme_warning else {}),
     }
 
 
@@ -660,521 +843,13 @@ def inline_markdown(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
-    escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<span class=\"linkish\">\1</span>", escaped)
-    return escaped
+    escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<span class="linkish">\1</span>', escaped)
+    return wrap_provenance(escaped)
 
 
-HTML_TEMPLATE = r"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ignite Artifact View</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --ink: #172026;
-      --muted: #5b6871;
-      --line: #d8dee4;
-      --panel: #f7f9fb;
-      --accent: #0f766e;
-      --accent-2: #7c3aed;
-      --warn: #b45309;
-      --gap: #b91c1c;
-      --ok: #1d4ed8;
-      font-family: "Segoe UI", Arial, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: var(--ink); background: #ffffff; }
-    header { padding: 22px 28px 18px; border-bottom: 1px solid var(--line); background: #f9fbfc; }
-    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-    h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.15; letter-spacing: 0; }
-    .meta { display: flex; flex-wrap: wrap; gap: 10px 18px; color: var(--muted); font-size: 13px; }
-    .layout { display: grid; grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(250px, 310px); min-height: calc(100vh - 94px); }
-    nav, aside { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow: auto; padding: 18px; background: var(--panel); border-right: 1px solid var(--line); }
-    aside { border-right: 0; border-left: 1px solid var(--line); }
-    main { min-width: 0; padding: 22px 30px 60px; }
-    input[type="search"] { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; font: inherit; background: #fff; }
-    .toc { margin-top: 16px; display: grid; gap: 4px; }
-    .toc a { color: var(--ink); text-decoration: none; font-size: 13px; padding: 7px 8px; border-radius: 6px; border: 1px solid transparent; }
-    .toc a:hover { border-color: var(--line); background: #fff; }
-    .toc .level-2 { padding-left: 16px; }
-    .toc .level-3, .toc .level-4, .toc .level-5, .toc .level-6 { padding-left: 24px; color: var(--muted); }
-    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
-    .stat { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 10px; }
-    .stat strong { display: block; font-size: 21px; }
-    .stat span { color: var(--muted); font-size: 12px; }
-    section.artifact-section { padding: 14px 0 24px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
-    section.artifact-section.hidden { display: none; }
-    .section-meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-    .content h1, .content h2, .content h3 { letter-spacing: 0; }
-    .content h1 { font-size: 25px; }
-    .content h2 { font-size: 21px; }
-    .content h3 { font-size: 18px; }
-    .content p, .content li { line-height: 1.55; }
-    code { background: #eef2f6; padding: 1px 5px; border-radius: 4px; }
-    pre { overflow: auto; background: #101820; color: #f4f7fa; border-radius: 8px; padding: 12px; }
-    mark.marker { border-radius: 4px; padding: 1px 3px; }
-    mark.pending { background: #fef3c7; color: #7c2d12; }
-    mark.gap { background: #fee2e2; color: #7f1d1d; }
-    mark.assumption { background: #ede9fe; color: #4c1d95; }
-    mark.marker:target { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .badge { display: inline-flex; align-items: center; min-height: 22px; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .badge.populated { background: #dcfce7; color: #14532d; }
-    .badge.pending { background: #fef3c7; color: #7c2d12; }
-    .badge.assumed { background: #ede9fe; color: #4c1d95; }
-    .side-title { margin: 16px 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
-    select { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; font: inherit; background: #fff; }
-    .pill-list { display: grid; gap: 8px; }
-    .pill { display: block; text-decoration: none; color: var(--ink); background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px; font-size: 13px; }
-    .pill.gap { border-left-color: var(--gap); }
-    .pill.pending { border-left-color: var(--warn); }
-    .pill.assumption { border-left-color: var(--accent-2); }
-    .pill[hidden] { display: none; }
-    .pill-meta { margin-top: 6px; color: var(--muted); display: grid; gap: 4px; }
-    .pill-meta b { color: var(--ink); }
-    .evidence-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px; font-size: 13px; }
-    .evidence-card summary { cursor: pointer; font-weight: 700; }
-    .evidence-card summary span { color: var(--muted); font-weight: 400; }
-    .mini-graph { margin-top: 8px; display: grid; gap: 5px; }
-    .mini-node, .mini-edge { border: 1px solid var(--line); border-radius: 6px; padding: 6px; background: #fbfcfd; }
-    .mini-edge { color: var(--muted); }
-    .source-fragment { max-height: 220px; white-space: pre-wrap; overflow: auto; background: #101820; color: #f4f7fa; border-radius: 8px; padding: 10px; font-family: Consolas, monospace; font-size: 12px; }
-    .empty { color: var(--muted); font-size: 13px; }
-    button { font: inherit; }
-    .source-toggle, .feedback-target, .feedback-action { margin-top: 10px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
-    .feedback-target { margin-right: 6px; }
-    .feedback-action.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .markdown-source { display: none; white-space: pre-wrap; margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; font-family: Consolas, monospace; font-size: 12px; overflow: auto; }
-    .markdown-source.open { display: block; }
-    .feedback-panel { display: grid; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px; font-size: 13px; }
-    .feedback-panel label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-    .feedback-panel input, .feedback-panel textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; background: #fff; }
-    .feedback-panel textarea { min-height: 88px; resize: vertical; }
-    .feedback-target-note { color: var(--muted); font-size: 12px; }
-    .feedback-list { display: grid; gap: 7px; }
-    .feedback-item { border: 1px solid var(--line); border-radius: 6px; padding: 7px; background: #fbfcfd; }
-    .feedback-export { display: none; max-height: 180px; white-space: pre-wrap; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #101820; color: #f4f7fa; padding: 8px; font-family: Consolas, monospace; font-size: 11px; }
-    .feedback-export.open { display: block; }
-    .pill a { color: var(--ink); text-decoration: none; }
-    .guided-panel { display: grid; gap: 8px; }
-    .guided-progress { color: var(--muted); font-size: 12px; }
-    .guided-item { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 9px; font-size: 13px; }
-    .guided-item.domain { border-left-color: var(--warn); }
-    .guided-item.ba_assumption { border-left-color: var(--accent-2); }
-    .guided-item textarea { width: 100%; min-height: 70px; margin-top: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; resize: vertical; }
-    .guided-item a { color: var(--ink); text-decoration: none; font-weight: 700; }
-    @media (max-width: 960px) {
-      .layout { grid-template-columns: 1fr; }
-      nav, aside { position: static; max-height: none; border: 0; border-bottom: 1px solid var(--line); }
-      main { padding: 18px; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="eyebrow" id="phase"></div>
-    <h1 id="title"></h1>
-    <div class="meta" id="meta"></div>
-  </header>
-  <div class="layout">
-    <nav>
-      <input id="search" type="search" placeholder="Search sections">
-      <div class="stats" id="stats"></div>
-      <div class="side-title">Sections</div>
-      <div class="toc" id="toc"></div>
-    </nav>
-    <main id="content"></main>
-    <aside>
-      <div class="side-title">Pending And Assumptions</div>
-      <select id="markerFilter" aria-label="Filter markers">
-        <option value="all">All markers</option>
-        <option value="gap">Gaps</option>
-        <option value="pending">Pending input</option>
-        <option value="assumption">Assumptions</option>
-      </select>
-      <div class="pill-list" id="markers"></div>
-      <div class="side-title">Guided Response</div>
-      <div class="guided-panel">
-        <select id="guidedAudienceFilter" aria-label="Filter guided responses">
-          <option value="client">Client questions</option>
-          <option value="domain">Domain questions</option>
-          <option value="ba_assumption">BA / assumptions</option>
-          <option value="all">All guided items</option>
-        </select>
-        <div class="guided-progress" id="guidedProgress"></div>
-        <div class="pill-list" id="guidedResponses"></div>
-      </div>
-      <div class="side-title">Feedback Loop</div>
-      <div class="feedback-panel">
-        <div class="feedback-target-note" id="feedbackTarget"></div>
-        <label>Owner / source<input id="feedbackOwner" value="Artifact review comment"></label>
-        <label>Decision status
-          <select id="feedbackDecision">
-            <option value="pending">pending</option>
-            <option value="confirmed">confirmed</option>
-            <option value="not applicable">not applicable</option>
-          </select>
-        </label>
-        <textarea id="feedbackText" placeholder="Write a local anchored comment"></textarea>
-        <button class="feedback-action primary" id="saveFeedback">Save Comment</button>
-        <button class="feedback-action" id="exportFeedback">Export Markdown</button>
-        <button class="feedback-action" id="mailFeedback">Draft Email To BA</button>
-        <button class="feedback-action" id="clearFeedback">Clear Comments</button>
-        <pre class="feedback-export" id="feedbackExportText"></pre>
-        <div class="feedback-list" id="feedbackList"></div>
-      </div>
-      <div class="side-title">Evidence And Trace</div>
-      <div class="pill-list" id="citations"></div>
-    </aside>
-  </div>
-  <script>
-    const model = __ARTIFACT_DATA__;
-    const $ = (id) => document.getElementById(id);
-    const feedbackKey = "ignite-sentinel:view-feedback:" + [model.project_id, model.artifact, model.source_relative_path].join(":");
-    const guidedKey = "ignite-sentinel:view-guided-response:" + [model.project_id, model.artifact, model.source_relative_path].join(":");
-    let feedbackComments = loadFeedback();
-    let feedbackTarget = { type: "section", id: model.sections[0]?.id || "content" };
-    let guidedAnswers = loadGuidedAnswers();
-    $("phase").textContent = model.phase + " · read-only derived view";
-    $("title").textContent = model.project_id + " · " + model.label;
-    $("meta").innerHTML = [
-      "Source: <code>" + escapeHtml(model.source_path) + "</code>",
-      "Generated: " + escapeHtml(model.generated_at),
-      "Language: " + escapeHtml(model.language)
-    ].join("<span>·</span>");
-    $("stats").innerHTML = Object.entries(model.summary).map(([k, v]) => `<div class="stat"><strong>${v}</strong><span>${label(k)}</span></div>`).join("");
-    $("toc").innerHTML = model.sections.map(s => `<a class="level-${s.level}" href="#${s.id}">${escapeHtml(s.title)}</a>`).join("");
-    $("content").innerHTML = model.sections.map(sectionHtml).join("");
-    $("markers").innerHTML = model.markers.length ? model.markers.map(markerPill).join("") : `<div class="empty">No pending, gap, or assumption markers found.</div>`;
-    const citationItems = [
-      ...model.citations.map(evidenceCard),
-      ...model.trace.nodes.map(n => `<a class="pill" href="#content"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</a>`)
-    ];
-    $("citations").innerHTML = citationItems.length ? citationItems.join("") : `<div class="empty">No citations or matching trace nodes found.</div>`;
-    renderFeedbackTarget();
-    renderFeedbackList();
-    renderGuidedResponses();
-    $("search").addEventListener("input", event => {
-      const q = event.target.value.toLowerCase();
-      document.querySelectorAll(".artifact-section").forEach(section => {
-        section.classList.toggle("hidden", q && !section.textContent.toLowerCase().includes(q));
-      });
-    });
-    $("markerFilter").addEventListener("change", event => {
-      const value = event.target.value;
-      document.querySelectorAll("#markers .pill").forEach(item => {
-        item.hidden = value !== "all" && item.dataset.kind !== value;
-      });
-    });
-    $("guidedAudienceFilter").addEventListener("change", renderGuidedResponses);
-    document.addEventListener("input", event => {
-      if (event.target.matches(".guided-answer")) {
-        guidedAnswers[event.target.dataset.guidedId] = event.target.value;
-        persistGuidedAnswers();
-        renderGuidedProgress();
-      }
-    });
-    document.addEventListener("click", event => {
-      if (event.target.matches(".source-toggle")) {
-        const target = document.getElementById(event.target.dataset.target);
-        target.classList.toggle("open");
-      }
-      if (event.target.matches(".feedback-target")) {
-        feedbackTarget = {
-          type: event.target.dataset.targetType || "section",
-          id: event.target.dataset.targetId || "content",
-          marker: event.target.dataset.marker || "",
-          gapId: event.target.dataset.gapId || "",
-        };
-        renderFeedbackTarget();
-        $("feedbackText").focus();
-      }
-    });
-    $("saveFeedback").addEventListener("click", saveFeedbackComment);
-    $("exportFeedback").addEventListener("click", exportFeedbackMarkdown);
-    $("mailFeedback").addEventListener("click", draftFeedbackEmail);
-    $("clearFeedback").addEventListener("click", () => {
-      feedbackComments = [];
-      persistFeedback();
-      renderFeedbackList();
-      $("feedbackExportText").classList.remove("open");
-    });
+PROVENANCE_HTML_RE = re.compile(r"_\((?:<code>[^<]*</code>|[^<()])*\)_|\[(?:Fuente|Source):[^\]<]+\]")
 
-    function sectionHtml(s) {
-      const readiness = s.readiness || { status: "populated" };
-      return `<section class="artifact-section" id="${s.id}">
-        <div class="section-meta">${escapeHtml(s.section_path)} · lines ${s.line_start}-${s.line_end} · <span class="badge ${escapeHtml(readiness.status)}">${escapeHtml(readiness.status)}</span></div>
-        <div class="content">${highlightSection(s)}</div>
-        <button class="feedback-target" data-target-type="section" data-target-id="${s.id}">Add feedback</button>
-        <button class="source-toggle" data-target="src-${s.id}">Markdown source</button>
-        <pre class="markdown-source" id="src-${s.id}">${escapeHtml(s.markdown)}</pre>
-      </section>`;
-    }
-    function markerPill(item) {
-      const gapId = item.marker.startsWith("GAP-") ? item.marker : "";
-      return `<div class="pill ${item.kind}" data-kind="${item.kind}">
-        <a href="#${item.id}"><strong>${escapeHtml(item.marker)}</strong><br>${escapeHtml(item.section_path || "")}</a>
-        ${metadataHtml(item)}
-        <button class="feedback-target" data-target-type="marker" data-target-id="${item.id}" data-marker="${escapeHtml(item.marker)}" data-gap-id="${escapeHtml(gapId)}">Add feedback</button>
-      </div>`;
-    }
-    function pill(item, text, kind) {
-      return `<a class="pill ${kind}" href="#${item.section_id || "content"}"><strong>${escapeHtml(text)}</strong><br>${escapeHtml(item.section_path || "")}</a>`;
-    }
-    function evidenceCard(item) {
-      const node = item.trace_node || {};
-      const fragment = item.source_fragment || {};
-      const graph = item.mini_graph || { nodes: [], edges: [] };
-      return `<details class="evidence-card" id="evidence-${item.id}">
-        <summary>${escapeHtml(item.citation)} <span>${escapeHtml(node.type || "citation")} · ${escapeHtml(item.section_path || "")}</span></summary>
-        <div class="pill-meta">
-          ${node.id ? `<span><b>Trace node:</b> ${escapeHtml(node.id)} · ${escapeHtml(node.title || "")}</span>` : `<span><b>Trace node:</b> No matching graph node</span>`}
-          ${node.path ? `<span><b>Path:</b> ${escapeHtml(node.path)}</span>` : ""}
-          ${fragment.available ? `<span><b>Source Fragment:</b> lines ${fragment.line_start}-${fragment.line_end}${fragment.truncated ? " · truncated" : ""}</span><pre class="source-fragment">${escapeHtml(fragment.text)}</pre>` : `<span><b>Source Fragment:</b> not available in local graph path</span>`}
-          ${miniGraphHtml(graph)}
-        </div>
-      </details>`;
-    }
-    function miniGraphHtml(graph) {
-      const nodes = graph.nodes || [];
-      const edges = graph.edges || [];
-      if (!nodes.length && !edges.length) return `<span><b>Mini Trace:</b> no direct graph relations found.</span>`;
-      return `<div class="mini-graph"><b>Mini Trace</b>
-        ${nodes.map(n => `<div class="mini-node"><strong>${escapeHtml(n.id || "")}</strong><br>${escapeHtml(n.type || "")} · ${escapeHtml(n.title || "")}</div>`).join("")}
-        ${edges.map(e => `<div class="mini-edge">${escapeHtml(e.from || "")} → ${escapeHtml(e.to || "")} · ${escapeHtml(e.relation || "")}</div>`).join("")}
-      </div>`;
-    }
-    function metadataHtml(item) {
-      const meta = item.metadata || {};
-      const rows = [];
-      if (meta.lens || meta.severity || meta.status) rows.push(`<span><b>Lens/status:</b> ${escapeHtml([meta.lens, meta.severity, meta.status].filter(Boolean).join(" · "))}</span>`);
-      if (meta.why) rows.push(`<span><b>Why it matters:</b> ${escapeHtml(meta.why)}</span>`);
-      if (meta.unblocks) rows.push(`<span><b>Unblocks:</b> ${escapeHtml(meta.unblocks)}</span>`);
-      if (meta.expected_format) rows.push(`<span><b>Expected format:</b> ${escapeHtml(meta.expected_format)}</span>`);
-      if (meta.owner || meta.risk) rows.push(`<span><b>Owner/risk:</b> ${escapeHtml([meta.owner, meta.risk].filter(Boolean).join(" · "))}</span>`);
-      if (meta.statement) rows.push(`<span><b>Assumption:</b> ${escapeHtml(meta.statement)}</span>`);
-      if (meta.closes_gap) rows.push(`<span><b>Closes gap:</b> ${escapeHtml(meta.closes_gap)}</span>`);
-      if (meta.readiness_cells?.length) rows.push(`<span><b>Readiness:</b> ${escapeHtml(meta.readiness_cells.map(c => [c.area, c.lens, c.status].filter(Boolean).join(" / ")).join("; "))}</span>`);
-      return rows.length ? `<span class="pill-meta">${rows.join("")}</span>` : "";
-    }
-    function highlightSection(section) {
-      let value = section.html;
-      model.markers.filter(m => m.section_id === section.id).forEach(marker => {
-        const pattern = new RegExp(escapeRegExp(marker.marker));
-        value = value.replace(pattern, `<mark id="${marker.id}" class="marker ${marker.kind}">${escapeHtml(marker.marker)}</mark>`);
-      });
-      return value;
-    }
-    function loadGuidedAnswers() {
-      try {
-        const value = JSON.parse(localStorage.getItem(guidedKey) || "{}");
-        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-      } catch {
-        return {};
-      }
-    }
-    function persistGuidedAnswers() {
-      localStorage.setItem(guidedKey, JSON.stringify(guidedAnswers));
-    }
-    function renderGuidedResponses() {
-      const filter = $("guidedAudienceFilter").value;
-      const items = (model.guided_response?.items || []).filter(item => filter === "all" || item.audience === filter);
-      $("guidedResponses").innerHTML = items.length
-        ? items.map(guidedItemHtml).join("")
-        : `<div class="empty">No guided items for this audience.</div>`;
-      renderGuidedProgress();
-    }
-    function renderGuidedProgress() {
-      const clientItems = (model.guided_response?.items || []).filter(item => item.audience === "client" && item.response_needed);
-      const answered = clientItems.filter(item => String(guidedAnswers[item.id] || "").trim()).length;
-      $("guidedProgress").textContent = `Client progress: ${answered}/${clientItems.length}`;
-    }
-    function guidedItemHtml(item) {
-      const answer = guidedAnswers[item.id] || "";
-      const details = [
-        item.lens,
-        item.severity,
-        item.status,
-        item.audience_label
-      ].filter(Boolean).join(" · ");
-      const prompt = item.question || item.statement || item.expected_format || item.id;
-      const expected = item.expected_format ? `<span><b>Expected format:</b> ${escapeHtml(item.expected_format)}</span>` : "";
-      const owner = item.owner || item.risk ? `<span><b>Owner/risk:</b> ${escapeHtml([item.owner, item.risk].filter(Boolean).join(" · "))}</span>` : "";
-      const textarea = item.audience === "client" && item.response_needed
-        ? `<textarea class="guided-answer" data-guided-id="${escapeHtml(item.id)}" placeholder="Draft local response">${escapeHtml(answer)}</textarea>`
-        : "";
-      return `<div class="guided-item ${escapeHtml(item.audience)}">
-        <a href="#${escapeHtml(item.marker_id || item.section_id || "content")}">${escapeHtml(item.id)}</a>
-        <div class="pill-meta">
-          <span>${escapeHtml(details)}</span>
-          <span>${escapeHtml(prompt)}</span>
-          ${expected}
-          ${owner}
-        </div>
-        ${textarea}
-      </div>`;
-    }
-    function loadFeedback() {
-      try {
-        const value = JSON.parse(localStorage.getItem(feedbackKey) || "[]");
-        return Array.isArray(value) ? value : [];
-      } catch {
-        return [];
-      }
-    }
-    function persistFeedback() {
-      localStorage.setItem(feedbackKey, JSON.stringify(feedbackComments));
-    }
-    function saveFeedbackComment() {
-      const text = $("feedbackText").value.trim();
-      if (!text) return;
-      const section = sectionForTarget(feedbackTarget);
-      const comment = {
-        id: "FBC-" + Date.now(),
-        target_type: feedbackTarget.type,
-        target_id: feedbackTarget.id,
-        marker: feedbackTarget.marker || "",
-        gap_id: feedbackTarget.gapId || "",
-        section_id: section?.id || "",
-        section_path: section?.section_path || "",
-        line_start: section?.line_start || "",
-        line_end: section?.line_end || "",
-        owner_source: $("feedbackOwner").value.trim() || "Artifact review comment",
-        decision_status: $("feedbackDecision").value,
-        text,
-        created_at: new Date().toISOString()
-      };
-      feedbackComments.push(comment);
-      persistFeedback();
-      $("feedbackText").value = "";
-      renderFeedbackList();
-    }
-    function renderFeedbackTarget() {
-      const section = sectionForTarget(feedbackTarget);
-      const marker = feedbackTarget.marker ? " / " + feedbackTarget.marker : "";
-      $("feedbackTarget").textContent = "Target: " + feedbackTarget.type + " " + feedbackTarget.id + marker + (section ? " · " + section.section_path : "");
-    }
-    function renderFeedbackList() {
-      $("feedbackList").innerHTML = feedbackComments.length
-        ? feedbackComments.map(item => `<div class="feedback-item"><strong>${escapeHtml(item.target_type)} ${escapeHtml(item.marker || item.target_id)}</strong><br>${escapeHtml(item.text)}</div>`).join("")
-        : `<div class="empty">No local comments saved.</div>`;
-    }
-    function exportFeedbackMarkdown() {
-      const markdown = buildFeedbackExport(feedbackComments);
-      $("feedbackExportText").textContent = markdown;
-      $("feedbackExportText").classList.add("open");
-      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${model.project_id}-${model.artifact}-feedback.md`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    }
-    function draftFeedbackEmail() {
-      // IMP-211 (H10, H-JOSE-1): restore the mailto draft the approved prototype
-      // had (it was lost in the runtime). Local-first: it only opens a pre-filled
-      // draft in the user's own mail client, it never sends. mailto cannot carry
-      // attachments, so remind the reviewer to attach the downloaded .md.
-      const hasGuided = (model.guided_response?.items || []).some(item => String(guidedAnswers[item.id] || "").trim());
-      if (!feedbackComments.length && !hasGuided) {
-        alert("Save at least one comment or guided answer before drafting the email.");
-        return;
-      }
-      const subject = `Artifact review feedback - ${model.project_id} - ${model.artifact}`;
-      const body = buildFeedbackExport(feedbackComments) + "\n\n(If possible, also attach the downloaded .md file - mailto cannot include attachments.)";
-      const recipient = model.ba_email || "";
-      window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    }
-    function buildFeedbackExport(comments) {
-      const lines = [
-        `# Artifact Review Feedback Export - ${model.project_id}`,
-        "",
-        `- Source artifact: ${model.source_path}`,
-        `- Generated at: ${new Date().toISOString()}`,
-        `- Resolve gaps command: sentinel /resolve-gaps ${model.project_id} --source PATH`,
-        `- Sync command: sentinel /sync ${model.project_id} --source PATH --note "Artifact review feedback"`,
-        "",
-      ];
-      const guidedLines = buildGuidedResponseExport();
-      if (!comments.length && !guidedLines.length) {
-        lines.push("No local comments or guided responses were saved before export.", "");
-        return lines.join("\n");
-      }
-      comments.forEach(comment => {
-        const gapId = comment.gap_id || (String(comment.marker || "").startsWith("GAP-") ? comment.marker : "");
-        const evidence = `${model.source_path}#${comment.target_id}${comment.line_start ? " lines " + comment.line_start + "-" + comment.line_end : ""}`;
-        if (gapId) {
-          lines.push(`### ${gapId}`);
-          lines.push(`- Answer: ${singleLine(comment.text)}`);
-          lines.push(`- Owner / source: ${singleLine(comment.owner_source || "Artifact review comment")}`);
-          lines.push(`- Evidence or reference: ${singleLine(evidence)}`);
-          lines.push(`- Decision status: ${singleLine(comment.decision_status || "pending")}`);
-          lines.push("");
-        } else {
-          lines.push(`### Review Comment: ${comment.id}`);
-          lines.push(`- Target: ${comment.target_type} \`${comment.target_id}\``);
-          lines.push(`- Source artifact: \`${model.source_path}\``);
-          if (comment.section_path) lines.push(`- Section: ${comment.section_path}`);
-          lines.push(`- Comment: ${singleLine(comment.text)}`);
-          lines.push(`- Suggested command: \`sentinel /sync ${model.project_id} --source PATH --note "Artifact review feedback"\``);
-          lines.push("");
-        }
-      });
-      if (guidedLines.length) {
-        lines.push("## Guided Responses", "");
-        guidedLines.forEach(line => lines.push(line));
-      }
-      return lines.join("\n");
-    }
-    function buildGuidedResponseExport() {
-      // IMP-211 (H10, H-JOSE-1): the client's drafted guided answers used to
-      // stay trapped in localStorage — the exported .md only carried
-      // feedbackComments. Fold them in so the round-trip to /resolve-gaps works.
-      const items = model.guided_response?.items || [];
-      const out = [];
-      items.forEach(item => {
-        const answer = String(guidedAnswers[item.id] || "").trim();
-        if (!answer) return;
-        const prompt = item.question || item.statement || item.expected_format || item.id;
-        if (String(item.id).startsWith("GAP-")) {
-          out.push(`### ${item.id}`);
-          out.push(`- Question: ${singleLine(prompt)}`);
-          out.push(`- Answer: ${singleLine(answer)}`);
-          out.push("- Owner / source: Client guided response");
-          out.push("- Decision status: pending");
-          out.push("");
-        } else {
-          out.push(`### Guided Response: ${item.id}`);
-          out.push(`- Question: ${singleLine(prompt)}`);
-          out.push(`- Answer: ${singleLine(answer)}`);
-          out.push("");
-        }
-      });
-      return out;
-    }
-    function sectionForTarget(target) {
-      if (target.type === "section") return model.sections.find(section => section.id === target.id);
-      const marker = model.markers.find(item => item.id === target.id);
-      if (marker) return model.sections.find(section => section.id === marker.section_id);
-      return model.sections[0];
-    }
-    function singleLine(value) {
-      return String(value ?? "").replace(/\s+/g, " ").trim();
-    }
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    }
-    function escapeRegExp(value) {
-      return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }
-    function label(key) {
-      return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-    }
-  </script>
-</body>
-</html>
-"""
+
+def wrap_provenance(rendered: str) -> str:
+    """IMP-240 reader edition: inline provenance becomes toggleable, never removed."""
+    return PROVENANCE_HTML_RE.sub(lambda m: f'<span class="prov">{m.group(0)}</span>', rendered)

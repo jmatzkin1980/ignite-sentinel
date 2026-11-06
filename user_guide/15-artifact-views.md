@@ -16,6 +16,28 @@ workspaces/PROJECT_ID/08_context_packs/views/ARTIFACT.html
 
 The view is derived from the Markdown source of truth. It is self-contained, read-only, ignored by git, and safe to rebuild at any time. Use it when a BA, product owner, stakeholder, or implementation agent needs a more navigable artifact without editing the underlying `.md` file.
 
+## Layout, themes and reproducibility
+
+```powershell
+python -m sentinel /view PROJECT_ID --artifact prd --theme neutral
+```
+
+- The view uses the same shell as `/dashboard`:
+  - a skip link;
+  - a sticky top bar with a light/dark toggle that remembers your choice;
+  - a sidebar with search, stats and the table of contents, which turns into a menu button below 900 px;
+  - print rules.
+- **Theme order:** `--theme` (a built-in name or the path to a local theme JSON), then `theme:` in the workspace config, then `neutral`. The colour legend comes from the theme.
+- **Reader edition:** inline provenance (`_(GAP-… / CHG-…)_`, `[Source: …]`) is hidden by default so the body reads cleanly.
+  - **Show provenance** reveals it and remembers the choice.
+  - Jumping to a marker that sits inside hidden provenance reveals it automatically.
+  - The Markdown keeps every anchor; only the view hides them.
+- **Provenance section:** the source path, its 12-character sha256, the cut-off (the source file's modification time, not the build time) and the command that regenerates the page.
+- **Reproducible:** two runs over the same workspace produce identical HTML, and the page embeds no absolute paths.
+- **Notes survive rebuilds:** they keep their existing browser keys.
+  - If the source changed since you saved notes, the page says so.
+  - Notes whose target no longer exists are marked as orphaned, never deleted.
+
 ## What The View Shows
 
 - section table of contents and search
