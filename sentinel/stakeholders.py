@@ -21,6 +21,7 @@ from .core.graph import add_node
 from .core.markdown import parse_table_rows
 from .technique_registry import normalize_respondent_profile
 from .workspace import read_json, workspace_path
+from .core.io import write_text
 
 REGISTRY_RELPATH = ("01_discovery", "stakeholders.md")
 _HEADER_CELLS = ("ID", "Name", "Domain", "Topic", "Respondent Profile", "Notes")
@@ -114,7 +115,7 @@ def _project_language(project_id: str) -> str:
 def _write_registry(project_id: str, rows: list[dict[str, str]]) -> str:
     path = registry_path(project_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_stakeholders(project_id, rows, _project_language(project_id)), encoding="utf-8")
+    write_text(path, render_stakeholders(project_id, rows, _project_language(project_id)))
     add_node(project_id, "DISC", "stakeholder_registry", path, "Stakeholder registry", status="active")
     return path.as_posix()
 

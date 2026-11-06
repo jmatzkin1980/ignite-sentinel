@@ -15,7 +15,7 @@ from ..technique_registry import (
     technique_risk_taxonomy,
 )
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
-from ..core.io import append_text, read_json
+from ..core.io import append_text, copy_file, read_json, write_text
 from ..core.markdown import parse_table_rows
 from ..deltas import DeltaStatus
 from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
@@ -43,19 +43,19 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     language = resolve_project_language(load_config(project_id).get("project_language", "auto"), text)
     context = load_domain_context(base)
     raw_target = base / "00_raw" / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}"
-    shutil.copyfile(source, raw_target)
+    copy_file(source, raw_target)
     mark_source_processed(project_id, source, "initial_ingested")
     mark_source_processed(project_id, raw_target, "raw_copy")
     raw_id = add_node(project_id, "RAW", "raw_input", raw_target, source.stem, domain="product")
     source_synthesis_path = base / "01_discovery" / "source_synthesis.md"
-    source_synthesis_path.write_text(render_source_synthesis(project_id, base), encoding="utf-8")
+    write_text(source_synthesis_path, render_source_synthesis(project_id, base))
     requirement_units = extract_requirement_units(text, raw_id, raw_target)
     units_path = base / "01_discovery" / "requirement_units.md"
-    units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
+    write_text(units_path, render_requirement_units(project_id, requirement_units))
 
     req_text = extract_requirement(text)
     req_path = base / "02_requirements" / "requirements.md"
-    req_path.write_text(render_requirement(project_id, req_text, raw_id), encoding="utf-8")
+    write_text(req_path, render_requirement(project_id, req_text, raw_id))
     req_id = add_node(project_id, "REQ", "requirement", req_path, "Primary requirement", domain="product")
     add_edge(project_id, raw_id, req_id, "extracts")
     unit_node_ids: list[str] = []
@@ -65,7 +65,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         unit_node_ids.append(unit_id)
         add_edge(project_id, raw_id, unit_id, "decomposes_into")
         add_edge(project_id, unit_id, req_id, "analyzes")
-    units_path.write_text(render_requirement_units(project_id, requirement_units), encoding="utf-8")
+    write_text(units_path, render_requirement_units(project_id, requirement_units))
     # IMP-150: on re-ingest, emit the read-only RU delta view (governed signal only).
     requirement_unit_delta_path = write_requirement_unit_delta(
         project_id, base, previous_requirement_units, requirement_units
@@ -73,7 +73,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
 
     gaps = detect_unit_anchored_gaps(text, context, requirement_units)
     gap_path = base / "01_discovery" / "gaps.md"
-    gap_path.write_text(render_gaps(project_id, gaps, req_id, language), encoding="utf-8")
+    write_text(gap_path, render_gaps(project_id, gaps, req_id, language))
     gap_id = add_node(
         project_id,
         "GAP",
@@ -86,27 +86,27 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     add_edge(project_id, req_id, gap_id, "has_gap")
 
     dec_path = base / "01_discovery" / "decisions.md"
-    dec_path.write_text(render_decisions(project_id, text, req_id), encoding="utf-8")
+    write_text(dec_path, render_decisions(project_id, text, req_id))
     dec_id = add_node(project_id, "DEC", "decision_log", dec_path, "Pending decisions", status="pending")
     add_edge(project_id, req_id, dec_id, "requires_decision")
 
     digest_path = base / "01_discovery" / "raw_input_digest.md"
-    digest_path.write_text(render_digest(project_id, text, raw_id, req_id, gap_id), encoding="utf-8")
+    write_text(digest_path, render_digest(project_id, text, raw_id, req_id, gap_id))
 
     seeds_path = base / "01_discovery" / "identity_seeds.md"
-    seeds_path.write_text(render_identity_seeds(project_id, text, raw_id, gaps), encoding="utf-8")
+    write_text(seeds_path, render_identity_seeds(project_id, text, raw_id, gaps))
     seed_id = add_node(project_id, "SEED", "identity_seed_bank", seeds_path, "Identity seeds", domain="product")
     add_edge(project_id, raw_id, seed_id, "produces_seed")
     add_edge(project_id, seed_id, req_id, "grounds")
 
     discovery_log_path = base / "01_discovery" / "discovery_log.md"
-    discovery_log_path.write_text(render_discovery_log(project_id, text, raw_id, req_id, gaps, context), encoding="utf-8")
+    write_text(discovery_log_path, render_discovery_log(project_id, text, raw_id, req_id, gaps, context))
     discovery_log_id = add_node(project_id, "DISC", "discovery_log", discovery_log_path, "Discovery log", domain="product")
     add_edge(project_id, raw_id, discovery_log_id, "analyzed_by")
     add_edge(project_id, discovery_log_id, gap_id, "identifies")
 
     lens_review_path = base / "01_discovery" / "lens_review.md"
-    lens_review_path.write_text(render_lens_review(project_id, text, raw_id, req_id, gaps, context), encoding="utf-8")
+    write_text(lens_review_path, render_lens_review(project_id, text, raw_id, req_id, gaps, context))
     lens_review_id = add_node(project_id, "DISC", "lens_review", lens_review_path, "Multi-lens critical review", domain="product")
     add_edge(project_id, raw_id, lens_review_id, "scrutinized_by")
     add_edge(project_id, lens_review_id, gap_id, "raises")
@@ -457,7 +457,7 @@ def write_requirement_unit_delta(
         return None
     entries = requirement_unit_delta_entries(previous, units)
     path = base / "01_discovery" / "requirement_unit_deltas.md"
-    path.write_text(render_requirement_unit_delta(project_id, entries), encoding="utf-8")
+    write_text(path, render_requirement_unit_delta(project_id, entries))
     return path
 
 
@@ -853,7 +853,7 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
         except Exception:
             pass
     language = str(state_language if state_language in {"es", "en"} else "en")
-    gaps_path.write_text(render_gaps(project_id, existing, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, existing, req_id, language))
     counts = count_gaps(existing)
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
     return {
@@ -1152,16 +1152,13 @@ def write_annotation_log(
     data: dict,
 ) -> None:
     if not log_path.exists():
-        log_path.write_text(
-            f"""# Agent Annotation Log - {project_id}
+        write_text(log_path, f"""# Agent Annotation Log - {project_id}
 
 Sanctioned record of agentic (`origin: agent`) discovery analysis (IMP-021).
 Each entry below was validated and merged by the runtime; source files remain
 the authority. The agent proposes with evidence; it never writes artifacts by hand.
 
-""",
-            encoding="utf-8",
-        )
+""")
     append_text(log_path, render_annotation_log_entry(label, merged, skipped, data) + "\n")
 
 
@@ -1197,12 +1194,12 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 
     merged = real_existing + merged_new
     language = _annotation_project_language(project_id, base)
-    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
     annotations_dir = base / "01_discovery" / "annotations"
     annotations_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(annotations_dir / f"{source.stem}.json")
-    shutil.copyfile(source, stored)
+    copy_file(source, stored)
 
     log_path = base / "01_discovery" / "agent_annotation_log.md"
     write_annotation_log(log_path, project_id, source.stem, merged_new, skipped, data)
@@ -1397,18 +1394,15 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
 
     merged = real_existing + merged_new
     language = _annotation_project_language(project_id, base)
-    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
     challenges_dir = base / "01_discovery" / "challenges"
     challenges_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(challenges_dir / f"{source.stem}.json")
-    shutil.copyfile(source, stored)
+    copy_file(source, stored)
 
     report_path = base / "01_discovery" / "challenge_report.md"
-    report_path.write_text(
-        render_challenge_report(project_id, source.stem, merged_new, skipped, data, language, respondent_profile),
-        encoding="utf-8",
-    )
+    write_text(report_path, render_challenge_report(project_id, source.stem, merged_new, skipped, data, language, respondent_profile))
 
     graph_nodes = load_graph(project_id).get("nodes", [])
     challenge_id = add_node(
@@ -1730,19 +1724,19 @@ def apply_scrutiny(
 
     merged = real_existing + merged_new
     language = _annotation_project_language(project_id, base)
-    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
     store_dir = base / "01_discovery" / str(spec["store_dir"])
     store_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(store_dir / f"{source.stem}.json")
-    shutil.copyfile(source, stored)
+    copy_file(source, stored)
 
     report_path = base / "01_discovery" / str(spec["report_name"])
     if is_probe:
         report_text = render_probe_report(project_id, source.stem, merged_new, skipped, data)
     else:
         report_text = render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter)
-    report_path.write_text(report_text, encoding="utf-8")
+    write_text(report_path, report_text)
 
     graph_nodes = load_graph(project_id).get("nodes", [])
     node_type = str(spec["node_type"])

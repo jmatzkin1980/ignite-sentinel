@@ -13,6 +13,7 @@ from .drift import derived_drift_warnings
 from .protocols import evaluate_needs_context, snapshot_governed_artifact_hashes
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
+from .core.io import write_text
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
@@ -85,7 +86,7 @@ def run_health(project_id: str) -> dict[str, object]:
     verdict = "CLEAN" if not findings else "DIRTY"
     assumption_projection = assumptions_projection(project_id)
     report_path = base / "06_traceability" / "health_report.md"
-    report_path.write_text(render_health(project_id, verdict, findings, warnings), encoding="utf-8")
+    write_text(report_path, render_health(project_id, verdict, findings, warnings))
     write_json(
         base / "06_traceability" / "health_report.json",
         {

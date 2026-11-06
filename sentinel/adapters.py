@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 from .resources import read_package_json
+from .core.io import write_bytes, write_text
 
 _DEFAULT_MANIFEST_PATH = Path(__file__).parent / "templates" / "commands_manifest.json"
 MANIFEST_PATH = _DEFAULT_MANIFEST_PATH
@@ -83,10 +84,10 @@ def regenerate(root: Path | None = None) -> dict[str, int]:
         kilo_text = render_kilo_command(entry)
         claude_text = render_claude_command(entry)
         if not kilo_target.exists() or normalized(kilo_target.read_text(encoding="utf-8-sig")) != normalized(kilo_text):
-            kilo_target.write_text(kilo_text, encoding="utf-8")
+            write_text(kilo_target, kilo_text, root=root)
             written["kilo"] += 1
         if not claude_target.exists() or normalized(claude_target.read_text(encoding="utf-8-sig")) != normalized(claude_text):
-            claude_target.write_text(claude_text, encoding="utf-8")
+            write_text(claude_target, claude_text, root=root)
             written["claude"] += 1
     return written
 
@@ -175,7 +176,7 @@ def regenerate_skills(root: Path | None = None) -> dict[str, int]:
             destination = root / target / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             if not destination.exists() or destination.read_bytes() != content:
-                destination.write_bytes(content)
+                write_bytes(destination, content, root=root)
                 written[target] += 1
     return written
 

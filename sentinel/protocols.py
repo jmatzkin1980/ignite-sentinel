@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .workspace import load_config, read_json, state_path, update_state, utc_now, workspace_path
+from .core.io import write_text
 
 # IMP-127: default volume above which a project is considered to "need context"
 # (focused retrieval) rather than whole-artifact reading.
@@ -192,15 +193,12 @@ def write_command_protocol_log(project_id: str, command_log: list[dict[str, Any]
     )
     if not rows:
         rows = "| N/A | N/A | N/A | N/A | N/A |"
-    path.write_text(
-        f"""# Command Protocol Log - {project_id}
+    write_text(path, f"""# Command Protocol Log - {project_id}
 
 This log records Sentinel vNext command anchors. It is the repo-local replacement for Roo command sync anchors.
 
 | Timestamp | Command | Phase | Health | Summary |
 | --- | --- | --- | --- | --- |
 {rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
