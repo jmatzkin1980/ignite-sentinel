@@ -9,7 +9,8 @@
   por ultimo el runtime de Codex. Con el interprete resuelto corre, en orden:
     1. unittest discover -s tests
     2. python -m sentinel /doctor
-    3. tests/evals/run_discovery_evals.py   (omitible con -SkipEvals)
+    3. tests/evals/run_discovery_evals.py y
+       tests/evals/run_faithfulness_claim_evals.py   (omitibles con -SkipEvals)
   Se detiene en el primer paso que falle.
 
 .EXAMPLE
@@ -87,6 +88,9 @@ try {
     Write-Host "`n==> [3/3] discovery evals" -ForegroundColor Cyan
     & $python tests/evals/run_discovery_evals.py
     if ($LASTEXITCODE -ne 0) { Write-Error "evals fallaron (exit $LASTEXITCODE)" }
+    Write-Host "`n==> [3/3] faithfulness claim evals" -ForegroundColor Cyan
+    & $python tests/evals/run_faithfulness_claim_evals.py
+    if ($LASTEXITCODE -ne 0) { Write-Error "faithfulness evals fallaron (exit $LASTEXITCODE)" }
   }
 
   Write-Host "`n==> Verificacion OK" -ForegroundColor Green
