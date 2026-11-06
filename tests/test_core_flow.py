@@ -1032,8 +1032,8 @@ Second section paragraph.
         for surface in (".agents/skills", ".claude/skills"):
             discovery_skill = ROOT.parent / surface / "sentinel-discovery" / "SKILL.md"
             self.assertTrue(discovery_skill.exists(), f"missing {surface} discovery skill mirror")
-            dashboard_skill = ROOT.parent / surface / "sentinel-dashboard" / "SKILL.md"
-            dashboard_reference = ROOT.parent / surface / "sentinel-dashboard" / "references" / "section-registry.md"
+            dashboard_skill = ROOT.parent / surface / "sentinel-views" / "SKILL.md"
+            dashboard_reference = ROOT.parent / surface / "sentinel-views" / "references" / "section-registry.md"
             self.assertTrue(dashboard_skill.exists(), f"missing {surface} dashboard skill mirror")
             self.assertTrue(dashboard_reference.exists(), f"missing {surface} dashboard registry reference")
 

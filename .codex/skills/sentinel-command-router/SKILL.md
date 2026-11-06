@@ -1,6 +1,6 @@
 ---
 name: sentinel-command-router
-description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal."
+description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal. Not for interpreting a stage's results: the skill of that stage does it (for example sentinel-maturity or sentinel-views)."
 ---
 
 # Sentinel Command Router
@@ -84,7 +84,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/brief`: use `sentinel-project-brief`.
 - `/context-request`: use `sentinel-domain-request`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
-- `/dashboard`: use `sentinel-dashboard`.
+- `/dashboard` and `/view`: use `sentinel-views`.
 - `/specs`: use `sentinel-specs`.
 - `/self-review`: use `sentinel-self-review` to author the cited findings/decisions JSON before executing.
 - `/compose`: use `sentinel-compose`.

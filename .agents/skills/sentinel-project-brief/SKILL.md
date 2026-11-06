@@ -1,6 +1,6 @@
 ---
 name: sentinel-project-brief
-description: "Use when generating or refreshing the Ignite Sentinel project brief once discovery gaps and seeds are stable: check /status and /maturity, run /brief, read the per-section readiness and its gates (brief coverage, unit implementability, specification self-correction), and route each pending section to the right gap or context request. Trigger on 'generate the brief', a brief refresh after new answers, or handoff-readiness questions."
+description: "Use when generating or refreshing the Ignite Sentinel project brief once discovery gaps and seeds are stable: check /status and /maturity, run /brief, read the per-section readiness and its gates (brief coverage, unit implementability, specification self-correction), and route each pending section to the right gap or context request. Trigger on 'generate the brief', a brief refresh after new answers, or handoff-readiness questions. Not for the PRD or the specification layer (use sentinel-specs)."
 ---
 
 # Sentinel Project Brief

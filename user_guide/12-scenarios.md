@@ -1176,7 +1176,7 @@ Check whether Ignite Sentinel is ready to use on this machine and tell me what t
 
 **Context:** You are running several Sentinel projects and want one portfolio overview — phase, health, gaps, backlog rollups — instead of checking each workspace separately.
 
-**What it is for:** `/dashboard` generates a local, read-only HTML portfolio dashboard for every workspace. Unlike project commands it takes no `PROJECT_ID`; it scans all workspaces with a `state.json`, skips `_template`, and never mutates anything or runs follow-up commands. The `sentinel-dashboard` skill maps plain-language status requests to it.
+**What it is for:** `/dashboard` generates a local, read-only HTML portfolio dashboard for every workspace. Unlike project commands it takes no `PROJECT_ID`; it scans all workspaces with a `state.json`, skips `_template`, and never mutates anything or runs follow-up commands. The `sentinel-views` skill maps plain-language status requests to it.
 
 **In VS Code chat, type:**
 

@@ -1,6 +1,6 @@
 ---
 name: sentinel-intake-triage
-description: "Use before /init when facing a pile of unstructured initial intake — client requests, RFQs, mails, chat threads — that has not yet become one or more projects: group the pile by theme with a verbatim citation to each source, propose requirement candidates and whether it is one project or several, flag what is noise or out of scope, and hand the BA a decision. Trigger on 'triage these requests', a stack of initial asks, or deciding how many projects a pile of intake should become."
+description: "Use before /init when facing a pile of unstructured initial intake — client requests, RFQs, mails, chat threads — that has not yet become one or more projects: group the pile by theme with a verbatim citation to each source, propose requirement candidates and whether it is one project or several, flag what is noise or out of scope, and hand the BA a decision. Trigger on 'triage these requests', a stack of initial asks, or deciding how many projects a pile of intake should become. Not for a single requirement already scoped to one project (use sentinel-discovery)."
 ---
 
 # Sentinel Intake Triage
