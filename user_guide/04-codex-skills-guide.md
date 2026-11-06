@@ -39,7 +39,7 @@ All 24 canonical skills, grouped by lifecycle activity:
 | `sentinel-handoff-datasets` | Generating disposable synthetic datasets for the developer handoff (never governed, never cited) |
 | `sentinel-sync` | Processing feedback, meetings, or changes |
 | `sentinel-health` | Auditing health, traceability, and indexing |
-| `sentinel-dashboard` | Generating and interpreting the portfolio dashboard |
+| `sentinel-views` | Generating and interpreting the portfolio dashboard and the per-artifact views (`/view`) |
 | `sentinel-command-router` | Executing `/COMMAND` chat commands and routing to the right skill |
 | `sentinel-privacy-local-first` | Enforcing local-only privacy rules |
 
@@ -260,7 +260,7 @@ Lightweight contract for downstream planners/implementers/testers hitting a bloc
 
 Maps `/COMMAND PROJECT_ID [OPTIONS]` chat messages (also `sentinel /COMMAND` and `ignite /COMMAND` forms) to CLI executions for every manifest command, then routes to the matching skill for interpretation. A drift guard keeps it complete against the command manifest.
 
-### `sentinel-dashboard`
+### `sentinel-views`
 
 Generates the local, read-only portfolio dashboard (`/dashboard`) and interprets its sections for status questions that do not name an exact command.
 
