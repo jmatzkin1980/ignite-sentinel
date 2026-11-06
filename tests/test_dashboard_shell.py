@@ -22,6 +22,7 @@ import shutil
 import subprocess
 
 from sentinel import themes
+from sentinel.shell import content_fingerprint
 from sentinel.cli import main
 from sentinel.dashboard import DashboardModelError, collect_dashboard_model, render_dashboard, render_html, validate_dashboard_model
 from sentinel.resources import package_resource
@@ -59,7 +60,7 @@ class DashboardProvenanceTests(DashboardFixtureMixin, unittest.TestCase):
         sources = {item["path"]: item["sha256"] for item in model["provenance"]["sources"]}
         for project_id in ("DASH_BACKLOG_READY", "DASH_CLIENT_WAIT"):
             path = f"workspaces/{project_id}/state.json"
-            digest = hashlib.sha256((self.temp / path).read_bytes()).hexdigest()[:12]
+            digest = content_fingerprint((self.temp / path).read_bytes())
             self.assertEqual(sources[path], digest)
 
     def test_two_collections_are_identical(self) -> None:
@@ -71,6 +72,17 @@ class DashboardProvenanceTests(DashboardFixtureMixin, unittest.TestCase):
     def test_empty_portfolio_has_empty_provenance(self) -> None:
         model = collect_dashboard_model(self.temp / "nowhere")
         self.assertEqual(model["provenance"], {"cutoff": "", "sources": []})
+
+
+class CrossPlatformFingerprintTests(unittest.TestCase):
+    """IMP-246 (found by CI): provenance fingerprints must not depend on the OS line ending."""
+
+    def test_crlf_and_lf_give_the_same_fingerprint(self) -> None:
+        from sentinel.shell import content_fingerprint
+
+        self.assertEqual(content_fingerprint(b'{\r\n  "a": 1\r\n}\r\n'), content_fingerprint(b'{\n  "a": 1\n}\n'))
+        self.assertEqual(len(content_fingerprint(b"x")), 12)
+        self.assertNotEqual(content_fingerprint(b"a"), content_fingerprint(b"b"))
 
 
 class DashboardValidationTests(DashboardFixtureMixin, unittest.TestCase):

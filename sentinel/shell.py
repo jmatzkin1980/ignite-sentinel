@@ -28,6 +28,16 @@ LABELS = {
 }
 
 
+def content_fingerprint(data: bytes) -> str:
+    """12-hex sha256 of a file's content, independent of the OS line ending (IMP-246).
+
+    The same workspace on Windows (CRLF) and Linux (LF) must produce the same page.
+    """
+    import hashlib
+
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()[:12]
+
+
 def json_for_script(value: object) -> str:
     """JSON safe inside <script type="application/json">: no </ and no <!-- sequences."""
     import json

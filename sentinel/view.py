@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import html
 import re
 import sys
@@ -14,7 +13,7 @@ from .assumptions import load_assumptions
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
-from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 
@@ -96,7 +95,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         "language": language,
         "provenance": {
             "cutoff": datetime.fromtimestamp(int(path.stat().st_mtime), timezone.utc).isoformat(),
-            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+            "source_sha256": content_fingerprint(path.read_bytes()),
         },
         "source_path": f"workspaces/{project_id}/{relative}",
         "source_relative_path": relative,

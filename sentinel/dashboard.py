@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import html
 import json
 import os
@@ -12,7 +11,7 @@ from typing import Any, Callable
 
 from .core.paths import is_valid_project_id
 from .discovery import parse_gap_rows
-from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme, user_theme_dirs
 from .workspace import read_json
@@ -238,7 +237,7 @@ def _provenance(root: Path, workspaces: list[dict[str, Any]]) -> dict[str, Any]:
         project_id = workspace["project_id"]
         base = root / "workspaces" / project_id
         state = base / "state.json"
-        sources.append({"path": f"workspaces/{project_id}/state.json", "sha256": hashlib.sha256(state.read_bytes()).hexdigest()[:12]})
+        sources.append({"path": f"workspaces/{project_id}/state.json", "sha256": content_fingerprint(state.read_bytes())})
         read = [state, base / "01_discovery" / "gaps.md"] + [root / doc["path"] for doc in workspace.get("documents", [])]
         for path in read:
             if path.is_file():
