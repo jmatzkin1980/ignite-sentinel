@@ -6,6 +6,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- A non-editable install (`pip install .`) now ships every `sentinel` subpackage; it previously failed with `ModuleNotFoundError: sentinel.core`.
+
 ## [0.2.0] — 2026-07-17
 
 ### Added
