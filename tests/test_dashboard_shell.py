@@ -15,9 +15,12 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+import contextlib
+import io
 import re
 
 from sentinel import themes
+from sentinel.cli import main
 from sentinel.dashboard import DashboardModelError, collect_dashboard_model, render_dashboard, render_html, validate_dashboard_model
 from sentinel.resources import package_resource
 from tests.test_dashboard import DashboardFixtureMixin
@@ -204,6 +207,45 @@ class DashboardGoldenTests(DashboardFixtureMixin, unittest.TestCase):
             GOLDEN.read_text(encoding="utf-8"),
             "dashboard drifted from its golden; if intended, regenerate with SENTINEL_UPDATE_GOLDEN=1 and review the diff",
         )
+
+
+
+class DashboardThemeFlagTests(DashboardFixtureMixin, unittest.TestCase):
+    def _run(self, *extra: str) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["/dashboard", *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_theme_neutral_flag(self) -> None:
+        code, out, _ = self._run("--theme", "neutral")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["theme"], "neutral")
+        html = (self.temp / "dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("--theme neutral", html)
+
+    def test_theme_from_local_file(self) -> None:
+        theme = copy.deepcopy(themes.load_theme())
+        theme["name"] = "local-test"
+        theme["tokens"]["light"]["--accent"] = "#123456"
+        path = self.temp / "local-test.json"
+        path.write_text(json.dumps(theme), encoding="utf-8")
+        code, out, _ = self._run("--theme", str(path))
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["theme"], "local-test")
+        self.assertIn("--accent:#123456", (self.temp / "dashboard.html").read_text(encoding="utf-8"))
+
+    def test_unknown_theme_fails_without_writing(self) -> None:
+        code, _, err = self._run("--theme", "nope")
+        self.assertEqual(code, 1)
+        self.assertIn("neutral", err)
+        self.assertFalse((self.temp / "dashboard.html").exists())
+
+    def test_mcp_dashboard_arguments_forward_theme(self) -> None:
+        from sentinel.mcp import dashboard_arguments
+
+        self.assertEqual(dashboard_arguments(False, ""), ["dashboard"])
+        self.assertEqual(dashboard_arguments(True, "neutral"), ["dashboard", "--open", "--theme", "neutral"])
 
 
 if __name__ == "__main__":

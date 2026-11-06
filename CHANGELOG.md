@@ -8,6 +8,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Added
 - Visual theme model (`sentinel/themes.py`): validated JSON themes with light/dark tokens, a semantics map that generates the colour legend, and the built-in `neutral` theme (WCAG AA in both modes). `/doctor` checks that `neutral` is the only theme shipped in the repo. Not yet used by views (IMP-239).
+- Common view shell (`sentinel/shell.py`, templates in `sentinel/themes/templates/`): skip link, sticky top bar with a persisted light/dark toggle, sticky sidebar that becomes a hamburger menu below 900 px, print rules.
+- `/dashboard --theme NAME_OR_PATH` (default `neutral`); also on the MCP `sentinel_dashboard` tool.
+
+### Changed
+- `/dashboard` runs model -> validate -> render: the HTML is byte-for-byte reproducible (no build time, no absolute root), uses only theme tokens, shows the theme legend and a provenance section (source cut-off, `state.json` fingerprints, regeneration command). `generate_dashboard` returns `cutoff` and `theme` instead of `generated_at`.
 
 ## [0.2.0] — 2026-07-17
 

@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     dashboard_p = sub.add_parser("dashboard")
     dashboard_p.add_argument("--root", default=".")
     dashboard_p.add_argument("--open", action="store_true")
+    dashboard_p.add_argument("--theme", default=None, help="built-in theme name or path to a local theme JSON (default: neutral)")
 
     view_p = sub.add_parser("view")
     view_p.add_argument("project_id")
@@ -213,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "dashboard":
             from .dashboard import generate_dashboard
 
-            result = generate_dashboard(Path(args.root), open_browser=bool(args.open))
+            result = generate_dashboard(Path(args.root), open_browser=bool(args.open), theme=args.theme)
             print_json(result)
         elif args.command == "view":
             from .view import generate_artifact_view
