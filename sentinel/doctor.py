@@ -76,6 +76,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         command_surface_parity_check(),
         stdlib_purity_check(root),
         themes_check(root),
+        project_ids_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -754,6 +755,28 @@ VIEW_TEMPLATES = frozenset(
         "view-page.html", "view-nav.html", "view.css", "view.js",
     }
 )
+
+
+def project_ids_check(root: Path) -> dict[str, str]:
+    """IMP-243: list existing workspaces whose folder name is not a valid PROJECT_ID.
+
+    Commands now reject such ids, so these workspaces need renaming before use.
+    ``_template`` is the runtime's own scaffold and is skipped.
+    """
+    from .core.paths import is_valid_project_id
+
+    name = "workspace ids"
+    workspaces = root / "workspaces"
+    if not workspaces.is_dir():
+        return {"name": name, "status": "PASS", "detail": "no workspaces"}
+    invalid = sorted(path.name for path in workspaces.iterdir() if path.is_dir() and path.name != "_template" and not is_valid_project_id(path.name))
+    if invalid:
+        return {
+            "name": name,
+            "status": "WARN",
+            "detail": "rename these workspaces to a valid PROJECT_ID (letters, digits, '_' or '-'): " + ", ".join(invalid),
+        }
+    return {"name": name, "status": "PASS", "detail": "all workspace ids are valid"}
 
 
 def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:

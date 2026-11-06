@@ -198,6 +198,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         project_id = getattr(args, "project_id", None)
+        if project_id is not None:
+            # IMP-243: single validation point for every command and MCP tool, before
+            # anything touches the disk.
+            from .core.paths import validate_project_id
+
+            validate_project_id(project_id)
         preflight_command(args.command, project_id)
         result = None
         if args.command == "init":
