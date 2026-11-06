@@ -446,8 +446,13 @@ def display_path(project_id: str, raw_path: str) -> str:
     text = str(raw_path or "").replace("\\", "/").strip()
     if not text:
         return ""
-    if not (PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute()):
+    posix_abs, windows_abs = PurePosixPath(text).is_absolute(), PureWindowsPath(text).is_absolute()
+    if not (posix_abs or windows_abs):
         return text
+    if not Path(text).is_absolute():
+        # Absolute for the *other* OS (e.g. C:/... on Linux): never resolvable here,
+        # and resolving it would glue it under cwd. Keep only the file name (IMP-246).
+        return PureWindowsPath(text).name if windows_abs else PurePosixPath(text).name
     candidate = Path(text)
     root = workspace_path(project_id).resolve().parent.parent
     try:
