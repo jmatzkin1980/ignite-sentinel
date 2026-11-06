@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -73,26 +74,31 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     markers = enrich_markers(collect_markers(sections), marker_metadata)
     sections = attach_section_readiness(sections, markers, development_readiness)
     guided_response = collect_guided_response(markers)
-    citations = collect_citations(project_id, sections)
+    citations, graph_nodes, source_fragments = collect_citations(project_id, sections)
     trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
     trace_edges = trace_edges_for_citations(project_id, citations)
     section_summary = summarize_section_readiness(sections)
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    for section in sections:
+        section.pop("blocks", None)
     return {
         "project_id": project_id,
         "artifact": artifact,
         "label": config["label"],
         "phase": config["phase"],
         "language": language,
-        "generated_at": generated_at,
+        "provenance": {
+            "cutoff": datetime.fromtimestamp(int(path.stat().st_mtime), timezone.utc).isoformat(),
+            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        },
         "source_path": f"workspaces/{project_id}/{relative}",
         "source_relative_path": relative,
         "source_line_count": len(text.splitlines()),
-        "blocks": block_model,
         "sections": sections,
         "markers": markers,
         "guided_response": guided_response,
         "citations": citations,
+        "graph_nodes": graph_nodes,
+        "source_fragments": source_fragments,
         "trace": {
             "nodes": trace_nodes,
             "edges": trace_edges,
@@ -387,8 +393,18 @@ def summarize_section_readiness(sections: list[dict[str, Any]]) -> dict[str, int
     return summary
 
 
-def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def collect_citations(
+    project_id: str, sections: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Citations plus the shared tables they point into (IMP-240).
+
+    Trace-node summaries and source fragments used to be copied into every
+    citation (and every mini-graph); they now live once in ``graph_nodes`` and
+    ``source_fragments`` keyed by node id, and each citation keeps only ids.
+    """
     citations: list[dict[str, Any]] = []
+    graph_nodes: dict[str, dict[str, Any]] = {}
+    source_fragments: dict[str, dict[str, Any]] = {}
     graph = load_graph(project_id)
     node_lookup = {str(node.get("id", "")): node for node in graph.get("nodes", [])}
     for section in sections:
@@ -396,6 +412,14 @@ def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[d
             citation = match.group(0)
             trace_id = citation_trace_id(citation)
             trace_node = node_lookup.get(trace_id, {}) if trace_id else {}
+            related = mini_graph_for_node(trace_id, graph)
+            for node in related["nodes"]:
+                graph_nodes.setdefault(node["id"], display_node(project_id, node))
+            mini_graph = {"node_ids": [node["id"] for node in related["nodes"]], "edges": related["edges"]}
+            if trace_node:
+                graph_nodes.setdefault(trace_id, display_node(project_id, trace_node_summary(trace_node)))
+                if trace_id not in source_fragments:
+                    source_fragments[trace_id] = source_fragment_for_node(project_id, trace_node)
             citations.append(
                 {
                     "id": f"citation-{len(citations) + 1}",
@@ -404,12 +428,29 @@ def collect_citations(project_id: str, sections: list[dict[str, Any]]) -> list[d
                     "section_id": section["id"],
                     "section_path": section["section_path"],
                     "line_start": section["line_start"],
-                    "trace_node": trace_node_summary(trace_node),
-                    "source_fragment": source_fragment_for_node(project_id, trace_node),
-                    "mini_graph": mini_graph_for_node(trace_id, graph),
+                    "mini_graph": mini_graph,
                 }
             )
-    return citations
+    return citations, dict(sorted(graph_nodes.items())), dict(sorted(source_fragments.items()))
+
+
+def display_path(project_id: str, raw_path: str) -> str:
+    """A path safe to embed: never absolute, never machine-specific (IMP-240)."""
+    text = str(raw_path or "").replace("\\", "/").strip()
+    if not text:
+        return ""
+    candidate = Path(text)
+    if not candidate.is_absolute():
+        return text
+    root = workspace_path(project_id).resolve().parent.parent
+    try:
+        return candidate.resolve().relative_to(root).as_posix()
+    except (ValueError, OSError):
+        return candidate.name
+
+
+def display_node(project_id: str, node: dict[str, Any]) -> dict[str, Any]:
+    return {**node, "path": display_path(project_id, node.get("path", ""))}
 
 
 def citation_trace_id(citation: str) -> str:
@@ -445,14 +486,14 @@ def source_fragment_for_node(project_id: str, node: dict[str, Any], *, max_lines
         candidates.append(base / raw_path)
     path = next((candidate for candidate in candidates if candidate.exists() and candidate.is_file()), None)
     if path is None:
-        return {"path": raw_path.replace("\\", "/"), "available": False}
+        return {"path": display_path(project_id, raw_path), "available": False}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
-        return {"path": raw_path.replace("\\", "/"), "available": False}
+        return {"path": display_path(project_id, raw_path), "available": False}
     end = min(len(lines), max_lines)
     return {
-        "path": str(path.as_posix()),
+        "path": display_path(project_id, str(path)),
         "available": True,
         "line_start": 1 if lines else 0,
         "line_end": end,
@@ -508,7 +549,7 @@ def trace_nodes_for_artifact(project_id: str, relative_path: str, artifact: str)
                     "id": node.get("id"),
                     "type": node_type,
                     "title": node.get("title"),
-                    "path": node_path,
+                    "path": display_path(project_id, node_path),
                     "status": node.get("status"),
                     "domain": node.get("domain"),
                 }
@@ -522,6 +563,46 @@ def marker_kind(marker: str) -> str:
     if marker.startswith("ASM-") or marker == "ASSUMED":
         return "assumption"
     return "pending"
+
+
+class ViewModelError(ValueError):
+    """The /view model is inconsistent; the HTML is not written."""
+
+
+def validate_view_model(model: dict[str, Any]) -> list[str]:
+    """Consistency checks before rendering (IMP-240): unique ids, resolvable refs, derived counts."""
+    errors: list[str] = []
+    sections = model.get("sections") or []
+    markers = model.get("markers") or []
+    citations = model.get("citations") or []
+    for label, items in (("section", sections), ("marker", markers), ("citation", citations)):
+        ids = [str(item.get("id")) for item in items]
+        for item_id in sorted({value for value in ids if ids.count(value) > 1}):
+            errors.append(f"duplicate {label} id {item_id!r}")
+    graph_nodes = model.get("graph_nodes") or {}
+    fragments = model.get("source_fragments") or {}
+    for citation in citations:
+        for node_id in (citation.get("mini_graph") or {}).get("node_ids", []):
+            if node_id not in graph_nodes:
+                errors.append(f"{citation.get('id')}: mini-graph node {node_id!r} is not in graph_nodes")
+        trace_id = citation.get("trace_id")
+        if trace_id and trace_id in graph_nodes and trace_id not in fragments:
+            errors.append(f"{citation.get('id')}: no source fragment entry for {trace_id!r}")
+    summary = model.get("summary") or {}
+    for key, actual in (("sections", len(sections)), ("markers", len(markers)), ("citations", len(citations))):
+        if summary.get(key) != actual:
+            errors.append(f"summary.{key} is {summary.get(key)!r}, the model has {actual}")
+    provenance = model.get("provenance")
+    if not isinstance(provenance, dict) or not provenance.get("cutoff") or not provenance.get("source_sha256"):
+        errors.append("provenance with cutoff and source_sha256 is required")
+    return errors
+
+
+def render_artifact_view(model: dict[str, Any], theme: dict[str, Any]) -> str:
+    errors = validate_view_model(model)
+    if errors:
+        raise ViewModelError("view model is inconsistent: " + "; ".join(errors))
+    return render_artifact_html(model)
 
 
 def render_artifact_html(model: dict[str, Any]) -> str:
@@ -545,7 +626,8 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
         "markers": model["summary"]["markers"],
         "citations": model["summary"]["citations"],
         "trace_nodes": model["summary"]["trace_nodes"],
-        "generated_at": model["generated_at"],
+        "cutoff": model["provenance"]["cutoff"],
+        "source_sha256": model["provenance"]["source_sha256"],
     }
 
 
