@@ -23,3 +23,6 @@
 *.zip binary
 *.7z binary
 *.lance binary
+
+# Golden HTML snapshots are compared byte for byte: keep LF everywhere.
+tests/fixtures/golden/**/*.html text eol=lf

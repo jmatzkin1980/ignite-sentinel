@@ -13,6 +13,7 @@ import json
 import os
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 
 import re
 
@@ -22,6 +23,8 @@ from sentinel.resources import package_resource
 from tests.test_dashboard import DashboardFixtureMixin
 
 FIXED_EPOCH = 1_781_481_600  # 2026-06-15T00:00:00Z
+GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden" / "dashboard" / "portfolio.html"
+UPDATE = os.environ.get("SENTINEL_UPDATE_GOLDEN") == "1"
 
 
 def pin_mtimes(root, epoch: int = FIXED_EPOCH) -> None:
@@ -182,6 +185,25 @@ class DashboardShellTests(DashboardFixtureMixin, unittest.TestCase):
     def test_two_renders_are_byte_identical(self) -> None:
         again = render_dashboard(collect_dashboard_model(self.temp), themes.load_theme())
         self.assertEqual(self.html, again)
+
+
+
+class DashboardGoldenTests(DashboardFixtureMixin, unittest.TestCase):
+    """Byte-for-byte snapshot of the portfolio fixture with pinned mtimes."""
+
+    def test_portfolio_matches_golden(self) -> None:
+        pin_mtimes(self.temp)
+        html = render_dashboard(collect_dashboard_model(self.temp), themes.load_theme())
+        if UPDATE:
+            GOLDEN.parent.mkdir(parents=True, exist_ok=True)
+            GOLDEN.write_text(html, encoding="utf-8", newline="\n")
+            return
+        self.assertTrue(GOLDEN.exists(), f"missing golden {GOLDEN}; create it with SENTINEL_UPDATE_GOLDEN=1")
+        self.assertEqual(
+            html,
+            GOLDEN.read_text(encoding="utf-8"),
+            "dashboard drifted from its golden; if intended, regenerate with SENTINEL_UPDATE_GOLDEN=1 and review the diff",
+        )
 
 
 if __name__ == "__main__":
