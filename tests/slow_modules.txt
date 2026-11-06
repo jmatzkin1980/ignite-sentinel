@@ -1,0 +1,20 @@
+# IMP-246: modules excluded from the ci-fast tier (they still run in ci-full).
+# Picked from `python tools/time_tests.py` on 2026-11-06 (Windows, local): every module
+# that took 10 s or more. Re-measure when the suite grows; keep the fast tier under 5 minutes.
+
+test_core_flow  # 80 s
+test_backlog_dynamic_derivation  # 60 s
+test_story_status  # 57 s
+test_backlog_story_format  # 56 s
+test_backlog_refinement  # 46 s
+test_backlog_hooks  # 41 s
+test_golden_artifacts  # 25 s
+test_gate_override_decisions  # 24 s
+test_cross_consistency  # 21 s
+test_build_pyz  # 16 s
+test_implementation_feedback  # 13 s
+test_view_shell  # 13 s
+test_evals_retrieval  # 12 s
+test_artifact_view  # 12 s
+test_adr_grade_decisions  # 10 s
+test_compose  # 10 s

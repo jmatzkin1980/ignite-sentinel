@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sentinel import themes
+from sentinel.shell import content_fingerprint
 from sentinel.cli import main
 from sentinel.view import ViewModelError, collect_artifact_model, render_artifact_view, validate_view_model
 
@@ -110,7 +111,7 @@ class ViewModelShapeTests(_ViewWorkspace):
     def test_no_clock_and_provenance_from_source(self) -> None:
         self.assertNotIn("generated_at", self.model)
         source = self.temp / self.model["source_path"]
-        expected_sha = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+        expected_sha = content_fingerprint(source.read_bytes())
         self.assertEqual(self.model["provenance"]["source_sha256"], expected_sha)
         self.assertEqual(self.model["provenance"]["cutoff"], datetime.fromtimestamp(FIXED_EPOCH, timezone.utc).isoformat())
 

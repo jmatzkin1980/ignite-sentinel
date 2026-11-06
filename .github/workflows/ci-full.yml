@@ -1,0 +1,63 @@
+# IMP-246 — full tier: every pull request (and on demand).
+# The whole suite, /doctor, discovery and faithfulness evals, goldens (part of the
+# suite), the wheel installed in a clean venv, and a small matrix that covers
+# Windows/Linux x Python 3.10/3.13 x with/without LanceDB x mcp 1/2 without
+# multiplying every combination (start small, widen when needed).
+name: ci-full
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    name: ${{ matrix.os }} / py${{ matrix.python }} / ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  python: "3.10", label: "base",              extras: "",       mcp: "",              wheel: "" }
+          - { os: ubuntu-latest,  python: "3.13", label: "lancedb + mcp 2",   extras: "memory", mcp: "mcp>=2,<3",     wheel: "1" }
+          - { os: ubuntu-latest,  python: "3.13", label: "mcp 1",             extras: "",       mcp: "mcp>=1.2,<2",   wheel: "" }
+          - { os: windows-latest, python: "3.13", label: "base",              extras: "",       mcp: "",              wheel: "" }
+          - { os: windows-latest, python: "3.10", label: "lancedb",           extras: "memory", mcp: "",              wheel: "" }
+    env:
+      SENTINEL_EVAL_REPORTS: "0"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.extras }}" ]; then
+            python -m pip install -e ".[${{ matrix.extras }}]"
+          else
+            python -m pip install -e .
+          fi
+          if [ -n "${{ matrix.mcp }}" ]; then
+            python -m pip install "${{ matrix.mcp }}"
+          fi
+          python -m pip list --format=freeze | grep -iE "^(mcp|lancedb)==" || true
+      - name: Unit suite (full)
+        shell: bash
+        env:
+          SENTINEL_SLOW: ${{ matrix.wheel }}
+        run: python tools/run_tests.py --tier full
+      - name: Doctor
+        run: python -m sentinel doctor
+      - name: Discovery evals
+        run: python tests/evals/run_discovery_evals.py
+      - name: Faithfulness eval
+        run: python tests/evals/run_faithfulness_claim_evals.py

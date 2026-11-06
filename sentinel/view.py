@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import html
 import re
 import sys
@@ -14,7 +13,7 @@ from .assumptions import load_assumptions
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
-from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 
@@ -96,7 +95,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         "language": language,
         "provenance": {
             "cutoff": datetime.fromtimestamp(int(path.stat().st_mtime), timezone.utc).isoformat(),
-            "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+            "source_sha256": content_fingerprint(path.read_bytes()),
         },
         "source_path": f"workspaces/{project_id}/{relative}",
         "source_relative_path": relative,
@@ -447,8 +446,13 @@ def display_path(project_id: str, raw_path: str) -> str:
     text = str(raw_path or "").replace("\\", "/").strip()
     if not text:
         return ""
-    if not (PurePosixPath(text).is_absolute() or PureWindowsPath(text).is_absolute()):
+    posix_abs, windows_abs = PurePosixPath(text).is_absolute(), PureWindowsPath(text).is_absolute()
+    if not (posix_abs or windows_abs):
         return text
+    if not Path(text).is_absolute():
+        # Absolute for the *other* OS (e.g. C:/... on Linux): never resolvable here,
+        # and resolving it would glue it under cwd. Keep only the file name (IMP-246).
+        return PureWindowsPath(text).name if windows_abs else PurePosixPath(text).name
     candidate = Path(text)
     root = workspace_path(project_id).resolve().parent.parent
     try:
@@ -463,8 +467,11 @@ def relativize_text(project_id: str, text: str) -> str:
     Generated artifacts can carry absolute anchors (e.g. backlog `Anchor: <root>/workspaces/...`).
     The governed Markdown is not touched; only the copy embedded in the page becomes relative.
     """
-    root = workspace_path(project_id).resolve().parent.parent
-    forms = {str(root), root.as_posix(), str(root).replace("\\", "/")}
+    workspace = workspace_path(project_id)
+    roots = {workspace.resolve().parent.parent, workspace.absolute().parent.parent}
+    forms = set()
+    for root in roots:  # both spellings of the root (8.3 short names, junctions; IMP-246)
+        forms |= {str(root), root.as_posix(), str(root).replace("\\", "/")}
     for form in sorted(forms, key=len, reverse=True):
         for sep in ("/", "\\"):
             text = text.replace(form + sep, "")

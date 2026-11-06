@@ -354,6 +354,7 @@ The recommended one step resolves the interpreter on its own and runs the unit s
 
 ```powershell
 .\verify.ps1            # tests + /doctor + evals  (-SkipEvals for just tests + doctor)
+./verify.sh             # same on Linux/macOS (--skip-evals)
 ```
 
 Equivalent manual steps (use `py` instead of `python` if the Store alias gets in the way):

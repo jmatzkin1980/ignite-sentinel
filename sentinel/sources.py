@@ -43,11 +43,19 @@ def save_source_manifest(project_id: str, manifest: dict[str, Any]) -> None:
 
 
 def source_key(path: Path) -> str:
-    path = path.resolve()
-    try:
-        return path.relative_to(Path.cwd()).as_posix()
-    except ValueError:
-        return path.as_posix()
+    """Workspace-root-relative key for a source; absolute only when it lives outside.
+
+    Compares like with like (IMP-246): resolved against resolved, and the path as
+    written against the cwd as written, because Windows can reach one folder by two
+    spellings (8.3 short names such as RUNNER~1, junctions, symlinks).
+    """
+    cwd = Path.cwd()
+    for candidate, base in ((path.resolve(), cwd.resolve()), (path.absolute(), cwd.absolute())):
+        try:
+            return candidate.relative_to(base).as_posix()
+        except ValueError:
+            continue
+    return path.resolve().as_posix()
 
 
 def file_hash(path: Path) -> str:
