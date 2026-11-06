@@ -9,6 +9,7 @@ from .core.graph import add_edge, add_node, nodes_by_type
 from .decisions import register_gate_override
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
+from .core.io import write_text
 
 REQUIRED_AC_CLASSES = {"fail-to-pass", "pass-to-pass", "evidence"}
 STORY_QUALITY_MIN_SCORE = 0.8
@@ -79,7 +80,7 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         quality_results[story["id"]] = evaluate_story_quality(story, story_text, criterion_details, readiness_item)
 
         tc_path = base / "05_quality" / f"TC-{index:03d}.md"
-        tc_path.write_text(render_test_case(project_id, story["id"], criteria), encoding="utf-8")
+        write_text(tc_path, render_test_case(project_id, story["id"], criteria))
         tc_id = add_node(project_id, "TC", "test_case", tc_path, f"Test coverage for {story['id']}", domain="quality")
         add_edge(project_id, story["id"], tc_id, "covered_by")
         ContextBroker(project_id).index_artifact(
@@ -106,7 +107,7 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         update_story_gate_state(project_id, story["id"], evaluate_story_gates(project_id, gate_story, readiness_item))
 
     audit_path = base / "05_quality" / "backlog_readiness_audit.md"
-    audit_path.write_text(render_backlog_audit(project_id, stories, quality_results), encoding="utf-8")
+    write_text(audit_path, render_backlog_audit(project_id, stories, quality_results))
     audit_id = add_node(project_id, "QA", "backlog_readiness_audit", audit_path, "Backlog readiness audit", domain="quality")
     for story in stories:
         add_edge(project_id, story["id"], audit_id, "audited_by")

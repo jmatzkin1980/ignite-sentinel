@@ -10,6 +10,7 @@ from .discovery import count_gaps, parse_gap_rows, readiness_stage_for_counts, r
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .workspace import read_json, update_state, workspace_path
+from .core.io import copy_file, write_text
 
 
 def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
@@ -43,16 +44,16 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
 
     language = project_language(project_id)
     merged = real_existing + merged_new
-    gaps_path.write_text(render_gaps(project_id, merged, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
     review_dir = base / "03_specs" / "self_review"
     review_dir.mkdir(parents=True, exist_ok=True)
     stored_source = unique_path(review_dir / f"{source.stem}.json")
-    shutil.copyfile(source, stored_source)
+    copy_file(source, stored_source)
     report_path = review_dir / "self_review_report.md"
     register_path = review_dir / "decision_register.md"
-    report_path.write_text(render_self_review_report(project_id, source.stem, merged_new, skipped, decisions), encoding="utf-8")
-    register_path.write_text(render_decision_register(project_id, decisions), encoding="utf-8")
+    write_text(report_path, render_self_review_report(project_id, source.stem, merged_new, skipped, decisions))
+    write_text(register_path, render_decision_register(project_id, decisions))
 
     graph_nodes = load_graph(project_id).get("nodes", [])
     review_id = add_node(

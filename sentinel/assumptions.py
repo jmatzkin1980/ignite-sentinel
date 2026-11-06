@@ -9,7 +9,7 @@ from .lens_registry import known_lenses
 from .risk_category_registry import known_risk_categories
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
-from .core.io import read_json as core_read_json
+from .core.io import copy_file, read_json as core_read_json, write_text
 from .core.markdown import parse_table_rows
 from .workspace import read_json, state_path, update_state, workspace_path, write_json
 
@@ -377,7 +377,7 @@ def persist_assumptions_projection(project_id: str) -> Path:
 
 def persist_assumptions(project_id: str, rows: list[dict[str, str]]) -> Path:
     path = workspace_path(project_id) / "01_discovery" / "assumptions.md"
-    path.write_text(render_assumptions(project_id, rows), encoding="utf-8")
+    write_text(path, render_assumptions(project_id, rows))
     return path
 
 
@@ -575,12 +575,12 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
     accepted = [row for row in rows if row["id"] not in existing_ids]
     skipped = [row["id"] for row in rows if row["id"] in existing_ids]
     merged = existing + accepted
-    assumption_path.write_text(render_assumptions(project_id, merged), encoding="utf-8")
+    write_text(assumption_path, render_assumptions(project_id, merged))
 
     source_dir = base / "01_discovery" / "assumptions"
     source_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(source_dir / f"{source.stem}.json")
-    shutil.copyfile(source, archived)
+    copy_file(source, archived)
 
     assumption_id = add_node(
         project_id,

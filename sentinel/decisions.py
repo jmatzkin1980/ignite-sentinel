@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .core.graph import add_edge, add_node
-from .core.io import read_json as core_read_json
+from .core.io import copy_file, read_json as core_read_json, write_text
 from .discovery import AnnotationError
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
@@ -257,14 +257,11 @@ def register_gate_override(
     override_dir = base / "06_traceability" / "gate_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     stored_source = unique_path(override_dir / f"{gate}-{source.stem}.json")
-    shutil.copyfile(source, stored_source)
+    copy_file(source, stored_source)
     report_path = unique_path(override_dir / f"{gate}-override-report.md")
     timestamp = utc_now()
 
-    report_path.write_text(
-        render_gate_override_report(project_id, gate, source.stem, verdict, findings, decisions, timestamp),
-        encoding="utf-8",
-    )
+    write_text(report_path, render_gate_override_report(project_id, gate, source.stem, verdict, findings, decisions, timestamp))
 
     state = read_json(state_path(project_id), {})
     existing_entries = state.get("gate_override_decisions", [])
@@ -283,7 +280,7 @@ def register_gate_override(
     register_entries.extend(new_entries)
 
     register_path = override_dir / "decision_register.md"
-    register_path.write_text(render_gate_override_register(project_id, register_entries), encoding="utf-8")
+    write_text(register_path, render_gate_override_register(project_id, register_entries))
 
     report_id = add_node(
         project_id,

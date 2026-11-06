@@ -7,6 +7,7 @@ from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import read_json, state_path, update_state, workspace_path
+from .core.io import write_text
 
 DOMAINS = {"technology", "design", "quality", "frontend", "backend"}
 
@@ -48,7 +49,7 @@ def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
     request_dir.mkdir(parents=True, exist_ok=True)
     path = request_dir / f"{domain}_context_request.md"
     language = project_language(project_id)
-    path.write_text(render_context_request(project_id, domain, language, brief_path, gaps_path), encoding="utf-8")
+    write_text(path, render_context_request(project_id, domain, language, brief_path, gaps_path))
     request_id = add_node(project_id, "CTX", "context_request", path, f"{domain.title()} context request", domain=domain_for_node(domain))
     for brief in nodes_by_type(project_id, "project_brief"):
         add_edge(project_id, brief["id"], request_id, "requests_domain_context")

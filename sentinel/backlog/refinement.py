@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.graph import add_edge, add_node, nodes_by_type
-from ..core.io import read_json, write_json
+from ..core.io import copy_file, read_json, write_json, write_text
 from ..memory import ContextBroker
 from ..workspace import update_state, workspace_path
 
@@ -42,7 +42,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     refinement_dir = base / "04_backlog" / "refinements"
     refinement_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(refinement_dir / source.name)
-    shutil.copyfile(source, archived)
+    copy_file(source, archived)
 
     accepted_path = refinement_dir / "accepted_refinements.json"
     existing = read_json(accepted_path, [])
@@ -297,10 +297,7 @@ def backlog_refinement_evidence_text(base: Path) -> str:
 
 def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]]) -> None:
     epic_path = base / "04_backlog" / "EPIC-001.md"
-    epic_path.write_text(
-        append_refinement_section(strip_refinement_section(epic_path.read_text(encoding="utf-8")), refinements, "epic"),
-        encoding="utf-8",
-    )
+    write_text(epic_path, append_refinement_section(strip_refinement_section(epic_path.read_text(encoding="utf-8")), refinements, "epic"))
     by_story: dict[str, list[dict[str, Any]]] = {}
     for refinement in refinements:
         for story_id in refinement.get("target_stories", []):
@@ -309,14 +306,11 @@ def render_backlog_refinements(base: Path, refinements: list[dict[str, Any]]) ->
         story_path = base / "04_backlog" / f"{story_id}.md"
         if not story_path.exists():
             continue
-        story_path.write_text(
-            append_refinement_section(
+        write_text(story_path, append_refinement_section(
                 strip_refinement_section(story_path.read_text(encoding="utf-8")),
                 story_refinements,
                 "story",
-            ),
-            encoding="utf-8",
-        )
+            ))
 
 
 def strip_refinement_section(text: str) -> str:
@@ -388,8 +382,7 @@ def write_refinement_report(
     rejected_rows = "\n".join(
         f"| {item['id']} | {item.get('kind', '?')} | {item['reason']} |" for item in rejected
     ) or "| N/A | N/A | N/A |"
-    path.write_text(
-        f"""# Backlog Refinement Report - {project_id}
+    write_text(path, f"""# Backlog Refinement Report - {project_id}
 
 Source: `{source.as_posix()}`
 
@@ -404,9 +397,7 @@ Source: `{source.as_posix()}`
 | Proposal | Kind | Reason |
 | --- | --- | --- |
 {rejected_rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 

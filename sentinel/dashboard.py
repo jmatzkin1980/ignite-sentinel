@@ -15,6 +15,7 @@ from .shell import content_fingerprint, fill, json_for_script, render_shell, tem
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme, user_theme_dirs
 from .workspace import read_json
+from .core.io import write_text
 
 
 STEPS = [
@@ -177,7 +178,7 @@ def generate_dashboard(root: str | Path = ".", open_browser: bool = False, theme
     loaded = load_theme(theme, search_dirs=user_theme_dirs())
     model = collect_dashboard_model(root_path)
     out = root_path / "dashboard.html"
-    out.write_text(render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), encoding="utf-8", newline="\n")
+    write_text(out, render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), root=root_path, newline="\n")
     if open_browser:
         webbrowser.open(out.as_uri())
     return {

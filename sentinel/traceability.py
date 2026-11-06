@@ -5,6 +5,7 @@ from typing import Any
 
 from .ids import next_id
 from .workspace import graph_path, read_json, write_json
+from .core.io import write_text
 
 
 def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
@@ -166,8 +167,7 @@ def write_traceability_matrix(project_id: str) -> Path:
         for node in graph.get("nodes", [])
     ]
     matrix_path = graph_path(project_id).parent / "traceability_matrix.md"
-    matrix_path.write_text(
-        """# Traceability Matrix - {project_id}
+    write_text(matrix_path, """# Traceability Matrix - {project_id}
 
 This matrix supports the Sentinel vNext golden thread. Source files remain authoritative; LanceDB memory is retrieval only.
 
@@ -192,9 +192,7 @@ This matrix supports the Sentinel vNext golden thread. Source files remain autho
             project_id=project_id,
             rows="\n".join(rows) if rows else "| N/A | N/A | N/A | N/A | No trace edges found. | N/A | N/A |",
             node_rows="\n".join(node_rows) if node_rows else "| N/A | N/A | N/A | N/A | N/A |",
-        ),
-        encoding="utf-8",
-    )
+        ))
     return matrix_path
 
 
@@ -224,7 +222,7 @@ def write_mermaid_graph(project_id: str) -> Path:
         else:
             lines.append(f"    {source} -->|{relation}| {target}")
     mermaid_path = graph_path(project_id).parent / "traceability_graph.md"
-    mermaid_path.write_text("# Traceability Graph\n\n```mermaid\n" + "\n".join(lines) + "\n```\n", encoding="utf-8")
+    write_text(mermaid_path, "# Traceability Graph\n\n```mermaid\n" + "\n".join(lines) + "\n```\n")
     return mermaid_path
 
 
