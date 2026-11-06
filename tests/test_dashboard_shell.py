@@ -138,6 +138,11 @@ class DashboardShellTests(DashboardFixtureMixin, unittest.TestCase):
         self.assertIn("@media (max-width: 900px)", self.html)
         self.assertIn("@media print", self.html)
 
+    def test_page_content_fits_narrow_screens(self) -> None:
+        css = package_resource("themes", "templates", "dashboard.css").read_text(encoding="utf-8")
+        self.assertIn("minmax(min(360px,100%),1fr)", css, "cards must not force a 360px minimum on a 400px screen")
+        self.assertRegex(css, r"@media \(max-width: 900px\)\{[^@]*\.kpis\{grid-template-columns:repeat\(2,")
+
     def test_theme_in_both_modes(self) -> None:
         self.assertIn(themes.emit_root_css(self.theme), self.html)
         self.assertIn(':root[data-theme="dark"]', self.html)
