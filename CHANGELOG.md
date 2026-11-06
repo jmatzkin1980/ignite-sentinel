@@ -24,6 +24,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 - Eval reports keep the newest 5 per kind (`SENTINEL_EVAL_KEEP_REPORTS`); `SENTINEL_EVAL_REPORTS=0` disables writing them. The retrieval eval test uses the same retention.
 
 ### Fixed
+- A non-editable install (`pip install .`) now ships every `sentinel` subpackage; it previously failed with `ModuleNotFoundError: sentinel.core`.
 - `tests/test_momtest.py` no longer leaves temporary directories behind on every run.
 
 ## [0.2.0] — 2026-07-17
