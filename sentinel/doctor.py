@@ -76,6 +76,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         command_surface_parity_check(),
         stdlib_purity_check(root),
         themes_check(root),
+        user_themes_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -745,6 +746,42 @@ def stdlib_purity_check(root: Path) -> dict[str, str]:
     if len(violations) > 5:
         detail += f"; +{len(violations) - 5} more"
     return {"name": "stdlib purity", "status": "FAIL", "detail": detail}
+
+
+def user_themes_check(root: Path) -> dict[str, str]:
+    """IMP-241: user-local themes load, declare their provenance and do not shadow built-ins.
+
+    Looks at ``~/.ignite/themes`` (or ``IGNITE_THEMES_DIR``) and every
+    ``workspaces/*/.sentinel/themes``. Findings are WARN, never FAIL: these themes are
+    the user's own and never part of the repo.
+    """
+    from .themes import ThemeError, list_builtin_themes, load_theme, theme_warnings, user_theme_dirs
+
+    name = "user-local themes"
+    folders = list(user_theme_dirs())
+    workspaces = root / "workspaces"
+    if workspaces.is_dir():
+        folders += sorted(path / ".sentinel" / "themes" for path in workspaces.iterdir() if path.is_dir())
+    builtin = set(list_builtin_themes())
+    findings: list[str] = []
+    count = 0
+    for folder in folders:
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.glob("*.json")):
+            count += 1
+            if path.stem in builtin:
+                findings.append(f"{path.name} uses a built-in name and is ignored (built-ins always win)")
+                continue
+            try:
+                theme = load_theme(path)
+            except ThemeError as exc:
+                findings.append(f"{path.name}: {exc}")
+                continue
+            findings += [f"{path.name}: {warning}" for warning in theme_warnings(theme)]
+    if findings:
+        return {"name": name, "status": "WARN", "detail": "; ".join(findings)}
+    return {"name": name, "status": "PASS", "detail": f"{count} local theme(s) valid" if count else "no local themes"}
 
 
 VIEW_TEMPLATES = frozenset(

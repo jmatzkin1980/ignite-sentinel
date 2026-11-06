@@ -64,6 +64,8 @@ WORKSPACE_GITIGNORE = """# Per-workspace ignore rules (IMP-212). You own this in
 memory.lancedb/
 08_context_packs/views/*.html
 08_context_packs/synthetic/
+# IMP-241: workspace-local themes (brand palettes, fonts) never enter git.
+.sentinel/
 """
 
 
