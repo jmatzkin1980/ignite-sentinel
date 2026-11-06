@@ -77,6 +77,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         stdlib_purity_check(root),
         themes_check(root),
         user_themes_check(root),
+        project_ids_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -798,6 +799,50 @@ VIEW_TEMPLATES = frozenset(
         "view-page.html", "view-nav.html", "view.css", "view.js",
     }
 )
+
+
+def project_ids_check(root: Path) -> dict[str, str]:
+    """IMP-243: list existing workspaces whose folder name is not a valid PROJECT_ID.
+
+    Commands now reject such ids, so these workspaces need renaming before use.
+    ``_template`` is the runtime's own scaffold and is skipped.
+    """
+    from .core.io import parse_json
+    from .core.paths import is_valid_project_id
+
+    name = "workspace ids"
+    workspaces = root / "workspaces"
+    if not workspaces.is_dir():
+        return {"name": name, "status": "PASS", "detail": "no workspaces"}
+    folders = sorted(path for path in workspaces.iterdir() if path.is_dir() and path.name != "_template")
+    findings: list[str] = []
+    invalid = [path.name for path in folders if not is_valid_project_id(path.name)]
+    if invalid:
+        findings.append("rename to a valid PROJECT_ID (letters, digits, '_' or '-'; no Windows device names): " + ", ".join(invalid))
+    escaping = [path.name for path in folders if path.resolve().parent != workspaces.resolve()]
+    if escaping:
+        findings.append("resolve outside workspaces/ (symlink or junction): " + ", ".join(escaping))
+    by_fold: dict[str, list[str]] = {}
+    for path in folders:
+        by_fold.setdefault(path.name.casefold(), []).append(path.name)
+    collisions = [names for names in by_fold.values() if len(names) > 1]
+    if collisions:
+        findings.append("differ only in letter case: " + "; ".join(", ".join(names) for names in collisions))
+    mismatched = []
+    for path in folders:
+        state = path / "state.json"
+        if state.is_file():
+            try:
+                declared = parse_json(state.read_text(encoding="utf-8")).get("project_id")
+            except (ValueError, OSError, AttributeError):
+                continue
+            if declared and declared != path.name:
+                mismatched.append(f"{path.name} (state.json says {declared!r})")
+    if mismatched:
+        findings.append("folder name and state.json project_id differ: " + ", ".join(mismatched))
+    if findings:
+        return {"name": name, "status": "WARN", "detail": "; ".join(findings)}
+    return {"name": name, "status": "PASS", "detail": "all workspace ids are valid"}
 
 
 def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:

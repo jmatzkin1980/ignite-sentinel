@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .core.paths import is_valid_project_id
 from .discovery import parse_gap_rows
 from .shell import fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
@@ -131,6 +132,8 @@ def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
         for candidate in sorted(workspaces_dir.iterdir(), key=lambda item: item.name.lower()):
             if candidate.name == "_template" or not candidate.is_dir() or not (candidate / "state.json").exists():
                 continue
+            if not is_valid_project_id(candidate.name) or candidate.resolve().parent != workspaces_dir.resolve():
+                continue  # IMP-243: the dashboard shows what commands can act on (see /doctor "workspace ids")
             workspaces.append(_workspace_model(candidate.name, root_path))
     finally:
         os.chdir(old_cwd)

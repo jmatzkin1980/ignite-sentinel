@@ -29,6 +29,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 - A non-editable install (`pip install .`) now ships every `sentinel` subpackage; it previously failed with `ModuleNotFoundError: sentinel.core`.
 - `tests/test_momtest.py` no longer leaves temporary directories behind on every run.
 
+### Security
+- `PROJECT_ID` is validated at the CLI boundary, which MCP tools also go through (IMP-243):
+  - 1-64 letters, digits, `_` or `-`, starting with a letter or digit;
+  - it must resolve inside `workspaces/`.
+
+  Ids like `../x`, `a/b` or `C:\x` now fail before anything is written. `/doctor` lists existing workspaces with invalid ids.
+
 ## [0.2.0] — 2026-07-17
 
 ### Added

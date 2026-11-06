@@ -132,9 +132,14 @@ def gap_elicitation(project_id: str, gap_id: str, client_capabilities: object | 
     if not client_supports_elicitation(client_capabilities):
         return run_cli(["gaps", project_id])
 
+    from .core.paths import InvalidProjectId, validate_project_id
     from .discovery import candidate_options_for_gap, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
     from .workspace import load_config, workspace_path
 
+    try:  # IMP-243: this path does not go through cli.main, so validate here too.
+        validate_project_id(project_id)
+    except InvalidProjectId as exc:
+        return {"exit_code": 1, "error": f"sentinel error: {exc}"}
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
