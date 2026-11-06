@@ -14,6 +14,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 - `tests/test_evals_faithfulness.py` runs the faithfulness claim eval (no-invention trap) in the unit suite, and `verify.ps1` runs `run_faithfulness_claim_evals.py` in the evals step.
 
 ### Changed
+- The MCP server supports `mcp` 1.x (`FastMCP`) and 2.x (`MCPServer`, from `mcp.server.mcpserver` or `mcp.server`), passes everything but the name by keyword (2.x changed the positional order), and runs with an explicit `transport="stdio"` (IMP-245). The `[mcp]` extra is bounded to `mcp>=1.2,<3`.
 - `/view` runs on the common shell and themes (IMP-240), with `--theme` (CLI and MCP) and the workspace config `theme:` as fallback.
   - The embedded model no longer carries `blocks`; trace nodes and source fragments live in shared tables. View goldens drop from 3.2 MB to 1.8 MB.
   - No wall clock and no absolute paths (provenance: source cut-off and 12-char sha256). `generate_artifact_view` returns `cutoff`, `source_sha256` and `theme` instead of `generated_at`.
