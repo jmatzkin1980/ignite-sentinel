@@ -207,16 +207,38 @@ def view_arguments(project_id: str, artifact: str, open_browser: bool = False, t
     return arguments
 
 
-def build_server():
+def server_class():
+    """The high-level MCP server class for the installed `mcp` (IMP-245).
+
+    `mcp` 2.x renamed `FastMCP` to `MCPServer` (documented at `mcp.server.mcpserver`,
+    re-exported from `mcp.server`); 1.x keeps `mcp.server.fastmcp.FastMCP`.
+    """
     try:
-        from mcp.server.fastmcp import FastMCP
-    except ImportError as exc:  # pragma: no cover
+        from mcp.server.mcpserver import MCPServer  # mcp 2.x (migration guide)
+
+        return MCPServer
+    except ImportError:
+        pass
+    try:
+        from mcp.server import MCPServer  # mcp 2.x (re-export shown in the README)
+
+        return MCPServer
+    except ImportError:
+        pass
+    try:
+        from mcp.server.fastmcp import FastMCP  # mcp 1.x
+
+        return FastMCP
+    except ImportError as exc:
         raise RuntimeError(
-            "The MCP server requires the optional `mcp` dependency. "
+            "The MCP server requires the optional `mcp` dependency (1.2 or later, below 3). "
             "Install it with: python -m pip install -e .[mcp]"
         ) from exc
 
-    server = FastMCP(
+
+def build_server():
+    # Only the name is positional: mcp 2.x changed the positional order (name, title, ...).
+    server = server_class()(
         "ignite-sentinel",
         instructions=(
             "Ignite Sentinel: local-first requirements-maturation lifecycle. "
@@ -429,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
     if "--describe" in argv:
         print(json.dumps({"server": "ignite-sentinel", "tools": describe_tools()}, indent=2))
         return 0
-    build_server().run()
+    build_server().run(transport="stdio")
     return 0
 
 

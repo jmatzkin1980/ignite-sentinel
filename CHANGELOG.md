@@ -16,6 +16,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Changed
 - `/stakeholders` runs inside the command protocol (IMP-244): it leaves a `command_protocol_log.md` entry and refreshes the governed-artifact snapshot like every other writer. A test requires every CLI command to be read-only, mutating or explicitly exempt (`doctor`, `dashboard`, `init`, each with its reason), so a new command can no longer skip the protocol.
+- The MCP server supports `mcp` 1.x (`FastMCP`) and 2.x (`MCPServer`, from `mcp.server.mcpserver` or `mcp.server`), passes everything but the name by keyword (2.x changed the positional order), and runs with an explicit `transport="stdio"` (IMP-245). The `[mcp]` extra is bounded to `mcp>=1.2,<3`.
 - `/view` runs on the common shell and themes (IMP-240), with `--theme` (CLI and MCP) and the workspace config `theme:` as fallback.
   - The embedded model no longer carries `blocks`; trace nodes and source fragments live in shared tables. View goldens drop from 3.2 MB to 1.8 MB.
   - No wall clock and no absolute paths (provenance: source cut-off and 12-char sha256). `generate_artifact_view` returns `cutoff`, `source_sha256` and `theme` instead of `generated_at`.

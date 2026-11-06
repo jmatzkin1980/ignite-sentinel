@@ -32,7 +32,7 @@ embeddings = [
   "sentence-transformers"
 ]
 mcp = [
-  "mcp"
+  "mcp>=1.2,<3"
 ]
 
 [project.scripts]
