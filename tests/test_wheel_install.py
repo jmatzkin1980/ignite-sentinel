@@ -29,9 +29,14 @@ def _venv_python(venv: Path) -> Path:
 @unittest.skipUnless(os.environ.get("SENTINEL_SLOW") == "1", "slow: builds and installs the wheel")
 class WheelInstallTests(unittest.TestCase):
     def _run(self, step: str, command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        # A PYTHONPATH pointing at the clone would let the venv import the repo's
+        # sentinel/ instead of the wheel's, and a broken wheel would pass.
+        env = {key: value for key, value in os.environ.items() if key not in {"PYTHONPATH", "PYTHONHOME"}}
+        env["PYTHONNOUSERSITE"] = "1"
         result = subprocess.run(
             [str(part) for part in command],
             cwd=str(cwd) if cwd else None,
+            env=env,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -73,6 +78,13 @@ class WheelInstallTests(unittest.TestCase):
         self._run("/init", [python, "-m", "sentinel", "/init", "WHEELT"], cwd=run_dir)
         self._run("/status", [python, "-m", "sentinel", "/status", "WHEELT"], cwd=run_dir)
 
+        origin = self._run(
+            "import origin", [python, "-c", "import sentinel; print(sentinel.__file__)"], cwd=run_dir
+        ).stdout.strip()
+        self.assertTrue(
+            Path(origin).resolve().is_relative_to(venv.resolve()),
+            f"sentinel imported from {origin}, not from the wheel installed in {venv}",
+        )
         self.assertTrue((run_dir / "workspaces" / "WHEELT" / "state.json").is_file())
 
 
