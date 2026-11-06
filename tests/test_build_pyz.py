@@ -53,7 +53,7 @@ class BuildPyzTest(unittest.TestCase):
             self.assertIn("sentinel/slicing/backlog_slicing_model.json", names)
             self.assertIn("sentinel/themes/neutral.json", names)
             self.assertIn("sentinel/themes/base.css", names)
-            for template in ("shell.html", "shell.css", "shell.js", "dashboard.html", "dashboard.css", "dashboard.js"):
+            for template in ("shell.html", "shell.css", "shell.js", "dashboard-page.html", "dashboard.css", "dashboard.js"):
                 self.assertIn(f"sentinel/themes/templates/{template}", names)
             self.assertIn("LICENSE", names)
             self.assertFalse(any("__pycache__" in name for name in names))

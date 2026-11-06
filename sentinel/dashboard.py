@@ -138,7 +138,7 @@ def collect_dashboard_model(root: str | Path = ".") -> dict[str, Any]:
 
 
 def _json_for_script(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/").replace("<!--", "<\\u0021--")
 
 
 def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg: str | None = None) -> str:
@@ -151,7 +151,7 @@ def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg:
     if errors:
         raise DashboardModelError("dashboard model is inconsistent: " + "; ".join(errors))
     sections = [{"key": s.key, "title": s.title, "scope": s.scope, "render": s.render} for s in SECTION_REGISTRY]
-    page = fill("dashboard.html", data_json=_json_for_script(model), sections_json=_json_for_script(sections))
+    page = fill("dashboard-page.html", data_json=_json_for_script(model), sections_json=_json_for_script(sections))
     content = page + _legend_section(theme) + _provenance_section(model["provenance"], theme_arg or str(theme.get("name") or DEFAULT_THEME))
     return render_shell(
         theme=theme,
@@ -175,7 +175,7 @@ def generate_dashboard(root: str | Path = ".", open_browser: bool = False, theme
     loaded = load_theme(theme)
     model = collect_dashboard_model(root_path)
     out = root_path / "dashboard.html"
-    out.write_text(render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), encoding="utf-8")
+    out.write_text(render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), encoding="utf-8", newline="\n")
     if open_browser:
         webbrowser.open(out.as_uri())
     return {
@@ -283,6 +283,9 @@ def _workspace_model(project_id: str, root: Path) -> dict[str, Any]:
     documents = _documents(base, project_id)
     next_action = _next_action(project_id, status, stage)
     backlog_rollup = _normalize_backlog_rollup(status.get("backlog_rollup"))
+    ledger = status.get("knowledge_ledger")
+    if isinstance(ledger, dict) and ledger.get("path"):
+        status = {**status, "knowledge_ledger": {**ledger, "path": f"workspaces/{project_id}/01_discovery/knowledge_state.json"}}
     model = {
         **status,
         "backlog_rollup": backlog_rollup,

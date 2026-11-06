@@ -18,6 +18,8 @@ from pathlib import Path
 import contextlib
 import io
 import re
+import shutil
+import subprocess
 
 from sentinel import themes
 from sentinel.cli import main
@@ -251,6 +253,80 @@ class DashboardThemeFlagTests(DashboardFixtureMixin, unittest.TestCase):
 
         self.assertEqual(dashboard_arguments(False, ""), ["dashboard"])
         self.assertEqual(dashboard_arguments(True, "neutral"), ["dashboard", "--open", "--theme", "neutral"])
+
+
+
+class DashboardReviewFixTests(DashboardFixtureMixin, unittest.TestCase):
+    """Final-review findings for IMP-239 (each failed before its fix)."""
+
+    def test_every_template_is_tracked_by_git(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        if shutil.which("git") is None or not (root / ".git").exists():
+            self.skipTest("not a git checkout")
+        templates = root / "sentinel" / "themes" / "templates"
+        tracked = subprocess.run(
+            ["git", "ls-files", "--", "sentinel/themes/templates"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.split()
+        on_disk = sorted(f"sentinel/themes/templates/{item.name}" for item in templates.iterdir() if item.is_file())
+        self.assertEqual(sorted(tracked), on_disk, "a template on disk is not tracked (check .gitignore)")
+
+    def test_knowledge_ledger_path_is_relative(self) -> None:
+        ledger = self.temp / "workspaces" / "DASH_CLIENT_WAIT" / "01_discovery" / "knowledge_state.json"
+        ledger.write_text(json.dumps({"summary": {"total": 1, "by_status": {"OPEN": 1}, "by_lens": {}}}), encoding="utf-8")
+        text = json.dumps(collect_dashboard_model(self.temp), ensure_ascii=False)
+        self.assertNotIn(self.temp.as_posix(), text)
+        self.assertNotIn(str(self.temp).replace("\\", "\\\\"), text)
+        self.assertIn("workspaces/DASH_CLIENT_WAIT/01_discovery/knowledge_state.json", text)
+
+    def test_drawer_and_scrim_sit_above_the_sticky_bar(self) -> None:
+        css = package_resource("themes", "templates", "dashboard.css").read_text(encoding="utf-8")
+        shell = package_resource("themes", "templates", "shell.css").read_text(encoding="utf-8")
+        bar = int(re.search(r"\.shell-top\{[^}]*z-index:(\d+)", shell).group(1))
+        for selector in ("drawer", "scrim"):
+            z = int(re.search(r"\." + selector + r"\{[^}]*z-index:(\d+)", css).group(1))
+            self.assertGreater(z, bar, selector)
+
+    def test_closed_sidebar_leaves_the_tab_order(self) -> None:
+        shell = package_resource("themes", "templates", "shell.css").read_text(encoding="utf-8")
+        narrow = shell[shell.index("@media (max-width: 900px)") :]
+        self.assertRegex(narrow, r"\.shell-side\{[^}]*visibility:hidden")
+        self.assertRegex(narrow, r"\.shell-side\.open\{[^}]*visibility:visible")
+
+    def test_written_file_uses_lf_on_every_os(self) -> None:
+        from sentinel.dashboard import generate_dashboard
+
+        generate_dashboard(self.temp)
+        self.assertNotIn(b"\r\n", (self.temp / "dashboard.html").read_bytes())
+
+    def test_html_comment_opener_in_documents_cannot_break_the_data_block(self) -> None:
+        model = collect_dashboard_model(self.temp)
+        model["workspaces"][0]["documents"].append({"key": "x", "label": "X", "path": "x.md", "content": "a <!-- <script> b"})
+        html = render_dashboard(model, themes.load_theme())
+        data = html[html.index('id="dashboard-data"') : html.index('id="section-registry"')]
+        self.assertNotIn("<!--", data)
+
+    def test_gap_copy_template_uses_real_newlines(self) -> None:
+        js = package_resource("themes", "templates", "dashboard.js").read_text(encoding="utf-8")
+        body = js[js.index("function gapTemplate") : js.index("function openGaps")]
+        self.assertNotIn("\\\\n", body.replace("\\n", ""), "literal backslash-n would be copied")
+        self.assertNotIn('"\\\\n', body)
+
+    def test_escape_only_closes_an_open_sidebar(self) -> None:
+        js = package_resource("themes", "templates", "shell.js").read_text(encoding="utf-8")
+        self.assertRegex(js, r'e\.key==="Escape"&&side&&side\.classList\.contains\("open"\)')
+        self.assertNotIn("aria-pressed", js)
+
+    def test_doctor_rejects_unknown_files_in_templates(self) -> None:
+        from sentinel.doctor import themes_check
+
+        root = self.temp / "fake"
+        source = Path(__file__).resolve().parents[1] / "sentinel" / "themes"
+        shutil.copytree(source, root / "sentinel" / "themes", ignore=shutil.ignore_patterns("__pycache__"))
+        self.assertEqual(themes_check(root)["status"], "PASS")
+        (root / "sentinel" / "themes" / "templates" / "logo.svg").write_text("<svg/>", encoding="utf-8")
+        result = themes_check(root)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertIn("logo.svg", result["detail"])
 
 
 if __name__ == "__main__":
