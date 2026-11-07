@@ -27,9 +27,8 @@ class CoreArchitectureTests(unittest.TestCase):
     def test_domain_code_does_not_use_raw_open(self):
         allowed = {
             SENTINEL_ROOT / "core" / "io.py",  # append_text centralizes append-only writes.
-            SENTINEL_ROOT / "dashboard.py",  # opens local browser snapshot.
+            SENTINEL_ROOT / "core" / "local_browser.py",  # IMP-284: the single file:// browser opener.
             SENTINEL_ROOT / "sources.py",  # binary hashing reader.
-            SENTINEL_ROOT / "view.py",  # opens local browser snapshot.
         }
         offenders = [
             path.relative_to(SENTINEL_ROOT.parent).as_posix()

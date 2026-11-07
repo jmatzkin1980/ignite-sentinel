@@ -1,6 +1,6 @@
 ---
 name: sentinel-handoff-datasets
-description: "Use when a developer handoff needs realistic sample data to exercise the specs/stories — generate synthetic datasets (CSV/JSON/SQL) from the governed specs and user stories, write them under 08_context_packs/synthetic/ marked 'SYNTHETIC — not evidence', git-ignored and disposable. This data is invented by design: it is never governed, never cited, never traced. Trigger on 'generate sample/test/seed data for the handoff', 'dummy datasets for developers', or 'fixtures from the specs'."
+description: "Use when a developer handoff needs realistic sample data to exercise the specs/stories — generate synthetic datasets (CSV/JSON/SQL) from the governed specs and user stories, write them under 08_context_packs/synthetic/ marked 'SYNTHETIC — not evidence', git-ignored and disposable. This data is invented by design: it is never governed, never cited, never traced. Trigger on 'generate sample/test/seed data for the handoff', 'dummy datasets for developers', or 'fixtures from the specs'. Not for evidence, test cases or anything that will be cited (use sentinel-quality for test cases)."
 ---
 
 # Sentinel Handoff Datasets

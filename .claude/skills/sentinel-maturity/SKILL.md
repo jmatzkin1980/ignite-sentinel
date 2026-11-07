@@ -1,6 +1,6 @@
 ---
 name: sentinel-maturity
-description: "Use when deciding whether an Ignite Sentinel requirement is mature enough to generate specs or backlog: run /maturity, read the maturity report, its metrics (gap closure rate, maturity score, trend, requirement quality, maturation telemetry) and the development readiness matrix, and recommend the right remediation per case. Trigger on 'is it ready', 'can we generate specs/backlog yet', maturity checks, or a downstream command blocked by maturity."
+description: "Use when deciding whether an Ignite Sentinel requirement is mature enough to generate specs or backlog: run /maturity, read the maturity report, its metrics (gap closure rate, maturity score, trend, requirement quality, maturation telemetry) and the development readiness matrix, and recommend the right remediation per case. Trigger on 'is it ready', 'can we generate specs/backlog yet', maturity checks, or a downstream command blocked by maturity. Not for workspace integrity, traceability or validation audits (use sentinel-health)."
 ---
 
 # Sentinel Maturity

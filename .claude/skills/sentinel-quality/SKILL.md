@@ -1,6 +1,6 @@
 ---
 name: sentinel-quality
-description: "Use when generating or auditing Ignite Sentinel quality artifacts after backlog generation: /quality test cases, the dynamic backlog readiness audit, INVEST/SPIDR/Lawrence story scoring, and US->TC traceability checks. Trigger on 'generate test cases', story quality scoring, DoR warnings, or acceptance-criteria coverage questions."
+description: "Use when generating or auditing Ignite Sentinel quality artifacts after backlog generation: /quality test cases, the dynamic backlog readiness audit, INVEST/SPIDR/Lawrence story scoring, and US->TC traceability checks. Trigger on 'generate test cases', story quality scoring, DoR warnings, or acceptance-criteria coverage questions. Not for structural workspace validation or gate overrides (use sentinel-health)."
 ---
 
 # Sentinel Quality

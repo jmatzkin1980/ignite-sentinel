@@ -1,6 +1,6 @@
 ---
 name: sentinel-self-review
-description: "Use when an Ignite Sentinel PRD or specs layer needs an adversarial pass before downstream handoff: author the cited skeptical findings and hard-to-reverse decisions that /self-review validates and registers under 03_specs/self_review/ — the runtime never rewrites PRD/specs. Trigger on 'review the PRD', 'review the specs', a skeptical pass over generated artifacts, or registering hard-to-reverse decisions."
+description: "Use when an Ignite Sentinel PRD or specs layer needs an adversarial pass before downstream handoff: author the cited skeptical findings and hard-to-reverse decisions that /self-review validates and registers under 03_specs/self_review/ — the runtime never rewrites PRD/specs. Trigger on 'review the PRD', 'review the specs', a skeptical pass over generated artifacts, or registering hard-to-reverse decisions. Not for discovery-stage scrutiny of raw input (use sentinel-scrutiny)."
 ---
 
 # Sentinel Self-Review

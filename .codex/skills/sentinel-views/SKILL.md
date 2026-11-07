@@ -1,9 +1,9 @@
 ---
-name: sentinel-dashboard
-description: "Use when generating, opening, presenting, or interpreting the Ignite Sentinel workspace dashboard; when the user asks for project status, portfolio status, pending work, workspace health, or 'show me the dashboard' without naming an exact CLI command."
+name: sentinel-views
+description: "Use when generating, opening, presenting, or interpreting Ignite Sentinel views: the read-only workspace dashboard (/dashboard) and the per-artifact HTML views (/view for gaps, brief, PRD, specs, backlog), with themes, reader edition and local notes; when the user asks for project or portfolio status, pending work, workspace health, 'show me the dashboard' or 'open the PRD view' without naming an exact CLI command. Not for changing artifacts: views are read-only, corrections go through /sync or /resolve-gaps."
 ---
 
-# Sentinel Dashboard
+# Sentinel Views
 
 Use this skill when the user wants a read-only portfolio view across Ignite Sentinel workspaces, especially in natural language:
 
@@ -29,6 +29,20 @@ python -m sentinel /dashboard --open
    To use a theme other than the built-in `neutral`, add `--theme NAME_OR_PATH` (a local theme JSON path; brand themes never live in the repo).
 3. Present the result in plain language: generated path, workspace count, workspaces scanned, theme, source cut-off date, and the fact that `dashboard.html` is a local rebuildable snapshot ignored by git.
 4. Summarize what needs attention: blocking gaps, DIRTY health, stale backlog/domain context warnings, stories not ready, and the recommended next command shown by the dashboard model.
+
+## Artifact views (/view)
+
+When the user wants one artifact as a navigable page instead of the portfolio:
+
+```powershell
+python -m sentinel /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog
+python -m sentinel /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
+```
+
+- Report the generated path, theme and source cut-off.
+- Inline provenance is hidden by default (reader edition). Tell the user about the **Show provenance** toggle when they need citations.
+- Local notes survive rebuilds. The page warns when the source changed and marks orphaned notes without deleting them.
+- Feedback leaves only through the page's Markdown export, routed to `/resolve-gaps` or `/sync`.
 
 ## Rules
 

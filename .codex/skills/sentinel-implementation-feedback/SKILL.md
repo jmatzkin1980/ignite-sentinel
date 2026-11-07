@@ -1,6 +1,6 @@
 ---
 name: sentinel-implementation-feedback
-description: "Use when a downstream implementation, planning, or testing agent hits a blocker in an Ignite Sentinel story — a new dependency, a discovery gap, an acceptance criterion that cannot hold, or an uncovered surface — and must report it as governed feedback through /implementation-feedback instead of silently changing scope. Trigger on 'this AC is wrong', 'missing dependency', an implementation blocker, or any downstream finding about the backlog."
+description: "Use when a downstream implementation, planning, or testing agent hits a blocker in an Ignite Sentinel story — a new dependency, a discovery gap, an acceptance criterion that cannot hold, or an uncovered surface — and must report it as governed feedback through /implementation-feedback instead of silently changing scope. Trigger on 'this AC is wrong', 'missing dependency', an implementation blocker, or any downstream finding about the backlog. Not for BA-side backlog restructuring (use sentinel-backlog-refine)."
 ---
 
 # Sentinel Implementation Feedback

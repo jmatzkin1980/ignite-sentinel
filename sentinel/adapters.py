@@ -10,6 +10,7 @@ the sync test. Regenerate with:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .resources import read_package_json
@@ -126,10 +127,10 @@ def out_of_sync(root: Path | None = None) -> list[str]:
 # So every surface is served through `SKILL_TARGET_DIRS`, and the mirrors are
 # byte-identical **by design**: one SKILL.md, one behaviour, three surfaces. That
 # identity is enforced by `skills_out_of_sync`, so a per-surface divergence is not
-# a matter of editing one
-# mirror — it would require per-surface rendering (as `render_kilo_command` /
-# `render_claude_command` do for slash commands), which skills do not have today.
-# Writing the surface name into a skill body is therefore a leak, not a variant.
+# a matter of editing one mirror. Since IMP-278 the only per-surface variation is
+# a *distribution* overlay (`render_skill`): it rewrites the runtime invocation
+# line and nothing else, and the clone overlay is the identity. Writing the
+# surface name into a skill body is still a leak, not a variant.
 CANONICAL_SKILLS_DIR = ".codex/skills"
 AGENTS_SKILLS_DIR = ".agents/skills"
 CLAUDE_SKILLS_DIR = ".claude/skills"
@@ -149,6 +150,39 @@ SKILL_TARGET_DIRS = (AGENTS_SKILLS_DIR, CLAUDE_SKILLS_DIR)
 # on Kilo Code 7.4.16 (2026-07-26): the 24 skills load from here and a reference
 # file opens without a prompt. See doc 45 §3.2.
 KILO_DEFAULT_SKILL_DIRS = (AGENTS_SKILLS_DIR,)
+
+
+# IMP-278: the runtime invocation is the one line a distribution may change.
+# The clone runs the package from the checkout; a plugin ships its own launcher,
+# which locates itself by `__file__` (IMP-279). `python -m sentinel.adapters` and
+# other submodules are maintainer commands and are never rewritten.
+RUNTIME_INVOCATION = "python -m sentinel"
+SKILL_OVERLAYS = {
+    "clone": RUNTIME_INVOCATION,
+    "claude-plugin": 'python "${CLAUDE_PLUGIN_ROOT}/launcher.py"',
+}
+_INVOCATION = re.compile(re.escape(RUNTIME_INVOCATION) + r"(?![\w.])")
+_RENDERED_SUFFIXES = {".md", ".txt"}
+
+
+def render_skill(content: bytes, surface: str, suffix: str) -> bytes:
+    """Apply a surface overlay to one skill file: only the runtime invocation changes."""
+    if surface not in SKILL_OVERLAYS:
+        raise ValueError(f"unknown skill surface: {surface} (known: {', '.join(sorted(SKILL_OVERLAYS))})")
+    invocation = SKILL_OVERLAYS[surface]
+    if invocation == RUNTIME_INVOCATION or suffix.lower() not in _RENDERED_SUFFIXES:
+        return content
+    text = content.decode("utf-8")
+    return _INVOCATION.sub(lambda _match: invocation, text).encode("utf-8")
+
+
+def render_skills(root: Path, surface: str) -> dict[str, bytes]:
+    """Render every canonical skill file for `surface`, keyed by its POSIX path under the source."""
+    base = root / CANONICAL_SKILLS_DIR
+    return {
+        item.relative_to(base).as_posix(): render_skill(item.read_bytes(), surface, item.suffix)
+        for item in skill_files(root)
+    }
 
 
 def skill_files(root: Path) -> list[Path]:
@@ -171,7 +205,7 @@ def regenerate_skills(root: Path | None = None) -> dict[str, int]:
     written = {target: 0 for target in SKILL_TARGET_DIRS}
     for item in skill_files(root):
         relative = item.relative_to(base)
-        content = item.read_bytes()
+        content = render_skill(item.read_bytes(), "clone", item.suffix)
         for target in SKILL_TARGET_DIRS:
             destination = root / target / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -185,14 +219,30 @@ def skills_out_of_sync(root: Path | None = None) -> list[str]:
     root = root or Path.cwd()
     base = root / CANONICAL_SKILLS_DIR
     issues: list[str] = []
+    overlays = [value for value in SKILL_OVERLAYS.values() if value != RUNTIME_INVOCATION]
     for item in skill_files(root):
         relative = item.relative_to(base)
+        if item.suffix.lower() in _RENDERED_SUFFIXES:
+            text = item.read_bytes().decode("utf-8", errors="replace")
+            for overlay in overlays:
+                if overlay in text:
+                    # IMP-278: the source must stay portable, or the plugin render would not round-trip.
+                    issues.append(f"{CANONICAL_SKILLS_DIR}: {relative.as_posix()} carries an overlay invocation ({overlay})")
         for target in SKILL_TARGET_DIRS:
             destination = root / target / relative
             if not destination.exists():
                 issues.append(f"{target}: missing {relative.as_posix()}")
             elif destination.read_bytes() != item.read_bytes():
                 issues.append(f"{target}: {relative.as_posix()} differs from canonical source")
+    # IMP-277: a skill renamed or removed at the source must not linger in a mirror.
+    canonical = {item.name for item in base.iterdir() if item.is_dir()} if base.is_dir() else set()
+    for target in SKILL_TARGET_DIRS:
+        mirror = root / target
+        if not mirror.is_dir():
+            continue
+        for item in sorted(mirror.iterdir()):
+            if item.is_dir() and item.name.startswith("sentinel-") and item.name not in canonical:
+                issues.append(f"{target}: stale skill {item.name} (not in {CANONICAL_SKILLS_DIR})")
     return issues
 
 
