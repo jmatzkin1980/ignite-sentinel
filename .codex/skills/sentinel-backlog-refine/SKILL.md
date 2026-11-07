@@ -1,6 +1,6 @@
 ---
 name: sentinel-backlog-refine
-description: "Use when proposing governed backlog refinements through the sanctioned /refine-backlog channel: reslicing, split/merge, missing stories, or enabler candidates, every proposal grounded in verbatim source-of-truth citations and landing as agent-origin proposals for BA review. Trigger on 'this story is too big', slicing improvements, enabler candidates, or backlog restructuring ideas."
+description: "Use when proposing governed backlog refinements through the sanctioned /refine-backlog channel: reslicing, split/merge, missing stories, or enabler candidates, every proposal grounded in verbatim source-of-truth citations and landing as agent-origin proposals for BA review. Trigger on 'this story is too big', slicing improvements, enabler candidates, or backlog restructuring ideas. Not for deriving the backlog from specs (use sentinel-backlog) or reporting implementation blockers (use sentinel-implementation-feedback)."
 ---
 
 # Sentinel Backlog Refine
