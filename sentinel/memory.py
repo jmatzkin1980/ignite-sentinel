@@ -160,6 +160,13 @@ def embedding_cosine(a: list[float], b: list[float]) -> float:
     return sum(left * right for left, right in zip(a, b))
 
 
+def redact_for_memory(project_id: str, text: str) -> str:
+    from .secrets_scan import detect_secrets, load_allowlist, redact
+
+    findings = detect_secrets(text, load_allowlist(workspace_path(project_id)))
+    return redact(text, findings) if findings else text
+
+
 def _looks_local_model_ref(model_ref: str) -> bool:
     path = Path(model_ref).expanduser()
     if path.exists():
@@ -446,6 +453,8 @@ class ContextBroker:
         language = metadata.get("language", "unknown")
         confidence = metadata.get("confidence", "unknown")
         sensitivity = metadata.get("sensitivity", "internal")
+        # IMP-285: memory never stores a secret, whatever path the text came from.
+        text = redact_for_memory(self.project_id, text)
         source_hash = content_hash(text)
         if skip_unchanged and self.artifact_is_current(artifact_id, source_hash):
             return False

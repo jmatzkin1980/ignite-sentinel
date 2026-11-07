@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .blocks import markdown_to_blocks
 from .core.io import copy_file, write_json, write_text
+from .secrets_scan import assert_no_leaks
 from .workspace import update_state, workspace_path
 
 
@@ -26,6 +27,7 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / source.name
+    assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     copy_file(source, target)
     update_state(project_id, last_export=str(target.as_posix()))
     return {
@@ -46,6 +48,7 @@ def export_interview(project_id: str, artifact: str) -> dict[str, str]:
     export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / "gaps-interview.md"
+    assert_no_leaks(project_id, script, workspace_path(project_id), "interview export")
     write_text(target, script)
     update_state(project_id, last_export=str(target.as_posix()))
     return {
@@ -66,6 +69,7 @@ def export_faq(project_id: str, artifact: str) -> dict[str, str]:
     export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / "gaps-faq.md"
+    assert_no_leaks(project_id, faq, workspace_path(project_id), "FAQ export")
     write_text(target, faq)
     update_state(project_id, last_export=str(target.as_posix()))
     return {
@@ -88,8 +92,10 @@ def export_mdx(project_id: str, artifact: str, source: Path) -> dict[str, str]:
     mdx_path = export_dir / "index.mdx"
     blocks_path = export_dir / "blocks.json"
     readme_path = export_dir / "README.md"
+    mdx_text = render_mdx(project_id, artifact, source, block_model)
+    assert_no_leaks(project_id, mdx_text, workspace_path(project_id), "MDX export")
     write_json(blocks_path, block_model)
-    write_text(mdx_path, render_mdx(project_id, artifact, source, block_model))
+    write_text(mdx_path, mdx_text)
     write_text(readme_path, render_mdx_readme(project_id, artifact, source))
     update_state(project_id, last_export=str(mdx_path.as_posix()))
     return {

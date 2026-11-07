@@ -22,6 +22,7 @@ from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
+from ..secrets_scan import ingest_source, pii_report_enabled
 from ..sources import mark_source_processed
 from ..workspace import ensure_workspace, load_config, update_state, workspace_path
 
@@ -39,11 +40,12 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     # overwrites them, so a re-ingest can emit a governed ADDED/MODIFIED/REMOVED
     # delta view of what capabilities changed.
     previous_requirement_units = requirement_unit_snapshot(base)
-    text = source.read_text(encoding="utf-8")
-    language = resolve_project_language(load_config(project_id).get("project_language", "auto"), text)
-    context = load_domain_context(base)
+    config = load_config(project_id)
     raw_target = base / "00_raw" / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}"
-    copy_file(source, raw_target)
+    # IMP-285: secrets are redacted before anything is extracted; the original is only read.
+    text, sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config))
+    language = resolve_project_language(config.get("project_language", "auto"), text)
+    context = load_domain_context(base)
     mark_source_processed(project_id, source, "initial_ingested")
     mark_source_processed(project_id, raw_target, "raw_copy")
     raw_id = add_node(project_id, "RAW", "raw_input", raw_target, source.stem, domain="product")
@@ -236,6 +238,8 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     )
     return {
         "raw_id": raw_id,
+        "secret_redactions": sanitized.redactions,
+        "secret_alerts": str(sanitized.alerts_path.as_posix()) if sanitized.alerts_path else None,
         "requirement_id": req_id,
         "gap_id": gap_id,
         "decision_id": dec_id,
