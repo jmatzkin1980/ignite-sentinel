@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .core.io import read_json, write_json
+from .core.io import read_json, write_json, append_bytes, write_text
 from .core.paths import (
     config_path,
     graph_path,
@@ -98,10 +98,10 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
     if not graph_path(project_id, root).exists():
         write_json(graph_path(project_id, root), {"nodes": [], "edges": []})
     if not config_path(project_id, root).exists():
-        config_path(project_id, root).write_text(default_config(project_id), encoding="utf-8")
+        write_text(config_path(project_id, root), default_config(project_id))
     gitignore_file = base / ".gitignore"
     if not gitignore_file.exists():
-        gitignore_file.write_text(WORKSPACE_GITIGNORE, encoding="utf-8")
+        write_text(gitignore_file, WORKSPACE_GITIGNORE)
     else:
         ensure_local_themes_ignored(gitignore_file)
     if not memory_path(project_id, root).exists():
@@ -164,8 +164,7 @@ def ensure_local_themes_ignored(gitignore_file: Path) -> bool:
     newline = b"\r\n" if b"\r\n" in raw else b"\n"
     prefix = b"" if not raw or raw.endswith(b"\n") else newline
     block = prefix + b"# IMP-241: workspace-local themes (brand palettes, fonts) never enter git." + newline + LOCAL_THEMES_IGNORE_RULE.encode("ascii") + newline
-    with open(gitignore_file, "ab") as handle:  # append-only: existing bytes are never rewritten
-        handle.write(block)
+    append_bytes(gitignore_file, block, root=gitignore_file.parent)  # append-only: existing bytes are never rewritten
     return True
 
 

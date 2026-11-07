@@ -16,6 +16,7 @@ from .core.graph import load_graph
 from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
+from .core.io import write_text
 
 
 ARTIFACTS = {
@@ -722,7 +723,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{artifact}.html"
-    out.write_text(rendered, encoding="utf-8", newline="\n")
+    write_text(out, rendered, newline="\n")
     if open_browser:
         open_local_file(out)
     return {

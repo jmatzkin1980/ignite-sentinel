@@ -8,6 +8,7 @@ from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, is_blocking
 from ..implementation_feedback import open_feedback_for_story
 from ..core.graph import add_edge, add_node
 from ..workspace import load_config, read_json, state_path, update_state, workspace_path
+from ..core.io import write_text
 
 
 BACKLOG_GATE_DEFAULT_THRESHOLD = 1.0
@@ -173,7 +174,7 @@ def register_acceptance_evidence(project_id: str, story_id: str, source: Path) -
     target_dir = base / "04_backlog" / "acceptance_evidence"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{story_id}-{source.name}"
-    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    write_text(target, source.read_text(encoding="utf-8"))
     trace_id = add_node(
         project_id,
         "EV",

@@ -30,6 +30,7 @@ from typing import Any
 from .discovery import parse_gap_rows
 from .gaps import BLOCKING_GAP_STATUSES
 from .workspace import read_json, workspace_path
+from .core.io import write_text
 
 # Deterministic decision cues (bilingual). A line matching one of these is a
 # *candidate* decision to route to the decision channel — never an applied DEC-*.
@@ -351,14 +352,10 @@ def build_interaction_digest(
     proposed_response_path: Path | None = None
     if gap_candidates:
         proposed_response_path = _unique(target_dir / f"{stem}_gap_response_proposed.md")
-        proposed_response_path.write_text(
-            render_proposed_gap_response(source_ref, gap_candidates, language),
-            encoding="utf-8",
-        )
+        write_text(proposed_response_path, render_proposed_gap_response(source_ref, gap_candidates, language))
 
     digest_path = _unique(target_dir / f"{stem}_interaction_digest.md")
-    digest_path.write_text(
-        render_interaction_digest(
+    write_text(digest_path, render_interaction_digest(
             project_id,
             change_id,
             source_ref,
@@ -367,9 +364,7 @@ def build_interaction_digest(
             new_gaps,
             asm_signals,
             proposed_response_path.as_posix() if proposed_response_path else None,
-        ),
-        encoding="utf-8",
-    )
+        ))
     return {
         "digest_path": digest_path.as_posix(),
         "proposed_response_path": proposed_response_path.as_posix() if proposed_response_path else None,
