@@ -3,13 +3,13 @@ from __future__ import annotations
 import html
 import json
 import os
-import webbrowser
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from .core.paths import is_valid_project_id
+from .core.local_browser import open_local_file
 from .discovery import parse_gap_rows
 from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
@@ -180,7 +180,7 @@ def generate_dashboard(root: str | Path = ".", open_browser: bool = False, theme
     out = root_path / "dashboard.html"
     write_text(out, render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), root=root_path, newline="\n")
     if open_browser:
-        webbrowser.open(out.as_uri())
+        open_local_file(out)
     return {
         "path": str(out),
         "count": len(model["workspaces"]),

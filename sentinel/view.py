@@ -4,12 +4,12 @@ import html
 import re
 import sys
 from pathlib import PurePosixPath, PureWindowsPath
-import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .assumptions import load_assumptions
+from .core.local_browser import open_local_file
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
@@ -725,7 +725,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     out = out_dir / f"{artifact}.html"
     write_text(out, rendered, newline="\n")
     if open_browser:
-        webbrowser.open(out.resolve().as_uri())
+        open_local_file(out)
     return {
         "path": str(out),
         "artifact": artifact,
