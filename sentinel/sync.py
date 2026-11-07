@@ -24,10 +24,11 @@ from .gap_resolution import (
 )
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
+from .secrets_scan import ingest_source, pii_report_enabled
 from .sources import discover_pending_sources, mark_source_processed
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
-from .core.io import append_text, copy_file, write_text
-from .workspace import read_json, update_state, utc_now, workspace_path
+from .core.io import append_text, write_text
+from .workspace import load_config, read_json, update_state, utc_now, workspace_path
 
 
 def sync_change(project_id: str, source: Path, note: str = "", digest: bool = False) -> dict[str, object]:
@@ -37,8 +38,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
 
     target_dir = change_target_dir(base, source)
     target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
-    copy_file(source, target)
-    text = source.read_text(encoding="utf-8")
+    # IMP-285: same redaction as /ingest before the change is analyzed or stored.
+    text, sanitized = ingest_source(base, source, target, pii_report_enabled(load_config(project_id)))
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
 
     affected = impacted_nodes(project_id)
@@ -166,6 +167,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     )
     return {
         "change_id": change_id,
+        "secret_redactions": sanitized.redactions,
         "impact_report_id": impact_id,
         "source": str(source.as_posix()),
         "path": str(target.as_posix()),
