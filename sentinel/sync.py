@@ -24,6 +24,7 @@ from .gap_resolution import (
 )
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
+from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
 from .sources import discover_pending_sources, mark_source_processed
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
@@ -40,6 +41,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
     # IMP-285: same redaction as /ingest before the change is analyzed or stored.
     text, sanitized = ingest_source(base, source, target, pii_report_enabled(load_config(project_id)))
+    text, injection_ids = shield_source(base, source.name, text)  # IMP-286
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
 
     affected = impacted_nodes(project_id)
@@ -168,6 +170,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     return {
         "change_id": change_id,
         "secret_redactions": sanitized.redactions,
+        "injection_signals": injection_ids,
         "impact_report_id": impact_id,
         "source": str(source.as_posix()),
         "path": str(target.as_posix()),
