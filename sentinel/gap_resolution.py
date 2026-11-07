@@ -11,7 +11,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .core.graph import add_edge, add_node, load_graph, save_graph
-from .core.io import append_text
+from .core.io import append_text, copy_file, write_text
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
@@ -54,7 +54,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = unique_target(target_dir / f"{source.stem}.md")
-    shutil.copyfile(source, target)
+    copy_file(source, target)
     text = source.read_text(encoding="utf-8")
     responses = parse_gap_responses(text)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
@@ -64,10 +64,10 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     resolution_results = apply_gap_responses(existing, responses)
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
-    gaps_path.write_text(render_gaps(project_id, resolution_results["gaps"], req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
 
     report_path = unique_target(target_dir / f"{source.stem}_gap_resolution_report.md")
-    report_path.write_text(render_resolution_report(project_id, change_id, resolution_results), encoding="utf-8")
+    write_text(report_path, render_resolution_report(project_id, change_id, resolution_results))
     report_id = add_node(project_id, "DEC", "gap_resolution_report", report_path, "Gap resolution report", status="active")
     add_edge(project_id, change_id, report_id, "produces")
 
@@ -96,7 +96,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         validated_gap_ids={item["id"] for item in resolution_results["closed"]},
         broker=broker,
     )
-    report_path.write_text(render_resolution_report(project_id, change_id, resolution_results, metabolism), encoding="utf-8")
+    write_text(report_path, render_resolution_report(project_id, change_id, resolution_results, metabolism))
     broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id])
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[change_id, report_id])
     reindex_workspace(project_id)
@@ -217,7 +217,7 @@ def materialize_resolution_seeds(project_id: str, closed: list[dict[str, str]], 
         return []
     path = workspace_path(project_id) / "01_discovery" / "identity_seeds.md"
     if not path.exists():
-        path.write_text("# Identity Seeds\n\n", encoding="utf-8")
+        write_text(path, "# Identity Seeds\n\n")
     rows = [
         "\n## Gap Resolution Seeds\n\n",
         "| Seed ID | Gap ID | Status | Statement | Source | Brief Section | PRD Section |\n",
@@ -243,7 +243,7 @@ def materialize_resolution_decisions(project_id: str, closed: list[dict[str, str
         return []
     path = workspace_path(project_id) / "01_discovery" / "decisions.md"
     if not path.exists():
-        path.write_text("# Decision Log\n\n", encoding="utf-8")
+        write_text(path, "# Decision Log\n\n")
     rows = [
         "\n## Gap Resolution Decisions\n\n",
         "| Decision ID | Gap ID | Status | Decision | Source | Kind |\n",
@@ -391,14 +391,11 @@ def render_resolution_rows(gaps: object) -> str:
 def append_gap_resolution_log(project_id: str, change_id: str, report_id: str, result: dict[str, object]) -> Path:
     path = workspace_path(project_id) / "01_discovery" / "gap_resolution_log.md"
     if not path.exists():
-        path.write_text(
-            f"""# Gap Resolution Log - {project_id}
+        write_text(path, f"""# Gap Resolution Log - {project_id}
 
 | Timestamp | Change ID | Report ID | Closed | Partial | Open | Client Closed | Domain Closed | Inference Closed |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-""",
-            encoding="utf-8",
-        )
+""")
     source_counts = closed_resolution_source_counts(result)
     append_text(
         path,

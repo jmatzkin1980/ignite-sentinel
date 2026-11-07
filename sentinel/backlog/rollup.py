@@ -7,6 +7,7 @@ from typing import Any
 from ..core.markdown import parse_frontmatter
 from ..decisions import register_gate_override
 from ..workspace import read_json, state_path, update_state, workspace_path
+from ..core.io import write_text
 
 
 STATUSES = ("Draft", "Ready", "In Progress", "In Review", "Done", "Blocked", "Stale")
@@ -20,7 +21,7 @@ def backlog_status(project_id: str, write: bool = True, override_source: Path | 
     gate = backlog_status_gate(stories)
     path = base / "04_backlog" / "BACKLOG.md"
     if write:
-        path.write_text(render_backlog_board(project_id, summary, epics, stories), encoding="utf-8")
+        write_text(path, render_backlog_board(project_id, summary, epics, stories))
         update_state(project_id, backlog_rollup=summary, backlog_board_path=path.relative_to(base).as_posix())
     result: dict[str, Any] = {
         "project_id": project_id,

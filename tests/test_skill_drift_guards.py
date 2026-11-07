@@ -122,7 +122,7 @@ DECISION_LADDER_SKILLS = (
     "sentinel-maturity",
     "sentinel-health",
     "sentinel-project-brief",
-    "sentinel-dashboard",
+    "sentinel-views",
 )
 ANTI_PATTERNS_HEADER = "## Anti-patterns"
 ANTI_PATTERNS_SKILLS = (

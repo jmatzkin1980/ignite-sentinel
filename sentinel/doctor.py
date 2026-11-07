@@ -13,6 +13,7 @@ from typing import Any, NamedTuple
 from .adapters import SKILL_TARGET_DIRS, manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
 from .portability import stdlib_purity_violations
+from .core.io import write_text
 
 
 REQUIRED_CODEX_SKILLS = [
@@ -25,7 +26,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-backlog-refine",
     "sentinel-brownfield-harvest",
     "sentinel-command-router",
-    "sentinel-dashboard",
+    "sentinel-views",
     "sentinel-discovery",
     "sentinel-domain-request",
     "sentinel-gap-response",
@@ -101,6 +102,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *skill_metadata_checks(root),
         *skill_invocation_checks(root),
         skill_spec_compliance_check(root),
+        skill_naming_check(root),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -416,6 +418,51 @@ def skill_spec_violations(root: Path) -> list[str]:
     return violations
 
 
+# IMP-277: naming convention and description best practices for distribution.
+_SKILL_CONVENTION = re.compile(r"sentinel-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+# Surface or vendor names never belong in a skill name: mirrors are byte-identical
+# across surfaces, and in a plugin the namespace already says where it runs.
+_SURFACE_WORDS = {"claude", "codex", "kilo", "copilot", "cursor", "gemini", "opencode", "windsurf", "vscode", "mcp"}
+_TRIGGER = re.compile(r"Use (when|on|before)\b")
+_NEGATIVE = re.compile(r"\bNot (for|needed)\b")
+
+
+def skill_naming_violations(root: Path) -> list[str]:
+    """IMP-277: `sentinel-<object>[-<action>]` names and descriptions that say when (not) to use them."""
+    from .core.markdown import parse_frontmatter
+
+    base = root / ".codex" / "skills"
+    if not base.is_dir():
+        return [".codex/skills: missing"]
+    violations: list[str] = []
+    for directory in sorted(item for item in base.iterdir() if item.is_dir()):
+        path = directory / "SKILL.md"
+        if not path.exists():
+            continue  # reported by skill_spec_violations
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8-sig"))
+        name = str(frontmatter.get("name", directory.name)).strip()
+        if not _SKILL_CONVENTION.match(name):
+            violations.append(f"{directory.name}: name '{name}' must be sentinel-<object>[-<action>] in kebab-case")
+        surface = sorted(set(name.split("-")) & _SURFACE_WORDS)
+        if surface:
+            violations.append(f"{directory.name}: name carries a surface/vendor word ({', '.join(surface)}); skills run on every surface")
+        description = str(frontmatter.get("description", "")).strip().strip('"')
+        if not _TRIGGER.match(description):
+            violations.append(f"{directory.name}: description must open with the trigger (\"Use when\", \"Use on\" or \"Use before\")")
+        if not _NEGATIVE.search(description):
+            violations.append(f"{directory.name}: description must say when NOT to use it (\"Not for ...\" or \"Not needed ...\")")
+    return violations
+
+
+def skill_naming_check(root: Path) -> dict[str, str]:
+    label = "skill names and descriptions follow the convention"
+    violations = skill_naming_violations(root)
+    if violations:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
+    count = len([item for item in (root / ".codex" / "skills").iterdir() if item.is_dir()])
+    return {"name": label, "status": "PASS", "detail": f"{count} skills named sentinel-<object>[-<action>] with trigger and Not-for clause"}
+
+
 def skill_spec_compliance_check(root: Path) -> dict[str, str]:
     """IMP-232 (H12): report the Agent Skills spec verdict of
     `skill_spec_violations`. FAIL, not WARN: an over-long name, an oversize
@@ -690,7 +737,7 @@ def agentic_surface_audit_checks(root: Path) -> list[dict[str, str]]:
 def write_check(root: Path) -> dict[str, str]:
     probe = root / ".sentinel_doctor_write_test"
     try:
-        probe.write_text("ok", encoding="utf-8")
+        write_text(probe, "ok", root=root)
         probe.unlink()
         return {"name": "repo write access", "status": "PASS", "detail": str(root)}
     except OSError as exc:

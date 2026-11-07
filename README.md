@@ -186,7 +186,7 @@ For a portfolio view across local workspaces, ask in chat:
 Show me the Sentinel dashboard and summarize what needs attention.
 ```
 
-The `sentinel-dashboard` skill routes that intent to `/dashboard`, generates the git-ignored local `dashboard.html`, and reports the read-only status signals without mutating project artifacts.
+The `sentinel-views` skill routes that intent to `/dashboard`, generates the git-ignored local `dashboard.html`, and reports the read-only status signals without mutating project artifacts.
 
 For a navigable view of one artifact, run:
 

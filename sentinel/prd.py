@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .core.graph import add_edge, add_node, nodes_by_type
-from .core.io import write_json
+from .core.io import copy_file, write_json, write_text
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
 
@@ -37,7 +37,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     comp_dir = base / "03_specs" / "compositions"
     comp_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(comp_dir / source.name)
-    shutil.copyfile(source, archived)
+    copy_file(source, archived)
 
     accepted_path = comp_dir / "accepted_blocks.json"
     existing = read_json(accepted_path, [])
@@ -47,7 +47,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     report_path = write_composition_report(project_id, accepted, rejected, archived)
 
     if accepted:
-        prd_path.write_text(render_prd_compositions(project_id, prd_text), encoding="utf-8")
+        write_text(prd_path, render_prd_compositions(project_id, prd_text))
 
     composition_id = add_node(project_id, "PRD", "prd_composition", report_path, f"PRD composition from {source.name}", domain="product")
     prd_nodes = nodes_by_type(project_id, "prd")
@@ -240,8 +240,7 @@ def write_composition_report(project_id: str, accepted: list[dict[str, Any]], re
     path = workspace_path(project_id) / "03_specs" / "compositions" / "composition_report.md"
     accepted_rows = "\n".join(f"| {block['id']} | {block['section']} | agent |" for block in accepted) or "| N/A | N/A | N/A |"
     rejected_rows = "\n".join(f"| {item['id']} | {item['section']} | {item['reason']} |" for item in rejected) or "| N/A | N/A | N/A |"
-    path.write_text(
-        f"""# PRD Composition Report - {project_id}
+    write_text(path, f"""# PRD Composition Report - {project_id}
 
 Source: `{source.as_posix()}`
 
@@ -256,9 +255,7 @@ Source: `{source.as_posix()}`
 | Block | PRD Section | Reason |
 | --- | --- | --- |
 {rejected_rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 
@@ -266,8 +263,7 @@ def write_composition_regeneration_report(project_id: str, valid: list[dict[str,
     path = workspace_path(project_id) / "03_specs" / "compositions" / "regeneration_report.md"
     valid_rows = "\n".join(f"| {block['id']} | {block['section']} | kept |" for block in valid) or "| N/A | N/A | N/A |"
     discarded_rows = "\n".join(f"| {item['id']} | {item['section']} | {item['reason']} |" for item in discarded) or "| N/A | N/A | N/A |"
-    path.write_text(
-        f"""# PRD Composition Regeneration Report - {project_id}
+    write_text(path, f"""# PRD Composition Regeneration Report - {project_id}
 
 ## Kept Blocks
 
@@ -280,9 +276,7 @@ def write_composition_regeneration_report(project_id: str, valid: list[dict[str,
 | Block | PRD Section | Reason |
 | --- | --- | --- |
 {discarded_rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 
