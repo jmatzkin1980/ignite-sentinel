@@ -101,6 +101,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *skill_metadata_checks(root),
         *skill_invocation_checks(root),
         skill_spec_compliance_check(root),
+        network_isolation_check(),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -414,6 +415,65 @@ def skill_spec_violations(root: Path) -> list[str]:
                 violations.append(f"{skill}: {relative.as_posix()} nests deeper than one reference level")
 
     return violations
+
+
+# IMP-284: zero network, verifiable. No module of the package may import a
+# network library (stdlib or third-party HTTP clients), directly or through
+# `importlib.import_module` / `__import__` with a literal name; `webbrowser`
+# lives only behind `core/local_browser.py`, which opens existing local files.
+NETWORK_MODULES = frozenset(
+    {"socket", "urllib", "http", "ftplib", "smtplib", "ssl", "xmlrpc", "telnetlib", "poplib", "imaplib", "nntplib",
+     "requests", "httpx", "aiohttp", "urllib3", "websockets", "websocket"}
+)
+BROWSER_MODULE_HOME = "core/local_browser.py"
+
+
+def _package_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def network_import_violations(package_dir: Path) -> list[str]:
+    import ast
+
+    violations: list[str] = []
+    for path in sorted(package_dir.rglob("*.py")):
+        relative = path.relative_to(package_dir).as_posix()
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        except (OSError, SyntaxError, ValueError) as exc:
+            violations.append(f"{relative}: unparseable ({exc.__class__.__name__})")
+            continue
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            elif isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                func = node.func
+                dynamic = (isinstance(func, ast.Name) and func.id == "__import__") or (
+                    isinstance(func, ast.Attribute) and func.attr == "import_module"
+                )
+                if dynamic:
+                    names = [node.args[0].value]
+            for name in names:
+                top = name.split(".")[0]
+                if top in NETWORK_MODULES:
+                    violations.append(f"{relative}:{node.lineno} imports {name} (network)")
+                elif top == "webbrowser" and relative != BROWSER_MODULE_HOME:
+                    violations.append(f"{relative}:{node.lineno} imports webbrowser (use core.local_browser.open_local_file)")
+    return violations
+
+
+def network_isolation_check() -> dict[str, str]:
+    label = "package imports no network module"
+    package_dir = _package_dir()
+    if not package_dir.is_dir():
+        return {"name": label, "status": "WARN", "detail": f"package sources not on disk ({package_dir.as_posix()}); checked at build time"}
+    violations = network_import_violations(package_dir)
+    if violations:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
+    return {"name": label, "status": "PASS", "detail": "no socket/urllib/http/ftplib/smtplib/ssl or HTTP client imports; webbrowser only on file://"}
 
 
 def skill_spec_compliance_check(root: Path) -> dict[str, str]:

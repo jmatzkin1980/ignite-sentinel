@@ -7,6 +7,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Verifiable zero network (IMP-284): `/doctor` runs `network_isolation_check`, an AST scan of the package that fails on any import of `socket`, `urllib`, `http`, `ftplib`, `smtplib`, `ssl` or an HTTP client library, including `importlib.import_module` / `__import__` with a literal name. `webbrowser` is only imported in `core/local_browser.py`, whose `open_local_file` opens existing local files (`file://`) and refuses URLs. The embedding extras force `HF_HUB_OFFLINE=1` (plus `TRANSFORMERS_OFFLINE` / `HF_DATASETS_OFFLINE`) before loading a model library; without a local model they fall back to the hash embedder with a message and never download.
 - CI in GitHub Actions (IMP-246):
   - `ci-fast` runs on every push: unit suite without the slow modules, `/doctor`, faithfulness eval.
   - `ci-full` runs on every pull request: whole suite, evals, wheel in a clean venv, and a Windows/Linux × Python 3.10/3.13 × LanceDB × `mcp` 1/2 matrix.
