@@ -7,6 +7,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Content-Security-Policy in views and the dashboard (IMP-288): the shell emits `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'` as a `<meta http-equiv>` before any style or script, since the pages open from disk. HTML goldens regenerated (one line each). Observed live: dashboard (drawer, filters), `/view` (TOC, provenance toggle, local notes, Markdown export via `blob:`) and a local theme with an embedded woff2 font all work with no violation, while `fetch` and a remote image are blocked.
 - CI in GitHub Actions (IMP-246):
   - `ci-fast` runs on every push: unit suite without the slow modules, `/doctor`, faithfulness eval.
   - `ci-full` runs on every pull request: whole suite, evals, wheel in a clean venv, and a Windows/Linux × Python 3.10/3.13 × LanceDB × `mcp` 1/2 matrix.
