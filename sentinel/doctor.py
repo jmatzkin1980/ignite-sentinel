@@ -26,7 +26,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-backlog-refine",
     "sentinel-brownfield-harvest",
     "sentinel-command-router",
-    "sentinel-dashboard",
+    "sentinel-views",
     "sentinel-discovery",
     "sentinel-domain-request",
     "sentinel-gap-response",
@@ -104,6 +104,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         skill_spec_compliance_check(root),
         tracked_secrets_check(root),
         workspaces_ignored_check(root),
+        network_isolation_check(),
+        skill_naming_check(root),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -494,6 +496,110 @@ def workspaces_ignored_check(root: Path) -> dict[str, str]:
             "detail": f"versioned workspace(s): {', '.join(projects)} — fine in a private repo you own; never push them to a public one",
         }
     return {"name": label, "status": "PASS", "detail": "new workspaces are ignored; only _template/ is versioned"}
+
+
+# IMP-284: zero network, verifiable. No module of the package may import a
+# network library (stdlib or third-party HTTP clients), directly or through
+# `importlib.import_module` / `__import__` with a literal name; `webbrowser`
+# lives only behind `core/local_browser.py`, which opens existing local files.
+NETWORK_MODULES = frozenset(
+    {"socket", "urllib", "http", "ftplib", "smtplib", "ssl", "xmlrpc", "telnetlib", "poplib", "imaplib", "nntplib",
+     "requests", "httpx", "aiohttp", "urllib3", "websockets", "websocket"}
+)
+BROWSER_MODULE_HOME = "core/local_browser.py"
+
+
+def _package_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def network_import_violations(package_dir: Path) -> list[str]:
+    import ast
+
+    violations: list[str] = []
+    for path in sorted(package_dir.rglob("*.py")):
+        relative = path.relative_to(package_dir).as_posix()
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        except (OSError, SyntaxError, ValueError) as exc:
+            violations.append(f"{relative}: unparseable ({exc.__class__.__name__})")
+            continue
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            elif isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                func = node.func
+                dynamic = (isinstance(func, ast.Name) and func.id == "__import__") or (
+                    isinstance(func, ast.Attribute) and func.attr == "import_module"
+                )
+                if dynamic:
+                    names = [node.args[0].value]
+            for name in names:
+                top = name.split(".")[0]
+                if top in NETWORK_MODULES:
+                    violations.append(f"{relative}:{node.lineno} imports {name} (network)")
+                elif top == "webbrowser" and relative != BROWSER_MODULE_HOME:
+                    violations.append(f"{relative}:{node.lineno} imports webbrowser (use core.local_browser.open_local_file)")
+    return violations
+
+
+def network_isolation_check() -> dict[str, str]:
+    label = "package imports no network module"
+    package_dir = _package_dir()
+    if not package_dir.is_dir():
+        return {"name": label, "status": "WARN", "detail": f"package sources not on disk ({package_dir.as_posix()}); checked at build time"}
+    violations = network_import_violations(package_dir)
+    if violations:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
+    return {"name": label, "status": "PASS", "detail": "no socket/urllib/http/ftplib/smtplib/ssl or HTTP client imports; webbrowser only on file://"}
+
+
+# IMP-277: naming convention and description best practices for distribution.
+_SKILL_CONVENTION = re.compile(r"sentinel-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+# Surface or vendor names never belong in a skill name: mirrors are byte-identical
+# across surfaces, and in a plugin the namespace already says where it runs.
+_SURFACE_WORDS = {"claude", "codex", "kilo", "copilot", "cursor", "gemini", "opencode", "windsurf", "vscode", "mcp"}
+_TRIGGER = re.compile(r"Use (when|on|before)\b")
+_NEGATIVE = re.compile(r"\bNot (for|needed)\b")
+
+
+def skill_naming_violations(root: Path) -> list[str]:
+    """IMP-277: `sentinel-<object>[-<action>]` names and descriptions that say when (not) to use them."""
+    from .core.markdown import parse_frontmatter
+
+    base = root / ".codex" / "skills"
+    if not base.is_dir():
+        return [".codex/skills: missing"]
+    violations: list[str] = []
+    for directory in sorted(item for item in base.iterdir() if item.is_dir()):
+        path = directory / "SKILL.md"
+        if not path.exists():
+            continue  # reported by skill_spec_violations
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8-sig"))
+        name = str(frontmatter.get("name", directory.name)).strip()
+        if not _SKILL_CONVENTION.match(name):
+            violations.append(f"{directory.name}: name '{name}' must be sentinel-<object>[-<action>] in kebab-case")
+        surface = sorted(set(name.split("-")) & _SURFACE_WORDS)
+        if surface:
+            violations.append(f"{directory.name}: name carries a surface/vendor word ({', '.join(surface)}); skills run on every surface")
+        description = str(frontmatter.get("description", "")).strip().strip('"')
+        if not _TRIGGER.match(description):
+            violations.append(f"{directory.name}: description must open with the trigger (\"Use when\", \"Use on\" or \"Use before\")")
+        if not _NEGATIVE.search(description):
+            violations.append(f"{directory.name}: description must say when NOT to use it (\"Not for ...\" or \"Not needed ...\")")
+    return violations
+
+
+def skill_naming_check(root: Path) -> dict[str, str]:
+    label = "skill names and descriptions follow the convention"
+    violations = skill_naming_violations(root)
+    if violations:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
+    count = len([item for item in (root / ".codex" / "skills").iterdir() if item.is_dir()])
+    return {"name": label, "status": "PASS", "detail": f"{count} skills named sentinel-<object>[-<action>] with trigger and Not-for clause"}
 
 
 def skill_spec_compliance_check(root: Path) -> dict[str, str]:

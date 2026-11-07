@@ -1,6 +1,6 @@
 ---
 name: sentinel-brownfield-harvest
-description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it — observed architecture, surfaces and integrations, data models, constraints — as discovery evidence: read the code and write cited docs into 00_raw/02_technology_context/, marking every claim [OBSERVED] or [INFERRED]. Trigger on 'harvest the existing system', 'read the current codebase for context', or brownfield technical-context needs before or alongside /ingest."
+description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it — observed architecture, surfaces and integrations, data models, constraints — as discovery evidence: read the code and write cited docs into 00_raw/02_technology_context/, marking every claim [OBSERVED] or [INFERRED]. Trigger on 'harvest the existing system', 'read the current codebase for context', or brownfield technical-context needs before or alongside /ingest. Not for client requirements or business context (use sentinel-discovery); it reads code, it never changes it."
 ---
 
 # Sentinel Brownfield Harvest

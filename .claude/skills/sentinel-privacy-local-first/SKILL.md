@@ -1,6 +1,6 @@
 ---
 name: sentinel-privacy-local-first
-description: "Deliberate, human-invoked reference for Ignite Sentinel's local-first privacy rules: source of truth in versionable workspace files, no remote MCP / external vector databases / external embedding services for client content, and export only through audited commands. The non-negotiable rules are always-on in AGENTS.md and CLAUDE.md; invoke this skill when you want the full rule set or an export checklist."
+description: "Use when you want the full Ignite Sentinel local-first privacy rule set or an export checklist (a deliberate, human-invoked reference): source of truth in versionable workspace files, no remote MCP / external vector databases / external embedding services for client content, and export only through audited commands. Not needed for routine work: the non-negotiable rules are always on in AGENTS.md and CLAUDE.md."
 disable-model-invocation: true
 ---
 

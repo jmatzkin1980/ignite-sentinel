@@ -1,6 +1,6 @@
 ---
 name: sentinel-gap-response
-description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions."
+description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions. Not for new information that does not answer an open gap (use sentinel-sync)."
 ---
 
 # Sentinel Gap Response

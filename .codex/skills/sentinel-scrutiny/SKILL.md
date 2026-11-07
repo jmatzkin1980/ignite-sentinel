@@ -1,6 +1,6 @@
 ---
 name: sentinel-scrutiny
-description: "Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context, or a pre-flight implementability probe. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger; covers `--mode implementability-probe`, the per-RU pass where a coding agent declares what it is missing to implement."
+description: "Use when an Ignite Sentinel requirement needs systematic multi-lens scrutiny against raw input plus local domain context, or a pre-flight implementability probe. Produces structured findings that `/scrutinize` validates and merges with `origin: scrutiny`, refreshing the knowledge ledger; covers `--mode implementability-probe`, the per-RU pass where a coding agent declares what it is missing to implement. Not for adversarial elicitation of what is not said (use sentinel-challenge) or reviewing generated PRD/specs (use sentinel-self-review)."
 ---
 
 # Sentinel Scrutiny

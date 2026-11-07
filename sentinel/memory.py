@@ -167,6 +167,17 @@ def redact_for_memory(project_id: str, text: str) -> str:
     return redact(text, findings) if findings else text
 
 
+# IMP-284: the embedding extras run offline only. These flags make the Hugging
+# Face stack refuse any download even where a library ignores
+# `local_files_only`; they are forced (not defaulted) because local-first is
+# not negotiable, and set before the library is imported.
+OFFLINE_ENV = {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "HF_DATASETS_OFFLINE": "1"}
+
+
+def _enforce_offline() -> None:
+    os.environ.update(OFFLINE_ENV)
+
+
 def _looks_local_model_ref(model_ref: str) -> bool:
     path = Path(model_ref).expanduser()
     if path.exists():
@@ -186,6 +197,7 @@ def _probe_model2vec(model_ref: str) -> tuple[Embedder | None, dict[str, str]]:
     if not _looks_local_model_ref(model_ref):
         diag.update(outcome="skipped", detail="model ref looks like a remote URL; refusing to fetch (local-first)")
         return None, diag
+    _enforce_offline()
     try:
         from model2vec import StaticModel  # type: ignore
     except Exception as exc:  # noqa: BLE001 - report any import failure as package-missing
@@ -219,6 +231,7 @@ def _probe_sentence_transformers(model_ref: str) -> tuple[Embedder | None, dict[
     if not _looks_local_model_ref(model_ref):
         diag.update(outcome="skipped", detail="model ref looks like a remote URL; refusing to fetch (local-first)")
         return None, diag
+    _enforce_offline()
     try:
         from sentence_transformers import SentenceTransformer  # type: ignore
     except Exception as exc:  # noqa: BLE001

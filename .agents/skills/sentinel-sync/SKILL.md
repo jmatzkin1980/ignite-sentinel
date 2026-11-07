@@ -1,6 +1,6 @@
 ---
 name: sentinel-sync
-description: "Use when new information arrives after discovery — meeting notes, client mail, Slack, domain updates, HTML prototypes, late blockers — and must become traceable change instead of silent scope creep: /sync impact analysis and CHG nodes, autonomous detection of new or modified sources, /reindex and /retrieve for change context. Trigger on 'the client sent a change', new meeting minutes, modified domain context, or anything that may mutate requirements, specs or backlog."
+description: "Use when new information arrives after discovery — meeting notes, client mail, Slack, domain updates, HTML prototypes, late blockers — and must become traceable change instead of silent scope creep: /sync impact analysis and CHG nodes, autonomous detection of new or modified sources, /reindex and /retrieve for change context. Trigger on 'the client sent a change', new meeting minutes, modified domain context, or anything that may mutate requirements, specs or backlog. Not for answers to existing gaps (use sentinel-gap-response)."
 ---
 
 # Sentinel Sync
