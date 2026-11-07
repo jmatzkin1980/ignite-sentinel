@@ -22,6 +22,7 @@ from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
+from .core.io import write_text
 
 
 # --- IMP-025: per-section brief readiness + soft /brief gate ------------------
@@ -398,7 +399,7 @@ def evaluate(project_id: str) -> dict[str, object]:
     if readiness == "READY_FOR_SPECS":
         project_brief = materialize_project_brief(project_id, req_text, gaps_text)
     report_path = base / "01_discovery" / "requirement_maturity_report.md"
-    report_path.write_text(render_report(project_id, readiness, blocking_gaps, project_brief), encoding="utf-8")
+    write_text(report_path, render_report(project_id, readiness, blocking_gaps, project_brief))
     ContextBroker(project_id).index_artifact(
         "MATURITY-001",
         "maturity_report",
@@ -561,14 +562,11 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
     gap_answers = parse_gap_answers(seeds_text + "\n" + decisions_text)
     state = read_json(state_path(project_id), {})
     language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    brief_path.write_text(
-        render_project_brief(
+    write_text(brief_path, render_project_brief(
             project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
             raw_text=raw_text, gap_answers=gap_answers, language=language,
             assumptions_text=assumptions_text,
-        ),
-        encoding="utf-8",
-    )
+        ))
 
     existing = nodes_by_type(project_id, "project_brief")
     if existing:

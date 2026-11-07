@@ -15,6 +15,7 @@ from ..core.markdown import parse_frontmatter, parse_table_rows, update_frontmat
 from ..core.graph import add_edge, add_node, nodes_by_type
 from ..deltas import DELTA_LEGEND, delta_marker
 from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
+from ..core.io import write_text
 
 
 class StoryStatusError(RuntimeError):
@@ -375,8 +376,7 @@ def write_acceptance_criteria_delta_report(project_id: str, deltas: list[dict[st
         )
         for delta in deltas
     )
-    path.write_text(
-        f"""# Acceptance Criteria Delta Report - {project_id}
+    write_text(path, f"""# Acceptance Criteria Delta Report - {project_id}
 
 Generated: {timestamp}
 
@@ -387,9 +387,7 @@ Existing frozen criteria must not change silently during backlog regeneration; n
 | Story | AC | Delta | Change | Frozen Criterion | Current Criterion |
 | --- | --- | --- | --- | --- | --- |
 {rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 
@@ -453,7 +451,7 @@ def update_story_frontmatter(path: Path, status: str, owner: str) -> None:
     if rendered is None:
         raise StoryStatusError(f"Story frontmatter not closed: {path.name}")
     rendered = update_story_lifecycle_section(rendered, status, owner)
-    path.write_text(rendered, encoding="utf-8")
+    write_text(path, rendered)
 
 
 def update_story_lifecycle_section(text: str, status: str, owner: str) -> str:
@@ -492,7 +490,7 @@ def update_story_gate_sections(path: Path, gate_result: dict[str, Any]) -> None:
     )
     text = replace_section(text, "## Readiness Checklist", readiness)
     text = replace_section(text, "## Done Checklist", done)
-    path.write_text(text, encoding="utf-8")
+    write_text(path, text)
 
 
 def replace_section(text: str, heading: str, replacement: str) -> str:
@@ -529,5 +527,5 @@ def append_status_log(project_id: str, story_id: str, previous: str, status: str
             "| --- | --- | --- | --- | --- |"
         )
     row = f"| {timestamp} | `{story_id}` | {previous} | {status} | {owner or 'N/A'} |"
-    path.write_text(text + "\n" + row + "\n", encoding="utf-8")
+    write_text(path, text + "\n" + row + "\n")
     return path

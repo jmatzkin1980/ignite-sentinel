@@ -83,6 +83,7 @@ from .slice_plan import generate_slice_plan
 from .core.graph import add_edge, add_node, nodes_by_type, upsert_node
 from .drift import foundation_drift_warnings, record_derived_source_fingerprint
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
+from .core.io import write_text
 
 
 DOMAIN_CONTEXT_FOLDERS = {
@@ -169,8 +170,7 @@ def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str
             return "| N/A | N/A |"
         return "\n".join(f"| {delta_marker(e['status'])} | {e['heading']} |" for e in entries)
 
-    out_path.write_text(
-        f"""# Regeneration Diff - {artifact_label}
+    write_text(out_path, f"""# Regeneration Diff - {artifact_label}
 
 - Project: `{project_id}`
 - Triggering change: `{change_id}`
@@ -194,9 +194,7 @@ def record_regeneration_diff(project_id: str, artifact_label: str, old_text: str
 {section_rows(removed_sections)}
 
 Review this artifact against the triggering change before downstream handoff. The regenerated file is the source of truth; this diff is visibility, not authority.
-""",
-        encoding="utf-8",
-    )
+""")
     diff_id = add_node(project_id, "DEC", "regeneration_diff", out_path, f"Regeneration diff for {artifact_label}", domain="product")
     if change_id != "N/A":
         add_edge(project_id, change_id, diff_id, "triggers_regeneration")
@@ -264,7 +262,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
     previous_specs = specs_path.read_text(encoding="utf-8") if specs_path.exists() else ""
     previous_spec_units = spec_unit_snapshot(base)
     prd_text = render_prd(project_id, req_text, context, source_path.name, language, evidence_text)
-    prd_path.write_text(render_prd_compositions(project_id, prd_text), encoding="utf-8")
+    write_text(prd_path, render_prd_compositions(project_id, prd_text))
     prd_readiness = prd_section_readiness(prd_path.read_text(encoding="utf-8"))
     specs_gate = config.get("specs_gate", {}) if isinstance(config.get("specs_gate", {}), dict) else {}
     specs_threshold = float(specs_gate.get("threshold", 0.75))
@@ -284,7 +282,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
         raise RuntimeError("Cannot complete /specs while PRD section readiness is below specs_gate threshold.")
     spec_units = write_spec_units(project_id, context, source_path.name)
     spec_unit_delta = record_spec_unit_delta(project_id, previous_spec_units)
-    specs_path.write_text(render_specs(project_id, req_text, context, source_path.name, spec_units), encoding="utf-8")
+    write_text(specs_path, render_specs(project_id, req_text, context, source_path.name, spec_units))
     record_regeneration_diff(project_id, "prd.md", previous_prd, prd_path.read_text(encoding="utf-8"))
     record_regeneration_diff(project_id, "specs.md", previous_specs, specs_path.read_text(encoding="utf-8"))
     prd_id = add_node(project_id, "PRD", "prd", prd_path, "Human-readable PRD", domain="product")
@@ -417,7 +415,7 @@ def generate_backlog(
 
     epic_path = base / "04_backlog" / "EPIC-001.md"
     previous_epic = epic_path.read_text(encoding="utf-8") if epic_path.exists() else ""
-    epic_path.write_text(render_epic(project_id, story_specs, backlog_context, effective_story_format), encoding="utf-8")
+    write_text(epic_path, render_epic(project_id, story_specs, backlog_context, effective_story_format))
     record_regeneration_diff(project_id, "EPIC-001.md", previous_epic, epic_path.read_text(encoding="utf-8"))
     epic_id = add_node(project_id, "EPIC", "epic", epic_path, "Deliver validated requirement value", domain="product")
     for spec in specs:
@@ -428,7 +426,7 @@ def generate_backlog(
     active_story_paths: set[Path] = set()
     for index, story_spec in enumerate(story_specs, start=1):
         story_path = base / "04_backlog" / f"US-{index:03d}.md"
-        story_path.write_text(render_story(project_id, epic_id, story_spec, effective_story_format), encoding="utf-8")
+        write_text(story_path, render_story(project_id, epic_id, story_spec, effective_story_format))
         active_story_paths.add(story_path)
         story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
         story_ids.append(story_id)
@@ -446,10 +444,7 @@ def generate_backlog(
     epic_ids = [epic_id]
     if enabler_specs:
         enabler_epic_path = base / "04_backlog" / "EPIC-002-cross-cutting-enablers.md"
-        enabler_epic_path.write_text(
-            render_enabler_epic(project_id, enabler_specs, story_specs, backlog_context, effective_story_format),
-            encoding="utf-8",
-        )
+        write_text(enabler_epic_path, render_enabler_epic(project_id, enabler_specs, story_specs, backlog_context, effective_story_format))
         enabler_epic_id = add_node(
             project_id,
             "EPIC",
@@ -463,7 +458,7 @@ def generate_backlog(
             add_edge(project_id, spec["id"], enabler_epic_id, "decomposes_to")
         for index, enabler_spec in enumerate(enabler_specs, start=len(story_specs) + 1):
             story_path = base / "04_backlog" / f"US-{index:03d}.md"
-            story_path.write_text(render_story(project_id, enabler_epic_id, enabler_spec, effective_story_format), encoding="utf-8")
+            write_text(story_path, render_story(project_id, enabler_epic_id, enabler_spec, effective_story_format))
             active_story_paths.add(story_path)
             story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
             story_ids.append(story_id)

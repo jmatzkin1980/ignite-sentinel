@@ -8,6 +8,7 @@ from .core.graph import add_edge, add_node, upsert_node
 from .core.markdown import parse_table_rows
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
+from .core.io import copy_file, write_text
 
 
 class ImplementationFeedbackError(RuntimeError):
@@ -34,7 +35,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     feedback_dir = base / "07_changes" / "05_implementation_feedback"
     feedback_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(feedback_dir / source.name)
-    shutil.copyfile(source, archived)
+    copy_file(source, archived)
     report_path = write_feedback_report(project_id, accepted, rejected, archived)
     write_feedback_gaps(project_id, accepted)
 
@@ -295,8 +296,7 @@ def write_feedback_report(
         for item in accepted
     ) or "| N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
     rejected_rows = "\n".join(f"| `{item['id']}` | {item['reason']} |" for item in rejected) or "| N/A | N/A |"
-    path.write_text(
-        f"""# Implementation Feedback Report - {project_id}
+    write_text(path, f"""# Implementation Feedback Report - {project_id}
 
 Source: `{source.as_posix()}`
 
@@ -313,9 +313,7 @@ This report records downstream implementation findings as governed feedback. Fin
 | Finding | Reason |
 | --- | --- |
 {rejected_rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 
@@ -328,17 +326,14 @@ def write_feedback_gaps(project_id: str, findings: list[dict[str, Any]]) -> Path
         f"| `{item['gap_id']}` | `{item['story_id']}` | {item['type']} | {item['status'].upper()} | {safe_cell(item['summary'], 180)} |"
         for item in gap_findings
     )
-    path.write_text(
-        f"""# Implementation Feedback Gaps - {project_id}
+    write_text(path, f"""# Implementation Feedback Gaps - {project_id}
 
 These gaps were opened by `/implementation-feedback`. They are downstream findings that require BA/Product review before the affected story is treated as Done.
 
 | Gap | Story | Type | Status | Summary |
 | --- | --- | --- | --- | --- |
 {rows}
-""",
-        encoding="utf-8",
-    )
+""")
     return path
 
 

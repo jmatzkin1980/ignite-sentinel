@@ -6,6 +6,7 @@ from typing import Any
 from ..core.markdown import parse_table_rows
 from ..core.time import utc_now
 from ..workspace import read_json, write_json, workspace_path
+from ..core.io import write_text
 
 LEDGER_STATUSES = {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"}
 
@@ -326,7 +327,7 @@ def materialize_knowledge_ledger(
     }
     md_path = base / "01_discovery" / "knowledge_state.md"
     write_json(json_path, payload)
-    md_path.write_text(render_knowledge_state(project_id, units, summary), encoding="utf-8")
+    write_text(md_path, render_knowledge_state(project_id, units, summary))
     return {"json_path": json_path, "md_path": md_path, "payload": payload}
 
 

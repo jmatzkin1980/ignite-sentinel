@@ -7,6 +7,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Single confined, atomic writer (IMP-287): every file the runtime writes goes through `sentinel.core.io` (`write_text`, `write_bytes`, `append_text`, `append_bytes`, `copy_file`, `write_json`). The destination must resolve inside its root — the project workspace it lives in, or an explicit root for repo-level outputs — so `..`, foreign absolute paths and links or junctions that leave the root raise `UnconfinedWrite`; both spellings of a folder (8.3 short names) compare equal. Writes land in a temporary file, are fsynced and swapped in with `os.replace`, so a failure halfway never truncates the previous content. The 85 direct writes and 10 `shutil.copyfile` calls were migrated, and an AST guard keeps `sentinel/` from writing any other way.
 - CI in GitHub Actions (IMP-246):
   - `ci-fast` runs on every push: unit suite without the slow modules, `/doctor`, faithfulness eval.
   - `ci-full` runs on every pull request: whole suite, evals, wheel in a clean venv, and a Windows/Linux × Python 3.10/3.13 × LanceDB × `mcp` 1/2 matrix.

@@ -26,7 +26,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .sources import discover_pending_sources, mark_source_processed
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
-from .core.io import append_text
+from .core.io import append_text, copy_file, write_text
 from .workspace import read_json, update_state, utc_now, workspace_path
 
 
@@ -37,7 +37,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
 
     target_dir = change_target_dir(base, source)
     target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
-    shutil.copyfile(source, target)
+    copy_file(source, target)
     text = source.read_text(encoding="utf-8")
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
 
@@ -72,8 +72,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         broker=broker,
     )
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
-    impact_path.write_text(
-        render_impact(
+    write_text(impact_path, render_impact(
             project_id,
             change_id,
             affected,
@@ -86,9 +85,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             metabolism,
             stale_result,
             suspicious_links,
-        ),
-        encoding="utf-8",
-    )
+        ))
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
     add_edge(project_id, change_id, impact_id, "produces")
 
@@ -359,7 +356,7 @@ def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], chang
 
     language = project_language(project_id)
     all_gaps = existing + merged
-    gaps_path.write_text(render_gaps(project_id, all_gaps, req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, all_gaps, req_id, language))
     counts = count_gaps(all_gaps)
     counts["sync_origin"] = sum(1 for gap in all_gaps if gap.get("origin") == "sync")
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
@@ -379,7 +376,7 @@ def apply_structured_gap_responses(project_id: str, text: str, source: Path, cha
     result = apply_gap_responses(existing, responses)
     annotate_resolution_source_types(result, source)
     language = project_language(project_id)
-    gaps_path.write_text(render_gaps(project_id, result["gaps"], req_id, language), encoding="utf-8")
+    write_text(gaps_path, render_gaps(project_id, result["gaps"], req_id, language))
     seed_ids = materialize_resolution_seeds(project_id, result["closed"], change_id)  # type: ignore[arg-type]
     decision_ids = materialize_resolution_decisions(project_id, result["closed"], change_id)  # type: ignore[arg-type]
     ears_ids = materialize_ears_requirements(project_id, result["closed"], change_id)  # type: ignore[arg-type]
@@ -462,16 +459,13 @@ def append_metabolism_log(
 ) -> Path:
     path = workspace_path(project_id) / "07_changes" / "metabolism_log.md"
     if not path.exists():
-        path.write_text(
-            f"""# Metabolism Log - {project_id}
+        write_text(path, f"""# Metabolism Log - {project_id}
 
 Every sync event records the evolution of project knowledge. Source files remain authoritative; LanceDB is retrieval memory.
 
 | Timestamp | Change ID | Source | Event Type | Health Signal |
 | --- | --- | --- | --- | --- |
-""",
-            encoding="utf-8",
-        )
+""")
     health_signal = "DIRTY" if gaps else "CLEAN"
     event_type = "GAP_OR_CHANGE_INPUT"
     reopened = reopened or []

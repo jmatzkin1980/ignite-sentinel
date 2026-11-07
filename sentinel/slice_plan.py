@@ -6,6 +6,7 @@ from typing import Any
 from .backlog.hooks import enforce_pre_handoff_gate
 from .memory import ContextBroker
 from .workspace import workspace_path, write_json
+from .core.io import write_text
 
 
 def generate_slice_plan(
@@ -43,7 +44,7 @@ def generate_slice_plan(
     }
     md_path = base / "04_backlog" / "SLICE-PLAN.md"
     json_path = base / "08_context_packs" / "slice_plan.json"
-    md_path.write_text(render_slice_plan(project_id, plan), encoding="utf-8")
+    write_text(md_path, render_slice_plan(project_id, plan))
     write_json(json_path, plan)
     ContextBroker(project_id).index_artifact(
         "SLICE-PLAN",

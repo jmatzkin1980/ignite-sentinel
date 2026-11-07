@@ -11,6 +11,7 @@ from ..deltas import DeltaStatus, delta_marker
 from ..memory import ContextBroker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
 from .prd import render_ears_requirements_table, render_prd_section_context
+from ..core.io import write_text
 
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
@@ -192,8 +193,7 @@ def write_spec_unit_delta_report(
             )
         return "\n".join(rendered)
 
-    path.write_text(
-        f"""# Spec Unit Delta - {project_id}
+    write_text(path, f"""# Spec Unit Delta - {project_id}
 
 - Project: `{project_id}`
 - Triggering change: `{change_id}`
@@ -213,9 +213,7 @@ def write_spec_unit_delta_report(
 {rows(entries)}
 
 Use this report to decide which backlog stories or implementation readiness entries need review after regenerating specs. Workspace artifacts remain the source of truth.
-""",
-        encoding="utf-8",
-    )
+""")
     delta_id = add_node(project_id, "DEC", "regeneration_diff", path, "Spec unit regeneration delta", domain="product")
     if change_id != "N/A":
         add_edge(project_id, change_id, delta_id, "triggers_regeneration")
@@ -268,7 +266,7 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     for unit in units:
         path = units_dir / f"{unit['id']}.md"
         unit["path"] = path
-        path.write_text(render_spec_unit(project_id, unit), encoding="utf-8")
+        write_text(path, render_spec_unit(project_id, unit))
         active_paths.add(path)
     for stale in units_dir.glob("SPEC-U-*.md"):
         if stale not in active_paths:
