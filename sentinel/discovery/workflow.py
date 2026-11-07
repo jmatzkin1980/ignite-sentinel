@@ -22,6 +22,7 @@ from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
+from ..injection import shield_source
 from ..secrets_scan import ingest_source, pii_report_enabled
 from ..sources import mark_source_processed
 from ..workspace import ensure_workspace, load_config, update_state, workspace_path
@@ -44,6 +45,8 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     raw_target = base / "00_raw" / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}"
     # IMP-285: secrets are redacted before anything is extracted; the original is only read.
     text, sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config))
+    # IMP-286: source content is data; instruction-shaped lines go to the BA, not to the compilers.
+    text, injection_ids = shield_source(base, source.name, text)
     language = resolve_project_language(config.get("project_language", "auto"), text)
     context = load_domain_context(base)
     mark_source_processed(project_id, source, "initial_ingested")
@@ -239,6 +242,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     return {
         "raw_id": raw_id,
         "secret_redactions": sanitized.redactions,
+        "injection_signals": injection_ids,
         "secret_alerts": str(sanitized.alerts_path.as_posix()) if sanitized.alerts_path else None,
         "requirement_id": req_id,
         "gap_id": gap_id,
