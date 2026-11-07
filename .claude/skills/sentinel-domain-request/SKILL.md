@@ -1,6 +1,6 @@
 ---
 name: sentinel-domain-request
-description: "Use when Technology, Design, Quality, Frontend, or Backend must deepen analysis from an Ignite Sentinel project brief: /context-request per domain generates a cited request pack under 08_context_packs/requests. Trigger on 'ask Technology for context', domain deep-dive needs, or missing domain evidence blocking a story or spec."
+description: "Use when Technology, Design, Quality, Frontend, or Backend must deepen analysis from an Ignite Sentinel project brief: /context-request per domain generates a cited request pack under 08_context_packs/requests. Trigger on 'ask Technology for context', domain deep-dive needs, or missing domain evidence blocking a story or spec. Not for questions the client must answer (those are gaps, use sentinel-gap-response)."
 ---
 
 # Sentinel Domain Request

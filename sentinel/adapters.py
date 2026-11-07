@@ -192,6 +192,15 @@ def skills_out_of_sync(root: Path | None = None) -> list[str]:
                 issues.append(f"{target}: missing {relative.as_posix()}")
             elif destination.read_bytes() != item.read_bytes():
                 issues.append(f"{target}: {relative.as_posix()} differs from canonical source")
+    # IMP-277: a skill renamed or removed at the source must not linger in a mirror.
+    canonical = {item.name for item in base.iterdir() if item.is_dir()} if base.is_dir() else set()
+    for target in SKILL_TARGET_DIRS:
+        mirror = root / target
+        if not mirror.is_dir():
+            continue
+        for item in sorted(mirror.iterdir()):
+            if item.is_dir() and item.name.startswith("sentinel-") and item.name not in canonical:
+                issues.append(f"{target}: stale skill {item.name} (not in {CANONICAL_SKILLS_DIR})")
     return issues
 
 

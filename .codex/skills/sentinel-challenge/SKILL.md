@@ -1,6 +1,6 @@
 ---
 name: sentinel-challenge
-description: "Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running the registry's elicitation techniques (pre-mortem, role-play, assumption inversion, JTBD forces, red/blue team, first principles, stakeholder round-robin) to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md."
+description: "Use when an Ignite Sentinel requirement is maturing and the agent should actively stress-test what is NOT being said — running the registry's elicitation techniques (pre-mortem, role-play, assumption inversion, JTBD forces, red/blue team, first principles, stakeholder round-robin) to surface risks the client never stated. Produces the structured findings that `/challenge` validates and merges with `origin: challenge`, plus a versionable challenge_report.md. Not for lens-by-lens scrutiny against sources (use sentinel-scrutiny) or registering gaps the requirement already states (use sentinel-discovery)."
 ---
 
 # Sentinel Challenge

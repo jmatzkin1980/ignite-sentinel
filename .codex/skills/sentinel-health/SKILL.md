@@ -1,6 +1,6 @@
 ---
 name: sentinel-health
-description: "Use when auditing an Ignite Sentinel workspace before or after downstream work: /health findings (traceability, blocking gaps, unbacked metrics, memory indexing, staleness), /validate structural verdict plus non-blocking semantic-quality and cross-artifact consistency warnings, and gate overrides with cited DEC-* decisions. Trigger on 'is the workspace healthy', a DIRTY verdict, validation warnings, or the final pre-handoff check."
+description: "Use when auditing an Ignite Sentinel workspace before or after downstream work: /health findings (traceability, blocking gaps, unbacked metrics, memory indexing, staleness), /validate structural verdict plus non-blocking semantic-quality and cross-artifact consistency warnings, and gate overrides with cited DEC-* decisions. Trigger on 'is the workspace healthy', a DIRTY verdict, validation warnings, or the final pre-handoff check. Not for deciding whether the requirement is mature enough for specs or backlog (use sentinel-maturity)."
 ---
 
 # Sentinel Health

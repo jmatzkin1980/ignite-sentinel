@@ -1,6 +1,6 @@
 ---
 name: sentinel-compose
-description: "Use when proposing polished PRD narrative through the sanctioned /compose channel: agent-authored paragraphs grounded in verbatim local citations, validated by the runtime and merged as agent-origin blocks — never hand-edits to prd.md. Trigger on 'improve the PRD wording', narrative enrichment for a section, or a rejected composition block."
+description: "Use when proposing polished PRD narrative through the sanctioned /compose channel: agent-authored paragraphs grounded in verbatim local citations, validated by the runtime and merged as agent-origin blocks — never hand-edits to prd.md. Trigger on 'improve the PRD wording', narrative enrichment for a section, or a rejected composition block. Not for generating the PRD itself (use sentinel-specs) or an adversarial review of it (use sentinel-self-review)."
 ---
 
 # Sentinel Compose
