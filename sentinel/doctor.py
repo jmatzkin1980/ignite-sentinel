@@ -476,6 +476,7 @@ def network_isolation_check() -> dict[str, str]:
         return {"name": label, "status": "FAIL", "detail": "; ".join(violations)}
     return {"name": label, "status": "PASS", "detail": "no socket/urllib/http/ftplib/smtplib/ssl or HTTP client imports; webbrowser only on file://"}
 
+
 # IMP-277: naming convention and description best practices for distribution.
 _SKILL_CONVENTION = re.compile(r"sentinel-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 # Surface or vendor names never belong in a skill name: mirrors are byte-identical
