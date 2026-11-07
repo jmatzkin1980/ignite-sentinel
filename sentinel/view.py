@@ -17,6 +17,7 @@ from .shell import content_fingerprint, fill, json_for_script, render_shell, tem
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 from .core.io import write_text
+from .secrets_scan import assert_no_leaks
 
 
 ARTIFACTS = {
@@ -723,6 +724,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{artifact}.html"
+    assert_no_leaks(project_id, rendered, workspace_path(project_id), f"/view {artifact}")
     write_text(out, rendered, newline="\n")
     if open_browser:
         webbrowser.open(out.resolve().as_uri())

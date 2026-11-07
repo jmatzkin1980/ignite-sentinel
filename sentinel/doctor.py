@@ -102,6 +102,8 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         *skill_metadata_checks(root),
         *skill_invocation_checks(root),
         skill_spec_compliance_check(root),
+        tracked_secrets_check(root),
+        workspaces_ignored_check(root),
         *kilo_agent_metadata_checks(root),
         *hook_governance_checks(root),
         launcher_exit_code_check(root),
@@ -415,6 +417,83 @@ def skill_spec_violations(root: Path) -> list[str]:
                 violations.append(f"{skill}: {relative.as_posix()} nests deeper than one reference level")
 
     return violations
+
+
+# IMP-285: the repo itself must not carry secrets, and client workspaces must
+# never be committed. Both read git's own view of the tree; without git (a zip
+# download, a plugin cache) the checks degrade to WARN instead of guessing.
+_MAX_SCANNED_BYTES = 1_000_000
+
+
+def _git(root: Path, *args: str) -> "subprocess.CompletedProcess[str] | None":
+    import subprocess
+
+    try:
+        return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def tracked_secret_findings(root: Path) -> list[str] | None:
+    from .secrets_scan import detect_secrets, load_allowlist
+
+    listing = _git(root, "ls-files", "-z")
+    if listing is None or listing.returncode != 0:
+        return None
+    allowlist = load_allowlist(root)
+    findings: list[str] = []
+    for name in sorted(item for item in listing.stdout.split("\0") if item):
+        path = root / name
+        try:
+            if not path.is_file() or path.stat().st_size > _MAX_SCANNED_BYTES:
+                continue
+            text = path.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue  # binary or unreadable: not a text secret carrier
+        for item in detect_secrets(text, allowlist):
+            findings.append(f"{name}:{item.line} {item.type} ({item.short})")
+    return findings
+
+
+def tracked_secrets_check(root: Path) -> dict[str, str]:
+    label = "tracked files carry no secrets"
+    findings = tracked_secret_findings(root)
+    if findings is None:
+        return {"name": label, "status": "WARN", "detail": "not a git checkout (or git unavailable); tracked files not scanned"}
+    if findings:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(findings[:20]) + (f"; +{len(findings) - 20} more" if len(findings) > 20 else "")}
+    return {"name": label, "status": "PASS", "detail": "no private key, cloud key, JWT, token, URL credential or connection string in git ls-files"}
+
+
+def workspaces_ignored_check(root: Path) -> dict[str, str]:
+    """IMP-285 + IMP-212: new workspaces are ignored by default; versioning one is an explicit choice.
+
+    A tracked file outside `_template/` and `.gitkeep` is a WARN, not a FAIL: in a
+    private project repo the owner may un-ignore their workspace on purpose
+    (`!workspaces/<ID>/`, see .gitignore), but in a public repo it is a leak.
+    """
+    label = "workspaces/ is ignored by git"
+    probe = "workspaces/__sentinel_probe__/00_raw/source.md"
+    result = _git(root, "check-ignore", "-q", "--no-index", probe)
+    if result is None or result.returncode not in (0, 1):
+        return {"name": label, "status": "WARN", "detail": "not a git checkout (or git unavailable); ignore rules not checked"}
+    if result.returncode == 1:
+        return {"name": label, "status": "FAIL", "detail": "a new workspace would be committable: keep the blanket `workspaces/*` rule in .gitignore"}
+    tracked = _git(root, "ls-files", "workspaces")
+    projects = sorted(
+        {
+            line.split("/")[1]
+            for line in (tracked.stdout.splitlines() if tracked and tracked.returncode == 0 else [])
+            if line.count("/") >= 2 and line.split("/")[1] != "_template"
+        }
+    )
+    if projects:
+        return {
+            "name": label,
+            "status": "WARN",
+            "detail": f"versioned workspace(s): {', '.join(projects)} — fine in a private repo you own; never push them to a public one",
+        }
+    return {"name": label, "status": "PASS", "detail": "new workspaces are ignored; only _template/ is versioned"}
 
 
 def skill_spec_compliance_check(root: Path) -> dict[str, str]:
