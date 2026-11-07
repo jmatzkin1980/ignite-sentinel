@@ -65,11 +65,22 @@ def fill(name: str, **values: str) -> str:
     return Template(template_text(name)).substitute(**values)
 
 
+# IMP-288: every page the shell renders is self-contained. Inline styles and
+# scripts run, embedded (`data:`) images and fonts load (IMP-241 themes), and
+# nothing else: no remote resource, connection, form submission or base rewrite.
+# A meta tag, not a header: the pages are opened from disk.
+VIEW_CSP = (
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; "
+    "font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+)
+
+
 def render_shell(*, theme: dict, title: str, heading: str, nav: str, content: str, page_css: str, page_js: str, language: str = "es") -> str:
     labels = LABELS.get(language, LABELS["en"])
     return fill(
         "shell.html",
         lang=language,
+        csp=VIEW_CSP,
         title=html.escape(title),
         heading=heading,
         theme_css=theme_css(theme),
