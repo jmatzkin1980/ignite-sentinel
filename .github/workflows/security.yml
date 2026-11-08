@@ -1,0 +1,84 @@
+# IMP-289 — supply chain and security CI (extends IMP-246).
+# - dependency review on pull requests (fails on high-severity advisories);
+# - CodeQL for Python (the only job with write access: security-events);
+# - extras locks: every requirement hash-pinned (tools/check_constraints.py),
+#   pip-audit over each lock, and a --require-hashes install that proves the
+#   pinned hashes are real; the CycloneDX SBOM is built and kept as an artifact.
+# Secret scanning and push protection are repository settings, not jobs.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: python
+          build-mode: none
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: "/language:python"
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Extras locks are hash-pinned
+        run: python tools/check_constraints.py
+      - name: Install pip-audit (hash-pinned)
+        run: python -m pip install --require-hashes -r tools/pip-audit.lock.txt
+      - name: pip-audit over every extras lock
+        run: |
+          for lock in constraints/*.txt; do
+            echo "::group::pip-audit $lock"
+            python -m pip_audit --disable-pip --require-hashes --progress-spinner off -r "$lock"
+            echo "::endgroup::"
+          done
+      - name: Pinned hashes are installable (mcp, memory)
+        run: |
+          python -m venv /tmp/locked
+          /tmp/locked/bin/python -m pip install --require-hashes --no-deps -r constraints/mcp.txt -r constraints/memory.txt
+      - name: SBOM (CycloneDX)
+        run: python tools/sbom.py -o dist/ignite-sentinel.cdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: dist/ignite-sentinel.cdx.json
+          retention-days: 30

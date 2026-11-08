@@ -1411,6 +1411,12 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         observed="2026-11-06",
         note="Read by GitHub, not by us: the only proof is a run observed on GitHub. First green run: PR #241, run 42260645975 (ci-fast + 5 ci-full jobs, real mcp 1.30.0 / 2.3.0 and lancedb 0.41.0).",
     ),
+    ".github/dependabot.yml": SurfaceContract(
+        surfaces=("GitHub Dependabot",),
+        live_check="After merging, open Insights -> Dependency graph -> Dependabot: the `github-actions` ecosystem is listed with a recent successful check (or a grouped `ci` PR bumping a pinned SHA appears).",
+        observed="",
+        note="IMP-289. Read by GitHub, not by us: a file that parses proves nothing until Dependabot reports a run.",
+    ),
     "AGENTS.md": SurfaceContract(
         surfaces=("Codex", "any agent honouring the AGENTS.md convention"),
         live_check="Start a Codex session at the repo root and confirm the operating rules are in context (ask it to state a non-negotiable rule it did not read from a file you named).",

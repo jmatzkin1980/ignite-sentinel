@@ -75,6 +75,11 @@ class Imp246Contracts(unittest.TestCase):
         self.assertIn(".github/workflows", SURFACE_CONTRACTS)
         self.assertIn("GitHub Actions", SURFACE_CONTRACTS[".github/workflows"].surfaces)
 
+    def test_dependabot_config_is_a_registered_contract(self):
+        """IMP-289: GitHub Dependabot reads .github/dependabot.yml."""
+        self.assertIn(".github/dependabot.yml", SURFACE_CONTRACTS)
+        self.assertIn("GitHub Dependabot", SURFACE_CONTRACTS[".github/dependabot.yml"].surfaces)
+
     def test_app_session_worktrees_are_exempt_with_a_reason(self):
         self.assertIn(".claude/worktrees", SURFACE_CONTRACT_EXEMPT)
         self.assertTrue(SURFACE_CONTRACT_EXEMPT[".claude/worktrees"].strip())
