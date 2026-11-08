@@ -1,0 +1,14 @@
+# IMP-289 — keep the SHA-pinned GitHub Actions current (weekly, grouped).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

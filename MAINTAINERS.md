@@ -18,6 +18,10 @@ The rules below exist because, in this repository, the framework and its trial p
   - The slow list is explicit, picked from `python tools/time_tests.py`. Re-measure it when the suite grows.
   - Actions are pinned by commit SHA and workflows run with read-only permissions.
   - A workflow is a surface contract: it is only proven by a run observed on GitHub.
+- **Supply chain (IMP-289).**
+  - Each optional extra has a hash-pinned lock in `constraints/<extra>.txt`; `python tools/check_constraints.py` fails on a dependency without `==` or a hash. Regenerate a lock with the `uv pip compile` command in its header (two-week `--exclude-newer` cooldown).
+  - `security` runs dependency review on PRs, CodeQL (Python), `pip-audit` over every lock and a `--require-hashes` install. Dependabot bumps the SHA-pinned actions.
+  - `python tools/sbom.py -o <file>` writes the CycloneDX SBOM. On a `v*` tag, `release-attest` builds the wheel and the SBOM and attests their provenance (`gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`).
 - **Tune project domains and maturity gates** in `sentinel.config.yaml`.
 - **Keep the checkout lean.** Eval reports under `tests/evals/reports/` keep only the newest `SENTINEL_EVAL_KEEP_REPORTS` (default 5) per kind; `SENTINEL_EVAL_REPORTS=0` skips writing them (CI). `python tools/clean_local.py` lists regenerable local residue (git-ignored caches and build output, old reports, leftover test tempdirs) as a dry-run; `--apply` deletes it. It never touches tracked files, `.venv/`, `docs/` or `*.local.*`, and offers `workspaces/*` only with `--include-workspaces` plus a typed per-workspace confirmation. Tests must clean what they create: prefer `tempfile.TemporaryDirectory` with `addCleanup` over a bare `mkdtemp()`.
 
