@@ -43,7 +43,7 @@ The plugin carries the package version (`plugin.json` → `version`). Claude Cod
 | One release | `/plugin marketplace add jmatzkin1980/ignite-sentinel#vX.Y.Z` | Exactly that release, until you add another ref. |
 | `main` | `/plugin marketplace add jmatzkin1980/ignite-sentinel` | Everything merged, released or not. |
 
-The first release that carries the plugin is the one after `0.2.0`. Until it is cut, `stable` does not exist yet: use `main`.
+The first release that carries the plugin is `0.3.0`.
 
 A marketplace name can be registered only once, so switch channels with `/plugin marketplace remove ignite-sentinel` and add it again with the new ref.
 
