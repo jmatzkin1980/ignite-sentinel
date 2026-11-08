@@ -15,7 +15,7 @@ from pathlib import Path
 
 from sentinel.cli import main
 from sentinel.discovery import parse_gap_rows
-from sentinel.gap_resolution import resolve_gaps
+from sentinel.gap_resolution import classify_resolution_source, resolve_gaps
 from sentinel.maturity import maturation_telemetry
 from sentinel.status import project_status
 from sentinel.sync import sync_change
@@ -98,6 +98,27 @@ class TelemetryTests(unittest.TestCase):
         tel = maturation_telemetry("TEL")
         self.assertEqual(tel["reopened_by_sync_total"], 0)
         self.assertNotIn("GAP-USERS", tel["reopened_by_sync_gap_ids"])
+
+
+class ResolutionSourceClassificationTests(unittest.TestCase):
+    """The answer file's folder must not decide who answered (CI flake: a
+    `mkdtemp` name like `/tmp/tmpqa3k_x9z` turned a client answer into `domain`)."""
+
+    def test_directory_of_the_answer_file_is_ignored(self):
+        for folder in ("/tmp/tmpqa3k_x9z", "/home/ci/techdebt", "/srv/agents"):
+            source = Path(folder) / "client.md"
+            self.assertEqual(classify_resolution_source("Client product owner", "Workshop", source), "client", folder)
+
+    def test_tokens_match_at_word_start_not_inside_words(self):
+        self.assertEqual(classify_resolution_source("Aqua Retail sponsor"), "client")
+        self.assertEqual(classify_resolution_source("Fintech partner"), "client")
+
+    def test_owner_evidence_and_file_name_still_classify(self):
+        self.assertEqual(classify_resolution_source("UX Designer"), "domain")
+        self.assertEqual(classify_resolution_source("QA lead"), "domain")
+        self.assertEqual(classify_resolution_source("Sentinel inference"), "inference")
+        self.assertEqual(classify_resolution_source("Ops", "", Path("/x/architecture-answers.md")), "domain")
+        self.assertEqual(classify_resolution_source("Ops", "", Path("/x/client_qa.md")), "domain")
 
 
 if __name__ == "__main__":
