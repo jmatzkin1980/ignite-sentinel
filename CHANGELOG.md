@@ -43,6 +43,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ### Fixed
 - A non-editable install (`pip install .`) now ships every `sentinel` subpackage; it previously failed with `ModuleNotFoundError: sentinel.core`.
 - `tests/test_momtest.py` no longer leaves temporary directories behind on every run.
+- `/resolve-gaps` no longer classifies a client answer as `domain` or `inference` because of the folder the answer file sits in: only the owner, the evidence and the file's own name count, and keywords must start a word (`QA lead`, not `Aqua`). This was the intermittent `test_closed_split_by_client_domain_and_inference_source` failure on Linux CI, where a random `/tmp/tmpqa…` directory tipped the split.
 
 ### Security
 - `PROJECT_ID` is validated at the CLI boundary, which MCP tools also go through (IMP-243):
