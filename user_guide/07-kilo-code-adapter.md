@@ -84,6 +84,18 @@ How to use them:
 
 The 7 agents in `.kilo/agents/` and the skills coexist. What each agent actually declares today is `name`, `description` and `mode: primary` — Kilo *supports* per-agent model and permission choices, but this repo does not use them. The practical difference is that an agent body is always in context once you pick that mode, whereas a skill loads when the agent judges it relevant; and 17 of the 24 skills have no agent counterpart.
 
+## Plugin: use the clone
+
+Kilo Code, including the VS Code extension, runs Sentinel from the clone: `.agents/skills`, `.kilo/agents` and `.kilo/commands`. There is no Sentinel plugin for Kilo, and none is planned while Kilo's plugin format stays as documented today (IMP-281):
+
+- A Kilo plugin is a JavaScript/TypeScript module. A marketplace entry (`PLUGIN.yaml`) points at an npm package, or at a git repo whose `package.json` exports `./server` or `./tui`. Kilo documents no skills-only plugin, and Sentinel's runtime is Python with no JS (`sentinel/` is stdlib-only).
+- Kilo's marketplace has a separate item type for skills, but it is a catalogue curated by Kilo. Sentinel's 24 skills drive one Python runtime and only make sense together, so they are not suited to it.
+- Kilo exposes no plugin path variable to skills, so the Claude Code plugin's `${CLAUDE_PLUGIN_ROOT}` invocation would not resolve there either.
+
+Sources: the Kilo marketplace README (`Kilo-Org/kilo-marketplace`, `plugins/README.md`) and kilo.ai's plugin and skills docs, read on 2026-11-07 for Kilo Code 7.8.27.
+
+If you want the skills available outside this repository, add the clone's `.agents/skills` folder to `skills.paths` in your **user-level** Kilo config. Kilo does not trust paths that only a project config declares outside that project.
+
 ## Slash Workflows
 
 Kilo Code supports repo-local workflows in `.kilo/commands/`. In this repo, those workflows let you type short Ignite commands directly in Kilo chat.
