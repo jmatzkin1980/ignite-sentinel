@@ -1,0 +1,19 @@
+{
+  "strictKnownMarketplaces": [
+    { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.3.0" }
+  ],
+  "extraKnownMarketplaces": {
+    "ignite-sentinel": {
+      "source": { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.3.0" },
+      "autoUpdate": false
+    }
+  },
+  "enabledPlugins": {
+    "ignite-sentinel@ignite-sentinel": true,
+    "ignite-sentinel-mcp@ignite-sentinel": false
+  },
+  "disableSideloadFlags": true,
+  "allowManagedHooksOnly": true,
+  "disableCommandPluginSources": true,
+  "pluginTrustMessage": "Ignite Sentinel is approved by IT at the pinned release only."
+}
