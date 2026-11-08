@@ -187,11 +187,19 @@ def annotate_resolution_source_types(result: dict[str, object], source: Path) ->
                 )
 
 
+def _mentions_any(text: str, tokens: set[str]) -> bool:
+    # A token must start a word ("UX Designer" -> design, "QA lead" -> qa), never
+    # sit inside one ("Aqua", "Fintech"). Underscores and hyphens separate words.
+    return any(re.search(rf"(?<![^\W_]){re.escape(token)}", text) for token in tokens)
+
+
 def classify_resolution_source(owner: str, evidence: str = "", source: Path | None = None) -> str:
-    text = f"{owner} {evidence} {source.as_posix() if source else ''}".lower()
-    if any(token in text for token in INFERENCE_SOURCE_TOKENS):
+    # Only the answer file's own name counts, never the folder it lives in: a
+    # random temp dir such as /tmp/tmpqa3k_x9z must not turn a client into QA.
+    text = f"{owner} {evidence} {source.stem if source else ''}".lower()
+    if _mentions_any(text, INFERENCE_SOURCE_TOKENS):
         return "inference"
-    if any(token in text for token in DOMAIN_SOURCE_TOKENS):
+    if _mentions_any(text, DOMAIN_SOURCE_TOKENS):
         return "domain"
     return "client"
 
