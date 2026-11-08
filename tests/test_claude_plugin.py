@@ -125,6 +125,13 @@ class OutOfSyncDetectionTests(unittest.TestCase):
     def test_a_fresh_generation_is_in_sync(self) -> None:
         self.assertEqual(pp.plugin_out_of_sync(self.tmp), [])
 
+    def test_a_crlf_checkout_is_still_in_sync(self) -> None:
+        # Windows CI checks out with `* text=auto`: generated LF text arrives as CRLF.
+        for relative in (pp.MARKETPLACE_FILE, f"plugins/{pp.PLUGIN_NAME}/launcher.py"):
+            path = self.tmp / relative
+            path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        self.assertEqual(pp.plugin_out_of_sync(self.tmp), [])
+
     def test_a_hand_edit_in_the_bundled_runtime_is_reported(self) -> None:
         target = self.tmp / "plugins" / pp.PLUGIN_NAME / "lib" / "sentinel" / "cli.py"
         target.write_bytes(target.read_bytes() + b"# hand edit\n")

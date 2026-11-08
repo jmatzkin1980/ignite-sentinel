@@ -188,6 +188,11 @@ def expected_plugin_files(root: Path) -> dict[str, bytes]:
     return files
 
 
+def _same(path: Path, content: bytes) -> bool:
+    """Equal up to line endings: a Windows checkout (`* text=auto`) turns LF into CRLF."""
+    return path.read_bytes().replace(b"\r\n", b"\n") == content.replace(b"\r\n", b"\n")
+
+
 def _existing_plugin_files(root: Path) -> set[str]:
     found: set[str] = set()
     for name in PLUGIN_NAMES:
@@ -208,7 +213,7 @@ def regenerate_plugin(root: Path | None = None) -> dict[str, int]:
     written = 0
     for relative, content in expected.items():
         destination = root / relative
-        if destination.exists() and destination.read_bytes() == content:
+        if destination.exists() and _same(destination, content):
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
         write_bytes(destination, content, root=root)
@@ -235,7 +240,7 @@ def plugin_out_of_sync(root: Path | None = None) -> list[str]:
         path = root / relative
         if not path.exists():
             issues.append(f"missing {relative}")
-        elif path.read_bytes() != content:
+        elif not _same(path, content):
             issues.append(f"{relative} differs from the generator")
     for relative in sorted(_existing_plugin_files(root) - set(expected)):
         issues.append(f"stale {relative} (not generated)")
