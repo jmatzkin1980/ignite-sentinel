@@ -1,0 +1,22 @@
+{
+  "name": "ignite-sentinel",
+  "owner": {
+    "name": "jmatzkin1980"
+  },
+  "description": "Ignite Sentinel: local-first requirements operating framework for AI PODs.",
+  "plugins": [
+    {
+      "name": "ignite-sentinel",
+      "source": "./plugins/ignite-sentinel",
+      "description": "Repo-local BA/Product requirements operating framework for AI PODs.",
+      "category": "productivity"
+    },
+    {
+      "name": "ignite-sentinel-mcp",
+      "source": "./plugins/ignite-sentinel-mcp",
+      "description": "MCP server for Ignite Sentinel. Off by default: it needs the `mcp` package (`pip install \"mcp>=1.2,<3\"`) in the Python that runs it.",
+      "category": "productivity",
+      "defaultEnabled": false
+    }
+  ]
+}

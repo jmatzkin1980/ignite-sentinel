@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ignite-sentinel": {
+      "command": "python",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/launcher.py",
+        "--mcp"
+      ]
+    }
+  }
+}

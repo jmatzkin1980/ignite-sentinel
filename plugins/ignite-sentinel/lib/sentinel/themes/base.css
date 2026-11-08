@@ -1,0 +1,20 @@
+/* Ignite Sentinel base stylesheet (IMP-238). No literal colours: every colour
+   is a theme token, and every var(--x) used here is a token a theme must define
+   in both modes (sentinel/themes.py:required_tokens derives the list from this
+   file). --font and --font-mono come from the theme's tipografia. */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; }
+code, pre { font-family: var(--font-mono); }
+a { color: var(--link); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.surface { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.surface-2 { background: var(--surface-2); }
+.muted { color: var(--text-muted); }
+.accent-bar { border-top: 3px solid var(--accent); }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 0.85em; border-left: 3px solid transparent; }
+.chip-ok { background: var(--ok-soft); color: var(--ok-text); border-left-color: var(--ok); }
+.chip-info { background: var(--info-soft); color: var(--info-text); border-left-color: var(--info); }
+.chip-warn { background: var(--warn-soft); color: var(--warn-text); border-left-color: var(--warn); }
+.chip-block { background: var(--block-soft); color: var(--block-text); border-left-color: var(--block); }
+.chip-governance { background: var(--governance-soft); color: var(--governance-text); border-left-color: var(--governance); }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 8px 0; }
+.legend li { margin: 0; }

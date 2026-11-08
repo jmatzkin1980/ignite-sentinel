@@ -19,6 +19,8 @@ All commands call the same portable CLI as the Codex and Kilo adapters:
 python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
 ```
 
+> Prefer not to clone? Install the [Claude Code plugin](18-claude-plugin.md) instead; use one or the other, not both.
+
 ## Setup check
 
 Before relying on Claude chat commands in a freshly cloned repository, open the repo root in VS Code (or connect the folder in Claude Desktop) and run:

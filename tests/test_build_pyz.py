@@ -22,15 +22,18 @@ PORTABLE_ROOT_FILES = (
     "LICENSE",
     "README.md",
     "kilo.jsonc",
+    "pyproject.toml",
 )
 
 PORTABLE_ROOT_DIRS = (
     ".agents",
     ".claude",
+    ".claude-plugin",
     ".codex",
     ".kilo",
     "input",
     "installers",
+    "plugins",
     "sentinel",
     "user_guide",
     "workspaces/_template",

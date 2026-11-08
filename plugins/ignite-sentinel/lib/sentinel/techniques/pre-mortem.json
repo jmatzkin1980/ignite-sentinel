@@ -1,0 +1,34 @@
+{
+  "id": "pre-mortem",
+  "name": "pre-mortem",
+  "category": "failure-analysis",
+  "default": true,
+  "prompt": "Imagine the project failed six months after release. Identify what the requirement failed to ask, per Ignite lens.",
+  "calibration": {
+    "business": "Use business-facing wording: outcomes, policy, users, acceptance, and decision ownership; avoid implementation jargon.",
+    "technical": "Use technical wording: data contracts, interfaces, constraints, failure modes, observability, and implementation surfaces."
+  },
+  "evidence_contract": "Every finding must cite a verbatim local evidence fragment or remain outside the runtime merge.",
+  "output_focus": [
+    "failure mode",
+    "missing decision",
+    "question for client or domain owner"
+  ],
+  "risk_taxonomy": [
+    {
+      "label": "Tiger",
+      "definition": "A real, dangerous risk: high likelihood and high impact, and already visible in the evidence.",
+      "response": "Hunt it — raise the question that closes it and treat the underlying gap as high/critical severity."
+    },
+    {
+      "label": "Paper Tiger",
+      "definition": "A risk that looks threatening but is low real risk once examined: low likelihood or low impact.",
+      "response": "Note it and move on — do not spend scarce discovery effort; keep any gap at low/medium severity."
+    },
+    {
+      "label": "Elephant",
+      "definition": "A large, obvious risk that no one is naming — the elephant in the room; the failure mode is the silence itself.",
+      "response": "Surface it explicitly and force it into a decision or a gap; never let it stay unstated."
+    }
+  ]
+}

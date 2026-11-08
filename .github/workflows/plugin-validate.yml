@@ -1,0 +1,39 @@
+# IMP-279 — Claude Code plugin and marketplace.
+# The authoritative validator is Claude Code's own `claude plugin validate`;
+# `/doctor` runs only an offline subset (claude_plugin_check). The CLI is pinned
+# to an exact version, and the runner's preinstalled Node runs it through npx.
+name: plugin-validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLAUDE_CODE_VERSION: "2.1.305"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Generated plugin is in sync
+        run: |
+          python -m sentinel.adapters --plugin
+          git diff --exit-code -- plugins .claude-plugin
+      - name: claude plugin validate --strict (marketplace and both plugins)
+        run: |
+          for target in . plugins/ignite-sentinel plugins/ignite-sentinel-mcp; do
+            npx --yes "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" plugin validate --strict "$target"
+          done

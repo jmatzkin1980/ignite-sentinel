@@ -1,0 +1,18 @@
+{
+  "id": "jtbd-forces",
+  "name": "JTBD Four Forces",
+  "category": "jtbd",
+  "default": true,
+  "prompt": "Use JTBD Four Forces to stress-test the requirement: push of the current situation, pull of the new solution, anxiety about switching, and habit/inertia holding the old behavior. Anchor every finding in a concrete past event, observed quote, or local evidence; do not ask only hypothetical preference questions.",
+  "calibration": {
+    "business": "Use stakeholder-facing wording: what happened, what pushed the current behavior, what pulled them toward change, what worried them, and what existing habit may resist the switch.",
+    "technical": "Use delivery-facing wording: observed trigger, target capability pull, switching anxiety, operational inertia, affected interfaces/data/processes, and evidence that the event already happened."
+  },
+  "evidence_contract": "Every JTBD force finding must cite a verbatim local event, quote, or requirement fragment. Pure hypothetical phrasing must remain a guardrail signal, not a confirmed gap closure.",
+  "output_focus": [
+    "push of current situation",
+    "pull of new solution",
+    "switching anxiety",
+    "habit or inertia"
+  ]
+}

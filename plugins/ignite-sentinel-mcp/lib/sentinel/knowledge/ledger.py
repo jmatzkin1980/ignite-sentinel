@@ -1,0 +1,683 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from ..core.markdown import parse_table_rows
+from ..core.time import utc_now
+from ..workspace import read_json, write_json, workspace_path
+from ..core.io import write_text
+
+LEDGER_STATUSES = {"CONFIRMED", "ASSUMED", "OPEN", "INFERRED"}
+
+# IMP-154: promotion event. A closed enum of the governed triggers that can move a
+# fact from ephemeral discovery into persistent semantic memory. A trigger outside
+# this set fails visibly instead of degrading to a generic "other" event.
+PROMOTION_TRIGGER_TYPES = {
+    "embedding_threshold",
+    "human_decision",
+    "gap_closed",
+    "associative_metabolism",
+}
+PROMOTION_STATUSES = {"promoted", "revoked"}
+
+
+class UnknownPromotionTrigger(ValueError):
+    """IMP-154: a promotion whose ``trigger_type`` is not in the closed enum must
+    fail visibly, never degrade to a generic event."""
+
+
+def current_units(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ledger units valid as of now — those with ``invalid_at`` unset (IMP-152).
+
+    The bitemporal foundation for invalidate-not-delete (IMP-153) and as-of
+    queries (IMP-155): a current fact carries ``invalid_at = None``; a superseded
+    one keeps its row with ``invalid_at`` set instead of being dropped.
+    """
+    return [unit for unit in units if unit.get("invalid_at") is None]
+
+
+def assumption_link_target(unit: dict[str, Any]) -> str | None:
+    """The assumption id a ledger unit is anchored to, from its links (or None)."""
+    for link in unit.get("links", []) or []:
+        if isinstance(link, dict) and link.get("type") == "assumption" and link.get("target"):
+            return str(link["target"])
+    return None
+
+
+def record_superseded_units(
+    project_id: str,
+    before_units: list[dict[str, Any]],
+    after_units: list[dict[str, Any]],
+    invalidated_assumption_ids: set[str] | list[str],
+) -> list[dict[str, Any]]:
+    """IMP-153: invalidate-not-delete + typed supersession.
+
+    Reusing the invalidation already detected upstream (IMP-125
+    ``detect_invalidated_assumptions``) — this never re-detects — record the
+    pre-change ledger unit(s) for each invalidated assumption in the ledger's
+    append-only ``invalidated_units`` history, stamped ``invalid_at`` and linked
+    by a typed ``superseded_by`` edge to their current replacement, instead of
+    letting the rebuild silently drop the prior version. The current ledger stays
+    the single source of truth for live facts; this only preserves history.
+    """
+    ids = {str(a).upper() for a in invalidated_assumption_ids}
+    if not ids:
+        return []
+    now = utc_now()
+    replacements = {
+        assumption_link_target(unit).upper(): unit.get("id")
+        for unit in after_units
+        if assumption_link_target(unit)
+    }
+    entries: list[dict[str, Any]] = []
+    for unit in before_units:
+        target = assumption_link_target(unit)
+        if target and target.upper() in ids and unit.get("invalid_at") is None:
+            entries.append(
+                {
+                    **unit,
+                    "invalid_at": now,
+                    "superseded_by": replacements.get(target.upper()),
+                    "supersession_reason": "assumption_invalidated",
+                }
+            )
+    if not entries:
+        return []
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return []
+    history = list(payload.get("invalidated_units", []))
+    history.extend(entries)
+    payload["invalidated_units"] = history
+    write_json(json_path, payload)
+    return entries
+
+
+def active_promotions(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """origin_ref -> latest promotion event for facts currently promoted.
+
+    Reads the append-only ``promotion_events`` history in order, so the latest
+    ``revoked`` event for an ``origin_ref`` removes it from the active set.
+    """
+    latest: dict[str, dict[str, Any]] = {}
+    for event in events:
+        ref = str(event.get("origin_ref") or "").strip()
+        if ref:
+            latest[ref] = event
+    return {ref: event for ref, event in latest.items() if event.get("status") == "promoted"}
+
+
+def record_promotion_event(
+    project_id: str,
+    *,
+    trigger_type: str,
+    origin_ref: str,
+    statement: str = "",
+    status: str = "promoted",
+) -> dict[str, Any] | None:
+    """IMP-154: emit a typed promotion event when a fact is promoted to (or revoked
+    from) persistent semantic memory.
+
+    The event ``{id, node_type, trigger_type, origin_ref, statement, status,
+    timestamp}`` is appended to the ledger payload's ``promotion_events`` history,
+    which ``materialize_knowledge_ledger`` carries forward across rebuilds exactly
+    like ``invalidated_units``. This is an additive audit projection over the
+    already-governed signals — never a second source of truth for the facts.
+
+    Deterministic novelty gate, never an LLM judgement: a fact already promoted
+    under the same ``origin_ref`` does not re-fire, and a fact that is not currently
+    promoted cannot be revoked. A ``trigger_type`` outside the closed enum raises
+    ``UnknownPromotionTrigger`` (fail-visible). Revocation appends a ``revoked``
+    event; the original ``promoted`` event stays intact.
+    """
+    if trigger_type not in PROMOTION_TRIGGER_TYPES:
+        raise UnknownPromotionTrigger(
+            f"unknown promotion trigger_type {trigger_type!r}; expected one of {sorted(PROMOTION_TRIGGER_TYPES)}"
+        )
+    if status not in PROMOTION_STATUSES:
+        raise ValueError(f"unknown promotion status {status!r}; expected one of {sorted(PROMOTION_STATUSES)}")
+    ref = str(origin_ref or "").strip()
+    if not ref:
+        return None
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return None
+    events = list(payload.get("promotion_events", []))
+    active = active_promotions(events)
+    # Deterministic novelty gate: known content does not re-fire, and there is
+    # nothing to revoke for a fact that is not currently promoted.
+    if status == "promoted" and ref in active:
+        return None
+    if status == "revoked" and ref not in active:
+        return None
+    event = {
+        "id": f"PROMO-{len(events) + 1:03d}",
+        "node_type": "promotion_event",
+        "trigger_type": trigger_type,
+        "origin_ref": ref,
+        "statement": statement,
+        "status": status,
+        "timestamp": utc_now(),
+    }
+    events.append(event)
+    payload["promotion_events"] = events
+    write_json(json_path, payload)
+    return event
+
+
+def promotion_events(project_id: str) -> list[dict[str, Any]]:
+    """The append-only promotion event history for a project (IMP-154)."""
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    events = payload.get("promotion_events", []) if isinstance(payload, dict) else []
+    return events if isinstance(events, list) else []
+
+
+ORIGIN_LINK_TYPES = {"seed", "gap", "decision", "assumption", "source", "artifact", "parent"}
+
+
+def _current_as_of(unit: dict[str, Any], timestamp: str) -> bool:
+    """True when ``unit``'s bitemporal window covers ``timestamp``.
+
+    Timestamps are the ledger's UTC ISO-8601 strings (``utc_now``): fixed width and
+    a single offset, so a lexicographic comparison is a correct chronological one and
+    sidesteps ``fromisoformat`` incompatibilities across Python versions.
+    """
+    valid_at = unit.get("valid_at")
+    if not valid_at or str(valid_at) > timestamp:
+        return False
+    invalid_at = unit.get("invalid_at")
+    return invalid_at is None or str(invalid_at) > timestamp
+
+
+def as_of(project_id: str, timestamp: str) -> list[dict[str, Any]]:
+    """IMP-155: read-only as-of query over the bitemporal ledger.
+
+    Reconstruct the facts that were current at ``timestamp`` purely from the validity
+    windows persisted by IMP-152/153 — no parallel index. A fact was current-then when
+    it was already valid (``valid_at <= timestamp``) and not yet invalidated
+    (``invalid_at`` unset or ``> timestamp``). Both the live ``units`` and the
+    append-only ``invalidated_units`` history are scanned, so a timestamp before an
+    invalidation returns the superseded fact as it stood then, and one after it returns
+    the current replacement instead.
+    """
+    ts = str(timestamp or "").strip()
+    if not ts:
+        return []
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        return []
+    units = payload.get("units", []) or []
+    invalidated = payload.get("invalidated_units", []) or []
+    return [unit for unit in [*units, *invalidated] if _current_as_of(unit, ts)]
+
+
+def lineage(project_id: str, unit_or_id: str | dict[str, Any]) -> dict[str, Any]:
+    """IMP-155: read-only lineage of a ledger fact.
+
+    Trace a fact back to its cited origin — the verbatim ``evidence`` and the origin
+    ``links`` (seed/gap/decision/assumption/source/artifact/parent) that anchor it in
+    the traceability graph — alongside its bitemporal window and, when present, its
+    supersession edge (IMP-153) and promotion history (IMP-154). Derived entirely from
+    what IMP-152/153/154 persist; it opens no parallel structure and mutates nothing.
+    Returns ``{}`` when the unit id is unknown.
+    """
+    json_path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(json_path, {})
+    if not isinstance(payload, dict):
+        payload = {}
+    units = payload.get("units", []) or []
+    invalidated = payload.get("invalidated_units", []) or []
+    events = payload.get("promotion_events", []) or []
+    unit = _resolve_ledger_unit(unit_or_id, [*units, *invalidated])
+    if unit is None:
+        return {}
+    origin = [
+        link
+        for link in unit.get("links", []) or []
+        if isinstance(link, dict) and link.get("type") in ORIGIN_LINK_TYPES
+    ]
+    result: dict[str, Any] = {
+        "id": unit.get("id"),
+        "statement": unit.get("statement"),
+        "status": unit.get("status"),
+        "valid_at": unit.get("valid_at"),
+        "invalid_at": unit.get("invalid_at"),
+        "evidence": unit.get("evidence", {}),
+        "origin": origin,
+    }
+    if unit.get("superseded_by"):
+        result["superseded_by"] = unit.get("superseded_by")
+        result["supersession_reason"] = unit.get("supersession_reason")
+    ref = assumption_link_target(unit)
+    if ref:
+        related = [event for event in events if str(event.get("origin_ref")) == ref]
+        if related:
+            result["promotion_events"] = related
+    return result
+
+
+def _resolve_ledger_unit(
+    unit_or_id: str | dict[str, Any], pool: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    if isinstance(unit_or_id, dict):
+        return unit_or_id
+    target = str(unit_or_id or "").strip()
+    if not target:
+        return None
+    for unit in pool:
+        if str(unit.get("id")) == target:
+            return unit
+    return None
+
+
+def materialize_knowledge_ledger(
+    project_id: str,
+    seeds_text: str,
+    gaps: list[dict[str, str]],
+    decisions_text: str,
+    trace_refs: dict[str, str],
+    assumptions_text: str = "",
+) -> dict[str, Any]:
+    """Write the lens knowledge ledger from governed discovery artifacts.
+
+    The ledger consolidates existing source-of-truth artifacts. It does not infer
+    new facts; unsupported knowledge remains OPEN with explicit pending input.
+    """
+    materialized_at = utc_now()
+    base = workspace_path(project_id)
+    json_path = base / "01_discovery" / "knowledge_state.json"
+    # IMP-153: carry forward the append-only history of invalidated (superseded)
+    # facts across this rebuild, so invalidate-not-delete survives the ledger
+    # being re-materialized from the current SSoT tables.
+    previous_payload = read_json(json_path, {})
+    previous_invalidated = previous_payload.get("invalidated_units", [])
+    if not isinstance(previous_invalidated, list):
+        previous_invalidated = []
+    # IMP-154: carry forward the append-only promotion event history across this
+    # rebuild too, so typed promotions/revocations survive re-materialization from
+    # the current SSoT tables (same guarantee as invalidated_units).
+    previous_promotions = previous_payload.get("promotion_events", [])
+    if not isinstance(previous_promotions, list):
+        previous_promotions = []
+    units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
+    # IMP-152: stamp bitemporal validity on each fact. valid_at = when the system
+    # recorded this fact as valid (this materialization); invalid_at = None while
+    # current. The ledger is a projection rebuilt from the current SSoT tables, so
+    # every materialized unit is current here; IMP-153 sets invalid_at on
+    # superseded facts and keeps them instead of dropping them.
+    for unit in units:
+        unit.setdefault("valid_at", materialized_at)
+        unit.setdefault("invalid_at", None)
+    summary = summarize_units(units)
+    payload = {
+        "project_id": project_id,
+        "artifact": "knowledge_state",
+        "version": 1,
+        "materialized_at": materialized_at,
+        "statuses": sorted(LEDGER_STATUSES),
+        "summary": summary,
+        "units": units,
+        "invalidated_units": previous_invalidated,
+        "promotion_events": previous_promotions,
+    }
+    md_path = base / "01_discovery" / "knowledge_state.md"
+    write_json(json_path, payload)
+    write_text(md_path, render_knowledge_state(project_id, units, summary))
+    return {"json_path": json_path, "md_path": md_path, "payload": payload}
+
+
+def build_knowledge_units(
+    seeds_text: str,
+    gaps: list[dict[str, str]],
+    decisions_text: str,
+    trace_refs: dict[str, str],
+    assumptions_text: str = "",
+) -> list[dict[str, Any]]:
+    units: list[dict[str, Any]] = []
+    sequence = 1
+
+    for seed in parse_seed_rows(seeds_text):
+        unit = {
+            "id": f"KLU-{sequence:03d}",
+            "lens": normalize_lens(seed.get("lens", "product")),
+            "statement": seed.get("statement", ""),
+            "status": normalize_knowledge_status(seed.get("status", "")),
+            "evidence": evidence_for_seed(seed, trace_refs),
+            "links": links_for_seed(seed, trace_refs),
+        }
+        if unit["statement"]:
+            units.append(unit)
+            sequence += 1
+
+    for gap in gaps:
+        status = normalize_gap_status(gap.get("status", "OPEN"))
+        statement = gap.get("description") or gap.get("question") or gap.get("id", "Unresolved discovery gap")
+        evidence = {"note": "[PENDING INPUT]"}
+        if gap.get("evidence_mention"):
+            evidence = {"trace_id": trace_refs.get("gap_report"), "quote": gap["evidence_mention"]}
+        elif status == "CONFIRMED" and gap.get("resolution_note"):
+            evidence = {"trace_id": trace_refs.get("gap_report"), "quote": gap["resolution_note"]}
+        unit = {
+            "id": f"KLU-{sequence:03d}",
+            "lens": normalize_lens(gap.get("lens", "product")),
+            "statement": statement,
+            "status": status,
+            "evidence": evidence,
+            "links": compact_links(
+                [
+                    {"type": "gap", "target": gap.get("id")},
+                    {"type": "artifact", "target": trace_refs.get("gap_report")},
+                ]
+            ),
+        }
+        units.append(unit)
+        sequence += 1
+
+    for decision in parse_decision_rows(decisions_text):
+        unit = {
+            "id": f"KLU-{sequence:03d}",
+            "lens": "product",
+            "statement": decision.get("statement", ""),
+            "status": normalize_knowledge_status(decision.get("status", "")),
+            "evidence": evidence_for_decision(decision, trace_refs),
+            "links": compact_links(
+                [
+                    {"type": "decision", "target": decision.get("id")},
+                    {"type": "artifact", "target": trace_refs.get("decision_log")},
+                    {"type": "parent", "target": decision.get("parent")},
+                ]
+            ),
+        }
+        if unit["statement"]:
+            units.append(unit)
+            sequence += 1
+
+    for assumption in parse_assumption_rows(assumptions_text):
+        assumption_status = normalize_assumption_status(assumption.get("status", "ASSUMED"))
+        evidence = {
+            "trace_id": trace_refs.get("assumption_register", ""),
+            "quote": assumption.get("justification", ""),
+        }
+        if assumption_status == "OPEN":
+            evidence = {
+                "trace_id": trace_refs.get("assumption_register", ""),
+                "quote": assumption.get("justification", "") or "[PENDING INPUT]",
+                "note": "Assumption invalidated; reopen or replace the linked knowledge.",
+            }
+        unit = {
+            "id": f"KLU-{sequence:03d}",
+            "lens": normalize_lens(assumption.get("lens", "product")),
+            "statement": assumption.get("statement", ""),
+            "status": assumption_status,
+            "evidence": evidence,
+            "links": compact_links(
+                [
+                    {"type": "assumption", "target": assumption.get("id")},
+                    {"type": "gap", "target": assumption.get("closes_gap")},
+                    {"type": "owner", "target": assumption.get("owner")},
+                    {"type": "risk", "target": assumption.get("risk")},
+                    {"type": "artifact", "target": trace_refs.get("assumption_register")},
+                ]
+            ),
+        }
+        if unit["statement"]:
+            units.append(unit)
+            sequence += 1
+
+    return units
+
+
+def render_knowledge_state(project_id: str, units: list[dict[str, Any]], summary: dict[str, Any]) -> str:
+    rows = "\n".join(
+        "| {id} | {lens} | {status} | {statement} | {evidence} | {links} |".format(
+            id=unit["id"],
+            lens=unit["lens"],
+            status=unit["status"],
+            statement=escape_table(unit["statement"]),
+            evidence=escape_table(format_evidence(unit.get("evidence", {}))),
+            links=escape_table(format_links(unit.get("links", []))),
+        )
+        for unit in units
+    ) or "| N/A | N/A | N/A | No knowledge units found. | N/A | N/A |"
+    by_status = ", ".join(f"{status}: {count}" for status, count in sorted(summary.get("by_status", {}).items()))
+    by_lens = ", ".join(f"{lens}: {count}" for lens, count in sorted(summary.get("by_lens", {}).items()))
+    return f"""# Knowledge State - {project_id}
+
+Canonical discovery knowledge ledger by lens. It consolidates seeds, gaps, and
+decisions from governed workspace artifacts; it does not invent missing content.
+Every confirmed or inferred statement keeps evidence, and unresolved knowledge is
+explicitly marked `[PENDING INPUT]`.
+
+## Summary
+
+- Total units: {summary.get("total", 0)}
+- By status: {by_status or "None"}
+- By lens: {by_lens or "None"}
+
+## Knowledge Units
+
+| Unit ID | Lens | Status | Statement | Evidence | Links |
+| --- | --- | --- | --- | --- | --- |
+{rows}
+"""
+
+
+def knowledge_ledger_summary(project_id: str) -> dict[str, Any]:
+    path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    if not path.exists():
+        return {"total": 0, "by_status": {}, "by_lens": {}, "path": None}
+    data = read_json(path, {})
+    summary = data.get("summary", {}) if isinstance(data, dict) else {}
+    return {
+        "total": int(summary.get("total", 0) or 0),
+        "by_status": dict(summary.get("by_status", {}) or {}),
+        "by_lens": dict(summary.get("by_lens", {}) or {}),
+        "path": str(path.as_posix()),
+    }
+
+
+def summarize_units(units: list[dict[str, Any]]) -> dict[str, Any]:
+    by_status: dict[str, int] = {}
+    by_lens: dict[str, int] = {}
+    for unit in units:
+        by_status[unit["status"]] = by_status.get(unit["status"], 0) + 1
+        by_lens[unit["lens"]] = by_lens.get(unit["lens"], 0) + 1
+    return {"total": len(units), "by_status": by_status, "by_lens": by_lens}
+
+
+def parse_seed_rows(text: str) -> list[dict[str, str]]:
+    seeds: list[dict[str, str]] = []
+    for cells in markdown_table_rows(text):
+        if len(cells) >= 7 and cells[0].startswith("SEED-"):
+            seeds.append(
+                {
+                    "id": cells[0],
+                    "lens": cells[1],
+                    "origin_type": cells[2],
+                    "origin_ref": strip_ticks(cells[3]),
+                    "statement": cells[4],
+                    "status": cells[5],
+                    "node_type": cells[6],
+                }
+            )
+        elif len(cells) >= 7 and cells[0].startswith("AUTO-SEED-"):
+            seeds.append(
+                {
+                    "id": cells[0],
+                    "lens": "",
+                    "gap_id": strip_ticks(cells[1]),
+                    "statement": cells[3],
+                    "status": cells[2],
+                    "origin_ref": strip_ticks(cells[4]),
+                    "node_type": "GAP_RESOLUTION",
+                }
+            )
+    return seeds
+
+
+def parse_decision_rows(text: str) -> list[dict[str, str]]:
+    decisions: list[dict[str, str]] = []
+    for cells in markdown_table_rows(text):
+        if len(cells) >= 4 and (cells[0].startswith("DEC-") or cells[0].startswith("AUTO-DEC-")):
+            decisions.append(
+                {
+                    "id": cells[0],
+                    "status": cells[1] if cells[0].startswith("DEC-") else cells[2],
+                    "parent": strip_ticks(cells[2]) if cells[0].startswith("DEC-") else strip_ticks(cells[1]),
+                    "statement": cells[3] if cells[0].startswith("DEC-") else cells[3],
+                }
+            )
+    return decisions
+
+
+def parse_assumption_rows(text: str) -> list[dict[str, str]]:
+    assumptions: list[dict[str, str]] = []
+    for cells in markdown_table_rows(text):
+        if len(cells) >= 8 and cells[0].startswith("ASM-"):
+            if len(cells) >= 10:
+                justification = cells[7]
+                closes_gap = cells[8]
+                status = cells[9]
+            else:
+                justification = cells[5]
+                closes_gap = cells[6]
+                status = cells[7]
+            assumptions.append(
+                {
+                    "id": cells[0],
+                    "lens": cells[1],
+                    "statement": cells[2],
+                    "owner": cells[3],
+                    "risk": cells[4],
+                    "justification": justification,
+                    "closes_gap": strip_ticks(closes_gap) if closes_gap not in {"-", "N/A"} else "",
+                    "status": status,
+                }
+            )
+    return assumptions
+
+
+def markdown_table_rows(text: str) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "---" in stripped:
+            continue
+        cells = parse_table_rows(stripped, strip_code_ticks=False)[0]
+        if not cells or cells[0] in {"Seed ID", "Decision ID", "Assumption ID"}:
+            continue
+        rows.append(cells)
+    return rows
+
+
+def normalize_knowledge_status(status: str) -> str:
+    value = status.strip().upper().replace("-", "_").replace(" ", "_")
+    if value in {"KNOWN", "CONFIRMED", "CLOSED", "ANSWERED"}:
+        return "CONFIRMED"
+    if value in {"ASSUMED", "ASSUMPTION"}:
+        return "ASSUMED"
+    if value in {"INFERRED", "INFERRED_FROM_INPUT"}:
+        return "INFERRED"
+    return "OPEN"
+
+
+def normalize_gap_status(status: str) -> str:
+    value = status.strip().upper().replace("-", "_").replace(" ", "_")
+    if value == "CLOSED":
+        return "CONFIRMED"
+    if value == "ASSUMED":
+        return "ASSUMED"
+    if value == "INFERRED":
+        return "INFERRED"
+    return "OPEN"
+
+
+def normalize_assumption_status(status: str) -> str:
+    value = status.strip().upper().replace("-", "_").replace(" ", "_")
+    if value in {"VALIDATED", "CONFIRMED", "CLOSED"}:
+        return "CONFIRMED"
+    if value in {"ASSUMED", "ASSUMPTION"}:
+        return "ASSUMED"
+    if value in {"INFERRED", "INFERRED_FROM_INPUT"}:
+        return "INFERRED"
+    return "OPEN"
+
+
+def normalize_lens(lens: str) -> str:
+    value = lens.strip().lower()
+    if value in {"", "n/a", "-"}:
+        return "product"
+    if value == "technology":
+        return "technical"
+    if "/" in value:
+        return value.split("/", 1)[0]
+    return value
+
+
+def evidence_for_seed(seed: dict[str, str], trace_refs: dict[str, str]) -> dict[str, str]:
+    status = normalize_knowledge_status(seed.get("status", ""))
+    if status == "OPEN":
+        return {"note": "[PENDING INPUT]"}
+    origin_ref = seed.get("origin_ref") or trace_refs.get("raw_input")
+    return {"trace_id": origin_ref, "quote": seed.get("statement", "")}
+
+
+def evidence_for_decision(decision: dict[str, str], trace_refs: dict[str, str]) -> dict[str, str]:
+    status = normalize_knowledge_status(decision.get("status", ""))
+    if status == "OPEN":
+        return {"note": "[PENDING INPUT]"}
+    return {"trace_id": trace_refs.get("decision_log", ""), "quote": decision.get("statement", "")}
+
+
+def links_for_seed(seed: dict[str, str], trace_refs: dict[str, str]) -> list[dict[str, str]]:
+    return compact_links(
+        [
+            {"type": "seed", "target": seed.get("id")},
+            {"type": "gap", "target": seed.get("gap_id")},
+            {"type": "artifact", "target": trace_refs.get("identity_seed_bank")},
+            {"type": "source", "target": seed.get("origin_ref") or trace_refs.get("raw_input")},
+        ]
+    )
+
+
+def compact_links(links: list[dict[str, str | None]]) -> list[dict[str, str]]:
+    compacted: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for link in links:
+        target = str(link.get("target") or "").strip()
+        link_type = str(link.get("type") or "").strip()
+        if not target or target in {"-", "N/A"} or not link_type:
+            continue
+        key = (link_type, target)
+        if key in seen:
+            continue
+        seen.add(key)
+        compacted.append({"type": link_type, "target": target})
+    return compacted
+
+
+def format_evidence(evidence: dict[str, str]) -> str:
+    if evidence.get("note"):
+        return evidence["note"]
+    trace_id = evidence.get("trace_id", "")
+    quote = evidence.get("quote", "")
+    if trace_id and quote:
+        return f"`{trace_id}`: {quote}"
+    return trace_id or quote or "[PENDING INPUT]"
+
+
+def format_links(links: list[dict[str, str]]) -> str:
+    return ", ".join(f"{link['type']}=`{link['target']}`" for link in links) or "None"
+
+
+def escape_table(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ").strip()
+
+
+def strip_ticks(value: str) -> str:
+    return value.strip().strip("`")
