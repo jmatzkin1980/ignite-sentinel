@@ -44,6 +44,10 @@ claude plugin enable ignite-sentinel-mcp@ignite-sentinel
 
 It starts in the project directory and exposes the same tools as the clone's MCP server ([Claude adapter](13-claude-adapter.md#local-mcp-server-optional)).
 
+## Codex and Kilo Code
+
+The plugin targets Claude Code. In Codex and Kilo Code, use the clone: it is the supported path, and the plugin has not been observed running a skill there. See the [Codex adapter](08-codex-adapter.md#plugin-not-supported-yet).
+
 ## Clone and plugin together
 
 In a clone, `.claude/skills` and `.claude/settings.json` already provide the skills and the hook. Installing the plugin as well loads the skills twice (once with the `ignite-sentinel:` prefix). Use one or the other.

@@ -130,6 +130,19 @@ workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
 
 If domain context changed after backlog generation, run `/reindex` and focused `/retrieve` before planning or implementing stories. Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
 
+## Plugin: not supported yet
+
+Use the clone in Codex. The Claude Code plugin ([guide](18-claude-plugin.md)) is not a supported Codex path yet.
+
+Codex reads this repository's `.claude-plugin/marketplace.json`, so `codex plugin marketplace add jmatzkin1980/ignite-sentinel` lists the plugin, and `codex plugin add ignite-sentinel@ignite-sentinel` installs it. Both were observed with Codex CLI 0.142.4. What has not been observed is a plugin skill actually running in Codex: the skills reach the runtime through `${CLAUDE_PLUGIN_ROOT}`, and Codex documents that variable only for hooks.
+
+Until someone watches it work, treat the plugin in Codex as unsupported.
+
+To settle it: someone with a Codex account installs the plugin, then runs `$sentinel-views` in an empty project.
+
+- **If the dashboard appears in the project**, the plugin works in Codex as it is. Record the observation in the surface-contract registry (`/doctor`).
+- **If the command fails on the launcher path**, Codex needs its own rendering of the skills, with the launcher path relative to the skill folder. That rendering would also need its own marketplace, `.agents/plugins/marketplace.json`, which Codex prefers over the Claude one when both exist (observed with Codex CLI 0.142.4).
+
 ## If Codex Is Unavailable
 
 Use Kilo Code agents or run the CLI manually from VS Code terminal. On Windows machines without a valid `python`, run the same commands through `.\installers\sentinel.ps1`.
