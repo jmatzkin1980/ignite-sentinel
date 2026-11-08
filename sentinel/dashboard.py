@@ -34,6 +34,8 @@ LIFECYCLE_STAGES = {
     "DOMAIN_RESPONSE_NEEDED": {"step": "gaps", "index": 1, "blocked": True, "text": "Discovery - esperando contexto de dominio"},
     "READY_FOR_PROJECT_BRIEF": {"step": "brief", "index": 2, "blocked": False, "text": "Discovery - listo para el Project Brief"},
     "BRIEF_BELOW_THRESHOLD": {"step": "brief", "index": 2, "blocked": True, "text": "Discovery - brief por debajo del umbral"},
+    "SELF_CORRECTION_FAILED": {"step": "brief", "index": 2, "blocked": True, "text": "Discovery - el brief no refleja un criterio confirmado"},
+    "UNITS_NOT_IMPLEMENTABLE": {"step": "brief", "index": 2, "blocked": True, "text": "Discovery - unidades no implementables"},
     "READY_FOR_SPECS": {"step": "prd", "index": 3, "blocked": False, "text": "Specifications - listo para PRD y specs"},
     "SPECS_BELOW_THRESHOLD": {"step": "specs", "index": 4, "blocked": True, "text": "Specifications - specs por debajo del umbral"},
     "READY_FOR_BACKLOG": {"step": "backlog", "index": 5, "blocked": False, "text": "Backlog - listo para generar historias"},

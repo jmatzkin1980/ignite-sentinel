@@ -10,7 +10,7 @@ from .discovery import (
     detect_gaps,
     load_domain_context,
     parse_gap_rows,
-    readiness_stage_for_counts,
+    readiness_stage_after_gap_change,
     render_gaps,
 )
 from .gap_resolution import (
@@ -364,7 +364,7 @@ def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], chang
     write_text(gaps_path, render_gaps(project_id, all_gaps, req_id, language))
     counts = count_gaps(all_gaps)
     counts["sync_origin"] = sum(1 for gap in all_gaps if gap.get("origin") == "sync")
-    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
+    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
     return {"merged": [gap["id"] for gap in merged], "skipped_existing": skipped}
 
 
@@ -390,7 +390,7 @@ def apply_structured_gap_responses(project_id: str, text: str, source: Path, cha
     for node_id in ears_ids:
         add_edge(project_id, change_id, node_id, "normalizes")
     update_gap_report_node_status(project_id, result["counts"])  # type: ignore[arg-type]
-    update_state(project_id, gap_counts=result["counts"], readiness_stage=readiness_stage_for_counts(result["counts"]))  # type: ignore[arg-type]
+    update_state(project_id, gap_counts=result["counts"], readiness_stage=readiness_stage_after_gap_change(project_id, result["counts"]))  # type: ignore[arg-type]
     return {
         "closed": [item["id"] for item in result["closed"]],  # type: ignore[index]
         "answered": [item["id"] for item in result["answered"]],  # type: ignore[index]

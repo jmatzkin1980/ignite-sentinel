@@ -6,6 +6,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- Touching gaps no longer moves a project back a stage (IMP-292). `/annotate`, `/challenge`, `/scrutinize`, `/self-review`, `/sync`, `/resolve-gaps` and `/gaps` recomputed `readiness_stage` from the gap counts alone, which tops out at `READY_FOR_PROJECT_BRIEF`, so a project at `READY_FOR_BACKLOG` fell back to the brief with nothing new blocking it. Now the stage only moves back when a blocking gap is open; a later stage, or a block set by `/brief`, is kept until the command that owns it runs again. `/dashboard` also knows `SELF_CORRECTION_FAILED` and `UNITS_NOT_IMPLEMENTABLE`, which `/brief` writes, instead of showing them as raw keys at the ingest step.
+
 ## [0.3.0] — 2026-11-08
 
 ### Added
