@@ -10,7 +10,7 @@ Lightweight contract for downstream agents (planners, implementers, testers) rep
 ## Command
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /implementation-feedback PROJECT_ID --source FINDINGS.json
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /implementation-feedback PROJECT_ID --source FINDINGS.json
 ```
 
 Requires `04_backlog/` to exist (run only after `/backlog`).

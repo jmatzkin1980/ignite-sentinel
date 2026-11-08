@@ -10,11 +10,11 @@ Use this skill to generate a domain-specific request after discovery has enough 
 ## Workflow
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain technology
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain design
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain quality
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain frontend
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain backend
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain technology
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain design
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain quality
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain frontend
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /context-request PROJECT_ID --domain backend
 ```
 
 Outputs live in:

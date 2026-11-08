@@ -68,7 +68,7 @@ The full contract lives in `sentinel/schemas/assumption.schema.json`. The quote 
 Run from the repository root:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /assume PROJECT_ID --source PATH
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /assume PROJECT_ID --source PATH
 ```
 
 Report accepted assumption IDs, skipped duplicates, risk summary, linked gaps, `01_discovery/assumptions.md`, and refreshed `knowledge_state.md`. When any assumption carries a `risk_category`, `assumptions.md` groups its register by category (rows without one fall under "Uncategorized") and the development readiness matrix (`/maturity`) reports coverage per category alongside its existing per-lens coverage.

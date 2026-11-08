@@ -12,14 +12,14 @@ Use this skill to produce the mature discovery handoff.
 1. Check current state:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /status PROJECT_ID
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /status PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID
 ```
 
 2. Generate or refresh:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /brief PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /brief PROJECT_ID
 ```
 
 3. Review `workspaces/PROJECT_ID/02_requirements/project-brief.md`.

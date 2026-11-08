@@ -9,7 +9,7 @@ Use this skill before specs or backlog generation.
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
 2. Read `workspaces/PROJECT_ID/01_discovery/requirement_maturity_report.md`.
 3. If readiness is `BLOCKED`, resolve critical or high gaps before proceeding.
 4. If readiness is `READY_FOR_SPECS`, continue with `sentinel-specs` or `sentinel-backlog`.

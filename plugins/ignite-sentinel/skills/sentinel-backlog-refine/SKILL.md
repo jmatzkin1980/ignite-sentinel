@@ -11,7 +11,7 @@ Use this skill when the backlog already exists and an agent has a proposed impro
 
 1. Inspect `workspaces/PROJECT_ID/04_backlog/EPIC-001.md`, relevant `US-NNN.md` files, `03_specs/units/SPEC-U-NNN.md`, and focused context packs.
 2. Create a JSON source file with `proposals[]` following `sentinel/schemas/backlog_refinement.schema.json`.
-3. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /refine-backlog PROJECT_ID --source PATH`.
+3. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /refine-backlog PROJECT_ID --source PATH`.
 4. Review `workspaces/PROJECT_ID/04_backlog/refinements/refinement_report.md`.
 5. Report accepted and rejected proposals. Do not edit generated backlog artifacts by hand.
 

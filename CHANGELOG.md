@@ -7,6 +7,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- The Claude Code plugin finds Python without `python` on PATH (IMP-290): the hook and the skills now start Python through a generated `python.sh` (`sh "${CLAUDE_PLUGIN_ROOT}/python.sh" ...`), which tries `SENTINEL_PYTHON`, then `python3` / `python` / `py -3` on PATH (skipping the Microsoft Store alias), then the usual Windows install folders, checks for 3.10+, and otherwise exits 127 with how to fix it. Seen live: a Windows laptop with Python 3.14 installed but no `python` or `py` on PATH, where every plugin skill failed. `*.sh` is checked out with LF. The MCP plugin still starts `python` directly, since MCP servers are not run through a shell.
 - Versioning and releases (IMP-282):
   - **One version.** It lives in `pyproject.toml`. `sentinel.__version__` was stuck at `0.1.0` and is now `0.2.0`. `tools/release.py check` fails when `sentinel/__init__.py` or a `plugin.json` differs from `pyproject.toml` (CI → `release-check`).
   - **The tag must match the version.** A `vX.Y.Z` tag runs `release-attest`, which fails when the tag is not the version ("tag without a bump") or CHANGELOG has no dated section for it.

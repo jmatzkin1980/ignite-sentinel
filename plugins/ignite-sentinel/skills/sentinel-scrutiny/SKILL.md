@@ -16,7 +16,7 @@ After `/ingest` has created `gaps.md` and `knowledge_state.md`, especially when 
 1. Read `workspaces/PROJECT_ID/00_raw/`, relevant domain context folders, `01_discovery/gaps.md`, and `01_discovery/knowledge_state.md`.
 2. Scrutinize each declared lens. Look for unstated assumptions, contradictions, mentions without counterpart detail, and conflicts with domain context.
 3. Write a JSON source file with `gaps[]` using the schema below. Every finding must include a verbatim quote from raw input or local domain context.
-4. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /scrutinize PROJECT_ID --source PATH` or limit the pass with `--lens LENS`.
+4. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /scrutinize PROJECT_ID --source PATH` or limit the pass with `--lens LENS`.
 5. Report merged/skipped gap IDs, updated gap counts, and the refreshed knowledge ledger path.
 
 ## Input Schema
@@ -50,7 +50,7 @@ After `/ingest` has created `gaps.md` and `knowledge_state.md`, especially when 
 `/scrutinize` has a second mode — the pre-flight, per-`RU-*` mirror of `/implementation-feedback`. A coding agent declares, per Requirement Unit, what it is missing to implement, **before** touching code:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /scrutinize PROJECT_ID --source PATH --mode implementability-probe
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /scrutinize PROJECT_ID --source PATH --mode implementability-probe
 ```
 
 Differences from the default scrutiny mode:

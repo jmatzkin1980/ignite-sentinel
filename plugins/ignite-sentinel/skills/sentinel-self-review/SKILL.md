@@ -15,7 +15,7 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
 
 1. Read the grounding set the runtime validates against: `02_requirements/project-brief.md`, `03_specs/prd.md`, `03_specs/specs.md`, `03_specs/units/SPEC-U-*.md`, and `08_context_packs/`.
 2. Hunt for: statements with no cited basis, divergence between brief and PRD/specs, and hard-to-reverse decisions hiding as assumptions.
-3. Write a JSON file (schema below) and run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --source PATH`.
+3. Write a JSON file (schema below) and run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --source PATH`.
 4. Report merged gap IDs, skipped duplicates, registered `DEC-*` ids, and the report paths (`03_specs/self_review/self_review_report.md` and `decision_register.md`).
 
 ## Input Schema

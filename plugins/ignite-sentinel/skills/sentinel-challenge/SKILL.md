@@ -50,7 +50,7 @@ Technique prompts calibrate their wording to the declared profile of whoever wil
 
 1. Read `workspaces/PROJECT_ID/00_raw/` and `01_discovery/gaps.md`.
 2. Run the default techniques per lens, plus any extended technique whose trigger fits. Keep findings grounded: each must tie to a verbatim quote from the raw input (evidence or explicit silence — invariant #3).
-3. Write a JSON file (schema below). Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /challenge PROJECT_ID --source PATH`.
+3. Write a JSON file (schema below). Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /challenge PROJECT_ID --source PATH`.
 4. Report merged and skipped gap IDs and updated gap counts. The merged gaps flow through the normal `/resolve-gaps` → `/maturity` → gate lifecycle like any other gap, tagged `origin: challenge`, and a traced `01_discovery/challenge_report.md` is written.
 
 ## Input schema

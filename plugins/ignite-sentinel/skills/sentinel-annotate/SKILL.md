@@ -16,7 +16,7 @@ After `/ingest` has produced `01_discovery/gaps.md`, when you have read `00_raw/
 1. Read the raw input under `workspaces/PROJECT_ID/00_raw/` and the existing `01_discovery/gaps.md`.
 2. Identify gaps that are genuinely unresolved even though a keyword is present. Scrutinize through the lenses: business, product, quality, technical, compliance, delivery, design.
 3. Write a JSON analysis file (see schema below). Every gap MUST carry a verbatim quote from the raw input — evidence or explicit silence (invariant #3). You cite; you never invent.
-4. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /annotate PROJECT_ID --source PATH`.
+4. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /annotate PROJECT_ID --source PATH`.
 5. Report the merged and skipped gap IDs and the updated gap counts. The merged gaps now flow through the normal `/resolve-gaps` → `/maturity` → gate lifecycle exactly like checklist gaps.
 
 ## Input schema

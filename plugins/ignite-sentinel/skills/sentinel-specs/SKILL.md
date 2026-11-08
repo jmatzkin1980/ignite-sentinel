@@ -9,13 +9,13 @@ Use this skill to create the PRD and AI-friendly spec layer.
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
-2. If ready, run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /specs PROJECT_ID`.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
+2. If ready, run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /specs PROJECT_ID`.
 3. Review `workspaces/PROJECT_ID/03_specs/prd.md` for the complete human/business PRD: personas, FRs/ACs, NFRs, KPIs, JTBD traceability, execution plan, governance, and audit trail.
 4. Review `workspaces/PROJECT_ID/03_specs/specs.md` for the agent-ready backlog contract and spec-unit index.
 5. Review `workspaces/PROJECT_ID/03_specs/units/SPEC-U-NNN.md` for bounded, evidence-backed execution units before backlog slicing.
 6. Review `workspaces/PROJECT_ID/08_context_packs/specs_generation.json` to see which declarative retrieval plan sections, focused memory context, and source `read_plan` anchors were used.
-7. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` to confirm `REQ/project_brief -> PRD -> SPEC -> SPEC-U` linkage.
+7. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` to confirm `REQ/project_brief -> PRD -> SPEC -> SPEC-U` linkage.
 
 ## Rules
 
