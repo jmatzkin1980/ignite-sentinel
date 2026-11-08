@@ -7,6 +7,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Security policy, threat model and admin guide (IMP-283):
+  - **`SECURITY.md`**: reports go through GitHub private vulnerability reporting; only the latest release is supported.
+  - **Threat model** (`user_guide/19-threat-model.md`): the assets, including the feedback and guided answers that views keep in `localStorage`, and seven threats: prompt injection, path traversal, secret leakage, supply chain, network exfiltration, hooks and auto-update. Each one names its control, the test that proves it, and the residual risk.
+  - **Admin guide** (`user_guide/20-admin-guide.md`):
+    - a restrictive managed settings policy (`user_guide/references/managed-settings.json`) with `strictKnownMarketplaces`, managed `enabledPlugins` (MCP plugin blocked), `"autoUpdate": false`, `disableSideloadFlags`, `allowManagedHooksOnly` and `disableCommandPluginSources`;
+    - pinning to a release tag, to a commit SHA (inline `settings` catalog with a `git-subdir` source) or to an archive digest;
+    - how to confirm the policy is in force;
+    - an approval checklist per release;
+    - retention (workspaces, browser storage, transcripts, `tools/clean_local.py`) and the audit trail.
+  - `tests/test_security_docs.py` keeps the documents true: every `/doctor` check, storage key, log file, path and cleanup flag they cite must exist, and the example policy must allowlist exactly what it registers.
 - Versioning and releases (IMP-282):
   - **One version.** It lives in `pyproject.toml`. `sentinel.__version__` was stuck at `0.1.0` and is now `0.2.0`. `tools/release.py check` fails when `sentinel/__init__.py` or a `plugin.json` differs from `pyproject.toml` (CI → `release-check`).
   - **The tag must match the version.** A `vX.Y.Z` tag runs `release-attest`, which fails when the tag is not the version ("tag without a bump") or CHANGELOG has no dated section for it.

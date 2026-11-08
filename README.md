@@ -401,6 +401,9 @@ The eval harness covers discovery, brief, PRD, specs, and backlog. It includes h
 | [Portability](user_guide/16-portability.md) | Environment matrix, no-install mode, `.pyz`, and IT approval note |
 | [IT Portability Note](PORTABILITY.md) | Short reusable note for IT/security review |
 | [Claude Code Plugin](user_guide/18-claude-plugin.md) | Install from the marketplace, what the plugin ships, MCP opt-in, versions and channels, releases |
+| [Security Policy](SECURITY.md) | How to report a vulnerability, supported versions |
+| [Threat Model](user_guide/19-threat-model.md) | Assets, threats, controls and how to verify each one |
+| [Admin Guide](user_guide/20-admin-guide.md) | Restrictive managed settings for the plugin, pinning, approval checklist, retention, audit trail |
 | [Repo & Branching Strategy](user_guide/10-repo-and-branching-strategy.md) | How `main` and project branches relate |
 | Adapters | [Codex Skills](user_guide/04-codex-skills-guide.md) · [Kilo Code](user_guide/07-kilo-code-adapter.md) · [Codex](user_guide/08-codex-adapter.md) · [Claude](user_guide/13-claude-adapter.md) · [VS Code Install](user_guide/06-installation-vscode.md) |
 
