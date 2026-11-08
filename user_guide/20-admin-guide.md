@@ -67,16 +67,17 @@ The policy names release `v0.3.0`, the first release that carries the plugin. Us
 
 The file locations need administrator rights to write. A managed file that is not valid JSON stops Claude Code from starting, so validate it before you deploy (`python -m json.tool managed-settings.json`).
 
-Do not use the user-writable `HKCU\SOFTWARE\Policies\ClaudeCode` registry key for this policy. Claude Code reads it as a fallback, but because the user can write it, some keys do not take effect from it. With Claude Code 2.1.305 and this policy in HKCU:
+Do not use the user-writable `HKCU\SOFTWARE\Policies\ClaudeCode` registry key for this policy. Claude Code reads it as a fallback, but because the user can write it, `true` entries in `enabledPlugins` are ignored there: `/status` says so, and the plugin is not installed. Test the policy from the managed settings file or HKLM, as the rollout will use.
 
-| Key | Result |
-|-----|--------|
-| `strictKnownMarketplaces` | Enforced. Other marketplaces, including Anthropic's directory, are blocked. |
-| `extraKnownMarketplaces` | Enforced. The marketplace is registered. |
-| `enabledPlugins` (`true` entries) | Ignored. `/status` reports that entries enabling a plugin are only honored from administrator-controlled sources. The plugin is not installed automatically; a user can still install it from the allowed marketplace. |
-| `disableSideloadFlags` | Not enforced. `claude --plugin-dir .` started a session. |
+Observed with Claude Code 2.1.305:
 
-Test the policy from the managed settings file or HKLM, as the rollout will use.
+| Key | Source | Result |
+|-----|--------|--------|
+| `strictKnownMarketplaces` | HKCU | Enforced. Anthropic's directory and any other marketplace are refused: `is blocked by enterprise policy. Allowed sources: github:jmatzkin1980/ignite-sentinel@<ref>` |
+| `extraKnownMarketplaces` | HKCU, file | Enforced. The marketplace is registered at the pinned ref with `"autoUpdate": false`. |
+| `enabledPlugins` | HKCU | Ignored for `true` entries. |
+| `enabledPlugins` | File | Enforced. The plugin installs in the background at session start (`Scope: managed`), and the user cannot disable it. The first session may report `not cached` until the download finishes; the next session is clean. |
+| `disableSideloadFlags` | File | Enforced. `claude --plugin-dir .` exits with `--plugin-dir is disabled by your organization's managed settings (disableSideloadFlags)`. |
 
 ## 2. Pin the plugin
 
