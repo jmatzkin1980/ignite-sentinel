@@ -1,0 +1,79 @@
+# IMP-282 — one version, and no bump stays untagged.
+# Every PR and push: pyproject.toml, sentinel.__version__ and every plugin.json
+# agree (tools/release.py check).
+# On main, tools/release.py plan decides whether the version needs its tag:
+# - the tag goes on the first-parent commit that introduced the version (the
+#   bump's merge commit); an untagged version without a dated CHANGELOG
+#   section fails;
+# - when that commit is this push, the release is published (release-attest,
+#   called as a reusable workflow: a tag pushed with GITHUB_TOKEN does not
+#   trigger workflows by itself);
+# - an older commit (a version released before this workflow) is only tagged.
+name: release-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: false   # never cut a tag job in half
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: One version everywhere
+        run: python tools/release.py check
+
+  tag:
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write   # push the vX.Y.Z tag
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # tags and first-parent history
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Release plan
+        id: plan
+        run: python tools/release.py plan --github-output "$GITHUB_OUTPUT"
+      - name: Tag the commit that introduced the version
+        if: steps.plan.outputs.create_tag == 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          COMMIT: ${{ steps.plan.outputs.commit }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG" "$COMMIT"
+          git push origin "refs/tags/$TAG"
+
+  publish:
+    needs: tag
+    if: needs.tag.outputs.publish == 'true'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/release-attest.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}

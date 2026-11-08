@@ -32,6 +32,43 @@ Workspaces, views and the dashboard are written in the project you have open, ne
 
 The plugin has no `bin/`, monitors, LSP servers or telemetry. It makes no network calls (`/doctor` → `network_isolation_check`).
 
+## Versions and channels
+
+The plugin carries the package version (`plugin.json` → `version`). Claude Code updates an installed plugin only when that version changes.
+
+| Channel | Add the marketplace with | You get |
+|---------|--------------------------|---------|
+| `stable` | `/plugin marketplace add jmatzkin1980/ignite-sentinel#stable` | The latest release. The `stable` branch moves only when a release is cut. |
+| One release | `/plugin marketplace add jmatzkin1980/ignite-sentinel#vX.Y.Z` | Exactly that release, until you add another ref. |
+| `main` | `/plugin marketplace add jmatzkin1980/ignite-sentinel` | Everything merged, released or not. |
+
+The first release that carries the plugin is the one after `0.2.0`. Until it is cut, `stable` does not exist yet: use `main`.
+
+A marketplace name can be registered only once, so switch channels with `/plugin marketplace remove ignite-sentinel` and add it again with the new ref.
+
+### Without git: the release archive
+
+Each GitHub release carries one `.zip` per plugin (`ignite-sentinel-vX.Y.Z.zip`, `ignite-sentinel-mcp-vX.Y.Z.zip`) and a `SHA256SUMS` file. Every file has a build provenance attestation:
+
+```bash
+gh attestation verify ignite-sentinel-vX.Y.Z.zip --repo jmatzkin1980/ignite-sentinel
+```
+
+The zip is the input of an `archive` plugin source, which installs over HTTPS with no git. An organization that hosts its own catalog can point an entry at the release asset and pin its digest from `SHA256SUMS`:
+
+```json
+{
+  "name": "ignite-sentinel",
+  "source": {
+    "source": "archive",
+    "url": "https://github.com/jmatzkin1980/ignite-sentinel/releases/download/vX.Y.Z/ignite-sentinel-vX.Y.Z.zip",
+    "sha256": "<digest from SHA256SUMS>"
+  }
+}
+```
+
+Claude Code refuses a download whose digest does not match (Claude Code 2.1.224 or newer).
+
 ## MCP server (optional)
 
 The MCP server is a second plugin, `ignite-sentinel-mcp`. It installs **disabled**, because it needs the third-party `mcp` package:
@@ -67,3 +104,23 @@ Two checks keep it honest:
 
 - `/doctor` → `claude_plugin_check` (offline): it fails on drift, and on the manifest mistakes `claude plugin validate` rejects (`..` in a source, entry name different from manifest name, version in the entry, `homepage` that is not a URL, reserved names, top-level `bin/`, `hooks.json` without its `"hooks"` wrapper).
 - CI → `plugin-validate`: runs Claude Code's own `claude plugin validate --strict` on the marketplace and both plugins.
+
+### Cutting a release
+
+The version lives in `pyproject.toml`. `sentinel/__init__.py` and both `plugin.json` repeat it, and `python tools/release.py check` fails when any of them differs (CI → `release-check`).
+
+1. On a branch, bump `version` in `pyproject.toml` and `__version__` in `sentinel/__init__.py`. Run `python -m sentinel.adapters --plugin`.
+2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` and open a new, empty `## [Unreleased]` above it.
+3. Merge the PR. Nobody tags by hand: `release-check` on `main` does it.
+   - It tags `vX.Y.Z` on the merge commit that introduced the version.
+   - It calls `release-attest`, which:
+     - fails on a tag that is not the version ("tag without a bump") or that has no dated CHANGELOG section;
+     - builds the wheel, the SBOM and the plugin zips, and validates each zip;
+     - attests all of them and creates the GitHub release, with the CHANGELOG section as notes;
+     - fast-forwards `stable` to the tag.
+
+`release-check` on `main` fails when the version is untagged and CHANGELOG has no dated section for it. It also fails when the version sources disagree. When the commit that introduced an untagged version is older than the push, it is only tagged, with no release. This is how `v0.2.0` gets its tag, on the merge of #207.
+
+A tag pushed by hand (`git push origin vX.Y.Z`) runs the same `release-attest`.
+
+`python tools/release.py zip --out dist` builds the same zips locally. They are reproducible: same commit, same bytes (`SOURCE_DATE_EPOCH`, sorted entries, LF endings).
