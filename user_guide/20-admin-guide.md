@@ -67,6 +67,17 @@ The policy names release `v0.3.0`, the first release that carries the plugin. Us
 
 The file locations need administrator rights to write. A managed file that is not valid JSON stops Claude Code from starting, so validate it before you deploy (`python -m json.tool managed-settings.json`).
 
+Do not use the user-writable `HKCU\SOFTWARE\Policies\ClaudeCode` registry key for this policy. Claude Code reads it as a fallback, but because the user can write it, some keys do not take effect from it. With Claude Code 2.1.305 and this policy in HKCU:
+
+| Key | Result |
+|-----|--------|
+| `strictKnownMarketplaces` | Enforced. Other marketplaces, including Anthropic's directory, are blocked. |
+| `extraKnownMarketplaces` | Enforced. The marketplace is registered. |
+| `enabledPlugins` (`true` entries) | Ignored. `/status` reports that entries enabling a plugin are only honored from administrator-controlled sources. The plugin is not installed automatically; a user can still install it from the allowed marketplace. |
+| `disableSideloadFlags` | Not enforced. `claude --plugin-dir .` started a session. |
+
+Test the policy from the managed settings file or HKLM, as the rollout will use.
+
 ## 2. Pin the plugin
 
 Pick one of three pins. All of them stop a new version from reaching users until you change the policy.
