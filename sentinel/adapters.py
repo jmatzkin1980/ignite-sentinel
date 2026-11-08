@@ -159,7 +159,8 @@ KILO_DEFAULT_SKILL_DIRS = (AGENTS_SKILLS_DIR,)
 RUNTIME_INVOCATION = "python -m sentinel"
 SKILL_OVERLAYS = {
     "clone": RUNTIME_INVOCATION,
-    "claude-plugin": 'python "${CLAUDE_PLUGIN_ROOT}/launcher.py"',
+    # IMP-290: through the plugin's Python resolver, never a bare `python`.
+    "claude-plugin": 'sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py"',
 }
 _INVOCATION = re.compile(re.escape(RUNTIME_INVOCATION) + r"(?![\w.])")
 _RENDERED_SUFFIXES = {".md", ".txt"}

@@ -9,10 +9,10 @@ Use this skill after backlog generation.
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
 2. Review `workspaces/PROJECT_ID/05_quality/`, especially `backlog_readiness_audit.md`.
-3. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` to confirm `US -> TC` coverage.
-4. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
+3. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` to confirm `US -> TC` coverage.
+4. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
 
 ## Rules
 

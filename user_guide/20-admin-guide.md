@@ -9,7 +9,7 @@ The managed settings keys below are Claude Code's, documented in [Manage plugins
 ## What the plugin needs on each machine
 
 - Claude Code with plugin support. The `archive` source (install without git) needs v2.1.224 or later.
-- Python 3.10 or newer on `PATH` as `python`. No package installs: the runtime is standard library only.
+- Python 3.10 or newer. It does not have to be on `PATH`: the plugin's `python.sh` also looks in the usual Windows install folders, and `SENTINEL_PYTHON` can name the interpreter ([plugin guide](18-claude-plugin.md#install)). No package installs: the runtime is standard library only.
 - Read access to `github.com/jmatzkin1980/ignite-sentinel` over git, or to the release assets over HTTPS for the `archive` source.
 - No other network access. Sentinel makes no network calls (`network_isolation_check`).
 
@@ -199,10 +199,10 @@ For each release you approve:
 
    ```bash
    git diff v0.2.0 v0.3.0 --stat -- plugins/ignite-sentinel
-   git diff v0.2.0 v0.3.0 -- plugins/ignite-sentinel/hooks plugins/ignite-sentinel/.claude-plugin plugins/ignite-sentinel/launcher.py
+   git diff v0.2.0 v0.3.0 -- plugins/ignite-sentinel/hooks plugins/ignite-sentinel/.claude-plugin plugins/ignite-sentinel/launcher.py plugins/ignite-sentinel/python.sh
    ```
 
-3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py`. Any new hook, matcher or command is a reason to stop and ask.
+3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py` through `python.sh`, the script that finds Python. Read the hook script and `python.sh`; `python.sh` only looks for an interpreter and runs it. Any new hook, matcher or command is a reason to stop and ask.
 4. **Surface.** The plugin still has no `bin/`, monitors, LSP servers or MCP servers (those live only in `ignite-sentinel-mcp`).
 5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`.
 6. **Dependencies.** The SBOM (`ignite-sentinel-vX.Y.Z.cdx.json`) lists only the optional extras; the plugin itself uses none of them.

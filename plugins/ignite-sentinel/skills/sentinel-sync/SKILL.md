@@ -9,12 +9,12 @@ Use this skill when new information may mutate existing requirements, specs, bac
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sync PROJECT_ID` for autonomous detection of new or modified inputs.
-   - Use `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sync PROJECT_ID --source PATH --note "WHY_THIS_CHANGE_EXISTS"` only when the user wants one explicit file processed.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sync PROJECT_ID` for autonomous detection of new or modified inputs.
+   - Use `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sync PROJECT_ID --source PATH --note "WHY_THIS_CHANGE_EXISTS"` only when the user wants one explicit file processed.
 2. Review the generated impact report in `workspaces/PROJECT_ID/07_changes/`.
-3. Use `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "CHANGE_TOPIC" --workflow sync --write-pack` to build a context pack.
+3. Use `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "CHANGE_TOPIC" --workflow sync --write-pack` to build a context pack.
 4. Regenerate the affected artifacts **through their owning commands** — the impact report's affected nodes and `/health` staleness findings are the to-do list: `/gaps`/`/resolve-gaps` for discovery movement, `/brief`, `/specs`, `/backlog`, `/quality` downstream. Never patch a generated artifact by hand; mutation flows only through the CLI.
-5. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /reindex PROJECT_ID`, then `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
+5. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /reindex PROJECT_ID`, then `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
 
 The Sentinel command protocol records each sync in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md` and refreshes trace views after mutation.
 

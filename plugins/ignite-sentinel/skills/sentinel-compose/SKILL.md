@@ -9,10 +9,10 @@ Use this skill to add agent-authored PRD narrative without editing `prd.md` by h
 
 ## Workflow
 
-1. Confirm `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /specs PROJECT_ID` has generated `03_specs/prd.md`.
+1. Confirm `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /specs PROJECT_ID` has generated `03_specs/prd.md`.
 2. Read the target PRD section and identify source-of-truth evidence under `00_raw/`, `01_discovery/`, `02_requirements/`, or `07_changes/`.
 3. Create a JSON draft with `blocks[]`; each block has `section` and `paragraphs[]`, and each paragraph has `text` plus verbatim `citations[]`.
-4. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /compose PROJECT_ID --source PATH`.
+4. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /compose PROJECT_ID --source PATH`.
 5. Report accepted and rejected block IDs, plus `03_specs/compositions/composition_report.md`.
 
 ## Draft Shape

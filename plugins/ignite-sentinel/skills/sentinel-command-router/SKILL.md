@@ -57,7 +57,7 @@ Translate short chat commands into Sentinel CLI executions.
 2. Run from the repository root:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /COMMAND PROJECT_ID [OPTIONS]
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /COMMAND PROJECT_ID [OPTIONS]
 ```
 
 For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH` and `--open`. `/view` requires `PROJECT_ID` and writes a derived read-only HTML snapshot under `08_context_packs/views/`.

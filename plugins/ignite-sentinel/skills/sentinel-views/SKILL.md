@@ -17,13 +17,13 @@ Use this skill when the user wants a read-only portfolio view across Ignite Sent
 1. Run from the repository root:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /dashboard
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /dashboard
 ```
 
 2. If the user explicitly asks to open it and the local environment allows browser/file opening, run:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /dashboard --open
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /dashboard --open
 ```
 
    To use a theme other than the built-in `neutral`, add `--theme NAME_OR_PATH` (a local theme JSON path; brand themes never live in the repo).
@@ -35,8 +35,8 @@ python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /dashboard --open
 When the user wants one artifact as a navigable page instead of the portfolio:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
 ```
 
 - Report the generated path, theme and source cut-off.

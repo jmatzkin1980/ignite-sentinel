@@ -7,6 +7,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- The Claude Code plugin finds Python without `python` on PATH (IMP-290): the hook and the skills now start Python through a generated `python.sh` (`sh "${CLAUDE_PLUGIN_ROOT}/python.sh" ...`), which tries `SENTINEL_PYTHON`, then `python3` / `python` / `py -3` on PATH (skipping the Microsoft Store alias), then the usual Windows install folders, checks for 3.10+, and otherwise exits 127 with how to fix it. Seen live: a Windows laptop with Python 3.14 installed but no `python` or `py` on PATH, where every plugin skill failed. `*.sh` is checked out with LF. The MCP plugin still starts `python` directly, since MCP servers are not run through a shell.
 - Security policy, threat model and admin guide (IMP-283):
   - **`SECURITY.md`**: reports go through GitHub private vulnerability reporting; only the latest release is supported.
   - **Threat model** (`user_guide/19-threat-model.md`): the assets, including the feedback and guided answers that views keep in `localStorage`, and seven threats: prompt injection, path traversal, secret leakage, supply chain, network exfiltration, hooks and auto-update. Each one names its control, the test that proves it, and the residual risk.

@@ -9,10 +9,10 @@ Use this skill as the final gate for any Sentinel workflow.
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
 2. Review `workspaces/PROJECT_ID/06_traceability/health_report.md`.
 3. If verdict is `DIRTY`, fix each finding **by running the governed command that owns the artifact** and rerun health. Health findings are never fixed by editing artifacts.
-4. Use `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` when findings mention traceability.
+4. Use `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` when findings mention traceability.
 
 ## Rules
 

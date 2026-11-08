@@ -13,7 +13,7 @@ Use this skill after a client or domain owner returns an answered `gaps.md` or e
 2. Run:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /resolve-gaps PROJECT_ID --source PATH
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /resolve-gaps PROJECT_ID --source PATH
 ```
 
 3. Review `workspaces/PROJECT_ID/07_changes/00_client_responses/*_gap_resolution_report.md`.
@@ -22,8 +22,8 @@ python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /resolve-gaps PROJECT_ID --source PAT
 6. Run:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /status PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /status PROJECT_ID
 ```
 
 ## Post-Response Metabolism (report it, do not just close gaps)

@@ -12,5 +12,5 @@ Ignite Sentinel uses retrieval to reduce prompt context, not to replace source a
 ## CLI
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "scope and acceptance criteria" --workflow maturity
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "scope and acceptance criteria" --workflow maturity
 ```

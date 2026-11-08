@@ -18,7 +18,7 @@ claude plugin marketplace add jmatzkin1980/ignite-sentinel
 claude plugin install ignite-sentinel@ignite-sentinel
 ```
 
-The plugin needs Python 3.10 or newer on `PATH` as `python`. It has no other dependency.
+The plugin needs Python 3.10 or newer. It has no other dependency. It does not need `python` on `PATH`: the hook and the skills start Python through `python.sh`, which tries, in order, `SENTINEL_PYTHON`, `python3`, `python` and `py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders (`%LOCALAPPDATA%\Programs\Python\Python3*`, `%LOCALAPPDATA%\Python\pythoncore-3*`, `%ProgramFiles%\Python3*`). If none is found it says so and how to fix it. To pick an interpreter yourself, set `SENTINEL_PYTHON` to its full path.
 
 ## What you get
 
@@ -27,6 +27,7 @@ The plugin needs Python 3.10 or newer on `PATH` as `python`. It has no other dep
 | 24 skills | The same `sentinel-*` skills as the clone, prefixed with the plugin name: `/ignite-sentinel:sentinel-views`, `/ignite-sentinel:sentinel-discovery`, and so on. |
 | 1 hook | Read-only `PreToolUse` guard: a hand `Write`/`Edit` of a governed artifact (`workspaces/<id>/02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) is denied with the command that owns it. Nothing outside `workspaces/<id>/` is affected. |
 | `launcher.py` + `lib/sentinel/` | The runtime, in source form, so it can be audited. The launcher locates `lib/` by its own path. |
+| `python.sh` | Finds Python 3.10+ for the hook and the skills (see above). A plain POSIX shell script; Claude Code runs it with the `sh` it uses for hooks (Git Bash on Windows). |
 
 Workspaces, views and the dashboard are written in the project you have open, never in the plugin folder.
 
@@ -71,7 +72,7 @@ Claude Code refuses a download whose digest does not match (Claude Code 2.1.224 
 
 ## MCP server (optional)
 
-The MCP server is a second plugin, `ignite-sentinel-mcp`. It installs **disabled**, because it needs the third-party `mcp` package:
+The MCP server is a second plugin, `ignite-sentinel-mcp`. It installs **disabled**, because it needs the third-party `mcp` package. It starts `python` directly (MCP servers do not run through a shell), so it does need Python on `PATH` as `python`:
 
 ```bash
 python -m pip install "mcp>=1.2,<3"

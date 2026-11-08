@@ -9,19 +9,19 @@ Use this skill to generate execution-ready backlog artifacts.
 
 ## Workflow
 
-1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
-2. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID`.
+1. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturity PROJECT_ID`.
+2. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID`.
 3. Review `workspaces/PROJECT_ID/08_context_packs/backlog_generation.json` to confirm focused local retrieval was used globally and under `per_story.US-NNN` for each Spec Unit-derived story.
 4. Review `workspaces/PROJECT_ID/08_context_packs/implementation_readiness.json` to confirm each story has required domains, pending execution context, execution contract with anchors, retrieval plan, validation contract, dependencies, and freshness snapshot.
 5. Review `workspaces/PROJECT_ID/04_backlog/SLICE-PLAN.md` and `workspaces/PROJECT_ID/08_context_packs/slice_plan.json` to confirm concrete EPIC-002 enablers, implementation waves, checkpoints, and per-story handoff packs are ordered without generating task IDs.
 6. Review `workspaces/PROJECT_ID/04_backlog/EPIC-001.md` as the primary backlog artifact. It contains the epic, domain context coverage, story map, slicing rationale, retrieved context summary, agent execution contracts, retrieval plans, and embedded stories.
 7. Review generated `US-00x.md` files only as story-level traceability and quality handoff mirrors.
-8. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
-9. When status, owner, or Done evidence changes are needed, run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
-10. Use `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID --with-task-seeds` only when a downstream consumer explicitly asks for task-seed intentions.
-11. When downstream implementation reports a dependency, gap, invalid AC, or missing surface, run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /implementation-feedback PROJECT_ID --source FINDINGS.json`.
-12. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
-13. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` and `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
+8. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog-status PROJECT_ID` when the BA needs a current epic/status rollup or board view.
+9. When status, owner, or Done evidence changes are needed, run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /story-status PROJECT_ID --story US-NNN --set STATE --owner "NAME" [--evidence PATH]`.
+10. Use `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID --with-task-seeds` only when a downstream consumer explicitly asks for task-seed intentions.
+11. When downstream implementation reports a dependency, gap, invalid AC, or missing surface, run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /implementation-feedback PROJECT_ID --source FINDINGS.json`.
+12. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
+13. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` and `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
 
 ## Rules — Generating The Backlog (`/backlog`)
 
@@ -37,7 +37,7 @@ Use this skill to generate execution-ready backlog artifacts.
   - SPIDR: Spikes, Paths, Interfaces, Data, Rules.
   - Lawrence-style reduction: isolate the smallest useful variation first, then add workflow steps, edge cases, performance, external dependency, or discovery stories.
 - Each story should include description, narrative, slicing pattern, dependencies, in/out of scope, context used, acceptance criteria, Definition of Ready, Definition of Done, and traceability.
-- The story statement is phrased per the selected format: default `user` ("As a target user, I want ... so that ...") or, with `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID --story-format job` (or the `story_format` field in `sentinel.config.yaml`, which the flag overrides), the JTBD-native `job` shape ("When [situation], I want [motivation], so I can [outcome]") — the natural output when the input names no persona, so none is invented. Only the wording changes; acceptance criteria, slicing, and traceability are identical, and a missing outcome stays `[PENDING INPUT]`.
+- The story statement is phrased per the selected format: default `user` ("As a target user, I want ... so that ...") or, with `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID --story-format job` (or the `story_format` field in `sentinel.config.yaml`, which the flag overrides), the JTBD-native `job` shape ("When [situation], I want [motivation], so I can [outcome]") — the natural output when the input names no persona, so none is invented. Only the wording changes; acceptance criteria, slicing, and traceability are identical, and a missing outcome stays `[PENDING INPUT]`.
 - Acceptance criteria must be declarative Given/When/Then scenarios covering happy path, validation path, failure/recovery path, regression path, and quality evidence path.
 - Classify acceptance criteria as `fail-to-pass`, `pass-to-pass`, or `evidence` so downstream Quality and implementation agents know which tests should become newly green, which existing regression must stay green, and which evidence proves completion.
 - Cross-cutting enablers may be grouped in a dedicated enabler epic only when they are implementation work, frontend/backend/architecture, that must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.

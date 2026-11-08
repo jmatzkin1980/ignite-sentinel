@@ -22,8 +22,8 @@ This skill is **human-only** (`disable-model-invocation: true`): the model does 
 - Export only through audited commands such as:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format md
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact brief --format md
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format md
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact brief --format md
 ```
 
 - Do not store sensitive client input outside `workspaces/PROJECT_ID/` or repo `input/`.

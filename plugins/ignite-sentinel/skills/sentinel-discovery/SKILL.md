@@ -9,19 +9,19 @@ Use this skill to start or refresh discovery for a project.
 
 ## Workflow
 
-1. Confirm or create the project workspace with `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /init PROJECT_ID`.
+1. Confirm or create the project workspace with `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /init PROJECT_ID`.
 2. Place domain-owned context in the workspace context folders when available:
    - `workspaces/PROJECT_ID/00_raw/01_business_context/`
    - `workspaces/PROJECT_ID/00_raw/02_technology_context/`
    - `workspaces/PROJECT_ID/00_raw/03_design_context/`
    - `workspaces/PROJECT_ID/00_raw/04_quality_context/`
    - `workspaces/PROJECT_ID/00_raw/05_interactions/`
-3. Ingest raw material with `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /ingest PROJECT_ID --source PATH`.
-4. Regenerate the shareable gap document when needed: `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /gaps PROJECT_ID`.
-5. Use focused retrieval before analysis: `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "DISCOVERY_TOPIC" --workflow discovery --write-pack`.
+3. Ingest raw material with `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /ingest PROJECT_ID --source PATH`.
+4. Regenerate the shareable gap document when needed: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /gaps PROJECT_ID`.
+5. Use focused retrieval before analysis: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "DISCOVERY_TOPIC" --workflow discovery --write-pack`.
 6. Review generated artifacts in `workspaces/PROJECT_ID/01_discovery/` and `02_requirements/`, especially `requirement_units.md`, `identity_seeds.md`, `discovery_log.md`, `lens_review.md`, `gaps.md`, and `requirements.md`.
 7. Share `01_discovery/gaps.md` with the client or domain owner when maturity is blocked.
-8. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID` before downstream specs or backlog work.
+8. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID` before downstream specs or backlog work.
 
 ## Deepening Cycle After `/gaps`
 
@@ -39,7 +39,7 @@ Run 1 always; 2 and 3 when their trigger fits; 4 never on your own initiative. A
 When the BA needs to work the open gaps live in a meeting instead of an async `gaps.md`, generate a read-only interview script:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format interview
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format interview
 ```
 
 It writes `08_context_packs/exports/gaps-interview.md`: the **open** gaps ordered as a meeting script — **blocking gaps first**, grouped by lens — each with its cited context, the question to ask, and 1-2 **probing questions**. The probing questions are DERIVED from the IMP-113 candidate options, so they are always cited to local evidence; a gap without a local `evidence_mention` gets no probing questions (silence, never invented).
@@ -51,8 +51,8 @@ This export is a **derived view, not a source of truth**: it never replaces `01_
 Record who owns which domain/topic so the interview script can route questions to the right person ("these go to Operations; these to Technology"). The registry is CLI-only:
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /stakeholders PROJECT_ID
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /stakeholders PROJECT_ID --add --name "Ops Lead" --domain product --profile business --topic "queue risk"
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /stakeholders PROJECT_ID
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /stakeholders PROJECT_ID --add --name "Ops Lead" --domain product --profile business --topic "queue risk"
 ```
 
 It writes `01_discovery/stakeholders.md`, a **GENERATED artifact — mutate it only through `/stakeholders`, never by hand.** Each owner governs a `--domain` (a lens: product, technical, business, design, quality) and optionally a `--topic`; `--profile` reuses IMP-142 (`business` | `technical`) and an unrecognized value is dropped rather than invented. Ids auto-assign as `STK-NNN` when `--id` is omitted.
@@ -64,7 +64,7 @@ Routing is deterministic: a gap is matched to an owner by its lens/domain. With 
 The mirror image of the interview script: once gaps are **closed**, project the resolved ones as a traceable FAQ (PR/FAQ working-backwards heritage — resolved questions only, no invented press release):
 
 ```powershell
-python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format faq
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format faq
 ```
 
 It writes `08_context_packs/exports/gaps-faq.md`: each **question** is an elicited gap and each **answer** is its **CONFIRMED** closure, quoted verbatim from the seed/decision tables (`01_discovery/identity_seeds.md` + `decisions.md`) and cited to the gap id and its source. Only confirmed gaps appear — **open gaps never show up as answered** (they have no CONFIRMED row, so they are structurally excluded; answers are never invented). Like the interview script it is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited. With no confirmed gaps the FAQ is an explicit empty marker. Kept as an export (not a PRD section) to keep the PRD lean.
@@ -73,7 +73,7 @@ It writes `08_context_packs/exports/gaps-faq.md`: each **question** is an elicit
 
 - Sentinel uses local LanceDB memory under `workspaces/PROJECT_ID/memory.lancedb/`.
 - `/ingest` indexes generated artifacts and context folders so Codex can retrieve technology, design, quality, business, and interaction evidence without generating those domain specs.
-- If artifacts were edited manually, run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /reindex PROJECT_ID` before relying on `/retrieve`.
+- If artifacts were edited manually, run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /reindex PROJECT_ID` before relying on `/retrieve`.
 
 ## Rules
 
