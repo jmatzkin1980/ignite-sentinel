@@ -22,9 +22,14 @@ from pathlib import Path
 
 
 def _load_logic():
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    # Clone: <repo>/.claude/hooks/<this>, runtime at <repo>/sentinel.
+    # Claude Code plugin (IMP-279): <plugin>/hooks/<this>, runtime at <plugin>/lib/sentinel.
+    here = Path(__file__).resolve()
+    for candidate in (here.parents[1] / "lib", here.parents[2]):
+        if (candidate / "sentinel").is_dir():
+            if str(candidate) not in sys.path:
+                sys.path.insert(0, str(candidate))
+            break
     try:
         from sentinel import hooks_logic
     except ImportError:

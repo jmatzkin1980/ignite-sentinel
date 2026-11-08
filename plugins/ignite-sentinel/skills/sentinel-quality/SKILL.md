@@ -1,0 +1,23 @@
+---
+name: sentinel-quality
+description: "Use when generating or auditing Ignite Sentinel quality artifacts after backlog generation: /quality test cases, the dynamic backlog readiness audit, INVEST/SPIDR/Lawrence story scoring, and US->TC traceability checks. Trigger on 'generate test cases', story quality scoring, DoR warnings, or acceptance-criteria coverage questions. Not for structural workspace validation or gate overrides (use sentinel-health)."
+---
+
+# Sentinel Quality
+
+Use this skill after backlog generation.
+
+## Workflow
+
+1. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
+2. Review `workspaces/PROJECT_ID/05_quality/`, especially `backlog_readiness_audit.md`.
+3. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` to confirm `US -> TC` coverage.
+4. Run `python "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
+
+## Rules
+
+- Every test case must trace to a user story.
+- Acceptance criteria coverage must be explicit.
+- The backlog readiness audit scores only the governed Ignite model: INVEST, vertical slicing, SPIDR/Lawrence, concrete enabler boundary, AC coverage, traceability, and explicit dependencies.
+- Treat story quality findings as DoR warnings by default. Strict backlog gates are opt-in; do not harden them without explicit project configuration.
+- Keep automation notes practical and implementation-agnostic.

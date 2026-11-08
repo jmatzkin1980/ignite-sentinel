@@ -1,0 +1,11 @@
+<script id="dashboard-data" type="application/json">$data_json</script>
+<script id="section-registry" type="application/json">$sections_json</script>
+<div class="wrap">
+  <header class="top"><div class="brand"><div><h1>Ignite Sentinel - Workspaces</h1><div class="sub">Madurez de requerimientos de un vistazo · sin abrir un solo .md</div></div></div><div class="snap">Corte de fuentes: <b id="snapTime">-</b><br><span class="lock">Local-first · datos embebidos en el HTML</span></div></header>
+  <div class="kpis" id="kpis"></div>
+  <div class="controls"><div class="search"><input id="q" placeholder="Buscar workspace..."></div><div class="seg" id="fHealth"><button data-v="all" class="active">Todos</button><button data-v="CLEAN">Clean</button><button data-v="DIRTY">Dirty</button></div><div class="seg" id="fAttn"><button data-v="all" class="active">Toda la cartera</button><button data-v="attn">Requiere atencion</button></div></div>
+  <div class="grid" id="grid"></div>
+  <div class="foot">Dashboard local read-only generado por <code>/dashboard</code>.<br>El HTML es un snapshot reconstruible; los archivos del workspace siguen siendo la fuente de verdad.</div>
+</div>
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div><aside class="drawer" id="drawer" aria-hidden="true"></aside><div class="toast" id="toast">Copiado</div>
+<div class="modal" id="modal"><div class="mbg" onclick="closeModal()"></div><div class="mcard"><div class="mh"><h2 id="modalTitle"></h2><div class="mtools" id="modalTools"></div></div><div class="mbody" id="modalBody"></div></div></div>

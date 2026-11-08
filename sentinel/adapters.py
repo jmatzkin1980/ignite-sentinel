@@ -247,15 +247,25 @@ def skills_out_of_sync(root: Path | None = None) -> list[str]:
 
 
 if __name__ == "__main__":
-    result = regenerate()
-    skills_result = regenerate_skills()
-    print(
-        json.dumps(
-            {
-                "regenerated_commands": result,
-                "regenerated_skills": skills_result,
-                "out_of_sync": out_of_sync() + skills_out_of_sync(),
-            },
-            indent=2,
+    import sys
+
+    from .plugin_package import plugin_out_of_sync, regenerate_plugin
+
+    if "--plugin" in sys.argv[1:]:
+        # IMP-279: only the Claude Code marketplace and plugins under plugins/.
+        print(json.dumps({"regenerated_plugin": regenerate_plugin(), "out_of_sync": plugin_out_of_sync()}, indent=2))
+    else:
+        result = regenerate()
+        skills_result = regenerate_skills()
+        plugin_result = regenerate_plugin()
+        print(
+            json.dumps(
+                {
+                    "regenerated_commands": result,
+                    "regenerated_skills": skills_result,
+                    "regenerated_plugin": plugin_result,
+                    "out_of_sync": out_of_sync() + skills_out_of_sync() + plugin_out_of_sync(),
+                },
+                indent=2,
+            )
         )
-    )

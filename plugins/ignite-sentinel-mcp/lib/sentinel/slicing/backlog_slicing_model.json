@@ -1,0 +1,144 @@
+{
+  "model": "backlog_slicing",
+  "version": 1,
+  "strategy_rows": [
+    {
+      "heuristic": "Product Backlog transparency",
+      "applies": "Items stay ordered, explicit and inspectable against the product goal."
+    },
+    {
+      "heuristic": "INVEST",
+      "applies": "Stories must be independent enough to plan, valuable, small enough for a sprint-sized increment, and testable."
+    },
+    {
+      "heuristic": "Vertical slicing",
+      "applies": "Prefer slices that cross user experience, behavior, data, and validation. Avoid frontend-only/backend-only stories as the default."
+    },
+    {
+      "heuristic": "SPIDR",
+      "applies": "Use Spikes for uncertainty, Paths for alternate flows, Interfaces for surfaces, Data for source variations, Rules for business constraints."
+    },
+    {
+      "heuristic": "Lawrence patterns",
+      "applies": "Reduce variation to the smallest useful version first, then add workflow steps, edge cases, performance or external dependency work."
+    },
+    {
+      "heuristic": "Small but valuable",
+      "applies": "Do not split below the value boundary. A small story must still be independently meaningful, testable, and useful."
+    },
+    {
+      "heuristic": "Cross-cutting enablers",
+      "applies": "Only create enabler backlog when implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces. Generic environment or accessibility setup is a precondition, not an enabler story."
+    },
+    {
+      "heuristic": "Agent readiness",
+      "applies": "Give downstream agents bounded context, domain evidence, autonomy limits, validation contract, non-goals, dependencies, blast radius and stop conditions."
+    }
+  ],
+  "enabler_boundary": {
+    "paragraphs": [
+      "Use a separate enabler epic only when the work is specifically required to support project functionality across multiple stories, epics, FRs, or implementation surfaces. Valid enablers name the capability boundary they support, the risk or dependency they reduce, the reason they must be built earlier, and the objective evidence that proves completion.",
+      "Reject loose items such as \"make an internal tool accessible\", generic environment setup, broad infrastructure hardening, or unspecified backend/frontend preparation unless they are tied to this project's confirmed functionality and have implementation evidence."
+    ]
+  },
+  "patterns": [
+    {
+      "id": "interface_ux_state",
+      "slicing": "Interface / UX State",
+      "rationale": "The Spec Unit names an observable surface, screen, dashboard, form, indicator, or user-facing state, so the slice uses the SPIDR Interface path while staying vertical and testable.",
+      "priority": 30,
+      "tokens": [
+        "screen",
+        "ui",
+        "ux",
+        "dashboard",
+        "display",
+        "show",
+        "hide",
+        "indicator",
+        "form",
+        "interface",
+        "pantalla",
+        "interfaz",
+        "mostrar",
+        "ocultar",
+        "estado"
+      ]
+    },
+    {
+      "id": "rules_regression",
+      "slicing": "Rules / Regression Slice",
+      "rationale": "The Spec Unit is shaped by a business rule, threshold, eligibility, exception, or regression-sensitive condition, so the slice uses the SPIDR Rules path.",
+      "priority": 10,
+      "tokens": [
+        "rule",
+        "rules",
+        "threshold",
+        "eligible",
+        "eligibility",
+        "breach",
+        "breaches",
+        "sla",
+        "flag",
+        "block",
+        "constraint",
+        "exception",
+        "regression",
+        "regla",
+        "umbral",
+        "excepcion"
+      ]
+    },
+    {
+      "id": "data_external_dependency",
+      "slicing": "Data / External Dependency",
+      "rationale": "The Spec Unit depends on data freshness, source variation, integration availability, API behavior, or an external service, so the slice uses the SPIDR Data path.",
+      "priority": 20,
+      "tokens": [
+        "data",
+        "source",
+        "metrics",
+        "service",
+        "unavailable",
+        "available",
+        "stale",
+        "api",
+        "integration",
+        "import",
+        "sync",
+        "database",
+        "contract",
+        "datos",
+        "fuente",
+        "integracion",
+        "servicio"
+      ]
+    },
+    {
+      "id": "quality_evidence_traceability",
+      "slicing": "Quality Evidence / Traceability",
+      "rationale": "The Spec Unit is primarily about auditability, logs, observability, evidence, or traceability, so the slice uses the evidence-oriented path already present in the backlog model.",
+      "priority": 5,
+      "tokens": [
+        "audit",
+        "auditoria",
+        "log",
+        "logging",
+        "observability",
+        "trace",
+        "traceability",
+        "evidence",
+        "record",
+        "quality",
+        "test"
+      ]
+    },
+    {
+      "id": "workflow_happy_path",
+      "slicing": "Workflow Step / Happy Path",
+      "rationale": "The Spec Unit expresses the smallest useful value path without a stronger rule, data, interface, or evidence shape, so the slice remains a vertical happy-path increment.",
+      "priority": 100,
+      "tokens": []
+    }
+  ]
+}

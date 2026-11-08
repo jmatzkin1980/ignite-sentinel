@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ignite Sentinel Traceability Graph",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "path", "title", "status", "domain"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^(RAW|REQ|GAP|DEC|SPEC|EPIC|US|AC|TC|CHG)-[0-9]{3}$" },
+          "type": { "type": "string" },
+          "path": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "domain": { "type": "string" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "relation"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "relation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

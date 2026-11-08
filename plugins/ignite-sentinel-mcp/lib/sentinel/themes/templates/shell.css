@@ -1,0 +1,28 @@
+/* Common view shell (IMP-239). Colours come only from theme tokens. */
+:root{--shell-top:50px}
+.skip-link{position:absolute;left:-9999px;top:8px;z-index:100;background:var(--surface);color:var(--text);padding:8px 12px;border:2px solid var(--focus);border-radius:6px}
+.skip-link:focus{left:8px}
+.shell-top{position:sticky;top:0;z-index:20;height:var(--shell-top);display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+.shell-brand{font-weight:700;color:var(--accent)}
+.shell-title{color:var(--text-muted);font-size:13px}
+.shell-mode,.shell-burger{background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.shell-mode{margin-left:auto}
+.shell-burger{display:none}
+.shell-body{display:grid;grid-template-columns:220px minmax(0,1fr)}
+.shell-side{position:sticky;top:var(--shell-top);align-self:start;height:calc(100vh - var(--shell-top));overflow-y:auto;padding:16px 10px;border-right:1px solid var(--line);background:var(--bg)}
+.shell-side h2{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin:0 8px 6px}
+.shell-side ul{list-style:none;margin:0 0 18px;padding:0}
+.shell-side a,.shell-side button{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;color:var(--text);background:none;border:0;font:inherit;font-size:13px;cursor:pointer;text-decoration:none;overflow-wrap:anywhere}
+.shell-side a:hover,.shell-side button:hover{background:var(--surface-2)}
+main{min-width:0}
+main:focus{outline:none}
+@media (max-width: 900px){
+  .shell-burger{display:inline-block}
+  .shell-body{grid-template-columns:minmax(0,1fr)}
+  .shell-side{position:fixed;top:var(--shell-top);left:0;z-index:25;width:min(280px,85vw);box-shadow:0 8px 24px rgba(0,0,0,.25);transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
+  .shell-side.open{transform:translateX(0);visibility:visible;transition:transform .2s ease,visibility 0s}
+}
+@media print{
+  .shell-top,.shell-side,.skip-link{display:none!important}
+  .shell-body{display:block}
+}

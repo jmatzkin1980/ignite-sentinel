@@ -135,7 +135,9 @@ Drive these from chat in plain language, or call them directly. Every surface sp
 
 ## Quick Start
 
-First time on a new machine:
+**Claude Code, no clone:** install the plugin from this repository's marketplace — `/plugin marketplace add jmatzkin1980/ignite-sentinel`, then `/plugin install ignite-sentinel@ignite-sentinel`. See the [Claude Code plugin guide](user_guide/18-claude-plugin.md).
+
+First time on a new machine (clone):
 
 ```powershell
 git clone <REPO_URL>
@@ -398,6 +400,7 @@ The eval harness covers discovery, brief, PRD, specs, and backlog. It includes h
 | [Secure Environments](user_guide/09-secure-environments.md) | Running on locked-down VDIs |
 | [Portability](user_guide/16-portability.md) | Environment matrix, no-install mode, `.pyz`, and IT approval note |
 | [IT Portability Note](PORTABILITY.md) | Short reusable note for IT/security review |
+| [Claude Code Plugin](user_guide/18-claude-plugin.md) | Install from the marketplace, what the plugin ships, MCP opt-in |
 | [Repo & Branching Strategy](user_guide/10-repo-and-branching-strategy.md) | How `main` and project branches relate |
 | Adapters | [Codex Skills](user_guide/04-codex-skills-guide.md) · [Kilo Code](user_guide/07-kilo-code-adapter.md) · [Codex](user_guide/08-codex-adapter.md) · [Claude](user_guide/13-claude-adapter.md) · [VS Code Install](user_guide/06-installation-vscode.md) |
 
