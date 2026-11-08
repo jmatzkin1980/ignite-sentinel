@@ -1,16 +1,25 @@
-# IMP-289 — release artifacts with provenance, on every v* tag.
-# Builds the wheel, the CycloneDX SBOM (tools/sbom.py) and signs a build
-# provenance attestation for both (actions/attest-build-provenance, verifiable
-# with `gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`).
-# Creating the GitHub release and versioning belong to IMP-282; this workflow
-# only uploads to a release that already exists for the tag.
+# IMP-282 + IMP-289 — the release, on every vX.Y.Z tag (pushed by hand, or
+# created by release-check on main, which calls this workflow).
+# 1. tools/release.py check --tag: the tag equals the version (a tag without a
+#    bump fails) and CHANGELOG has its dated section.
+# 2. Builds the wheel, the CycloneDX SBOM (tools/sbom.py) and one plugin .zip per
+#    generated plugin plus SHA256SUMS (IMP-279 plugins, `archive` source input).
+#    Each zip is unpacked and passed through `claude plugin validate --strict`.
+# 3. Signs a build provenance attestation for all of them
+#    (`gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`).
+# 4. Creates the GitHub release with the CHANGELOG section as notes, and moves
+#    the `stable` branch to the tag (fast-forward only; it never force-pushes).
 name: release-attest
 
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*'          # a tag pushed by hand
+  workflow_call:      # release-check on main, after it tags a bump
+    inputs:
+      tag:
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -20,45 +29,66 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write       # gh release upload (only when the release exists)
+      contents: write       # create the release, fast-forward `stable`
       id-token: write       # OIDC token for the Sigstore signature
       attestations: write   # store the attestation
     env:
       PYTHONUTF8: "1"
+      TAG: ${{ inputs.tag || github.ref_name }}
+      CLAUDE_CODE_VERSION: "2.1.305"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0   # `stable` fast-forward needs history
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
+      - name: Tag equals the version
+        run: python tools/release.py check --tag "$TAG"
+      - name: Generated plugin is in sync
+        run: |
+          python -m sentinel.adapters --plugin
+          git diff --exit-code -- plugins .claude-plugin
       - name: Extras locks are hash-pinned
         run: python tools/check_constraints.py
       - name: Build the wheel
         run: python -m pip wheel --no-deps --wheel-dir dist .
-      - name: SBOM (CycloneDX)
+      - name: SBOM (CycloneDX) and plugin archives
         run: |
           export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
-          python tools/sbom.py -o "dist/ignite-sentinel-${GITHUB_REF_NAME}.cdx.json"
-
-      # TODO(IMP-279/IMP-282) hook point: build the Claude Code plugin .zip here,
-      # run `claude plugin validate --strict` on it, and add `dist/*.zip` to the
-      # attestation subject-path below. Not done in IMP-289 on purpose.
-
+          python tools/sbom.py -o "dist/ignite-sentinel-${TAG}.cdx.json"
+          python tools/release.py zip --out dist
+      - name: claude plugin validate --strict (each archive, unpacked)
+        run: |
+          (cd dist && sha256sum --check SHA256SUMS)
+          for archive in dist/*.zip; do
+            unpacked="$(mktemp -d)"
+            python -m zipfile -e "$archive" "$unpacked"
+            for plugin in "$unpacked"/*/; do
+              npx --yes "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" plugin validate --strict "$plugin"
+            done
+          done
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             dist/*.whl
             dist/*.cdx.json
+            dist/*.zip
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-${{ github.ref_name }}
+          name: release-${{ inputs.tag || github.ref_name }}
           path: dist/
-      - name: Attach to the GitHub release (if IMP-282 already created it)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/*.whl dist/*.cdx.json --clobber
+          python tools/release.py notes "$TAG" > release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.whl dist/*.cdx.json dist/*.zip dist/SHA256SUMS --clobber
           else
-            echo "No release for $GITHUB_REF_NAME yet; artifacts kept on the run (release mechanics: IMP-282)."
+            gh release create "$TAG" dist/*.whl dist/*.cdx.json dist/*.zip dist/SHA256SUMS \
+              --verify-tag --title "$TAG" --notes-file release-notes.md
           fi
+      - name: Move the stable channel to this release
+        run: git push origin "HEAD:refs/heads/stable"
