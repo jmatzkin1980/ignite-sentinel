@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/challenge.schema.json",
+  "title": "Ignite Sentinel Challenge Analysis",
+  "description": "Input contract for /challenge (advanced elicitation, IMP-023). Each gap is validated in code by validate_agent_gaps (shared with /annotate, /scrutinize, and the implementability probe) — every gap must cite verbatim local evidence — and is merged tagged origin: challenge. The optional pre-mortem and inverted-assumption notes feed challenge_report.md.",
+  "type": "object",
+  "required": ["gaps"],
+  "additionalProperties": true,
+  "properties": {
+    "gaps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "lens", "severity", "question", "evidence"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^GAP-[A-Z0-9-]+$"
+          },
+          "lens": {
+            "type": "string",
+            "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "technique": {
+            "type": "string",
+            "description": "The elicitation technique that surfaced the finding (e.g. pre-mortem, jtbd-forces, red-blue-team, first-principles, stakeholder-round-robin, assumption-inversion)."
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verbatim local quote from raw input or domain context."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "premortem": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions_inverted": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

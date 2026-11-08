@@ -1,0 +1,94 @@
+{
+  "lens": "design",
+  "description": "Lente de Diseno: journeys, estados de UI y alcance de prototipo. Reglas inquisitivas: una pantalla mencionada sin su contracara dispara la pregunta.",
+  "checks": [
+    {
+      "id": "GAP-DESIGN-FLOW",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "design",
+      "description": "User journey, screen flow, or interaction model is not explicit in source or design context.",
+      "triggers": [
+        "screen",
+        "pantalla",
+        "dashboard",
+        "portal",
+        " ui ",
+        "page",
+        "web",
+        "app"
+      ],
+      "counterparts": [
+        "journey",
+        "flow",
+        "flujo",
+        "navigation",
+        "navegacion",
+        "navegación",
+        "wireframe",
+        "mock",
+        "prototype",
+        "prototipo",
+        "recorrido"
+      ],
+      "why": "Una pantalla sin journey ni navegacion no se puede disenar end-to-end."
+    },
+    {
+      "id": "GAP-DESIGN-STATES",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "design",
+      "description": "Required UI states for loading, empty, error, and recovery are not explicit.",
+      "triggers": [
+        "screen",
+        "pantalla",
+        "dashboard",
+        "portal",
+        " ui ",
+        "page",
+        "web",
+        "app"
+      ],
+      "counterparts": [
+        "loading",
+        "empty",
+        "error state",
+        "estado de error",
+        "vacío",
+        "vacio",
+        "spinner",
+        "skeleton",
+        "ui states",
+        "estados de ui",
+        "recovery"
+      ],
+      "why": "Los estados de carga/vacio/error son donde se cae la UX si no se especifican."
+    },
+    {
+      "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+      "severity": "medium",
+      "rule": "mention_without_counterpart",
+      "evidence_scope": "design",
+      "description": "The requirement does not make clear what Design must prototype or validate in user flows.",
+      "triggers": [
+        "screen",
+        "pantalla",
+        "dashboard",
+        "portal",
+        " ui ",
+        "page",
+        "web",
+        "app"
+      ],
+      "counterparts": [
+        "prototype",
+        "prototipo",
+        "wireframe",
+        "figma",
+        "mock",
+        "maqueta"
+      ],
+      "why": "Sin saber que prototipar, Diseno no puede validar hipotesis de interaccion."
+    }
+  ]
+}

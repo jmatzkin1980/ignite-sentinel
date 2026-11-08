@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="$lang">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="$csp">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$title</title>
+<script>try{var m=window.localStorage.getItem("ignite-sentinel:color-mode");if(m==="light"||m==="dark")document.documentElement.setAttribute("data-theme",m)}catch(e){}</script>
+<style>
+$theme_css
+$shell_css
+$page_css
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">$skip_label</a>
+<header class="shell-top">
+  <button class="shell-burger" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="$menu_label">&#9776;</button>
+  <span class="shell-brand">Ignite Sentinel</span>
+  <span class="shell-title">$heading</span>
+  <button class="shell-mode" id="modeToggle" type="button" data-dark="$mode_dark" data-light="$mode_light">$mode_dark</button>
+</header>
+<div class="shell-body">
+<nav class="shell-side" id="sidebar" aria-label="$nav_label">
+$nav
+</nav>
+<main id="main" tabindex="-1">
+$content
+</main>
+</div>
+<script>
+$shell_js
+</script>
+<script>
+$page_js
+</script>
+</body>
+</html>

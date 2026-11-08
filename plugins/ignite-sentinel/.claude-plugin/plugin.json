@@ -1,0 +1,19 @@
+{
+  "name": "ignite-sentinel",
+  "displayName": "Ignite Sentinel",
+  "version": "0.2.0",
+  "description": "Repo-local BA/Product requirements operating framework for AI PODs.",
+  "author": {
+    "name": "jmatzkin1980"
+  },
+  "homepage": "https://github.com/jmatzkin1980/ignite-sentinel",
+  "repository": "https://github.com/jmatzkin1980/ignite-sentinel",
+  "license": "MIT",
+  "keywords": [
+    "requirements",
+    "business-analysis",
+    "product",
+    "traceability",
+    "local-first"
+  ]
+}

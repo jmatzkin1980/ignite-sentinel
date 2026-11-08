@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "contracts": [
+    {
+      "id": "discovery_to_brief_minimum",
+      "edge": "discovery->brief",
+      "description": "Minimum discovery facts that should survive into the project brief before downstream specs.",
+      "artifact": "02_requirements/project-brief.md",
+      "required_fields": [
+        {
+          "id": "objective",
+          "description": "Business objective or target outcome from discovery.",
+          "markers": ["objetivo", "objective", "outcome", "resultado"]
+        },
+        {
+          "id": "users_or_actors",
+          "description": "Target users, actors, or responsible roles.",
+          "markers": ["usuario", "usuarios", "actor", "actores", "rol", "roles", "user", "users"]
+        },
+        {
+          "id": "acceptance_or_quality",
+          "description": "Acceptance, quality, or validation expectation.",
+          "markers": ["aceptacion", "aceptación", "acceptance", "calidad", "quality", "validacion", "validación"]
+        }
+      ]
+    },
+    {
+      "id": "spec_unit_story_handoff",
+      "edge": "spec_unit->story",
+      "description": "Covered by the existing spec-unit to story acceptance fidelity check.",
+      "existing_check": "spec_unit_story_handoff"
+    }
+  ]
+}

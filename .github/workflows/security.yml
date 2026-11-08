@@ -46,6 +46,11 @@ jobs:
         with:
           languages: python
           build-mode: none
+          # IMP-279: plugins/*/lib/sentinel is a byte-for-byte generated copy of sentinel/
+          # (drift-guarded by claude_plugin_check); analysing it again only triplicates alerts.
+          config: |
+            paths-ignore:
+              - plugins
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: "/language:python"

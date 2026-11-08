@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/knowledge_unit.schema.json",
+  "title": "Ignite Sentinel Knowledge Unit",
+  "type": "object",
+  "required": ["id", "lens", "statement", "status", "evidence", "links"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^KLU-[0-9]{3,}$"
+    },
+    "lens": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["CONFIRMED", "ASSUMED", "OPEN", "INFERRED"]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trace_id": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string",
+          "enum": ["[PENDING INPUT]"]
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["note"]
+        },
+        {
+          "required": ["trace_id", "quote"]
+        }
+      ]
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
