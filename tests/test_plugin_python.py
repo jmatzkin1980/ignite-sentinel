@@ -93,12 +93,21 @@ class ResolverTests(unittest.TestCase):
         _fake(self.real, "python", f'exec "{_posix(Path(sys.executable))}" "$@"')
 
     def _run(self, path_dirs: list[Path], **env: str) -> subprocess.CompletedProcess[str]:
-        system = [d for d in ("/usr/bin", "/bin") if Path(d).exists()] if os.name != "nt" else []
         base = {k: v for k, v in os.environ.items() if k in {"SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE"}}
-        tool_dirs = []
         if os.name == "nt":
-            tool_dirs = [str(Path(SH).parent)]  # Git Bash: sh, sed, command
-        base["PATH"] = os.pathsep.join([str(d) for d in path_dirs] + tool_dirs + system)
+            tool_dirs = [str(Path(SH).parent)]  # Git Bash: sh, sed (no python there)
+        else:
+            # Never /usr/bin: CI images ship a system python3 there, which would mask
+            # "nothing found". Expose only the tools the shim itself calls.
+            tools = self.tmp / "tools-bin"
+            if not tools.exists():
+                tools.mkdir()
+                for tool in ("sed", "cygpath"):
+                    found = shutil.which(tool)
+                    if found:
+                        (tools / tool).symlink_to(found)
+            tool_dirs = [str(tools)]
+        base["PATH"] = os.pathsep.join([str(d) for d in path_dirs] + tool_dirs)
         base.update(env)
         return subprocess.run(
             [SH, str(self.shim), "-c", "import sys; print(sys.version_info >= (3, 10))"],
