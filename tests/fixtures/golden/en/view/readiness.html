@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROJECT_ID] · Build Readiness — Ignite Artifact View</title>
+<script>try{var m=window.localStorage.getItem("ignite-sentinel:color-mode");if(m==="light"||m==="dark")document.documentElement.setAttribute("data-theme",m)}catch(e){}</script>
+<style>
+:root{color-scheme:light;--accent:#2F5D8C;--bg:#FFFFFF;--block:#B42318;--block-soft:#FDECEA;--block-text:#8A1C12;--focus:#2F5D8C;--governance:#6B3FA0;--governance-soft:#F1EAFB;--governance-text:#4B2A75;--info:#1F6FB2;--info-soft:#E3F0FB;--info-text:#0B4A7D;--line:#D0D7DE;--link:#1F5A99;--ok:#2E7D32;--ok-soft:#E8F5E9;--ok-text:#1B5E20;--surface:#F6F8FA;--surface-2:#EEF2F6;--text:#1F2933;--text-muted:#52606D;--warn:#B26A00;--warn-soft:#FFF4E0;--warn-text:#7A4500;--font:system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;--font-mono:Consolas, "Cascadia Mono", "SFMono-Regular", Menlo, monospace;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--accent:#7FB0E0;--bg:#0F1720;--block:#F06A5E;--block-soft:#3A1512;--block-text:#F7B4AD;--focus:#7FB0E0;--governance:#A98BD8;--governance-soft:#261A3A;--governance-text:#D6C6F2;--info:#4FA3E3;--info-soft:#10283D;--info-text:#A9D3F5;--line:#2E3D4C;--link:#8CC0F0;--ok:#4CAF50;--ok-soft:#12301A;--ok-text:#A5D6A7;--surface:#16212C;--surface-2:#1E2B38;--text:#E6EDF3;--text-muted:#A7B4C2;--warn:#E0A040;--warn-soft:#33240C;--warn-text:#F5CF8C;}}
+:root[data-theme="dark"]{color-scheme:dark;--accent:#7FB0E0;--bg:#0F1720;--block:#F06A5E;--block-soft:#3A1512;--block-text:#F7B4AD;--focus:#7FB0E0;--governance:#A98BD8;--governance-soft:#261A3A;--governance-text:#D6C6F2;--info:#4FA3E3;--info-soft:#10283D;--info-text:#A9D3F5;--line:#2E3D4C;--link:#8CC0F0;--ok:#4CAF50;--ok-soft:#12301A;--ok-text:#A5D6A7;--surface:#16212C;--surface-2:#1E2B38;--text:#E6EDF3;--text-muted:#A7B4C2;--warn:#E0A040;--warn-soft:#33240C;--warn-text:#F5CF8C;}
+
+/* Ignite Sentinel base stylesheet (IMP-238). No literal colours: every colour
+   is a theme token, and every var(--x) used here is a token a theme must define
+   in both modes (sentinel/themes.py:required_tokens derives the list from this
+   file). --font and --font-mono come from the theme's tipografia. */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; }
+code, pre { font-family: var(--font-mono); }
+a { color: var(--link); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.surface { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.surface-2 { background: var(--surface-2); }
+.muted { color: var(--text-muted); }
+.accent-bar { border-top: 3px solid var(--accent); }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 0.85em; border-left: 3px solid transparent; }
+.chip-ok { background: var(--ok-soft); color: var(--ok-text); border-left-color: var(--ok); }
+.chip-info { background: var(--info-soft); color: var(--info-text); border-left-color: var(--info); }
+.chip-warn { background: var(--warn-soft); color: var(--warn-text); border-left-color: var(--warn); }
+.chip-block { background: var(--block-soft); color: var(--block-text); border-left-color: var(--block); }
+.chip-governance { background: var(--governance-soft); color: var(--governance-text); border-left-color: var(--governance); }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 8px 0; }
+.legend li { margin: 0; }
+
+/* Common view shell (IMP-239). Colours come only from theme tokens. */
+:root{--shell-top:50px}
+.skip-link{position:absolute;left:-9999px;top:8px;z-index:100;background:var(--surface);color:var(--text);padding:8px 12px;border:2px solid var(--focus);border-radius:6px}
+.skip-link:focus{left:8px}
+.shell-top{position:sticky;top:0;z-index:20;height:var(--shell-top);display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+.shell-brand{font-weight:700;color:var(--accent)}
+.shell-title{color:var(--text-muted);font-size:13px}
+.shell-mode,.shell-burger{background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+.shell-mode{margin-left:auto}
+.shell-burger{display:none}
+.shell-body{display:grid;grid-template-columns:220px minmax(0,1fr)}
+.shell-side{position:sticky;top:var(--shell-top);align-self:start;height:calc(100vh - var(--shell-top));overflow-y:auto;padding:16px 10px;border-right:1px solid var(--line);background:var(--bg)}
+.shell-side h2{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin:0 8px 6px}
+.shell-side ul{list-style:none;margin:0 0 18px;padding:0}
+.shell-side a,.shell-side button{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:6px;color:var(--text);background:none;border:0;font:inherit;font-size:13px;cursor:pointer;text-decoration:none;overflow-wrap:anywhere}
+.shell-side a:hover,.shell-side button:hover{background:var(--surface-2)}
+main{min-width:0}
+main:focus{outline:none}
+@media (max-width: 900px){
+  .shell-burger{display:inline-block}
+  .shell-body{grid-template-columns:minmax(0,1fr)}
+  .shell-side{position:fixed;top:var(--shell-top);left:0;z-index:25;width:min(280px,85vw);box-shadow:0 8px 24px rgba(0,0,0,.25);transform:translateX(-105%);visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
+  .shell-side.open{transform:translateX(0);visibility:visible;transition:transform .2s ease,visibility 0s}
+}
+@media print{
+  .shell-top,.shell-side,.skip-link{display:none!important}
+  .shell-body{display:block}
+}
+
+* { box-sizing: border-box; }
+    .view-header { padding: 22px 28px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 22px 0 10px; }
+    .meta { color: var(--text-muted); font-size: 13px; }
+    .verdict-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+    .verdict { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+    .v-READY { background: var(--ok-soft); color: var(--ok-text); }
+    .v-READY_WITH_WARNINGS { background: var(--warn-soft); color: var(--warn-text); }
+    .v-NOT_READY { background: var(--block-soft); color: var(--block-text); }
+    .next { margin-top: 12px; font-size: 14px; }
+    .next code { font-family: var(--font-mono); font-size: 12px; }
+    code { overflow-wrap: anywhere; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); }
+    aside { position: sticky; top: var(--shell-top); align-self: start; max-height: calc(100vh - var(--shell-top)); overflow: auto; padding: 18px; background: var(--surface); border-left: 1px solid var(--line); }
+    .view-main { min-width: 0; padding: 18px 30px 60px; }
+    .view-section { padding: 0 30px 24px; }
+    .view-nav { padding: 0 8px; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+    .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px; }
+    .stat strong { display: block; font-size: 21px; }
+    .stat span { color: var(--text-muted); font-size: 12px; }
+    .toc a { display: block; padding: 4px 6px; color: var(--text); text-decoration: none; font-size: 13px; border-radius: 4px; }
+    .side-title { margin: 16px 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: .05em; }
+    .block ul { margin: 6px 0 0; padding-left: 20px; }
+    .block li { margin: 3px 0; font-size: 14px; }
+    .block h3 { font-size: 14px; margin: 12px 0 4px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 12px; }
+    .card h3 { margin: 0 0 6px; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .card .sub { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+    .recipient { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 10px; margin-bottom: 10px; }
+    .recipient header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+    .recipient .unassigned { color: var(--text-muted); font-weight: 400; }
+    .req { display: grid; grid-template-columns: auto 1fr; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
+    .req.marked .req-text { text-decoration: line-through; color: var(--text-muted); }
+    .tag { display: inline-block; border-radius: 4px; padding: 0 5px; font-size: 11px; margin-right: 4px; border: 1px solid var(--line); color: var(--text-muted); }
+    .tag.b-start { border-color: var(--block); color: var(--block-text); }
+    .tag.b-slice { border-color: var(--warn); color: var(--warn-text); }
+    button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 6px; padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px; }
+    .mark-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    textarea { width: 100%; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+    .hint { color: var(--text-muted); font-size: 12px; }
+    .empty { color: var(--text-muted); font-size: 13px; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } aside { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--line); } .view-main { padding: 16px; } }
+
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="shell-top">
+  <button class="shell-burger" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open or close the menu">&#9776;</button>
+  <span class="shell-brand">Ignite Sentinel</span>
+  <span class="shell-title">Build Readiness</span>
+  <button class="shell-mode" id="modeToggle" type="button" data-dark="Dark mode" data-light="Light mode">Dark mode</button>
+</header>
+<div class="shell-body">
+<nav class="shell-side" id="sidebar" aria-label="Navigation">
+<div class="view-nav"><div class="stats" id="stats"></div>
+      <div class="side-title" id="navItemsTitle">Items</div>
+      <div class="toc" id="toc"></div></div>
+
+</nav>
+<main id="main" tabindex="-1">
+<script id="readiness-data" type="application/json">{"project_id": "[PROJECT_ID]", "artifact": "readiness", "label": "Build Readiness", "language": "en", "verdict": {"verdict": "READY_WITH_WARNINGS", "blockers": [], "warnings": ["Not implementable from discovery evidence: RU-003.", "DEFERRED_TO_CONTEXT (reported, not blocking): RU-001.", "Development certainty: NOT_READY_OPEN_UNCERTAINTY."], "partial_coverage": [], "counts": {"open": 24, "answered": 0, "partially_closed": 0, "closed": 1, "blocking_open": 0, "total": 25}, "gate_matrix": [{"gate": "gaps", "state": "CLEAR", "blocks": false}, {"gate": "brief_gate", "state": "PASSED", "blocks": false}, {"gate": "implementability_gate", "state": "UNITS_NOT_IMPLEMENTABLE", "blocks": false}, {"gate": "crystallization_gate", "state": "NOT_READY_OPEN_UNCERTAINTY", "blocks": false}, {"gate": "drift", "state": "CLEAN", "blocks": false}, {"gate": "story_dor", "state": "FAILING", "blocks": false}], "maturity_score": 0.361, "next_step": {"key": "quality", "title": "Check the backlog", "text": "Run /quality PROJECT_ID and fix the stories that fail Definition of Ready.", "command": "/quality [PROJECT_ID]"}}, "items": [{"id": "workspace", "kind": "workspace", "label": "Workspace", "verdict": "READY_WITH_WARNINGS", "empty": false, "stories": []}, {"id": "US-001", "kind": "story", "label": "US-001", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "US-002", "kind": "story", "label": "US-002", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "US-003", "kind": "story", "label": "US-003", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "US-004", "kind": "story", "label": "US-004", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "US-005", "kind": "story", "label": "US-005", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "US-006", "kind": "story", "label": "US-006", "verdict": "NOT_READY", "empty": false, "stories": []}, {"id": "CHK-WAVE-01", "kind": "wave", "label": "Wave 01", "verdict": "NOT_READY", "empty": false, "stories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006"]}], "requests": [{"id": "gap:GAP-BUSINESS-RULES", "kind": "gap", "source_id": "GAP-BUSINESS-RULES", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "business", "text": "Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?", "recipient": "client"}, {"id": "gap:GAP-PRD-PERSONA-DETAIL", "kind": "gap", "source_id": "GAP-PRD-PERSONA-DETAIL", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "business", "text": "What confirmed information resolves this uncertainty?", "recipient": "client"}, {"id": "gap:GAP-METRIC-SOURCE", "kind": "gap", "source_id": "GAP-METRIC-SOURCE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "business", "text": "What is the source or baseline for the quantitative metric?", "recipient": "client"}, {"id": "gap:GAP-METRIC-DEFINITION", "kind": "gap", "source_id": "GAP-METRIC-DEFINITION", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "business", "text": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?", "recipient": "client"}, {"id": "gap:GAP-PRODUCT-ASIS-TOBE", "kind": "gap", "source_id": "GAP-PRODUCT-ASIS-TOBE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "product", "text": "What is the current process, target process, and exact delta between them?", "recipient": "client"}, {"id": "gap:GAP-BACKLOG-SLICING-READINESS", "kind": "gap", "source_id": "GAP-BACKLOG-SLICING-READINESS", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "product", "text": "What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?", "recipient": "client"}, {"id": "gap:GAP-PRD-FR-AC", "kind": "gap", "source_id": "GAP-PRD-FR-AC", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "product", "text": "What confirmed information resolves this uncertainty?", "recipient": "client"}, {"id": "gap:GAP-QUALITY", "kind": "gap", "source_id": "GAP-QUALITY", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "quality", "text": "What quality, testability, risk, or compliance expectations apply?", "recipient": "domain:quality"}, {"id": "gap:GAP-QUALITY-HANDOFF", "kind": "gap", "source_id": "GAP-QUALITY-HANDOFF", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "quality", "text": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?", "recipient": "domain:quality"}, {"id": "gap:GAP-PRD-NFR-KPI", "kind": "gap", "source_id": "GAP-PRD-NFR-KPI", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "quality", "text": "What confirmed information resolves this uncertainty?", "recipient": "domain:quality"}, {"id": "gap:GAP-TECH-DATA-SOURCE", "kind": "gap", "source_id": "GAP-TECH-DATA-SOURCE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?", "recipient": "domain:technical"}, {"id": "gap:GAP-TECH-NFR", "kind": "gap", "source_id": "GAP-TECH-NFR", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "What security, performance, observability, availability, or operational constraints apply?", "recipient": "domain:technical"}, {"id": "gap:GAP-BACKLOG-ENABLERS", "kind": "gap", "source_id": "GAP-BACKLOG-ENABLERS", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?", "recipient": "domain:technical"}, {"id": "gap:GAP-FRONTEND-SURFACE", "kind": "gap", "source_id": "GAP-FRONTEND-SURFACE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?", "recipient": "domain:technical"}, {"id": "gap:GAP-BACKEND-SURFACE", "kind": "gap", "source_id": "GAP-BACKEND-SURFACE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?", "recipient": "domain:technical"}, {"id": "gap:GAP-TECH-DEEP-DIVE-INPUT", "kind": "gap", "source_id": "GAP-TECH-DEEP-DIVE-INPUT", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "technical", "text": "Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?", "recipient": "domain:technical"}, {"id": "gap:GAP-GOVERNANCE-CONSTRAINTS", "kind": "gap", "source_id": "GAP-GOVERNANCE-CONSTRAINTS", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "compliance", "text": "Which security, privacy, compliance, audit, or operational restrictions must be respected?", "recipient": "domain:compliance"}, {"id": "gap:GAP-PRD-GLOSSARY-GOVERNANCE", "kind": "gap", "source_id": "GAP-PRD-GLOSSARY-GOVERNANCE", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "compliance", "text": "What confirmed information resolves this uncertainty?", "recipient": "domain:compliance"}, {"id": "gap:GAP-DELIVERY-READINESS", "kind": "gap", "source_id": "GAP-DELIVERY-READINESS", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "delivery", "text": "Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?", "recipient": "domain:delivery"}, {"id": "gap:GAP-PRD-DEPENDENCIES-ROADMAP", "kind": "gap", "source_id": "GAP-PRD-DEPENDENCIES-ROADMAP", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "delivery", "text": "What confirmed information resolves this uncertainty?", "recipient": "domain:delivery"}, {"id": "gap:GAP-PRD-ROLLOUT-ENVIRONMENTS", "kind": "gap", "source_id": "GAP-PRD-ROLLOUT-ENVIRONMENTS", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "delivery", "text": "Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?", "recipient": "domain:delivery"}, {"id": "gap:GAP-DESIGN-FLOW", "kind": "gap", "source_id": "GAP-DESIGN-FLOW", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "design", "text": "Which user journey, screens, flows, copy, or interaction changes are in scope?", "recipient": "domain:design"}, {"id": "gap:GAP-DESIGN-STATES", "kind": "gap", "source_id": "GAP-DESIGN-STATES", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "design", "text": "What loading, empty, error, recovery, and accessibility states must be handled?", "recipient": "domain:design"}, {"id": "gap:GAP-DESIGN-PROTOTYPE-INPUT", "kind": "gap", "source_id": "GAP-DESIGN-PROTOTYPE-INPUT", "item": "workspace", "blocks": "no", "severity": "medium", "status": "OPEN", "lens": "design", "text": "What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?", "recipient": "domain:design"}, {"id": "dor:US-001:1", "kind": "dor", "source_id": "US-001", "item": "US-001", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.60.", "recipient": "ba"}, {"id": "dor:US-001:2", "kind": "dor", "source_id": "US-001", "item": "US-001", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}, {"id": "dor:US-002:1", "kind": "dor", "source_id": "US-002", "item": "US-002", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.60.", "recipient": "ba"}, {"id": "dor:US-002:2", "kind": "dor", "source_id": "US-002", "item": "US-002", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}, {"id": "dor:US-003:1", "kind": "dor", "source_id": "US-003", "item": "US-003", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.60.", "recipient": "ba"}, {"id": "dor:US-003:2", "kind": "dor", "source_id": "US-003", "item": "US-003", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}, {"id": "dor:US-004:1", "kind": "dor", "source_id": "US-004", "item": "US-004", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.67.", "recipient": "ba"}, {"id": "dor:US-004:2", "kind": "dor", "source_id": "US-004", "item": "US-004", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}, {"id": "dor:US-005:1", "kind": "dor", "source_id": "US-005", "item": "US-005", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.67.", "recipient": "ba"}, {"id": "dor:US-005:2", "kind": "dor", "source_id": "US-005", "item": "US-005", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}, {"id": "dor:US-006:1", "kind": "dor", "source_id": "US-006", "item": "US-006", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Implementation readiness must be Ready With Domain Evidence and score >= 1.00; current score is 0.60.", "recipient": "ba"}, {"id": "dor:US-006:2", "kind": "dor", "source_id": "US-006", "item": "US-006", "blocks": "slice", "severity": "", "status": "OPEN", "lens": "", "text": "Definition of Ready: Assign a human owner with /story-status --owner before treating the story as Ready.", "recipient": "ba"}], "recipients": [{"key": "ba", "label": "BA", "assigned": true, "request_ids": ["dor:US-001:1", "dor:US-001:2", "dor:US-002:1", "dor:US-002:2", "dor:US-003:1", "dor:US-003:2", "dor:US-004:1", "dor:US-004:2", "dor:US-005:1", "dor:US-005:2", "dor:US-006:1", "dor:US-006:2"]}, {"key": "client", "label": "Client (unassigned)", "assigned": false, "request_ids": ["gap:GAP-BUSINESS-RULES", "gap:GAP-PRD-PERSONA-DETAIL", "gap:GAP-METRIC-SOURCE", "gap:GAP-METRIC-DEFINITION", "gap:GAP-PRODUCT-ASIS-TOBE", "gap:GAP-BACKLOG-SLICING-READINESS", "gap:GAP-PRD-FR-AC"]}, {"key": "domain:compliance", "label": "Domain: compliance (unassigned)", "assigned": false, "request_ids": ["gap:GAP-GOVERNANCE-CONSTRAINTS", "gap:GAP-PRD-GLOSSARY-GOVERNANCE"]}, {"key": "domain:delivery", "label": "Domain: delivery (unassigned)", "assigned": false, "request_ids": ["gap:GAP-DELIVERY-READINESS", "gap:GAP-PRD-DEPENDENCIES-ROADMAP", "gap:GAP-PRD-ROLLOUT-ENVIRONMENTS"]}, {"key": "domain:design", "label": "Domain: design (unassigned)", "assigned": false, "request_ids": ["gap:GAP-DESIGN-FLOW", "gap:GAP-DESIGN-STATES", "gap:GAP-DESIGN-PROTOTYPE-INPUT"]}, {"key": "domain:quality", "label": "Domain: quality (unassigned)", "assigned": false, "request_ids": ["gap:GAP-QUALITY", "gap:GAP-QUALITY-HANDOFF", "gap:GAP-PRD-NFR-KPI"]}, {"key": "domain:technical", "label": "Domain: technical (unassigned)", "assigned": false, "request_ids": ["gap:GAP-TECH-DATA-SOURCE", "gap:GAP-TECH-NFR", "gap:GAP-BACKLOG-ENABLERS", "gap:GAP-FRONTEND-SURFACE", "gap:GAP-BACKEND-SURFACE", "gap:GAP-TECH-DEEP-DIVE-INPUT"]}], "summary": {"items": 8, "requests": 36, "recipients": 7, "blocks_start": 0, "blocks_slice": 12}, "provenance": {"cutoff": "[TIMESTAMP]", "source_sha256": "2ba903286083", "sources": [{"path": "workspaces/[PROJECT_ID]/state.json#phase,readiness_stage,story_gates,project_language", "sha256": "b6c8683e5c26"}, {"path": "workspaces/[PROJECT_ID]/01_discovery/gaps.md", "sha256": "dc2556990ec2"}, {"path": "workspaces/[PROJECT_ID]/08_context_packs/slice_plan.json#checkpoints", "sha256": "426c316d5d7b"}]}}</script>
+<header class="view-header">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <div class="verdict-line"><span class="verdict" id="verdict"></span><span class="meta" id="meta"></span></div>
+    <div class="next" id="next"></div>
+  </header>
+  <div class="layout">
+    <div class="view-main">
+      <section class="block" id="why"></section>
+      <h2 id="itemsTitle">Items</h2>
+      <div class="cards" id="items"></div>
+    </div>
+    <aside>
+      <div class="side-title" id="recipientsTitle">Requests by recipient</div>
+      <div id="recipients"></div>
+      <div class="side-title" id="marksTitle">Local marks</div>
+      <p class="hint" id="marksHint"></p>
+      <div class="mark-actions">
+        <button type="button" id="exportMarks">Export</button>
+        <button type="button" id="importMarks">Import</button>
+        <button type="button" id="clearMarks">Clear</button>
+      </div>
+      <textarea id="marksBox" rows="5" aria-label="Marks JSON"></textarea>
+      <div class="hint" id="marksStatus" role="status"></div>
+    </aside>
+  </div>
+<section class="view-section" id="legend"><h2>Colour legend</h2><ul class="legend"><li><span class="chip chip-ok">Ready / resolved</span></li><li><span class="chip chip-info">Information</span></li><li><span class="chip chip-warn">Weak or pending</span></li><li><span class="chip chip-block">Critical / blocking</span></li><li><span class="chip chip-governance">Decision / assumption</span></li></ul></section><section class="view-section" id="provenance"><h2>Provenance</h2><p>Sources: <code>workspaces/[PROJECT_ID]/state.json#phase,readiness_stage,story_gates,project_language</code>, <code>workspaces/[PROJECT_ID]/01_discovery/gaps.md</code>, <code>workspaces/[PROJECT_ID]/08_context_packs/slice_plan.json#checkpoints</code> · sha256 <code>2ba903286083</code> · cut-off <time datetime="[TIMESTAMP]">[TIMESTAMP]</time> (the newest source modification time, not the build time).</p><p>Regenerate: <code>python -m sentinel /view [PROJECT_ID] --artifact readiness --theme neutral</code></p></section>
+</main>
+</div>
+<script>
+(function(){
+  var KEY="ignite-sentinel:color-mode",root=document.documentElement,btn=document.getElementById("modeToggle");
+  function save(value){try{window.localStorage.setItem(KEY,value)}catch(e){}}
+  function current(){var v=root.getAttribute("data-theme");if(v==="light"||v==="dark")return v;return window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}
+  function label(){if(!btn)return;var dark=current()==="dark";btn.textContent=dark?btn.getAttribute("data-light"):btn.getAttribute("data-dark")}
+  label();
+  if(btn)btn.addEventListener("click",function(){var next=current()==="dark"?"light":"dark";root.setAttribute("data-theme",next);save(next);label()});
+  var burger=document.querySelector(".shell-burger"),side=document.getElementById("sidebar");
+  function setOpen(open){if(!burger||!side)return;side.classList.toggle("open",open);burger.setAttribute("aria-expanded",open?"true":"false")}
+  if(burger)burger.addEventListener("click",function(){setOpen(burger.getAttribute("aria-expanded")!=="true")});
+  if(side)side.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("a,button"))setOpen(false)});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&side&&side.classList.contains("open")){setOpen(false);burger.focus();e.stopImmediatePropagation()}});
+})();
+
+</script>
+<script>
+const model = JSON.parse(document.getElementById("readiness-data").textContent);
+    const $ = (id) => document.getElementById(id);
+    const es = model.language === "es";
+    const T = es ? {
+      eyebrow: "Vista derivada de solo lectura", items: "Ítems", recipients: "Pedidos por destinatario", marks: "Marcas locales",
+      marksHint: "Marcá un pedido cuando lo enviaste o lo respondieron. Las marcas viven solo en este navegador: exportalas para pasarlas a otro.",
+      blockers: "Qué lo bloquea", warnings: "Advertencias", partial: "Chequeos que no pudieron correr", next: "Próximo paso",
+      copy: "Copiar pedido", copied: "Copiado", none: "Sin pedidos abiertos.", unassigned: "sin dueño registrado",
+      degraded: "un pedido abierto lo degrada", empty: "sin historias: nunca se pinta verde", stories: "Historias",
+      open: "abiertos", requestsLabel: "pedidos", exported: "Marcas exportadas en el cuadro.", imported: "Marcas importadas.",
+      cleared: "Marcas borradas.", badImport: "El JSON no es un export de esta vista para este proyecto.", storage: "Este navegador no guarda marcas; se pierden al cerrar.",
+      blocks: { start: "bloquea arranque", slice: "bloquea slice", no: "no bloquea" },
+      verdict: { READY: "Listo", READY_WITH_WARNINGS: "Listo con advertencias", NOT_READY: "No listo" },
+      greeting: (r) => "Hola " + r + ", para avanzar necesitamos:", stat: { items: "ítems", requests: "pedidos", recipients: "destinatarios", blocks_start: "bloquean arranque", blocks_slice: "bloquean slice" }
+    } : {
+      eyebrow: "Read-only derived view", items: "Items", recipients: "Requests by recipient", marks: "Local marks",
+      marksHint: "Mark a request once it was sent or answered. Marks live only in this browser: export them to move them.",
+      blockers: "What blocks it", warnings: "Warnings", partial: "Checks that could not run", next: "Next step",
+      copy: "Copy request", copied: "Copied", none: "No open requests.", unassigned: "no registered owner",
+      degraded: "an open request degrades it", empty: "no stories: never shown green", stories: "Stories",
+      open: "open", requestsLabel: "requests", exported: "Marks exported to the box.", imported: "Marks imported.",
+      cleared: "Marks cleared.", badImport: "That JSON is not an export of this view for this project.", storage: "This browser does not keep marks; they are lost on close.",
+      blocks: { start: "blocks start", slice: "blocks slice", no: "does not block" },
+      verdict: { READY: "Ready", READY_WITH_WARNINGS: "Ready with warnings", NOT_READY: "Not ready" },
+      greeting: (r) => "Hi " + r + ", to move forward we need:", stat: { items: "items", requests: "requests", recipients: "recipients", blocks_start: "block start", blocks_slice: "block slice" }
+    };
+    const storageKey = "ignite-sentinel:readiness:" + model.project_id;
+    let storageOk = true;
+    let marks = loadMarks();
+    const requestsById = Object.fromEntries(model.requests.map(r => [r.id, r]));
+
+    function loadMarks() {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (error) {
+        storageOk = false;
+        return {};
+      }
+    }
+    function saveMarks() {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(marks));
+      } catch (error) {
+        storageOk = false;
+      }
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[ch]));
+    }
+    function badge(verdict) {
+      return `<span class="verdict v-${escapeHtml(verdict)}">${escapeHtml(T.verdict[verdict] || verdict)}</span>`;
+    }
+    function itemRequests(item) {
+      const ids = new Set(item.kind === "wave" ? item.stories : [item.id]);
+      return model.requests.filter(r => ids.has(r.item));
+    }
+    // Marks never upgrade a governed verdict: they only lift the degradation an
+    // open request puts on a READY item.
+    function shownVerdict(item) {
+      const open = itemRequests(item).filter(r => !marks[r.id]);
+      if (item.verdict === "READY" && open.length) return { verdict: "READY_WITH_WARNINGS", degraded: true, open: open.length };
+      return { verdict: item.verdict, degraded: false, open: open.length };
+    }
+    function list(title, values) {
+      return values.length ? `<h3>${escapeHtml(title)}</h3><ul>${values.map(v => `<li>${escapeHtml(v)}</li>`).join("")}</ul>` : "";
+    }
+
+    function renderHeader() {
+      const v = model.verdict;
+      $("eyebrow").textContent = T.eyebrow;
+      $("title").textContent = model.project_id + " · " + model.label;
+      renderVerdictBadge();
+      $("meta").textContent = "maturity score " + Math.round((v.maturity_score || 0) * 100) + "% · cut-off " + model.provenance.cutoff;
+      $("next").innerHTML = `<strong>${escapeHtml(T.next)}:</strong> ${escapeHtml(v.next_step.text)} <code>${escapeHtml(v.next_step.command)}</code>`;
+      $("why").innerHTML = list(T.blockers, v.blockers) + list(T.warnings, v.warnings) + list(T.partial, v.partial_coverage.map(p => p.check + ": " + p.reason));
+      $("itemsTitle").textContent = T.items;
+      $("navItemsTitle").textContent = T.items;
+      $("recipientsTitle").textContent = T.recipients;
+      $("marksTitle").textContent = T.marks;
+      $("marksHint").textContent = T.marksHint + (storageOk ? "" : " " + T.storage);
+      $("stats").innerHTML = Object.entries(model.summary).map(([k, n]) => `<div class="stat"><strong>${n}</strong><span>${escapeHtml(T.stat[k] || k)}</span></div>`).join("");
+      $("toc").innerHTML = model.items.map(i => `<a href="#item-${escapeHtml(i.id)}">${escapeHtml(i.label)}</a>`).join("");
+    }
+
+    function renderItems() {
+      $("items").innerHTML = model.items.map(item => {
+        const shown = shownVerdict(item);
+        const notes = [];
+        if (shown.degraded) notes.push(T.degraded);
+        if (item.empty) notes.push(T.empty);
+        const total = itemRequests(item).length;
+        return `<article class="card" id="item-${escapeHtml(item.id)}" data-shown="${escapeHtml(shown.verdict)}">
+          <h3>${escapeHtml(item.label)} ${badge(shown.verdict)}</h3>
+          ${item.stories.length ? `<div class="sub">${escapeHtml(T.stories)}: ${item.stories.map(escapeHtml).join(", ")}</div>` : ""}
+          <div class="sub">${shown.open}/${total} ${escapeHtml(T.requestsLabel)} ${escapeHtml(T.open)}</div>
+          ${notes.map(n => `<div class="sub">${escapeHtml(n)}</div>`).join("")}
+        </article>`;
+      }).join("");
+    }
+
+    function renderRecipients() {
+      if (!model.recipients.length) {
+        $("recipients").innerHTML = `<div class="empty">${escapeHtml(T.none)}</div>`;
+        return;
+      }
+      $("recipients").innerHTML = model.recipients.map((recipient, index) => {
+        const rows = recipient.request_ids.map(id => requestsById[id]).map(r => `
+          <label class="req${marks[r.id] ? " marked" : ""}">
+            <input type="checkbox" data-request="${escapeHtml(r.id)}"${marks[r.id] ? " checked" : ""}>
+            <span class="req-text"><span class="tag b-${escapeHtml(r.blocks)}">${escapeHtml(T.blocks[r.blocks])}</span><strong>${escapeHtml(r.source_id)}</strong> ${escapeHtml(r.text)}</span>
+          </label>`).join("");
+        return `<section class="recipient">
+          <header><span>${escapeHtml(recipient.label)}${recipient.assigned ? "" : ` <span class="unassigned">· ${escapeHtml(T.unassigned)}</span>`}</span>
+          <button type="button" data-copy="${index}">${escapeHtml(T.copy)}</button></header>
+          ${rows}
+        </section>`;
+      }).join("");
+    }
+
+    function requestText(recipient) {
+      const open = recipient.request_ids.map(id => requestsById[id]).filter(r => !marks[r.id]);
+      const name = recipient.label.replace(/\s*\(.*\)$/, "");
+      return [T.greeting(name), "", ...open.map((r, i) => `${i + 1}. [${r.source_id}] ${r.text} (${T.blocks[r.blocks]})`)].join("\n");
+    }
+
+    async function copyText(text, button) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (error) {
+        $("marksBox").value = text;
+        $("marksBox").select();
+      }
+      const before = button.textContent;
+      button.textContent = T.copied;
+      setTimeout(() => { button.textContent = before; }, 1200);
+    }
+
+    // The header follows the workspace card: same degradation, same marks.
+    function renderVerdictBadge() {
+      const workspace = model.items.find(i => i.kind === "workspace");
+      $("verdict").innerHTML = badge(workspace ? shownVerdict(workspace).verdict : model.verdict.verdict);
+    }
+
+    function render() {
+      renderVerdictBadge();
+      renderItems();
+      renderRecipients();
+    }
+
+    document.addEventListener("change", (event) => {
+      const id = event.target?.dataset?.request;
+      if (!id) return;
+      if (event.target.checked) marks[id] = true; else delete marks[id];
+      saveMarks();
+      render();
+    });
+    document.addEventListener("click", (event) => {
+      const index = event.target?.dataset?.copy;
+      if (index === undefined) return;
+      copyText(requestText(model.recipients[Number(index)]), event.target);
+    });
+    $("exportMarks").addEventListener("click", () => {
+      $("marksBox").value = JSON.stringify({ view: "readiness", project_id: model.project_id, marks }, null, 2);
+      $("marksStatus").textContent = T.exported;
+    });
+    $("importMarks").addEventListener("click", () => {
+      try {
+        const data = JSON.parse($("marksBox").value);
+        if (!data || data.view !== "readiness" || data.project_id !== model.project_id || typeof data.marks !== "object") throw new Error("shape");
+        marks = Object.fromEntries(Object.keys(data.marks).filter(id => requestsById[id]).map(id => [id, true]));
+        saveMarks();
+        render();
+        $("marksStatus").textContent = T.imported;
+      } catch (error) {
+        $("marksStatus").textContent = T.badImport;
+      }
+    });
+    $("clearMarks").addEventListener("click", () => {
+      marks = {};
+      saveMarks();
+      render();
+      $("marksStatus").textContent = T.cleared;
+    });
+
+    renderHeader();
+    render();
+
+</script>
+</body>
+</html>

@@ -152,6 +152,8 @@ def _generate(scenario: dict) -> dict[str, str]:
             # IMP-219: human-facing projections over the now-mature workspace.
             for view_artifact in VIEW_ARTIFACTS:
                 generate_artifact_view(pid, view_artifact)
+            # IMP-247: the build-readiness view (its own model, not a Markdown artifact).
+            generate_artifact_view(pid, "readiness")
             export_artifact(pid, "prd", "mdx")
             export_artifact(pid, "gaps", "interview")
             export_artifact(pid, "gaps", "faq")
@@ -162,7 +164,7 @@ def _generate(scenario: dict) -> dict[str, str]:
         }
         views = workspace / "08_context_packs" / "views"
         roots = {str(tmp.resolve()), tmp.resolve().as_posix(), str(tmp), tmp.as_posix()}
-        for view_artifact in VIEW_ARTIFACTS:
+        for view_artifact in VIEW_ARTIFACTS + ("readiness",):
             html = (views / f"{view_artifact}.html").read_text(encoding="utf-8")
             # IMP-240: checked on the RAW page; normalize() would hide the prefix.
             leaked = [root for root in roots if root and root in html]

@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Build-readiness view (IMP-247): `/view PROJECT_ID --artifact readiness` shows what is missing and from whom.
+  - **Items:** one card for the workspace, one per backlog story and one per SLICE-PLAN wave. Each card carries its governed verdict from IMP-248. A wave takes the most severe verdict of its stories, and a wave without stories is never green.
+  - **Requests:** every open gap and every missing Definition of Ready item is a request, marked by whether it blocks the start, the slice or nothing.
+  - **Recipients:** requests are grouped by recipient from the stakeholder registry. Unregistered owners are shown as unassigned, never invented. **Copy request** turns each group into a message ready to send.
+  - **Local marks:** you can tick requests in the browser (`ignite-sentinel:readiness:…`), and export or import the marks. An open request degrades a `READY` item, and marks never upgrade a governed verdict.
+  - It renders through the same shell, themes and CSP as the other views, with EN/ES goldens.
 - Ready-to-build verdict by counts (IMP-248). `build_readiness_verdict(project_id, release=None)` (`sentinel/readiness_verdict.py`) is the single source of the verdict (`READY`, `READY_WITH_WARNINGS`, `NOT_READY`), the gap counts, the gate matrix and the next step for `/status`, `/dashboard` and the MCP `sentinel_status` tool, which now agree.
   - Never `READY` with a blocking gap open.
   - A check that could not run (no brief, no requirement units, no knowledge units, no backlog) is listed in `partial_coverage` and never shows green.

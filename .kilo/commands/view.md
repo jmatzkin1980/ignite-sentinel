@@ -12,7 +12,7 @@ Parse `PROJECT_ID`, `--artifact`, and optional `--open` / `--theme` from:
 /view PROJECT_ID --artifact brief --open
 ```
 
-Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, and `backlog`.
+Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness`. `readiness` is not a Markdown artifact: it shows what is missing per item (workspace, stories, SLICE-PLAN waves) and from whom, with the ready-to-build verdict of `/status`.
 
 Run from the repository root:
 

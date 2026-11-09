@@ -35,7 +35,7 @@ python -m sentinel /dashboard --open
 When the user wants one artifact as a navigable page instead of the portfolio:
 
 ```powershell
-python -m sentinel /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog
+python -m sentinel /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog | readiness
 python -m sentinel /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
 ```
 
@@ -43,6 +43,7 @@ python -m sentinel /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
 - Inline provenance is hidden by default (reader edition). Tell the user about the **Show provenance** toggle when they need citations.
 - Local notes survive rebuilds. The page warns when the source changed and marks orphaned notes without deleting them.
 - Feedback leaves only through the page's Markdown export, routed to `/resolve-gaps` or `/sync`.
+- `--artifact readiness` answers "what is missing, and from whom?". Report the workspace verdict and the requests that block `start` first. Then report who has to answer each request: an unassigned recipient means no stakeholder is registered for that lens, so suggest `/stakeholders`. The page's local marks never change the governed verdict.
 
 ## Rules
 

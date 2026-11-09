@@ -1005,6 +1005,7 @@ VIEW_TEMPLATES = frozenset(
         "shell.html", "shell.css", "shell.js",
         "dashboard-page.html", "dashboard.css", "dashboard.js",
         "view-page.html", "view-nav.html", "view.css", "view.js",
+        "readiness-page.html", "readiness-nav.html", "readiness.css", "readiness.js",
     }
 )
 

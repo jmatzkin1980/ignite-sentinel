@@ -716,6 +716,10 @@ def _clean_config_scalar(value: object) -> str:
 
 
 def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
+    if artifact == "readiness":  # IMP-247: not a Markdown artifact; its own model
+        from .readiness_view import generate_readiness_view
+
+        return generate_readiness_view(project_id, open_browser=open_browser, theme=theme)
     loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
     if theme_warning:
         print(f"sentinel warning: {theme_warning}", file=sys.stderr)

@@ -83,6 +83,33 @@ The feedback loop lives only in the artifact views; the portfolio dashboard is s
 
 Do not edit generated HTML. If review feedback changes scope or answers a gap, export it as local evidence and route it through `/resolve-gaps`, `/sync`, `/annotate`, or the appropriate governed command.
 
+## Build Readiness View
+
+```powershell
+python -m sentinel /view PROJECT_ID --artifact readiness
+```
+
+This view answers "what is missing, and from whom?". It writes `08_context_packs/views/readiness.html` inside the same shell, themes and CSP as the other views. It is not built from a Markdown artifact: it reads the ready-to-build verdict that `/status` reports, plus `01_discovery/gaps.md`, the story gates, `08_context_packs/slice_plan.json` and the stakeholder registry.
+
+- **Items.** There is one card for the workspace, one for each backlog story and one for each SLICE-PLAN wave (`CHK-WAVE-NN`). Each card carries its governed verdict:
+  - The workspace card shows the verdict from `/status`.
+  - A story card follows the story's Definition of Ready.
+  - A wave card takes the most severe verdict among its stories. A wave without stories is never shown green.
+- **Requests.** Every open gap is a request, and so is each Definition of Ready item a story is missing. Each request says whether it blocks: `start` (a blocking gap), `slice` (it blocks that story's slice) or `no`.
+- **By recipient.** Requests are grouped by who has to answer:
+  - A gap goes to the stakeholder registered for its lens in `/stakeholders`.
+  - With no match, it is listed as unassigned client (business and product lenses) or unassigned domain. An owner is never invented.
+  - Definition of Ready items go to the BA.
+  - **Copy request** copies the open requests for that recipient as a ready-to-send message.
+  - This view is the only place that builds the per-recipient request.
+- **Local marks.** Tick a request once it was sent or answered.
+  - An open request degrades a `READY` item to "ready with warnings" until it is marked.
+  - Marks never upgrade a governed verdict: only `/resolve-gaps`, `/sync` and the backlog commands change what the workspace says.
+  - Marks live in this browser only, under the key `ignite-sentinel:readiness:PROJECT_ID`.
+  - Use **Export** and **Import**, which go through the text box, to move marks to another browser. **Clear** removes them.
+
+The provenance block fingerprints only the fields the view reads, so the page is reproducible for the same workspace.
+
 ## Optional PRD MDX Export
 
 Teams that already run an offline MDX renderer can export the PRD as a local derived MDX folder:
