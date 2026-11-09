@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
+from .core.hashing import content_sha256, file_content_hash, hash_matches
 from .workspace import read_json, utc_now, workspace_path, write_json
 
 
@@ -68,11 +68,7 @@ def source_key(path: Path) -> str:
 
 
 def file_hash(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return file_content_hash(path)  # IMP-291: a line-ending flip is not a new version
 
 
 def source_record(path: Path, status: str, event_id: str | None = None) -> dict[str, Any]:
@@ -101,11 +97,12 @@ def discover_pending_sources(project_id: str) -> list[dict[str, Any]]:
     pending: list[dict[str, Any]] = []
     for path in scan_candidate_sources(project_id):
         key = source_key(path)
-        current_hash = file_hash(path)
+        data = path.read_bytes()
+        current_hash = content_sha256(data)
         previous = known.get(key)
         if previous is None:
             reason = "new"
-        elif previous.get("hash") != current_hash:
+        elif not hash_matches(previous.get("hash"), data):
             reason = "modified"
         else:
             continue
