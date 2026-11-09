@@ -47,8 +47,15 @@ def authorities() -> tuple[str, ...]:
     return tuple(routing_data()["authorities"])
 
 
+def is_own_artifact_key(key: str) -> bool:
+    """A path Sentinel wrote: a governed artifact folder or a generated change report."""
+    return bool(re.search(routing_data()["own_artifact_path_pattern"], key.replace("\\", "/")))
+
+
 def default_authority(kind: str, key: str = "") -> str:
     data = routing_data()
+    if key and is_own_artifact_key(key):
+        return "own_artifact"  # IMP-251: Sentinel reading itself is echo, never authority
     name = Path(key).name.lower()
     if name and re.search(data["example_name_pattern"], name):
         return "example"
@@ -163,6 +170,8 @@ def precedence_rules(config: dict[str, Any] | None = None) -> list[dict[str, Any
 
 
 def _beats(rule: dict[str, Any], winner: str, loser: str, scope: str) -> bool:
+    if winner == loser:  # same authority on both sides is a tie, never settled by "*"
+        return False
     if rule["winner"] != winner or rule["scope"] not in (scope, "*"):
         return False
     if loser in rule.get("except", []):

@@ -90,6 +90,11 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         domain="product",
     )
     add_edge(project_id, req_id, gap_id, "has_gap")
+    # IMP-251: anchor the statements; a cited, undelivered document opens a gap.
+    from ..source_conflicts import scan_source_conflicts
+
+    source_conflicts = scan_source_conflicts(project_id, source_id, text, language)
+    governed_gaps = gaps + source_conflicts.pop("new_gaps")
 
     dec_path = base / "01_discovery" / "decisions.md"
     write_text(dec_path, render_decisions(project_id, text, req_id))
@@ -213,11 +218,11 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     update_state(
         project_id,
         phase="discovery_completed",
-        health="DIRTY" if gaps else "CLEAN",
+        health="DIRTY" if governed_gaps else "CLEAN",
         project_language=language,
         privacy_mode="local-only",
-        readiness_stage="CLIENT_RESPONSE_NEEDED" if gaps else "READY_FOR_PROJECT_BRIEF",
-        gap_counts=count_gaps(gaps),
+        readiness_stage="CLIENT_RESPONSE_NEEDED" if governed_gaps else "READY_FOR_PROJECT_BRIEF",
+        gap_counts=count_gaps(governed_gaps),
         artifacts={
             "raw_input": str(raw_target.as_posix()),
             "requirements": str(req_path.as_posix()),
@@ -244,6 +249,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "raw_id": raw_id,
         "secret_redactions": sanitized.redactions,
         "injection_signals": injection_ids,
+        "source_conflicts": source_conflicts,
         "secret_alerts": str(sanitized.alerts_path.as_posix()) if sanitized.alerts_path else None,
         "requirement_id": req_id,
         "gap_id": gap_id,

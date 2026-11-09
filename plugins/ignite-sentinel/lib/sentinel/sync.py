@@ -26,6 +26,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
+from .source_conflicts import closing_block_note, scan_source_conflicts
 from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
@@ -60,7 +61,12 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     gaps = detect_gaps(sync_detection_text(base, text), load_domain_context(base))
     gap_merge = materialize_sync_gaps(project_id, gaps, change_id)
     reopened = reopened_closed_gap_ids(base, gaps)
-    sync_resolution = apply_structured_gap_responses(project_id, text, source, change_id)
+    sync_resolution = apply_structured_gap_responses(
+        project_id, text, source, change_id, block_note=closing_block_note(source_row(project_id, source_id), text)
+    )
+    # IMP-251: anchor statements, open contradiction / cited-not-delivered gaps.
+    conflicts = scan_source_conflicts(project_id, source_id, text, project_language(project_id))
+    conflicts.pop("new_gaps")
     stale_units = stale_spec_units_from_change(source, text)
     stale_result = mark_stale_stories_for_spec_units(
         project_id,
@@ -190,6 +196,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         "skipped_existing_gaps": gap_merge["skipped_existing"],
         "reopened_gaps": reopened,
         "sync_closed_gaps": sync_resolution["closed"],
+        "source_conflicts": conflicts,
         "knowledge_metabolism": metabolism,
         "staleness": stale_result,
         "suspicious_trace_links": suspicious_links,
@@ -390,7 +397,9 @@ def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], chang
     return {"merged": [gap["id"] for gap in merged], "skipped_existing": skipped}
 
 
-def apply_structured_gap_responses(project_id: str, text: str, source: Path, change_id: str) -> dict[str, object]:
+def apply_structured_gap_responses(
+    project_id: str, text: str, source: Path, change_id: str, block_note: str | None = None
+) -> dict[str, object]:
     responses = parse_gap_responses(text)
     if not responses:
         return {"closed": [], "answered": [], "partially_closed": [], "open": []}
@@ -400,7 +409,7 @@ def apply_structured_gap_responses(project_id: str, text: str, source: Path, cha
         return {"closed": [], "answered": [], "partially_closed": [], "open": []}
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
-    result = apply_gap_responses(existing, responses)
+    result = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
     annotate_resolution_source_types(result, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, result["gaps"], req_id, language))

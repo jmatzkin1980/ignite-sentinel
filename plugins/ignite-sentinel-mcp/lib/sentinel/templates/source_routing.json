@@ -120,5 +120,35 @@
     "unclassified": [
       {"document": "brief", "section": "business", "look_for": "Classify the source first, then route it"}
     ]
+  },
+  "own_artifact_path_pattern": "(?:^|/)workspaces/[^/]+/(?:0[1-6]_[^/]+/|07_changes/(?:[^/]+/)*[^/]*(?:_impact_report|_interaction_digest|_gap_response_proposed|_gap_resolution_report|source_log|closing_report|metabolism_log)[^/]*$)",
+  "conflicts": {
+    "unvalidated_pattern": "\\b(?:no validad[oa]s?|sin validar|a validar|pendiente de validacion|borrador|not (?:yet )?validated|unvalidated|pending validation|to be validated|draft)\\b",
+    "unvalidated_header_lines": 15,
+    "proposal_cue_pattern": "\\b(?:propuesta|proponemos|propongo|sugerimos|sugiero|tentativ[oa]|podria ser|we propose|i propose|proposal|suggest(?:ed|ion)?|tentative(?:ly)?|could be|tbd)\\b",
+    "citation_pattern": "\\b(?:segun|de acuerdo (?:al|a la|con el|con la)|conforme (?:al|a la)|como (?:indica|define|establece) (?:el|la)|ver (?:el|la)|according to(?: the)?|as (?:defined|specified|described|stated) (?:in|by)(?: the)?|per the|see the|refer to the)\\s+(?P<cited>[^.;,:()\\n]{3,70})",
+    "document_nouns": ["documento", "contrato", "especificacion", "acta", "minuta", "manual", "norma", "normativa", "anexo", "planilla", "prototipo", "diccionario", "politica", "procedimiento", "sad", "spec", "document", "contract", "specification", "minutes", "annex", "appendix", "policy", "dictionary", "procedure", "prototype", "deck", "presentacion", "presentation", "swagger", "openapi", "matriz", "matrix"],
+    "stopwords": ["del", "las", "los", "una", "uno", "unos", "unas", "por", "para", "con", "que", "sus", "este", "esta", "the", "and", "for", "with", "this", "that", "our", "its", "are", "was", "will", "from", "into", "of", "nuestro", "nuestra", "actual", "nuevo", "nueva", "new", "version", "final", "cada", "each"],
+    "scope_keywords": {
+      "api": ["api", "endpoint", "payload", "json", "swagger", "openapi", "webhook"],
+      "stack_to_be": ["stack", "framework", "base de datos", "database", "lenguaje", "language", "kubernetes", "cloud", "motor"],
+      "compliance": ["norma", "normativa", "regulacion", "regulation", "bcra", "gdpr", "compliance", "ley", "law", "auditoria", "audit"],
+      "design": ["pantalla", "boton", "diseno", "screen", "button", "color", "layout", "ux", "ui", "modal"],
+      "scope": ["alcance", "scope", "release", "mvp", "fase", "phase", "fuera de alcance", "out of scope"],
+      "legacy": ["legacy", "sistema actual", "as-is", "as is", "heredado"],
+      "behavior": ["flujo", "comportamiento", "behavior", "behaviour", "validacion", "validation", "regla de negocio", "estado"],
+      "business": ["plazo", "precio", "costo", "sla", "comision", "monto", "tasa", "limite", "fee", "price", "cost", "limit", "deadline", "objetivo", "goal", "kpi"]
+    },
+    "lens_by_scope": {
+      "business": "business",
+      "scope": "delivery",
+      "stack_to_be": "technical",
+      "behavior": "product",
+      "api": "technical",
+      "compliance": "compliance",
+      "legacy": "technical",
+      "design": "design",
+      "rule": "business"
+    }
   }
 }
