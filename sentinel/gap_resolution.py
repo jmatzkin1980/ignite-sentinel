@@ -9,7 +9,7 @@ from .ears import classify_ears
 from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
-from .source_routing import can_close_rules, row_authority
+from .source_conflicts import closing_block_note
 from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
@@ -65,10 +65,10 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
 
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
-    # IMP-250b: an example never closes a rule; its confirmed answers stay ANSWERED.
-    row = source_row(project_id, source_id)
-    can_close = can_close_rules(row_authority(row)) if row else True
-    resolution_results = apply_gap_responses(existing, responses, can_close=can_close)
+    # IMP-250b / IMP-251: an example, an own artifact (echo) or a source that declares
+    # itself not validated never closes a rule; its confirmed answers stay ANSWERED.
+    block_note = closing_block_note(source_row(project_id, source_id), text)
+    resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -138,6 +138,7 @@ def apply_gap_responses(
     gaps: list[dict[str, str]],
     responses: dict[str, dict[str, str]],
     can_close: bool = True,
+    block_note: str | None = None,
 ) -> dict[str, object]:
     closed: list[dict[str, str]] = []
     answered: list[dict[str, str]] = []
@@ -156,7 +157,7 @@ def apply_gap_responses(
         substantive = is_substantive_answer(answer)
         if answer and decision in CONFIRMED_STATUSES and substantive and not can_close:
             gap["status"] = "ANSWERED"
-            gap["resolution_note"] = EXAMPLE_SOURCE_NOTE
+            gap["resolution_note"] = block_note or EXAMPLE_SOURCE_NOTE
             answered.append(gap)
         elif answer and decision in CONFIRMED_STATUSES and substantive:
             gap["status"] = "CLOSED"

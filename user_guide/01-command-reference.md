@@ -856,6 +856,16 @@ If a synced change triggers a gap ID that was already `CLOSED`, the impact repor
 
 If a synced file contains structured `### GAP-*` response blocks, Sentinel applies the same governed closure rules as `/resolve-gaps` before rebuilding the ledger. If it explicitly invalidates an `ASM-*`, Sentinel marks that assumption `INVALIDATED`, maps the linked knowledge unit back to `OPEN`, recalculates `development_readiness.json`, and flags downstream stale artifacts for `/health`.
 
+**Contradictions, echo, proposals and cited sources (IMP-251).** Every source that `/ingest` or `/sync` crosses goes through the same pass. It is deterministic and never picks a winner.
+
+- **Statements.** Short assertions (`el plazo de entrega es de 30 días`, `SLA: 24 h`) are anchored to their F-NN row and line in `01_discovery/statement_ledger.json`.
+- **Contradiction.** Two sources with different values for the same subject keep both anchors and open a blocking gap with `origin: contradiction`. A subject a source does not mention is source silence, never a contradiction.
+- **Interim value.** While that gap is open, the precedence of `/sources` says which version governs, marked `⏳` (or `⚠` with `validation_direction: built` in `sentinel.config.yaml`). When no rule settles it there is no interim value: the newest source never wins.
+- **Echo.** A file Sentinel wrote (a governed artifact folder or a generated report) has authority `own_artifact`: it adds no facts and its confirmed answers stay `ANSWERED`.
+- **Disguised proposal.** A source that declares itself not validated near the top (`borrador`, `no validado`, `draft`, `not validated`) only adds proposals and cannot close a gap. A line with a proposal cue, or a new technical name that nothing governed mentions, is a proposal too.
+- **Cited, never delivered.** A source that leans on a document that is not in the registry ("según el contrato de API", "as defined in the SAD") opens a gap with `origin: cited_not_delivered`, saying what to ask for and to whom (the row's `--from`).
+- The same topic never opens two gaps. `01_discovery/contradictions.md` lists contradictions with their interim value, proposals and cited documents.
+
 Explicit file:
 
 ```powershell

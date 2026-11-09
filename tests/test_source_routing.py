@@ -65,6 +65,8 @@ class PrecedenceTests(unittest.TestCase):
         self.assertEqual(api_clash["rules"], ["P06"])
         # Minutes govern business, not the API: no rule there, so nobody wins.
         self.assertEqual(resolve_precedence("api", [minutes, api])["status"], "unresolved")
+        # Two minutes in business: "over: *" never lets an authority beat itself.
+        self.assertEqual(resolve_precedence("business", [minutes, _c("F-05", "minutes")])["status"], "unresolved")
 
     def test_tech_lead_governs_the_stack_below_a_decision(self) -> None:
         decision, lead, doc = _c("F-01", "decision_record"), _c("F-02", "tech_lead"), _c("F-03", "client_document")
