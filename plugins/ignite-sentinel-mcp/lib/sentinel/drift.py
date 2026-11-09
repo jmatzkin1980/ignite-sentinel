@@ -13,9 +13,9 @@ a detectable change.
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 
+from .core.hashing import file_content_hash, hash_matches
 from .workspace import read_json, state_path, update_state, workspace_path
 
 # Which source artifacts each derived artifact is generated from. Kept explicit
@@ -26,12 +26,19 @@ DERIVED_SOURCE_MAP: dict[str, tuple[str, ...]] = {
     "backlog": ("03_specs/specs.md",),
 }
 
+# IMP-291 [A29]: where each derived artifact lives, to tell "never fingerprinted"
+# (unverifiable) apart from "not generated yet".
+DERIVED_ARTIFACT_PATHS: dict[str, str] = {
+    "specs": "03_specs/specs.md",
+    "backlog": "04_backlog",
+}
+
 
 def _hash_source(project_id: str, rel_path: str) -> str | None:
     path = workspace_path(project_id) / rel_path
     if not path.is_file():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return file_content_hash(path)  # IMP-291: a line-ending flip is not drift
 
 
 def source_fingerprint(project_id: str, rel_paths: tuple[str, ...]) -> dict[str, str | None]:
@@ -79,11 +86,32 @@ def _drifted_sources(project_id: str) -> dict[str, list[str]]:
         recorded = registry.get(derived)
         if not isinstance(recorded, dict) or not recorded:
             continue
-        current = source_fingerprint(project_id, DERIVED_SOURCE_MAP[derived])
-        changed = sorted(rel for rel, digest in recorded.items() if current.get(rel) != digest)
+        changed = sorted(rel for rel, digest in recorded.items() if _source_changed(project_id, rel, digest))
         if changed:
             drifted[derived] = changed
     return drifted
+
+
+def _source_changed(project_id: str, rel_path: str, recorded: object) -> bool:
+    path = workspace_path(project_id) / rel_path
+    if not path.is_file():
+        return recorded is not None
+    return not hash_matches(recorded, path.read_bytes())
+
+
+def _derived_exists(project_id: str, derived: str) -> bool:
+    path = workspace_path(project_id) / DERIVED_ARTIFACT_PATHS[derived]
+    return path.is_file() or (path.is_dir() and any(path.glob("*.md")))
+
+
+def unverifiable_derived(project_id: str) -> list[str]:
+    """IMP-291 [A29]: derived artifacts on disk with no recorded source fingerprint."""
+    registry = read_json(state_path(project_id), {}).get("derived_source_fingerprints", {})
+    registry = registry if isinstance(registry, dict) else {}
+    return [
+        derived for derived in DERIVED_ARTIFACT_PATHS
+        if not registry.get(derived) and _derived_exists(project_id, derived)
+    ]
 
 
 def derived_drift_warnings(project_id: str) -> list[str]:
@@ -95,7 +123,12 @@ def derived_drift_warnings(project_id: str) -> list[str]:
     check. It only warns; the BA decides whether to regenerate or mark the change
     immaterial. Nothing is rewritten.
     """
-    return [
+    unverifiable = [
+        f"Derived artifact `{derived}` cannot be verified: no source fingerprint was recorded "
+        f"when it was generated. Regenerate /{derived} through the CLI to record one."
+        for derived in unverifiable_derived(project_id)
+    ]
+    return unverifiable + [
         f"Derived artifact `{derived}` may have DRIFTED: its source(s) changed since "
         f"generation: {', '.join(changed)}. Reconcile by regenerating /{derived} through "
         "the CLI once the change is reviewed, or confirm the change is immaterial. "

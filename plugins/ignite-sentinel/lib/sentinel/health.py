@@ -10,9 +10,10 @@ from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .assumptions import assumptions_projection
 from .drift import derived_drift_warnings
-from .protocols import evaluate_needs_context, snapshot_governed_artifact_hashes
+from .protocols import evaluate_needs_context
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
+from .core.hashing import hash_matches
 from .core.io import write_text
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
@@ -145,11 +146,11 @@ def out_of_cli_edit_warnings(project_id: str, base) -> list[str]:
     registered = state.get("artifact_hashes", {})
     if not isinstance(registered, dict) or not registered:
         return []
-    current = snapshot_governed_artifact_hashes(project_id)
+    root = workspace_path(project_id)
     edited = sorted(
         rel
         for rel, digest in registered.items()
-        if rel in current and current[rel] != digest
+        if (root / rel).is_file() and not hash_matches(digest, (root / rel).read_bytes())  # IMP-291
     )
     if not edited:
         return []

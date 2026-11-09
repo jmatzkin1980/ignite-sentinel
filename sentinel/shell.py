@@ -33,9 +33,9 @@ def content_fingerprint(data: bytes) -> str:
 
     The same workspace on Windows (CRLF) and Linux (LF) must produce the same page.
     """
-    import hashlib
+    from .core.hashing import content_sha256
 
-    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()[:12]
+    return content_sha256(data)[:12]
 
 
 def json_for_script(value: object) -> str:

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
 from .workspace import load_config, read_json, state_path, update_state, utc_now, workspace_path
+from .core.hashing import file_content_hash
 from .core.io import write_text
 
 # IMP-127: default volume above which a project is considered to "need context"
@@ -30,7 +30,7 @@ def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
     for pattern in GOVERNED_ARTIFACT_GLOBS:
         for path in sorted(base.glob(pattern)):
             if path.is_file():
-                hashes[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+                hashes[path.relative_to(base).as_posix()] = file_content_hash(path)  # IMP-291
     return hashes
 
 READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
