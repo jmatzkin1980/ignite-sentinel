@@ -8,6 +8,15 @@ from .workspace import read_json, utc_now, workspace_path, write_json
 
 
 TRACKED_SUFFIXES = {".md", ".txt", ".html", ".htm"}
+# IMP-293: files Sentinel writes into the scanned 07_changes buckets. They are
+# never client input, even after a person edits them: a PROPOSED gap response
+# is applied only through an explicit `/resolve-gaps --source`.
+SENTINEL_OUTPUT_SUFFIXES: tuple[str, ...] = (
+    "_impact_report.md",
+    "_interaction_digest.md",
+    "_gap_response_proposed.md",
+    "_gap_resolution_report.md",
+)
 REPO_INPUT_DIRS = [
     "input/client_requirement",
     "input/business_context",
@@ -126,7 +135,7 @@ def iter_source_files(folder: Path) -> list[Path]:
     for path in folder.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TRACKED_SUFFIXES:
             continue
-        if path.name.startswith(".") or path.name.endswith("_impact_report.md"):
+        if path.name.startswith(".") or path.name.endswith(SENTINEL_OUTPUT_SUFFIXES):
             continue
         files.append(path)
     return files
