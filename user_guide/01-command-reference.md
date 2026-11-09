@@ -147,6 +147,16 @@ Creates or updates:
 - initial graph nodes and edges
 - memory index chunks
 
+**Formats (IMP-270).** `.md`, `.txt`, `.html` and `.htm` are read as UTF-8 text. A `.docx` is read with the standard library, in three layers:
+
+- the text, with headings, lists and tables, as Markdown (`00_raw/NAME.md`);
+- the images from `word/media/` and `media/`, copied to `00_raw/NAME_media/` and linked inline;
+- the comments, with author, date and the text they are anchored to.
+
+The extraction is dated and carries the sha256 of the original, which is only read. It goes through the same secret redaction as any other source and is registered as an F-NN row. `/sync` reads `.docx` the same way, and its autonomous scan picks `.docx` files up.
+
+A corrupt `.docx`, or a binary file that is not UTF-8 text (a PDF, for example), stops the command with a typed error before any F-NN row opens: convert it to Markdown first. A UTF-8 file with an unknown extension is still stored as Markdown, and the command's output says so under `source_format.warning`.
+
 ## `maturity`
 
 Evaluate whether the requirement is ready for specs/backlog.

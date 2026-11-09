@@ -20,7 +20,8 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 
-from .core.io import append_text, copy_file, write_text
+from .core.io import append_text, copy_file, write_bytes, write_text
+from .source_formats import SourceText, media_dir_name, read_source
 
 ALLOWLIST_FILE = "secrets_allowlist.txt"
 ALERTS_FILE = "01_discovery/secret_alerts.md"
@@ -215,18 +216,24 @@ def pii_report_enabled(config: dict[str, object]) -> bool:
     return value is True or str(value).strip().lower() in {"true", "yes", "1"}
 
 
-def ingest_source(workspace: Path, source: Path, target: Path, pii_report: bool = False) -> tuple[str, SanitizedSource]:
+def ingest_source(
+    workspace: Path, source: Path, target: Path, pii_report: bool = False, extracted: SourceText | None = None
+) -> tuple[str, SanitizedSource]:
     """Store the workspace copy of `source` (redacted when needed) and return the text to extract from.
 
-    The original file is only read. Without findings the copy is byte-identical;
+    The original file is only read. Without findings a text copy is byte-identical;
     with findings the copy keeps the original line endings and carries the markers.
+    A `.docx` (IMP-270) is stored as its Markdown extraction, with its images in
+    `<stem>_media/` next to it.
     """
-    raw = source.read_bytes().decode("utf-8")
-    result = sanitize_text(workspace, source.name, raw, pii_report)
-    if result.redactions:
+    extracted = extracted or read_source(source, media_stem=target.stem)
+    result = sanitize_text(workspace, source.name, extracted.text, pii_report)
+    if result.redactions or extracted.kind != "text":
         write_text(target, result.text, newline="")
     else:
         copy_file(source, target)
+    for name, data in extracted.images:
+        write_bytes(target.parent / media_dir_name(target.stem) / name, data)
     return result.text.replace("\r\n", "\n").replace("\r", "\n"), result
 
 
