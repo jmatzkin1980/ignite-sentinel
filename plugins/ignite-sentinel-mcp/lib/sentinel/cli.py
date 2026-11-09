@@ -191,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument("project_id")
         if name in {"backlog-status", "quality", "validate"}:
             command.add_argument("--override")
+        if name == "status":
+            command.add_argument("--full", action="store_true")
     reindex_p = sub.add_parser("reindex")
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
@@ -365,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "status":
             from .status import project_status
 
-            result = project_status(args.project_id)
+            result = project_status(args.project_id, full=args.full)  # IMP-248: summary by default
             print_json(result)
         elif args.command == "stakeholders":
             from .stakeholders import add_stakeholder, list_stakeholders

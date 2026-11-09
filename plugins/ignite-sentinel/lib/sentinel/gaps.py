@@ -121,6 +121,19 @@ def is_blocking(
     return severity in blocking and status in blocking_statuses
 
 
+def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -> dict[str, int]:
+    """The one gap counter (IMP-248). `blocking_open` follows the configured severities."""
+    counts = {"open": 0, "answered": 0, "partially_closed": 0, "closed": 0, "blocking_open": 0, "total": len(gaps)}
+    keys = {"OPEN": "open", "ANSWERED": "answered", "PARTIALLY_CLOSED": "partially_closed", "CLOSED": "closed"}
+    for gap in gaps:
+        key = keys.get(str(gap.get("status", "OPEN")).strip("`").upper())
+        if key:
+            counts[key] += 1
+        if is_blocking(gap, severities):
+            counts["blocking_open"] += 1
+    return counts
+
+
 def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
     pattern = re.compile(r"^###\s+(GAP-[A-Z0-9-]+).*?(?=^###\s+GAP-[A-Z0-9-]+|\Z)", re.M | re.S)
     responses: dict[str, dict[str, str]] = {}

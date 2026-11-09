@@ -6,6 +6,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- Ready-to-build verdict by counts (IMP-248). `build_readiness_verdict(project_id, release=None)` (`sentinel/readiness_verdict.py`) is the single source of the verdict (`READY`, `READY_WITH_WARNINGS`, `NOT_READY`), the gap counts, the gate matrix and the next step for `/status`, `/dashboard` and the MCP `sentinel_status` tool, which now agree.
+  - Never `READY` with a blocking gap open.
+  - A check that could not run (no brief, no requirement units, no knowledge units, no backlog) is listed in `partial_coverage` and never shows green.
+  - `DEFERRED_TO_CONTEXT` units and "test before advancing" assumptions are warnings.
+  - `release` is accepted and reported as not scoped yet; scoping arrives with the release series.
+  - The maturity score stays published next to the verdict, and the maturity gates do not change.
+- `/status` prints a summary by default: the verdict, gap counts, gate matrix, maturity score and next step. `--full` (MCP: `full=true`) prints the detailed dump, where `development_readiness` now appears once instead of twice.
+
+### Changed
+- One gap counter (`gaps.count_gaps`) replaces the two that disagreed. `/status` used to fold `ANSWERED` into `partially_closed`, and both counters hardcoded `critical`/`high` as blocking. Blocking now follows `maturity.blocking_gap_severities`, and `/status` counts from `gaps.md` instead of a cached copy in `state.json`.
+- One next-step decision replaces the separate ones in `/status` and `/dashboard`, which branched differently. It follows the stage, so a project at `READY_FOR_BACKLOG` with non-blocking gaps open is pointed at the backlog, not back at the gaps.
+
 ### Fixed
 - A line-ending-only change is no longer drift, a new source or a hand edit (IMP-291). Sentinel writes with the OS line ending, and git or an editor can flip a file between CRLF and LF without touching its content; drift, the source manifest and the out-of-CLI-edit check hashed raw bytes, so that flip read as "source changed", "modified" and "edited outside the CLI". They now share one hash over the content with CRLF folded to LF (`sentinel/core/hashing.py`), and a hash recorded before this release still matches, so existing workspaces are not flagged on upgrade. `/health` also reports a derived artifact (`specs`, `backlog`) that has no recorded source fingerprint as "cannot be verified" instead of passing it silently.
 - `/sync` no longer reads its own output back as client input (IMP-293). `/sync --digest` writes `*_interaction_digest.md` and `*_gap_response_proposed.md` into the `07_changes` bucket of the change, and never recorded them, so the next autonomous `/sync` ingested them as new sources. They are now recorded, and every file Sentinel writes into a scanned bucket (`*_impact_report.md`, `*_interaction_digest.md`, `*_gap_response_proposed.md`, `*_gap_resolution_report.md`) is excluded from the scan even after someone edits it: a PROPOSED gap response is applied only through an explicit `/resolve-gaps --source`.

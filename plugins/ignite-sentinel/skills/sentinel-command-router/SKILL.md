@@ -93,7 +93,8 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
-- `/status`, `/export`: summarize the CLI result and generated artifact path.
+- `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`.
+- `/export`: summarize the CLI result and generated artifact path.
 - `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.
 
 ## Safety
