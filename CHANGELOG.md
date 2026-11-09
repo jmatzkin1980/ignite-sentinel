@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Source precedence, impact matrix and closing report (IMP-250b), on top of the F-NN registry. The routing data lives in `sentinel/templates/source_routing.json`.
+  - **Authority:** each new row gets one (minutes, API contract, prototype, example...), defaulted from its bucket or from a file named like an example; `/sources --authority` corrects it.
+  - **Impact matrix, document x section:** each new row gets the cells its authority routes to, with what to look for. `/sync --digest` shows it as section (e). `/sources --cell DOCUMENT/SECTION --mark updated|reviewed` closes a cell (reviewed needs a reason). A retired source cascades to every document. Pending cells appear in `/status`.
+  - **Precedence by scope:** `/sources --precedence SCOPE --between F-NN,F-MM` says which row governs. The default table is overridable per scope with `precedence:` in `sentinel.config.yaml`. An own artifact is never an authority, and an unsettled clash is `unresolved`: the newest source never wins by default.
+  - **An example never closes a rule:** `/resolve-gaps` leaves a confirmed answer from an example `ANSWERED`.
+  - **Closing report:** `/sources --report` writes `07_changes/closing_report.md` by recipient, with ADDED / MODIFIED / REMOVED per row and the originals ready to delete. It never deletes.
 - Source registry (IMP-250a): each source content is one `F-NN` row in `00_raw/source_manifest.json`, rendered as `07_changes/source_log.md`. `/sources PROJECT_ID` lists the rows, and `--id F-NN` changes one.
   - **Novelty by hash, never by date:** the same document under a second path is the same row, and two `/sync` runs over one file do not duplicate it. A known path with new content is a candidate new version until a person says which one governs (`--superseded-by` or `--current`).
   - **Row lifecycle:** `/ingest`, `/sync` and `/resolve-gaps` open the row when they start and close it when the cross finishes. A row left open is a `/status` warning.

@@ -82,6 +82,10 @@ def ensure_registry(manifest: dict[str, Any]) -> dict[str, Any]:
     """
     if isinstance(manifest.get("registry"), list):
         manifest.setdefault("next_source_number", _max_number(manifest["registry"]) + 1)
+        for row in manifest["registry"]:
+            # IMP-250b: rows written before the impact matrix keep an empty one.
+            row.setdefault("authority", None)
+            row.setdefault("impact", [])
         return manifest
     records = manifest.setdefault("sources", {})
     rows: list[dict[str, Any]] = []
@@ -96,7 +100,7 @@ def ensure_registry(manifest: dict[str, Any]) -> dict[str, Any]:
         row = by_hash.get(digest)
         if row is None:
             row = _new_row(format_source_id(len(rows) + 1), digest, key, str(record.get("last_processed_at") or utc_now()))
-            row.update(lifecycle="closed", closed_at=row["registered_at"], migrated=True)
+            row.update(lifecycle="closed", closed_at=row["registered_at"], migrated=True, impact=[])
             rows.append(row)
             by_hash[digest] = row
         elif key not in row["paths"]:
@@ -139,6 +143,9 @@ def _new_row(source_id: str, digest: str, key: str, at: str) -> dict[str, Any]:
         "topic": None,
         "reason": None,
         "pending_version_of": None,
+        # IMP-250b: filled by source_routing.seed_impact when the row is first opened.
+        "authority": None,
+        "impact": None,
     }
 
 
@@ -303,6 +310,11 @@ def registry_summary(manifest: dict[str, Any]) -> dict[str, Any]:
             {"id": row["id"], "version_of": row["pending_version_of"]} for row in rows if row.get("pending_version_of")
         ],
         "by_validity": by_validity,
+        "impact_pending": {
+            row["id"]: pending
+            for row in rows
+            if (pending := sum(1 for cell in row.get("impact") or [] if cell.get("state") == "pending"))
+        },
     }
 
 
@@ -355,6 +367,8 @@ _COPY = {
         "topic": "topic: {topic}",
         "candidate": "candidate new version of {id}, not confirmed",
         "copies": "copies: {n}",
+        "authority": "authority: {authority}",
+        "cells": "impact cells pending: {n}",
         "missing": "original no longer present",
         "unknown": "unknown",
     },
@@ -375,6 +389,8 @@ _COPY = {
         "topic": "tema: {topic}",
         "candidate": "posible versión nueva de {id}, sin confirmar",
         "copies": "copias: {n}",
+        "authority": "autoridad: {authority}",
+        "cells": "celdas de impacto pendientes: {n}",
         "missing": "el original ya no está",
         "unknown": "sin dato",
     },
@@ -408,6 +424,11 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             notes.append(copy["candidate"].format(id=row["pending_version_of"]))
         if row.get("copies"):
             notes.append(copy["copies"].format(n=len(row["copies"])))
+        if row.get("authority"):
+            notes.append(copy["authority"].format(authority=row["authority"]))
+        pending = sum(1 for cell in row.get("impact") or [] if cell.get("state") == "pending")
+        if pending:
+            notes.append(copy["cells"].format(n=pending))
         if row.get("paths") and not any((base / path).exists() or Path(path).exists() for path in row["paths"]):
             notes.append(copy["missing"])
         if row.get("reason"):

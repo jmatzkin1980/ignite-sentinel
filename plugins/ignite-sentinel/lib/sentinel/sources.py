@@ -10,6 +10,7 @@ from .source_registry import (
     attach_alias,
     attach_copy,
     close_row,
+    SourceRegistryError,
     ensure_registry,
     find_row,
     open_row,
@@ -18,7 +19,19 @@ from .source_registry import (
     update_row,
     write_source_log,
 )
-from .workspace import read_json, utc_now, workspace_path, write_json
+from .core.io import write_text
+from .source_routing import (
+    cascade_impact,
+    closing_report,
+    find_row_or_raise,
+    mark_cell,
+    render_closing_report,
+    resolve_precedence,
+    row_authority,
+    seed_impact,
+    set_authority,
+)
+from .workspace import load_config, read_json, utc_now, workspace_path, write_json
 
 
 TRACKED_SUFFIXES = {".md", ".txt", ".html", ".htm"}
@@ -117,6 +130,7 @@ def open_source_row(project_id: str, path: Path, via: str, event_id: str | None 
     """IMP-250a: open the F-NN row before a command crosses the source; returns its id."""
     manifest = load_source_manifest(project_id)
     row = open_row(manifest, source_key(path), file_hash(path), via, event_id)
+    seed_impact(row)  # IMP-250b: authority + impact matrix on first sight
     save_source_manifest(project_id, manifest)
     return str(row["id"])
 
@@ -137,6 +151,7 @@ def mark_source_processed(
     if status in REGISTERING_STATUSES:
         if row is None or row.get("hash") != digest:
             row = open_row(manifest, key, digest, status, event_id)
+            seed_impact(row)
         attach_alias(row, key)
         close_row(row, event_id, impacted)
     elif status in COPY_STATUSES and row is not None:
@@ -211,9 +226,27 @@ def list_sources(project_id: str) -> dict[str, Any]:
     }
 
 
-def update_source(project_id: str, source_id: str, **changes: Any) -> dict[str, Any]:
+def update_source(
+    project_id: str,
+    source_id: str,
+    *,
+    authority: str | None = None,
+    cell: str | None = None,
+    mark: str | None = None,
+    **changes: Any,
+) -> dict[str, Any]:
     manifest = load_source_manifest(project_id)
-    row = update_row(manifest, source_id, **changes)
+    if (cell is None) != (mark is None):
+        raise SourceRegistryError("--cell and --mark go together: --cell DOCUMENT/SECTION --mark updated|reviewed|pending.")
+    if cell is not None:
+        find_row_or_raise(manifest, source_id)
+    row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
+    if authority:
+        set_authority(row, authority)
+    if changes.get("retire"):
+        cascade_impact(row)  # IMP-250b: a retired source reaches every document
+    if cell is not None:
+        mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
     return {
         "project_id": project_id,
@@ -225,6 +258,40 @@ def update_source(project_id: str, source_id: str, **changes: Any) -> dict[str, 
 
 def source_registry_summary(project_id: str) -> dict[str, Any]:
     return registry_summary(load_source_manifest(project_id))
+
+
+def closing_report_path(project_id: str) -> Path:
+    return workspace_path(project_id) / "07_changes" / "closing_report.md"
+
+
+def write_closing_report(project_id: str) -> dict[str, Any]:
+    """IMP-250b: closing report by recipient. Writes the report; never deletes a file."""
+    manifest = load_source_manifest(project_id)
+
+    def exists(key: str) -> bool:
+        return (Path.cwd() / key).exists() or Path(key).exists()
+
+    report = closing_report(manifest, exists)
+    path = closing_report_path(project_id)
+    write_text(path, render_closing_report(project_id, report, _language(project_id)))
+    return {"project_id": project_id, "closing_report": path.as_posix(), **report}
+
+
+def source_precedence(project_id: str, scope: str, source_ids: list[str]) -> dict[str, Any]:
+    """IMP-250b: which of these rows governs in `scope`. Read-only."""
+    manifest = load_source_manifest(project_id)
+    if len(source_ids) < 2:
+        raise SourceRegistryError("--between needs at least two source ids, for example F-01,F-03.")
+    candidates = [
+        {"id": row["id"], "authority": row_authority(row)}
+        for row in (find_row_or_raise(manifest, source_id) for source_id in source_ids)
+    ]
+    result = resolve_precedence(scope, candidates, load_config(project_id))
+    return {"project_id": project_id, "candidates": candidates, **result}
+
+
+def source_row(project_id: str, source_id: str) -> dict[str, Any] | None:
+    return find_row(load_source_manifest(project_id), source_id)
 
 
 def scan_candidate_sources(project_id: str) -> list[Path]:

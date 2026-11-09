@@ -520,7 +520,7 @@ The payoff is deterministic routing: with a non-empty registry the `interview` e
 
 ## `sources`
 
-List or change the governed source registry (IMP-250a).
+List or change the governed source registry (IMP-250a), close impact cells, settle precedence and write the closing report (IMP-250b).
 
 ```powershell
 python -m sentinel /sources PROJECT_ID
@@ -530,12 +530,18 @@ python -m sentinel /sources PROJECT_ID --id F-NN --retire --reason TEXT [--repla
 python -m sentinel /sources PROJECT_ID --id F-NN --expire YYYY-MM-DD [--topic TOPIC]
 python -m sentinel /sources PROJECT_ID --id F-NN --current
 python -m sentinel /sources PROJECT_ID --id F-NN --close [--reason TEXT]
+python -m sentinel /sources PROJECT_ID --id F-NN --authority AUTHORITY
+python -m sentinel /sources PROJECT_ID --id F-NN --cell DOCUMENT/SECTION --mark updated|pending
+python -m sentinel /sources PROJECT_ID --id F-NN --cell DOCUMENT/SECTION --mark reviewed --reason TEXT
+python -m sentinel /sources PROJECT_ID --precedence SCOPE --between F-NN,F-MM
+python -m sentinel /sources PROJECT_ID --report
 ```
 
 Output:
 
 - `00_raw/source_manifest.json` (the `registry` rows)
 - `07_changes/source_log.md` (generated render, in the project language)
+- `07_changes/closing_report.md` (with `--report`, in the project language)
 
 Every source that enters through `/ingest`, `/sync` or `/resolve-gaps` gets one `F-NN` row, and the counter never restarts. Each row records its kind (from the bucket it arrived in), who delivered it, its sha256, the paths it arrived under, Sentinel's copies of it, the events that crossed it and the nodes it may impact.
 
@@ -545,6 +551,20 @@ Every source that enters through `/ingest`, `/sync` or `/resolve-gaps` gets one 
 - **Validity.** `current`, `superseded` (corrected by another row; cycles are rejected), `retired` (a dead source; `--reason` is required and `--replacement` must be an existing row) or `expired` (from a cut-off date, optionally only for one `--topic`). Pass one validity change at a time.
 
 Open rows and unconfirmed versions appear in the `/status` summary under `sources` and as the non-blocking `sources` gate of the verdict. Manifests written before IMP-250a are migrated on first read: each distinct processed content becomes a closed, current row in processing order.
+
+**Authority, impact matrix, precedence and closing report (IMP-250b).** The routing data lives in `sentinel/templates/source_routing.json`.
+
+- **Authority.** Each new row gets an `authority`: what kind of source it is when sources clash. The bucket gives the default (a meeting is `minutes`, a design context is `prototype`, what `/ingest` takes is `client_document`), and a file named like an example (`example`, `ejemplo`, `sample`, `muestra`) is an `example`. Correct it with `--authority`.
+- **Impact matrix.** Each new row gets one cell per document and section its authority routes to (`brief/business`, `requirements/functional`, `specs/contracts`, `gaps/open`...), with what to look for there. `/sync --digest` shows the matrix as section (e). Close a cell with `--mark updated`, or `--mark reviewed --reason TEXT` when nothing changed. Retiring a row cascades it to every document, even outside its routing. Pending cells appear in the `/status` summary under `sources.impact_pending`. Rows that existed before IMP-250b keep an empty matrix.
+- **Precedence by scope, not linear.** `--precedence SCOPE --between F-NN,F-MM` says which row governs in one scope: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design` or `rule`. The default table: minutes govern business and scope; a decision governs the to-be stack and the tech lead governs it below a decision; what is built governs over the prototype; the API contract governs over the prototype and opens a gap; a norm governs over our own material; an externally reviewed copy governs over ours; a real legacy artifact governs over a reconstruction; a spec governs over an example; a prototype sign-off settles design doubts only. An own artifact is never an authority (echo). When no rule settles the clash, or both rows have the same authority, the answer is `unresolved`: the newest source never wins by default. Override one scope in `sentinel.config.yaml`:
+
+  ```yaml
+  precedence:
+    business: client_document > minutes > interaction
+  ```
+
+- **An example never closes a rule.** A confirmed answer that `/resolve-gaps` reads from a row whose authority is `example` leaves the gap `ANSWERED`, never `CLOSED`.
+- **Closing report.** `--report` writes `07_changes/closing_report.md`: per recipient (BA, tech lead, product owner, QA), each row's delta (`ADDED`, `MODIFIED`, `REMOVED`) and the cells to look at. It also lists the originals that are ready to delete (extraction saved, every cell closed, row closed) and why the rest are not. The report never deletes a file.
 
 ## `specs`
 

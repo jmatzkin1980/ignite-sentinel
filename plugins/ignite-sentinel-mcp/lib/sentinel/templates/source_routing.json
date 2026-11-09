@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "authorities": {
+    "minutes": "Meeting minutes or a recorded agreement",
+    "decision_record": "A signed or recorded decision",
+    "tech_lead": "Tech lead input on the to-be stack",
+    "built": "What is already built (SAD, running system)",
+    "prototype": "A design prototype",
+    "prototype_signoff": "Sign-off on a prototype",
+    "api_contract": "An API contract",
+    "norm": "A regulation or standard",
+    "external_review": "A copy reviewed by an external authority",
+    "legacy_artifact": "A real artifact of the legacy system",
+    "reconstruction": "A reconstruction of the legacy system",
+    "spec": "A specification",
+    "example": "An example file",
+    "own_artifact": "An artifact Sentinel or the team produced",
+    "client_document": "A document the client delivered",
+    "interaction": "A mail, chat or call note",
+    "unclassified": "Not classified yet"
+  },
+  "authority_by_kind": {
+    "client_requirement": "client_document",
+    "business_context": "client_document",
+    "technology_context": "tech_lead",
+    "design_context": "prototype",
+    "quality_context": "spec",
+    "interaction": "interaction",
+    "meeting": "minutes",
+    "mail_slack": "interaction",
+    "client_response": "client_document",
+    "domain_update": "client_document",
+    "external": "unclassified"
+  },
+  "example_name_pattern": "(?:^|[^a-z])(example|examples|ejemplo|ejemplos|sample|samples|muestra|muestras)(?:[^a-z]|$)",
+  "precedence": [
+    {"id": "P01", "scope": "business", "winner": "minutes", "over": "*", "note": "Minutes govern business."},
+    {"id": "P02", "scope": "scope", "winner": "minutes", "over": "*", "note": "Minutes govern scope."},
+    {"id": "P03", "scope": "stack_to_be", "winner": "decision_record", "over": "*", "note": "A decision governs the to-be stack."},
+    {"id": "P04", "scope": "stack_to_be", "winner": "tech_lead", "over": "*", "except": ["decision_record"], "note": "The tech lead governs the to-be stack, below a decision."},
+    {"id": "P05", "scope": "behavior", "winner": "built", "over": ["prototype"], "note": "What is built governs over the prototype, unless a change is declared."},
+    {"id": "P06", "scope": "api", "winner": "api_contract", "over": ["prototype"], "opens_gap": true, "note": "The API contract governs over the prototype and opens a gap."},
+    {"id": "P07", "scope": "compliance", "winner": "norm", "over": "*", "note": "A norm governs over our own material."},
+    {"id": "P08", "scope": "*", "winner": "external_review", "over": ["own_artifact", "client_document"], "note": "A copy reviewed by an external authority governs over ours."},
+    {"id": "P09", "scope": "legacy", "winner": "legacy_artifact", "over": ["reconstruction"], "note": "A real legacy artifact governs over a reconstruction."},
+    {"id": "P10", "scope": "*", "winner": "spec", "over": ["example"], "note": "A spec governs over an example; an example never closes a rule."},
+    {"id": "P11", "scope": "design", "winner": "prototype_signoff", "over": ["prototype", "interaction"], "note": "A prototype sign-off settles design doubts only."}
+  ],
+  "never_authority": ["own_artifact"],
+  "only_in_scope": {"prototype_signoff": ["design"]},
+  "never_closes": ["example"],
+  "documents": {
+    "brief": {"recipient": "ba", "sections": ["business", "technology", "design", "quality"]},
+    "requirements": {"recipient": "ba", "sections": ["functional", "non_functional"]},
+    "specs": {"recipient": "tech_lead", "sections": ["units", "contracts"]},
+    "backlog": {"recipient": "product_owner", "sections": ["stories", "acceptance"]},
+    "quality": {"recipient": "qa", "sections": ["test_cases"]},
+    "gaps": {"recipient": "ba", "sections": ["open"]}
+  },
+  "routes": {
+    "minutes": [
+      {"document": "brief", "section": "business", "look_for": "Agreements, scope decisions and who agreed"},
+      {"document": "requirements", "section": "functional", "look_for": "Rules stated or changed in the meeting"},
+      {"document": "gaps", "section": "open", "look_for": "Answers to open gaps"}
+    ],
+    "decision_record": [
+      {"document": "brief", "section": "technology", "look_for": "The decision and what it rules out"},
+      {"document": "specs", "section": "contracts", "look_for": "Specs the decision changes"}
+    ],
+    "tech_lead": [
+      {"document": "brief", "section": "technology", "look_for": "Stack, integrations and constraints"},
+      {"document": "specs", "section": "contracts", "look_for": "Interfaces and technical limits"}
+    ],
+    "built": [
+      {"document": "brief", "section": "technology", "look_for": "What exists today and how it behaves"},
+      {"document": "specs", "section": "units", "look_for": "Behavior the specs must match"}
+    ],
+    "prototype": [
+      {"document": "brief", "section": "design", "look_for": "Screens, flows and states"},
+      {"document": "backlog", "section": "stories", "look_for": "Stories each screen implies"}
+    ],
+    "prototype_signoff": [
+      {"document": "brief", "section": "design", "look_for": "Design doubts the sign-off settles"}
+    ],
+    "api_contract": [
+      {"document": "specs", "section": "contracts", "look_for": "Endpoints, fields and errors"},
+      {"document": "gaps", "section": "open", "look_for": "Where the contract and the prototype disagree"}
+    ],
+    "norm": [
+      {"document": "requirements", "section": "non_functional", "look_for": "Mandatory rules and their scope"},
+      {"document": "quality", "section": "test_cases", "look_for": "What must be verified"}
+    ],
+    "external_review": [
+      {"document": "brief", "section": "business", "look_for": "What the reviewer changed"}
+    ],
+    "legacy_artifact": [
+      {"document": "brief", "section": "technology", "look_for": "As-is behavior and data"},
+      {"document": "requirements", "section": "functional", "look_for": "Rules the legacy system enforces"}
+    ],
+    "reconstruction": [
+      {"document": "brief", "section": "technology", "look_for": "As-is behavior to confirm against a real artifact"}
+    ],
+    "spec": [
+      {"document": "requirements", "section": "functional", "look_for": "Rules and acceptance criteria"},
+      {"document": "quality", "section": "test_cases", "look_for": "Cases the spec implies"}
+    ],
+    "example": [
+      {"document": "requirements", "section": "functional", "look_for": "Illustrations only; an example never closes a rule"}
+    ],
+    "own_artifact": [],
+    "client_document": [
+      {"document": "brief", "section": "business", "look_for": "Goals, actors and scope"},
+      {"document": "requirements", "section": "functional", "look_for": "Rules and constraints"},
+      {"document": "gaps", "section": "open", "look_for": "Answers to open gaps"}
+    ],
+    "interaction": [
+      {"document": "brief", "section": "business", "look_for": "Decisions or changes mentioned in passing"},
+      {"document": "gaps", "section": "open", "look_for": "Answers to open gaps, with who said it"}
+    ],
+    "unclassified": [
+      {"document": "brief", "section": "business", "look_for": "Classify the source first, then route it"}
+    ]
+  }
+}

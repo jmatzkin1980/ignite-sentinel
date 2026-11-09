@@ -26,7 +26,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
-from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source
+from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path
@@ -127,6 +127,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             stem=source.stem,
             metabolism=metabolism,
             new_gaps=gap_merge["merged"],
+            source_row=source_row(project_id, source_id),
         )
         digest_path = Path(str(interaction_digest["digest_path"]))
         digest_id = add_node(project_id, "DEC", "interaction_digest", digest_path, "Interaction digest", status="pending")
