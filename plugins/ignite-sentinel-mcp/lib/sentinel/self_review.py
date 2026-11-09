@@ -6,7 +6,7 @@ from typing import Any
 
 from .core.graph import add_edge, add_node, load_graph
 from .decisions import load_decision_source, render_decision_register, unique_path, validate_cited_decisions
-from .discovery import count_gaps, parse_gap_rows, readiness_stage_for_counts, render_gaps, validate_agent_gaps
+from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps, validate_agent_gaps
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .workspace import read_json, update_state, workspace_path
@@ -106,7 +106,7 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
         phase="self_reviewed",
         health="DIRTY" if merged_new else read_json(base / "state.json", {}).get("health", "CLEAN"),
         gap_counts=counts,
-        readiness_stage=readiness_stage_for_counts(counts),
+        readiness_stage=readiness_stage_after_gap_change(project_id, counts),
         last_self_review_id=review_id,
     )
 

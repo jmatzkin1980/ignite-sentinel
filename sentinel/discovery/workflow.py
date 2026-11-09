@@ -25,7 +25,7 @@ from ..memory import ContextBroker, index_context_folders
 from ..injection import shield_source
 from ..secrets_scan import ingest_source, pii_report_enabled
 from ..sources import mark_source_processed
-from ..workspace import ensure_workspace, load_config, update_state, workspace_path
+from ..workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
 METRIC_RE = re.compile(
     r"(\d+(?:[.,]\d+)?\s?(?:%|percent|por ciento|porcentaje)|\$\s?\d+|\d+\s?(?:usd|ars|eur|hours|horas|days|dias))",
@@ -863,7 +863,7 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     language = str(state_language if state_language in {"es", "en"} else "en")
     write_text(gaps_path, render_gaps(project_id, existing, req_id, language))
     counts = count_gaps(existing)
-    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_for_counts(counts))
+    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
     return {
         "project_id": project_id,
         "path": str(gaps_path),
@@ -893,6 +893,31 @@ def readiness_stage_for_counts(counts: dict[str, int]) -> str:
     if counts.get("open", 0) or counts.get("partially_closed", 0) or counts.get("answered", 0):
         return "DOMAIN_RESPONSE_NEEDED"
     return "READY_FOR_PROJECT_BRIEF"
+
+
+# IMP-292: stages that only /brief, /specs or /backlog move past. Rewriting gaps
+# must not drop a project out of them unless a blocking gap is now open.
+POST_BRIEF_STAGES = frozenset({
+    "READY_FOR_SPECS",
+    "SPECS_BELOW_THRESHOLD",
+    "READY_FOR_BACKLOG",
+    "BRIEF_BELOW_THRESHOLD",
+    "SELF_CORRECTION_FAILED",
+    "UNITS_NOT_IMPLEMENTABLE",
+})
+
+
+def next_readiness_stage(current: object, counts: dict[str, int]) -> str:
+    """Stage after a command rewrote gaps.md: back only when something blocks."""
+    if counts.get("blocking_open", 0):
+        return "CLIENT_RESPONSE_NEEDED"
+    if current in POST_BRIEF_STAGES:
+        return str(current)
+    return readiness_stage_for_counts(counts)
+
+
+def readiness_stage_after_gap_change(project_id: str, counts: dict[str, int]) -> str:
+    return next_readiness_stage(read_state(project_id, {}).get("readiness_stage"), counts)
 
 
 # --- IMP-021: agentic analysis protocol (/annotate) ---------------------------
@@ -1240,7 +1265,7 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
     counts["agent_origin"] = sum(1 for gap in merged if gap.get("origin") == "agent")
     updates: dict[str, object] = {
         "gap_counts": counts,
-        "readiness_stage": readiness_stage_for_counts(counts),
+        "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
         "last_annotation_id": annotation_id,
     }
     if counts.get("blocking_open", 0):
@@ -1440,7 +1465,7 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
     counts["challenge_origin"] = sum(1 for gap in merged if gap.get("origin") == "challenge")
     updates: dict[str, object] = {
         "gap_counts": counts,
-        "readiness_stage": readiness_stage_for_counts(counts),
+        "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
         "last_challenge_id": challenge_id,
     }
     if counts.get("blocking_open", 0):
@@ -1777,7 +1802,7 @@ def apply_scrutiny(
     counts[str(spec["origin_count_key"])] = sum(1 for gap in merged if gap.get("origin") == origin)
     updates: dict[str, object] = {
         "gap_counts": counts,
-        "readiness_stage": readiness_stage_for_counts(counts),
+        "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
         str(spec["state_key"]): report_id,
         "knowledge_ledger_summary": ledger["payload"]["summary"],
     }

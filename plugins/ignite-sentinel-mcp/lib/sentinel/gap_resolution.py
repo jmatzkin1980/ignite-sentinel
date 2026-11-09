@@ -4,7 +4,7 @@ import re
 import shutil
 from pathlib import Path
 
-from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_for_counts, render_gaps
+from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .ears import classify_ears
 from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
@@ -111,7 +111,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         last_gap_resolution_id=report_id,
         last_change_id=change_id,
         gap_counts=resolution_results["counts"],
-        readiness_stage=readiness_stage_for_counts(resolution_results["counts"]),
+        readiness_stage=readiness_stage_after_gap_change(project_id, resolution_results["counts"]),
     )
     append_gap_resolution_log(project_id, change_id, report_id, resolution_results)
     return {
