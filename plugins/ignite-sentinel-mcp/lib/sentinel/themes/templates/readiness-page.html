@@ -1,0 +1,27 @@
+<script id="readiness-data" type="application/json">$data_json</script>
+<header class="view-header">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <div class="verdict-line"><span class="verdict" id="verdict"></span><span class="meta" id="meta"></span></div>
+    <div class="next" id="next"></div>
+  </header>
+  <div class="layout">
+    <div class="view-main">
+      <section class="block" id="why"></section>
+      <h2 id="itemsTitle">Items</h2>
+      <div class="cards" id="items"></div>
+    </div>
+    <aside>
+      <div class="side-title" id="recipientsTitle">Requests by recipient</div>
+      <div id="recipients"></div>
+      <div class="side-title" id="marksTitle">Local marks</div>
+      <p class="hint" id="marksHint"></p>
+      <div class="mark-actions">
+        <button type="button" id="exportMarks">Export</button>
+        <button type="button" id="importMarks">Import</button>
+        <button type="button" id="clearMarks">Clear</button>
+      </div>
+      <textarea id="marksBox" rows="5" aria-label="Marks JSON"></textarea>
+      <div class="hint" id="marksStatus" role="status"></div>
+    </aside>
+  </div>

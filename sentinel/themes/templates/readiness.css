@@ -1,0 +1,46 @@
+* { box-sizing: border-box; }
+    .view-header { padding: 22px 28px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.15; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 22px 0 10px; }
+    .meta { color: var(--text-muted); font-size: 13px; }
+    .verdict-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+    .verdict { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+    .v-READY { background: var(--ok-soft); color: var(--ok-text); }
+    .v-READY_WITH_WARNINGS { background: var(--warn-soft); color: var(--warn-text); }
+    .v-NOT_READY { background: var(--block-soft); color: var(--block-text); }
+    .next { margin-top: 12px; font-size: 14px; }
+    .next code { font-family: var(--font-mono); font-size: 12px; }
+    code { overflow-wrap: anywhere; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); }
+    aside { position: sticky; top: var(--shell-top); align-self: start; max-height: calc(100vh - var(--shell-top)); overflow: auto; padding: 18px; background: var(--surface); border-left: 1px solid var(--line); }
+    .view-main { min-width: 0; padding: 18px 30px 60px; }
+    .view-section { padding: 0 30px 24px; }
+    .view-nav { padding: 0 8px; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+    .stat { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px; }
+    .stat strong { display: block; font-size: 21px; }
+    .stat span { color: var(--text-muted); font-size: 12px; }
+    .toc a { display: block; padding: 4px 6px; color: var(--text); text-decoration: none; font-size: 13px; border-radius: 4px; }
+    .side-title { margin: 16px 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: .05em; }
+    .block ul { margin: 6px 0 0; padding-left: 20px; }
+    .block li { margin: 3px 0; font-size: 14px; }
+    .block h3 { font-size: 14px; margin: 12px 0 4px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 12px; }
+    .card h3 { margin: 0 0 6px; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .card .sub { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+    .recipient { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 10px; margin-bottom: 10px; }
+    .recipient header { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+    .recipient .unassigned { color: var(--text-muted); font-weight: 400; }
+    .req { display: grid; grid-template-columns: auto 1fr; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
+    .req.marked .req-text { text-decoration: line-through; color: var(--text-muted); }
+    .tag { display: inline-block; border-radius: 4px; padding: 0 5px; font-size: 11px; margin-right: 4px; border: 1px solid var(--line); color: var(--text-muted); }
+    .tag.b-start { border-color: var(--block); color: var(--block-text); }
+    .tag.b-slice { border-color: var(--warn); color: var(--warn-text); }
+    button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 6px; padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px; }
+    .mark-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    textarea { width: 100%; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+    .hint { color: var(--text-muted); font-size: 12px; }
+    .empty { color: var(--text-muted); font-size: 13px; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } aside { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--line); } .view-main { padding: 16px; } }
