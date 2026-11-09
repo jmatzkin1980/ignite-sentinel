@@ -67,6 +67,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel.", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
+    ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close.", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
@@ -317,6 +318,38 @@ def build_server():
                 arguments += ["--profile", profile]
             if notes:
                 arguments += ["--notes", notes]
+        return run_cli(arguments)
+
+    @server.tool(name="sentinel_sources", description=TOOL_DESCRIPTIONS["sources"])
+    def sentinel_sources(
+        project_id: str,
+        id: str = "",
+        from_who: str = "",
+        superseded_by: str = "",
+        retire: bool = False,
+        replacement: str = "",
+        expire: str = "",
+        topic: str = "",
+        current: bool = False,
+        close: bool = False,
+        reason: str = "",
+    ) -> dict:
+        arguments = ["sources", project_id]
+        if id:
+            arguments += ["--id", id]
+            for flag, value in (
+                ("--from", from_who),
+                ("--superseded-by", superseded_by),
+                ("--replacement", replacement),
+                ("--expire", expire),
+                ("--topic", topic),
+                ("--reason", reason),
+            ):
+                if value:
+                    arguments += [flag, value]
+            for flag, enabled in (("--retire", retire), ("--current", current), ("--close", close)):
+                if enabled:
+                    arguments.append(flag)
         return run_cli(arguments)
 
     @server.tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])

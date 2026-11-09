@@ -42,6 +42,7 @@ COMMANDS = {
     "status",
     "export",
     "stakeholders",
+    "sources",
 }
 
 
@@ -174,6 +175,19 @@ def main(argv: list[str] | None = None) -> int:
     stakeholders_p.add_argument("--topic", default="")
     stakeholders_p.add_argument("--profile")
     stakeholders_p.add_argument("--notes", default="")
+
+    sources_p = sub.add_parser("sources")  # IMP-250a: F-NN source registry
+    sources_p.add_argument("project_id")
+    sources_p.add_argument("--id", dest="source_id")
+    sources_p.add_argument("--from", dest="from_who")
+    sources_p.add_argument("--superseded-by", dest="superseded_by")
+    sources_p.add_argument("--retire", action="store_true")
+    sources_p.add_argument("--replacement")
+    sources_p.add_argument("--expire", metavar="YYYY-MM-DD")
+    sources_p.add_argument("--topic")
+    sources_p.add_argument("--current", action="store_true")
+    sources_p.add_argument("--close", action="store_true")
+    sources_p.add_argument("--reason")
 
     export_p = sub.add_parser("export")
     export_p.add_argument("project_id")
@@ -384,6 +398,27 @@ def main(argv: list[str] | None = None) -> int:
                 )
             else:
                 result = list_stakeholders(args.project_id)
+            print_json(result)
+        elif args.command == "sources":
+            from .sources import list_sources, update_source
+
+            changes = {
+                "from_who": args.from_who,
+                "superseded_by": args.superseded_by,
+                "retire": args.retire,
+                "replacement": args.replacement,
+                "expire": args.expire,
+                "topic": args.topic,
+                "current": args.current,
+                "close": args.close,
+                "reason": args.reason,
+            }
+            if args.source_id:
+                result = update_source(args.project_id, args.source_id, **changes)
+            elif any(value for value in changes.values()):
+                raise ValueError("/sources needs --id F-NN to change a row")
+            else:
+                result = list_sources(args.project_id)
             print_json(result)
         elif args.command == "export":
             from .export import export_artifact

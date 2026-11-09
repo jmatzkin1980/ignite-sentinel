@@ -24,7 +24,7 @@ from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
 from ..injection import shield_source
 from ..secrets_scan import ingest_source, pii_report_enabled
-from ..sources import mark_source_processed
+from ..sources import mark_source_processed, open_source_row
 from ..workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
 METRIC_RE = re.compile(
@@ -37,6 +37,7 @@ RAW_SYNTHESIS_EXTENSIONS = {".md", ".txt", ".html", ".htm"}
 def ingest(project_id: str, source: Path) -> dict[str, str]:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
+    source_id = open_source_row(project_id, source, "initial_ingested")  # IMP-250a
     # IMP-150: snapshot the previous Requirement Units before this ingest
     # overwrites them, so a re-ingest can emit a governed ADDED/MODIFIED/REMOVED
     # delta view of what capabilities changed.
@@ -49,8 +50,8 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
     text, injection_ids = shield_source(base, source.name, text)
     language = resolve_project_language(config.get("project_language", "auto"), text)
     context = load_domain_context(base)
-    mark_source_processed(project_id, source, "initial_ingested")
-    mark_source_processed(project_id, raw_target, "raw_copy")
+    mark_source_processed(project_id, source, "initial_ingested", source_id=source_id)
+    mark_source_processed(project_id, raw_target, "raw_copy", source_id=source_id)
     raw_id = add_node(project_id, "RAW", "raw_input", raw_target, source.stem, domain="product")
     source_synthesis_path = base / "01_discovery" / "source_synthesis.md"
     write_text(source_synthesis_path, render_source_synthesis(project_id, base))

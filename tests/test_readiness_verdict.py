@@ -38,7 +38,7 @@ RAW = (
     "We need a reporting portal for the operations team. The objective is to "
     "reduce manual work. Data is stored in the legacy billing system.\n"
 )
-GATES = {"gaps", "brief_gate", "implementability_gate", "crystallization_gate", "drift", "story_dor"}
+GATES = {"gaps", "brief_gate", "implementability_gate", "crystallization_gate", "drift", "story_dor", "sources"}
 
 
 def _cli_json(argv: list[str]) -> dict:

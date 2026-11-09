@@ -20,6 +20,8 @@ from .assumptions import assumptions_projection
 from .core.state import read_state
 from .development_readiness import compute_development_readiness, compute_unit_implementability
 from .drift import derived_drift_warnings
+from .source_registry import registry_warnings
+from .sources import source_registry_summary
 from .gaps import BLOCKING_GAP_STATUSES, blocking_severities, count_gaps, is_blocking, parse_gap_table
 from .workspace import load_config, workspace_path
 
@@ -87,6 +89,13 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     gate_matrix.append({"gate": "drift", "state": "STALE" if drift else "CLEAN", "blocks": drift_blocks})
     (blockers if drift_blocks else warnings).extend(drift)
 
+    # IMP-250a: an open F-NN row is a cross that never finished; an unconfirmed new
+    # version waits for a person to say which one governs. Both warn, neither blocks.
+    sources = source_registry_summary(project_id)
+    source_findings = registry_warnings(sources)
+    gate_matrix.append({"gate": "sources", "state": "OPEN" if source_findings else "CLEAN", "blocks": False})
+    warnings.extend(source_findings)
+
     projection = assumptions_projection(project_id)
     risky = list((projection.get("summary") or {}).get("test_before_advancing_ids", []))
     if risky:
@@ -121,6 +130,7 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         "gate_matrix": gate_matrix,
         "by_item": {"workspace": {"verdict": verdict, "blocking_open": len(blocking_open)}, **stories},
         "maturity_score": metrics_score,
+        "sources": sources,
     }
     result["next_step"] = next_step(project_id, state, result, has_stories=bool(stories), has_brief=brief_exists)
     return result

@@ -27,6 +27,7 @@ def project_status(project_id: str, full: bool = True) -> dict[str, object]:
         "verdict": verdict,
         "gap_counts": {**verdict["counts"], **gap_origin_counts(project_id)},
         "maturity_score": verdict["maturity_score"],
+        "sources": verdict["sources"],
         "next_step": verdict["next_step"]["text"],
         "next_action": verdict["next_step"],
     }
