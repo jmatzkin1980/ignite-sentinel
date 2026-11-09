@@ -18,7 +18,7 @@ from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, copy_file, read_json, write_text
 from ..core.markdown import parse_table_rows
 from ..deltas import DeltaStatus
-from ..gaps import is_blocking, parse_gap_answers, parse_gap_table
+from ..gaps import count_gaps, is_blocking, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
@@ -810,35 +810,6 @@ def detect_unit_anchored_gaps(
             by_id[gap["id"]] = gap
             base_gaps.append(gap)
     return base_gaps
-
-
-def count_gaps(gaps: list[dict[str, str]]) -> dict[str, int]:
-    counts = {
-        "open": 0,
-        "closed": 0,
-        "partially_closed": 0,
-        "answered": 0,
-        "blocking_open": 0,
-        "total": len(gaps),
-    }
-    for gap in gaps:
-        status = str(gap.get("status", "OPEN")).upper()
-        severity = str(gap.get("severity", "")).lower()
-        if status == "OPEN":
-            counts["open"] += 1
-            if severity in {"critical", "high"}:
-                counts["blocking_open"] += 1
-        elif status == "ANSWERED":
-            counts["answered"] += 1
-            if severity in {"critical", "high"}:
-                counts["blocking_open"] += 1
-        elif status == "PARTIALLY_CLOSED":
-            counts["partially_closed"] += 1
-            if severity in {"critical", "high"}:
-                counts["blocking_open"] += 1
-        elif status == "CLOSED":
-            counts["closed"] += 1
-    return counts
 
 
 def parse_gap_rows(text: str) -> list[dict[str, str]]:

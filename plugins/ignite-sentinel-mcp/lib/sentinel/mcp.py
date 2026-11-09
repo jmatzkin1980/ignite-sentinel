@@ -44,7 +44,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend).", ["project_id", "domain"]),
-    ("status", "Report phase, health, gap counts, maturity metrics, and next step.", ["project_id"]),
+    ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics.", ["project_id", "full"]),
     ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
@@ -288,8 +288,8 @@ def build_server():
         return run_cli(["context-request", project_id, "--domain", domain])
 
     @server.tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
-    def sentinel_status(project_id: str) -> dict:
-        return run_cli(["status", project_id])
+    def sentinel_status(project_id: str, full: bool = False) -> dict:
+        return run_cli(["status", project_id] + (["--full"] if full else []))
 
     @server.tool(name="sentinel_stakeholders", description=TOOL_DESCRIPTIONS["stakeholders"])
     def sentinel_stakeholders(

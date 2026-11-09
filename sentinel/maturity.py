@@ -228,6 +228,7 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
+    blocking = blocking_severities(load_config(project_id))
     log_path = base / "01_discovery" / "gap_resolution_log.md"
     iterations = 0
     closed_by_response_source = {"client": 0, "domain": 0, "inference": 0}
@@ -247,14 +248,13 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
     ears_eligible_not_normalized: list[str] = []
     for gap in gaps:
         status = str(gap.get("status", "OPEN")).upper()
-        severity = str(gap.get("severity", "")).lower()
         origin = str(gap.get("origin", "checklist")).strip() or "checklist"
         if status == "CLOSED":
             closed_total += 1
             closed_by_origin[origin] = closed_by_origin.get(origin, 0) + 1
             if "EARS-eligible" in str(gap.get("resolution_note", "")):
                 ears_eligible_not_normalized.append(gap["id"])
-        elif status in {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"} and severity in {"critical", "high"}:
+        elif is_blocking(gap, blocking):  # IMP-248: configured severities
             open_blocking += 1
     closed_by_origin_pct = {
         origin: round(count / closed_total, 3) for origin, count in closed_by_origin.items()
@@ -303,7 +303,11 @@ def reopened_gap_ids_from_sync_reports(base: Path) -> list[str]:
     return sorted(set(ids))
 
 
-def maturity_metrics(project_id: str, persist_development_readiness: bool = False) -> dict[str, object]:
+def maturity_metrics(
+    project_id: str,
+    persist_development_readiness: bool = False,
+    include_development_readiness: bool = True,
+) -> dict[str, object]:
     """Quantified maturity: gap closure by severity plus evidence scores of generated artifacts."""
     from .validation import score_artifact_text
 
@@ -368,6 +372,8 @@ def maturity_metrics(project_id: str, persist_development_readiness: bool = Fals
         from .assumptions import assumption_rows, summarize_assumptions
 
         metrics["assumptions"] = summarize_assumptions(assumption_rows(assumptions_path.read_text(encoding="utf-8")))
+    if not include_development_readiness:  # IMP-248: the verdict computes it once itself
+        return metrics
     from .development_readiness import compute_development_readiness
 
     metrics["development_readiness"] = compute_development_readiness(

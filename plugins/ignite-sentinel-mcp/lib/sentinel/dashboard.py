@@ -382,40 +382,36 @@ def _development_readiness_label(status: dict[str, Any]) -> str:
     return state
 
 
+# IMP-248: the decision comes from build_readiness_verdict; this only words it
+# for the dashboard. One key per next step, never a second decision tree.
+NEXT_ACTION_COPY: dict[str, tuple[str, str, str]] = {
+    "ingest": ("Cargar requerimiento inicial", "/ingest {pid} --source PATH -> /status {pid}", "Carga el requerimiento inicial de {pid}, ejecuta discovery y resumime gaps y proximo paso."),
+    "resolve_blocking": ("Esperando respuestas del cliente", "/resolve-gaps {pid} --source PATH -> /maturity {pid} -> /status {pid}", "Registra las respuestas del cliente para {pid}, resolve los gaps bloqueantes y volve a evaluar la madurez."),
+    "fix_brief": ("Corregir lo que freno el brief", "/brief {pid} -> /status {pid}", "Revisa por que /brief freno el cierre de fase de {pid} (umbral, autocorreccion o implementabilidad), resolvelo y volve a generar el brief."),
+    "specs": ("Preparar PRD y specs", "/specs {pid} -> /status {pid}", "Genera PRD y specs para {pid} solo con evidencia disponible y marca cualquier pendiente explicito."),
+    "fix_specs": ("Subir las specs sobre el umbral", "/specs {pid} -> /status {pid}", "Cierra los gaps que reporto la readiness de specs de {pid} y volve a generar las specs."),
+    "backlog": ("Preparar backlog", "/backlog {pid} -> /backlog-status {pid} -> /quality {pid}", "Prepara el backlog gobernado de {pid}, verifica DoR/DoD y resume bloqueos para handoff."),
+    "quality": ("Revisar el backlog", "/quality {pid} -> /backlog-status {pid}", "Revisa las historias de {pid} que no pasan el Definition of Ready y resume que falta y de quien."),
+    "resolve_gaps": ("Resolver gaps pendientes", "/resolve-gaps {pid} --source PATH -> /maturity {pid} -> /status {pid}", "Revisa los gaps pendientes de {pid}, registra las respuestas disponibles y manten visibles los pendientes."),
+    "brief": ("Generar Project Brief", "/brief {pid} -> /status {pid}", "Genera el Project Brief de {pid} desde evidencia madura y manten trazabilidad de lo pendiente."),
+}
+
+
 def _next_action(project_id: str, status: dict[str, Any], stage: dict[str, Any]) -> dict[str, str]:
-    counts = status.get("gap_counts") if isinstance(status.get("gap_counts"), dict) else {}
-    blocking = int(counts.get("blocking_open", 0) or 0)
-    open_gaps = int(counts.get("open", 0) or 0) + int(counts.get("partially_closed", 0) or 0)
-    readiness = str(status.get("readiness_stage", "DISCOVERY_RAW"))
-    if status.get("phase") == "initialized":
-        title = "Cargar requerimiento inicial"
-        command = f"/ingest {project_id} --source PATH -> /status {project_id}"
-        prompt = f"Carga el requerimiento inicial de {project_id}, ejecuta discovery y resumime gaps y proximo paso."
-    elif blocking:
-        title = "Esperando respuestas del cliente"
-        command = f"/resolve-gaps {project_id} --source PATH -> /maturity {project_id} -> /status {project_id}"
-        prompt = f"Registra las respuestas del cliente para {project_id}, resolve los gaps bloqueantes y volve a evaluar la madurez."
-    elif open_gaps:
-        title = "Resolver gaps pendientes"
-        command = f"/resolve-gaps {project_id} --source PATH -> /maturity {project_id} -> /status {project_id}"
-        prompt = f"Revisa los gaps pendientes de {project_id}, registra las respuestas disponibles y manten visibles los pendientes."
-    elif readiness == "READY_FOR_PROJECT_BRIEF":
-        title = "Generar Project Brief"
-        command = f"/brief {project_id} -> /status {project_id}"
-        prompt = f"Genera el Project Brief de {project_id} desde evidencia madura y manten trazabilidad de lo pendiente."
-    elif readiness in {"READY_FOR_SPECS", "BRIEF_BELOW_THRESHOLD"}:
-        title = "Preparar PRD y specs"
-        command = f"/specs {project_id} -> /status {project_id}"
-        prompt = f"Genera PRD y specs para {project_id} solo con evidencia disponible y marca cualquier pendiente explicito."
-    elif readiness in {"READY_FOR_BACKLOG", "SPECS_BELOW_THRESHOLD"}:
-        title = "Preparar backlog"
-        command = f"/backlog {project_id} -> /backlog-status {project_id} -> /quality {project_id}"
-        prompt = f"Prepara el backlog gobernado de {project_id}, verifica DoR/DoD y resume bloqueos para handoff."
-    else:
-        title = "Inspeccionar estado"
-        command = f"/status {project_id} -> /health {project_id}"
-        prompt = f"Inspecciona el estado de {project_id}, explica blockers y recomienda el siguiente comando seguro."
-    return {"title": title, "detail": str(status.get("next_step") or stage["text"]), "prompt": prompt, "command": command}
+    action = status.get("next_action") if isinstance(status.get("next_action"), dict) else {}
+    key = str(action.get("key", ""))
+    title, command, prompt = NEXT_ACTION_COPY.get(key, (
+        "Inspeccionar estado",
+        "/status {pid} -> /health {pid}",
+        "Inspecciona el estado de {pid}, explica blockers y recomienda el siguiente comando seguro.",
+    ))
+    return {
+        "key": key,
+        "title": title,
+        "detail": str(status.get("next_step") or stage["text"]),
+        "prompt": prompt.format(pid=project_id),
+        "command": command.format(pid=project_id),
+    }
 
 
 def _scenarios(project_id: str) -> list[dict[str, str]]:

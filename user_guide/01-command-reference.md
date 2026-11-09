@@ -450,11 +450,28 @@ Output:
 
 ## `status`
 
-Show phase, health, language, privacy mode, readiness, gap counts, knowledge ledger summary, development readiness, last change IDs, and next recommended step.
+Show whether the workspace is ready to build, and what to do next.
 
 ```powershell
 python -m sentinel /status PROJECT_ID
+python -m sentinel /status PROJECT_ID --full
 ```
+
+The default output is the summary:
+
+- **`verdict`**: the counts-based ready-to-build verdict, computed by `build_readiness_verdict` (the same one `/dashboard` and the MCP `sentinel_status` tool show).
+  - `READY`: nothing blocks and every check ran.
+  - `READY_WITH_WARNINGS`: nothing blocks, but there are warnings or checks that could not run.
+  - `NOT_READY`: a blocking gap is open, discovery has not run, or a strict gate blocks.
+  - `blocking_open`, `blockers`, `warnings`, and `partial_coverage` (each check that could not run and why) explain it. A check that did not run never counts as passed.
+  - `DEFERRED_TO_CONTEXT` units and "test before advancing" assumptions are warnings, not blockers.
+  - `by_item` gives the workspace and each backlog story (Definition of Ready).
+- **`gap_counts`**: one counter over `01_discovery/gaps.md` (`open`, `answered`, `partially_closed`, `closed`, `blocking_open`, `total`), using `maturity.blocking_gap_severities` from the workspace config, plus the `<origin>_origin` counts.
+- **`verdict.gate_matrix`**: gaps, brief gate, implementability gate, crystallization gate, drift and story DoR, each with its state and whether it blocks.
+- **`maturity_score`**: still published next to the verdict. The maturity gates do not change.
+- **`next_step`** and **`next_action`** (`key`, `title`, `text`, `command`): the single next step.
+
+`--full` adds the detailed dump: `maturity_metrics`, `development_readiness` (once), assumptions projection, knowledge ledger, story gates, backlog rollup and the last change IDs.
 
 ## `export`
 
