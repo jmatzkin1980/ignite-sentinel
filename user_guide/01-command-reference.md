@@ -518,6 +518,34 @@ Records who owns which domain/topic. The registry is a **generated artifact, mut
 
 The payoff is deterministic routing: with a non-empty registry the `interview` export groups open gaps **by owner** (a gap is matched to an owner by its lens), so the script reads "these questions go to Operations; these to Technology." A gap whose lens has no registered owner is listed under an explicit **unassigned** heading — never a fabricated owner. Power×Interest scoring and communication plans are intentionally out of scope (delivery, not discovery).
 
+## `sources`
+
+List or change the governed source registry (IMP-250a).
+
+```powershell
+python -m sentinel /sources PROJECT_ID
+python -m sentinel /sources PROJECT_ID --id F-NN [--from WHO] [--reason TEXT]
+python -m sentinel /sources PROJECT_ID --id F-NN --superseded-by F-MM
+python -m sentinel /sources PROJECT_ID --id F-NN --retire --reason TEXT [--replacement F-MM]
+python -m sentinel /sources PROJECT_ID --id F-NN --expire YYYY-MM-DD [--topic TOPIC]
+python -m sentinel /sources PROJECT_ID --id F-NN --current
+python -m sentinel /sources PROJECT_ID --id F-NN --close [--reason TEXT]
+```
+
+Output:
+
+- `00_raw/source_manifest.json` (the `registry` rows)
+- `07_changes/source_log.md` (generated render, in the project language)
+
+Every source that enters through `/ingest`, `/sync` or `/resolve-gaps` gets one `F-NN` row, and the counter never restarts. Each row records its kind (from the bucket it arrived in), who delivered it, its sha256, the paths it arrived under, Sentinel's copies of it, the events that crossed it and the nodes it may impact.
+
+- **Novelty by hash or by missing row, never by date.** The same content under a second path is the same row: autonomous `/sync` attaches the path and reports it under `duplicate_content` instead of crossing it again. Two `/sync` runs over the same file do not duplicate the row.
+- **Candidate versions.** A known path with new content opens a new row with `pending_version_of`. The registry never decides that the newest version governs: `/status` warns until a person runs `--superseded-by` on the old row or `--current` on the new one.
+- **Row lifecycle.** A row opens when its command starts and closes when the cross finishes. A row left open means a cross that never finished; `/status` warns about it until the command is re-run or the row is closed with `--close`.
+- **Validity.** `current`, `superseded` (corrected by another row; cycles are rejected), `retired` (a dead source; `--reason` is required and `--replacement` must be an existing row) or `expired` (from a cut-off date, optionally only for one `--topic`). Pass one validity change at a time.
+
+Open rows and unconfirmed versions appear in the `/status` summary under `sources` and as the non-blocking `sources` gate of the verdict. Manifests written before IMP-250a are migrated on first read: each distinct processed content becomes a closed, current row in processing order.
+
 ## `specs`
 
 Generate the human PRD and AI-friendly spec from a mature requirement.

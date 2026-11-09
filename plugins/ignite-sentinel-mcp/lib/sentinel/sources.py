@@ -4,6 +4,20 @@ from pathlib import Path
 from typing import Any
 
 from .core.hashing import content_sha256, file_content_hash, hash_matches
+from .source_registry import (
+    COPY_STATUSES,
+    REGISTERING_STATUSES,
+    attach_alias,
+    attach_copy,
+    close_row,
+    ensure_registry,
+    find_row,
+    open_row,
+    registry_summary,
+    row_for_hash,
+    update_row,
+    write_source_log,
+)
 from .workspace import read_json, utc_now, workspace_path, write_json
 
 
@@ -43,12 +57,23 @@ def source_manifest_path(project_id: str) -> Path:
     return workspace_path(project_id) / "00_raw" / "source_manifest.json"
 
 
+def source_log_path(project_id: str) -> Path:
+    return workspace_path(project_id) / "07_changes" / "source_log.md"
+
+
 def load_source_manifest(project_id: str) -> dict[str, Any]:
-    return read_json(source_manifest_path(project_id), {"sources": {}})
+    return ensure_registry(read_json(source_manifest_path(project_id), {"sources": {}}))
 
 
 def save_source_manifest(project_id: str, manifest: dict[str, Any]) -> None:
     write_json(source_manifest_path(project_id), manifest)
+    if manifest.get("registry"):  # IMP-250a: the human render follows every write
+        write_source_log(project_id, manifest, source_log_path(project_id), _language(project_id))
+
+
+def _language(project_id: str) -> str:
+    language = read_json(workspace_path(project_id) / "state.json", {}).get("project_language", "en")
+    return str(language if language in {"es", "en"} else "en")
 
 
 def source_key(path: Path) -> str:
@@ -71,9 +96,9 @@ def file_hash(path: Path) -> str:
     return file_content_hash(path)  # IMP-291: a line-ending flip is not a new version
 
 
-def source_record(path: Path, status: str, event_id: str | None = None) -> dict[str, Any]:
+def source_record(path: Path, status: str, event_id: str | None = None, source_id: str | None = None) -> dict[str, Any]:
     stat = path.stat()
-    return {
+    record: dict[str, Any] = {
         "path": source_key(path),
         "hash": file_hash(path),
         "size": stat.st_size,
@@ -83,31 +108,123 @@ def source_record(path: Path, status: str, event_id: str | None = None) -> dict[
         "last_seen_at": utc_now(),
         "last_processed_at": utc_now(),
     }
+    if source_id:
+        record["source_id"] = source_id
+    return record
 
 
-def mark_source_processed(project_id: str, path: Path, status: str, event_id: str | None = None) -> None:
+def open_source_row(project_id: str, path: Path, via: str, event_id: str | None = None) -> str:
+    """IMP-250a: open the F-NN row before a command crosses the source; returns its id."""
     manifest = load_source_manifest(project_id)
-    manifest.setdefault("sources", {})[source_key(path)] = source_record(path, status, event_id)
+    row = open_row(manifest, source_key(path), file_hash(path), via, event_id)
     save_source_manifest(project_id, manifest)
+    return str(row["id"])
 
 
-def discover_pending_sources(project_id: str) -> list[dict[str, Any]]:
+def mark_source_processed(
+    project_id: str,
+    path: Path,
+    status: str,
+    event_id: str | None = None,
+    source_id: str | None = None,
+    impacted: list[str] | None = None,
+) -> str | None:
+    """Record a processed path. A registering status closes its F-NN row; a copy joins it."""
+    manifest = load_source_manifest(project_id)
+    key = source_key(path)
+    digest = file_hash(path)
+    row = find_row(manifest, source_id) if source_id else None
+    if status in REGISTERING_STATUSES:
+        if row is None or row.get("hash") != digest:
+            row = open_row(manifest, key, digest, status, event_id)
+        attach_alias(row, key)
+        close_row(row, event_id, impacted)
+    elif status in COPY_STATUSES and row is not None:
+        attach_copy(row, key)
+    else:
+        row = None
+    manifest.setdefault("sources", {})[key] = source_record(path, status, event_id, row["id"] if row else None)
+    save_source_manifest(project_id, manifest)
+    return str(row["id"]) if row else None
+
+
+def discover_source_novelty(project_id: str) -> dict[str, list[dict[str, Any]]]:
+    """Pending sources, plus unseen paths whose content is already a registered row.
+
+    Novelty is decided by content hash or by a missing row, never by date (IMP-250a).
+    """
     manifest = load_source_manifest(project_id)
     known = manifest.get("sources", {})
     pending: list[dict[str, Any]] = []
+    duplicates: list[dict[str, Any]] = []
+    first_new: dict[str, str] = {}  # hash -> key of the first unseen path with it in this scan
     for path in scan_candidate_sources(project_id):
         key = source_key(path)
         data = path.read_bytes()
         current_hash = content_sha256(data)
         previous = known.get(key)
         if previous is None:
+            row = row_for_hash(manifest, current_hash)
+            if row is not None or current_hash in first_new:
+                duplicates.append({
+                    "path": path,
+                    "key": key,
+                    "hash": current_hash,
+                    "source_id": row["id"] if row is not None else None,
+                    "same_as": None if row is not None else first_new[current_hash],
+                })
+                continue
+            first_new[current_hash] = key
             reason = "new"
         elif not hash_matches(previous.get("hash"), data):
             reason = "modified"
         else:
             continue
         pending.append({"path": path, "key": key, "hash": current_hash, "reason": reason})
-    return pending
+    return {"pending": pending, "duplicates": duplicates}
+
+
+def discover_pending_sources(project_id: str) -> list[dict[str, Any]]:
+    return discover_source_novelty(project_id)["pending"]
+
+
+def record_duplicate_source(project_id: str, path: Path, source_id: str) -> None:
+    """A second path for content already registered joins that row instead of opening one."""
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    if row is None:
+        return
+    attach_alias(row, source_key(path))
+    manifest.setdefault("sources", {})[source_key(path)] = source_record(path, "duplicate_content", None, source_id)
+    save_source_manifest(project_id, manifest)
+
+
+def list_sources(project_id: str) -> dict[str, Any]:
+    manifest = load_source_manifest(project_id)
+    if manifest.get("registry"):
+        save_source_manifest(project_id, manifest)  # persists a migration and refreshes the log
+    return {
+        "project_id": project_id,
+        "registry": manifest.get("registry", []),
+        "summary": registry_summary(manifest),
+        "source_log": source_log_path(project_id).as_posix() if manifest.get("registry") else None,
+    }
+
+
+def update_source(project_id: str, source_id: str, **changes: Any) -> dict[str, Any]:
+    manifest = load_source_manifest(project_id)
+    row = update_row(manifest, source_id, **changes)
+    save_source_manifest(project_id, manifest)
+    return {
+        "project_id": project_id,
+        "row": row,
+        "summary": registry_summary(manifest),
+        "source_log": source_log_path(project_id).as_posix(),
+    }
+
+
+def source_registry_summary(project_id: str) -> dict[str, Any]:
+    return registry_summary(load_source_manifest(project_id))
 
 
 def scan_candidate_sources(project_id: str) -> list[Path]:

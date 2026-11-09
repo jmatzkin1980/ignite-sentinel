@@ -26,7 +26,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
-from .sources import discover_pending_sources, mark_source_processed
+from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path
@@ -37,6 +37,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
 
+    # IMP-250a: the F-NN row opens before the cross and closes when it finishes.
+    source_id = open_source_row(project_id, source, "synced")
     target_dir = change_target_dir(base, source)
     target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
     # IMP-285: same redaction as /ingest before the change is analyzed or stored.
@@ -146,8 +148,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         max_chars=1600,
         global_budget_chars=4000,
     )
-    mark_source_processed(project_id, source, "synced", change_id)
-    mark_source_processed(project_id, target, "change_copy", change_id)
+    mark_source_processed(project_id, source, "synced", change_id, source_id=source_id, impacted=affected)
+    mark_source_processed(project_id, target, "change_copy", change_id, source_id=source_id)
     mark_source_processed(project_id, impact_path, "impact_report", impact_id)
     if interaction_digest:
         # IMP-293: the digest outputs are Sentinel's own; record them so they are
@@ -175,6 +177,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     )
     return {
         "change_id": change_id,
+        "source_id": source_id,
         "secret_redactions": sanitized.redactions,
         "injection_signals": injection_ids,
         "impact_report_id": impact_id,
@@ -199,13 +202,24 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync", digest:
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
 
-    pending = discover_pending_sources(project_id)
+    novelty = discover_source_novelty(project_id)
+    pending = novelty["pending"]
     results = []
+    source_ids: dict[str, str] = {}
     for item in pending:
         source = item["path"]
         result = sync_change(project_id, source, f"{note}; detected={item['reason']}", digest=digest)
         result["detected_reason"] = item["reason"]
         results.append(result)
+        source_ids[item["key"]] = str(result["source_id"])
+    # IMP-250a: an unseen path whose content is already a row (or another path in
+    # this scan) is that source again: it joins the row and is not crossed twice.
+    duplicates = []
+    for item in novelty["duplicates"]:
+        source_id = item["source_id"] or source_ids.get(str(item["same_as"]))
+        if source_id:
+            record_duplicate_source(project_id, item["path"], source_id)
+            duplicates.append({"path": item["key"], "source_id": source_id})
 
     if not results:
         reindex_workspace(project_id)
@@ -228,6 +242,7 @@ def sync_pending_sources(project_id: str, note: str = "autonomous sync", digest:
         "mode": "autonomous",
         "detected": len(pending),
         "processed": len(results),
+        "duplicate_content": duplicates,
         "changes": results,
     }
 

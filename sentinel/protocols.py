@@ -59,6 +59,8 @@ MUTATING_COMMANDS = {
     # IMP-244: /stakeholders writes the stakeholder registry, so it is logged and
     # snapshotted like every other writer (listing goes through it too; cost is negligible).
     "stakeholders",
+    # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
+    "sources",
 }
 # IMP-244: the only commands outside the protocol, each with its reason. A test
 # requires every CLI command to be in exactly one of READ_ONLY, MUTATING or here.

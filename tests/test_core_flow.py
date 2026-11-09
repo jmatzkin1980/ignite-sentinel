@@ -947,9 +947,10 @@ Second section paragraph.
         from sentinel.doctor import command_surface_parity_check
 
         names = manifest_command_names()
-        self.assertEqual(len(names), 33)
+        self.assertEqual(len(names), 34)
         self.assertIn("sentinel", names)
         self.assertIn("stakeholders", names)
+        self.assertIn("sources", names)
         self.assertIn("dashboard", names)
         self.assertIn("view", names)
         self.assertIn("annotate", names)
@@ -1041,8 +1042,9 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 33)
+        self.assertEqual(len(names), 34)
         self.assertIn("sentinel_stakeholders", names)
+        self.assertIn("sentinel_sources", names)
         for expected in ("sentinel_dashboard", "sentinel_view", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_self_review", "sentinel_assume", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status", "sentinel_export"):
             self.assertIn(expected, names)
         self.assertIn("sentinel_gap_elicitation", names)
@@ -1060,7 +1062,7 @@ Second section paragraph.
             from sentinel.mcp import build_server
 
             tools = asyncio.new_event_loop().run_until_complete(build_server().list_tools())
-            self.assertEqual(len(tools), 33)
+            self.assertEqual(len(tools), len(names))  # the real server registers every described tool
 
     def test_discovery_skill_references_maturity_gap_checklist(self) -> None:
         skill = ROOT.parent / ".codex" / "skills" / "sentinel-discovery" / "SKILL.md"

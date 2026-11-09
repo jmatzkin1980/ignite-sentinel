@@ -7,6 +7,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Source registry (IMP-250a): each source content is one `F-NN` row in `00_raw/source_manifest.json`, rendered as `07_changes/source_log.md`. `/sources PROJECT_ID` lists the rows, and `--id F-NN` changes one.
+  - **Novelty by hash, never by date:** the same document under a second path is the same row, and two `/sync` runs over one file do not duplicate it. A known path with new content is a candidate new version until a person says which one governs (`--superseded-by` or `--current`).
+  - **Row lifecycle:** `/ingest`, `/sync` and `/resolve-gaps` open the row when they start and close it when the cross finishes. A row left open is a `/status` warning.
+  - **Validity:** current, superseded, retired (with its reason and replacement) or expired by a cut-off date, optionally for one topic.
+  - `/status` and the verdict gain a non-blocking `sources` gate. Existing manifests are migrated on first read, and the counter never restarts.
 - Build-readiness view (IMP-247): `/view PROJECT_ID --artifact readiness` shows what is missing and from whom.
   - **Items:** one card for the workspace, one per backlog story and one per SLICE-PLAN wave. Each card carries its governed verdict from IMP-248. A wave takes the most severe verdict of its stories, and a wave without stories is never green.
   - **Requests:** every open gap and every missing Definition of Ready item is a request, marked by whether it blocks the start, the slice or nothing.

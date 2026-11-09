@@ -9,7 +9,7 @@ from .ears import classify_ears
 from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
-from .sources import mark_source_processed
+from .sources import mark_source_processed, open_source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
@@ -51,6 +51,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     if not gaps_path.exists():
         raise RuntimeError("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
 
+    source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = unique_target(target_dir / f"{source.stem}.md")
@@ -100,8 +101,8 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id])
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[change_id, report_id])
     reindex_workspace(project_id)
-    mark_source_processed(project_id, source, "gap_resolved", change_id)
-    mark_source_processed(project_id, target, "gap_response_copy", change_id)
+    mark_source_processed(project_id, source, "gap_resolved", change_id, source_id=source_id)
+    mark_source_processed(project_id, target, "gap_response_copy", change_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
 
     update_state(

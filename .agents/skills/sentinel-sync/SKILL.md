@@ -35,6 +35,8 @@ Output: `07_changes/.../<source>_interaction_digest.md` plus the proposed respon
 
 - `/sync` creates a `CHG` node, indexes the change in local LanceDB memory, and links it to potentially impacted artifacts.
 - Autonomous `/sync PROJECT_ID` uses `workspaces/PROJECT_ID/00_raw/source_manifest.json` to detect new and modified files by content hash.
+- Each source content is one `F-NN` row in that manifest (IMP-250a). The same document under a second path joins its row and is not crossed again (`duplicate_content` in the result). A known path with new content opens a new row marked as a candidate new version: report it and ask the BA which one governs, then record it with `/sources --id F-OLD --superseded-by F-NEW` or `/sources --id F-NEW --current`. Never assume the newest version governs.
+- A row opens when `/sync`, `/ingest` or `/resolve-gaps` starts and closes when the cross finishes. An open row in `/status` is a cross that never finished: re-run the command, or close it with `/sources --id F-NN --close --reason TEXT`. `07_changes/source_log.md` is the generated render; never edit it by hand.
 - Use `/retrieve` with `--workflow sync` before regenerating requirements, backlog, acceptance criteria, or quality artifacts through their owning commands.
 - Use filters when the task needs a domain-owned context:
   - `--domain technical`
