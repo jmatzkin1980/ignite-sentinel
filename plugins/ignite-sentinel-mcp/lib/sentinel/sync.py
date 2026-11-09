@@ -149,6 +149,12 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     mark_source_processed(project_id, source, "synced", change_id)
     mark_source_processed(project_id, target, "change_copy", change_id)
     mark_source_processed(project_id, impact_path, "impact_report", impact_id)
+    if interaction_digest:
+        # IMP-293: the digest outputs are Sentinel's own; record them so they are
+        # never rescanned as client input.
+        mark_source_processed(project_id, Path(str(interaction_digest["digest_path"])), "interaction_digest", change_id)
+        if interaction_digest.get("proposed_response_path"):
+            mark_source_processed(project_id, Path(str(interaction_digest["proposed_response_path"])), "gap_response_proposed", change_id)
     update_state(
         project_id,
         phase="change_synced",
