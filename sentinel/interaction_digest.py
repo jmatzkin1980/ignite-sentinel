@@ -219,6 +219,7 @@ def render_interaction_digest(
     new_gaps: list[str],
     asm_signals: dict[str, Any],
     proposed_response_ref: str | None,
+    source_row: dict[str, Any] | None = None,
 ) -> str:
     """Human-readable digest. Explicit empty markers when a section has no signal
     (acceptance: artifacts with no signal produce an explicit empty digest, never
@@ -262,6 +263,21 @@ def render_interaction_digest(
                 locator += f" L{line_start}-{line_end}"
             rows.append(f"- `{finding.get('target')}` (sim {finding.get('score')}) — cita {locator}")
         return "\n".join(rows)
+
+    def impact_rows() -> str:
+        cells = (source_row or {}).get("impact") or []
+        if not cells:
+            return "- None."
+        return "\n".join(
+            f"- `{cell['document']} / {cell['section']}`: {cell['state']} — {cell.get('reason') or cell.get('look_for')}"
+            for cell in cells
+        )
+
+    row_line = (
+        f"Source row: `{source_row['id']}` (authority `{source_row.get('authority') or 'unclassified'}`)."
+        if source_row
+        else "Source row: not registered."
+    )
 
     response_line = (
         f"Pre-filled response file (all entries `PROPOSED`): `{proposed_response_ref}`. "
@@ -315,6 +331,16 @@ Associative candidates (BA review — nothing auto-invalidated):
 _Reused verbatim from the sync metabolism; the digest does not re-detect. Route
 assumption movement through the assumptions channel._
 
+## (e) Impact Matrix (document x section, IMP-250b)
+
+{row_line}
+
+{impact_rows()}
+
+_Close each cell with `/sources --id <F-NN> --cell DOCUMENT/SECTION --mark updated`,
+or `--mark reviewed --reason "..."` when nothing changed. A retired source
+cascades to every document._
+
 ## Routing Summary
 
 Nothing above has mutated governed state. Confirm and route each signal through
@@ -333,6 +359,7 @@ def build_interaction_digest(
     stem: str,
     metabolism: dict[str, Any] | None = None,
     new_gaps: list[str] | None = None,
+    source_row: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Orchestrate the digest pass (IO): write the digest and, when there are
     gap-answer candidates, the pre-filled `PROPOSED` response file.
@@ -364,6 +391,7 @@ def build_interaction_digest(
             new_gaps,
             asm_signals,
             proposed_response_path.as_posix() if proposed_response_path else None,
+            source_row,
         ))
     return {
         "digest_path": digest_path.as_posix(),
@@ -373,6 +401,7 @@ def build_interaction_digest(
         "new_gaps": list(new_gaps),
         "invalidated_assumptions": asm_signals["invalidated"],
         "associative_candidates": [f.get("target") for f in asm_signals["associative"]],
+        "impact_cells": len((source_row or {}).get("impact") or []),
         "has_signal": bool(
             gap_candidates or decisions or new_gaps or asm_signals["invalidated"] or asm_signals["associative"]
         ),

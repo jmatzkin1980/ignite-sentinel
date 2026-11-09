@@ -27,6 +27,9 @@ Translate short chat commands into Sentinel CLI executions.
 - `/stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]`
 - `/sources PROJECT_ID`
 - `/sources PROJECT_ID --id F-NN [--from WHO] [--superseded-by F-MM | --retire --reason TEXT [--replacement F-MM] | --expire YYYY-MM-DD [--topic TOPIC] | --current] [--close]`
+- `/sources PROJECT_ID --id F-NN [--authority AUTHORITY] [--cell DOCUMENT/SECTION --mark updated|reviewed|pending [--reason TEXT]]`
+- `/sources PROJECT_ID --precedence SCOPE --between F-NN,F-MM`
+- `/sources PROJECT_ID --report`
 - `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md`
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
@@ -98,7 +101,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`.
 - `/export`: summarize the CLI result and generated artifact path.
 - `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.
-- `/sources`: use `sentinel-sync`; the F-NN registry is CLI-only (never hand-edit `07_changes/source_log.md`). Ask the BA which version governs before `--superseded-by` or `--current`; never pick the newest by default.
+- `/sources`: use `sentinel-sync`; the F-NN registry is CLI-only (never hand-edit `07_changes/source_log.md`). Ask the BA which version governs before `--superseded-by` or `--current`; never pick the newest by default. An `unresolved` precedence goes back to the BA too; `--report` never deletes originals.
 
 ## Safety
 

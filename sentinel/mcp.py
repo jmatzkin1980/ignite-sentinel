@@ -67,7 +67,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel.", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
-    ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close.", ["project_id"]),
+    ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close; authority sets the row's authority; cell DOCUMENT/SECTION with mark updated, reviewed (with reason) or pending closes an impact-matrix cell. precedence SCOPE with between F-NN,F-NN says which source governs; report writes 07_changes/closing_report.md by recipient.", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
@@ -333,8 +333,21 @@ def build_server():
         current: bool = False,
         close: bool = False,
         reason: str = "",
+        authority: str = "",
+        cell: str = "",
+        mark: str = "",
+        precedence: str = "",
+        between: str = "",
+        report: bool = False,
     ) -> dict:
         arguments = ["sources", project_id]
+        if precedence or between:
+            for flag, value in (("--precedence", precedence), ("--between", between)):
+                if value:
+                    arguments += [flag, value]
+            return run_cli(arguments)
+        if report:
+            return run_cli(arguments + ["--report"])
         if id:
             arguments += ["--id", id]
             for flag, value in (
@@ -344,6 +357,9 @@ def build_server():
                 ("--expire", expire),
                 ("--topic", topic),
                 ("--reason", reason),
+                ("--authority", authority),
+                ("--cell", cell),
+                ("--mark", mark),
             ):
                 if value:
                     arguments += [flag, value]

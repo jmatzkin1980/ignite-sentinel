@@ -9,11 +9,14 @@ from .ears import classify_ears
 from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
-from .sources import mark_source_processed, open_source_row
+from .source_routing import can_close_rules, row_authority
+from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
+# IMP-250b: the note on a confirmed answer that came from an example file.
+EXAMPLE_SOURCE_NOTE = "example-source: an example never closes a rule; confirm it from a governing source"
 CONFIRMED_STATUSES = {"confirmado", "confirmed", "no aplica", "not applicable", "n/a", "na"}
 # IMP-185: the out-of-scope/not-applicable subset of confirmed closures. A gap
 # closed with one of these is a governed Non-Goal (scope exclusion), not a
@@ -62,7 +65,10 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
 
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
-    resolution_results = apply_gap_responses(existing, responses)
+    # IMP-250b: an example never closes a rule; its confirmed answers stay ANSWERED.
+    row = source_row(project_id, source_id)
+    can_close = can_close_rules(row_authority(row)) if row else True
+    resolution_results = apply_gap_responses(existing, responses, can_close=can_close)
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -128,7 +134,11 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     }
 
 
-def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[str, str]]) -> dict[str, object]:
+def apply_gap_responses(
+    gaps: list[dict[str, str]],
+    responses: dict[str, dict[str, str]],
+    can_close: bool = True,
+) -> dict[str, object]:
     closed: list[dict[str, str]] = []
     answered: list[dict[str, str]] = []
     partially_closed: list[dict[str, str]] = []
@@ -144,7 +154,11 @@ def apply_gap_responses(gaps: list[dict[str, str]], responses: dict[str, dict[st
         gap["evidence"] = response.get("evidence", "")
         gap["decision_status"] = response.get("decision_status", "")
         substantive = is_substantive_answer(answer)
-        if answer and decision in CONFIRMED_STATUSES and substantive:
+        if answer and decision in CONFIRMED_STATUSES and substantive and not can_close:
+            gap["status"] = "ANSWERED"
+            gap["resolution_note"] = EXAMPLE_SOURCE_NOTE
+            answered.append(gap)
+        elif answer and decision in CONFIRMED_STATUSES and substantive:
             gap["status"] = "CLOSED"
             if is_ears_eligible_gap(gap["id"]) and not classify_ears(answer):
                 gap["resolution_note"] = EARS_ELIGIBLE_NOTE

@@ -188,6 +188,13 @@ def main(argv: list[str] | None = None) -> int:
     sources_p.add_argument("--current", action="store_true")
     sources_p.add_argument("--close", action="store_true")
     sources_p.add_argument("--reason")
+    # IMP-250b: authority, impact matrix cells, precedence and the closing report.
+    sources_p.add_argument("--authority")
+    sources_p.add_argument("--cell", metavar="DOCUMENT/SECTION")
+    sources_p.add_argument("--mark", choices=["updated", "reviewed", "pending"])
+    sources_p.add_argument("--precedence", metavar="SCOPE")
+    sources_p.add_argument("--between", metavar="F-NN,F-NN")
+    sources_p.add_argument("--report", action="store_true")
 
     export_p = sub.add_parser("export")
     export_p.add_argument("project_id")
@@ -400,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = list_stakeholders(args.project_id)
             print_json(result)
         elif args.command == "sources":
-            from .sources import list_sources, update_source
+            from .sources import list_sources, source_precedence, update_source, write_closing_report
 
             changes = {
                 "from_who": args.from_who,
@@ -412,8 +419,20 @@ def main(argv: list[str] | None = None) -> int:
                 "current": args.current,
                 "close": args.close,
                 "reason": args.reason,
+                "authority": args.authority,
+                "cell": args.cell,
+                "mark": args.mark,
             }
-            if args.source_id:
+            if args.precedence or args.between:
+                if not (args.precedence and args.between):
+                    raise ValueError("/sources --precedence SCOPE goes with --between F-NN,F-NN")
+                ids = [item.strip() for item in args.between.split(",") if item.strip()]
+                result = source_precedence(args.project_id, args.precedence, ids)
+            elif args.report:
+                if args.source_id or any(value for value in changes.values()):
+                    raise ValueError("/sources --report takes no other option")
+                result = write_closing_report(args.project_id)
+            elif args.source_id:
                 result = update_source(args.project_id, args.source_id, **changes)
             elif any(value for value in changes.values()):
                 raise ValueError("/sources needs --id F-NN to change a row")
