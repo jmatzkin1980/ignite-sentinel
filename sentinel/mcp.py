@@ -286,9 +286,11 @@ def build_server():
         return run_cli(["maturity", project_id])
 
     @server.tool(name="sentinel_brief", description=TOOL_DESCRIPTIONS["brief"])
-    def sentinel_brief(project_id: str, profile: str = "", genesis: str = "", validation_direction: str = "") -> dict:
+    def sentinel_brief(project_id: str, profile: str = "", genesis: str = "", validation_direction: str = "",
+                       brief_version: str = "") -> dict:
         arguments = ["brief", project_id]
-        for flag, value in (("--profile", profile), ("--genesis", genesis), ("--validation-direction", validation_direction)):
+        for flag, value in (("--profile", profile), ("--genesis", genesis), ("--validation-direction", validation_direction),
+                            ("--brief-version", str(brief_version) if brief_version else "")):
             if value:
                 arguments += [flag, value]
         return run_cli(arguments)

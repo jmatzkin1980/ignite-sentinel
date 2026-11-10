@@ -466,7 +466,20 @@ python -m sentinel /brief PROJECT_ID --validation-direction built
 
 The schema lives in `sentinel/templates/brief_v2.json`. Its ids are stable and append-only: `/doctor` checks them against `brief_v2_ids.lock.json`.
 
-Confirming the settings does not change a v1 brief. The v2 compiler arrives with IMP-253.
+Confirming the settings does not change a v1 brief.
+
+**Brief v2 (IMP-253a, opt-in per project).** `--brief-version 2` switches the project to the v2 compiler; `--brief-version 1` switches back.
+
+```powershell
+python -m sentinel /brief PROJECT_ID --brief-version 2 --profile UI --genesis greenfield
+```
+
+- **Gate:** it compiles only with a confirmed profile and genesis. Until then `GAP-BRIEF-PROFILE` opens in `gaps.md` and the v1 brief is kept; confirming closes the gap.
+- **Body:** §0–§9 and the annexes of the schema. Each place is a quoted fact with a citation of its source row (`[[sources § … # F-NN — supports: …]]`; a confirmed gap answer cites the response that closed it and names the gap), a pending mark (`⏳ PENDING (GAP-X)` blocks, `⏳ PENDING DOMAIN (GAP-X)` can be deferred; conditional places with no evidence get the domain mark), or an N/A with its counterfactual.
+- **Counts:** §0.2 shows the certainty per section and a reliability warning when more than half of the applicable places are pending; §7 lists the same marks and the open gaps.
+- **Changes:** §6.3 lists what changed against the previous v2 brief (`ADDED`, `MODIFIED`, `REMOVED`). A re-run over the same inputs is byte-identical.
+- **Report:** `02_requirements/brief_compile_report.json` has every place with its fill, the `fill_sites` still to fill (with what each must produce) and the `unused_sources` the brief never cites.
+- `/specs`, `/maturity` and `/view` read the v2 brief through the same model as v1. In-place rewriting on gap close, inferences in the ledger, the `⚠` mark for `built` and the transcription rules come with IMP-253b.
 
 Per-section readiness and soft gate (IMP-025): `/brief` reports `brief_section_readiness` — each narrative section (1-6) as `populated`/`pending`, an overall `coverage_score`, and the gaps that feed each poor section. The same block appears in `/maturity` and `/status` (under `maturity_metrics`). The gate is non-blocking by default: below the coverage threshold it emits `warnings` naming the poor sections and the gaps that would populate them. Opt-in strict mode (workspace config `brief_gate: { "threshold": 0.5, "strict": true }`) instead blocks the advance to `READY_FOR_SPECS` (readiness stage `BRIEF_BELOW_THRESHOLD`) until coverage improves. Default gates are not hardened without opt-in.
 

@@ -96,8 +96,8 @@ class LensMapTests(unittest.TestCase):
         self.assertEqual(brief_model.LENS_TITLES["6"], "Gobernanza y Restricciones")
 
     def test_gap_routes_to_v2_sections_through_its_lens(self):
-        self.assertEqual(brief_model.v2_sections_for_gap("GAP-USERS"), ["2"])
-        self.assertEqual(brief_model.v2_sections_for_gap("GAP-GOVERNANCE-CONSTRAINTS"), ["5.11", "6"])
+        self.assertEqual(brief_model.v2_sections_for_gap("GAP-USERS"), ["2.1"])
+        self.assertEqual(brief_model.v2_sections_for_gap("GAP-GOVERNANCE-CONSTRAINTS"), ["5.11"])
         self.assertEqual(brief_model.v2_sections_for_gap("GAP-UNKNOWN"), [])
 
 

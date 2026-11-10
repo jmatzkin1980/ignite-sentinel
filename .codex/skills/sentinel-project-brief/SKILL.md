@@ -45,6 +45,15 @@ python -m sentinel /brief PROJECT_ID --profile UI,REG --genesis brownfield-exten
 - **`MIG` implies `brownfield-replacement`.** Any other genesis with `MIG` comes back as a contradiction; resolve it with the BA. An initial load in greenfield is not `MIG`.
 - **Mixed genesis:** pass both values, comma-separated. The most demanding one is declared and the other is noted.
 
+## Brief v2 (opt-in)
+
+`--brief-version 2` makes `/brief` write the brief v2. It needs a confirmed profile and genesis; without them it opens `GAP-BRIEF-PROFILE` and keeps the v1 brief.
+
+- **Never hand-write the v2 body.** Every fact is a quote with its `[[sources § … # F-NN]]` citation, every missing piece is a `⏳` mark pointing to a gap, and every N/A says what would open it.
+- **Read `02_requirements/brief_compile_report.json`** and drive the BA with its `fill_sites` (place, class, gap and what it must produce). `⏳ PENDING` sites go to the client through `/resolve-gaps`; `⏳ PENDING DOMAIN` sites go to a context request.
+- **Report `unused_sources`:** a delivered source the brief never cites is either noise or a missed fact.
+- §0.2 and §7 count the same marks; if they disagree, that is a bug, not a judgement call.
+
 ## Per-Section Readiness and the Action per Pending Section
 
 `/brief` returns `brief_section_readiness`: a `coverage_score` plus each narrative section classified `populated` or `pending` (empty body or a pending marker) with its count of local evidence citations. Every pending section comes with its `feeding_gaps` — report the section, its title, and the concrete route:

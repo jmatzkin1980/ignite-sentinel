@@ -24,6 +24,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Backlog anchor:** an anchor into a v2 brief is its section id (`§ 5.11`), not a line range, because v2 is rewritten in place.
   - **Guard:** the v1 compiler never overwrites a v2 brief; `/brief` and `/specs` keep it until the v2 compiler lands.
   - v1 output is unchanged: the goldens are identical, and a characterization test pins the readiness reader against the previous algorithm.
+- Brief v2 compiler, core (IMP-253a). `/brief --brief-version 2` opts a project in. It compiles only with a confirmed profile and genesis; until then `GAP-BRIEF-PROFILE` opens in `gaps.md` and the v1 brief stays.
+  - **Body:** `sentinel/compilers/brief_v2.py` writes §0–§9 and the annexes, in en or es. Every place is one of three things:
+    - a quoted fact with a `[[sources § … # F-NN]]` citation of its source row (a confirmed gap answer cites the response that closed it and names the gap);
+    - a pending mark: `⏳ PENDING (GAP-X)`, or `⏳ PENDING DOMAIN (GAP-X)` for domain context and for conditional places with no evidence;
+    - an N/A with its counterfactual, grouped as the schema says.
+  - **Routing:** gap answers reach their subsection through `brief_model.V2_GAP_ROUTES`.
+  - **Counts:** §0.2 (certainty per section, reliability warning) and §7 (seeded marks, open gaps) count the same places.
+  - **Assumptions and build list:** §8 lists the assumptions. §9 lists build items with their dependencies.
+  - **Changes:** §6.3 lists changes against the previous v2 brief with the closed delta vocabulary. A re-run is byte-identical.
+  - **Report:** `02_requirements/brief_compile_report.json` lists every place, the `fill_sites` still to fill and the `unused_sources`.
+  - **Citations:** `sources` is a citation document (`07_changes/source_log.md`), so `/validate` resolves the brief's citations.
+  - **Still to come in IMP-253b:** in-place rewriting on gap close, inferences in the ledger, `⚠` with `validation_direction: built`, and the transcription rules.
 
 ## [0.4.0] — 2026-11-10
 
