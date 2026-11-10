@@ -16,6 +16,7 @@ from .discovery import (
     readiness_stage_for_counts,
     split_evidence_sentences,
 )
+from .brief_model import LENS_TITLES, LENSES, load_brief_model, parse_brief
 from .core.markdown import parse_table_rows
 from .agent_sweep import channel_dispositions
 from .ears import requirements_quality_report
@@ -34,17 +35,10 @@ from .core.io import write_text
 # IMP-024 gap→section map). Exposed in /maturity and /status (via maturity_metrics)
 # and used by the soft /brief gate.
 
-_BRIEF_SECTION_RE = re.compile(r"^## (\d+)\.", re.M)
-_BRIEF_TRACKED_SECTIONS = ("1", "2", "3", "4", "5", "6")
-_BRIEF_PENDING_MARKERS = ("[PENDING INPUT]", "TBD", "PENDING DOMAIN", "No structured evidence", "Documentar el", "Documentar la")
-_BRIEF_SECTION_TITLES = {
-    "1": "Identidad y Valor",
-    "2": "Lente de Negocio (actores)",
-    "3": "Lente de Producto (proceso/journey)",
-    "4": "Lente de Diseño",
-    "5": "Lente Técnico",
-    "6": "Gobernanza y Restricciones",
-}
+# IMP-254: the lens keys, titles and pending marks live in brief_model, which
+# reads both brief generations.
+_BRIEF_TRACKED_SECTIONS = LENSES
+_BRIEF_SECTION_TITLES = LENS_TITLES
 _GAPS_FOR_BRIEF_SECTION: dict[str, list[str]] = {}
 for _gap, _sec in BRIEF_SECTION_FOR_GAP.items():
     _GAPS_FOR_BRIEF_SECTION.setdefault(_sec, []).append(_gap)
@@ -82,23 +76,15 @@ for _gap, _sec in PRD_SECTION_FOR_GAP.items():
 
 
 def brief_section_readiness(brief_text: str) -> dict[str, object]:
-    """Classify narrative sections 1-6 as populated/pending and score coverage."""
-    bodies: dict[str, list[str]] = {}
-    current = None
-    for line in brief_text.splitlines():
-        match = _BRIEF_SECTION_RE.match(line)
-        if match:
-            current = match.group(1)
-            bodies.setdefault(current, [])
-        elif current is not None:
-            bodies[current].append(line)
+    """Classify narrative lenses 1-6 as populated/pending and score coverage (v1 or v2)."""
+    model = parse_brief(brief_text)
     sections: dict[str, dict[str, object]] = {}
     poor: list[dict[str, object]] = []
     populated = 0
     for sec in _BRIEF_TRACKED_SECTIONS:
-        body = "\n".join(bodies.get(sec, []))
-        is_pending = (not body.strip()) or any(marker in body for marker in _BRIEF_PENDING_MARKERS)
-        citations = body.count("00_raw/") + body.count("`GAP-") + body.count("`CHG-")
+        body = model.lens_body(sec)
+        is_pending = model.is_pending(body)
+        citations = model.citation_count(body)
         status = "pending" if is_pending else "populated"
         sections[sec] = {"status": status, "evidence_citations": citations}
         if is_pending:
@@ -108,13 +94,16 @@ def brief_section_readiness(brief_text: str) -> dict[str, object]:
         else:
             populated += 1
     coverage_score = round(populated / len(_BRIEF_TRACKED_SECTIONS), 3)
-    return {
+    readiness: dict[str, object] = {
         "coverage_score": coverage_score,
         "sections_populated": populated,
         "sections_total": len(_BRIEF_TRACKED_SECTIONS),
         "sections": sections,
         "poor_sections": poor,
     }
+    if model.version == 2:
+        readiness["brief_version"] = 2
+    return readiness
 
 
 def brief_gate_warnings(readiness: dict[str, object], language: str = "en") -> list[str]:
@@ -571,11 +560,15 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
     gap_answers = parse_gap_answers(seeds_text + "\n" + decisions_text)
     state = read_json(state_path(project_id), {})
     language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    write_text(brief_path, render_project_brief(
-            project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
-            raw_text=raw_text, gap_answers=gap_answers, language=language,
-            assumptions_text=assumptions_text,
-        ))
+    # IMP-254: the v1 compiler never overwrites a v2 brief; the v2 compiler
+    # (IMP-253) owns that file. Indexing and the trace node still refresh.
+    existing_model = load_brief_model(brief_path)
+    if existing_model is None or existing_model.version != 2:
+        write_text(brief_path, render_project_brief(
+                project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
+                raw_text=raw_text, gap_answers=gap_answers, language=language,
+                assumptions_text=assumptions_text,
+            ))
 
     existing = nodes_by_type(project_id, "project_brief")
     if existing:
