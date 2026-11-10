@@ -70,6 +70,8 @@ Drive the BA from `brief_compile_report.json`:
 - `replaced`: statements an answer superseded (check the BA agrees).
 - `unused_sources`: a delivered source the brief never cites is either noise or a missed fact.
 
+`/validate` checks a v2 brief's integrity: every mark points to an open gap (a section's umbrella `GAP-BRIEF-S<n>` when no gap of its own is open), marks match `fill_sites`, inferences have their ledger rows, and there are no forbidden values (`-`, `—`, bare `N/A`, own `TBD`, `ninguno`) or edit residues. Fix a finding by recompiling or closing the gap, never by editing the body.
+
 ## Per-Section Readiness and the Action per Pending Section
 
 `/brief` returns `brief_section_readiness`: a `coverage_score` plus each of the six lenses (`1` Identidad y Valor … `6` Gobernanza y Restricciones) classified `populated` or `pending`, with its evidence citations. A v2 brief maps onto the same lenses (§5.11 and §6 feed lens 6) and adds `brief_version: 2`. Every pending lens comes with its `feeding_gaps`:

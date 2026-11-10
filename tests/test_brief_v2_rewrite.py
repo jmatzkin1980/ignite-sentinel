@@ -57,7 +57,8 @@ class InferenceTests(unittest.TestCase):
             {"id": "ASM-FLOW", "statement": "A single screen lists the queues.", "status": "ASSUMED", "closes_gap": "GAP-DESIGN-FLOW"},
             {"id": "ASM-GONE", "statement": "Mobile first.", "status": "OPEN", "closes_gap": "GAP-DESIGN-PROTOTYPE-INPUT"},
         ]
-        text, report = render_brief_v2(inputs(assumptions=assumptions))
+        gaps = [{"id": "GAP-DESIGN-FLOW", "severity": "high", "status": "OPEN", "origin": ""}]
+        text, report = render_brief_v2(inputs(assumptions=assumptions, gaps=gaps))
         flow = place(text, "4.1")
         self.assertIn("- (inferred) A single screen lists the queues. (`ASM-FLOW`)", flow)
         self.assertIn("⏳ PENDING (GAP-DESIGN-FLOW)", flow)
@@ -66,7 +67,7 @@ class InferenceTests(unittest.TestCase):
         self.assertEqual(report["inferred"], [{"place": "4.1", "assumption": "ASM-FLOW",
                                                "statement": "A single screen lists the queues.", "gap": "GAP-DESIGN-FLOW"}])
         self.assertIn("| 4.1 | `ASM-FLOW` | `GAP-DESIGN-FLOW` |", place(text, "A.provenance"))
-        spanish, _ = render_brief_v2(inputs(assumptions=assumptions, language="es"))
+        spanish, _ = render_brief_v2(inputs(assumptions=assumptions, gaps=gaps, language="es"))
         self.assertIn("- (inferido) A single screen lists the queues.", spanish)
 
 

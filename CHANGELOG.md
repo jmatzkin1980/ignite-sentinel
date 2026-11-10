@@ -47,6 +47,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
     - A source `TBD` stays `TBD` and keeps its place pending.
     - A doubled word is marked `[sic]`.
   - The `sentinel-project-brief` skill is rewritten for the brief v2: settings, the four kinds of place, these rules, the compile report and the v2 self-correction gate.
+- Brief v2 integrity (IMP-255). It applies only to a v2 brief.
+  - `/validate` reports:
+    - a `⏳` that points to a gap missing from `gaps.md` or already closed;
+    - an inline `⚠` without an open contradiction gap;
+    - a mark without its `fill_site` in the compile report, or the reverse;
+    - an `(inferred)` line without its `INFERRED` ledger row;
+    - a forbidden value used as a value: an empty cell, `-`, `—`, a bare `N/A`, the brief's own `TBD`, `ninguno`;
+    - an edit residue.
+  - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
+  - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
+  - v1 briefs are never checked.
 
 ## [0.4.0] — 2026-11-10
 
