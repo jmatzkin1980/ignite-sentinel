@@ -10,7 +10,7 @@
         "type": "object",
         "required": ["id", "type", "path", "title", "status", "domain"],
         "properties": {
-          "id": { "type": "string", "pattern": "^(RAW|REQ|GAP|DEC|SPEC|EPIC|US|AC|TC|CHG)-[0-9]{3}$" },
+          "id": { "type": "string", "pattern": "^(?:(?:RAW|REQ|GAP|DEC|SEED|DISC|PRD|SPEC|EPIC|US|AC|TC|QA|CHG|EV|CTX)-[0-9]{3,}|RU-[0-9]{3}|SPEC-U-[0-9]{3}|REQ-(?:EARS-)?[0-9]{3}|GAP-[A-Z0-9]+(?:-[A-Z0-9]+)*)$" },
           "type": { "type": "string" },
           "path": { "type": "string" },
           "title": { "type": "string" },

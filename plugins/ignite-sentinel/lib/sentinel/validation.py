@@ -10,6 +10,7 @@ from .discovery.momtest import momtest_warning_line, scan_questions
 from .ears import requirements_quality_report
 from .gaps import parse_gap_table
 from .handoff_contracts import load_handoff_contract_registry
+from .citations import validate_structured_citations
 from .ids import prefix_for_node_type
 from .iso29148 import coverage_report as iso29148_coverage_report
 from .maturity import brief_section_readiness, prd_section_readiness
@@ -50,6 +51,8 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
             findings.append(f"Edge target missing: {edge.get('to')}.")
 
     findings.extend(validate_semantic_artifacts(project_id, base, graph))
+    # IMP-249: v2 artifacts cite {doc, section, id}; v1 artifacts carry no marker and are skipped.
+    findings.extend(validate_structured_citations(base))
 
     semantic_quality, quality_warnings = semantic_quality_report(base)
     requirement_quality, requirement_warnings = requirement_quality_validation(base)
