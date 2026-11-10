@@ -827,6 +827,25 @@ def parse_gap_rows(text: str) -> list[dict[str, str]]:
     return parse_gap_table(text)
 
 
+def record_gap_disposition(project_id: str, gap_id: str, disposition: str, reason: str = "") -> dict[str, object]:
+    """IMP-271 / F7: the BA's disposition on a gap an agentic channel raised."""
+    from ..agent_sweep import SweepProtocolError, channel_dispositions, set_disposition
+
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot record a disposition before /ingest creates 01_discovery/gaps.md.")
+    gaps = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
+    gap = next((item for item in gaps if item["id"] == gap_id.strip().upper()), None)
+    if gap is None:
+        raise RuntimeError(f"{gap_id} is not in 01_discovery/gaps.md.")
+    try:
+        record = set_disposition(base, gap, disposition, reason)
+    except SweepProtocolError as exc:
+        raise ValueError(str(exc)) from exc
+    return {"gap_id": gap["id"], **record, "channels": channel_dispositions(base, gaps)}
+
+
 def regenerate_gaps(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
@@ -1030,7 +1049,20 @@ def validate_agent_gaps(data: dict, raw_text: str, lenses_dir=None, origin: str 
                 )
             gap["unit"] = unit
         validated.append(gap)
+    # IMP-271: the sweep protocol (AUSENTE re-verified, untouched, blocks, no agent figures).
+    from ..agent_sweep import SweepProtocolError, validate_sweep_extras
+
+    try:
+        validate_sweep_extras(data, haystack, _normalize_for_match)
+    except SweepProtocolError as exc:
+        raise AnnotationError(str(exc)) from exc
     return validated
+
+
+def _record_sweep(base: Path, channel: str, data: dict, gaps: list[dict[str, str]]) -> None:
+    from ..agent_sweep import record_sweep
+
+    record_sweep(base, channel, data, [gap["id"] for gap in gaps])
 
 
 def _trace_refs_from_graph(project_id: str) -> dict[str, str]:
@@ -1192,6 +1224,7 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 
     data = load_agent_annotation(source)
     agent_gaps = validate_agent_gaps(data, raw_text)
+    _record_sweep(base, "annotate", data, agent_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
@@ -1392,6 +1425,7 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
 
     data = load_agent_annotation(source)
     challenge_gaps = validate_agent_gaps(data, raw_text, origin="challenge")
+    _record_sweep(base, "challenge", data, challenge_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
@@ -1722,6 +1756,7 @@ def apply_scrutiny(
     data = load_agent_annotation(source)
     known_units = known_requirement_unit_ids(base) if spec["require_unit"] else None
     scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter, mode=mode, known_units=known_units)
+    _record_sweep(base, str(spec["origin"]), data, scrutiny_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]

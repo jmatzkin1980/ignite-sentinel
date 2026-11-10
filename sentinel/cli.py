@@ -214,6 +214,10 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--override")
         if name == "status":
             command.add_argument("--full", action="store_true")
+        if name == "gaps":  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
+            command.add_argument("--id", dest="gap_id")
+            command.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
+            command.add_argument("--reason", default="")
     reindex_p = sub.add_parser("reindex")
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
@@ -310,10 +314,17 @@ def main(argv: list[str] | None = None) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
-            from .discovery import regenerate_gaps
+            if args.gap_id or args.disposition:
+                if not (args.gap_id and args.disposition):
+                    raise ValueError("/gaps --disposition goes with --id GAP-X")
+                from .discovery import record_gap_disposition
 
-            result = regenerate_gaps(args.project_id)
-            print_json(result)
+                print_json(record_gap_disposition(args.project_id, args.gap_id, args.disposition, args.reason))
+            else:
+                from .discovery import regenerate_gaps
+
+                result = regenerate_gaps(args.project_id)
+                print_json(result)
         elif args.command == "resolve-gaps":
             from .gap_resolution import resolve_gaps
 

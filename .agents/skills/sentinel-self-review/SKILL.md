@@ -61,6 +61,17 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
   - `considered_options[]`: the alternatives that were on the table, each `{ "option": <label>, "evidence": <verbatim quote> }`. **Every option must be cited** (same verbatim rule as `evidence`) so the choice cannot be relitigated in a later "time-travel" debate; an uncited option is rejected.
   - `supersedes`: a prior `DEC-*` id this decision replaces. Decisions are **immutable** — never edit a registered `DEC-*`; emit a new one that supersedes it (coherente con invalidar-no-borrar). The superseded decision keeps its original register entry and archived source intact; only the back-reference is recorded.
 
+## Sweep protocol (IMP-271)
+
+Follow `sentinel/templates/agent_sweep_protocol.md`. The runtime rejects the whole payload when:
+
+- an `absent` entry is not `AUSENTE: <what> en <where>`, or what it calls absent is in the source;
+- `untouched` is not a list of sentences;
+- `blocks` is not true or false;
+- the payload carries figures (`counts`, `totals`, `summary`, `figures`, `stats`, `metrics`): the runtime counts and writes them in `01_discovery/agent_sweep_log.md`.
+
+After the merge, ask the BA to record a disposition on each new gap: `/gaps PROJECT_ID --id GAP-X --disposition accepted|rejected|irrelevant [--reason TEXT]`.
+
 ## Rules
 
 - Evidence or silence: every finding and decision quotes real local text. No quote, no entry.

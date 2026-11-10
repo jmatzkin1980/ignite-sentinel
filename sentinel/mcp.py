@@ -39,7 +39,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("dashboard", "Generate the local read-only HTML portfolio dashboard for all workspaces.", []),
     ("init", "Create a new Sentinel project workspace.", ["project_id"]),
     ("ingest", "Ingest raw client/domain evidence and run inquisitive discovery.", ["project_id", "source"]),
-    ("gaps", "Regenerate the human-friendly discovery gaps document.", ["project_id"]),
+    ("gaps", "Regenerate the human-friendly discovery gaps document. With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7).", ["project_id"]),
     ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence.", ["project_id"]),
@@ -269,8 +269,12 @@ def build_server():
         return run_cli(["ingest", project_id, "--source", source])
 
     @server.tool(name="sentinel_gaps", description=TOOL_DESCRIPTIONS["gaps"])
-    def sentinel_gaps(project_id: str) -> dict:
-        return run_cli(["gaps", project_id])
+    def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "") -> dict:
+        arguments = ["gaps", project_id]
+        for flag, value in (("--id", id), ("--disposition", disposition), ("--reason", reason)):
+            if value:
+                arguments += [flag, value]
+        return run_cli(arguments)
 
     @server.tool(name="sentinel_resolve_gaps", description=TOOL_DESCRIPTIONS["resolve_gaps"])
     def sentinel_resolve_gaps(project_id: str, source: str) -> dict:

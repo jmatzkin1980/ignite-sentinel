@@ -23,6 +23,9 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     data = load_decision_source(source, label="self-review source")
     grounding_text = self_review_grounding_text(base)
     gaps = validate_agent_gaps(data, grounding_text, origin="self-review")
+    from .agent_sweep import record_sweep
+
+    record_sweep(base, "self-review", data, [gap["id"] for gap in gaps])  # IMP-271
     decisions = validate_self_review_decisions(data, grounding_text)
 
     gaps_path = base / "01_discovery" / "gaps.md"
