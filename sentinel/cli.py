@@ -224,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--profile", help="comma-separated: UI,API,BAT,INT,MIG,REG,MT")
             command.add_argument("--genesis", help="greenfield|brownfield-integration|brownfield-extension|brownfield-replacement (comma-separated when mixed)")
             command.add_argument("--validation-direction", choices=("to-build", "built"))
+            command.add_argument("--brief-version", type=int, choices=(1, 2), help="2 compiles the brief v2 (opt-in per project)")
         if name == "gaps":  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
             command.add_argument("--id", dest="gap_id")
             command.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
@@ -401,12 +402,13 @@ def main(argv: list[str] | None = None) -> int:
             from .workspace import workspace_path
             from .maturity import generate_project_brief
 
-            if args.profile is not None or args.genesis is not None or args.validation_direction is not None:
+            if any(value is not None for value in (args.profile, args.genesis, args.validation_direction, args.brief_version)):
                 set_brief_settings(
                     args.project_id,
                     profiles=args.profile.split(",") if args.profile is not None else None,
                     genesis=[value.strip() for value in args.genesis.split(",") if value.strip()] if args.genesis is not None else None,
                     validation_direction=args.validation_direction,
+                    brief_version=args.brief_version,
                 )
             result = generate_project_brief(args.project_id)
             requirements = workspace_path(args.project_id) / "02_requirements" / "requirements.md"

@@ -26,3 +26,5 @@ python -m sentinel /brief PROJECT_ID --profile UI,REG --genesis brownfield-exten
 ```
 
 `MIG` implies `brownfield-replacement`; declaring it with another genesis is reported as a contradiction. With a mixed genesis, pass both and the most demanding one is declared.
+
+`--brief-version 2` opts the project into the brief v2 (§0–§9, every fact cited, every gap a `⏳` mark, N/A with its counterfactual). It compiles only with a confirmed profile and genesis; until then `GAP-BRIEF-PROFILE` opens and the v1 brief stays. Report `02_requirements/brief_compile_report.json`: its `fill_sites` are what is left to fill and `unused_sources` what the brief never cites. `--brief-version 1` goes back.

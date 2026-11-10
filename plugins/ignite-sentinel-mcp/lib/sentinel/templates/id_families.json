@@ -43,7 +43,8 @@
     "specs": "03_specs/specs.md",
     "gaps": "01_discovery/gaps.md",
     "decisions": "01_discovery/decisions.md",
-    "assumptions": "01_discovery/assumptions.md"
+    "assumptions": "01_discovery/assumptions.md",
+    "sources": "07_changes/source_log.md"
   },
   "v2_marker": "<!-- sentinel-artifact: v2 -->",
   "retired_ids_file": "06_traceability/retired_ids.json"

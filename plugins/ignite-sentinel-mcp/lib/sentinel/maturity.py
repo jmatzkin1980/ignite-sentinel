@@ -560,10 +560,14 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
     gap_answers = parse_gap_answers(seeds_text + "\n" + decisions_text)
     state = read_json(state_path(project_id), {})
     language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    # IMP-254: the v1 compiler never overwrites a v2 brief; the v2 compiler
-    # (IMP-253) owns that file. Indexing and the trace node still refresh.
+    # IMP-253a: `/brief --brief-version 2` opts the project into the v2 compiler.
+    # Without a confirmed profile and genesis it opens GAP-BRIEF-PROFILE and the
+    # v1 path goes on. IMP-254: the v1 compiler never overwrites a v2 brief.
+    from .compilers.brief_v2 import compile_v2_if_opted_in
+
+    compiled_v2 = compile_v2_if_opted_in(project_id, language)
     existing_model = load_brief_model(brief_path)
-    if existing_model is None or existing_model.version != 2:
+    if not compiled_v2 and (existing_model is None or existing_model.version != 2):
         write_text(brief_path, render_project_brief(
                 project_id, req_text, gaps_text, seeds_text, decisions_text, lens_review_text,
                 raw_text=raw_text, gap_answers=gap_answers, language=language,

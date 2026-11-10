@@ -239,11 +239,67 @@ def v2_sections_for_lens(lens: str) -> list[str]:
     return list(include)
 
 
+# IMP-253a: the v2 subsection a gap's confirmed answer feeds. Finer than the lens
+# map: GAP-SCOPE lands in §6.1 (lens 6), GAP-BUSINESS-RULES in §2.2 (lens 2) and
+# GAP-DELIVERY-READINESS in §9.1 (no lens); a test pins those exceptions.
+V2_GAP_ROUTES = {
+    "GAP-OBJECTIVE": "1.1",
+    "GAP-METRIC-SOURCE": "1.3",
+    "GAP-METRIC-DEFINITION": "1.3",
+    "GAP-ACCEPTANCE": "1.5",
+    "GAP-PRD-FR-AC": "1.5",
+    "GAP-QUALITY": "1.5",
+    "GAP-USERS": "2.1",
+    "GAP-PRD-PERSONA-DETAIL": "2.1",
+    "GAP-BUSINESS-RULES": "2.2",
+    "GAP-PRODUCT-ASIS-TOBE": "3.2",
+    "GAP-QUALITY-HANDOFF": "3.6",
+    "GAP-DESIGN-FLOW": "4.1",
+    "GAP-DESIGN-STATES": "4.1",
+    "GAP-DESIGN-PROTOTYPE-INPUT": "4.3",
+    "GAP-TECH-DEEP-DIVE-INPUT": "5.1",
+    "GAP-FRONTEND-SURFACE": "5.1",
+    "GAP-PRD-ROLLOUT-ENVIRONMENTS": "5.2",
+    "GAP-TECH-DATA-SOURCE": "5.3",
+    "GAP-GOVERNANCE-CONSTRAINTS": "5.11",
+    "GAP-BACKEND-SURFACE": "5.12",
+    "GAP-TECH-NFR": "5.16",
+    "GAP-PRD-NFR-KPI": "5.16",
+    "GAP-SCOPE": "6.1",
+    "GAP-PRD-DEPENDENCIES-ROADMAP": "7.1",
+    "GAP-DELIVERY-READINESS": "9.1",
+    "GAP-BACKLOG-SLICING-READINESS": "9.1",
+    "GAP-BACKLOG-ENABLERS": "9.1",
+    "GAP-PRD-GLOSSARY-GOVERNANCE": "A.glossary",
+}
+# The gap a pending mark points to when no gap is routed to that subsection.
+LENS_DEFAULT_GAP = {
+    "1": "GAP-OBJECTIVE",
+    "2": "GAP-USERS",
+    "3": "GAP-PRODUCT-ASIS-TOBE",
+    "4": "GAP-DESIGN-FLOW",
+    "5": "GAP-TECH-DEEP-DIVE-INPUT",
+    "6": "GAP-GOVERNANCE-CONSTRAINTS",
+}
+NO_LENS_DEFAULT_GAP = "GAP-DELIVERY-READINESS"
+
+
 def v2_sections_for_gap(gap_id: str) -> list[str]:
+    """The v2 subsection a gap feeds: its route, else every section of its lens."""
+    if gap_id in V2_GAP_ROUTES:
+        return [V2_GAP_ROUTES[gap_id]]
     from .discovery import brief_section_for_gap
 
     lens = brief_section_for_gap(gap_id)
     return v2_sections_for_lens(lens) if lens else []
+
+
+def default_gap_for(sid: str) -> str:
+    routed = sorted(gap for gap, target in V2_GAP_ROUTES.items() if target == sid)
+    if routed:
+        return routed[0]
+    lenses = lenses_for_v2_id(sid)
+    return LENS_DEFAULT_GAP[lenses[0]] if lenses else NO_LENS_DEFAULT_GAP
 
 
 def excerpt(text: str, wanted: str) -> str:

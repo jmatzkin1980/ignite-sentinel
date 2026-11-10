@@ -285,9 +285,16 @@ def brief_settings(project_id: str) -> dict[str, Any]:
 
 
 def set_brief_settings(project_id: str, *, profiles: list[str] | None = None, genesis: list[str] | str | None = None,
-                       validation_direction: str | None = None) -> dict[str, Any]:
+                       validation_direction: str | None = None, brief_version: int | None = None) -> dict[str, Any]:
     """Record what the BA confirmed. Missing values keep the previous confirmation."""
     current = brief_settings(project_id)
+    if brief_version is not None and int(brief_version) not in (1, 2):
+        raise ValueError("brief_version must be 1 or 2")
+    if profiles is None and genesis is None and validation_direction is None and brief_version is not None:
+        # IMP-253a: switching the generation alone keeps the confirmation as it is
+        settings = {**current, "brief_version": int(brief_version)}
+        update_state(project_id, **{SETTINGS_KEY: settings})
+        return settings
     new_profiles = [p.strip().upper() for p in profiles if p.strip()] if profiles is not None else current.get("profiles")
     resolved = resolve_genesis(genesis) if genesis is not None else None
     new_genesis = resolved["genesis"] if resolved else current.get("genesis")
@@ -305,6 +312,7 @@ def set_brief_settings(project_id: str, *, profiles: list[str] | None = None, ge
         "confirmed_at": utc_now(),
         "contradictions": [issue for issue in issues if issue.startswith("contradiction")],
         "release_overrides": current.get("release_overrides", {}),
+        "brief_version": int(brief_version) if brief_version is not None else int(current.get("brief_version", 1)),
     }
     update_state(project_id, **{SETTINGS_KEY: settings})
     return settings
@@ -314,7 +322,8 @@ def settings_status(project_id: str, raw_text: str = "") -> dict[str, Any]:
     """Whether profile and genesis are confirmed, and the blocking gap a v2 brief opens otherwise."""
     settings = brief_settings(project_id)
     missing = [key for key in ("profiles", "genesis") if not settings.get(key)]
-    status: dict[str, Any] = {"confirmed": not missing and not settings.get("contradictions"), "settings": settings, "missing": missing}
+    status: dict[str, Any] = {"confirmed": not missing and not settings.get("contradictions"), "settings": settings, "missing": missing,
+                              "brief_version": int(settings.get("brief_version", 1))}
     if settings.get("contradictions"):
         status["contradictions"] = settings["contradictions"]
     if not status["confirmed"]:
