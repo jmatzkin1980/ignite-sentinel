@@ -47,6 +47,26 @@ _IN_SCOPE_CUES = ("in scope", "scope:", "scope is", "alcance")
 
 LOW_RELIABILITY_SHARE = 0.5
 
+# IMP-253b: where an open contradiction's interim value lives, by its scope
+# (`source_routing.json` conflicts scopes).
+SCOPE_PLACE = {"business": "2.2", "rule": "2.2", "scope": "6.1", "stack_to_be": "5.2", "behavior": "3.2",
+               "api": "5.7", "compliance": "5.11", "legacy": "5.13", "design": "4.1"}
+# Transcription rules: a source TBD stays TBD (and the place stays pending); a
+# doubled word is reproduced as is and marked [sic]. Quotes are never edited,
+# so contracted enumerations and capped values ("up to 30") keep their form.
+_TBD_RE = re.compile(r"(?<![\w-])(TBD|TBC|TBA|a definir|por definir|to be defined)(?![\w-])", re.I)
+_DOUBLED_RE = re.compile(r"\b([^\W\d_]{3,})\s+(\1)\b", re.I)
+_DOUBLED_OK = {"that", "had", "very"}
+
+
+def transcribe(text: str) -> str:
+    return _DOUBLED_RE.sub(
+        lambda m: m.group(0) if m.group(1).lower() in _DOUBLED_OK else f"{m.group(0)} [sic]", text)
+
+
+def source_says_tbd(text: str) -> bool:
+    return _TBD_RE.search(text) is not None
+
 COPY = {
     "en": {
         "supports": "supports",
@@ -82,6 +102,13 @@ COPY = {
         "provenance_header": "| Source | Facts cited |",
         "na_generic": "N/A — it does not apply to the {profiles} profile. If the profile or the genesis changes, it opens.",
         "na_see": "N/A — see {first}.",
+        "divergence_count": "{n} divergences between what is documented and what is built (⚠).",
+        "debt": "Debt",
+        "defect": "Defect",
+        "replaced_title": "Replaced by a confirmed answer:",
+        "replaced_header": "| Place | Previous statement | Source | Replaced by |",
+        "inferred_title": "Inferences (each with its ledger row):",
+        "inferred_header": "| Place | Assumption | Gap it waits on |",
     },
     "es": {
         "supports": "sostiene",
@@ -117,6 +144,13 @@ COPY = {
         "provenance_header": "| Fuente | Hechos citados |",
         "na_generic": "N/A — no aplica al perfil {profiles}. Si cambia el perfil o la génesis, se abre.",
         "na_see": "N/A — ver {first}.",
+        "divergence_count": "{n} divergencias entre lo documentado y lo construido (⚠).",
+        "debt": "Deuda",
+        "defect": "Defecto",
+        "replaced_title": "Reemplazado por una respuesta confirmada:",
+        "replaced_header": "| Lugar | Afirmación anterior | Fuente | Reemplazada por |",
+        "inferred_title": "Inferencias (cada una con su fila en el ledger):",
+        "inferred_header": "| Lugar | Supuesto | Gap que espera |",
     },
 }
 
@@ -136,7 +170,8 @@ class BriefInputs:
     raw_sources: list[tuple[str, str, str]] = field(default_factory=list)  # (F-NN, relative path, text)
     gap_answers: list[dict[str, str]] = field(default_factory=list)  # gap, statement, source (F-NN or "")
     gaps: list[dict[str, str]] = field(default_factory=list)  # id, severity, status, origin
-    assumptions: list[dict[str, str]] = field(default_factory=list)  # id, statement, status
+    assumptions: list[dict[str, str]] = field(default_factory=list)  # id, statement, status, closes_gap
+    contradictions: list[dict[str, Any]] = field(default_factory=list)  # gap, scope, value, source, resolved
     registry: list[dict[str, Any]] = field(default_factory=list)  # F-NN rows (id, paths, validity)
     source_log_title: str = ""
     previous_text: str = ""
@@ -184,10 +219,10 @@ def raw_facts(raw_sources: list[tuple[str, str, str]]) -> dict[str, list[_Fact]]
     return facts
 
 
-def answer_facts(gap_answers: list[dict[str, str]]) -> dict[str, list[_Fact]]:
+def answer_facts(gap_answers: list[dict[str, str]], extra_routes: dict[str, str] | None = None) -> dict[str, list[_Fact]]:
     facts: dict[str, list[_Fact]] = {}
     for answer in gap_answers:
-        sid = V2_GAP_ROUTES.get(answer["gap"])
+        sid = V2_GAP_ROUTES.get(answer["gap"]) or (extra_routes or {}).get(answer["gap"])
         if not sid:
             continue
         text = " ".join(answer["statement"].split())
@@ -207,10 +242,37 @@ class _Writer:
         self.schema = load_brief_schema()
         self.markers = self.schema["markers"]
         self.app = applicability(inputs.profiles, inputs.genesis)
-        facts = raw_facts(inputs.raw_sources)
-        for sid, items in answer_facts(inputs.gap_answers).items():
-            facts.setdefault(sid, []).extend(items)  # answers after raw quotes, IMP-145 keeps both
+        self.contradiction_places = {c["gap"]: SCOPE_PLACE.get(c.get("scope", ""), "") for c in inputs.contradictions}
+        raw = raw_facts(inputs.raw_sources)
+        answers = answer_facts(inputs.gap_answers, {g: p for g, p in self.contradiction_places.items() if p})
+        # IMP-253b, in-place rewrite (inverts IMP-145): a confirmed answer replaces
+        # what the raw input said about the same place; the replaced quote moves to
+        # provenance. The answer keeps its gap id, so the self-correction gate holds.
+        self.replaced: list[dict[str, str]] = []
+        facts: dict[str, list[_Fact]] = {}
+        for sid in sorted(set(raw) | set(answers), key=_sort_key):
+            if sid in answers:
+                facts[sid] = answers[sid]
+                for fact in raw.get(sid, []):
+                    self.replaced.append({"place": sid, "statement": fact.text, "source": fact.source,
+                                          "by": answers[sid][0].gap})
+            else:
+                facts[sid] = raw[sid]
         self.facts = facts
+        self.built = inputs.validation_direction == "built"
+        self.inferred: dict[str, list[dict[str, str]]] = {}
+        for assumption in inputs.assumptions:
+            status = str(assumption.get("status", "")).strip().upper()
+            target = V2_GAP_ROUTES.get(str(assumption.get("closes_gap", "")).strip("` ").upper())
+            if target and status in {"ASSUMED", "INFERRED", "ASSUMPTION"}:
+                self.inferred.setdefault(target, []).append(assumption)
+        self.inferred_rows: list[dict[str, str]] = []
+        self.interims: dict[str, list[dict[str, Any]]] = {}
+        self.unplaced_contradictions: list[dict[str, Any]] = []
+        for item in inputs.contradictions:
+            target = self.contradiction_places.get(item["gap"])
+            if target and target not in {a["gap"] for a in inputs.gap_answers}:
+                self.interims.setdefault(target, []).append(item)
         self.open_gaps = {g["id"] for g in inputs.gaps if str(g.get("status", "")).upper() != "CLOSED"}
         self.places: list[dict[str, Any]] = []  # one per rendered mark or fact block
         self.na_first: dict[str, str] = {}
@@ -229,15 +291,43 @@ class _Writer:
             return f"[[sources § {section} # {fact.source} — {self.copy['supports']}: {supports}]]"
         return f"[[gaps § {fact.gap} # {fact.gap} — {self.copy['supports']}: {supports}]]"
 
-    def fact_lines(self, sid: str, title: str) -> list[str]:
-        lines = []
+    def place_body(self, sid: str, title: str) -> tuple[list[str], bool, bool]:
+        """(lines, has a settled fact, already carries a pending mark) for one place."""
+        lines: list[str] = []
+        settled = pending = False
         for fact in self.facts.get(sid, []):
             gap = f" (`{fact.gap}`)" if fact.gap else ""
-            lines.append(f"- {fact.text}{gap} {self.cite(fact, title)}")
-        return lines
+            line = f"- {transcribe(fact.text)}{gap} {self.cite(fact, title)}"
+            if source_says_tbd(fact.text):
+                line += " " + self.pending(sid, sid, "client", fact.gap or None)
+                pending = True
+            else:
+                settled = True
+            lines.append(line)
+        if settled:
+            self.covered(sid, sid, sum(1 for f in self.facts.get(sid, []) if not source_says_tbd(f.text)))
+        else:
+            # the value to build with meanwhile exists only as an inference with its ledger row
+            for assumption in self.inferred.get(sid, []):
+                lines.append(f"- {self.markers['inferred'][self.lang]} {assumption['statement']} (`{assumption['id']}`)")
+                self.inferred_rows.append({"place": sid, "assumption": assumption["id"], "statement": assumption["statement"],
+                                           "gap": str(assumption.get("closes_gap", "")).strip("` ").upper()})
+        for item in self.interims.get(sid, []):
+            fact = _Fact(str(item.get("value") or ""), str(item.get("source") or ""), item["gap"])
+            if item.get("resolved") and fact.text:
+                if self.built:
+                    self.places.append({"id": sid, "fill": "divergence", "class": "divergence", "gap": item["gap"],
+                                        "gap_open": item["gap"] in self.open_gaps, "section": _section_of(sid)})
+                    lines.append(f"- {self.markers['built_divergence'][self.lang]} {fact.text} (`{item['gap']}`) {self.cite(fact, title)}")
+                else:
+                    lines.append(f"- {fact.text} {self.cite(fact, title)} {self.pending(sid, sid, 'client', item['gap'])}")
+            else:
+                lines.append(self.pending(sid, sid, "client", item["gap"]))
+            pending = True
+        return lines, settled, pending
 
-    def pending(self, place: str, sid: str, klass: str) -> str:
-        gap = default_gap_for(sid)
+    def pending(self, place: str, sid: str, klass: str, gap: str | None = None) -> str:
+        gap = gap or default_gap_for(sid)
         key = "pending_domain" if klass == "domain" else "pending"
         self.places.append({"id": place, "fill": key, "class": klass, "gap": gap, "gap_open": gap in self.open_gaps,
                             "section": sid.split(".")[0] if not sid.startswith("A.") else "A"})
@@ -269,13 +359,12 @@ class _Writer:
         if mark == "n/a":
             out += [self.na(sid, sid), ""]
             return out
-        facts = self.fact_lines(sid, title)
-        if facts:
-            self.covered(sid, sid, len(facts))
-            out += facts + [""]
+        lines, facts, marked = self.place_body(sid, title)
+        if lines:
+            out += lines + [""]
         blocks = item.get("blocks", [])
         if not blocks:
-            if not facts:
+            if not facts and not marked:
                 out += [self.pending(sid, sid, klass), ""]
             return out
         for block in blocks:
@@ -292,6 +381,10 @@ class _Writer:
                 self.places.append({"id": place, "fill": "covered_by_parent", "section": sid.split(".")[0]})
                 out += [f"→ {sid}", ""]
         return out
+
+
+def _section_of(sid: str) -> str:
+    return "A" if sid.startswith("A.") else sid.split(".")[0]
 
 
 def _section_counts(places: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
@@ -330,11 +423,16 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     items = [fact for sid in ("6.1", "3.2") for fact in w.facts.get(sid, [])]
     if items:
         build = []
+        kind = f"{copy['debt']}: " if w.built else ""  # with `built`, §9 carries only Debt and Defect
         for number, fact in enumerate(items, start=1):
-            build.append(f"- `C-{number:02d}` {fact.text} {w.cite(fact, sections[9]['subsections'][0]['title'][lang])} — {copy['depends']}: {copy['none']}")
+            build.append(f"- `C-{number:02d}` {kind}{fact.text} {w.cite(fact, sections[9]['subsections'][0]['title'][lang])} — {copy['depends']}: {copy['none']}")
         w.covered("9.1/items", "9.1", len(build))
     else:
         build = [w.pending("9.1/items", "9.1", "client")]
+    if w.built:
+        offset = len(items)
+        for number, item in enumerate((c for c in inputs.contradictions if c.get("gap") in w.open_gaps), start=offset + 1):
+            build.append(f"- `C-{number:02d}` {copy['defect']}: `{item['gap']}` — {copy['depends']}: {copy['none']}")
     non_software = w.pending("9.1/non_software", "9.1", "domain")
 
     # §0.1 legend
@@ -347,6 +445,10 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     domain = len(pending_places) - client
     seeded = [copy["seeded_count"].format(client=client, domain=domain), "", copy["seeded_header"], "|---|---|---|"]
     seeded += [f"| {p['id']} | {p['class']} | `{p['gap']}` |" for p in pending_places]
+    divergences = [p for p in w.places if p["fill"] == "divergence"]
+    if divergences:
+        seeded += ["", copy["divergence_count"].format(n=len(divergences)), "", copy["seeded_header"], "|---|---|---|"]
+        seeded += [f"| {p['id']} | ⚠ | `{p['gap']}` |" for p in divergences]
     _fill(body["7"], "7.2", seeded)
     open_rows = sorted((g for g in inputs.gaps if str(g.get("status", "")).upper() != "CLOSED"), key=lambda g: g["id"])
     open_items = [copy["open_count"].format(n=len(open_rows)), "", copy["open_header"], "|---|---|---|"]
@@ -382,6 +484,12 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
 
     # annex provenance
     provenance = [copy["provenance_header"], "|---|---|"] + [f"| `{sid}` | {n} |" for sid, n in sorted(w.cited.items())]
+    if w.replaced:
+        provenance += ["", copy["replaced_title"], "", copy["replaced_header"], "|---|---|---|---|"]
+        provenance += [f"| {r['place']} | {r['statement']} | `{r['source']}` | `{r['by']}` |" for r in w.replaced]
+    if w.inferred_rows:
+        provenance += ["", copy["inferred_title"], "", copy["inferred_header"], "|---|---|---|"]
+        provenance += [f"| {r['place']} | `{r['assumption']}` | `{r['gap']}` |" for r in w.inferred_rows]
     _fill(annex_lines, "A.provenance", provenance, annex=True)
 
     # §6.3 cascade against the previous v2 brief
@@ -399,7 +507,8 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         "validation_direction": inputs.validation_direction,
         "summary": {
             "covered": covered_total,
-            "inferred": 0,
+            "inferred": len(w.inferred_rows),
+            "divergences": sum(1 for p in w.places if p["fill"] == "divergence"),
             "pending_client": client,
             "pending_domain": domain,
             "na": sum(1 for p in w.places if p["fill"] == "na"),
@@ -414,6 +523,8 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
             for p in pending_places
         ],
         "sources_cited": dict(sorted(w.cited.items())),
+        "replaced": w.replaced,
+        "inferred": w.inferred_rows,
         "unused_sources": [row["id"] for row in inputs.registry
                            if row["id"] not in w.cited and row.get("validity", "current") == "current"],
     }
@@ -534,8 +645,18 @@ def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> 
 
     gaps = [{"id": g.get("id", "").strip("`"), "severity": g.get("severity", ""), "status": g.get("status", ""),
              "origin": g.get("origin", "")} for g in parse_gap_rows(read("gaps.md")) if g.get("id") not in (None, "", "NONE")]
-    assumptions = [{"id": a["id"], "statement": a["statement"], "status": a.get("status", "")}
+    assumptions = [{"id": a["id"], "statement": a["statement"], "status": a.get("status", ""),
+                    "closes_gap": a.get("closes_gap", "")}
                    for a in assumption_rows(read("assumptions.md"))]
+    ledger = read_json(discovery / "statement_ledger.json", {}) or {}
+    open_ids = {g["id"] for g in gaps if str(g.get("status", "")).upper() != "CLOSED"}
+    contradictions = []
+    for item in ledger.get("contradictions", []) if isinstance(ledger, dict) else []:
+        if not isinstance(item, dict) or item.get("gap_id") not in open_ids:
+            continue
+        interim = item.get("interim") or {}
+        contradictions.append({"gap": item["gap_id"], "scope": item.get("scope", ""), "value": interim.get("value"),
+                               "source": interim.get("source_id"), "resolved": interim.get("status") == "resolved"})
     log_path = base / "07_changes" / "source_log.md"
     title = ""
     if log_path.exists():
@@ -552,6 +673,7 @@ def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> 
         gap_answers=confirmed_answers(read("identity_seeds.md") + "\n" + read("decisions.md"), registry),
         gaps=gaps,
         assumptions=assumptions,
+        contradictions=contradictions,
         registry=registry,
         source_log_title=title,
         previous_text=brief_path.read_text(encoding="utf-8") if brief_path.exists() else "",
@@ -567,6 +689,7 @@ def compile_brief_v2(project_id: str, settings: dict[str, Any], language: str) -
     base = workspace_path(project_id) / "02_requirements"
     write_text(base / "project-brief.md", text)
     write_text(base / "brief_compile_report.json", json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    record_brief_inferences(project_id, report["inferred"])
     return {"path": str(base / "project-brief.md"), "report": str(base / "brief_compile_report.json"),
             "summary": report["summary"]}
 
@@ -630,3 +753,88 @@ def compile_v2_if_opted_in(project_id: str, language: str) -> dict[str, Any] | N
         return None
     _set_profile_gap(project_id, None, language)
     return compile_brief_v2(project_id, settings, language)
+
+
+# --- IMP-253b: the self-correction gate, rewrite on gap close, ledger rows ---------------
+
+
+def v2_self_correction_findings(brief_text: str, gap_answers: dict[str, dict[str, str]]) -> list[str]:
+    """IMP-145 inverted for v2: each confirmed answer sits in its own place with its gap id."""
+    model = parse_brief(brief_text)
+    lines = brief_text.splitlines()
+    findings: list[str] = []
+    for gap_id, payload in gap_answers.items():
+        sid = V2_GAP_ROUTES.get(gap_id)
+        statement = " ".join(str(payload.get("statement", "")).split())
+        if not sid or not statement:
+            continue
+        section = model.sections.get(sid)
+        body = " ".join("\n".join(lines[section.start:section.end]).split()) if section else ""
+        if gap_id not in body or statement not in body:
+            findings.append(
+                f"Self-correction: confirmed answer for `{gap_id}` is not in its place §{sid} of the brief v2 "
+                f'(criterion: "{statement[:160]}").'
+            )
+    return findings
+
+
+def rewrite_after_gap_close(project_id: str, closed: list[str]) -> dict[str, Any] | None:
+    """Recompile a v2 brief after /resolve-gaps so the answers replace the marks in place."""
+    from ..brief_model import load_brief_model
+    from ..workspace import read_json as read_state_json, state_path, workspace_path
+
+    if not closed:
+        return None
+    brief_path = workspace_path(project_id) / "02_requirements" / "project-brief.md"
+    model = load_brief_model(brief_path)
+    if model is None or model.version != 2:
+        return None
+    state = read_state_json(state_path(project_id), {})
+    language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
+    before = parse_brief(brief_path.read_text(encoding="utf-8"))
+    result = compile_v2_if_opted_in(project_id, language)
+    if result is None:
+        return None
+    after_text = brief_path.read_text(encoding="utf-8")
+    after = parse_brief(after_text)
+    old_lines, new_lines = before.text.splitlines(), after_text.splitlines()
+    changed = sorted(
+        (sid for sid in set(before.sections) | set(after.sections)
+         if "." in sid and sid not in {"0.2", "6.3", "7.1", "7.2", "9.1", "A.provenance"}
+         and (old_lines[before.sections[sid].start:before.sections[sid].end] if sid in before.sections else None)
+         != (new_lines[after.sections[sid].start:after.sections[sid].end] if sid in after.sections else None)),
+        key=_sort_key,
+    )
+    return {**result, "rewritten_places": changed}
+
+
+BRIEF_PLACE_LINK = "brief_place"
+
+
+def record_brief_inferences(project_id: str, inferred: list[dict[str, str]]) -> None:
+    """Keep one INFERRED ledger unit per inference the brief v2 writes (replaces the previous set)."""
+    from ..core.io import write_json
+    from ..workspace import workspace_path
+
+    path = workspace_path(project_id) / "01_discovery" / "knowledge_state.json"
+    payload = read_json(path, {}) or {}
+    if not isinstance(payload, dict) or "units" not in payload:
+        return
+    units = [u for u in payload.get("units", [])
+             if not any(link.get("type") == BRIEF_PLACE_LINK for link in u.get("links", []) if isinstance(link, dict))]
+    for number, row in enumerate(inferred, start=1):
+        units.append({
+            "id": f"KLU-BRIEF-{number:03d}",
+            "lens": "product",
+            "statement": row["statement"],
+            "status": "INFERRED",
+            "evidence": {"trace_id": "brief_compile_report", "quote": row["assumption"]},
+            "links": [{"type": BRIEF_PLACE_LINK, "target": row["place"]},
+                      {"type": "assumption", "target": row["assumption"]},
+                      *([{"type": "gap", "target": row["gap"]}] if row.get("gap") else [])],
+        })
+    from ..knowledge.ledger import summarize_units
+
+    payload["units"] = units
+    payload["summary"] = summarize_units(units)
+    write_json(path, payload)

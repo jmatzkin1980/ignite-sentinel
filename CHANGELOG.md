@@ -35,7 +35,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Changes:** §6.3 lists changes against the previous v2 brief with the closed delta vocabulary. A re-run is byte-identical.
   - **Report:** `02_requirements/brief_compile_report.json` lists every place, the `fill_sites` still to fill and the `unused_sources`.
   - **Citations:** `sources` is a citation document (`07_changes/source_log.md`), so `/validate` resolves the brief's citations.
-  - **Still to come in IMP-253b:** in-place rewriting on gap close, inferences in the ledger, `⚠` with `validation_direction: built`, and the transcription rules.
+- Brief v2: in-place rewrite, inferences, `built` marks and transcription rules (IMP-253b).
+  - **In-place rewrite** (inverts IMP-145). A confirmed answer replaces what the raw input said about the same place, and the replaced statement moves to the provenance annex and to the report's `replaced` list. In a v2 project, `/resolve-gaps` recompiles the brief right away: only the answered places change, and the output lists them as `brief_v2.rewritten_places`. The self-correction gate checks each answer inside its own place with its gap id.
+  - **Inferences:** an assumption that closes a gap appears in that gap's place as `(inferred) … (ASM-X)`, next to the `⏳` it waits on. It is counted in the report, listed in provenance, and kept as an `INFERRED` unit in `knowledge_state.json` that survives the ledger's re-materialization.
+  - **Contradictions:** an open contradiction's interim value goes in its place, routed by scope.
+    - With `to-build`, it is followed by its `⏳` mark.
+    - With `validation_direction: built`, it gets `⚠` inline, §7.2 lists the divergences, and §9 carries only Debt and Defect items.
+    - An unresolved contradiction is only a pending mark.
+  - **Transcription rules:**
+    - Quotes stay verbatim, including contracted enumerations and capped values.
+    - A source `TBD` stays `TBD` and keeps its place pending.
+    - A doubled word is marked `[sic]`.
+  - The `sentinel-project-brief` skill is rewritten for the brief v2: settings, the four kinds of place, these rules, the compile report and the v2 self-correction gate.
 
 ## [0.4.0] — 2026-11-10
 

@@ -305,6 +305,9 @@ def materialize_knowledge_ledger(
     if not isinstance(previous_promotions, list):
         previous_promotions = []
     units = build_knowledge_units(seeds_text, gaps, decisions_text, trace_refs, assumptions_text)
+    # IMP-253b: the brief v2's INFERRED rows are written by its compiler; keep them
+    units += [unit for unit in previous_payload.get("units", []) if isinstance(unit, dict)
+              and any(isinstance(link, dict) and link.get("type") == "brief_place" for link in unit.get("links", []))]
     # IMP-152: stamp bitemporal validity on each fact. valid_at = when the system
     # recorded this fact as valid (this materialization); invalid_at = None while
     # current. The ledger is a projection rebuilt from the current SSoT tables, so

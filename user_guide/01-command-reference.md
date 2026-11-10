@@ -479,7 +479,14 @@ python -m sentinel /brief PROJECT_ID --brief-version 2 --profile UI --genesis gr
 - **Counts:** §0.2 shows the certainty per section and a reliability warning when more than half of the applicable places are pending; §7 lists the same marks and the open gaps.
 - **Changes:** §6.3 lists what changed against the previous v2 brief (`ADDED`, `MODIFIED`, `REMOVED`). A re-run over the same inputs is byte-identical.
 - **Report:** `02_requirements/brief_compile_report.json` has every place with its fill, the `fill_sites` still to fill (with what each must produce) and the `unused_sources` the brief never cites.
-- `/specs`, `/maturity` and `/view` read the v2 brief through the same model as v1. In-place rewriting on gap close, inferences in the ledger, the `⚠` mark for `built` and the transcription rules come with IMP-253b.
+- `/specs`, `/maturity` and `/view` read the v2 brief through the same model as v1.
+- **In-place rewrite (IMP-253b):** a confirmed answer replaces what the raw input said about the same place, and the replaced statement moves to the provenance annex. In a v2 project, `/resolve-gaps` recompiles the brief and reports `brief_v2.rewritten_places`. The self-correction gate checks each answer inside its own place.
+- **Inferences:** an assumption that closes a gap shows as `(inferred) … (ASM-X)` next to that gap's `⏳`, with an `INFERRED` row in `knowledge_state.json`.
+- **Contradictions:** an open contradiction's interim value carries `⏳`, or `⚠` inline with `validation_direction: built`. With `built`, §7.2 lists the divergences and §9 only Debt and Defect.
+- **Transcription:**
+  - Quotes are verbatim.
+  - A source `TBD` stays `TBD` and keeps the place pending.
+  - A doubled word is marked `[sic]`.
 
 Per-section readiness and soft gate (IMP-025): `/brief` reports `brief_section_readiness` — each narrative section (1-6) as `populated`/`pending`, an overall `coverage_score`, and the gaps that feed each poor section. The same block appears in `/maturity` and `/status` (under `maturity_metrics`). The gate is non-blocking by default: below the coverage threshold it emits `warnings` naming the poor sections and the gaps that would populate them. Opt-in strict mode (workspace config `brief_gate: { "threshold": 0.5, "strict": true }`) instead blocks the advance to `READY_FOR_SPECS` (readiness stage `BRIEF_BELOW_THRESHOLD`) until coverage improves. Default gates are not hardened without opt-in.
 

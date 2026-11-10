@@ -521,6 +521,10 @@ def spec_self_correction_findings(brief_text: str, gap_answers: dict[str, dict[s
     """
     from .discovery.workflow import brief_section_for_gap
 
+    if parse_brief(brief_text).version == 2:  # IMP-253b: in-place rewrite, checked per place
+        from .compilers.brief_v2 import v2_self_correction_findings
+
+        return v2_self_correction_findings(brief_text, gap_answers)
     findings: list[str] = []
     normalized_brief = " ".join(brief_text.split())
     for gap_id, payload in gap_answers.items():
