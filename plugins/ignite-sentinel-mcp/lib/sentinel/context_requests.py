@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Any
 
 from .discovery import candidate_options_markdown, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
 from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
-from .core.graph import add_edge, add_node, nodes_by_type
-from .workspace import read_json, state_path, update_state, workspace_path
+from .core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
+from .workspace import read_json, state_path, update_state, utc_now, workspace_path, write_json
 from .core.io import write_text
 
 DOMAINS = {"technology", "design", "quality", "frontend", "backend"}
@@ -50,7 +52,11 @@ def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
     path = request_dir / f"{domain}_context_request.md"
     language = project_language(project_id)
     write_text(path, render_context_request(project_id, domain, language, brief_path, gaps_path))
+    previous = next((node for node in nodes_by_type(project_id, "context_request") if node.get("path") == path.as_posix()), None)
     request_id = add_node(project_id, "CTX", "context_request", path, f"{domain.title()} context request", domain=domain_for_node(domain))
+    if previous is not None and str(previous.get("status") or "active") != "active":
+        # IMP-294: regenerating a request reopens it, and the lifecycle says so.
+        _record_transition(project_id, request_id, str(previous.get("status")), "active", "context-request (regenerated)")
     for brief in nodes_by_type(project_id, "project_brief"):
         add_edge(project_id, brief["id"], request_id, "requests_domain_context")
     for gap in nodes_by_type(project_id, "gap_report"):
@@ -66,6 +72,84 @@ def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
     )
     update_state(project_id, phase="context_request_generated", last_context_request=request_id)
     return {"project_id": project_id, "domain": domain, "context_request_id": request_id, "path": str(path)}
+
+
+# --- IMP-294: CTX-NNN lifecycle ------------------------------------------------
+
+CTX_STATES = ("active", "answered", "closed", "obsolete")
+CTX_TRANSITIONS = {
+    "active": ("answered", "obsolete"),
+    "answered": ("closed", "active", "obsolete"),
+    "closed": (),
+    "obsolete": (),
+}
+CTX_REF_RE = re.compile(r"(?<![\w-])(CTX-[0-9]{3,})(?![\w-])")
+LIFECYCLE_FILE = "08_context_packs/requests/ctx_lifecycle.json"
+
+
+def _lifecycle_path(project_id: str) -> Path:
+    return workspace_path(project_id) / LIFECYCLE_FILE
+
+
+def load_ctx_lifecycle(project_id: str) -> dict[str, dict[str, Any]]:
+    data = read_json(_lifecycle_path(project_id), {})
+    return dict(data.get("requests", {})) if isinstance(data, dict) else {}
+
+
+def _context_nodes(project_id: str) -> dict[str, dict[str, Any]]:
+    return {str(node["id"]): node for node in nodes_by_type(project_id, "context_request")}
+
+
+def _record_transition(project_id: str, request_id: str, old: str, new: str, via: str, reason: str = "") -> dict[str, Any]:
+    graph = load_graph(project_id)
+    for node in graph.get("nodes", []):
+        if node.get("id") == request_id:
+            node["status"] = new
+    save_graph(project_id, graph)
+    lifecycle = load_ctx_lifecycle(project_id)
+    entry = lifecycle.setdefault(request_id, {"status": old, "history": []})
+    entry["status"] = new
+    entry["history"].append({"from": old, "to": new, "via": via, "reason": reason, "at": utc_now()})
+    write_json(_lifecycle_path(project_id), {"version": 1, "requests": dict(sorted(lifecycle.items()))})
+    return {"context_request_id": request_id, "from": old, "to": new, "via": via, "reason": reason}
+
+
+def transition_context_request(project_id: str, request_id: str, status: str, reason: str = "", via: str = "context-request") -> dict[str, Any]:
+    """Move a CTX along active -> answered -> closed (or obsolete). Closed and obsolete are final."""
+    if status not in CTX_STATES:
+        raise ValueError(f"--status must be one of {', '.join(CTX_STATES)}.")
+    node = _context_nodes(project_id).get(request_id.strip().upper())
+    if node is None:
+        raise RuntimeError(f"{request_id} is not a context request of {project_id}.")
+    current = str(node.get("status") or "active")
+    if current not in CTX_STATES:
+        current = "active"
+    if status not in CTX_TRANSITIONS[current]:
+        allowed = ", ".join(CTX_TRANSITIONS[current]) or "none, it is final"
+        raise ValueError(f"{node['id']} is {current}; it can move to: {allowed}.")
+    if status in {"closed", "obsolete"} and not reason.strip():
+        raise ValueError(f"--status {status} needs --reason.")
+    return _record_transition(project_id, str(node["id"]), current, status, via, reason.strip())
+
+
+def answer_cited_context_requests(project_id: str, text: str, change_id: str) -> list[str]:
+    """/sync: an active CTX that the synced text cites becomes answered. Nothing else moves."""
+    nodes = _context_nodes(project_id)
+    answered: list[str] = []
+    for request_id in dict.fromkeys(CTX_REF_RE.findall(text)):
+        node = nodes.get(request_id)
+        if node is not None and str(node.get("status") or "active") == "active":
+            _record_transition(project_id, request_id, "active", "answered", f"sync {change_id}")
+            answered.append(request_id)
+    return answered
+
+
+def context_request_summary(project_id: str) -> dict[str, int]:
+    counts = {state: 0 for state in CTX_STATES}
+    for node in _context_nodes(project_id).values():
+        status = str(node.get("status") or "active")
+        counts[status if status in counts else "active"] += 1
+    return counts
 
 
 def render_context_request(project_id: str, domain: str, language: str, brief_path: Path, gaps_path: Path) -> str:

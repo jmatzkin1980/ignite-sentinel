@@ -33,7 +33,7 @@ def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
                 hashes[path.relative_to(base).as_posix()] = file_content_hash(path)  # IMP-291
     return hashes
 
-READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view"}
+READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view", "next"}
 MUTATING_COMMANDS = {
     "ingest",
     "sync",

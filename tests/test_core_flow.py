@@ -947,7 +947,7 @@ Second section paragraph.
         from sentinel.doctor import command_surface_parity_check
 
         names = manifest_command_names()
-        self.assertEqual(len(names), 34)
+        self.assertEqual(len(names), 35)
         self.assertIn("sentinel", names)
         self.assertIn("stakeholders", names)
         self.assertIn("sources", names)
@@ -1042,7 +1042,7 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 34)
+        self.assertEqual(len(names), 35)
         self.assertIn("sentinel_stakeholders", names)
         self.assertIn("sentinel_sources", names)
         for expected in ("sentinel_dashboard", "sentinel_view", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_self_review", "sentinel_assume", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status", "sentinel_export"):
