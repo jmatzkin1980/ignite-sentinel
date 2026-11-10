@@ -58,6 +58,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Golden snapshots of the brief v2 in English and Spanish, with its compile report (`tests/fixtures/golden/brief_v2/`). This closes H16a. The v1 goldens are unchanged across the horizon.
 
 ## [0.4.0] — 2026-11-10
 
