@@ -26,6 +26,25 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /brief 
 4. Summarize the per-section readiness and the gate results from the `/brief` output (see below).
 5. If domain teams need deeper analysis, create context requests with `sentinel-domain-request`.
 
+## Brief Settings: Profile, Genesis and Validation Direction
+
+The `/brief` output carries `brief_settings`. They decide which brief v2 sections are required, conditional or N/A:
+
+- **Profile:** one or more of `UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`.
+- **Genesis:** `greenfield` or `brownfield-integration|extension|replacement`.
+- **Validation direction:** `to-build` or `built`.
+
+While they are unconfirmed, the output shows a `proposal` built from keyword cues in the raw input.
+
+- **Never apply the proposal yourself.** Ask the BA and record the answer:
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /brief PROJECT_ID --profile UI,REG --genesis brownfield-extension
+```
+
+- **`MIG` implies `brownfield-replacement`.** Any other genesis with `MIG` comes back as a contradiction; resolve it with the BA. An initial load in greenfield is not `MIG`.
+- **Mixed genesis:** pass both values, comma-separated. The most demanding one is declared and the other is noted.
+
 ## Per-Section Readiness and the Action per Pending Section
 
 `/brief` returns `brief_section_readiness`: a `coverage_score` plus each narrative section classified `populated` or `pending` (empty body or a pending marker) with its count of local evidence citations. Every pending section comes with its `feeding_gaps` — report the section, its title, and the concrete route:

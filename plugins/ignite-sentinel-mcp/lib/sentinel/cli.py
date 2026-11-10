@@ -220,6 +220,10 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--override")
         if name == "status":
             command.add_argument("--full", action="store_true")
+        if name == "brief":  # IMP-252: the BA confirms profile, genesis and validation direction
+            command.add_argument("--profile", help="comma-separated: UI,API,BAT,INT,MIG,REG,MT")
+            command.add_argument("--genesis", help="greenfield|brownfield-integration|brownfield-extension|brownfield-replacement (comma-separated when mixed)")
+            command.add_argument("--validation-direction", choices=("to-build", "built"))
         if name == "gaps":  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
             command.add_argument("--id", dest="gap_id")
             command.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
@@ -393,9 +397,21 @@ def main(argv: list[str] | None = None) -> int:
             result = evaluate(args.project_id)
             print_json(result)
         elif args.command == "brief":
+            from .brief_schema import set_brief_settings, settings_status
+            from .workspace import workspace_path
             from .maturity import generate_project_brief
 
+            if args.profile is not None or args.genesis is not None or args.validation_direction is not None:
+                set_brief_settings(
+                    args.project_id,
+                    profiles=args.profile.split(",") if args.profile is not None else None,
+                    genesis=[value.strip() for value in args.genesis.split(",") if value.strip()] if args.genesis is not None else None,
+                    validation_direction=args.validation_direction,
+                )
             result = generate_project_brief(args.project_id)
+            requirements = workspace_path(args.project_id) / "02_requirements" / "requirements.md"
+            raw = requirements.read_text(encoding="utf-8") if requirements.exists() else ""
+            result["brief_settings"] = settings_status(args.project_id, raw)
             print_json(result)
         elif args.command == "context-request":
             from .context_requests import generate_context_request, transition_context_request

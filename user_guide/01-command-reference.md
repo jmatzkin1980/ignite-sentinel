@@ -446,6 +446,28 @@ Output:
 
 Use after blocking gaps are resolved or explicitly accepted as non-blocking.
 
+**Brief settings (IMP-252).** The brief v2 decides which of its §0–§9 places are required, conditional or N/A from three project settings:
+
+- **Profile:** one or more of `UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`.
+- **Genesis:** `greenfield`, `brownfield-integration`, `brownfield-extension` or `brownfield-replacement`.
+- **Validation direction:** `to-build` or `built`.
+
+`/brief` reports them under `brief_settings`. While they are unconfirmed, that block carries a `proposal` from the raw input and the blocking gap `GAP-BRIEF-PROFILE`; the proposal is never applied. The BA confirms them:
+
+```powershell
+python -m sentinel /brief PROJECT_ID --profile UI,REG --genesis brownfield-extension
+python -m sentinel /brief PROJECT_ID --validation-direction built
+```
+
+- **Partial updates:** a flag you leave out keeps the previous confirmation.
+- **`MIG`:** implies `brownfield-replacement`. Another genesis with `MIG` is reported as a contradiction.
+- **Mixed genesis:** passing two values (`brownfield-integration,brownfield-extension`) declares the most demanding one and notes the other.
+- **Validation direction:** the confirmed one takes precedence over `validation_direction:` in `sentinel.config.yaml`.
+
+The schema lives in `sentinel/templates/brief_v2.json`. Its ids are stable and append-only: `/doctor` checks them against `brief_v2_ids.lock.json`.
+
+Confirming the settings does not change a v1 brief. The v2 compiler arrives with IMP-253.
+
 Per-section readiness and soft gate (IMP-025): `/brief` reports `brief_section_readiness` — each narrative section (1-6) as `populated`/`pending`, an overall `coverage_score`, and the gaps that feed each poor section. The same block appears in `/maturity` and `/status` (under `maturity_metrics`). The gate is non-blocking by default: below the coverage threshold it emits `warnings` naming the poor sections and the gaps that would populate them. Opt-in strict mode (workspace config `brief_gate: { "threshold": 0.5, "strict": true }`) instead blocks the advance to `READY_FOR_SPECS` (readiness stage `BRIEF_BELOW_THRESHOLD`) until coverage improves. Default gates are not hardened without opt-in.
 
 Specification self-correction (IMP-145): before the brief phase closes, `/brief` re-reads each confirmed criterion — every closed-gap answer routed to a brief narrative section — and deterministically confirms the compiled brief still carries both the gap id and the verbatim statement. To make that contract hold everywhere, sections 1-3 now always append their routed confirmed answers when raw-derived narrative did not already carry them (a confirmed client answer is stronger evidence than a signal extracted from raw input). The result is reported under `self_correction` (`findings`, `criteria_checked`). A discrepancy on the actual close — the advance to `READY_FOR_SPECS` — aborts it (readiness stage `SELF_CORRECTION_FAILED`, phase `brief_self_correction_failed`) with a message citing the criterion; while blocking gaps keep the phase open, findings are reported without hijacking the normal blocked stage. The runtime never rewrites the criterion or the artifact to make the check pass, and a normal run has no observable change.

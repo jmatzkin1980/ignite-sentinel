@@ -6,6 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- Brief v2 schema as data (IMP-252). `sentinel/templates/brief_v2.json` defines the brief v2: §0–§9, 55 numbered subsections, 2 annexes and their sub-blocks.
+  - **Each entry:** a stable id, en/es titles, its applicability (required ●, conditional ◐ or N/A —) per profile (`UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`), how the genesis changes it, and a writing contract (inputs, what it produces, what it must include, what it must not invent, and the class of pending mark).
+  - **Applicability:** `sentinel/brief_schema.py` combines the marks. The strongest profile wins. A genesis ● raises an entry and a genesis — lowers it. A Δ reshapes how the entry is filled. An N/A sub-block never switches its parent off. `MIG` implies `brownfield-replacement`. The N/A entries are grouped with their literal counterfactuals.
+  - **Vocabulary as data:** the closed vocabulary of empty places and the two pending classes (`⏳ PENDIENTE` blocks; `⏳ PENDIENTE DOMINIO` is deferrable).
+  - **Id golden:** `brief_v2_ids.lock.json` is append-only. `/doctor` fails if an id disappears without a tombstone, a tombstone is reused, or a new id is not appended.
+  - **Settings:** `/brief --profile ... --genesis ... --validation-direction ...` records what the BA confirmed. Until then, `/brief` shows a proposal and the blocking gap `GAP-BRIEF-PROFILE`.
+  - **Validation direction:** the confirmed one now drives the interim mark of a contradiction (`⏳` or `⚠`).
+  - v1 briefs are unchanged.
+
 ## [0.4.0] — 2026-11-10
 
 ### Added
