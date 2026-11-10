@@ -194,6 +194,17 @@ When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited 
 
 The `/gaps` result also carries non-blocking `momtest_warnings` (IMP-180): any elicited question phrased as a hypothetical or future opinion ("would you like…?", "¿le gustaría…?") instead of asking about a concrete past event is flagged with the question cited. This is the Mom-Test principle — ask what actually happened, not what someone imagines they would do. It signals, it never blocks, and questions about future *system* capacity (load, scale) are exempt. The same warnings are folded into `/validate`.
 
+
+**BA disposition on agentic gaps (IMP-271, F7).**
+
+```powershell
+python -m sentinel /gaps PROJECT_ID --id GAP-X --disposition accepted
+python -m sentinel /gaps PROJECT_ID --id GAP-X --disposition rejected --reason "already covered by the SLA clause"
+```
+
+Gaps raised by an agentic channel (`agent`, `challenge`, `scrutiny`, `implementability-probe`, `self-review`) take a disposition: `accepted`, `rejected` or `irrelevant`; the last two need `--reason`. Dispositions are kept in `01_discovery/agent_dispositions.json`. `/maturity` reports, per channel, how many gaps were raised, disposed and undisposed, and the false-alarm rate, (rejected + irrelevant) / disposed, under `maturation_telemetry.agent_channel_dispositions`.
+
+**Sweep protocol.** Every agentic channel follows `sentinel/templates/agent_sweep_protocol.md`. On top of the verbatim evidence check, the runtime rejects a payload whose `absent` entry is not `AUSENTE: <what> en <where>` (or whose "absent" phrase is actually in the source), whose `untouched` is not a list of sentences, whose `blocks` is not a boolean, or that carries figures (`counts`, `totals`, `summary`...). The runtime counts what it accepted and appends it to `01_discovery/agent_sweep_log.md`.
 ## `annotate`
 
 Merge an agentic semantic analysis of the raw input into discovery gaps (IMP-021). The deterministic checklist decides gaps by token presence/absence and therefore misses what is *named but not defined* (a reassuring keyword like "security is important" suppresses the gap). The agent operating Sentinel is the only component that reads meaning; `/annotate` is its sanctioned channel — it proposes, the runtime validates and persists.

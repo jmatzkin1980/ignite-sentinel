@@ -17,6 +17,7 @@ from .discovery import (
     split_evidence_sentences,
 )
 from .core.markdown import parse_table_rows
+from .agent_sweep import channel_dispositions
 from .ears import requirements_quality_report
 from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table, parse_non_goals, render_non_goals_block
 from .memory import ContextBroker
@@ -278,6 +279,8 @@ def maturation_telemetry(project_id: str) -> dict[str, object]:
         "ears_eligible_not_normalized_total": len(ears_eligible_not_normalized),
         "ears_eligible_not_normalized_gap_ids": sorted(set(ears_eligible_not_normalized)),
         "open_blocking_gaps": open_blocking,
+        # IMP-271 / F7: BA disposition and false-alarm rate per agentic channel.
+        "agent_channel_dispositions": channel_dispositions(base, gaps),
         # Age proxy: a still-open blocking gap has survived every resolve round.
         "oldest_blocking_age_rounds": iterations if open_blocking else 0,
     }
