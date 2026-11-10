@@ -67,6 +67,10 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     sync_resolution = apply_structured_gap_responses(
         project_id, text, source, change_id, block_note=closing_block_note(source_row(project_id, source_id), text)
     )
+    # IMP-294: an active CTX-NNN the change cites becomes answered.
+    from .context_requests import answer_cited_context_requests
+
+    answered_ctx = answer_cited_context_requests(project_id, text, change_id)
     # IMP-251: anchor statements, open contradiction / cited-not-delivered gaps.
     conflicts = scan_source_conflicts(project_id, source_id, text, project_language(project_id))
     conflicts.pop("new_gaps")
@@ -202,6 +206,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         "reopened_gaps": reopened,
         "sync_closed_gaps": sync_resolution["closed"],
         "source_conflicts": conflicts,
+        "answered_context_requests": answered_ctx,
         "knowledge_metabolism": metabolism,
         "staleness": stale_result,
         "suspicious_trace_links": suspicious_links,

@@ -472,6 +472,25 @@ Output:
 
 **Declaring the respondent profile (IMP-142).** When the delivered domain context is authored for a known audience, the file can carry a `respondent_profile: technical` or `respondent_profile: business` frontmatter key. `/challenge` uses it to calibrate the phrasing of elicitation prompts to that audience (see `/challenge`). Declare it only when the profile is explicitly known — never when it is merely implied by folder, role, title, or free text; absent the key, behavior is unchanged.
 
+
+**Lifecycle (IMP-294).** Each request is a `CTX-NNN` node: `active` -> `answered` -> `closed`, or `obsolete`. `/sync` marks an active request `answered` when the synced change cites its id; the sync output lists it under `answered_context_requests`. Move it yourself:
+
+```powershell
+python -m sentinel /context-request PROJECT_ID --id CTX-001 --status closed --reason "domain owner confirmed the SLA"
+python -m sentinel /context-request PROJECT_ID --id CTX-001 --status active
+```
+
+`closed` and `obsolete` need `--reason` and are final. An answered request can go back to `active` when the answer falls short, and regenerating a request for the same domain reopens it. Each transition is kept in `08_context_packs/requests/ctx_lifecycle.json`.
+## `next`
+
+Show only the next step (IMP-294).
+
+```powershell
+python -m sentinel /next PROJECT_ID
+```
+
+It prints `key`, `title`, `text` and the `command` to run, the same decision as `next_action` in `/status`, so the two never disagree. Read-only.
+
 ## `status`
 
 Show whether the workspace is ready to build, and what to do next.

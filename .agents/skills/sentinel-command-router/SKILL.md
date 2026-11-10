@@ -22,6 +22,8 @@ Translate short chat commands into Sentinel CLI executions.
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
+- `/context-request PROJECT_ID --id CTX-NNN --status answered|closed|obsolete|active [--reason TEXT]`
+- `/next PROJECT_ID`
 - `/status PROJECT_ID`
 - `/stakeholders PROJECT_ID`
 - `/stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]`
@@ -87,7 +89,8 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.
 - `/brief`: use `sentinel-project-brief`.
-- `/context-request`: use `sentinel-domain-request`.
+- `/context-request`: use `sentinel-domain-request`. A request is `CTX-NNN`: `active` -> `answered` (also when `/sync` sees a change cite it) -> `closed`, or `obsolete`; closing needs a reason.
+- `/next`: give the step in one line with its command; it is the same decision as `next_action` in `/status`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
 - `/dashboard` and `/view`: use `sentinel-views`.
 - `/specs`: use `sentinel-specs`.

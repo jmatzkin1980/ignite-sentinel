@@ -39,6 +39,7 @@ COMMANDS = {
     "brief",
     "resolve-gaps",
     "context-request",
+    "next",
     "status",
     "export",
     "stakeholders",
@@ -164,7 +165,12 @@ def main(argv: list[str] | None = None) -> int:
 
     context_request_p = sub.add_parser("context-request")
     context_request_p.add_argument("project_id")
-    context_request_p.add_argument("--domain", required=True, choices=["technology", "design", "quality", "frontend", "backend"])
+    context_request_p.add_argument("--domain", choices=["technology", "design", "quality", "frontend", "backend"])
+    context_request_p.add_argument("--id", dest="request_id")  # IMP-294: move a CTX along its lifecycle
+    context_request_p.add_argument("--status", choices=["active", "answered", "closed", "obsolete"])
+    context_request_p.add_argument("--reason", default="")
+    next_p = sub.add_parser("next")  # IMP-294: the next step of /status, alone
+    next_p.add_argument("project_id")
 
     stakeholders_p = sub.add_parser("stakeholders")
     stakeholders_p.add_argument("project_id")
@@ -392,10 +398,21 @@ def main(argv: list[str] | None = None) -> int:
             result = generate_project_brief(args.project_id)
             print_json(result)
         elif args.command == "context-request":
-            from .context_requests import generate_context_request
+            from .context_requests import generate_context_request, transition_context_request
 
-            result = generate_context_request(args.project_id, args.domain)
+            if args.request_id or args.status:
+                if not (args.request_id and args.status) or args.domain:
+                    raise ValueError("/context-request --id CTX-NNN goes with --status (and --reason), without --domain")
+                result = transition_context_request(args.project_id, args.request_id, args.status, args.reason)
+            elif not args.domain:
+                raise ValueError("/context-request needs --domain, or --id CTX-NNN --status STATE")
+            else:
+                result = generate_context_request(args.project_id, args.domain)
             print_json(result)
+        elif args.command == "next":
+            from .status import project_next
+
+            print_json(project_next(args.project_id))
         elif args.command == "status":
             from .status import project_status
 

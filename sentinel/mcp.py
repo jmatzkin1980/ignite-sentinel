@@ -43,7 +43,8 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence.", ["project_id"]),
-    ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend).", ["project_id", "domain"]),
+    ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
+    ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
     ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics.", ["project_id", "full"]),
     ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
@@ -289,8 +290,16 @@ def build_server():
         return run_cli(["brief", project_id])
 
     @server.tool(name="sentinel_context_request", description=TOOL_DESCRIPTIONS["context_request"])
-    def sentinel_context_request(project_id: str, domain: str) -> dict:
-        return run_cli(["context-request", project_id, "--domain", domain])
+    def sentinel_context_request(project_id: str, domain: str = "", id: str = "", status: str = "", reason: str = "") -> dict:
+        arguments = ["context-request", project_id]
+        for flag, value in (("--domain", domain), ("--id", id), ("--status", status), ("--reason", reason)):
+            if value:
+                arguments += [flag, value]
+        return run_cli(arguments)
+
+    @server.tool(name="sentinel_next", description=TOOL_DESCRIPTIONS["next"])
+    def sentinel_next(project_id: str) -> dict:
+        return run_cli(["next", project_id])
 
     @server.tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
     def sentinel_status(project_id: str, full: bool = False) -> dict:

@@ -9,6 +9,11 @@ from .gaps import parse_gap_table
 from .workspace import read_json, state_path, workspace_path
 
 
+def project_next(project_id: str) -> dict[str, object]:
+    """`/next` (IMP-294): exactly the next step `/status` gives, and nothing else."""
+    return {"project_id": project_id, **build_readiness_verdict(project_id)["next_step"]}
+
+
 def project_status(project_id: str, full: bool = True) -> dict[str, object]:
     """`/status`. The verdict (IMP-248) is the summary; `full` adds the detailed dump.
 
