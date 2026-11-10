@@ -34,7 +34,7 @@ from .source_routing import (
 from .workspace import load_config, read_json, utc_now, workspace_path, write_json
 
 
-TRACKED_SUFFIXES = {".md", ".txt", ".html", ".htm"}
+TRACKED_SUFFIXES = {".md", ".txt", ".html", ".htm", ".docx"}  # IMP-270: .docx too
 # IMP-293: files Sentinel writes into the scanned 07_changes buckets. They are
 # never client input, even after a person edits them: a PROPOSED gap response
 # is applied only through an explicit `/resolve-gaps --source`.

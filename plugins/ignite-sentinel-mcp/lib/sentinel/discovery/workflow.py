@@ -24,6 +24,7 @@ from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
 from ..injection import shield_source
 from ..secrets_scan import ingest_source, pii_report_enabled
+from ..source_formats import read_source, target_suffix
 from ..sources import mark_source_processed, open_source_row
 from ..workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
@@ -37,15 +38,16 @@ RAW_SYNTHESIS_EXTENSIONS = {".md", ".txt", ".html", ".htm"}
 def ingest(project_id: str, source: Path) -> dict[str, str]:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
+    raw_target = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
+    extracted = read_source(source, media_stem=raw_target.stem)  # IMP-270: typed error before the row opens
     source_id = open_source_row(project_id, source, "initial_ingested")  # IMP-250a
     # IMP-150: snapshot the previous Requirement Units before this ingest
     # overwrites them, so a re-ingest can emit a governed ADDED/MODIFIED/REMOVED
     # delta view of what capabilities changed.
     previous_requirement_units = requirement_unit_snapshot(base)
     config = load_config(project_id)
-    raw_target = base / "00_raw" / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}"
     # IMP-285: secrets are redacted before anything is extracted; the original is only read.
-    text, sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config))
+    text, sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config), extracted)
     # IMP-286: source content is data; instruction-shaped lines go to the BA, not to the compilers.
     text, injection_ids = shield_source(base, source.name, text)
     language = resolve_project_language(config.get("project_language", "auto"), text)
@@ -250,6 +252,8 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
         "secret_redactions": sanitized.redactions,
         "injection_signals": injection_ids,
         "source_conflicts": source_conflicts,
+        "source_format": {"kind": extracted.kind, "images": len(extracted.images),
+                          "comments": extracted.comments, "warning": extracted.warning},
         "secret_alerts": str(sanitized.alerts_path.as_posix()) if sanitized.alerts_path else None,
         "requirement_id": req_id,
         "gap_id": gap_id,

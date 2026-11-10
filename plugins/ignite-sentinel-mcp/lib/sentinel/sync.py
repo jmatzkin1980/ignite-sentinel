@@ -26,6 +26,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
+from .source_formats import read_source, target_suffix
 from .source_conflicts import closing_block_note, scan_source_conflicts
 from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
@@ -38,12 +39,14 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     if not base.exists():
         raise RuntimeError(f"Workspace not found: {project_id}")
 
+    target_dir = change_target_dir(base, source)
+    target = unique_target(target_dir / f"{source.stem}{target_suffix(source)}")
+    # IMP-270: read (and reject an unreadable format) before the F-NN row opens.
+    extracted = read_source(source, media_stem=target.stem)
     # IMP-250a: the F-NN row opens before the cross and closes when it finishes.
     source_id = open_source_row(project_id, source, "synced")
-    target_dir = change_target_dir(base, source)
-    target = unique_target(target_dir / f"{source.stem}{source.suffix.lower() if source.suffix.lower() in {'.md', '.txt', '.html', '.htm'} else '.md'}")
     # IMP-285: same redaction as /ingest before the change is analyzed or stored.
-    text, sanitized = ingest_source(base, source, target, pii_report_enabled(load_config(project_id)))
+    text, sanitized = ingest_source(base, source, target, pii_report_enabled(load_config(project_id)), extracted)
     text, injection_ids = shield_source(base, source.name, text)  # IMP-286
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
 
@@ -187,6 +190,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         "source_id": source_id,
         "secret_redactions": sanitized.redactions,
         "injection_signals": injection_ids,
+        "source_format": {"kind": extracted.kind, "images": len(extracted.images),
+                          "comments": extracted.comments, "warning": extracted.warning},
         "impact_report_id": impact_id,
         "source": str(source.as_posix()),
         "path": str(target.as_posix()),
