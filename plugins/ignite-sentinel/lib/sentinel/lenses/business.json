@@ -145,9 +145,110 @@
       "description": "Business rules are named with weak wording instead of explicit thresholds, exceptions, or decision logic.",
       "catalog": "weak_words",
       "categories": [
-        "weak_business_rule_evidence"
+        "weak_business_rule_evidence",
+        "vague_rule_or_criterion"
       ],
       "why": "Un smell de reglas vagas no bloquea por si solo, pero senala que la frase nombra reglas sin mecanismo decisional verificable."
+    },
+    {
+      "id": "GAP-CTP-EXCLUSION",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Exclusion named without its counterpart: decision (who, when) · destination.",
+      "triggers": [
+        "out of scope",
+        "fuera de alcance",
+        "excluded from",
+        "excluido de",
+        "not included",
+        "no incluye"
+      ],
+      "counterparts": [
+        "because",
+        "porque",
+        "decision",
+        "decisión",
+        "decided",
+        "decidió",
+        "dec-",
+        "returns in",
+        "vuelve en",
+        "later release",
+        "next release",
+        "próxima release",
+        "proxima release",
+        "phase 2",
+        "fase 2"
+      ],
+      "why": "Una exclusión sin su decisión se reabre en cada revisión.",
+      "text": {
+        "en": {
+          "title": "Exclusion Counterpart",
+          "question": "For each exclusion: which decision made it, and where does it come back (or why never)?",
+          "expected_format": "Exclusion · decision (who, when) · destination",
+          "why": "An exclusion without its decision gets reopened in every review.",
+          "example": "Editing cases is out of scope by decision of the product owner (workshop 03/11); it returns in release 2.",
+          "description": "Exclusion named without its counterpart: decision (who, when) · destination."
+        },
+        "es": {
+          "title": "Contracara de exclusión",
+          "question": "Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?",
+          "expected_format": "Exclusión · decisión (quién, cuándo) · destino",
+          "why": "Una exclusión sin su decisión se reabre en cada revisión.",
+          "example": "Editar casos queda fuera de alcance por decisión del product owner (taller 03/11); vuelve en la release 2.",
+          "description": "Se nombra exclusión sin su contracara: decisión (quién, cuándo) · destino."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-DEADLINE",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Deadline named without its counterpart: time zone · calendar · business day · cut-off.",
+      "triggers": [
+        "deadline",
+        "plazo de",
+        "business day",
+        "día hábil",
+        "dia habil",
+        "cut-off",
+        "hora de corte",
+        "by end of day",
+        "antes de las"
+      ],
+      "counterparts": [
+        "time zone",
+        "timezone",
+        "huso",
+        "calendar",
+        "calendario",
+        "holiday",
+        "feriado",
+        "business days",
+        "días hábiles",
+        "dias habiles"
+      ],
+      "why": "Un plazo sin huso ni calendario lo calcula distinto cada sistema.",
+      "text": {
+        "en": {
+          "title": "Deadline Counterpart",
+          "question": "For each deadline: which time zone, which calendar, what counts as a business day and what is the cut-off time?",
+          "expected_format": "Deadline · time zone · calendar · business day · cut-off",
+          "why": "A deadline without time zone and calendar is computed differently by each system.",
+          "example": "2 business days, America/Argentina/Buenos_Aires, national holiday calendar, cut-off 15:00.",
+          "description": "Deadline named without its counterpart: time zone · calendar · business day · cut-off."
+        },
+        "es": {
+          "title": "Contracara de plazo",
+          "question": "Para cada plazo: ¿qué huso horario, qué calendario, qué cuenta como día hábil y cuál es la hora de corte?",
+          "expected_format": "Plazo · huso · calendario · día hábil · hora de corte",
+          "why": "Un plazo sin huso ni calendario lo calcula distinto cada sistema.",
+          "example": "2 días hábiles, America/Argentina/Buenos_Aires, calendario de feriados nacionales, corte 15:00.",
+          "description": "Se nombra plazo sin su contracara: huso · calendario · día hábil · hora de corte."
+        }
+      }
     }
   ]
 }

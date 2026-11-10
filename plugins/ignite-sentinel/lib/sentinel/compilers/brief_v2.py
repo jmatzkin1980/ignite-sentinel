@@ -102,6 +102,11 @@ COPY = {
         "provenance_header": "| Source | Facts cited |",
         "na_generic": "N/A — it does not apply to the {profiles} profile. If the profile or the genesis changes, it opens.",
         "na_see": "N/A — see {first}.",
+        "states": "states",
+        "cc_header": "| Scenario | Lens | Where it is specified | Status |",
+        "cc_specified": "specified",
+        "cc_pending": "pending there",
+        "cc_na": "N/A there",
         "divergence_count": "{n} divergences between what is documented and what is built (⚠).",
         "debt": "Debt",
         "defect": "Defect",
@@ -144,6 +149,11 @@ COPY = {
         "provenance_header": "| Fuente | Hechos citados |",
         "na_generic": "N/A — no aplica al perfil {profiles}. Si cambia el perfil o la génesis, se abre.",
         "na_see": "N/A — ver {first}.",
+        "states": "estados",
+        "cc_header": "| Escenario | Lente | Dónde se especifica | Estado |",
+        "cc_specified": "especificado",
+        "cc_pending": "pendiente allí",
+        "cc_na": "N/A allí",
         "divergence_count": "{n} divergencias entre lo documentado y lo construido (⚠).",
         "debt": "Deuda",
         "defect": "Defecto",
@@ -385,13 +395,56 @@ class _Writer:
             block_mark = block_app.get("mark", mark)
             if block_mark == "n/a":
                 out += [self.na(place, sid), ""]
+            elif place == CROSS_CUTTING_PLACE:
+                # IMP-256: an index of the 16 scenarios, filled once every place is known
+                self.places.append({"id": place, "fill": "covered_by_reference", "section": sid.split(".")[0]})
+                out += [CROSS_CUTTING_PLACEHOLDER, ""]
             elif not facts:
                 block_class = "domain" if block_mark == "conditional" else klass
-                out += [self.pending(place, sid, block_class), ""]
+                mark = self.pending(place, sid, block_class)
+                if place == SCREEN_STATES_PLACE:  # IMP-256: the 8 fixed states the place must cover
+                    mark += " — " + self.copy["states"] + ": " + "; ".join(cross_cutting_data()["screen_states"][self.lang])
+                    mark += " (" + "; ".join(cross_cutting_data()["distinctions"][self.lang]) + ")"
+                out += [mark, ""]
             else:
                 self.places.append({"id": place, "fill": "covered_by_parent", "section": sid.split(".")[0]})
                 out += [f"→ {sid}", ""]
         return out
+
+
+CROSS_CUTTING_PLACE = "3.6/cross_cutting"
+SCREEN_STATES_PLACE = "4.1/screen_states"
+CROSS_CUTTING_PLACEHOLDER = "<<cross-cutting scenarios>>"
+
+
+def cross_cutting_data() -> dict[str, Any]:
+    from ..resources import read_package_json
+
+    return read_package_json("templates/cross_cutting.json")
+
+
+def _fill_cross_cutting(w: "_Writer", body: dict[str, list[str]]) -> None:
+    """3.6: one row per scenario with the state of the places that specify it (refers, never repeats)."""
+    fills: dict[str, set[str]] = {}
+    for place in w.places:
+        fills.setdefault(place["id"], set()).add(place["fill"])
+    rows = [w.copy["cc_header"], "|---|---|---|---|"]
+    for scenario in cross_cutting_data()["scenarios"]:
+        where = ", ".join(
+            f"§{target.split('/')[0]} › {_block_title(w, *target.split('/'))}" if "/" in target else f"§{target}"
+            for target in scenario["where"])
+        states = [fills.get(target, set()) | fills.get(target.split("/")[0], set()) for target in scenario["where"]]
+        if any(state & {"covered", "covered_by_parent"} for state in states):
+            status = w.copy["cc_specified"]
+        elif states and all(state == {"na"} for state in states):
+            status = w.copy["cc_na"]
+        else:
+            status = w.copy["cc_pending"]
+        rows.append(f"| {scenario['id']} {scenario[w.lang]} | {scenario['lens']} | {where} | {status} |")
+    for lines in body.values():
+        if CROSS_CUTTING_PLACEHOLDER in lines:
+            index = lines.index(CROSS_CUTTING_PLACEHOLDER)
+            lines[index:index + 1] = rows
 
 
 def _section_of(sid: str) -> str:
@@ -506,6 +559,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     # §6.3 cascade against the previous v2 brief
     marker = w.schema["artifact_marker"]
     head = [marker, f"# Project Brief — {inputs.project_id}", ""]
+    _fill_cross_cutting(w, body)
     draft = "\n".join(head + [line for sid in body for line in body[sid]] + annex_lines)
     cascade = _cascade(w, draft, inputs.previous_text)
     _fill(body["6"], "6.3", cascade)

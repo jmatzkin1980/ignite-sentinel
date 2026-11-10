@@ -89,6 +89,53 @@
         "maqueta"
       ],
       "why": "Sin saber que prototipar, Diseno no puede validar hipotesis de interaccion."
+    },
+    {
+      "id": "GAP-CTP-DESIGN-EXCLUSION",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Design Exclusion named without its counterpart: surface consequence.",
+      "triggers": [
+        "desktop only",
+        "solo desktop",
+        "no mobile",
+        "sin mobile",
+        "sin versión móvil",
+        "sin version movil",
+        "not responsive",
+        "no responsive"
+      ],
+      "counterparts": [
+        "consequence",
+        "consecuencia",
+        "impact",
+        "impacto",
+        "therefore",
+        "por lo tanto",
+        "mobile users",
+        "usuarios móviles",
+        "usuarios moviles"
+      ],
+      "why": "Una exclusión de diseño sin su consecuencia deja el caso excluido indefinido.",
+      "text": {
+        "en": {
+          "title": "Design Exclusion Counterpart",
+          "question": "For each design exclusion: what does it imply for the surface (what users on the excluded device see)?",
+          "expected_format": "Exclusion · surface consequence",
+          "why": "A design exclusion without its consequence leaves the excluded case undefined.",
+          "example": "Desktop only: on mobile the app shows a 'use a desktop browser' page; no layout below 1024 px.",
+          "description": "Design Exclusion named without its counterpart: surface consequence."
+        },
+        "es": {
+          "title": "Contracara de exclusión de diseño",
+          "question": "Para cada exclusión de diseño: ¿qué implica en la superficie (qué ve quien usa el dispositivo excluido)?",
+          "expected_format": "Exclusión · consecuencia en la superficie",
+          "why": "Una exclusión de diseño sin su consecuencia deja el caso excluido indefinido.",
+          "example": "Solo desktop: en móvil se muestra una página 'usá un navegador de escritorio'; sin layout debajo de 1024 px.",
+          "description": "Se nombra exclusión de diseño sin su contracara: consecuencia en la superficie."
+        }
+      }
     }
   ]
 }

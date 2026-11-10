@@ -130,6 +130,14 @@
    },
    {
     "audience": "client",
+    "expected_format": "Exclusion · decision (who, when) · destination",
+    "id": "GAP-CTP-EXCLUSION",
+    "question": "For each exclusion: which decision made it, and where does it come back (or why never)?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
     "expected_format": "Per metric: definition/formula, unit, data source/owner, baseline, and target threshold.",
     "id": "GAP-METRIC-DEFINITION",
     "question": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
@@ -332,271 +340,281 @@
    },
    {
     "id": "marker-9",
-    "marker": "GAP-METRIC-DEFINITION",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-13"
    },
    {
     "id": "marker-10",
-    "marker": "GAP-METRIC-SOURCE",
+    "marker": "GAP-METRIC-DEFINITION",
     "section_id": "section-13"
    },
    {
     "id": "marker-11",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "marker": "GAP-METRIC-SOURCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-12",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-13"
    },
    {
     "id": "marker-13",
-    "marker": "GAP-BUSINESS-RULES",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-13"
    },
    {
     "id": "marker-14",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-13"
    },
    {
     "id": "marker-15",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-13"
    },
    {
     "id": "marker-16",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-13"
    },
    {
     "id": "marker-17",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-13"
    },
    {
     "id": "marker-18",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-13"
    },
    {
     "id": "marker-19",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-13"
    },
    {
     "id": "marker-20",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-13"
    },
    {
     "id": "marker-21",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-13"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-13"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-13"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
     "section_id": "section-13"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-ACCEPTANCE",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-13"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-ACCEPTANCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-13"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-QUALITY",
     "section_id": "section-13"
    },
    {
     "id": "marker-30",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-31",
     "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-15"
    },
    {
-    "id": "marker-31",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-15"
-   },
-   {
     "id": "marker-32",
-    "marker": "GAP-METRIC-SOURCE",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-15"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-METRIC-DEFINITION",
+    "marker": "GAP-METRIC-SOURCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-METRIC-DEFINITION",
     "section_id": "section-15"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-15"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-15"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-15"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-QUALITY",
     "section_id": "section-15"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-QUALITY-HANDOFF",
     "section_id": "section-15"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-15"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-15"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-15"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-15"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-15"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-15"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-50",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-15"
    },
    {
     "id": "marker-52",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-53",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-15"
    },
    {
     "id": "marker-54",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-15"
    },
    {
     "id": "marker-55",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
    },
    {
     "id": "marker-56",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-17"
    },
    {
     "id": "marker-57",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-58",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-59",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-18"
    },
    {
-    "id": "marker-58",
+    "id": "marker-60",
     "marker": "GAP-PRD-FR-AC",
     "section_id": "section-18"
    },
    {
-    "id": "marker-59",
+    "id": "marker-61",
     "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-18"
    },
    {
-    "id": "marker-60",
+    "id": "marker-62",
     "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-18"
    },
    {
-    "id": "marker-61",
+    "id": "marker-63",
     "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-18"
    },
    {
-    "id": "marker-62",
+    "id": "marker-64",
     "marker": "[PENDING INPUT]",
     "section_id": "section-18"
    }
@@ -689,32 +707,32 @@
    },
    {
     "id": "section-15",
-    "line_end": 120,
+    "line_end": 121,
     "line_start": 94,
     "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
    },
    {
     "id": "section-16",
-    "line_end": 130,
-    "line_start": 121,
+    "line_end": 131,
+    "line_start": 122,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
    },
    {
     "id": "section-17",
-    "line_end": 139,
-    "line_start": 131,
+    "line_end": 140,
+    "line_start": 132,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
    },
    {
     "id": "section-18",
-    "line_end": 152,
-    "line_start": 140,
+    "line_end": 153,
+    "line_start": 141,
     "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
    },
    {
     "id": "section-19",
-    "line_end": 161,
-    "line_start": 153,
+    "line_end": 162,
+    "line_start": 154,
     "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
    }
   ],
@@ -754,6 +772,14 @@
     "expected_format": "Per metric: definition/formula, unit, data source/owner, baseline, and target threshold.",
     "id": "GAP-METRIC-DEFINITION",
     "question": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Exclusion · decision (who, when) · destination",
+    "id": "GAP-CTP-EXCLUSION",
+    "question": "For each exclusion: which decision made it, and where does it come back (or why never)?",
     "response_needed": true,
     "statement": ""
    },
@@ -949,233 +975,243 @@
    },
    {
     "id": "marker-5",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-8"
    },
    {
     "id": "marker-6",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-9"
    },
    {
     "id": "marker-7",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-10"
    },
    {
     "id": "marker-8",
-    "marker": "GAP-ACCEPTANCE",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-11"
    },
    {
     "id": "marker-9",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-ACCEPTANCE",
     "section_id": "section-12"
    },
    {
     "id": "marker-10",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-QUALITY",
     "section_id": "section-13"
    },
    {
     "id": "marker-11",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-QUALITY-HANDOFF",
     "section_id": "section-14"
    },
    {
     "id": "marker-12",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-15"
    },
    {
     "id": "marker-13",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-16"
    },
    {
     "id": "marker-14",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-17"
    },
    {
     "id": "marker-15",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-18"
    },
    {
     "id": "marker-16",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-19"
    },
    {
     "id": "marker-17",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-20"
    },
    {
     "id": "marker-18",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-21"
    },
    {
     "id": "marker-19",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
     "section_id": "section-22"
    },
    {
     "id": "marker-20",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-23"
    },
    {
     "id": "marker-21",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-24"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-25"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-26"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-27"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-28"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-30"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-29"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-30"
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-31"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-METRIC-SOURCE",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-31"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-METRIC-DEFINITION",
-    "section_id": "section-30"
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-30",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
-    "section_id": "section-30"
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-31"
    },
    {
     "id": "marker-31",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-30"
+    "marker": "GAP-CTP-EXCLUSION",
+    "section_id": "section-31"
    },
    {
     "id": "marker-32",
-    "marker": "GAP-PRD-FR-AC",
-    "section_id": "section-30"
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-ACCEPTANCE",
-    "section_id": "section-30"
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-QUALITY",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-31"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-QUALITY-HANDOFF",
-    "section_id": "section-30"
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-PRD-NFR-KPI",
-    "section_id": "section-30"
+    "marker": "GAP-QUALITY",
+    "section_id": "section-31"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-30"
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-31"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-TECH-NFR",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-31"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-BACKLOG-ENABLERS",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-FRONTEND-SURFACE",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-31"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-BACKEND-SURFACE",
-    "section_id": "section-30"
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
-    "section_id": "section-30"
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
-    "section_id": "section-30"
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-31"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-DELIVERY-READINESS",
-    "section_id": "section-30"
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
-    "section_id": "section-30"
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-DESIGN-FLOW",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-31"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-DESIGN-STATES",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-50",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-31"
+   },
+   {
+    "id": "marker-51",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-31"
+   },
+   {
+    "id": "marker-52",
     "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
-    "section_id": "section-30"
+    "section_id": "section-31"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -1224,146 +1260,152 @@
    },
    {
     "id": "section-8",
-    "line_end": 212,
+    "line_end": 220,
     "line_start": 178,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRODUCT-ASIS-TOBE - Current And Target Process"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-CTP-EXCLUSION - Exclusion Counterpart"
    },
    {
     "id": "section-9",
-    "line_end": 247,
-    "line_start": 213,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-SLICING-READINESS - Backlog Slicing Readiness"
+    "line_end": 255,
+    "line_start": 221,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRODUCT-ASIS-TOBE - Current And Target Process"
    },
    {
     "id": "section-10",
-    "line_end": 282,
-    "line_start": 248,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-FR-AC - Functional Requirements And ACs"
+    "line_end": 290,
+    "line_start": 256,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-SLICING-READINESS - Backlog Slicing Readiness"
    },
    {
     "id": "section-11",
-    "line_end": 317,
-    "line_start": 283,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-ACCEPTANCE - Acceptance Signal"
+    "line_end": 325,
+    "line_start": 291,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-FR-AC - Functional Requirements And ACs"
    },
    {
     "id": "section-12",
-    "line_end": 352,
-    "line_start": 318,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY - Quality Expectations"
+    "line_end": 360,
+    "line_start": 326,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-ACCEPTANCE - Acceptance Signal"
    },
    {
     "id": "section-13",
-    "line_end": 387,
-    "line_start": 353,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY-HANDOFF - Quality Handoff"
+    "line_end": 395,
+    "line_start": 361,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY - Quality Expectations"
    },
    {
     "id": "section-14",
-    "line_end": 422,
-    "line_start": 388,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-NFR-KPI - NFRs, KPIs, And Measurement"
+    "line_end": 430,
+    "line_start": 396,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY-HANDOFF - Quality Handoff"
    },
    {
     "id": "section-15",
-    "line_end": 457,
-    "line_start": 423,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DATA-SOURCE - Systems And Data Ownership"
+    "line_end": 465,
+    "line_start": 431,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-NFR-KPI - NFRs, KPIs, And Measurement"
    },
    {
     "id": "section-16",
-    "line_end": 492,
-    "line_start": 458,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-NFR - Operational Constraints"
+    "line_end": 500,
+    "line_start": 466,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DATA-SOURCE - Systems And Data Ownership"
    },
    {
     "id": "section-17",
-    "line_end": 527,
-    "line_start": 493,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-ENABLERS - Valid Cross-Cutting Enablers"
+    "line_end": 535,
+    "line_start": 501,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-NFR - Operational Constraints"
    },
    {
     "id": "section-18",
     "line_end": 570,
-    "line_start": 528,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-FRONTEND-SURFACE - Frontend Surface"
+    "line_start": 536,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-ENABLERS - Valid Cross-Cutting Enablers"
    },
    {
     "id": "section-19",
-    "line_end": 605,
+    "line_end": 613,
     "line_start": 571,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKEND-SURFACE - Backend Surface"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-FRONTEND-SURFACE - Frontend Surface"
    },
    {
     "id": "section-20",
-    "line_end": 640,
-    "line_start": 606,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DEEP-DIVE-INPUT - Technology Deep Dive"
+    "line_end": 648,
+    "line_start": 614,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKEND-SURFACE - Backend Surface"
    },
    {
     "id": "section-21",
-    "line_end": 675,
-    "line_start": 641,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-GOVERNANCE-CONSTRAINTS - Governance Constraints"
+    "line_end": 683,
+    "line_start": 649,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DEEP-DIVE-INPUT - Technology Deep Dive"
    },
    {
     "id": "section-22",
-    "line_end": 710,
-    "line_start": 676,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance"
+    "line_end": 718,
+    "line_start": 684,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-GOVERNANCE-CONSTRAINTS - Governance Constraints"
    },
    {
     "id": "section-23",
-    "line_end": 745,
-    "line_start": 711,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
+    "line_end": 753,
+    "line_start": 719,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance"
    },
    {
     "id": "section-24",
-    "line_end": 780,
-    "line_start": 746,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
+    "line_end": 788,
+    "line_start": 754,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
    },
    {
     "id": "section-25",
-    "line_end": 815,
-    "line_start": 781,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
+    "line_end": 823,
+    "line_start": 789,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
    },
    {
     "id": "section-26",
     "line_end": 858,
-    "line_start": 816,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
+    "line_start": 824,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
    },
    {
     "id": "section-27",
     "line_end": 901,
     "line_start": 859,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
    },
    {
     "id": "section-28",
     "line_end": 944,
     "line_start": 902,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
    },
    {
     "id": "section-29",
-    "line_end": 948,
+    "line_end": 987,
     "line_start": 945,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
    },
    {
     "id": "section-30",
-    "line_end": 980,
-    "line_start": 949,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
+    "line_end": 991,
+    "line_start": 988,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
    },
    {
     "id": "section-31",
-    "line_end": 985,
-    "line_start": 981,
+    "line_end": 1024,
+    "line_start": 992,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
+   },
+   {
+    "id": "section-32",
+    "line_end": 1029,
+    "line_start": 1025,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Resolution Trace"
    }
   ],
@@ -2429,6 +2471,14 @@
    },
    {
     "audience": "client",
+    "expected_format": "Exclusión · decisión (quién, cuándo) · destino",
+    "id": "GAP-CTP-EXCLUSION",
+    "question": "Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
     "expected_format": "Por métrica: definición/fórmula, unidad, fuente/owner del dato, baseline y umbral objetivo.",
     "id": "GAP-METRIC-DEFINITION",
     "question": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
@@ -2631,271 +2681,281 @@
    },
    {
     "id": "marker-9",
-    "marker": "GAP-METRIC-DEFINITION",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-13"
    },
    {
     "id": "marker-10",
-    "marker": "GAP-METRIC-SOURCE",
+    "marker": "GAP-METRIC-DEFINITION",
     "section_id": "section-13"
    },
    {
     "id": "marker-11",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "marker": "GAP-METRIC-SOURCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-12",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-13"
    },
    {
     "id": "marker-13",
-    "marker": "GAP-BUSINESS-RULES",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-13"
    },
    {
     "id": "marker-14",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-13"
    },
    {
     "id": "marker-15",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-13"
    },
    {
     "id": "marker-16",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-13"
    },
    {
     "id": "marker-17",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-13"
    },
    {
     "id": "marker-18",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-13"
    },
    {
     "id": "marker-19",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-13"
    },
    {
     "id": "marker-20",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-13"
    },
    {
     "id": "marker-21",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-13"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-13"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-13"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
     "section_id": "section-13"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-ACCEPTANCE",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-13"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-ACCEPTANCE",
     "section_id": "section-13"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-13"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-QUALITY",
     "section_id": "section-13"
    },
    {
     "id": "marker-30",
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-13"
+   },
+   {
+    "id": "marker-31",
     "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-15"
    },
    {
-    "id": "marker-31",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-15"
-   },
-   {
     "id": "marker-32",
-    "marker": "GAP-METRIC-SOURCE",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-15"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-METRIC-DEFINITION",
+    "marker": "GAP-METRIC-SOURCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-METRIC-DEFINITION",
     "section_id": "section-15"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-15"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-15"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-15"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-QUALITY",
     "section_id": "section-15"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-QUALITY-HANDOFF",
     "section_id": "section-15"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-15"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-15"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-15"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-15"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-15"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-15"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-50",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-15"
    },
    {
     "id": "marker-52",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-53",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-15"
    },
    {
     "id": "marker-54",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-15"
    },
    {
     "id": "marker-55",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
    },
    {
     "id": "marker-56",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-17"
    },
    {
     "id": "marker-57",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-58",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-59",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-18"
    },
    {
-    "id": "marker-58",
+    "id": "marker-60",
     "marker": "GAP-PRD-FR-AC",
     "section_id": "section-18"
    },
    {
-    "id": "marker-59",
+    "id": "marker-61",
     "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-18"
    },
    {
-    "id": "marker-60",
+    "id": "marker-62",
     "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-18"
    },
    {
-    "id": "marker-61",
+    "id": "marker-63",
     "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-18"
    },
    {
-    "id": "marker-62",
+    "id": "marker-64",
     "marker": "[PENDING INPUT]",
     "section_id": "section-18"
    }
@@ -2988,32 +3048,32 @@
    },
    {
     "id": "section-15",
-    "line_end": 119,
+    "line_end": 120,
     "line_start": 93,
     "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
    },
    {
     "id": "section-16",
-    "line_end": 129,
-    "line_start": 120,
+    "line_end": 130,
+    "line_start": 121,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
    },
    {
     "id": "section-17",
-    "line_end": 138,
-    "line_start": 130,
+    "line_end": 139,
+    "line_start": 131,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
    },
    {
     "id": "section-18",
-    "line_end": 151,
-    "line_start": 139,
+    "line_end": 152,
+    "line_start": 140,
     "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
    },
    {
     "id": "section-19",
-    "line_end": 160,
-    "line_start": 152,
+    "line_end": 161,
+    "line_start": 153,
     "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
    }
   ],
@@ -3053,6 +3113,14 @@
     "expected_format": "Por métrica: definición/fórmula, unidad, fuente/owner del dato, baseline y umbral objetivo.",
     "id": "GAP-METRIC-DEFINITION",
     "question": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "client",
+    "expected_format": "Exclusión · decisión (quién, cuándo) · destino",
+    "id": "GAP-CTP-EXCLUSION",
+    "question": "Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?",
     "response_needed": true,
     "statement": ""
    },
@@ -3248,233 +3316,243 @@
    },
    {
     "id": "marker-5",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "marker": "GAP-CTP-EXCLUSION",
     "section_id": "section-8"
    },
    {
     "id": "marker-6",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
     "section_id": "section-9"
    },
    {
     "id": "marker-7",
-    "marker": "GAP-PRD-FR-AC",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-10"
    },
    {
     "id": "marker-8",
-    "marker": "GAP-ACCEPTANCE",
+    "marker": "GAP-PRD-FR-AC",
     "section_id": "section-11"
    },
    {
     "id": "marker-9",
-    "marker": "GAP-QUALITY",
+    "marker": "GAP-ACCEPTANCE",
     "section_id": "section-12"
    },
    {
     "id": "marker-10",
-    "marker": "GAP-QUALITY-HANDOFF",
+    "marker": "GAP-QUALITY",
     "section_id": "section-13"
    },
    {
     "id": "marker-11",
-    "marker": "GAP-PRD-NFR-KPI",
+    "marker": "GAP-QUALITY-HANDOFF",
     "section_id": "section-14"
    },
    {
     "id": "marker-12",
-    "marker": "GAP-TECH-DATA-SOURCE",
+    "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-15"
    },
    {
     "id": "marker-13",
-    "marker": "GAP-TECH-NFR",
+    "marker": "GAP-TECH-DATA-SOURCE",
     "section_id": "section-16"
    },
    {
     "id": "marker-14",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-TECH-NFR",
     "section_id": "section-17"
    },
    {
     "id": "marker-15",
-    "marker": "GAP-FRONTEND-SURFACE",
+    "marker": "GAP-BACKLOG-ENABLERS",
     "section_id": "section-18"
    },
    {
     "id": "marker-16",
-    "marker": "GAP-BACKEND-SURFACE",
+    "marker": "GAP-FRONTEND-SURFACE",
     "section_id": "section-19"
    },
    {
     "id": "marker-17",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "marker": "GAP-BACKEND-SURFACE",
     "section_id": "section-20"
    },
    {
     "id": "marker-18",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
     "section_id": "section-21"
    },
    {
     "id": "marker-19",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
     "section_id": "section-22"
    },
    {
     "id": "marker-20",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-23"
    },
    {
     "id": "marker-21",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-24"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-25"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-26"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-27"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-28"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-30"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-29"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-30"
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-31"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-METRIC-SOURCE",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-31"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-METRIC-DEFINITION",
-    "section_id": "section-30"
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-30",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
-    "section_id": "section-30"
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-31"
    },
    {
     "id": "marker-31",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-30"
+    "marker": "GAP-CTP-EXCLUSION",
+    "section_id": "section-31"
    },
    {
     "id": "marker-32",
-    "marker": "GAP-PRD-FR-AC",
-    "section_id": "section-30"
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-ACCEPTANCE",
-    "section_id": "section-30"
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-QUALITY",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-31"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-QUALITY-HANDOFF",
-    "section_id": "section-30"
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-PRD-NFR-KPI",
-    "section_id": "section-30"
+    "marker": "GAP-QUALITY",
+    "section_id": "section-31"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-30"
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-31"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-TECH-NFR",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-31"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-BACKLOG-ENABLERS",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-FRONTEND-SURFACE",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-31"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-BACKEND-SURFACE",
-    "section_id": "section-30"
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
-    "section_id": "section-30"
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
-    "section_id": "section-30"
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "section_id": "section-30"
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-31"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-DELIVERY-READINESS",
-    "section_id": "section-30"
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-31"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
-    "section_id": "section-30"
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-DESIGN-FLOW",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-31"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-DESIGN-STATES",
-    "section_id": "section-30"
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-31"
    },
    {
     "id": "marker-50",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-31"
+   },
+   {
+    "id": "marker-51",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-31"
+   },
+   {
+    "id": "marker-52",
     "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
-    "section_id": "section-30"
+    "section_id": "section-31"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -3523,146 +3601,152 @@
    },
    {
     "id": "section-8",
-    "line_end": 212,
+    "line_end": 220,
     "line_start": 178,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-CTP-EXCLUSION - Contracara de exclusión"
    },
    {
     "id": "section-9",
-    "line_end": 247,
-    "line_start": 213,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-SLICING-READINESS - Preparacion de slicing de backlog"
+    "line_end": 255,
+    "line_start": 221,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo"
    },
    {
     "id": "section-10",
-    "line_end": 282,
-    "line_start": 248,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-FR-AC - Requerimientos funcionales y criterios de aceptacion"
+    "line_end": 290,
+    "line_start": 256,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-SLICING-READINESS - Preparacion de slicing de backlog"
    },
    {
     "id": "section-11",
-    "line_end": 317,
-    "line_start": 283,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-ACCEPTANCE - Señal de aceptación"
+    "line_end": 325,
+    "line_start": 291,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-FR-AC - Requerimientos funcionales y criterios de aceptacion"
    },
    {
     "id": "section-12",
-    "line_end": 352,
-    "line_start": 318,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY - Expectativas de calidad"
+    "line_end": 360,
+    "line_start": 326,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-ACCEPTANCE - Señal de aceptación"
    },
    {
     "id": "section-13",
-    "line_end": 387,
-    "line_start": 353,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY-HANDOFF - Handoff de calidad"
+    "line_end": 395,
+    "line_start": 361,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY - Expectativas de calidad"
    },
    {
     "id": "section-14",
-    "line_end": 422,
-    "line_start": 388,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-NFR-KPI - NFRs, KPIs y medicion"
+    "line_end": 430,
+    "line_start": 396,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY-HANDOFF - Handoff de calidad"
    },
    {
     "id": "section-15",
-    "line_end": 457,
-    "line_start": 423,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DATA-SOURCE - Sistemas y ownership de datos"
+    "line_end": 465,
+    "line_start": 431,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-NFR-KPI - NFRs, KPIs y medicion"
    },
    {
     "id": "section-16",
-    "line_end": 492,
-    "line_start": 458,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-NFR - Restricciones operativas"
+    "line_end": 500,
+    "line_start": 466,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DATA-SOURCE - Sistemas y ownership de datos"
    },
    {
     "id": "section-17",
-    "line_end": 527,
-    "line_start": 493,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-ENABLERS - Enablers transversales validos"
+    "line_end": 535,
+    "line_start": 501,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-NFR - Restricciones operativas"
    },
    {
     "id": "section-18",
-    "line_end": 562,
-    "line_start": 528,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-FRONTEND-SURFACE - Superficie frontend"
+    "line_end": 570,
+    "line_start": 536,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-ENABLERS - Enablers transversales validos"
    },
    {
     "id": "section-19",
-    "line_end": 597,
-    "line_start": 563,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKEND-SURFACE - Superficie backend"
+    "line_end": 605,
+    "line_start": 571,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-FRONTEND-SURFACE - Superficie frontend"
    },
    {
     "id": "section-20",
-    "line_end": 632,
-    "line_start": 598,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DEEP-DIVE-INPUT - Profundización técnica"
+    "line_end": 640,
+    "line_start": 606,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKEND-SURFACE - Superficie backend"
    },
    {
     "id": "section-21",
-    "line_end": 667,
-    "line_start": 633,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-GOVERNANCE-CONSTRAINTS - Restricciones de gobernanza"
+    "line_end": 675,
+    "line_start": 641,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DEEP-DIVE-INPUT - Profundización técnica"
    },
    {
     "id": "section-22",
-    "line_end": 702,
-    "line_start": 668,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza"
+    "line_end": 710,
+    "line_start": 676,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-GOVERNANCE-CONSTRAINTS - Restricciones de gobernanza"
    },
    {
     "id": "section-23",
-    "line_end": 737,
-    "line_start": 703,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
+    "line_end": 745,
+    "line_start": 711,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza"
    },
    {
     "id": "section-24",
-    "line_end": 772,
-    "line_start": 738,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
+    "line_end": 780,
+    "line_start": 746,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
    },
    {
     "id": "section-25",
-    "line_end": 807,
-    "line_start": 773,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
+    "line_end": 815,
+    "line_start": 781,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
    },
    {
     "id": "section-26",
-    "line_end": 842,
-    "line_start": 808,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
+    "line_end": 850,
+    "line_start": 816,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
    },
    {
     "id": "section-27",
-    "line_end": 877,
-    "line_start": 843,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
+    "line_end": 885,
+    "line_start": 851,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
    },
    {
     "id": "section-28",
-    "line_end": 912,
-    "line_start": 878,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
+    "line_end": 920,
+    "line_start": 886,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
    },
    {
     "id": "section-29",
-    "line_end": 916,
-    "line_start": 913,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
+    "line_end": 955,
+    "line_start": 921,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
    },
    {
     "id": "section-30",
-    "line_end": 948,
-    "line_start": 917,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
+    "line_end": 959,
+    "line_start": 956,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
    },
    {
     "id": "section-31",
-    "line_end": 953,
-    "line_start": 949,
+    "line_end": 992,
+    "line_start": 960,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
+   },
+   {
+    "id": "section-32",
+    "line_end": 997,
+    "line_start": 993,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Trazabilidad de resolución"
    }
   ],

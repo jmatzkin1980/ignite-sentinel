@@ -61,6 +61,80 @@
         "term": "reglas de negocio",
         "mechanism": "rule concept named without decision logic"
       }
+    ],
+    "vague_rule_or_criterion": [
+      {
+        "term": "etc.",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "etcétera",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "entre otros",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "among others",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "and so on",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "y demás",
+        "mechanism": "contracted enumeration hides the full list"
+      },
+      {
+        "term": "debería",
+        "mechanism": "modal vagueness: says what is wished, not what must happen"
+      },
+      {
+        "term": "deberia",
+        "mechanism": "modal vagueness: says what is wished, not what must happen"
+      },
+      {
+        "term": "should",
+        "mechanism": "modal vagueness: says what is wished, not what must happen"
+      },
+      {
+        "term": "en general",
+        "mechanism": "generality without the exceptions"
+      },
+      {
+        "term": "in general",
+        "mechanism": "generality without the exceptions"
+      },
+      {
+        "term": "generally",
+        "mechanism": "generality without the exceptions"
+      },
+      {
+        "term": "normalmente",
+        "mechanism": "generality without the exceptions"
+      },
+      {
+        "term": "usually",
+        "mechanism": "generality without the exceptions"
+      },
+      {
+        "term": "según corresponda",
+        "mechanism": "condition left to interpretation"
+      },
+      {
+        "term": "segun corresponda",
+        "mechanism": "condition left to interpretation"
+      },
+      {
+        "term": "as appropriate",
+        "mechanism": "condition left to interpretation"
+      },
+      {
+        "term": "as needed",
+        "mechanism": "condition left to interpretation"
+      }
     ]
   }
 }

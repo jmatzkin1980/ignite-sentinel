@@ -36,7 +36,7 @@ Certainty by section:
 | 0 | 0 | 0 | 0 | 0 |
 | 1 | 3 | 1 | 1 | 0 |
 | 2 | 1 | 2 | 4 | 0 |
-| 3 | 1 | 4 | 4 | 1 |
+| 3 | 1 | 3 | 4 | 1 |
 | 4 | 0 | 8 | 2 | 0 |
 | 5 | 0 | 0 | 44 | 6 |
 | 6 | 2 | 0 | 0 | 0 |
@@ -45,11 +45,11 @@ Certainty by section:
 | 9 | 1 | 0 | 1 | 0 |
 | A | 0 | 1 | 0 | 0 |
 
-⚠ Low reliability: 73 of 81 applicable places are still pending.
+⚠ Low reliability: 72 of 80 applicable places are still pending.
 
 #### Ready to build
 
-Ready to build: no. 16 pending marks block (§7).
+Ready to build: no. 15 pending marks block (§7).
 
 ## 1. Overview
 
@@ -163,7 +163,24 @@ N/A — nothing installed to respect: everything is created in this project. If 
 
 #### Cross-cutting scenarios
 
-⏳ PENDING (GAP-QUALITY-HANDOFF)
+| Scenario | Lens | Where it is specified | Status |
+|---|---|---|---|
+| T1 Permission denied | design, technical | §4.1 › Screen states, §5.11 › Authorization and permissions | pending there |
+| T2 Error | design, technical | §4.2 › Messages to the user, §5.15 | pending there |
+| T3 Empty | design | §4.1 › Screen states | pending there |
+| T4 Loading | design | §4.1 › Screen states | pending there |
+| T5 Concurrency | technical | §5.7 › Idempotency and concurrency | pending there |
+| T6 Duplicate | product, technical | §3.6 › Edge cases and errors, §5.7 › Idempotency and concurrency | pending there |
+| T7 Audit | technical | §5.11 › Audit | pending there |
+| T8 Internationalization | design, technical | §4.1 › Language, locale and formats, §5.21 | pending there |
+| T9 Accessibility | design | §4.4 | pending there |
+| T10 Feature flag | technical | §5.3 › Parameters and switches | pending there |
+| T11 Migration | technical | §5.13 › Data migration | pending there |
+| T12 Session expired | design, technical | §4.1 › Screen states, §5.11 › Authentication and session | pending there |
+| T13 Dependency down | product, technical | §3.6 › Edge cases and errors, §5.6 › Integration resilience | pending there |
+| T14 Duplicate event | technical | §5.14 | pending there |
+| T15 Volume | technical | §5.16 › Quality and performance attributes | pending there |
+| T16 Personal data | technical, compliance | §5.4 › Personal data: classification, purpose and retention | pending there |
 
 ## 4. Design Lens
 
@@ -183,7 +200,7 @@ N/A — nothing installed to respect: everything is created in this project. If 
 
 #### Screen states
 
-⏳ PENDING (GAP-DESIGN-FLOW)
+⏳ PENDING (GAP-DESIGN-FLOW) — states: ideal; first-use empty; no results; loading; partial; error; 401 (and what happens to typed input); 403 (empty is not no permission; first use is not no results)
 
 #### Language, locale and formats
 
@@ -457,7 +474,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 
 #### Open items table
 
-26 open gaps in `gaps.md`.
+27 open gaps in `gaps.md`.
 
 | Gap | Severity | Origin |
 |---|---|---|
@@ -467,6 +484,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | `GAP-BRIEF-S1` | medium | checklist |
 | `GAP-BRIEF-S2` | medium | checklist |
 | `GAP-BUSINESS-RULES` | medium | checklist |
+| `GAP-CTP-EXCLUSION` | medium | checklist |
 | `GAP-DELIVERY-READINESS` | medium | checklist |
 | `GAP-DESIGN-FLOW` | medium | checklist |
 | `GAP-DESIGN-PROTOTYPE-INPUT` | medium | checklist |
@@ -494,7 +512,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 
 ### 7.2 Open Items Seeded in the Body (⏳)
 
-16 client marks (block) and 57 domain marks (deferrable) in the body.
+15 client marks (block) and 57 domain marks (deferrable) in the body.
 
 | Place | Class | Gap |
 |---|---|---|
@@ -513,7 +531,6 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | 3.4 | domain | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.5 | domain | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.6/edge_cases | client | `GAP-QUALITY-HANDOFF` |
-| 3.6/cross_cutting | client | `GAP-QUALITY-HANDOFF` |
 | 4.1/screens | client | `GAP-DESIGN-FLOW` |
 | 4.1/design_system | client | `GAP-DESIGN-FLOW` |
 | 4.1/screen_map | client | `GAP-DESIGN-FLOW` |
@@ -592,7 +609,7 @@ No assumptions recorded.
 
 #### Conclusion
 
-Ready to build: no. 16 pending marks block (§7).
+Ready to build: no. 15 pending marks block (§7).
 
 ## A.glossary Domain Glossary
 

@@ -40,6 +40,111 @@
         "pending input"
       ],
       "why": "El PRD necesita glosario y restricciones obligatorias para ser auditable."
+    },
+    {
+      "id": "GAP-CTP-PERSONAL-DATA",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Personal Data named without its counterpart: classification · purpose · retention · protection.",
+      "triggers": [
+        "personal data",
+        "datos personales",
+        "pii",
+        "national id",
+        "dni",
+        "email address",
+        "correo electrónico",
+        "phone number",
+        "número de teléfono",
+        "customer data",
+        "datos del cliente"
+      ],
+      "counterparts": [
+        "classification",
+        "clasificación",
+        "clasificacion",
+        "purpose",
+        "finalidad",
+        "propósito",
+        "retention",
+        "retención",
+        "retencion",
+        "encrypt",
+        "cifrad",
+        "masked",
+        "enmascar",
+        "gdpr",
+        "25.326",
+        "habeas data"
+      ],
+      "why": "Un dato personal sin finalidad ni retención es un riesgo de cumplimiento desde el día uno.",
+      "text": {
+        "en": {
+          "title": "Personal Data Counterpart",
+          "question": "For each personal data item: its classification, purpose, retention and protection?",
+          "expected_format": "Data item · classification · purpose · retention · protection",
+          "why": "Personal data without purpose and retention is a compliance risk from day one.",
+          "example": "Customer email: confidential; purpose notifications; kept 2 years after closure; encrypted at rest.",
+          "description": "Personal Data named without its counterpart: classification · purpose · retention · protection."
+        },
+        "es": {
+          "title": "Contracara de dato personal",
+          "question": "Para cada dato personal: ¿su clasificación, su finalidad, su retención y su protección?",
+          "expected_format": "Dato · clasificación · finalidad · retención · protección",
+          "why": "Un dato personal sin finalidad ni retención es un riesgo de cumplimiento desde el día uno.",
+          "example": "Email del cliente: confidencial; finalidad notificaciones; se guarda 2 años tras el cierre; cifrado en reposo.",
+          "description": "Se nombra dato personal sin su contracara: clasificación · finalidad · retención · protección."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-NORM",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Regulation named without its counterpart: article · control.",
+      "triggers": [
+        "regulation",
+        "regulación",
+        "regulacion",
+        "normativa",
+        "bcra",
+        "pci dss",
+        "pci-dss",
+        "communication a ",
+        "comunicación a "
+      ],
+      "counterparts": [
+        "article",
+        "artículo",
+        "articulo",
+        "art.",
+        "section ",
+        "inciso",
+        "clause",
+        "cláusula",
+        "punto "
+      ],
+      "why": "Una norma citada sin su artículo no se puede convertir en control ni en criterio de aceptación.",
+      "text": {
+        "en": {
+          "title": "Regulation Counterpart",
+          "question": "For each regulation: which article or section applies, and what control satisfies it?",
+          "expected_format": "Regulation · article · control",
+          "why": "A regulation cited without its article cannot be turned into a control or an acceptance criterion.",
+          "example": "BCRA Communication A 7724, section 3.2: access logs kept 5 years; control: audit table with retention job.",
+          "description": "Regulation named without its counterpart: article · control."
+        },
+        "es": {
+          "title": "Contracara de norma",
+          "question": "Para cada norma: ¿qué artículo o punto aplica y qué control la satisface?",
+          "expected_format": "Norma · artículo · control",
+          "why": "Una norma citada sin su artículo no se puede convertir en control ni en criterio de aceptación.",
+          "example": "BCRA Comunicación A 7724, punto 3.2: logs de acceso por 5 años; control: tabla de auditoría con job de retención.",
+          "description": "Se nombra norma sin su contracara: artículo · control."
+        }
+      }
     }
   ]
 }

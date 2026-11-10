@@ -658,6 +658,36 @@ def first_weak_word_smell(text: str, evidence: str, check: dict) -> tuple[str, s
     return None
 
 
+COUNTERPART_WINDOW = 1  # IMP-256: sentences on each side of a mention
+
+
+def counterpart_present(evidence: str, source: str, check: dict) -> bool:
+    """IMP-256: is the counterpart of a mentioned surface actually given?
+
+    Before, one counterpart word anywhere in the document suppressed the gap. Now,
+    when the source names the surface, the counterpart has to sit near that mention
+    (the same sentence or `COUNTERPART_WINDOW` sentences around it) or in a domain
+    context folder. With no mention in the source, the old document-wide test stays.
+    A check can opt out with `"counterpart_scope": "document"`.
+    """
+    counterparts = [str(t) for t in check.get("counterparts", ())]
+    triggers = [str(t) for t in check.get("triggers", ())]
+    if check.get("counterpart_scope") == "document":
+        return any(token in evidence for token in counterparts)
+    sentences = [s.lower() for s in split_evidence_sentences(source)] or [source]
+    mentions = [i for i, sentence in enumerate(sentences) if any(t in sentence for t in triggers)]
+    if not mentions:
+        return any(token in evidence for token in counterparts)
+    context_only = evidence.replace(source, "", 1)
+    if any(token in context_only for token in counterparts):
+        return True
+    for index in mentions:
+        window = " ".join(sentences[max(0, index - COUNTERPART_WINDOW):index + COUNTERPART_WINDOW + 1])
+        if any(token in window for token in counterparts):
+            return True
+    return False
+
+
 def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=None) -> list[dict[str, str]]:
     """Detect gaps by applying the declarative lens checklist (IMP-033).
 
@@ -698,7 +728,7 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             # Inquisitive tier (IMP-015): a surface is mentioned but its
             # counterpart detail is absent; a bare mention anchors the question
             # to the input instead of suppressing it.
-            if any(token in evidence for token in check.get("counterparts", ())):
+            if counterpart_present(evidence, lowered, check):
                 continue
             mention = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
             if mention:
@@ -714,7 +744,7 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
             mention = next((token.strip() for token in check.get("triggers", ()) if token in evidence), None)
             if not mention:
                 continue
-            if any(token in evidence for token in check.get("counterparts", ())):
+            if counterpart_present(evidence, lowered, check):
                 continue
             gap["evidence_mention"] = mention
             gaps.append(gap)
@@ -1943,7 +1973,20 @@ def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
+def lens_text(gap_id: str, key: str, language: str = "en") -> str:
+    """IMP-256: a lens check can carry its own elicitation text (`text.<lang>.<key>`)."""
+    for check in load_lens_checks():
+        if check.get("id") == gap_id:
+            texts = check.get("text") or {}
+            chosen = texts.get("es" if language == "es" else "en") or {}
+            return str(chosen.get(key, "") or "")
+    return ""
+
+
 def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
+    data_text = lens_text(gap["id"], "description", language)
+    if data_text:
+        return data_text
     if language != "es":
         return gap["description"]
     descriptions = {
@@ -2549,6 +2592,9 @@ def render_faq(project_id: str, answers: dict[str, dict[str, str]], language: st
 
 
 def human_title_for_gap(gap_id: str, language: str = "en") -> str:
+    data_text = lens_text(gap_id, "title", language)
+    if data_text:
+        return data_text
     prd_titles_es = {
         "GAP-PRD-PERSONA-DETAIL": "Detalle de personas para PRD",
         "GAP-PRD-FR-AC": "Requerimientos funcionales y criterios de aceptacion",
@@ -2625,6 +2671,9 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
 
 
 def why_gap_matters(gap_id: str, language: str = "en") -> str:
+    data_text = lens_text(gap_id, "why", language)
+    if data_text:
+        return data_text
     prd_reasons_es = {
         "GAP-PRD-PERSONA-DETAIL": "El PRD necesita personas con objetivos, dolores, frecuencia y habilidad para orientar experiencia, adopcion y soporte.",
         "GAP-PRD-FR-AC": "El PRD debe listar requerimientos funcionales con criterios de aceptacion trazables para que backlog y QA no inventen alcance.",
@@ -2701,6 +2750,9 @@ def why_gap_matters(gap_id: str, language: str = "en") -> str:
 
 
 def example_response_for_gap(gap_id: str, language: str = "en") -> str:
+    data_text = lens_text(gap_id, "example", language)
+    if data_text:
+        return data_text
     prd_examples_es = {
         "GAP-PRD-PERSONA-DETAIL": "Persona primaria: operador central. Objetivo: resolver casos sin TI. Dolor: proceso manual riesgoso. Frecuencia: diaria. Habilidad: herramienta interna avanzada.",
         "GAP-PRD-FR-AC": "FR-01: el sistema debe listar elementos pendientes. AC: Given existen pendientes, When el operador consulta, Then ve ID, estado, responsable y fecha con fuente trazable.",
@@ -2860,6 +2912,9 @@ def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
 
 def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
     """The shape of an answer that closes the gap (distinct from a worked example)."""
+    data_text = lens_text(gap_id, "expected_format", language)
+    if data_text:
+        return data_text
     if language == "es":
         formats = {
             "GAP-OBJECTIVE": "Una frase que nombre el resultado de negocio (no la feature) y cómo se reconoce el éxito.",
@@ -3465,6 +3520,9 @@ def lens_for_gap(gap_id: str) -> str:
 
 
 def question_for_gap(gap_id: str, language: str = "en") -> str:
+    data_text = lens_text(gap_id, "question", language)
+    if data_text:
+        return data_text
     if language == "es":
         questions = {
             "GAP-OBJECTIVE": "¿Qué resultado de negocio debería lograr este requerimiento?",

@@ -213,6 +213,381 @@
         "active directory"
       ],
       "why": "Mencionar auth/permiso/rol sin metodo de autenticacion, modelo de permisos ni catalogo de roles deja la superficie de acceso indefinida; la contracara ausente ancla la pregunta (IMP-117)."
+    },
+    {
+      "id": "GAP-CTP-INTEGRATION",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Integration named without its counterpart: contract · owner · on failure · test double · timeout/retries.",
+      "triggers": [
+        "integration with",
+        "integración con",
+        "integracion con",
+        "external system",
+        "sistema externo",
+        "third-party",
+        "third party",
+        "de terceros",
+        "web service",
+        "webservice"
+      ],
+      "counterparts": [
+        "contract",
+        "contrato",
+        "owner",
+        "dueño",
+        "timeout",
+        "retry",
+        "reintento",
+        "fallback",
+        "if unavailable",
+        "si no está disponible",
+        "si no esta disponible",
+        "mock",
+        "stub",
+        "doble de prueba"
+      ],
+      "why": "Una integración nombrada sin contrato, dueño ni comportamiento ante falla deja a backend y QA adivinando.",
+      "text": {
+        "en": {
+          "title": "Integration Counterpart",
+          "question": "For each integration: what is its contract and owner, what happens when it fails or is missing, what test double is used, and what timeout and retries apply (retries only if idempotent)?",
+          "expected_format": "Integration · contract · owner · on failure · test double · timeout/retries",
+          "why": "An integration named without contract, owner and failure behavior leaves backend and QA guessing.",
+          "example": "Billing API v2 (owner: Finance IT); on timeout (3 s) the screen shows 'billing unavailable'; contract tests use a stub; no retries (not idempotent).",
+          "description": "Integration named without its counterpart: contract · owner · on failure · test double · timeout/retries."
+        },
+        "es": {
+          "title": "Contracara de integración",
+          "question": "Para cada integración: ¿cuál es su contrato y su dueño, qué pasa si falla o no está, qué doble de prueba se usa y qué timeout y reintentos aplican (reintentos solo si es idempotente)?",
+          "expected_format": "Integración · contrato · dueño · ante falla · doble de prueba · timeout/reintentos",
+          "why": "Una integración nombrada sin contrato, dueño ni comportamiento ante falla deja a backend y QA adivinando.",
+          "example": "API de Facturación v2 (dueño: TI Finanzas); ante timeout (3 s) la pantalla muestra 'facturación no disponible'; los tests usan un stub; sin reintentos (no es idempotente).",
+          "description": "Se nombra integración sin su contracara: contrato · dueño · ante falla · doble de prueba · timeout/reintentos."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-FLAG",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Flag named without its counterpart: default per environment · owner · removal date.",
+      "triggers": [
+        "feature flag",
+        "feature toggle",
+        "kill switch",
+        "interruptor de funcionalidad"
+      ],
+      "counterparts": [
+        "default",
+        "por defecto",
+        "owner",
+        "dueño",
+        "remove by",
+        "retire",
+        "fecha de retiro",
+        "per environment",
+        "por ambiente"
+      ],
+      "why": "Un flag sin dueño ni fecha de retiro se vuelve código muerto permanente.",
+      "text": {
+        "en": {
+          "title": "Flag Counterpart",
+          "question": "For each flag: its default per environment, its owner and the date it is removed?",
+          "expected_format": "Flag · default per environment · owner · removal date",
+          "why": "A flag without owner and removal date becomes permanent dead code.",
+          "example": "new_dashboard: off in prod, on in staging; owner Ops Lead; removed by 2027-01-31.",
+          "description": "Flag named without its counterpart: default per environment · owner · removal date."
+        },
+        "es": {
+          "title": "Contracara de flag",
+          "question": "Para cada flag: ¿su valor por defecto por ambiente, su dueño y su fecha de retiro?",
+          "expected_format": "Flag · default por ambiente · dueño · fecha de retiro",
+          "why": "Un flag sin dueño ni fecha de retiro se vuelve código muerto permanente.",
+          "example": "new_dashboard: apagado en prod, encendido en staging; dueño Ops Lead; se retira el 2027-01-31.",
+          "description": "Se nombra flag sin su contracara: default por ambiente · dueño · fecha de retiro."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-EVENT",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Event named without its counterpart: version · ordering · delivery · dedupe.",
+      "triggers": [
+        "publishes an event",
+        "publica un evento",
+        "webhook",
+        "message queue",
+        "cola de mensajes",
+        "kafka",
+        "pub/sub",
+        "event bus"
+      ],
+      "counterparts": [
+        "version",
+        "versión",
+        "ordering",
+        "orden",
+        "dedup",
+        "idempot",
+        "at-least-once",
+        "exactly-once",
+        "delivery guarantee",
+        "garantía de entrega"
+      ],
+      "why": "Eventos sin reglas de entrega y dedupe procesan registros dos veces.",
+      "text": {
+        "en": {
+          "title": "Event Counterpart",
+          "question": "For each event: its version, ordering, delivery guarantee and how duplicates are removed?",
+          "expected_format": "Event · version · ordering · delivery · dedupe",
+          "why": "Events without delivery and dedupe rules double-process records.",
+          "example": "case.closed v1, ordered per case id, at-least-once, consumers dedupe by event id.",
+          "description": "Event named without its counterpart: version · ordering · delivery · dedupe."
+        },
+        "es": {
+          "title": "Contracara de evento",
+          "question": "Para cada evento: ¿su versión, su orden, su garantía de entrega y cómo se deduplican?",
+          "expected_format": "Evento · versión · orden · entrega · dedupe",
+          "why": "Eventos sin reglas de entrega y dedupe procesan registros dos veces.",
+          "example": "case.closed v1, ordenado por id de caso, al menos una vez, los consumidores deduplican por id de evento.",
+          "description": "Se nombra evento sin su contracara: versión · orden · entrega · dedupe."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-BATCH",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Batch Job named without its counterpart: checkpoint · re-run · reconciliation · alert.",
+      "triggers": [
+        "batch job",
+        "batch process",
+        "nightly",
+        "nocturno",
+        "scheduled job",
+        "job programado",
+        "cron",
+        "proceso masivo"
+      ],
+      "counterparts": [
+        "checkpoint",
+        "re-run",
+        "rerun",
+        "re-ejecución",
+        "reejecución",
+        "reejecucion",
+        "reconcil",
+        "concilia",
+        "alert",
+        "alerta",
+        "restart",
+        "reinicio"
+      ],
+      "why": "Un batch sin reglas de reinicio y conciliación pierde o duplica datos ante una falla.",
+      "text": {
+        "en": {
+          "title": "Batch Job Counterpart",
+          "question": "For each batch job: its checkpoint, how it re-runs, how it reconciles and who is alerted when it fails?",
+          "expected_format": "Job · checkpoint · re-run · reconciliation · alert",
+          "why": "A batch without restart and reconciliation rules loses or duplicates data on failure.",
+          "example": "Nightly load checkpoints every 10k rows, re-runs from the last checkpoint, reconciles counts with the source and pages Ops on failure.",
+          "description": "Batch Job named without its counterpart: checkpoint · re-run · reconciliation · alert."
+        },
+        "es": {
+          "title": "Contracara de job batch",
+          "question": "Para cada job batch: ¿su checkpoint, cómo se re-ejecuta, cómo concilia y a quién alerta si falla?",
+          "expected_format": "Job · checkpoint · re-ejecución · conciliación · alerta",
+          "why": "Un batch sin reglas de reinicio y conciliación pierde o duplica datos ante una falla.",
+          "example": "La carga nocturna hace checkpoint cada 10k filas, se re-ejecuta desde el último, concilia conteos con el origen y alerta a Ops si falla.",
+          "description": "Se nombra job batch sin su contracara: checkpoint · re-ejecución · conciliación · alerta."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-ALERT",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Alert named without its counterpart: runbook · escalation.",
+      "triggers": [
+        "raise an alert",
+        "dispara una alerta",
+        "alarm",
+        "alarma",
+        "on-call",
+        "guardia",
+        "page the"
+      ],
+      "counterparts": [
+        "runbook",
+        "playbook",
+        "procedure",
+        "procedimiento",
+        "escalat",
+        "escalamiento"
+      ],
+      "why": "Una alerta sin runbook despierta a alguien sin decirle qué hacer.",
+      "text": {
+        "en": {
+          "title": "Alert Counterpart",
+          "question": "For each alert: which runbook says what to do when it fires?",
+          "expected_format": "Alert · runbook · escalation",
+          "why": "An alert without a runbook wakes someone up with nothing to do.",
+          "example": "'Stale data > 15 min' → runbook RB-12: restart the sync, then escalate to the data team.",
+          "description": "Alert named without its counterpart: runbook · escalation."
+        },
+        "es": {
+          "title": "Contracara de alerta",
+          "question": "Para cada alerta: ¿qué runbook dice qué hacer cuando se dispara?",
+          "expected_format": "Alerta · runbook · escalamiento",
+          "why": "Una alerta sin runbook despierta a alguien sin decirle qué hacer.",
+          "example": "'Datos viejos > 15 min' → runbook RB-12: reiniciar la sincronización y escalar al equipo de datos.",
+          "description": "Se nombra alerta sin su contracara: runbook · escalamiento."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-WRITE-ENDPOINT",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Write Endpoint named without its counterpart: idempotency key · duplicate behavior.",
+      "triggers": [
+        "write endpoint",
+        "endpoint de escritura",
+        "post /",
+        "put /",
+        "patch /",
+        "payment",
+        "pago",
+        "transfer",
+        "transferencia"
+      ],
+      "counterparts": [
+        "idempot",
+        "idempotency key",
+        "clave de idempotencia",
+        "dedup",
+        "duplicate submission",
+        "doble envío",
+        "doble envio"
+      ],
+      "why": "Una escritura no idempotente duplica dinero o registros en el primer reintento.",
+      "text": {
+        "en": {
+          "title": "Write Endpoint Counterpart",
+          "question": "For each write operation: how is it made idempotent so a retry or double submit does not duplicate it?",
+          "expected_format": "Operation · idempotency key · duplicate behavior",
+          "why": "A non-idempotent write duplicates money or records on the first retry.",
+          "example": "POST /payments takes an Idempotency-Key header; a repeat within 24 h returns the first result.",
+          "description": "Write Endpoint named without its counterpart: idempotency key · duplicate behavior."
+        },
+        "es": {
+          "title": "Contracara de endpoint de escritura",
+          "question": "Para cada operación de escritura: ¿cómo es idempotente, para que un reintento o un doble envío no la duplique?",
+          "expected_format": "Operación · clave de idempotencia · comportamiento ante duplicado",
+          "why": "Una escritura no idempotente duplica dinero o registros en el primer reintento.",
+          "example": "POST /payments recibe un header Idempotency-Key; una repetición dentro de 24 h devuelve el primer resultado.",
+          "description": "Se nombra endpoint de escritura sin su contracara: clave de idempotencia · comportamiento ante duplicado."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-SLO",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "SLO named without its counterpart: SLI · window.",
+      "triggers": [
+        "slo",
+        "uptime",
+        "99.9",
+        "availability target",
+        "objetivo de disponibilidad",
+        "latency target",
+        "objetivo de latencia"
+      ],
+      "counterparts": [
+        "sli",
+        "measured",
+        "medido",
+        "window",
+        "ventana",
+        "per month",
+        "por mes",
+        "rolling",
+        "error budget"
+      ],
+      "why": "Un SLO sin su SLI y su ventana no se puede verificar.",
+      "text": {
+        "en": {
+          "title": "SLO Counterpart",
+          "question": "For each SLO: which SLI measures it and over which window?",
+          "expected_format": "SLO · SLI · window",
+          "why": "An SLO without its SLI and window cannot be checked.",
+          "example": "99.5% availability, SLI = successful dashboard loads / total, rolling 30 days.",
+          "description": "SLO named without its counterpart: SLI · window."
+        },
+        "es": {
+          "title": "Contracara de SLO",
+          "question": "Para cada SLO: ¿qué SLI lo mide y en qué ventana?",
+          "expected_format": "SLO · SLI · ventana",
+          "why": "Un SLO sin su SLI y su ventana no se puede verificar.",
+          "example": "99,5% de disponibilidad, SLI = cargas exitosas del tablero / totales, ventana móvil de 30 días.",
+          "description": "Se nombra SLO sin su contracara: SLI · ventana."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-ERROR-CODE",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Error Code named without its counterpart: user message · retryable.",
+      "triggers": [
+        "error code",
+        "código de error",
+        "codigo de error",
+        "http 4",
+        "http 5",
+        "status 4",
+        "status 5"
+      ],
+      "counterparts": [
+        "user message",
+        "mensaje al usuario",
+        "retryable",
+        "reintentable",
+        "can retry",
+        "puede reintentar",
+        "shown to the user",
+        "se muestra al usuario"
+      ],
+      "why": "Códigos de error sin mensaje llegan crudos al usuario.",
+      "text": {
+        "en": {
+          "title": "Error Code Counterpart",
+          "question": "For each error code: what message does the user see and is it retryable?",
+          "expected_format": "Code · user message · retryable",
+          "why": "Error codes without messages surface as raw failures to users.",
+          "example": "ERR-409 → 'Someone else updated this case; reload'; not retryable.",
+          "description": "Error Code named without its counterpart: user message · retryable."
+        },
+        "es": {
+          "title": "Contracara de código de error",
+          "question": "Para cada código de error: ¿qué mensaje ve el usuario y es reintentable?",
+          "expected_format": "Código · mensaje al usuario · reintentable",
+          "why": "Códigos de error sin mensaje llegan crudos al usuario.",
+          "example": "ERR-409 → 'Otra persona actualizó el caso; recargá'; no reintentable.",
+          "description": "Se nombra código de error sin su contracara: mensaje al usuario · reintentable."
+        }
+      }
     }
   ]
 }
