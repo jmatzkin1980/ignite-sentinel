@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ignite-sentinel"
-version = "0.3.0"
+version = "0.4.0"
 description = "Repo-local BA/Product requirements operating framework for AI PODs."
 readme = "README.md"
 license = {text = "MIT"}

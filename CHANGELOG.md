@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-10
+
 ### Added
 - `CTX-NNN` lifecycle and `/next` (IMP-294). A context request moves `active` -> `answered` -> `closed`, or `obsolete`: `/sync` marks it `answered` when a change cites its id, and `/context-request --id CTX-NNN --status ... [--reason]` moves it by hand (`closed` and `obsolete` need a reason and are final; regenerating reopens). Transitions are kept in `08_context_packs/requests/ctx_lifecycle.json`. `/next` prints only the next step, the same decision as `next_action` in `/status`, in the CLI, MCP (`sentinel_next`) and the Claude Code and Kilo commands.
 - Sweep protocol for agentic channels and F7 (IMP-271). `sentinel/templates/agent_sweep_protocol.md` is the guide `/annotate`, `/challenge`, `/scrutinize`, the implementability probe and `/self-review` follow, with a worked example. On top of the verbatim evidence check, the runtime rejects a payload with a malformed `AUSENTE: <what> en <where>`, an absence that is actually in the source, a bad `untouched` or `blocks`, or figures written by the agent; it counts what it accepted in `01_discovery/agent_sweep_log.md`. F7: `/gaps --id GAP-X --disposition accepted|rejected|irrelevant` records the BA's disposition on agentic gaps, and `/maturity` reports the false-alarm rate per channel (`maturation_telemetry.agent_channel_dispositions`).
