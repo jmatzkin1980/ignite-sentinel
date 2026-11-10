@@ -47,6 +47,101 @@
       "triggers": ["would you", "would it", "would be", "could you", "could it", "what if", "would like", "seria bueno si", "sería bueno si", "seria ideal si", "sería ideal si", "haria", "haría", "podria", "podría", "te gustaria", "te gustaría", "les gustaria", "les gustaría"],
       "event_anchors": ["cuando", "ayer", "hoy", "la ultima vez", "la última vez", "en la demo", "en entrevista", "en soporte", "cliente dijo", "usuario dijo", "observamos", "ocurrio", "ocurrió", "paso", "pasó", "last time", "last week", "in the demo", "in support", "customer said", "user said", "observed", "happened", "when "],
       "why": "JTBD necesita evidencia de eventos reales; una preferencia hipotetica sirve como señal de elicitacion, no como cierre de alcance."
+    },
+    {
+      "id": "GAP-CTP-STATE",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "State named without its counterpart: entry · exit · what makes it obsolete.",
+      "triggers": [
+        "lifecycle",
+        "ciclo de vida",
+        "state machine",
+        "máquina de estados",
+        "maquina de estados",
+        "possible statuses",
+        "estados posibles",
+        "status of the request",
+        "estado de la solicitud"
+      ],
+      "counterparts": [
+        "transition",
+        "transición",
+        "transicion",
+        "moves to",
+        "pasa a",
+        "entry",
+        "exit",
+        "entrada",
+        "salida",
+        "expires",
+        "vence",
+        "obsolete",
+        "obsoleto"
+      ],
+      "why": "Estados sin transiciones esconden las reglas que mueven un registro.",
+      "text": {
+        "en": {
+          "title": "State Counterpart",
+          "question": "For each state: how is it entered, how is it left, and what makes it obsolete?",
+          "expected_format": "State · entry · exit · what makes it obsolete",
+          "why": "States without transitions hide the rules that move a record.",
+          "example": "PENDING → APPROVED when a supervisor approves; → EXPIRED after 30 days without action.",
+          "description": "State named without its counterpart: entry · exit · what makes it obsolete."
+        },
+        "es": {
+          "title": "Contracara de estado",
+          "question": "Para cada estado: ¿cómo se entra, cómo se sale y qué lo deja obsoleto?",
+          "expected_format": "Estado · entrada · salida · qué lo deja obsoleto",
+          "why": "Estados sin transiciones esconden las reglas que mueven un registro.",
+          "example": "PENDIENTE → APROBADA cuando aprueba un supervisor; → VENCIDA a los 30 días sin acción.",
+          "description": "Se nombra estado sin su contracara: entrada · salida · qué lo deja obsoleto."
+        }
+      }
+    },
+    {
+      "id": "GAP-CTP-MANUAL-STEP",
+      "severity": "medium",
+      "rule": "mention_requires_counterpart",
+      "evidence_scope": "source",
+      "description": "Manual Step named without its counterpart: procedure · owner.",
+      "triggers": [
+        "manual step",
+        "paso manual",
+        "manually",
+        "manualmente",
+        "back office",
+        "backoffice"
+      ],
+      "counterparts": [
+        "procedure",
+        "procedimiento",
+        "owner",
+        "responsable",
+        "dueño",
+        "sop",
+        "runbook"
+      ],
+      "why": "Un paso manual sin procedimiento ni responsable es donde el proceso se rompe en silencio.",
+      "text": {
+        "en": {
+          "title": "Manual Step Counterpart",
+          "question": "For each manual step: what is the procedure and who owns it?",
+          "expected_format": "Step · procedure · owner",
+          "why": "A manual step without procedure and owner is where the process silently breaks.",
+          "example": "Back office reviews flagged refunds daily (procedure BO-7, owner: Payments Ops).",
+          "description": "Manual Step named without its counterpart: procedure · owner."
+        },
+        "es": {
+          "title": "Contracara de paso manual",
+          "question": "Para cada paso manual: ¿cuál es el procedimiento y quién es el responsable?",
+          "expected_format": "Paso · procedimiento · responsable",
+          "why": "Un paso manual sin procedimiento ni responsable es donde el proceso se rompe en silencio.",
+          "example": "Back office revisa a diario los reembolsos marcados (procedimiento BO-7, responsable: Payments Ops).",
+          "description": "Se nombra paso manual sin su contracara: procedimiento · responsable."
+        }
+      }
     }
   ]
 }

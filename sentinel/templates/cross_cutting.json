@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "description": "IMP-256: the 16 cross-cutting scenarios (T1-T16) and the 8 fixed screen states of the brief v2. 3.6 indexes the scenarios and points to where each lens specifies them; it never repeats their content.",
+  "scenarios": [
+    {"id": "T1", "en": "Permission denied", "es": "Permiso denegado", "lens": "design, technical", "where": ["4.1/screen_states", "5.11/authz"]},
+    {"id": "T2", "en": "Error", "es": "Error", "lens": "design, technical", "where": ["4.2/messages", "5.15"]},
+    {"id": "T3", "en": "Empty", "es": "Vacío", "lens": "design", "where": ["4.1/screen_states"]},
+    {"id": "T4", "en": "Loading", "es": "Cargando", "lens": "design", "where": ["4.1/screen_states"]},
+    {"id": "T5", "en": "Concurrency", "es": "Concurrencia", "lens": "technical", "where": ["5.7/idempotency"]},
+    {"id": "T6", "en": "Duplicate", "es": "Duplicado", "lens": "product, technical", "where": ["3.6/edge_cases", "5.7/idempotency"]},
+    {"id": "T7", "en": "Audit", "es": "Auditoría", "lens": "technical", "where": ["5.11/audit"]},
+    {"id": "T8", "en": "Internationalization", "es": "Internacionalización", "lens": "design, technical", "where": ["4.1/locale", "5.21"]},
+    {"id": "T9", "en": "Accessibility", "es": "Accesibilidad", "lens": "design", "where": ["4.4"]},
+    {"id": "T10", "en": "Feature flag", "es": "Flag", "lens": "technical", "where": ["5.3/parameters"]},
+    {"id": "T11", "en": "Migration", "es": "Migración", "lens": "technical", "where": ["5.13/data_migration"]},
+    {"id": "T12", "en": "Session expired", "es": "Sesión expirada", "lens": "design, technical", "where": ["4.1/screen_states", "5.11/authn"]},
+    {"id": "T13", "en": "Dependency down", "es": "Dependencia caída", "lens": "product, technical", "where": ["3.6/edge_cases", "5.6/resilience"]},
+    {"id": "T14", "en": "Duplicate event", "es": "Evento duplicado", "lens": "technical", "where": ["5.14"]},
+    {"id": "T15", "en": "Volume", "es": "Volumen", "lens": "technical", "where": ["5.16/quality_attributes"]},
+    {"id": "T16", "en": "Personal data", "es": "Dato personal", "lens": "technical, compliance", "where": ["5.4/personal_data"]}
+  ],
+  "screen_states": {
+    "en": ["ideal", "first-use empty", "no results", "loading", "partial", "error", "401 (and what happens to typed input)", "403"],
+    "es": ["ideal", "vacío de primer uso", "sin resultados", "cargando", "parcial", "error", "401 (y qué pasa con lo tipeado)", "403"]
+  },
+  "distinctions": {
+    "en": ["empty is not no permission", "first use is not no results"],
+    "es": ["vacío no es sin permiso", "primer uso no es sin resultados"]
+  }
+}

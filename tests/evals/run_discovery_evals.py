@@ -2234,7 +2234,44 @@ def run_all() -> int:
         + (f" flagged={cr['flagged']}" if cr["flagged"] else "")
     )
     print(f"Report: {out or 'disabled (SENTINEL_EVAL_REPORTS=0)'}")
-    return 0 if s["baseline_ok"] else 1
+    regressions = metric_regressions(s)
+    for line in regressions:
+        print(f"  [FAIL] metric regression (IMP-256): {line}")
+    if not regressions:
+        print("Metric floor (IMP-256): no regression against tests/evals/metric_baseline.json")
+    return 0 if s["baseline_ok"] and not regressions else 1
+
+
+# IMP-256 (doc 53 gate): precision and recall may not drop below the line measured
+# when each IMP entered. Raising the floor is an intentional, reviewed edit of
+# metric_baseline.json (or `--update-metric-baseline`).
+METRIC_BASELINE = Path(__file__).resolve().parent / "metric_baseline.json"
+METRIC_TOLERANCE = 0.001
+
+
+def metric_snapshot(summary: dict) -> dict[str, float]:
+    tuning = summary["splits"][TUNING_SPLIT]
+    held_out = summary["splits"][HELD_OUT_SPLIT]
+    return {
+        "avg_gap_precision": float(summary["avg_gap_precision"]),
+        "avg_gap_recall": float(summary["avg_gap_recall"]),
+        "avg_gap_f1": float(summary["avg_gap_f1"]),
+        "avg_target_recall": float(summary["avg_target_recall"]),
+        "tuning_f1": float(tuning["avg_gap_f1"]),
+        "held_out_f1": float(held_out["avg_gap_f1"]),
+    }
+
+
+def metric_regressions(summary: dict) -> list[str]:
+    current = metric_snapshot(summary)
+    if "--update-metric-baseline" in sys.argv:
+        METRIC_BASELINE.write_text(json.dumps({"floor": current}, indent=2) + "\n", encoding="utf-8")
+        return []
+    if not METRIC_BASELINE.exists():
+        return []
+    floor = json.loads(METRIC_BASELINE.read_text(encoding="utf-8")).get("floor", {})
+    return [f"{key} {current[key]:.3f} < floor {value:.3f}" for key, value in sorted(floor.items())
+            if key in current and current[key] + METRIC_TOLERANCE < float(value)]
 
 
 if __name__ == "__main__":

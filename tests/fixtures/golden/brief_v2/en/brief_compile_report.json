@@ -9,10 +9,10 @@
     "covered": 8,
     "inferred": 0,
     "divergences": 0,
-    "pending_client": 16,
+    "pending_client": 15,
     "pending_domain": 57,
     "na": 7,
-    "applicable": 81,
+    "applicable": 80,
     "low_reliability": true
   },
   "by_section": {
@@ -30,7 +30,7 @@
     },
     "3": {
       "covered": 1,
-      "pending": 4,
+      "pending": 3,
       "pending_domain": 4,
       "na": 1
     },
@@ -239,10 +239,7 @@
     },
     {
       "id": "3.6/cross_cutting",
-      "fill": "pending",
-      "class": "client",
-      "gap": "GAP-QUALITY-HANDOFF",
-      "gap_open": true,
+      "fill": "covered_by_reference",
       "section": "3"
     },
     {
@@ -851,13 +848,6 @@
     },
     {
       "id": "3.6/edge_cases",
-      "class": "client",
-      "gap": "GAP-QUALITY-HANDOFF",
-      "gap_open": true,
-      "produces": "Edge cases and errors, and the cross-cutting scenarios referral table."
-    },
-    {
-      "id": "3.6/cross_cutting",
       "class": "client",
       "gap": "GAP-QUALITY-HANDOFF",
       "gap_open": true,

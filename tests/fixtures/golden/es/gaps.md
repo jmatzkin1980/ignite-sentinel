@@ -175,6 +175,49 @@ Respuesta del cliente / dominio:
 - Motivo de cierre:
 
 
+### GAP-CTP-EXCLUSION - Contracara de exclusión
+
+- Lente: `business`
+- Severidad: `medium`
+- Estado: `OPEN`
+- Requerimiento relacionado: `REQ-001`
+
+Descripción breve:
+Se nombra exclusión sin su contracara: decisión (quién, cuándo) · destino.
+
+Evidencia que dispara la pregunta:
+El input menciona "fuera de alcance" pero no describe la información faltante de este gap.
+
+Por qué importa (riesgo si queda abierto):
+Una exclusión sin su decisión se reabre en cada revisión.
+
+Qué desbloquea esta respuesta:
+Una sección downstream de brief/PRD/spec que hoy no tiene evidencia confirmada para consumir.
+
+Pregunta:
+Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?
+
+Formato de respuesta esperado:
+Exclusión · decisión (quién, cuándo) · destino
+
+Ejemplo de respuesta útil:
+Editar casos queda fuera de alcance por decisión del product owner (taller 03/11); vuelve en la release 2.
+
+Opciones candidatas citadas (no seleccionadas):
+- Opcion A (recomendada: inferida, no se aplica sola): Confirmar que `fuera de alcance` esta dentro del alcance y responder el detalle faltante de `Contracara de exclusión`. Cita local: `fuera de alcance`.
+- Opcion B: Confirmar que `fuera de alcance` es solo contexto, fuera de alcance o pendiente, y explicitar el limite. Cita local: `fuera de alcance`.
+Estas opciones no cierran el gap; el BA/owner debe confirmar una respuesta.
+
+
+Respuesta del cliente / dominio:
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+- Motivo de cierre:
+
+
 ### GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo
 
 - Lente: `product`
@@ -924,6 +967,7 @@ Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel
 | GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Aparece una métrica cuantitativa sin fuente o baseline explícito. | ¿Cuál es la fuente o baseline de la métrica cuantitativa? | Carpetas de contexto e input fuente. | 30 por ciento | checklist | N/A | RU-003 | domain | N/A |
 | GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | Se nombra una métrica, KPI o indicador sin su definición, fórmula, unidad, fuente ni umbral. | ¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo? | Carpetas de contexto e input fuente. | metrica | checklist | N/A | RU-003 | domain | N/A |
+| GAP-CTP-EXCLUSION | business | medium | OPEN | `REQ-001` | Se nombra exclusión sin su contracara: decisión (quién, cuándo) · destino. | Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)? | Carpetas de contexto e input fuente. | fuera de alcance | checklist | N/A | N/A | domain | N/A |
 | GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | El estado actual y el estado objetivo no están suficientemente claros para comparar impacto. | ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia. | ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |

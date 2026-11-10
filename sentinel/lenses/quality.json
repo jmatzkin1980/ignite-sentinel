@@ -77,7 +77,8 @@
       "description": "Quality, success, or importance is described with weak wording instead of testable criteria or measurable targets.",
       "catalog": "weak_words",
       "categories": [
-        "weak_quality_evidence"
+        "weak_quality_evidence",
+        "vague_rule_or_criterion"
       ],
       "why": "Los smells de wording no bloquean madurez por si solos, pero senalan frases que parecen cerrar calidad sin hacerla verificable."
     }

@@ -36,7 +36,7 @@ Certeza por sección:
 | 0 | 0 | 0 | 0 | 0 |
 | 1 | 3 | 1 | 1 | 0 |
 | 2 | 1 | 2 | 4 | 0 |
-| 3 | 1 | 4 | 4 | 1 |
+| 3 | 1 | 3 | 4 | 1 |
 | 4 | 0 | 8 | 2 | 0 |
 | 5 | 0 | 0 | 44 | 6 |
 | 6 | 2 | 0 | 0 | 0 |
@@ -45,11 +45,11 @@ Certeza por sección:
 | 9 | 1 | 0 | 1 | 0 |
 | A | 0 | 1 | 0 | 0 |
 
-⚠ Confiabilidad baja: 73 de 81 lugares aplicables siguen pendientes.
+⚠ Confiabilidad baja: 72 de 80 lugares aplicables siguen pendientes.
 
 #### Listo para construir
 
-Listo para construir: no. Bloquean 16 marcas pendientes (§7).
+Listo para construir: no. Bloquean 15 marcas pendientes (§7).
 
 ## 1. Overview
 
@@ -162,7 +162,24 @@ N/A — no hay nada instalado que respetar: todo se crea en este proyecto. Si ap
 
 #### Escenarios transversales
 
-⏳ PENDIENTE (GAP-QUALITY-HANDOFF)
+| Escenario | Lente | Dónde se especifica | Estado |
+|---|---|---|---|
+| T1 Permiso denegado | design, technical | §4.1 › Estados de pantalla, §5.11 › Autorización y permisos | pendiente allí |
+| T2 Error | design, technical | §4.2 › Mensajes al usuario, §5.15 | pendiente allí |
+| T3 Vacío | design | §4.1 › Estados de pantalla | pendiente allí |
+| T4 Cargando | design | §4.1 › Estados de pantalla | pendiente allí |
+| T5 Concurrencia | technical | §5.7 › Idempotencia y concurrencia | pendiente allí |
+| T6 Duplicado | product, technical | §3.6 › Casos borde y errores, §5.7 › Idempotencia y concurrencia | pendiente allí |
+| T7 Auditoría | technical | §5.11 › Auditoría | pendiente allí |
+| T8 Internacionalización | design, technical | §4.1 › Idioma, locale y formatos, §5.21 | pendiente allí |
+| T9 Accesibilidad | design | §4.4 | pendiente allí |
+| T10 Flag | technical | §5.3 › Parámetros e interruptores | pendiente allí |
+| T11 Migración | technical | §5.13 › Migración de datos | pendiente allí |
+| T12 Sesión expirada | design, technical | §4.1 › Estados de pantalla, §5.11 › Autenticación y sesión | pendiente allí |
+| T13 Dependencia caída | product, technical | §3.6 › Casos borde y errores, §5.6 › Resiliencia de integraciones | pendiente allí |
+| T14 Evento duplicado | technical | §5.14 | pendiente allí |
+| T15 Volumen | technical | §5.16 › Atributos de calidad y performance | pendiente allí |
+| T16 Dato personal | technical, compliance | §5.4 › Datos personales: clasificación, propósito y retención | pendiente allí |
 
 ## 4. Lente de Diseño
 
@@ -182,7 +199,7 @@ N/A — no hay nada instalado que respetar: todo se crea en este proyecto. Si ap
 
 #### Estados de pantalla
 
-⏳ PENDIENTE (GAP-DESIGN-FLOW)
+⏳ PENDIENTE (GAP-DESIGN-FLOW) — estados: ideal; vacío de primer uso; sin resultados; cargando; parcial; error; 401 (y qué pasa con lo tipeado); 403 (vacío no es sin permiso; primer uso no es sin resultados)
 
 #### Idioma, locale y formatos
 
@@ -456,7 +473,7 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 
 #### Tabla de pendientes
 
-26 gaps abiertos en `gaps.md`.
+27 gaps abiertos en `gaps.md`.
 
 | Gap | Severidad | Origen |
 |---|---|---|
@@ -466,6 +483,7 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 | `GAP-BRIEF-S1` | medium | checklist |
 | `GAP-BRIEF-S2` | medium | checklist |
 | `GAP-BUSINESS-RULES` | medium | checklist |
+| `GAP-CTP-EXCLUSION` | medium | checklist |
 | `GAP-DELIVERY-READINESS` | medium | checklist |
 | `GAP-DESIGN-FLOW` | medium | checklist |
 | `GAP-DESIGN-PROTOTYPE-INPUT` | medium | checklist |
@@ -493,7 +511,7 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 
 ### 7.2 Pendientes sembrados en el cuerpo (⏳)
 
-16 marcas de cliente (bloquean) y 57 de dominio (diferibles) en el cuerpo.
+15 marcas de cliente (bloquean) y 57 de dominio (diferibles) en el cuerpo.
 
 | Lugar | Clase | Gap |
 |---|---|---|
@@ -512,7 +530,6 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 | 3.4 | domain | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.5 | domain | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.6/edge_cases | client | `GAP-QUALITY-HANDOFF` |
-| 3.6/cross_cutting | client | `GAP-QUALITY-HANDOFF` |
 | 4.1/screens | client | `GAP-DESIGN-FLOW` |
 | 4.1/design_system | client | `GAP-DESIGN-FLOW` |
 | 4.1/screen_map | client | `GAP-DESIGN-FLOW` |
@@ -591,7 +608,7 @@ Sin supuestos registrados.
 
 #### Conclusión
 
-Listo para construir: no. Bloquean 16 marcas pendientes (§7).
+Listo para construir: no. Bloquean 15 marcas pendientes (§7).
 
 ## A.glossary Glosario de Términos del Dominio
 

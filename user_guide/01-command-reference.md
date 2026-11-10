@@ -205,6 +205,13 @@ When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited 
 - **Side record:** `01_discovery/gap_elicitation.json` keeps kind, closure, example, recommended option and meanwhile per gap.
 - **Topic dedup:** a gap an agentic channel or a contradiction raises on the topic of an open gap (same lens, most words in common) extends that row instead of opening another.
 
+**Counterparts (IMP-256).**
+
+- **Proximity:** a surface named in the input (an integration, a flag, an event, a batch job, personal data, a deadline, a write endpoint, an SLO, a regulation, an error code, an exclusion...) needs its counterpart right next to the mention: the same sentence or one sentence around it. A domain context folder also counts. Otherwise a `GAP-CTP-*` gap opens with the exact question.
+- **Example:** an integration needs its contract, owner, failure behavior, test double, and timeout and retries; retries only if it is idempotent.
+- **Severity:** these gaps are medium, so they do not block on their own.
+- **Brief v2:** §3.6 indexes the 16 cross-cutting scenarios and points to where each one is specified.
+
 **Rounds.** The next batch of questions comes from:
 
 ```powershell

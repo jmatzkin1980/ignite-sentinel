@@ -62,8 +62,8 @@ Auditability and traceability expectations: all downstream artifacts must cite t
 | SEED-006 | product | INPUT | `RAW-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | PENDING | GAP_PLACEHOLDER |
 | SEED-007 | business | INPUT | `RAW-001` | Quantitative metric appears without an explicit source or baseline. | PENDING | GAP_PLACEHOLDER |
 | SEED-008 | business | INPUT | `RAW-001` | A metric, KPI, or indicator concept is named without its definition, formula, unit, source, or threshold. | PENDING | GAP_PLACEHOLDER |
-| SEED-009 | product | INPUT | `RAW-001` | Current state and target state are not both explicit enough to compare impact. | PENDING | GAP_PLACEHOLDER |
-| SEED-010 | product | INPUT | `RAW-001` | Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear. | PENDING | GAP_PLACEHOLDER |
+| SEED-009 | product | INPUT | `RAW-001` | Exclusion named without its counterpart: decision (who, when) · destination. | PENDING | GAP_PLACEHOLDER |
+| SEED-010 | product | INPUT | `RAW-001` | Current state and target state are not both explicit enough to compare impact. | PENDING | GAP_PLACEHOLDER |
 
 ### Decisiones
 
@@ -79,7 +79,7 @@ Auditability and traceability expectations: all downstream artifacts must cite t
 
 | Lens | Reviewer Stance | Evidence Found | Critical Questions | Related Gaps |
 | --- | --- | --- | --- | --- |
-| business/product | Senior BA / Product Lead | Source only; no domain context folder evidence | What outcome, user, scope boundary, metric source, or priority remains ambiguous? | `GAP-BUSINESS-RULES`, `GAP-METRIC-DEFINITION`, `GAP-METRIC-SOURCE`, `GAP-PRD-PERSONA-DETAIL` |
+| business/product | Senior BA / Product Lead | Source only; no domain context folder evidence | What outcome, user, scope boundary, metric source, or priority remains ambiguous? | `GAP-BUSINESS-RULES`, `GAP-CTP-EXCLUSION`, `GAP-METRIC-DEFINITION`, `GAP-METRIC-SOURCE`, `GAP-PRD-PERSONA-DETAIL` |
 | product | Product Strategist | Source only; no domain context folder evidence | Is the as-is/to-be delta, rule set, dependency map, and rollout path clear enough to shape PRD and backlog? | `GAP-BACKLOG-SLICING-READINESS`, `GAP-BUSINESS-RULES`, `GAP-DELIVERY-READINESS`, `GAP-PRD-FR-AC`, `GAP-PRODUCT-ASIS-TOBE` |
 | technical | Tech Lead | Source only; no domain context folder evidence | Which systems, endpoint/event surfaces, create/modify/reuse decisions, security, observability, or ownership constraints are required before Technology can deepen the design? | `GAP-BACKEND-SURFACE`, `GAP-BACKLOG-ENABLERS`, `GAP-FRONTEND-SURFACE`, `GAP-TECH-DATA-SOURCE`, `GAP-TECH-DEEP-DIVE-INPUT`, `GAP-TECH-NFR` |
 | design | UX/UI Designer | Source only; no domain context folder evidence | Which journey, screens, states, error/empty/loading behavior, or accessibility requirements are unresolved? | `GAP-DESIGN-FLOW`, `GAP-DESIGN-PROTOTYPE-INPUT`, `GAP-DESIGN-STATES` |
@@ -96,6 +96,7 @@ Auditability and traceability expectations: all downstream artifacts must cite t
 - `GAP-PRD-PERSONA-DETAIL` (business, medium): Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear.
 - `GAP-METRIC-SOURCE` (business, medium): Aparece una métrica cuantitativa sin fuente o baseline explícito.
 - `GAP-METRIC-DEFINITION` (business, medium): Se nombra una métrica, KPI o indicador sin su definición, fórmula, unidad, fuente ni umbral.
+- `GAP-CTP-EXCLUSION` (business, medium): Se nombra exclusión sin su contracara: decisión (quién, cuándo) · destino.
 - `GAP-PRODUCT-ASIS-TOBE` (product, medium): El estado actual y el estado objetivo no están suficientemente claros para comparar impacto.
 - `GAP-BACKLOG-SLICING-READINESS` (product, medium): No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia.
 - `GAP-PRD-FR-AC` (product, medium): Functional requirements are not decomposed with source-backed acceptance criteria.

@@ -175,6 +175,49 @@ Client / domain response:
 - Closure reason:
 
 
+### GAP-CTP-EXCLUSION - Exclusion Counterpart
+
+- Lens: `business`
+- Severity: `medium`
+- Status: `OPEN`
+- Related requirement: `REQ-001`
+
+Brief description:
+Exclusion named without its counterpart: decision (who, when) · destination.
+
+Evidence that triggers the question:
+The input mentions "out of scope" but does not describe the missing information for this gap.
+
+Why it matters (risk if left open):
+An exclusion without its decision gets reopened in every review.
+
+What answering this unblocks:
+A downstream brief/PRD/spec section that currently has no confirmed evidence to consume.
+
+Question:
+For each exclusion: which decision made it, and where does it come back (or why never)?
+
+Expected response format:
+Exclusion · decision (who, when) · destination
+
+Example of a useful answer:
+Editing cases is out of scope by decision of the product owner (workshop 03/11); it returns in release 2.
+
+Cited candidate options (not selected):
+- Option A (recommended: inferred, never applied by itself): Confirm `out of scope` is in scope and answer the missing `Exclusion Counterpart` detail. Local citation: `out of scope`.
+- Option B: Confirm `out of scope` is context-only, out of scope, or pending, and state the boundary. Local citation: `out of scope`.
+These options do not close the gap; the BA/owner must confirm an answer.
+
+
+Client / domain response:
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+- Closure reason:
+
+
 ### GAP-PRODUCT-ASIS-TOBE - Current And Target Process
 
 - Lens: `product`
@@ -956,6 +999,7 @@ This table is kept for Sentinel traceability and automated processing.
 | GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Quantitative metric appears without an explicit source or baseline. | What is the source or baseline for the quantitative metric? | Context folders and source input. | 30 percent | checklist | N/A | RU-003 | domain | N/A |
 | GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | A metric, KPI, or indicator concept is named without its definition, formula, unit, source, or threshold. | How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold? | Context folders and source input. | metric | checklist | N/A | RU-003 | domain | N/A |
+| GAP-CTP-EXCLUSION | business | medium | OPEN | `REQ-001` | Exclusion named without its counterpart: decision (who, when) · destination. | For each exclusion: which decision made it, and where does it come back (or why never)? | Context folders and source input. | out of scope | checklist | N/A | N/A | domain | N/A |
 | GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | Current state and target state are not both explicit enough to compare impact. | What is the current process, target process, and exact delta between them? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear. | What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |

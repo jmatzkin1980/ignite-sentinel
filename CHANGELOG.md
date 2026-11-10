@@ -58,6 +58,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Counterpart and cross-cutting scenarios (IMP-256).
+  - **Proximity:** a mentioned surface needs its counterpart near the mention (the same sentence or one sentence around it), or in a domain context folder. Before, one counterpart word anywhere in the document suppressed the gap. With no mention, the document-wide test stays, and a check can opt out with `"counterpart_scope": "document"`.
+  - **15 counterpart rows** as lens data (`GAP-CTP-*`, medium, never blocking by themselves): integration, state, exclusion, flag, event, batch job, alert, personal data, deadline, write endpoint (idempotency), SLO, regulation (article), error code, design exclusion and manual step. Each carries its own en/es title, question, expected format, why and example, and the gap lookups read them first.
+  - **Brief v2:** §3.6 renders the referral table of the 16 cross-cutting scenarios (`templates/cross_cutting.json`), with each scenario's status read from the places that specify it. It refers and never repeats, so it adds no marks. The §4.1 screen-states mark lists the 8 fixed states and the two distinctions.
+  - **Vague wording:** `weak_words` gains contracted enumerations ("etc.", "entre otros") and vagueness ("should", "debería", "en general", "según corresponda") for business rules and acceptance.
+  - **Metric floor:** `tests/evals/metric_baseline.json` holds the discovery eval metrics measured before this IMP. The eval run fails if any of them drops (`--update-metric-baseline` raises the floor on purpose).
 - Gaps as elicitation (IMP-257).
   - **Table:** the gap table gains two columns at the end, `Kind` (`client`, `domain` deferrable, `synthesis`, `template`) and `Closure` (a closed vocabulary of 13 reasons plus `reopened_false_premise`). Older `gaps.md` files still read.
   - **Closure rules:**
