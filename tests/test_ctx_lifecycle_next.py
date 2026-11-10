@@ -142,9 +142,9 @@ class NextTests(unittest.TestCase):
         self.assertNotEqual(self._assert_same_everywhere(), "ingest")
 
     def test_next_is_read_only(self) -> None:
-        # Like /status, the command protocol logs the call (last_command*, command_log); nothing else moves.
+        # Like /status, the command protocol logs the call (last_command*, command_log, updated_at); nothing else moves.
         state = self.temp / "workspaces" / "NXT" / "state.json"
-        strip = lambda data: {k: v for k, v in data.items() if not k.startswith(("last_command", "command_log"))}
+        strip = lambda data: {k: v for k, v in data.items() if not k.startswith(("last_command", "command_log", "updated_at"))}
         before = strip(json.loads(state.read_text(encoding="utf-8")))
         _run(["next", "NXT"])
         self.assertEqual(strip(json.loads(state.read_text(encoding="utf-8"))), before)
