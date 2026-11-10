@@ -33,20 +33,15 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
         raise RuntimeError("Cannot self-review before /ingest creates 01_discovery/gaps.md.")
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    existing_ids = {gap["id"] for gap in real_existing}
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    merged_new: list[dict[str, str]] = []
-    skipped: list[str] = []
-    for gap in gaps:
-        if gap["id"] in existing_ids:
-            skipped.append(gap["id"])
-            continue
-        merged_new.append(gap)
-        existing_ids.add(gap["id"])
+    from .gaps import merge_gaps_by_topic
 
+    topic_merge = merge_gaps_by_topic(real_existing, gaps)  # IMP-257: id, then topic
+    merged_new: list[dict[str, str]] = topic_merge["added"]
+    skipped: list[str] = topic_merge["skipped"]
     language = project_language(project_id)
-    merged = real_existing + merged_new
+    merged = topic_merge["gaps"]
     write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
     review_dir = base / "03_specs" / "self_review"

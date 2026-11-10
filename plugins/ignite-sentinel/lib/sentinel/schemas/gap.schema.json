@@ -6,13 +6,18 @@
   "properties": {
     "id": { "type": "string", "pattern": "^GAP-[A-Z0-9-]+$" },
     "severity": { "enum": ["critical", "high", "medium", "low"] },
-    "status": { "enum": ["OPEN", "ANSWERED", "PARTIALLY_CLOSED", "CLOSED", "SUPERSEDED", "NEW_REQUIREMENT", "NEW_GAP"] },
+    "status": { "enum": ["OPEN", "ANSWERED", "PARTIALLY_CLOSED", "CLOSED"] },
     "parent_id": { "type": "string" },
     "description": { "type": "string" },
     "lens": { "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"] },
     "origin": { "enum": ["checklist", "agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sync", "injection_signal", "contradiction", "cited_not_delivered"], "default": "checklist" },
     "question": { "type": "string" },
     "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." },
+    "evidence_mention": { "type": "string", "description": "The trigger detected in the source (table column 'Detected Trigger')." },
+    "source": { "type": "string", "description": "Where the gap was looked for (table column 'Source Consulted')." },
+    "resolution_note": { "type": "string" },
+    "kind": { "enum": ["synthesis", "template", "client", "domain"], "description": "IMP-257: domain is the deferrable class." },
+    "closure_reason": { "enum": ["answered", "by_absence", "by_removal", "by_transfer", "accepted_debt", "risk_accepted", "split", "reframed", "dissolved", "narrowed", "by_decision", "already_closed_elsewhere", "resolved_by_inference", "reopened_false_premise"] },
     "unit": { "type": "string", "pattern": "^RU-[0-9]{3}$", "description": "Optional Requirement Unit (RU-*) the gap is anchored to (IMP-116). Absent for document-level gaps and legacy workspaces." }
   }
 }

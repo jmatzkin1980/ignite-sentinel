@@ -192,6 +192,27 @@ Use this before sharing gaps with a client or domain owner.
 
 When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited candidate options. They are shortcuts for BA/client selection, not automatic answers; `/resolve-gaps` still closes only confirmed or not-applicable responses.
 
+**Gaps as elicitation (IMP-257).**
+
+- **Two new columns:** the trace table gains `Kind` and `Closure` (`Clase` and `Cierre` in Spanish). Both are appended at the end, so older `gaps.md` files still read.
+- **Kind:**
+  - `client`: the client owes it and it blocks;
+  - `domain`: deferrable;
+  - `synthesis`: raised by reading several sources (contradictions, agentic channels);
+  - `template`: the brief v2 umbrella gaps.
+- **Recommended option:** the first candidate option is marked recommended. It is an inference and never applies by itself.
+- **Meanwhile:** when an active assumption closes the gap, the response section shows the value to build with meanwhile and where it appears in the brief v2.
+- **Side record:** `01_discovery/gap_elicitation.json` keeps kind, closure, example, recommended option and meanwhile per gap.
+- **Topic dedup:** a gap an agentic channel or a contradiction raises on the topic of an open gap (same lens, most words in common) extends that row instead of opening another.
+
+**Rounds.** The next batch of questions comes from:
+
+```powershell
+python -m sentinel /gaps PROJECT_ID --top 5
+```
+
+It takes at most N open gaps, ordered scope > security and privacy > UX > technical, then by severity. Each question has one decision: the recommended option first and "leave pending" last. The round is written to `01_discovery/gap_round.md`.
+
 The `/gaps` result also carries non-blocking `momtest_warnings` (IMP-180): any elicited question phrased as a hypothetical or future opinion ("would you like…?", "¿le gustaría…?") instead of asking about a concrete past event is flagged with the question cited. This is the Mom-Test principle — ask what actually happened, not what someone imagines they would do. It signals, it never blocks, and questions about future *system* capacity (load, scale) are exempt. The same warnings are folded into `/validate`.
 
 
@@ -396,6 +417,22 @@ Process an answered `gaps.md` or equivalent Markdown file.
 ```powershell
 python -m sentinel /resolve-gaps PROJECT_ID --source input\interactions\client-gap-response.md
 ```
+
+**Closure (IMP-257).** Each response section has an optional `- Closure reason:` (`- Motivo de cierre:`) from a closed vocabulary:
+
+- `answered` (the default), `by_absence`, `by_removal` (the default for "not applicable"), `by_transfer`, `accepted_debt`, `risk_accepted`;
+- `split`, `reframed`, `dissolved`, `narrowed`;
+- `by_decision` (cites a `DEC-*`), `already_closed_elsewhere`, `resolved_by_inference` (cites an `ASM-*`);
+- `reopened_false_premise`, which reopens a closed gap and keeps the previous closure in its note.
+
+What `/resolve-gaps` reports and changes:
+
+- A closure without `Evidence or reference` is reported in `closure_findings`.
+- `resolved_by_inference` leaves the gap `PARTIALLY_CLOSED` (still not ready).
+- A confirmed answer that still says TBD is partial.
+- An answer whose evidence is example data or the current practice never closes.
+- Invalidating an assumption reopens the gaps it held up.
+- An empty field now stays empty. Before, it read the next line.
 
 The parser reads `### GAP-ID` blocks and extracts:
 

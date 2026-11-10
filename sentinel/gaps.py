@@ -19,6 +19,8 @@ GAP_ROW_FIELDS = (
     "origin",
     "resolution_note",
     "unit",
+    "kind",  # IMP-257: appended at the end; older tables simply lack it
+    "closure_reason",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED"}
@@ -52,10 +54,11 @@ def blocking_severities(config: dict[str, Any] | None) -> set[str]:
     return severities or set(DEFAULT_BLOCKING_GAP_SEVERITIES)
 
 
-def parse_gap_table(text: str, *, include_legacy: bool = False) -> list[dict[str, str]]:
+def parse_gap_table(text: str, *, include_legacy: bool = False, strip_code_ticks: bool = True) -> list[dict[str, str]]:
+    """The one gaps.md table reader (IMP-257): columns after the 8th are optional."""
     gaps: list[dict[str, str]] = []
     for line in text.splitlines():
-        rows = parse_table_rows(line)
+        rows = parse_table_rows(line, strip_code_ticks=strip_code_ticks)
         cells = rows[0] if rows else []
         if not cells or not cells[0].startswith("GAP-"):
             continue
@@ -134,6 +137,91 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
     return counts
 
 
+# --- IMP-257: gaps as elicitation ------------------------------------------------
+
+# What kind of gap it is. `domain` is the deferrable class; `synthesis` comes from
+# reading several sources (contradictions, agentic channels); `template` from the
+# structure itself (the brief v2 umbrella gaps).
+GAP_KINDS = ("synthesis", "template", "client", "domain")
+SYNTHESIS_ORIGINS = {"agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sync",
+                     "injection_signal", "contradiction", "cited_not_delivered"}
+# How a gap closed: a closed vocabulary, never free text.
+CLOSURE_REASONS = (
+    "answered", "by_absence", "by_removal", "by_transfer", "accepted_debt", "risk_accepted", "split",
+    "reframed", "dissolved", "narrowed", "by_decision", "already_closed_elsewhere", "resolved_by_inference",
+)
+REOPEN_FALSE_PREMISE = "reopened_false_premise"
+# A closure reason that needs a specific id in its citation.
+CLOSURE_CITES = {"by_decision": "DEC-", "resolved_by_inference": "ASM-"}
+
+
+def gap_kind(gap: dict[str, Any]) -> str:
+    """The recorded kind, else derived: origin, umbrella, then severity (blocking = client)."""
+    kind = str(gap.get("kind", "")).strip("`").lower()
+    if kind in GAP_KINDS:
+        return kind
+    if str(gap.get("origin", "")).strip("`") in SYNTHESIS_ORIGINS:
+        return "synthesis"
+    if str(gap.get("id", "")).startswith("GAP-BRIEF-"):
+        return "template"
+    return "client" if str(gap.get("severity", "")).strip("`").lower() in DEFAULT_BLOCKING_GAP_SEVERITIES else "domain"
+
+
+_TOPIC_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "are", "not", "what", "which", "how", "who", "when", "where",
+    "is", "of", "to", "in", "on", "or", "a", "an", "be", "it", "its", "by", "as", "at", "from", "does", "do",
+    "el", "la", "los", "las", "de", "del", "que", "en", "y", "o", "un", "una", "por", "para", "con", "se",
+    "no", "es", "son", "al", "lo", "como", "qué", "cuál", "cómo", "quién", "está", "están",
+}
+
+
+def topic_tokens(gap: dict[str, Any]) -> frozenset[str]:
+    import unicodedata
+
+    text = f"{gap.get('description', '')} {gap.get('question', '')}"
+    folded = "".join(ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch))
+    return frozenset(t for t in re.findall(r"[a-z0-9]{3,}", folded) if t not in _TOPIC_STOPWORDS)
+
+
+TOPIC_OVERLAP = 0.6
+
+
+def same_topic(first: dict[str, Any], second: dict[str, Any]) -> bool:
+    """Same lens and most of the words in common (Jaccard >= 0.6)."""
+    if str(first.get("lens", "")).strip("`") != str(second.get("lens", "")).strip("`"):
+        return False
+    a, b = topic_tokens(first), topic_tokens(second)
+    if len(a) < 3 or len(b) < 3:
+        return False
+    return len(a & b) / len(a | b) >= TOPIC_OVERLAP
+
+
+def merge_gaps_by_topic(existing: list[dict[str, str]], new: list[dict[str, str]]) -> dict[str, Any]:
+    """IMP-257: the common rule for opening gaps. A new id joins; a known id is
+    skipped; a new id on the topic of an open gap extends that row instead."""
+    rows = [dict(gap) for gap in existing]
+    known = {gap["id"] for gap in rows}
+    added: list[dict[str, str]] = []
+    skipped: list[str] = []
+    extended: dict[str, str] = {}
+    for gap in new:
+        if gap["id"] in known:
+            skipped.append(gap["id"])
+            continue
+        twin = next((row for row in rows if str(row.get("status", "OPEN")).upper() != "CLOSED" and same_topic(row, gap)), None)
+        if twin is not None:
+            mention = gap.get("evidence_mention") or gap["id"]
+            current = twin.get("evidence_mention") or ""
+            twin["evidence_mention"] = f"{current}; {mention}" if current and current != "N/A" else mention
+            extended[gap["id"]] = twin["id"]
+            skipped.append(gap["id"])
+            continue
+        rows.append(gap)
+        added.append(gap)
+        known.add(gap["id"])
+    return {"gaps": rows, "added": added, "skipped": skipped, "extended": extended}
+
+
 def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
     pattern = re.compile(r"^###\s+(GAP-[A-Z0-9-]+).*?(?=^###\s+GAP-[A-Z0-9-]+|\Z)", re.M | re.S)
     responses: dict[str, dict[str, str]] = {}
@@ -146,12 +234,17 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
             "evidence": extract_field(block, ("Evidencia o referencia", "Evidence or reference")),
             "decision_status": extract_field(block, ("Estado de decisión", "Decision status")),
         }
+        closure = extract_field(block, ("Motivo de cierre", "Closure reason"))  # IMP-257, optional
+        if closure:
+            responses[gap_id]["closure"] = closure
     return responses
 
 
 def extract_field(block: str, labels: tuple[str, ...]) -> str:
     for label in labels:
-        pattern = re.compile(rf"^\s*-\s*{re.escape(label)}\s*:\s*(.*)$", re.I | re.M)
+        # IMP-257: horizontal whitespace only, so an empty field stays empty instead of
+        # swallowing the next line (an empty citation used to read the decision status).
+        pattern = re.compile(rf"^[ \t]*-[ \t]*{re.escape(label)}[ \t]*:[ \t]*(.*)$", re.I | re.M)
         match = pattern.search(block)
         if match:
             return match.group(1).strip()

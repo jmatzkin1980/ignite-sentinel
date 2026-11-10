@@ -51,6 +51,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-PERSONA-DETAIL - Detalle de personas para PRD
@@ -85,6 +86,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-METRIC-SOURCE - Fuente de métrica
@@ -116,7 +118,7 @@ Ejemplo de respuesta útil:
 El baseline sale del reporte semanal de operaciones, owner Support Ops; el target es detectar colas de alto riesgo antes de las 9:30 AM.
 
 Opciones candidatas citadas (no seleccionadas):
-- Opcion A: Confirmar que `30 por ciento` es la meta de exito y aportar fuente, baseline, owner y metodo de medicion. Cita local: `30 por ciento`.
+- Opcion A (recomendada: inferida, no se aplica sola): Confirmar que `30 por ciento` es la meta de exito y aportar fuente, baseline, owner y metodo de medicion. Cita local: `30 por ciento`.
 - Opcion B: Tratar `30 por ciento` como objetivo direccional hasta confirmar fuente/baseline, indicando que evidencia falta. Cita local: `30 por ciento`.
 Estas opciones no cierran el gap; el BA/owner debe confirmar una respuesta.
 
@@ -127,6 +129,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-METRIC-DEFINITION - Definición de métrica
@@ -158,7 +161,7 @@ Ejemplo de respuesta útil:
 La métrica 'tiempo de resolución' se define como promedio de horas entre apertura y cierre, fuente Case Management, baseline 8h, umbral objetivo 6h.
 
 Opciones candidatas citadas (no seleccionadas):
-- Opcion A: Confirmar que `metrica` esta dentro del alcance y responder el detalle faltante de `Definición de métrica`. Cita local: `metrica`.
+- Opcion A (recomendada: inferida, no se aplica sola): Confirmar que `metrica` esta dentro del alcance y responder el detalle faltante de `Definición de métrica`. Cita local: `metrica`.
 - Opcion B: Confirmar que `metrica` es solo contexto, fuera de alcance o pendiente, y explicitar el limite. Cita local: `metrica`.
 Estas opciones no cierran el gap; el BA/owner debe confirmar una respuesta.
 
@@ -169,6 +172,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo
@@ -203,6 +207,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-BACKLOG-SLICING-READINESS - Preparacion de slicing de backlog
@@ -237,6 +242,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-FR-AC - Requerimientos funcionales y criterios de aceptacion
@@ -271,6 +277,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-ACCEPTANCE - Señal de aceptación
@@ -305,6 +312,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-QUALITY - Expectativas de calidad
@@ -339,6 +347,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-QUALITY-HANDOFF - Handoff de calidad
@@ -373,6 +382,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-NFR-KPI - NFRs, KPIs y medicion
@@ -407,6 +417,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-TECH-DATA-SOURCE - Sistemas y ownership de datos
@@ -441,6 +452,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-TECH-NFR - Restricciones operativas
@@ -475,6 +487,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-BACKLOG-ENABLERS - Enablers transversales validos
@@ -509,6 +522,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-FRONTEND-SURFACE - Superficie frontend
@@ -543,6 +557,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-BACKEND-SURFACE - Superficie backend
@@ -577,6 +592,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-TECH-DEEP-DIVE-INPUT - Profundización técnica
@@ -611,6 +627,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-GOVERNANCE-CONSTRAINTS - Restricciones de gobernanza
@@ -645,6 +662,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza
@@ -679,6 +697,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-DELIVERY-READINESS - Preparación de delivery
@@ -713,6 +732,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap
@@ -747,6 +767,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes
@@ -781,6 +802,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-DESIGN-FLOW - Journey y pantallas
@@ -815,6 +837,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-DESIGN-STATES - Estados de UX
@@ -849,6 +872,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ### GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo
@@ -883,6 +907,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 
 
 ## Notas adicionales
@@ -893,33 +918,33 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución | Unidad |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| GAP-BUSINESS-RULES | business | medium | OPEN | `REQ-001` | Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. | ¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Aparece una métrica cuantitativa sin fuente o baseline explícito. | ¿Cuál es la fuente o baseline de la métrica cuantitativa? | Carpetas de contexto e input fuente. | 30 por ciento | checklist | N/A | RU-003 |
-| GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | Se nombra una métrica, KPI o indicador sin su definición, fórmula, unidad, fuente ni umbral. | ¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo? | Carpetas de contexto e input fuente. | metrica | checklist | N/A | RU-003 |
-| GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | El estado actual y el estado objetivo no están suficientemente claros para comparar impacto. | ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia. | ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-ACCEPTANCE | quality | critical | CLOSED | `REQ-001` | Faltan criterios de aceptación o condiciones de éxito. | ¿Qué condiciones observables demuestran que el requerimiento está terminado? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-QUALITY | quality | medium | OPEN | `REQ-001` | Las expectativas de calidad o testeabilidad no están explícitas. | ¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-QUALITY-HANDOFF | quality | medium | OPEN | `REQ-001` | El handoff a Calidad no está suficientemente explícito: flujos críticos, casos borde, datos de prueba, riesgos de regresión o evidencia esperada. | ¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-NFR-KPI | quality | medium | OPEN | `REQ-001` | NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-TECH-DATA-SOURCE | technical | medium | OPEN | `REQ-001` | La fuente de datos, integración u ownership de sistema no está explícito en el input o contexto técnico. | ¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-TECH-NFR | technical | medium | OPEN | `REQ-001` | No están explícitas restricciones de performance, seguridad, observabilidad u operación. | ¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-BACKLOG-ENABLERS | technical | medium | OPEN | `REQ-001` | No estan claros los enablers transversales validos: trabajo de implementacion frontend/backend o arquitectura que debe construirse antes para soportar funcionalidades confirmadas dentro del boundary del proyecto. | ¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-FRONTEND-SURFACE | technical | medium | OPEN | `REQ-001` | La superficie de implementación frontend no está suficientemente explícita: pantallas, estados, validaciones, copy, roles o bindings de API. | ¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | La superficie de implementación backend no está suficientemente explícita: capacidades, integraciones, reglas, persistencia, contratos o comportamiento ante fallas. | ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Tecnología no cuenta con suficiente input para análisis de repositorios, arquitectura, endpoints/eventos, source of truth o riesgos. | ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | No están explícitas restricciones de gobernanza, seguridad, privacidad, compliance u operación. | ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | No están explícitas dependencias, ambientes, ownership, fechas o restricciones de rollout. | ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-DESIGN-FLOW | design | medium | OPEN | `REQ-001` | El journey de usuario, flujo de pantallas o modelo de interacción no está explícito en el input o contexto de diseño. | ¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-DESIGN-STATES | design | medium | OPEN | `REQ-001` | No están explícitos los estados requeridos de UI: loading, empty, error y recuperación. | ¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
-| GAP-DESIGN-PROTOTYPE-INPUT | design | medium | OPEN | `REQ-001` | No queda claro qué debe prototipar o validar Diseño en los flujos de usuario. | ¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución | Unidad | Clase | Cierre |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| GAP-BUSINESS-RULES | business | medium | OPEN | `REQ-001` | Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. | ¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Aparece una métrica cuantitativa sin fuente o baseline explícito. | ¿Cuál es la fuente o baseline de la métrica cuantitativa? | Carpetas de contexto e input fuente. | 30 por ciento | checklist | N/A | RU-003 | domain | N/A |
+| GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | Se nombra una métrica, KPI o indicador sin su definición, fórmula, unidad, fuente ni umbral. | ¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo? | Carpetas de contexto e input fuente. | metrica | checklist | N/A | RU-003 | domain | N/A |
+| GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | El estado actual y el estado objetivo no están suficientemente claros para comparar impacto. | ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | No estan explicitas las senales necesarias para slicing de backlog: primer slice de valor, paths, variantes, reglas diferibles o limites de historia. | ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-ACCEPTANCE | quality | critical | CLOSED | `REQ-001` | Faltan criterios de aceptación o condiciones de éxito. | ¿Qué condiciones observables demuestran que el requerimiento está terminado? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | client | answered |
+| GAP-QUALITY | quality | medium | OPEN | `REQ-001` | Las expectativas de calidad o testeabilidad no están explícitas. | ¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-QUALITY-HANDOFF | quality | medium | OPEN | `REQ-001` | El handoff a Calidad no está suficientemente explícito: flujos críticos, casos borde, datos de prueba, riesgos de regresión o evidencia esperada. | ¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-NFR-KPI | quality | medium | OPEN | `REQ-001` | NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-DATA-SOURCE | technical | medium | OPEN | `REQ-001` | La fuente de datos, integración u ownership de sistema no está explícito en el input o contexto técnico. | ¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-NFR | technical | medium | OPEN | `REQ-001` | No están explícitas restricciones de performance, seguridad, observabilidad u operación. | ¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-BACKLOG-ENABLERS | technical | medium | OPEN | `REQ-001` | No estan claros los enablers transversales validos: trabajo de implementacion frontend/backend o arquitectura que debe construirse antes para soportar funcionalidades confirmadas dentro del boundary del proyecto. | ¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-FRONTEND-SURFACE | technical | medium | OPEN | `REQ-001` | La superficie de implementación frontend no está suficientemente explícita: pantallas, estados, validaciones, copy, roles o bindings de API. | ¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | La superficie de implementación backend no está suficientemente explícita: capacidades, integraciones, reglas, persistencia, contratos o comportamiento ante fallas. | ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Tecnología no cuenta con suficiente input para análisis de repositorios, arquitectura, endpoints/eventos, source of truth o riesgos. | ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | No están explícitas restricciones de gobernanza, seguridad, privacidad, compliance u operación. | ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | No están explícitas dependencias, ambientes, ownership, fechas o restricciones de rollout. | ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DESIGN-FLOW | design | medium | OPEN | `REQ-001` | El journey de usuario, flujo de pantallas o modelo de interacción no está explícito en el input o contexto de diseño. | ¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DESIGN-STATES | design | medium | OPEN | `REQ-001` | No están explícitos los estados requeridos de UI: loading, empty, error y recuperación. | ¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DESIGN-PROTOTYPE-INPUT | design | medium | OPEN | `REQ-001` | No queda claro qué debe prototipar o validar Diseño en los flujos de usuario. | ¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 
 ## Trazabilidad de resolución
 

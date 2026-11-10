@@ -58,6 +58,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Gaps as elicitation (IMP-257).
+  - **Table:** the gap table gains two columns at the end, `Kind` (`client`, `domain` deferrable, `synthesis`, `template`) and `Closure` (a closed vocabulary of 13 reasons plus `reopened_false_premise`). Older `gaps.md` files still read.
+  - **Closure rules:**
+    - Every closure needs a citation, otherwise `closure_findings`.
+    - `by_decision` cites a `DEC-*`; `resolved_by_inference` cites an `ASM-*` and stays partially closed.
+    - A confirmed TBD is partial, and example data never closes.
+    - `reopened_false_premise` reopens a gap and keeps the previous closure.
+  - **Reopening:** invalidating an assumption reopens the gaps it held up.
+  - **Elicitation:** the recommended option is marked as an inference, the response section shows the "meanwhile" value from an active assumption with where it appears in the brief v2, and `01_discovery/gap_elicitation.json` keeps it all.
+  - **Topic dedup:** agentic channels, self-review and contradictions extend an open gap on the same topic instead of opening a duplicate.
+  - **Rounds:** `/gaps --top N` plans the next round (scope > security > UX > technical, recommended first, "leave pending") into `01_discovery/gap_round.md`.
+  - **Schema:** `gap.schema.json` is aligned with the table.
+  - **Bug fix:** an empty response field no longer reads the next line as its value.
 - Golden snapshots of the brief v2 in English and Spanish, with its compile report (`tests/fixtures/golden/brief_v2/`). This closes H16a. The v1 goldens are unchanged across the horizon.
 
 ## [0.4.0] — 2026-11-10
