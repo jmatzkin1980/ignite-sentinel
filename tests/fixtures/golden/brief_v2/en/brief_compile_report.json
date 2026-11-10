@@ -1,0 +1,1289 @@
+{
+  "brief_version": 2,
+  "profiles": [
+    "UI"
+  ],
+  "genesis": "greenfield",
+  "validation_direction": "to-build",
+  "summary": {
+    "covered": 8,
+    "inferred": 0,
+    "divergences": 0,
+    "pending_client": 16,
+    "pending_domain": 57,
+    "na": 7,
+    "applicable": 81,
+    "low_reliability": true
+  },
+  "by_section": {
+    "1": {
+      "covered": 3,
+      "pending": 1,
+      "pending_domain": 1,
+      "na": 0
+    },
+    "2": {
+      "covered": 1,
+      "pending": 2,
+      "pending_domain": 4,
+      "na": 0
+    },
+    "3": {
+      "covered": 1,
+      "pending": 4,
+      "pending_domain": 4,
+      "na": 1
+    },
+    "4": {
+      "covered": 0,
+      "pending": 8,
+      "pending_domain": 2,
+      "na": 0
+    },
+    "5": {
+      "covered": 0,
+      "pending": 0,
+      "pending_domain": 44,
+      "na": 6
+    },
+    "6": {
+      "covered": 2,
+      "pending": 0,
+      "pending_domain": 0,
+      "na": 0
+    },
+    "A": {
+      "covered": 0,
+      "pending": 1,
+      "pending_domain": 0,
+      "na": 0
+    },
+    "9": {
+      "covered": 1,
+      "pending": 0,
+      "pending_domain": 1,
+      "na": 0
+    },
+    "7": {
+      "covered": 0,
+      "pending": 0,
+      "pending_domain": 1,
+      "na": 0
+    }
+  },
+  "places": [
+    {
+      "id": "1.1",
+      "fill": "covered",
+      "facts": 1,
+      "section": "1"
+    },
+    {
+      "id": "1.2",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-BRIEF-S1",
+      "gap_open": true,
+      "section": "1"
+    },
+    {
+      "id": "1.3",
+      "fill": "covered",
+      "facts": 1,
+      "section": "1"
+    },
+    {
+      "id": "1.4",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S1",
+      "gap_open": true,
+      "section": "1"
+    },
+    {
+      "id": "1.5",
+      "fill": "covered",
+      "facts": 6,
+      "section": "1"
+    },
+    {
+      "id": "1.5/criteria",
+      "fill": "covered_by_parent",
+      "section": "1"
+    },
+    {
+      "id": "1.5/executable",
+      "fill": "covered_by_parent",
+      "section": "1"
+    },
+    {
+      "id": "2.1",
+      "fill": "covered",
+      "facts": 2,
+      "section": "2"
+    },
+    {
+      "id": "2.2/rules",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "2.2/regulatory",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "2.2/notifications",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "2.3",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "2.4",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "2.5",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "section": "2"
+    },
+    {
+      "id": "3.1",
+      "fill": "covered",
+      "facts": 1,
+      "section": "3"
+    },
+    {
+      "id": "3.2/process",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.2/validations",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.2/manual_ops",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.2/cutover",
+      "fill": "na",
+      "section": "3"
+    },
+    {
+      "id": "3.3",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.4",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.5",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.6/edge_cases",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-QUALITY-HANDOFF",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "3.6/cross_cutting",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-QUALITY-HANDOFF",
+      "gap_open": true,
+      "section": "3"
+    },
+    {
+      "id": "4.1/screens",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.1/design_system",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.1/screen_map",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.1/screen_states",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.1/locale",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.2/ux_decisions",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.2/messages",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.3",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-PROTOTYPE-INPUT",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.4",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "4.5",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "section": "4"
+    },
+    {
+      "id": "5.0",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.1/components",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-FRONTEND-SURFACE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.1/inventory",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.1/decisions",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-FRONTEND-SURFACE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.2/stack",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.2/environments",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.3/data_sources",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.3/repos",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.3/parameters",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.4/model",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.4/personal_data",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.5",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.6/map",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.6/resilience",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.7/conventions",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.7/idempotency",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.7/versioning",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.7/endpoints",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.8/mapping",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.8/installed_impact",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.9/file_interfaces",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.9/restart",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.10",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/constraints",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/authn",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/authz",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/data_protection",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/audit",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/regulatory_controls",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.11/implementer_limits",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.12/services",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.12/client_state",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.12/jobs",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.13/legacy",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.13/data_migration",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.14",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.15",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.16/quality_attributes",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.16/sli_slo",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.16/observability",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.16/alerts",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.17",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.18",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.19",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.20",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.21",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.22",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.23",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "5.24",
+      "fill": "na",
+      "section": "5"
+    },
+    {
+      "id": "5.25",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "section": "5"
+    },
+    {
+      "id": "6.1",
+      "fill": "covered",
+      "facts": 1,
+      "section": "6"
+    },
+    {
+      "id": "6.2",
+      "fill": "covered",
+      "facts": 1,
+      "section": "6"
+    },
+    {
+      "id": "A.glossary",
+      "fill": "pending",
+      "class": "client",
+      "gap": "GAP-PRD-GLOSSARY-GOVERNANCE",
+      "gap_open": true,
+      "section": "A"
+    },
+    {
+      "id": "9.1/items",
+      "fill": "covered",
+      "facts": 1,
+      "section": "9"
+    },
+    {
+      "id": "9.1/non_software",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-BACKLOG-ENABLERS",
+      "gap_open": true,
+      "section": "9"
+    },
+    {
+      "id": "7.1/risks",
+      "fill": "pending_domain",
+      "class": "domain",
+      "gap": "GAP-PRD-DEPENDENCIES-ROADMAP",
+      "gap_open": true,
+      "section": "7"
+    }
+  ],
+  "fill_sites": [
+    {
+      "id": "1.2",
+      "class": "client",
+      "gap": "GAP-BRIEF-S1",
+      "gap_open": true,
+      "produces": "The problem in 2-3 sentences and why now, usable as a tie-breaker."
+    },
+    {
+      "id": "1.4",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S1",
+      "gap_open": true,
+      "produces": "What exists at the start and at the end: operating mode and operational milestones."
+    },
+    {
+      "id": "2.2/rules",
+      "class": "client",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "produces": "RN-N.M rules; the control that enforces each rule lives in §5 with a cross-citation."
+    },
+    {
+      "id": "2.2/regulatory",
+      "class": "domain",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "produces": "RN-N.M rules; the control that enforces each rule lives in §5 with a cross-citation."
+    },
+    {
+      "id": "2.2/notifications",
+      "class": "domain",
+      "gap": "GAP-BUSINESS-RULES",
+      "gap_open": true,
+      "produces": "RN-N.M rules; the control that enforces each rule lives in §5 with a cross-citation."
+    },
+    {
+      "id": "2.3",
+      "class": "client",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "produces": "HU-N.M with actor (role from 2.1), result, value priority (P1/P2/P3) and linked CA."
+    },
+    {
+      "id": "2.4",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "produces": "High-level 'must be able to' / 'must avoid' list."
+    },
+    {
+      "id": "2.5",
+      "class": "domain",
+      "gap": "GAP-BRIEF-S2",
+      "gap_open": true,
+      "produces": "Time zone, holiday calendar, business-day rule, cut-off time, windows and deadlines."
+    },
+    {
+      "id": "3.2/process",
+      "class": "client",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "Numbered target flow, happy path first, with actors, systems and what is written in one transaction."
+    },
+    {
+      "id": "3.2/validations",
+      "class": "client",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "Numbered target flow, happy path first, with actors, systems and what is written in one transaction."
+    },
+    {
+      "id": "3.2/manual_ops",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "Numbered target flow, happy path first, with actors, systems and what is written in one transaction."
+    },
+    {
+      "id": "3.3",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "Diagram in sync with 3.2; legitimately absent when the flow is simple."
+    },
+    {
+      "id": "3.4",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "State x event -> state table with the stored values."
+    },
+    {
+      "id": "3.5",
+      "class": "domain",
+      "gap": "GAP-PRODUCT-ASIS-TOBE",
+      "gap_open": true,
+      "produces": "Rules of each transition and excluded transitions with the code each returns (-> 5.15)."
+    },
+    {
+      "id": "3.6/edge_cases",
+      "class": "client",
+      "gap": "GAP-QUALITY-HANDOFF",
+      "gap_open": true,
+      "produces": "Edge cases and errors, and the cross-cutting scenarios referral table."
+    },
+    {
+      "id": "3.6/cross_cutting",
+      "class": "client",
+      "gap": "GAP-QUALITY-HANDOFF",
+      "gap_open": true,
+      "produces": "Edge cases and errors, and the cross-cutting scenarios referral table."
+    },
+    {
+      "id": "4.1/screens",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale."
+    },
+    {
+      "id": "4.1/design_system",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale."
+    },
+    {
+      "id": "4.1/screen_map",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale."
+    },
+    {
+      "id": "4.1/screen_states",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale."
+    },
+    {
+      "id": "4.1/locale",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale."
+    },
+    {
+      "id": "4.2/ux_decisions",
+      "class": "domain",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "UX decisions and messages to the user."
+    },
+    {
+      "id": "4.2/messages",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "UX decisions and messages to the user."
+    },
+    {
+      "id": "4.3",
+      "class": "client",
+      "gap": "GAP-DESIGN-PROTOTYPE-INPUT",
+      "gap_open": true,
+      "produces": "Link or file, validation status, dataset limits and the instruction to compare against a capture; if there is no visual material, say so."
+    },
+    {
+      "id": "4.4",
+      "class": "client",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Target level (A / AA), critical criteria with automatic and manual verification, legal obligation if any."
+    },
+    {
+      "id": "4.5",
+      "class": "domain",
+      "gap": "GAP-DESIGN-FLOW",
+      "gap_open": true,
+      "produces": "Where in-screen help lives and what is trained."
+    },
+    {
+      "id": "5.0",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Numbering map in use, brief <-> architecture documents split, and the variant without its own architecture."
+    },
+    {
+      "id": "5.1/components",
+      "class": "domain",
+      "gap": "GAP-FRONTEND-SURFACE",
+      "gap_open": true,
+      "produces": "Architecture and components, existing resources and architecture decisions."
+    },
+    {
+      "id": "5.1/decisions",
+      "class": "domain",
+      "gap": "GAP-FRONTEND-SURFACE",
+      "gap_open": true,
+      "produces": "Architecture and components, existing resources and architecture decisions."
+    },
+    {
+      "id": "5.2/stack",
+      "class": "domain",
+      "gap": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+      "gap_open": true,
+      "produces": "Stack per component, environments, deployment and rollback."
+    },
+    {
+      "id": "5.2/environments",
+      "class": "domain",
+      "gap": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+      "gap_open": true,
+      "produces": "Stack per component, environments, deployment and rollback."
+    },
+    {
+      "id": "5.3/data_sources",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "produces": "Data sources, repositories and configuration, parameters and switches."
+    },
+    {
+      "id": "5.3/repos",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "produces": "Data sources, repositories and configuration, parameters and switches."
+    },
+    {
+      "id": "5.3/parameters",
+      "class": "domain",
+      "gap": "GAP-TECH-DATA-SOURCE",
+      "gap_open": true,
+      "produces": "Data sources, repositories and configuration, parameters and switches."
+    },
+    {
+      "id": "5.4/model",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Data model and personal data classification, purpose and retention."
+    },
+    {
+      "id": "5.4/personal_data",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Data model and personal data classification, purpose and retention."
+    },
+    {
+      "id": "5.6/map",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Integration map and integration resilience."
+    },
+    {
+      "id": "5.6/resilience",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Integration map and integration resilience."
+    },
+    {
+      "id": "5.7/conventions",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Global conventions, idempotency, versioning and per-endpoint contracts."
+    },
+    {
+      "id": "5.7/idempotency",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Global conventions, idempotency, versioning and per-endpoint contracts."
+    },
+    {
+      "id": "5.7/versioning",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Global conventions, idempotency, versioning and per-endpoint contracts."
+    },
+    {
+      "id": "5.7/endpoints",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Global conventions, idempotency, versioning and per-endpoint contracts."
+    },
+    {
+      "id": "5.8/mapping",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Field mapping and impact on what is installed."
+    },
+    {
+      "id": "5.9/file_interfaces",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "File interfaces and restart, re-run and reconciliation."
+    },
+    {
+      "id": "5.9/restart",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "File interfaces and restart, re-run and reconciliation."
+    },
+    {
+      "id": "5.10",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Cache levels, TTL, invalidation and redundancy; degradation table."
+    },
+    {
+      "id": "5.11/constraints",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/authn",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/authz",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/data_protection",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/audit",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/regulatory_controls",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.11/implementer_limits",
+      "class": "domain",
+      "gap": "GAP-GOVERNANCE-CONSTRAINTS",
+      "gap_open": true,
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers."
+    },
+    {
+      "id": "5.12/services",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "produces": "Services, client state and jobs."
+    },
+    {
+      "id": "5.12/client_state",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "produces": "Services, client state and jobs."
+    },
+    {
+      "id": "5.12/jobs",
+      "class": "domain",
+      "gap": "GAP-BACKEND-SURFACE",
+      "gap_open": true,
+      "produces": "Services, client state and jobs."
+    },
+    {
+      "id": "5.13/data_migration",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Legacy inventory and data migration."
+    },
+    {
+      "id": "5.14",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Topic, when, payload, schema version, ordering key, delivery semantics, dedupe, consumers, owner and SLA."
+    },
+    {
+      "id": "5.15",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Code, HTTP, description, retryable?, message to the user (-> 4.2); batch process errors."
+    },
+    {
+      "id": "5.16/quality_attributes",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "produces": "Quality attributes, SLI and SLO, observability, alerts and runbooks."
+    },
+    {
+      "id": "5.16/sli_slo",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "produces": "Quality attributes, SLI and SLO, observability, alerts and runbooks."
+    },
+    {
+      "id": "5.16/observability",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "produces": "Quality attributes, SLI and SLO, observability, alerts and runbooks."
+    },
+    {
+      "id": "5.16/alerts",
+      "class": "domain",
+      "gap": "GAP-PRD-NFR-KPI",
+      "gap_open": true,
+      "produces": "Quality attributes, SLI and SLO, observability, alerts and runbooks."
+    },
+    {
+      "id": "5.18",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Per-user and global limits, response when exceeded (429 with headers), maximum request and page sizes."
+    },
+    {
+      "id": "5.19",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Browser / device / minimum version matrix."
+    },
+    {
+      "id": "5.20",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Protected routes, direct entry without permission, redirect to login and return to the starting point."
+    },
+    {
+      "id": "5.21",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Library, externalized texts, key convention and default locale."
+    },
+    {
+      "id": "5.22",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Where the token lives, content policy and what is never persisted in the browser."
+    },
+    {
+      "id": "5.23",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Event / trigger / properties / metric it feeds (SC-nn from 1.3)."
+    },
+    {
+      "id": "5.25",
+      "class": "domain",
+      "gap": "GAP-TECH-DEEP-DIVE-INPUT",
+      "gap_open": true,
+      "produces": "Expected abuse (brute force, scraping, mass sending) and the control that stops it."
+    },
+    {
+      "id": "A.glossary",
+      "class": "client",
+      "gap": "GAP-PRD-GLOSSARY-GOVERNANCE",
+      "gap_open": true,
+      "produces": "Term / definition / canonical name (code · API · DB) / do not confuse with."
+    },
+    {
+      "id": "9.1/non_software",
+      "class": "domain",
+      "gap": "GAP-BACKLOG-ENABLERS",
+      "gap_open": true,
+      "produces": "Build items, non-software work and the conclusion."
+    },
+    {
+      "id": "7.1/risks",
+      "class": "domain",
+      "gap": "GAP-PRD-DEPENDENCIES-ROADMAP",
+      "gap_open": true,
+      "produces": "Open items linked to what they block, and risks, debt and viability. A summary by counts, never a changelog."
+    }
+  ],
+  "sources_cited": {
+    "F-01": 8,
+    "F-02": 1,
+    "F-03": 1,
+    "F-04": 1,
+    "F-05": 1,
+    "F-06": 1,
+    "F-07": 1
+  },
+  "replaced": [],
+  "umbrella_gaps": {
+    "GAP-BRIEF-S1": [
+      "1.2",
+      "1.4"
+    ],
+    "GAP-BRIEF-S2": [
+      "2.3",
+      "2.4",
+      "2.5"
+    ]
+  },
+  "inferred": [],
+  "unused_sources": []
+}
