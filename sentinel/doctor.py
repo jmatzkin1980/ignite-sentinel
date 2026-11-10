@@ -126,6 +126,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         memory_backend_mode_check(),
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
+        brief_schema_check(),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
     warnings = [check for check in checks if check["status"] == "WARN"]
@@ -903,6 +904,20 @@ def write_check(root: Path) -> dict[str, str]:
         return {"name": "repo write access", "status": "PASS", "detail": str(root)}
     except OSError as exc:
         return {"name": "repo write access", "status": "FAIL", "detail": str(exc)}
+
+
+def brief_schema_check() -> dict[str, str]:
+    """IMP-252: the brief v2 schema is well formed and its ids follow the append-only lock."""
+    from .brief_schema import ids_lock_problems, schema_ids, validate_schema
+
+    label = "brief v2 schema and id golden"
+    try:
+        problems = validate_schema() + ids_lock_problems()
+    except Exception as exc:  # noqa: BLE001 - doctor reports, never raises
+        return {"name": label, "status": "FAIL", "detail": f"unreadable: {exc}"}
+    if problems:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(problems[:5])}
+    return {"name": label, "status": "PASS", "detail": f"{len(schema_ids())} stable ids, none renumbered or reused"}
 
 
 def dashboard_artifact_check(root: Path) -> dict[str, str]:

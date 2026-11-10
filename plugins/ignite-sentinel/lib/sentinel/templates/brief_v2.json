@@ -1,0 +1,2077 @@
+{
+ "schema_version": 1,
+ "artifact_marker": "<!-- sentinel-artifact: v2 -->",
+ "source": "framework project brief canonical structure, 2026-10-19 (55 numbered subsections and 2 annexes)",
+ "profiles": {
+  "order": [
+   "UI",
+   "API",
+   "BAT",
+   "INT",
+   "MIG",
+   "REG",
+   "MT"
+  ],
+  "names": {
+   "UI": "UI + backend",
+   "API": "Backend / API",
+   "BAT": "Batch / pipeline",
+   "INT": "Third-party integration",
+   "MIG": "Legacy migration",
+   "REG": "Regulatory",
+   "MT": "Multi-tenant / platform"
+  }
+ },
+ "genesis": {
+  "order": [
+   "greenfield",
+   "brownfield-integration",
+   "brownfield-extension",
+   "brownfield-replacement"
+  ],
+  "demand": [
+   "greenfield",
+   "brownfield-integration",
+   "brownfield-extension",
+   "brownfield-replacement"
+  ],
+  "implied_by_profile": {
+   "MIG": "brownfield-replacement"
+  }
+ },
+ "validation_directions": [
+  "to-build",
+  "built"
+ ],
+ "marks": {
+  "●": "required",
+  "◐": "conditional",
+  "—": "n/a",
+  "Δ": "changes how it is filled",
+  "·": "no change"
+ },
+ "markers": {
+  "na": {
+   "es": "N/A — {reason}. Si {condition}, se abre.",
+   "en": "N/A — {reason}. If {condition}, it opens."
+  },
+  "out_of_scope": {
+   "es": "FUERA DE ALCANCE — vuelve en {destination}",
+   "en": "OUT OF SCOPE — returns in {destination}"
+  },
+  "pending": {
+   "es": "⏳ PENDIENTE ({gap})",
+   "en": "⏳ PENDING ({gap})",
+   "class": "client",
+   "blocks": true
+  },
+  "pending_domain": {
+   "es": "⏳ PENDIENTE DOMINIO ({gap})",
+   "en": "⏳ PENDING DOMAIN ({gap})",
+   "class": "domain",
+   "blocks": false
+  },
+  "inherited": {
+   "es": "HEREDADO de {source}",
+   "en": "INHERITED from {source}"
+  },
+  "upstream": {
+   "es": "DEPENDENCIA AGUAS ARRIBA — {owner}",
+   "en": "UPSTREAM DEPENDENCY — {owner}"
+  },
+  "output_contract": {
+   "es": "CONTRATO DE SALIDA hacia {consumer}",
+   "en": "OUTPUT CONTRACT towards {consumer}"
+  },
+  "in_scope_core": {
+   "es": "EN ALCANCE — núcleo",
+   "en": "IN SCOPE — core"
+  },
+  "built_divergence": {
+   "es": "⚠",
+   "en": "⚠",
+   "requires": "validation_direction: built"
+  },
+  "inferred": {
+   "es": "(inferido)",
+   "en": "(inferred)"
+  },
+  "v1_equivalents": {
+   "pending": "[PENDING INPUT]",
+   "pending_domain": "[PENDING DOMAIN CONTEXT]"
+  }
+ },
+ "technical_statement_kinds": {
+  "applies_to": "5",
+  "kinds": {
+   "decision": "restriction already decided",
+   "suggestion": "proposal, not committed",
+   "reversible_hypothesis": "stated with what confirms or reverts it"
+  }
+ },
+ "contract_defaults": {
+  "forbidden": [
+   "a fact without a citation",
+   "choosing between contradictory sources",
+   "an inference not stated in the same sentence",
+   "copying content another subsection owns (refer instead)"
+  ],
+  "exit_check": [
+   "every fact carries a [[…]] citation",
+   "every gap mark points to an open gap",
+   "no applicable subsection omitted"
+  ]
+ },
+ "series_reserved_fields": {
+  "reserved_until": "H17",
+  "fields": [
+   "release_type",
+   "release_goal",
+   "closing_check",
+   "depends_on",
+   "enables",
+   "inherits",
+   "builds",
+   "out_of_scope_destination",
+   "surfaces",
+   "releasable",
+   "value_type",
+   "changes_actor",
+   "non_technical_start_condition",
+   "restored_in",
+   "integrator_consumption",
+   "suggested_scope",
+   "tombstones"
+  ]
+ },
+ "evolution": {
+  "policy": "additive: a sub-block before a new number; never renumber, rename or merge; retired ids become tombstones and are never reused",
+  "tombstones": []
+ },
+ "na_groups": [
+  {
+   "key": "no_ui",
+   "members": [
+    "4.1",
+    "4.2",
+    "4.3",
+    "4.4",
+    "4.5",
+    "5.19",
+    "5.20",
+    "5.21",
+    "5.22",
+    "5.23",
+    "5.12/client_state"
+   ],
+   "line": {
+    "es": "N/A — el proyecto no tiene superficie de usuario propia. Si se suma una pantalla, aunque sea de operación, se abren §4, 5.19–5.23 y 5.12 (Estado de cliente).",
+    "en": "N/A — the project has no user surface of its own. If a screen is added, even an operations one, §4, 5.19–5.23 and 5.12 (Client state) open."
+   }
+  },
+  {
+   "key": "no_api_batch",
+   "members": [
+    "5.18",
+    "5.7/conventions",
+    "5.7/versioning"
+   ],
+   "line": {
+    "es": "N/A — no expone API (el versionado de layouts vive en 5.9). Si se agrega un endpoint de consulta o de disparo, se abren los dos sub-bloques y 5.18.",
+    "en": "N/A — it exposes no API (layout versioning lives in 5.9). If a query or trigger endpoint is added, both sub-blocks and 5.18 open."
+   }
+  },
+  {
+   "key": "no_parity",
+   "members": [
+    "5.17"
+   ],
+   "line": {
+    "es": "N/A — no reemplaza un sistema cuyas salidas haya que igualar. Si aparece uno, se abren 5.17 y 5.13 como obligatorias.",
+    "en": "N/A — it replaces no system whose outputs must be matched. If one appears, 5.17 and 5.13 open as required."
+   }
+  },
+  {
+   "key": "single_tenant",
+   "members": [
+    "5.24"
+   ],
+   "line": {
+    "es": "N/A — un solo cliente o tenant. Si se suma un segundo, se abren 5.24 y la columna de tenant en 5.4.",
+    "en": "N/A — a single customer or tenant. If a second one is added, 5.24 and the tenant column in 5.4 open."
+   }
+  },
+  {
+   "key": "no_public_exposure",
+   "members": [
+    "5.25"
+   ],
+   "line": {
+    "es": "N/A — sin exposición a usuarios externos ni canal público. Si se expone, se abre.",
+    "en": "N/A — no exposure to external users or a public channel. If it is exposed, it opens."
+   }
+  },
+  {
+   "key": "nothing_installed",
+   "members": [
+    "3.2/cutover",
+    "5.1/inventory",
+    "5.8/installed_impact",
+    "5.5",
+    "5.13/legacy",
+    "5.13/data_migration",
+    "5.17"
+   ],
+   "line": {
+    "es": "N/A — no hay nada instalado que respetar: todo se crea en este proyecto. Si aparece un recurso, sistema o dato a reutilizar, extender o reemplazar, se abren.",
+    "en": "N/A — nothing installed to respect: everything is created in this project. If a resource, system or data to reuse, extend or replace appears, they open."
+   }
+  }
+ ],
+ "sections": [
+  {
+   "id": "0",
+   "title": {
+    "es": "Encabezado",
+    "en": "Header"
+   },
+   "subsections": [
+    {
+     "id": "0.1",
+     "title": {
+      "es": "Cómo leer este documento",
+      "en": "How to read this document"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "settings"
+      ],
+      "produces": "What the document is, which series it belongs to, what it inherits, and the declared profile and genesis line ('Perfil: … · Génesis: …').",
+      "missing": "client",
+      "must_include": [
+       "profile and genesis line as confirmed by the BA",
+       "pointer to 5.11 (Limits for implementers)",
+       "dated premise correction when a premise changed",
+       "outdated name declared when the client still uses one"
+      ],
+      "exit_check": [
+       "profile and genesis are the confirmed ones, never inferred silently"
+      ]
+     }
+    },
+    {
+     "id": "0.2",
+     "title": {
+      "es": "Estado, vigencia y fuentes",
+      "en": "Status, validity and sources"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "status",
+       "title": {
+        "es": "Estado, vigencia y fuentes",
+        "en": "Status, validity and sources"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Brownfield: for what exists, the code or the current architecture document governs; the brief governs what is new. Declared per artifact type."
+      },
+      {
+       "key": "ready",
+       "title": {
+        "es": "Listo para construir",
+        "en": "Ready to build"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "sources",
+       "verdict",
+       "gaps"
+      ],
+      "produces": "Cut-off date, initiative status, the sources of this version and their precedence, and the ready-to-build verdict.",
+      "missing": "client",
+      "must_include": [
+       "validity and sources from the F-NN registry",
+       "precedence",
+       "ready to build yes/no by counts (same verdict as /status)",
+       "certainty per section: confirmed / with assumptions / open, separating blocking from deferrable"
+      ],
+      "exit_check": [
+       "the verdict equals build_readiness_verdict",
+       "the counts agree with §7"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "1",
+   "title": {
+    "es": "Overview",
+    "en": "Overview"
+   },
+   "subsections": [
+    {
+     "id": "1.1",
+     "title": {
+      "es": "Identidad y Valor",
+      "en": "Identity and Value"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps"
+      ],
+      "produces": "What it is, the value it delivers, IS / IS NOT.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "1.2",
+     "title": {
+      "es": "El Dolor Principal",
+      "en": "The Core Pain"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "The problem in 2-3 sentences and why now, usable as a tie-breaker.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "1.3",
+     "title": {
+      "es": "Métricas de Éxito / Scope",
+      "en": "Success Metrics / Scope"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps"
+      ],
+      "produces": "SC-nn table with metric, formula, baseline, target and measurement; release scope versus the long-term vision.",
+      "missing": "client",
+      "must_include": [
+       "SC-nn with formula, baseline, target and manual or event measurement (-> 5.23 / 5.14)"
+      ],
+      "forbidden": [
+       "a metric that cannot be instrumented written as an acceptance criterion"
+      ]
+     }
+    },
+    {
+     "id": "1.4",
+     "title": {
+      "es": "Punto de Partida y Punto de Llegada",
+      "en": "Starting Point and End Point"
+     },
+     "applies": "release series · migration",
+     "profiles": "◐◐◐◐●◐◐",
+     "genesis": "◐●●●",
+     "genesis_note": "Brownfield: the starting point is what is installed, verified; greenfield: 'nothing exists' is enough.",
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "What exists at the start and at the end: operating mode and operational milestones.",
+      "missing": "client",
+      "must_include": [
+       "Piece / State at start table with the row 'What does not exist'",
+       "mode: shadow | parallel | active"
+      ]
+     }
+    },
+    {
+     "id": "1.5",
+     "title": {
+      "es": "Criterios de Aceptación del Release",
+      "en": "Release Acceptance Criteria"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "criteria",
+       "title": {
+        "es": "Criterios de aceptación",
+        "en": "Acceptance criteria"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "executable",
+       "title": {
+        "es": "Verificación ejecutable",
+        "en": "Executable verification"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Integration: contract tests against existing services. Extension: also regression of what does not change. Replacement: also comparison against the legacy system (-> 5.17)."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps"
+      ],
+      "produces": "CA-N.M with test data and observable result, and the executable verification.",
+      "missing": "client",
+      "must_include": [
+       "CA with test data and result",
+       "executable verification: exact command, where the tests live, pass / fail",
+       "condicionado_a: GAP when a criterion depends on an open gap"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "2",
+   "title": {
+    "es": "Lente de Negocio",
+    "en": "Business Lens"
+   },
+   "subsections": [
+    {
+     "id": "2.1",
+     "title": {
+      "es": "Actores y Objetivos por Rol",
+      "en": "Actors and Goals by Role"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "stakeholders"
+      ],
+      "produces": "Roles named as in the permission matrix; JTBD, type, proficiency and frequency, including support and operations.",
+      "missing": "client",
+      "must_include": [
+       "primary or secondary, proficiency, frequency, type",
+       "'not applicable' instead of omitting a field"
+      ],
+      "forbidden": [
+       "other stakeholders listed as actors"
+      ]
+     }
+    },
+    {
+     "id": "2.2",
+     "title": {
+      "es": "Reglas de Negocio Críticas",
+      "en": "Critical Business Rules"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "rules",
+       "title": {
+        "es": "Reglas de negocio críticas",
+        "en": "Critical business rules"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "regulatory",
+       "title": {
+        "es": "Obligaciones normativas",
+        "en": "Regulatory obligations"
+       },
+       "applies": "regulated",
+       "profiles": "◐◐◐◐◐●◐"
+      },
+      {
+       "key": "notifications",
+       "title": {
+        "es": "Notificaciones",
+        "en": "Notifications"
+       },
+       "applies": "per project",
+       "profiles": "◐◐◐◐◐◐◐"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps",
+       "decisions"
+      ],
+      "produces": "RN-N.M rules; the control that enforces each rule lives in §5 with a cross-citation.",
+      "missing": "client",
+      "must_include": [
+       "RN with condition, result, edge, null, example with values, origin, confirmation status and where it is enforced",
+       "label '(Contexto, no regla operativa)' for background",
+       "polarity table",
+       "ordered decision table",
+       "the rule in 2.2 and the control in 5.11"
+      ]
+     }
+    },
+    {
+     "id": "2.3",
+     "title": {
+      "es": "Caso de Uso Principal",
+      "en": "Main Use Case"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "backlog"
+      ],
+      "produces": "HU-N.M with actor (role from 2.1), result, value priority (P1/P2/P3) and linked CA.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "2.4",
+     "title": {
+      "es": "Necesidad de Negocio",
+      "en": "Business Need"
+     },
+     "applies": "per project",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "High-level 'must be able to' / 'must avoid' list.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "2.5",
+     "title": {
+      "es": "Fecha de Negocio y Calendario",
+      "en": "Business Date and Calendar"
+     },
+     "applies": "batch · regulated",
+     "profiles": "◐◐●◐◐●◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Time zone, holiday calendar, business-day rule, cut-off time, windows and deadlines.",
+      "missing": "client"
+     }
+    }
+   ]
+  },
+  {
+   "id": "3",
+   "title": {
+    "es": "Lente de Producto",
+    "en": "Product Lens"
+   },
+   "subsections": [
+    {
+     "id": "3.1",
+     "title": {
+      "es": "Situación As-Is",
+      "en": "As-Is Situation"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "genesis": "Δ●●●",
+     "genesis_note": "Greenfield: only the current business process (manual or another tool); if there is none, N/A with counterfactual. Brownfield: required and verified against real code and data.",
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "How it works today: process, inventory, observed limitations.",
+      "missing": "client",
+      "must_include": [
+       "'What is not under discussion'",
+       "as-is only documented or verified",
+       "'exists but has no effect'"
+      ]
+     }
+    },
+    {
+     "id": "3.2",
+     "title": {
+      "es": "Proceso To-Be",
+      "en": "To-Be Process"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "process",
+       "title": {
+        "es": "Proceso To-Be",
+        "en": "To-Be process"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "validations",
+       "title": {
+        "es": "Validaciones de entrada",
+        "en": "Input validations"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "manual_ops",
+       "title": {
+        "es": "Operación manual y backoffice",
+        "en": "Manual operation and back office"
+       },
+       "applies": "batch · processes with rejections",
+       "profiles": "◐◐●◐●◐◐"
+      },
+      {
+       "key": "cutover",
+       "title": {
+        "es": "Corte, convivencia y reversión",
+        "en": "Cutover, coexistence and rollback"
+       },
+       "applies": "migration · brownfield-extension · brownfield-replacement",
+       "profiles": "◐◐◐◐●◐◐",
+       "genesis": "—◐●●",
+       "genesis_note": "Integration: only if it changes the use of a shared resource. Extension: flags, shadow mode and rollback. Replacement: full cutover, coexistence and rollback."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps"
+      ],
+      "produces": "Numbered target flow, happy path first, with actors, systems and what is written in one transaction.",
+      "missing": "client",
+      "must_include": [
+       "validations with declared order (stops at the first failure, or 'listed, not prioritized')",
+       "the client anticipates, the server is the barrier",
+       "uploaded files: type, size and scan",
+       "'what the validation does NOT cover'",
+       "phased backend writes",
+       "delta flow 'No changes'"
+      ]
+     }
+    },
+    {
+     "id": "3.3",
+     "title": {
+      "es": "Diagrama de Secuencia / Flujo To-Be",
+      "en": "Sequence Diagram / To-Be Flow"
+     },
+     "applies": "integration (multi-system)",
+     "profiles": "◐◐◐●◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Diagram in sync with 3.2; legitimately absent when the flow is simple.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "3.4",
+     "title": {
+      "es": "Máquina de Estados y Ciclo de Vida",
+      "en": "State Machine and Lifecycle"
+     },
+     "applies": "when there is a workflow",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "State x event -> state table with the stored values.",
+      "missing": "client",
+      "must_include": [
+       "discarded states with their reason"
+      ]
+     }
+    },
+    {
+     "id": "3.5",
+     "title": {
+      "es": "Lógica de Transiciones",
+      "en": "Transition Logic"
+     },
+     "applies": "when there is a workflow",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Rules of each transition and excluded transitions with the code each returns (-> 5.15).",
+      "missing": "client",
+      "must_include": [
+       "excluded transitions with their code"
+      ]
+     }
+    },
+    {
+     "id": "3.6",
+     "title": {
+      "es": "Manejo de Errores / Casos Borde",
+      "en": "Error Handling / Edge Cases"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "edge_cases",
+       "title": {
+        "es": "Casos borde y errores",
+        "en": "Edge cases and errors"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "cross_cutting",
+       "title": {
+        "es": "Escenarios transversales",
+        "en": "Cross-cutting scenarios"
+       },
+       "applies": "always; with agent",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "gaps"
+      ],
+      "produces": "Edge cases and errors, and the cross-cutting scenarios referral table.",
+      "missing": "client",
+      "must_include": [
+       "fixed row 'dependency down'",
+       "referral table for the 16 cross-cutting scenarios (refers, does not repeat)"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "4",
+   "title": {
+    "es": "Lente de Diseño",
+    "en": "Design Lens"
+   },
+   "subsections": [
+    {
+     "id": "4.1",
+     "title": {
+      "es": "Flujo de Pantalla",
+      "en": "Screen Flow"
+     },
+     "applies": "UI",
+     "blocks": [
+      {
+       "key": "screens",
+       "title": {
+        "es": "Ficha por pantalla",
+        "en": "Per-screen sheet"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐",
+       "genesis": "··ΔΔ",
+       "genesis_note": "Extension and replacement: a 'Change' column per element and a 'What does not change' block on every screen already built."
+      },
+      {
+       "key": "design_system",
+       "title": {
+        "es": "Design system y convenciones visuales",
+        "en": "Design system and visual conventions"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐"
+      },
+      {
+       "key": "screen_map",
+       "title": {
+        "es": "Mapa de pantallas y navegación",
+        "en": "Screen map and navigation"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐"
+      },
+      {
+       "key": "screen_states",
+       "title": {
+        "es": "Estados de pantalla",
+        "en": "Screen states"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐"
+      },
+      {
+       "key": "locale",
+       "title": {
+        "es": "Idioma, locale y formatos",
+        "en": "Language, locale and formats"
+       },
+       "applies": "UI; multi-language: conditional",
+       "profiles": "●———◐◐◐"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "sources"
+      ],
+      "produces": "Per-screen sheet, design system, screen map, screen states and locale.",
+      "missing": "client",
+      "must_include": [
+       "the 8 fixed states: ideal, first-use empty, no results, loading, partial, error, 401 (and what happens to typed input), 403"
+      ]
+     }
+    },
+    {
+     "id": "4.2",
+     "title": {
+      "es": "Consideraciones UX",
+      "en": "UX Considerations"
+     },
+     "applies": "UI",
+     "blocks": [
+      {
+       "key": "ux_decisions",
+       "title": {
+        "es": "Decisiones de UX y no comprometidas",
+        "en": "UX decisions and uncommitted ideas"
+       },
+       "applies": "UI",
+       "profiles": "◐———◐◐◐"
+      },
+      {
+       "key": "messages",
+       "title": {
+        "es": "Mensajes al usuario",
+        "en": "Messages to the user"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "sources"
+      ],
+      "produces": "UX decisions and messages to the user.",
+      "missing": "client",
+      "must_include": [
+       "messages: code -> text -> location -> action -> keeps typed input?"
+      ]
+     }
+    },
+    {
+     "id": "4.3",
+     "title": {
+      "es": "Prototipo y Precedentes de Diseño",
+      "en": "Prototype and Design Precedents"
+     },
+     "applies": "UI",
+     "profiles": "●———◐◐◐",
+     "contract": {
+      "inputs": [
+       "sources"
+      ],
+      "produces": "Link or file, validation status, dataset limits and the instruction to compare against a capture; if there is no visual material, say so.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "4.4",
+     "title": {
+      "es": "Accesibilidad",
+      "en": "Accessibility"
+     },
+     "applies": "UI",
+     "profiles": "●———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Target level (A / AA), critical criteria with automatic and manual verification, legal obligation if any.",
+      "missing": "client"
+     }
+    },
+    {
+     "id": "4.5",
+     "title": {
+      "es": "Ayuda y Capacitación",
+      "en": "Help and Training"
+     },
+     "applies": "per project",
+     "profiles": "◐———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Where in-screen help lives and what is trained.",
+      "missing": "client"
+     }
+    }
+   ]
+  },
+  {
+   "id": "5",
+   "title": {
+    "es": "Lente Técnico",
+    "en": "Technical Lens"
+   },
+   "opening": {
+    "id": "5.0",
+    "title": {
+     "es": "Apertura",
+     "en": "Opening"
+    },
+    "profiles": "●●●●●●●",
+    "applies": "always",
+    "numbered": false,
+    "contract": {
+     "inputs": [
+      "raw",
+      "sources"
+     ],
+     "produces": "Numbering map in use, brief <-> architecture documents split, and the variant without its own architecture.",
+     "missing": "domain",
+     "must_include": [
+      "brief <-> SAD split; without a SAD the brief absorbs it, labelled as a proposal"
+     ]
+    }
+   },
+   "subsections": [
+    {
+     "id": "5.1",
+     "title": {
+      "es": "Arquitectura e Integraciones",
+      "en": "Architecture and Integrations"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "components",
+       "title": {
+        "es": "Arquitectura y componentes",
+        "en": "Architecture and components"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Components with status: new, extends, unchanged, retired ('what falls with it')."
+      },
+      {
+       "key": "inventory",
+       "title": {
+        "es": "Inventario de recursos existentes",
+        "en": "Existing resources inventory"
+       },
+       "applies": "brownfield: integration, extension, replacement",
+       "profiles": "◐◐◐◐●◐◐",
+       "genesis": "—●●●",
+       "genesis_note": "Greenfield: N/A — everything is created in this project; if a resource to reuse appears, it opens. Brownfield: each resource with owner, current contract and decision reuse / extend / create / retire."
+      },
+      {
+       "key": "decisions",
+       "title": {
+        "es": "Decisiones de arquitectura",
+        "en": "Architecture decisions"
+       },
+       "applies": "new design",
+       "profiles": "◐◐◐◐●◐●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest",
+       "decisions"
+      ],
+      "produces": "Architecture and components, existing resources and architecture decisions.",
+      "missing": "domain",
+      "must_include": [
+       "component status new | extends | unchanged | retired (what falls)",
+       "resources reuse | extend | create | retire with creates | consumes"
+      ],
+      "forbidden": [
+       "secrets other than by logical name",
+       "a component nobody confirmed (a phantom component reopens its gap)"
+      ]
+     }
+    },
+    {
+     "id": "5.2",
+     "title": {
+      "es": "Stack Tecnológico",
+      "en": "Technology Stack"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "stack",
+       "title": {
+        "es": "Stack tecnológico",
+        "en": "Technology stack"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "environments",
+       "title": {
+        "es": "Ambientes, despliegue y rollback",
+        "en": "Environments, deployment and rollback"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Stack per component, environments, deployment and rollback.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.3",
+     "title": {
+      "es": "Fuentes de Datos / Repositorios",
+      "en": "Data Sources / Repositories"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "data_sources",
+       "title": {
+        "es": "Fuentes de datos",
+        "en": "Data sources"
+       },
+       "applies": "when there is data",
+       "profiles": "●●●◐●●●"
+      },
+      {
+       "key": "repos",
+       "title": {
+        "es": "Repositorios, configuración y secretos",
+        "en": "Repositories, configuration and secrets"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "parameters",
+       "title": {
+        "es": "Parámetros e interruptores",
+        "en": "Parameters and switches"
+       },
+       "applies": "per project; batch · regulated: required",
+       "profiles": "◐◐●◐◐●◐",
+       "genesis": "··◐●",
+       "genesis_note": "Gradual exposure flags: conditional in extension, required in replacement (coexistence, shadow, kill switch)."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Data sources, repositories and configuration, parameters and switches.",
+      "missing": "domain",
+      "must_include": [
+       "flags with type, default per environment, behaviour when OFF, owner and removal date"
+      ],
+      "forbidden": [
+       "secrets other than by logical name",
+       "a component nobody confirmed (a phantom component reopens its gap)"
+      ]
+     }
+    },
+    {
+     "id": "5.4",
+     "title": {
+      "es": "Modelo de Datos / ERD",
+      "en": "Data Model / ERD"
+     },
+     "applies": "when there is data",
+     "blocks": [
+      {
+       "key": "model",
+       "title": {
+        "es": "Modelo de datos",
+        "en": "Data model"
+       },
+       "applies": "when there is data",
+       "profiles": "●●●◐●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Integration: foreign tables read-only, with owner. Extension: creates / modifies / uses, column by column. Replacement: also the target model of the mapping."
+      },
+      {
+       "key": "personal_data",
+       "title": {
+        "es": "Datos personales: clasificación, propósito y retención",
+        "en": "Personal data: classification, purpose and retention"
+       },
+       "applies": "personal data · regulated",
+       "profiles": "◐◐◐◐◐●◐"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Data model and personal data classification, purpose and retention.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.5",
+     "title": {
+      "es": "Query / Patrón Heredado",
+      "en": "Inherited Query / Pattern"
+     },
+     "applies": "evolution over an existing system",
+     "profiles": "◐◐◐◐●◐◐",
+     "genesis": "—◐◐◐",
+     "genesis_note": "Only exists when there are inherited queries to adapt.",
+     "contract": {
+      "inputs": [
+       "harvest"
+      ],
+      "produces": "Real inherited query or pattern to adapt, with the fields it does not cover.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.6",
+     "title": {
+      "es": "Mapa de Integraciones",
+      "en": "Integration Map"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "map",
+       "title": {
+        "es": "Mapa de integraciones",
+        "en": "Integration map"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Integration: contract as received, consumed version and a mandatory test double. Extension: 'Today / In this release'. Replacement: legacy integrations to re-point."
+      },
+      {
+       "key": "resilience",
+       "title": {
+        "es": "Resiliencia de integraciones",
+        "en": "Integration resilience"
+       },
+       "applies": "integration · events",
+       "profiles": "◐◐◐●◐◐●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Integration map and integration resilience.",
+      "missing": "domain",
+      "must_include": [
+       "fail-open or fail-closed, owner, impact when absent and test double per integration",
+       "retries only for idempotent operations"
+      ],
+      "forbidden": [
+       "secrets other than by logical name",
+       "a component nobody confirmed (a phantom component reopens its gap)"
+      ]
+     }
+    },
+    {
+     "id": "5.7",
+     "title": {
+      "es": "Contratos de API",
+      "en": "API Contracts"
+     },
+     "applies": "own API",
+     "blocks": [
+      {
+       "key": "conventions",
+       "title": {
+        "es": "Convenciones globales de API",
+        "en": "Global API conventions"
+       },
+       "applies": "own API",
+       "profiles": "●●—◐◐◐●"
+      },
+      {
+       "key": "idempotency",
+       "title": {
+        "es": "Idempotencia y concurrencia",
+        "en": "Idempotency and concurrency"
+       },
+       "applies": "API with writes",
+       "profiles": "●●◐●◐◐●"
+      },
+      {
+       "key": "versioning",
+       "title": {
+        "es": "Versionado y compatibilidad",
+        "en": "Versioning and compatibility"
+       },
+       "applies": "API consumed by others · evolutions",
+       "profiles": "◐●—●◐◐●",
+       "genesis": "·◐●●",
+       "genesis_note": "Extension and replacement: compatibility with current consumers; the 'what does not break' list is required."
+      },
+      {
+       "key": "endpoints",
+       "title": {
+        "es": "Contratos por endpoint",
+        "en": "Per-endpoint contracts"
+       },
+       "applies": "own API",
+       "profiles": "●●◐●◐◐●",
+       "genesis": "··ΔΔ",
+       "genesis_note": "Status in each sheet header (NEW / ALREADY BUILT / ADJUSTMENT / RETIRED) and a NO-modification sheet when it applies."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Global conventions, idempotency, versioning and per-endpoint contracts.",
+      "missing": "domain",
+      "must_include": [
+       "endpoint status NEW | ALREADY BUILT | ADJUSTMENT | RETIRED"
+      ],
+      "forbidden": [
+       "secrets other than by logical name",
+       "a component nobody confirmed (a phantom component reopens its gap)"
+      ]
+     }
+    },
+    {
+     "id": "5.8",
+     "title": {
+      "es": "Mapeo de Campos (DB → API → UI)",
+      "en": "Field Mapping (DB → API → UI)"
+     },
+     "applies": "source replacement · migration · brownfield",
+     "blocks": [
+      {
+       "key": "mapping",
+       "title": {
+        "es": "Mapeo de campos",
+        "en": "Field mapping"
+       },
+       "applies": "source replacement · migration",
+       "profiles": "◐◐◐◐●◐◐"
+      },
+      {
+       "key": "installed_impact",
+       "title": {
+        "es": "Impacto en lo instalado",
+        "en": "Impact on what is installed"
+       },
+       "applies": "brownfield-extension · brownfield-replacement",
+       "profiles": "◐◐◐◐●◐◐",
+       "genesis": "—◐●●",
+       "genesis_note": "Integration: only if it writes to or loads what exists. Extension and replacement: required."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "harvest"
+      ],
+      "produces": "Field mapping and impact on what is installed.",
+      "missing": "domain",
+      "must_include": [
+       "'what does not break' in extension and replacement"
+      ]
+     }
+    },
+    {
+     "id": "5.9",
+     "title": {
+      "es": "Procesamiento Batch / Notificación de Novedades",
+      "en": "Batch Processing / Change Notification"
+     },
+     "applies": "batch · migration",
+     "blocks": [
+      {
+       "key": "file_interfaces",
+       "title": {
+        "es": "Interfaces de archivo",
+        "en": "File interfaces"
+       },
+       "applies": "batch",
+       "profiles": "◐◐●◐◐◐◐"
+      },
+      {
+       "key": "restart",
+       "title": {
+        "es": "Reinicio, re-ejecución y conciliación",
+        "en": "Restart, re-run and reconciliation"
+       },
+       "applies": "batch · migration",
+       "profiles": "◐◐●◐●◐◐",
+       "genesis": "··◐●",
+       "genesis_note": "Replacement: reconciliation of what was migrated against the origin."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "File interfaces and restart, re-run and reconciliation.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.10",
+     "title": {
+      "es": "Estrategia de Caché y Alta Disponibilidad",
+      "en": "Caching and High Availability Strategy"
+     },
+     "applies": "high concurrency or low latency",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Cache levels, TTL, invalidation and redundancy; degradation table.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.11",
+     "title": {
+      "es": "Gobernanza y Restricciones",
+      "en": "Governance and Constraints"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "constraints",
+       "title": {
+        "es": "Restricciones impuestas",
+        "en": "Imposed constraints"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "authn",
+       "title": {
+        "es": "Autenticación y sesión",
+        "en": "Authentication and session"
+       },
+       "applies": "users or callers",
+       "profiles": "●●◐●◐◐●"
+      },
+      {
+       "key": "authz",
+       "title": {
+        "es": "Autorización y permisos",
+        "en": "Authorization and permissions"
+       },
+       "applies": "whenever there are roles",
+       "profiles": "●●◐●◐●●"
+      },
+      {
+       "key": "data_protection",
+       "title": {
+        "es": "Protección de datos",
+        "en": "Data protection"
+       },
+       "applies": "personal data · multi-tenant",
+       "profiles": "◐◐◐◐◐●●"
+      },
+      {
+       "key": "audit",
+       "title": {
+        "es": "Auditoría",
+        "en": "Audit"
+       },
+       "applies": "always; detail: regulated",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "regulatory_controls",
+       "title": {
+        "es": "Normativa: controles y verificación",
+        "en": "Regulation: controls and verification"
+       },
+       "applies": "regulated",
+       "profiles": "◐◐◐◐◐●◐"
+      },
+      {
+       "key": "implementer_limits",
+       "title": {
+        "es": "Límites para quien implementa",
+        "en": "Limits for implementers"
+       },
+       "applies": "always; with agent",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "decisions"
+      ],
+      "produces": "Imposed constraints, authentication, authorization, data protection, audit, regulatory controls and limits for implementers.",
+      "missing": "domain",
+      "forbidden": [
+       "secrets other than by logical name",
+       "a component nobody confirmed (a phantom component reopens its gap)",
+       "regulation marked N/A without confirmation in a regulated domain"
+      ]
+     }
+    },
+    {
+     "id": "5.12",
+     "title": {
+      "es": "Servicios",
+      "en": "Services"
+     },
+     "applies": "own services · UI · batch",
+     "blocks": [
+      {
+       "key": "services",
+       "title": {
+        "es": "Servicios",
+        "en": "Services"
+       },
+       "applies": "own services",
+       "profiles": "●●◐◐◐◐●"
+      },
+      {
+       "key": "client_state",
+       "title": {
+        "es": "Estado de cliente",
+        "en": "Client state"
+       },
+       "applies": "UI",
+       "profiles": "●———◐◐◐"
+      },
+      {
+       "key": "jobs",
+       "title": {
+        "es": "Jobs y calendario de ejecución",
+        "en": "Jobs and execution calendar"
+       },
+       "applies": "batch",
+       "profiles": "◐◐●◐◐◐◐"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Services, client state and jobs.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.13",
+     "title": {
+      "es": "Inventario y Reglas Heredadas del Legado (As-Is técnico)",
+      "en": "Legacy Inventory and Inherited Rules (technical As-Is)"
+     },
+     "applies": "migration · evolution · initial load",
+     "blocks": [
+      {
+       "key": "legacy",
+       "title": {
+        "es": "Inventario y reglas heredadas del legado",
+        "en": "Legacy inventory and inherited rules"
+       },
+       "applies": "migration · evolution",
+       "profiles": "◐◐◐◐●◐◐",
+       "genesis": "—◐●●",
+       "genesis_note": "Extension: rules and behaviour of the system being extended. Replacement: the full legacy inventory."
+      },
+      {
+       "key": "data_migration",
+       "title": {
+        "es": "Migración de datos",
+        "en": "Data migration"
+       },
+       "applies": "migration · initial load",
+       "profiles": "◐◐◐◐●◐◐",
+       "genesis": "◐—◐●",
+       "genesis_note": "Greenfield: initial load, if any. Replacement: full migration with control counts."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "harvest"
+      ],
+      "produces": "Legacy inventory and data migration.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.14",
+     "title": {
+      "es": "Eventos / Mensajería",
+      "en": "Events / Messaging"
+     },
+     "applies": "events",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Topic, when, payload, schema version, ordering key, delivery semantics, dedupe, consumers, owner and SLA.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.15",
+     "title": {
+      "es": "Gestión de Errores y Códigos de Estado",
+      "en": "Error Handling and Status Codes"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "harvest"
+      ],
+      "produces": "Code, HTTP, description, retryable?, message to the user (-> 4.2); batch process errors.",
+      "missing": "domain",
+      "must_include": [
+       "fixed row 'unexpected error' (generic message, fail closed)",
+       "row 429 (-> 5.18)"
+      ]
+     }
+    },
+    {
+     "id": "5.16",
+     "title": {
+      "es": "Observabilidad",
+      "en": "Observability"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "quality_attributes",
+       "title": {
+        "es": "Atributos de calidad y performance",
+        "en": "Quality and performance attributes"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "sli_slo",
+       "title": {
+        "es": "SLI y SLO",
+        "en": "SLI and SLO"
+       },
+       "applies": "services in production",
+       "profiles": "●●◐●◐◐●"
+      },
+      {
+       "key": "observability",
+       "title": {
+        "es": "Observabilidad",
+        "en": "Observability"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      },
+      {
+       "key": "alerts",
+       "title": {
+        "es": "Alertas, runbooks y soporte",
+        "en": "Alerts, runbooks and support"
+       },
+       "applies": "production",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Quality attributes, SLI and SLO, observability, alerts and runbooks.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.17",
+     "title": {
+      "es": "Verificación de Paridad",
+      "en": "Parity Verification"
+     },
+     "applies": "migration",
+     "profiles": "————●◐—",
+     "genesis": "——◐●",
+     "genesis_note": "Extension: when there are outputs that must not change (byte-for-byte regression). Replacement: required.",
+     "contract": {
+      "inputs": [
+       "harvest"
+      ],
+      "produces": "Tool that checks 'same result as the legacy system': commands, matching key, difference classes, control counts.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.18",
+     "title": {
+      "es": "Límites de Uso",
+      "en": "Usage Limits"
+     },
+     "applies": "exposed API",
+     "profiles": "◐●—●◐◐●",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Per-user and global limits, response when exceeded (429 with headers), maximum request and page sizes.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.19",
+     "title": {
+      "es": "Navegadores y Dispositivos",
+      "en": "Browsers and Devices"
+     },
+     "applies": "UI",
+     "profiles": "●———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Browser / device / minimum version matrix.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.20",
+     "title": {
+      "es": "Ruteo y Protección de Rutas",
+      "en": "Routing and Route Protection"
+     },
+     "applies": "UI",
+     "profiles": "●———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Protected routes, direct entry without permission, redirect to login and return to the starting point.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.21",
+     "title": {
+      "es": "Internacionalización Técnica",
+      "en": "Technical Internationalization"
+     },
+     "applies": "UI with more than one locale",
+     "profiles": "◐———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Library, externalized texts, key convention and default locale.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.22",
+     "title": {
+      "es": "Seguridad del Cliente",
+      "en": "Client Security"
+     },
+     "applies": "UI",
+     "profiles": "●———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Where the token lives, content policy and what is never persisted in the browser.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.23",
+     "title": {
+      "es": "Eventos de Analítica",
+      "en": "Analytics Events"
+     },
+     "applies": "UI with an instrumentable metric",
+     "profiles": "◐———◐◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Event / trigger / properties / metric it feeds (SC-nn from 1.3).",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.24",
+     "title": {
+      "es": "Aislamiento entre Tenants",
+      "en": "Tenant Isolation"
+     },
+     "applies": "multi-tenant",
+     "profiles": "——————●",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Where the tenant comes from, how it is isolated and what happens on a cross.",
+      "missing": "domain"
+     }
+    },
+    {
+     "id": "5.25",
+     "title": {
+      "es": "Abuso y Anti-automatización",
+      "en": "Abuse and Anti-automation"
+     },
+     "applies": "public exposure or customer channel",
+     "profiles": "◐◐—◐—◐◐",
+     "added_by_framework": true,
+     "contract": {
+      "inputs": [
+       "raw"
+      ],
+      "produces": "Expected abuse (brute force, scraping, mass sending) and the control that stops it.",
+      "missing": "domain"
+     }
+    }
+   ]
+  },
+  {
+   "id": "6",
+   "title": {
+    "es": "Acuerdos del Release",
+    "en": "Release Agreements"
+   },
+   "subsections": [
+    {
+     "id": "6.1",
+     "title": {
+      "es": "Dentro del Scope",
+      "en": "In Scope"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "deltas",
+       "gaps"
+      ],
+      "produces": "Committed features with cross-references; stories behind a flag; accessibility level and locales as requirements.",
+      "missing": "client",
+      "must_include": [
+       "Added / Modified / Removed",
+       "'a clarification is not a change', 'reassigning is'",
+       "'subject to GAP'",
+       "conditionals shown identically in §6 and §9"
+      ]
+     }
+    },
+    {
+     "id": "6.2",
+     "title": {
+      "es": "Fuera del Scope",
+      "en": "Out of Scope"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "contract": {
+      "inputs": [
+       "raw",
+       "deltas"
+      ],
+      "produces": "Exclusions with their destination and justification.",
+      "missing": "client",
+      "must_include": [
+       "'excluded is not resolved'",
+       "'not yet is not retired'",
+       "fronts not ratified"
+      ]
+     }
+    },
+    {
+     "id": "6.3",
+     "title": {
+      "es": "Cascada — Estado de la Propagación a Otros Documentos",
+      "en": "Cascade — Propagation Status to Other Documents"
+     },
+     "applies": "change request · series",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "sources"
+      ],
+      "produces": "Document / what was done / status, when the change leaves the brief.",
+      "missing": "client"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "title": {
+    "es": "Dependencias y Cuestiones a Confirmar",
+    "en": "Dependencies and Open Questions"
+   },
+   "subsections": [
+    {
+     "id": "7.1",
+     "title": {
+      "es": "Tabla de Pendientes (forma pre-desarrollo)",
+      "en": "Open Items Table (pre-development form)"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "open_items",
+       "title": {
+        "es": "Tabla de pendientes",
+        "en": "Open items table"
+       },
+       "applies": "always, while there are open items",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Typed divergences between brief and what is built: 📄 Doc · ⚙ Contract · 🔧 Debt · 🐞 Defect."
+      },
+      {
+       "key": "risks",
+       "title": {
+        "es": "Riesgos, deuda y viabilidad",
+        "en": "Risks, debt and viability"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "·ΔΔΔ",
+       "genesis_note": "Inherited debt separated from the project's own debt."
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "gaps",
+       "verdict"
+      ],
+      "produces": "Open items linked to what they block, and risks, debt and viability. A summary by counts, never a changelog.",
+      "missing": "client",
+      "must_include": [
+       "risks in a separate table: probability x impact x mitigation, with '⏳ sin base'",
+       "inherited debt separated from own debt"
+      ]
+     }
+    },
+    {
+     "id": "7.2",
+     "title": {
+      "es": "Pendientes sembrados en el cuerpo (⏳)",
+      "en": "Open Items Seeded in the Body (⏳)"
+     },
+     "applies": "pre-development",
+     "profiles": "◐◐◐◐◐◐◐",
+     "contract": {
+      "inputs": [
+       "gaps"
+      ],
+      "produces": "⏳ with the question, why it blocks and the meanwhile value.",
+      "missing": "client"
+     }
+    }
+   ]
+  },
+  {
+   "id": "8",
+   "title": {
+    "es": "Supuestos",
+    "en": "Assumptions"
+   },
+   "subsections": [
+    {
+     "id": "8.1",
+     "title": {
+      "es": "Lista de Supuestos",
+      "en": "Assumptions List"
+     },
+     "applies": "always",
+     "profiles": "●●●●●●●",
+     "genesis": "·ΔΔΔ",
+     "genesis_note": "Separate what is already built from preconditions not built ('do not assume operational' / 'may be assumed').",
+     "contract": {
+      "inputs": [
+       "assumptions"
+      ],
+      "produces": "Assumptions and dependencies taken as built, with the consequence if false.",
+      "missing": "client",
+      "must_include": [
+       "type, contingency",
+       "'do not assume operational / may be assumed' block",
+       "a fallen assumption struck through with its item in §9",
+       "what becomes outdated if it falls"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "9",
+   "title": {
+    "es": "Cosas a Construir",
+    "en": "Things to Build"
+   },
+   "subsections": [
+    {
+     "id": "9.1",
+     "title": {
+      "es": "Lista o Fases de Construcción",
+      "en": "Build List or Phases"
+     },
+     "applies": "always",
+     "blocks": [
+      {
+       "key": "items",
+       "title": {
+        "es": "Lista o fases de construcción",
+        "en": "Build list or phases"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●",
+       "genesis": "··ΔΔ",
+       "genesis_note": "Adjustments separated from new construction; retired items and what is left unbuilt."
+      },
+      {
+       "key": "non_software",
+       "title": {
+        "es": "Trabajo que no es software",
+        "en": "Non-software work"
+       },
+       "applies": "per project",
+       "profiles": "◐◐◐◐●◐◐"
+      },
+      {
+       "key": "conclusion",
+       "title": {
+        "es": "Conclusión",
+        "en": "Conclusion"
+       },
+       "applies": "always",
+       "profiles": "●●●●●●●"
+      }
+     ],
+     "contract": {
+      "inputs": [
+       "backlog",
+       "gaps",
+       "verdict"
+      ],
+      "produces": "Build items, non-software work and the conclusion.",
+      "missing": "client",
+      "must_include": [
+       "topic per functional front",
+       "'I-n | ninguna'",
+       "'blocked by' as precedence (distinct from blocked by a GAP)",
+       "candidates without an owner outside the list",
+       "conclusion consistent with the verdict",
+       "acyclic dependency graph"
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "annexes": [
+  {
+   "id": "A.glossary",
+   "title": {
+    "es": "Glosario de Términos del Dominio",
+    "en": "Domain Glossary"
+   },
+   "applies": "always (with agent)",
+   "profiles": "●●●●●●●",
+   "contract": {
+    "inputs": [
+     "raw"
+    ],
+    "produces": "Term / definition / canonical name (code · API · DB) / do not confuse with.",
+    "missing": "client",
+    "must_include": [
+     "disambiguating rows"
+    ],
+    "forbidden": [
+     "a definition the source does not give, unless marked '(inferido)'"
+    ]
+   }
+  },
+  {
+   "id": "A.provenance",
+   "title": {
+    "es": "Procedencia y Datos de Referencia",
+    "en": "Provenance and Reference Data"
+   },
+   "applies": "per project",
+   "profiles": "◐◐◐◐●◐◐",
+   "contract": {
+    "inputs": [
+     "sources"
+    ],
+    "produces": "Source files by path, dump with a decision per row, external diagrams.",
+    "missing": "client",
+    "must_include": [
+     "provenance only of what was actually read",
+     "parameters and switches register"
+    ]
+   }
+  }
+ ]
+}

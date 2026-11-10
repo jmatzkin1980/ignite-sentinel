@@ -346,6 +346,9 @@ def scan_source_conflicts(project_id: str, source_id: str, text: str, language: 
     result["proposals"] = sum(1 for s in fresh if s["kind"] == PROPOSAL)
 
     config = load_config(project_id)
+    from .brief_schema import effective_validation_direction  # IMP-252: the BA-confirmed direction wins
+
+    config = {**config, "validation_direction": effective_validation_direction(project_id, config)}
     authorities = {str(r["id"]): row_authority(r) for r in rows}
     authorities.setdefault(source_id, authority)
     by_gap = {item["gap_id"]: item for item in ledger["contradictions"]}
