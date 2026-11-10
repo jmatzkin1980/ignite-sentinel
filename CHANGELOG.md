@@ -15,6 +15,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Settings:** `/brief --profile ... --genesis ... --validation-direction ...` records what the BA confirmed. Until then, `/brief` shows a proposal and the blocking gap `GAP-BRIEF-PROFILE`.
   - **Validation direction:** the confirmed one now drives the interim mark of a contradiction (`⏳` or `⚠`).
   - v1 briefs are unchanged.
+- Dual read of the brief (IMP-254). `sentinel/brief_model.py` reads a v1 or a v2 brief into the six canonical lenses the readers already use, so no reader parses section numbers itself.
+  - **Lens map:** v1 maps one to one. In v2, §1–§4 feed their lens, §5 feeds lens 5 except §5.11, and §5.11 plus §6 feed lens 6; §0 and §7–§9 feed none. A test pins the map against the schema.
+  - **Readers:**
+    - Brief readiness (and so `/maturity`, `/status` and the brief→PRD check) reads `⏳` marks and `[[…]]` citations in a v2 brief.
+    - The specs retrieval answers its v1 heading terms through an alias table.
+    - `/view` counts structured citations.
+  - **Backlog anchor:** an anchor into a v2 brief is its section id (`§ 5.11`), not a line range, because v2 is rewritten in place.
+  - **Guard:** the v1 compiler never overwrites a v2 brief; `/brief` and `/specs` keep it until the v2 compiler lands.
+  - v1 output is unchanged: the goldens are identical, and a characterization test pins the readiness reader against the previous algorithm.
 
 ## [0.4.0] — 2026-11-10
 

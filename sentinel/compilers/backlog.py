@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..brief_model import load_brief_model
 from ..core.markdown import frontmatter_list
 from ..slicing_model import load_slicing_model
 from .prd import render_ears_requirements_table
@@ -112,12 +113,27 @@ def anchor_for_context_row(row: dict[str, Any]) -> dict[str, Any]:
     read_plan = row.get("read_plan", {})
     if not isinstance(read_plan, dict):
         read_plan = read_plan_for_row(row)
-    return {
+    anchor: dict[str, Any] = {
         "source_path": str(read_plan.get("source_path", row.get("source_path", row.get("file_path", "")))),
         "section_path": str(read_plan.get("section_path", row.get("section_path", ""))),
         "line_start": int(read_plan.get("line_start", row.get("line_start", 0)) or 0),
         "line_end": int(read_plan.get("line_end", row.get("line_end", 0)) or 0),
     }
+    # IMP-254: a v2 brief is rewritten in place, so its lines rot; anchor it by
+    # the stable schema section id instead.
+    section_id = v2_brief_section_id(anchor["source_path"], anchor["line_start"])
+    if section_id:
+        anchor["section_id"] = section_id
+    return anchor
+
+
+def v2_brief_section_id(source_path: str, line: int) -> str:
+    if not source_path or line <= 0:
+        return ""
+    model = load_brief_model(source_path)
+    if model is None or model.version != 2:
+        return ""
+    return model.section_id_at_line(line)
 
 
 def read_plan_for_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -669,6 +685,9 @@ def render_anchor_inline(anchor: object) -> str:
     line_start = int(anchor.get("line_start", 0) or 0)
     line_end = int(anchor.get("line_end", 0) or 0)
     section_path = str(anchor.get("section_path", "")).strip()
+    section_id = str(anchor.get("section_id", "")).strip()
+    if source_path and section_id:
+        return f"Anchor: {source_path} § {section_id}; section: {safe_cell(section_path or 'N/A', 120)}"
     if not source_path or line_start <= 0 or line_end < line_start:
         return ""
     location = f"{source_path}:{line_start}-{line_end}"

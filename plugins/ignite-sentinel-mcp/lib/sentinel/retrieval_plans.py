@@ -10,6 +10,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .brief_model import excerpt as brief_excerpt
+from .citations import is_v2_artifact
 from .core.io import read_json
 from .lens_registry import lens_checks_for_lens
 from .resources import read_package_json
@@ -123,7 +125,8 @@ def select_source_context(documents: dict[str, str], plan: dict[str, Any]) -> st
     selected: list[str] = []
     for wanted in plan.get("source_sections", []):
         for label, text in documents.items():
-            excerpt = section_excerpt(text, wanted)
+            # IMP-254: a v2 brief answers v1 heading terms through brief_model.
+            excerpt = brief_excerpt(text, wanted) if is_v2_artifact(text) else section_excerpt(text, wanted)
             if excerpt:
                 selected.append(f"[{label}:{wanted}]\n{excerpt}")
     if not selected:

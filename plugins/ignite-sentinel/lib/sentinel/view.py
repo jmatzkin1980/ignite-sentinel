@@ -17,6 +17,7 @@ from .shell import content_fingerprint, fill, json_for_script, render_shell, tem
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 from .core.io import write_text
+from .citations import is_v2_artifact
 from .secrets_scan import assert_no_leaks
 
 
@@ -51,8 +52,14 @@ ARTIFACTS = {
 
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")
 CITATION_RE = re.compile(r"\[(?:Fuente|Source):[^\]]+\]|`(?:REQ|FR|JTBD|SPEC-U|US|AC|TC|KLU|DEC|CHG|RAW|GAP|ASM)-[^`]+`")
+# IMP-254: a v2 artifact also cites with structured `[[doc § section # ID]]`.
+V2_CITATION_RE = re.compile(r"\[\[[^\]\n]+\]\]|" + CITATION_RE.pattern)
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 ORDERED_LIST_RE = re.compile(r"^\d+\.\s+(.*)$")
+
+
+def citation_pattern(text: str) -> re.Pattern[str]:
+    return V2_CITATION_RE if is_v2_artifact(text) else CITATION_RE
 
 
 def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
@@ -78,7 +85,7 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
     markers = enrich_markers(collect_markers(sections), marker_metadata)
     sections = attach_section_readiness(sections, markers, development_readiness)
     guided_response = collect_guided_response(markers)
-    citations, graph_nodes, source_fragments = collect_citations(project_id, sections)
+    citations, graph_nodes, source_fragments = collect_citations(project_id, sections, citation_pattern(text))
     trace_nodes = trace_nodes_for_artifact(project_id, relative, artifact)
     trace_edges = trace_edges_for_citations(project_id, citations)
     section_summary = summarize_section_readiness(sections)
@@ -403,7 +410,7 @@ def summarize_section_readiness(sections: list[dict[str, Any]]) -> dict[str, int
 
 
 def collect_citations(
-    project_id: str, sections: list[dict[str, Any]]
+    project_id: str, sections: list[dict[str, Any]], pattern: re.Pattern[str] = CITATION_RE
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
     """Citations plus the shared tables they point into (IMP-240).
 
@@ -417,7 +424,7 @@ def collect_citations(
     graph = load_graph(project_id)
     node_lookup = {str(node.get("id", "")): node for node in graph.get("nodes", [])}
     for section in sections:
-        for match in CITATION_RE.finditer(section["markdown"]):
+        for match in pattern.finditer(section["markdown"]):
             citation = match.group(0)
             trace_id = citation_trace_id(citation)
             trace_node = node_lookup.get(trace_id, {}) if trace_id else {}

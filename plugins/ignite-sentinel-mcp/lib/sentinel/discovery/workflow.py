@@ -2904,6 +2904,10 @@ def expected_format_for_gap(gap_id: str, language: str = "en") -> str:
 #   1 Identidad y Valor       4 Lente de Diseño
 #   2 Lente de Negocio        5 Lente Técnico
 #   3 Lente de Producto       6 Gobernanza y Restricciones
+#
+# IMP-254: the values are the canonical lens keys of `sentinel.brief_model`, not
+# literal headings. A v2 brief maps them onto its sections through
+# `brief_model.v2_sections_for_gap` (lens 6 = §5.11 + §6).
 
 BRIEF_SECTION_FOR_GAP = {
     "GAP-OBJECTIVE": "1",
