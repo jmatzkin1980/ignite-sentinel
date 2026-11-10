@@ -129,8 +129,14 @@ class FlowTests(unittest.TestCase):
         self.assertFalse((self.ws / "01_discovery" / "agent_sweep_log.md").exists())
 
     def test_f7_dispositions_and_false_alarm_rate(self) -> None:
-        self.assertEqual(self._annotate({"gaps": [_gap(), _gap(id="GAP-REPORT-OWNER", evidence="operations team"),
-                                                   _gap(id="GAP-OBJECTIVE-METRIC", evidence="reduce manual work")]}), 0)
+        # IMP-257: distinct questions, or the topic dedup merges them into one row
+        self.assertEqual(self._annotate({"gaps": [
+            _gap(),
+            _gap(id="GAP-REPORT-OWNER", evidence="operations team", lens="business",
+                 question="Which team owns the monthly report once it ships?"),
+            _gap(id="GAP-OBJECTIVE-METRIC", evidence="reduce manual work", lens="product",
+                 question="By how many hours a week should manual work go down?"),
+        ]}), 0)
         code, result = self._run(["gaps", "SWP", "--id", "GAP-DATA-RETENTION", "--disposition", "accepted"])
         self.assertEqual(code, 0)
         self.assertEqual(result["disposition"], "accepted")

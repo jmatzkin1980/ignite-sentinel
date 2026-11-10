@@ -51,6 +51,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-PERSONA-DETAIL - PRD Persona Detail
@@ -85,6 +86,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-METRIC-SOURCE - Metric Source
@@ -116,7 +118,7 @@ Example of a useful answer:
 Baseline comes from the weekly operations report owned by Support Ops; target is to detect high-risk queues before 9:30 AM daily.
 
 Cited candidate options (not selected):
-- Option A: Confirm `30 percent` is the success target and provide source, baseline, owner, and measurement method. Local citation: `30 percent`.
+- Option A (recommended: inferred, never applied by itself): Confirm `30 percent` is the success target and provide source, baseline, owner, and measurement method. Local citation: `30 percent`.
 - Option B: Treat `30 percent` as a directional target until source/baseline are confirmed, naming the missing evidence. Local citation: `30 percent`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -127,6 +129,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-METRIC-DEFINITION - Metric Definition
@@ -158,7 +161,7 @@ Example of a useful answer:
 The 'resolution time' metric is the average hours between open and close, source Case Management, baseline 8h, target threshold 6h.
 
 Cited candidate options (not selected):
-- Option A: Confirm `metric` is in scope and answer the missing `Metric Definition` detail. Local citation: `metric`.
+- Option A (recommended: inferred, never applied by itself): Confirm `metric` is in scope and answer the missing `Metric Definition` detail. Local citation: `metric`.
 - Option B: Confirm `metric` is context-only, out of scope, or pending, and state the boundary. Local citation: `metric`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -169,6 +172,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRODUCT-ASIS-TOBE - Current And Target Process
@@ -203,6 +207,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-BACKLOG-SLICING-READINESS - Backlog Slicing Readiness
@@ -237,6 +242,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-FR-AC - Functional Requirements And ACs
@@ -271,6 +277,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-ACCEPTANCE - Acceptance Signal
@@ -305,6 +312,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-QUALITY - Quality Expectations
@@ -339,6 +347,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-QUALITY-HANDOFF - Quality Handoff
@@ -373,6 +382,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-NFR-KPI - NFRs, KPIs, And Measurement
@@ -407,6 +417,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-TECH-DATA-SOURCE - Systems And Data Ownership
@@ -441,6 +452,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-TECH-NFR - Operational Constraints
@@ -475,6 +487,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-BACKLOG-ENABLERS - Valid Cross-Cutting Enablers
@@ -509,6 +522,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-FRONTEND-SURFACE - Frontend Surface
@@ -540,7 +554,7 @@ Example of a useful answer:
 Affected surface is the Daily Operations dashboard. Add risk badge, preserve existing filters, bind to `slaRisk`, and track `risk_badge_clicked`.
 
 Cited candidate options (not selected):
-- Option A: Apply the missing `Frontend Surface` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
+- Option A (recommended: inferred, never applied by itself): Apply the missing `Frontend Surface` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
 - Option B: Declare `dashboard` out of MVP scope and name the alternative or deferral. Local citation: `dashboard`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -551,6 +565,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-BACKEND-SURFACE - Backend Surface
@@ -585,6 +600,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-TECH-DEEP-DIVE-INPUT - Technology Deep Dive
@@ -619,6 +635,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-GOVERNANCE-CONSTRAINTS - Governance Constraints
@@ -653,6 +670,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance
@@ -687,6 +705,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-DELIVERY-READINESS - Delivery Readiness
@@ -721,6 +740,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap
@@ -755,6 +775,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments
@@ -789,6 +810,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-DESIGN-FLOW - User Journey And Screens
@@ -820,7 +842,7 @@ Example of a useful answer:
 The indicator appears on the daily dashboard list. Users enter from Home > Operations > Daily queues and decide which queue to inspect first.
 
 Cited candidate options (not selected):
-- Option A: Confirm `dashboard` is in scope and answer the missing `User Journey And Screens` detail. Local citation: `dashboard`.
+- Option A (recommended: inferred, never applied by itself): Confirm `dashboard` is in scope and answer the missing `User Journey And Screens` detail. Local citation: `dashboard`.
 - Option B: Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -831,6 +853,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-DESIGN-STATES - UX States
@@ -862,7 +885,7 @@ Example of a useful answer:
 Show skeleton while loading, neutral state when there are no queues, warning state for stale data, and existing generic error for service failures.
 
 Cited candidate options (not selected):
-- Option A: Apply the missing `UX States` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
+- Option A (recommended: inferred, never applied by itself): Apply the missing `UX States` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
 - Option B: Declare `dashboard` out of MVP scope and name the alternative or deferral. Local citation: `dashboard`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -873,6 +896,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ### GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus
@@ -904,7 +928,7 @@ Example of a useful answer:
 Prototype the dashboard list with normal, high-risk, stale-data, and empty states to validate scanability with analysts.
 
 Cited candidate options (not selected):
-- Option A: Confirm `dashboard` is in scope and answer the missing `Prototype Focus` detail. Local citation: `dashboard`.
+- Option A (recommended: inferred, never applied by itself): Confirm `dashboard` is in scope and answer the missing `Prototype Focus` detail. Local citation: `dashboard`.
 - Option B: Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
 These options do not close the gap; the BA/owner must confirm an answer.
 
@@ -915,6 +939,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 
 
 ## Additional Notes
@@ -925,33 +950,33 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note | Unit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| GAP-BUSINESS-RULES | business | medium | OPEN | `REQ-001` | Business rules, exclusions, or decision rules are not explicit enough for downstream slicing. | Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Quantitative metric appears without an explicit source or baseline. | What is the source or baseline for the quantitative metric? | Context folders and source input. | 30 percent | checklist | N/A | RU-003 |
-| GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | A metric, KPI, or indicator concept is named without its definition, formula, unit, source, or threshold. | How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold? | Context folders and source input. | metric | checklist | N/A | RU-003 |
-| GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | Current state and target state are not both explicit enough to compare impact. | What is the current process, target process, and exact delta between them? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear. | What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-ACCEPTANCE | quality | critical | CLOSED | `REQ-001` | Acceptance criteria or success conditions are missing. | What observable conditions prove the requirement is done? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-QUALITY | quality | medium | OPEN | `REQ-001` | Quality or testability expectations are not explicit. | What quality, testability, risk, or compliance expectations apply? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-QUALITY-HANDOFF | quality | medium | OPEN | `REQ-001` | Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear. | Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-NFR-KPI | quality | medium | OPEN | `REQ-001` | NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-TECH-DATA-SOURCE | technical | medium | OPEN | `REQ-001` | Data source, integration, or system ownership is not explicit in source or technology context. | Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-TECH-NFR | technical | medium | OPEN | `REQ-001` | Performance, security, observability, or operational constraints are not explicit. | What security, performance, observability, availability, or operational constraints apply? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-BACKLOG-ENABLERS | technical | medium | OPEN | `REQ-001` | Cross-cutting enablers are not explicit enough: implementation work that must be built in advance across frontend/backend or architecture surfaces must be tied to confirmed project functionality and boundary. | Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-FRONTEND-SURFACE | technical | medium | OPEN | `REQ-001` | Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear. | Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected? | Context folders and source input. | dashboard | checklist | N/A | RU-001 |
-| GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear. | Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis. | Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | Governance, security, privacy, compliance, or operational restrictions are not explicit. | Which security, privacy, compliance, audit, or operational restrictions must be respected? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | Dependencies, environments, ownership, timing, or rollout constraints are not explicit. | Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD? | Context folders and source input. | N/A | checklist | N/A | N/A |
-| GAP-DESIGN-FLOW | design | medium | OPEN | `REQ-001` | User journey, screen flow, or interaction model is not explicit in source or design context. | Which user journey, screens, flows, copy, or interaction changes are in scope? | Context folders and source input. | dashboard | checklist | N/A | RU-001 |
-| GAP-DESIGN-STATES | design | medium | OPEN | `REQ-001` | Required UI states for loading, empty, error, and recovery are not explicit. | What loading, empty, error, recovery, and accessibility states must be handled? | Context folders and source input. | dashboard | checklist | N/A | RU-001 |
-| GAP-DESIGN-PROTOTYPE-INPUT | design | medium | OPEN | `REQ-001` | The requirement does not make clear what Design must prototype or validate in user flows. | What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it? | Context folders and source input. | dashboard | checklist | N/A | RU-001 |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note | Unit | Kind | Closure |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| GAP-BUSINESS-RULES | business | medium | OPEN | `REQ-001` | Business rules, exclusions, or decision rules are not explicit enough for downstream slicing. | Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-PERSONA-DETAIL | business | medium | OPEN | `REQ-001` | Persona attributes are not complete enough for a PRD: goals, pain points, proficiency, and usage frequency are unclear. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-METRIC-SOURCE | business | medium | OPEN | `REQ-001` | Quantitative metric appears without an explicit source or baseline. | What is the source or baseline for the quantitative metric? | Context folders and source input. | 30 percent | checklist | N/A | RU-003 | domain | N/A |
+| GAP-METRIC-DEFINITION | business | medium | OPEN | `REQ-001` | A metric, KPI, or indicator concept is named without its definition, formula, unit, source, or threshold. | How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold? | Context folders and source input. | metric | checklist | N/A | RU-003 | domain | N/A |
+| GAP-PRODUCT-ASIS-TOBE | product | medium | OPEN | `REQ-001` | Current state and target state are not both explicit enough to compare impact. | What is the current process, target process, and exact delta between them? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-BACKLOG-SLICING-READINESS | product | medium | OPEN | `REQ-001` | Backlog slicing signals are not explicit enough: first value slice, workflow paths, variants, rule deferral, or story boundaries are unclear. | What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-FR-AC | product | medium | OPEN | `REQ-001` | Functional requirements are not decomposed with source-backed acceptance criteria. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-ACCEPTANCE | quality | critical | CLOSED | `REQ-001` | Acceptance criteria or success conditions are missing. | What observable conditions prove the requirement is done? | Context folders and source input. | N/A | checklist | N/A | N/A | client | answered |
+| GAP-QUALITY | quality | medium | OPEN | `REQ-001` | Quality or testability expectations are not explicit. | What quality, testability, risk, or compliance expectations apply? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-QUALITY-HANDOFF | quality | medium | OPEN | `REQ-001` | Quality handoff is not explicit enough: critical flows, edge cases, test data, regression risks, or evidence expectations are unclear. | Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-NFR-KPI | quality | medium | OPEN | `REQ-001` | NFRs, KPIs, targets, measurement method, or timeframe are not explicit enough for PRD governance. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-DATA-SOURCE | technical | medium | OPEN | `REQ-001` | Data source, integration, or system ownership is not explicit in source or technology context. | Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-NFR | technical | medium | OPEN | `REQ-001` | Performance, security, observability, or operational constraints are not explicit. | What security, performance, observability, availability, or operational constraints apply? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-BACKLOG-ENABLERS | technical | medium | OPEN | `REQ-001` | Cross-cutting enablers are not explicit enough: implementation work that must be built in advance across frontend/backend or architecture surfaces must be tied to confirmed project functionality and boundary. | Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-FRONTEND-SURFACE | technical | medium | OPEN | `REQ-001` | Frontend implementation surface is not explicit enough: affected screens, states, validations, copy, roles, or API binding needs are unclear. | Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected? | Context folders and source input. | dashboard | checklist | N/A | RU-001 | domain | N/A |
+| GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear. | Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis. | Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | Governance, security, privacy, compliance, or operational restrictions are not explicit. | Which security, privacy, compliance, audit, or operational restrictions must be respected? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | Dependencies, environments, ownership, timing, or rollout constraints are not explicit. | Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-DESIGN-FLOW | design | medium | OPEN | `REQ-001` | User journey, screen flow, or interaction model is not explicit in source or design context. | Which user journey, screens, flows, copy, or interaction changes are in scope? | Context folders and source input. | dashboard | checklist | N/A | RU-001 | domain | N/A |
+| GAP-DESIGN-STATES | design | medium | OPEN | `REQ-001` | Required UI states for loading, empty, error, and recovery are not explicit. | What loading, empty, error, recovery, and accessibility states must be handled? | Context folders and source input. | dashboard | checklist | N/A | RU-001 | domain | N/A |
+| GAP-DESIGN-PROTOTYPE-INPUT | design | medium | OPEN | `REQ-001` | The requirement does not make clear what Design must prototype or validate in user flows. | What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it? | Context folders and source input. | dashboard | checklist | N/A | RU-001 | domain | N/A |
 
 ## Resolution Trace
 

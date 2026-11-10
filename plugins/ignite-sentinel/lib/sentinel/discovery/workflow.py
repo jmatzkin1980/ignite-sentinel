@@ -18,7 +18,7 @@ from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, copy_file, read_json, write_text
 from ..core.markdown import parse_table_rows
 from ..deltas import DeltaStatus
-from ..gaps import count_gaps, is_blocking, parse_gap_answers, parse_gap_table
+from ..gaps import count_gaps, gap_kind, is_blocking, merge_gaps_by_topic, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..memory import ContextBroker, index_context_folders
@@ -1228,19 +1228,12 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    existing_ids = {gap["id"] for gap in real_existing}
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    merged_new: list[dict[str, str]] = []
-    skipped: list[str] = []
-    for gap in agent_gaps:
-        if gap["id"] in existing_ids:
-            skipped.append(gap["id"])
-            continue
-        merged_new.append(gap)
-        existing_ids.add(gap["id"])
-
-    merged = real_existing + merged_new
+    topic_merge = merge_gaps_by_topic(real_existing, agent_gaps)  # IMP-257: id, then topic
+    merged_new: list[dict[str, str]] = topic_merge["added"]
+    skipped: list[str] = topic_merge["skipped"]
+    merged = topic_merge["gaps"]
     language = _annotation_project_language(project_id, base)
     write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
@@ -1429,19 +1422,12 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    existing_ids = {gap["id"] for gap in real_existing}
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    merged_new: list[dict[str, str]] = []
-    skipped: list[str] = []
-    for gap in challenge_gaps:
-        if gap["id"] in existing_ids:
-            skipped.append(gap["id"])
-            continue
-        merged_new.append(gap)
-        existing_ids.add(gap["id"])
-
-    merged = real_existing + merged_new
+    topic_merge = merge_gaps_by_topic(real_existing, challenge_gaps)  # IMP-257: id, then topic
+    merged_new: list[dict[str, str]] = topic_merge["added"]
+    skipped: list[str] = topic_merge["skipped"]
+    merged = topic_merge["gaps"]
     language = _annotation_project_language(project_id, base)
     write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
@@ -1760,19 +1746,12 @@ def apply_scrutiny(
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    existing_ids = {gap["id"] for gap in real_existing}
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    merged_new: list[dict[str, str]] = []
-    skipped: list[str] = []
-    for gap in scrutiny_gaps:
-        if gap["id"] in existing_ids:
-            skipped.append(gap["id"])
-            continue
-        merged_new.append(gap)
-        existing_ids.add(gap["id"])
-
-    merged = real_existing + merged_new
+    topic_merge = merge_gaps_by_topic(real_existing, scrutiny_gaps)  # IMP-257: id, then topic
+    merged_new: list[dict[str, str]] = topic_merge["added"]
+    skipped: list[str] = topic_merge["skipped"]
+    merged = topic_merge["gaps"]
     language = _annotation_project_language(project_id, base)
     write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
 
@@ -1940,8 +1919,8 @@ def source_consulted_text(language: str) -> str:
 
 def none_gap_row(language: str) -> str:
     if language == "es":
-        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A | checklist | N/A | N/A |"
-    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist | N/A | N/A |"
+        return "| NONE | Todos | none | CLOSED | N/A | No se detectaron gaps bloqueantes por escaneo determinístico. | N/A | Input fuente. | N/A | checklist | N/A | N/A | N/A | N/A |"
+    return "| NONE | All | none | CLOSED | N/A | No blocking gaps detected by deterministic scan. | N/A | Source input. | N/A | checklist | N/A | N/A | N/A | N/A |"
 
 
 def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
@@ -1958,6 +1937,8 @@ def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
         gap.get("origin", "checklist"),
         gap.get("resolution_note") or "N/A",
         gap.get("unit") or "N/A",
+        gap_kind(gap),
+        gap.get("closure_reason") or "N/A",
     ]
     return "| " + " | ".join(cells) + " |"
 
@@ -1993,7 +1974,55 @@ def description_for_gap(gap: dict[str, str], language: str = "en") -> str:
     return descriptions.get(gap["id"], gap["description"])
 
 
+def gap_meanwhile_map(project_id: str) -> dict[str, dict[str, str]]:
+    """IMP-257: the value to build with meanwhile, from an active assumption that closes the gap."""
+    from ..brief_model import V2_GAP_ROUTES
+
+    path = workspace_path(project_id) / "01_discovery" / "assumptions.md"
+    if not path.exists():
+        return {}
+    from ..assumptions import assumption_rows
+
+    found: dict[str, dict[str, str]] = {}
+    for row in assumption_rows(path.read_text(encoding="utf-8")):
+        gap_id = str(row.get("closes_gap", "")).strip("` ").upper()
+        if gap_id and str(row.get("status", "")).upper() in {"ASSUMED", "INFERRED"} and gap_id not in found:
+            place = V2_GAP_ROUTES.get(gap_id, "")
+            found[gap_id] = {"assumption": row["id"], "statement": row["statement"], "where": f"brief v2 §{place}" if place else ""}
+    return found
+
+
+def meanwhile_markdown(gap: dict[str, str], language: str) -> str:
+    meanwhile = gap.get("_meanwhile")
+    if not isinstance(meanwhile, dict):
+        return ""
+    where = f" — {'aparece en' if language == 'es' else 'appears in'} {meanwhile['where']}" if meanwhile.get("where") else ""
+    label = "Mientras tanto (inferido, a ratificar):" if language == "es" else "Meanwhile (inferred, to ratify):"
+    return f"\n{label} {meanwhile['statement']} (`{meanwhile['assumption']}`){where}\n"
+
+
+def write_gap_elicitation(project_id: str, gaps: list[dict[str, str]], language: str) -> None:
+    """The side record behind the response sections: kind, closure, example, recommended, meanwhile."""
+    from ..core.io import write_json
+
+    records = {}
+    for gap in gaps:
+        options = candidate_options_for_gap(gap, language)
+        records[gap["id"]] = {
+            "kind": gap_kind(gap),
+            "closure_reason": gap.get("closure_reason") or None,
+            "example": example_response_for_gap(gap["id"], language),
+            "recommended": {"label": options[0]["label"], "text": options[0]["text"], "inferred": True} if options else None,
+            "meanwhile": gap.get("_meanwhile"),
+        }
+    write_json(workspace_path(project_id) / "01_discovery" / "gap_elicitation.json", records)
+
+
 def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en") -> str:
+    if workspace_path(project_id).exists():
+        meanwhile = gap_meanwhile_map(project_id)
+        gaps = [{**gap, "_meanwhile": meanwhile[gap["id"]]} if gap.get("id") in meanwhile else gap for gap in gaps]
+        write_gap_elicitation(project_id, gaps, language)
     response_sections = "\n\n".join(render_gap_response_section(gap, req_id, language) for gap in gaps)
     if not response_sections:
         response_sections = no_gaps_text(language)
@@ -2033,8 +2062,8 @@ Agregar cualquier nuevo requerimiento, restricción, decisión, screenshot, diag
 
 Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel.
 
-| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución | Unidad |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lente | Severidad | Estado | Padre | Descripción | Pregunta para cliente/dominio | Fuente consultada | Disparador detectado | Origen | Nota de resolución | Unidad | Clase | Cierre |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Trazabilidad de resolución
@@ -2074,8 +2103,8 @@ Add any new requirement, constraint, decision, screenshot, diagram, or example t
 
 This table is kept for Sentinel traceability and automated processing.
 
-| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note | Unit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gap ID | Lens | Severity | Status | Parent | Description | Question For Client/Domain | Source Consulted | Detected Trigger | Origin | Resolution Note | Unit | Kind | Closure |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 {rows}
 
 ## Resolution Trace
@@ -2167,13 +2196,15 @@ def candidate_options_markdown(gap: dict[str, str], language: str = "en") -> str
         return ""
     if language == "es":
         lines = ["Opciones candidatas citadas (no seleccionadas):"]
-        for option in options:
-            lines.append(f"- Opcion {option['label']}: {option['text']} Cita local: `{option['citation']}`.")
+        for index, option in enumerate(options):
+            mark = " (recomendada: inferida, no se aplica sola)" if index == 0 else ""
+            lines.append(f"- Opcion {option['label']}{mark}: {option['text']} Cita local: `{option['citation']}`.")
         lines.append("Estas opciones no cierran el gap; el BA/owner debe confirmar una respuesta.")
         return "\n".join(lines)
     lines = ["Cited candidate options (not selected):"]
-    for option in options:
-        lines.append(f"- Option {option['label']}: {option['text']} Local citation: `{option['citation']}`.")
+    for index, option in enumerate(options):
+        mark = " (recommended: inferred, never applied by itself)" if index == 0 else ""
+        lines.append(f"- Option {option['label']}{mark}: {option['text']} Local citation: `{option['citation']}`.")
     lines.append("These options do not close the gap; the BA/owner must confirm an answer.")
     return "\n".join(lines)
 
@@ -2186,6 +2217,7 @@ def render_gap_response_section(gap: dict[str, str], req_id: str, language: str 
     evidence_block = f"\n{evidence_label}\n{evidence_note}\n" if evidence_note else ""
     candidate_options = candidate_options_markdown(gap, language)
     candidate_block = f"\n{candidate_options}\n" if candidate_options else ""
+    candidate_block += meanwhile_markdown(gap, language)
     if language == "es":
         return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
 
@@ -2219,6 +2251,7 @@ Respuesta del cliente / dominio:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
+- Motivo de cierre:
 """
     return f"""### {gap_id} - {human_title_for_gap(gap_id)}
 
@@ -2252,6 +2285,7 @@ Client / domain response:
 - Owner / source:
 - Evidence or reference:
 - Decision status:
+- Closure reason:
 """
 
 
@@ -3513,3 +3547,63 @@ def render_refinement_hooks(gaps: list[dict[str, str]]) -> str:
     if not gaps:
         return "- No blocking refinement hooks detected."
     return "\n".join(f"- {gap['id']}: {question_for_gap(gap['id'])}" for gap in gaps)
+
+
+# --- IMP-257: rounds of questions -------------------------------------------------------
+
+# Order inside a round: scope > security and privacy > UX > technical, then the rest.
+ROUND_LENS_ORDER = {"product": 0, "business": 0, "compliance": 1, "design": 2, "technical": 3}
+ROUND_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def gap_round(project_id: str, top: int = 5) -> dict[str, object]:
+    """The next batch of at most `top` questions, one decision each, recommended option first."""
+    base = workspace_path(project_id)
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        raise RuntimeError("Cannot plan a round before /ingest creates 01_discovery/gaps.md.")
+    state = read_state(project_id, {})
+    language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
+    gaps = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+            if gap.get("id") != "NONE" and str(gap.get("status", "OPEN")).upper() != "CLOSED"]
+    gaps.sort(key=lambda gap: (ROUND_LENS_ORDER.get(str(gap.get("lens", "")).strip("`"), 4),
+                               ROUND_SEVERITY_ORDER.get(str(gap.get("severity", "")).strip("`").lower(), 4), gap["id"]))
+    meanwhile = gap_meanwhile_map(project_id)
+    leave = "Dejar pendiente" if language == "es" else "Leave pending"
+    items = []
+    for gap in gaps[:max(1, int(top))]:
+        options = candidate_options_for_gap(gap, language)
+        choices = [{"label": o["label"], "text": o["text"], "recommended": index == 0, "inferred": index == 0}
+                   for index, o in enumerate(options)]
+        choices.append({"label": "-", "text": leave, "recommended": False, "inferred": False})
+        items.append({
+            "id": gap["id"],
+            "kind": gap_kind(gap),
+            "lens": gap.get("lens", ""),
+            "severity": gap.get("severity", ""),
+            "question": gap.get("question") or question_for_gap(gap["id"], language),
+            "choices": choices,
+            "meanwhile": meanwhile.get(gap["id"]),
+        })
+    path = base / "01_discovery" / "gap_round.md"
+    write_text(path, render_gap_round(project_id, items, len(gaps), language))
+    return {"project_id": project_id, "round": items, "open_total": len(gaps), "remaining": max(0, len(gaps) - len(items)),
+            "path": str(path.as_posix())}
+
+
+def render_gap_round(project_id: str, items: list[dict[str, object]], total: int, language: str) -> str:
+    es = language == "es"
+    lines = [f"# {'Ronda de preguntas' if es else 'Question round'} - {project_id}", "",
+             (f"{len(items)} de {total} gaps abiertos. Una decisión por pregunta; la recomendada es una inferencia y no se aplica sola."
+              if es else f"{len(items)} of {total} open gaps. One decision per question; the recommended option is an inference and never applies by itself."), ""]
+    for number, item in enumerate(items, start=1):
+        lines += [f"## {number}. {item['id']} ({item['kind']}, {item['severity']})", "", str(item["question"]), ""]
+        for choice in item["choices"]:  # type: ignore[union-attr]
+            mark = (" (recomendada, inferida)" if es else " (recommended, inferred)") if choice["recommended"] else ""
+            prefix = f"{choice['label']}. " if choice["label"] != "-" else ""
+            lines.append(f"- {prefix}{choice['text']}{mark}")
+        meanwhile = item.get("meanwhile")
+        if isinstance(meanwhile, dict):
+            lines += ["", f"{'Mientras tanto (inferido)' if es else 'Meanwhile (inferred)'}: {meanwhile['statement']} (`{meanwhile['assumption']}`)"]
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"

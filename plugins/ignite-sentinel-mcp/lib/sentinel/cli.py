@@ -229,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--id", dest="gap_id")
             command.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
             command.add_argument("--reason", default="")
+            command.add_argument("--top", type=int, help="IMP-257: the next round of at most N questions (default 5)")
     reindex_p = sub.add_parser("reindex")
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
@@ -331,6 +332,10 @@ def main(argv: list[str] | None = None) -> int:
                 from .discovery import record_gap_disposition
 
                 print_json(record_gap_disposition(args.project_id, args.gap_id, args.disposition, args.reason))
+            elif args.top is not None:
+                from .discovery.workflow import gap_round
+
+                print_json(gap_round(args.project_id, args.top))
             else:
                 from .discovery import regenerate_gaps
 

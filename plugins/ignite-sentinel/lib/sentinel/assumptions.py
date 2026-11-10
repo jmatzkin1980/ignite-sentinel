@@ -11,7 +11,7 @@ from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import copy_file, read_json as core_read_json, write_text
 from .core.markdown import parse_table_rows
-from .workspace import read_json, state_path, update_state, workspace_path, write_json
+from .workspace import read_json, read_state, state_path, update_state, workspace_path, write_json
 
 
 class AssumptionError(RuntimeError):
@@ -410,12 +410,47 @@ def update_assumption_statuses(
     path = persist_assumptions(project_id, rows) if validated or invalidated else workspace_path(project_id) / "01_discovery" / "assumptions.md"
     summary = summarize_assumptions(rows)
     update_state(project_id, assumption_summary=summary)
+    reopened = reopen_gaps_for_invalidated(project_id, rows, set(invalidated)) if invalidated else []
     return {
         "validated": validated,
         "invalidated": invalidated,
+        "reopened_gaps": reopened,
         "path": str(path.as_posix()),
         "summary": summary,
     }
+
+
+def reopen_gaps_for_invalidated(project_id: str, rows: list[dict[str, str]], invalidated: set[str]) -> list[str]:
+    """IMP-257: a gap an invalidated assumption held up opens again, keeping its previous closure on record."""
+    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
+    from .core.io import write_text
+
+    gaps_path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        return []
+    held = {row.get("closes_gap", "").upper(): row["id"].upper() for row in rows
+            if row["id"].upper() in invalidated and row.get("closes_gap")}
+    gaps = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
+    reopened: list[str] = []
+    for gap in gaps:
+        if str(gap.get("status", "")).upper() not in {"CLOSED", "PARTIALLY_CLOSED"}:
+            continue
+        note = gap.get("resolution_note", "") or ""
+        cause = held.get(gap["id"].upper()) or next((asm for asm in invalidated if asm in note.upper()), None)
+        if not cause:
+            continue
+        previous = f"{gap.get('closure_reason') or gap.get('status', '').lower()}: {note}".strip(": ")
+        gap.update(status="OPEN", resolution_note=f"reopened: {cause} invalidated; previous closure kept: {previous}")
+        gap.pop("closure_reason", None)
+        reopened.append(gap["id"])
+    if reopened:
+        state = read_state(project_id, {})
+        language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
+        req_id = gaps[0].get("parent", "REQ-001").strip("`") if gaps else "REQ-001"
+        write_text(gaps_path, render_gaps(project_id, gaps, req_id, language))
+        counts = count_gaps(gaps)
+        update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
+    return reopened
 
 
 def _format_assumption_row(row: dict[str, str], *, include_category: bool) -> str:

@@ -291,16 +291,18 @@ def _merge_gaps(project_id: str, new_gaps: list[dict[str, str]], language: str |
     gaps_path = workspace_path(project_id) / "01_discovery" / "gaps.md"
     if not new_gaps or not gaps_path.exists():
         return []
+    from .gaps import merge_gaps_by_topic
+
     existing = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
-    known = {gap["id"] for gap in existing}
-    added = [gap for gap in new_gaps if gap["id"] not in known]
-    if not added:
+    topic_merge = merge_gaps_by_topic(existing, new_gaps)  # IMP-257: id, then topic
+    added = topic_merge["added"]
+    if not added and not topic_merge["extended"]:
         return []
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
     if language not in {"es", "en"}:
         state = read_json(workspace_path(project_id) / "state.json", {})
         language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    all_gaps = existing + added
+    all_gaps = topic_merge["gaps"]
     write_text(gaps_path, render_gaps(project_id, all_gaps, req_id, language))
     counts = count_gaps(all_gaps)
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))

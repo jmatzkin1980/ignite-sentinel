@@ -41,6 +41,18 @@ Every `/resolve-gaps` pass metabolizes the confirmed knowledge and returns a `kn
 
 The same contract holds for assumptions (IMP-182). A **test before advancing** assumption can carry "cited cheapest-validation candidates" in `01_discovery/assumptions.md` (and `cheapest_test_candidates` in `assumptions_projection.json`) — the smallest experiments that would validate it. A **candidate cheapest test is not a validation**: proposing one never moves the assumption. The assumption only flips `ASSUMED` → `VALIDATED`/`INVALIDATED` through the governed channels — this `/resolve-gaps` pass (via a closed linked gap, reported as `validated_assumptions` above), `/sync`, or an explicit BA decision. Present candidates as prompts for the BA to run, never as evidence that the assumption has been tested.
 
+## Rounds, Kinds and Closure Reasons (IMP-257)
+
+- **Ask in rounds.** `python -m sentinel /gaps PROJECT_ID --top 5` gives the next batch: scope > security and privacy > UX > technical, one decision per question, the recommended option first and "leave pending" last. Ask exactly those, not the whole list.
+- **The recommended option is an inference.** Present it first, but only the client or owner closes the gap.
+- **The "meanwhile" value is an inference to ratify,** never an answer.
+- **Read the kind:** `client` blocks, `domain` can be deferred to a context request, `synthesis` came from crossing sources, and `template` is a brief v2 umbrella.
+- **Every closure needs `Evidence or reference`.** Add a `- Closure reason:` when it is not a plain answer:
+  - `by_decision` must cite a `DEC-*`.
+  - `resolved_by_inference` must cite an `ASM-*` and keeps the gap partially closed until ratified.
+  - `reopened_false_premise` reopens a closed gap.
+- **Report `closure_findings`** from `/resolve-gaps`. They name closures without a citation or with the wrong one.
+
 ## Grill Mode: Guided Live Gap Closure (IMP-184)
 
 Use grill mode when the BA wants to work the open gaps **live in chat** — one decision at a time — instead of sending the async `gaps.md` out and waiting. It is a conversational pattern with **no runtime of its own**: it only drafts the `/resolve-gaps` response file, and closure still happens through `/resolve-gaps`.

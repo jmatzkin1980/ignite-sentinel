@@ -135,10 +135,34 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "open": [item["id"] for item in resolution_results["open"]],
         "gap_counts": resolution_results["counts"],
         "knowledge_metabolism": metabolism,
+        "closure_findings": resolution_results["findings"],
     }
     if brief_v2:
         result["brief_v2"] = brief_v2
     return result
+
+
+_TBD_IN_ANSWER = re.compile(r"(?<![\w-])(TBD|TBC|a definir|por definir|to be defined)(?![\w-])", re.I)
+_EXAMPLE_EVIDENCE = re.compile(r"\b(example|ejemplo|sample data|datos de ejemplo|current practice|pr[aá]ctica actual)\b", re.I)
+
+
+def closure_for(gap_id: str, response: dict[str, str], decision: str) -> tuple[str, list[str]]:
+    """IMP-257: the closure reason of a confirmed answer and the findings about its citation."""
+    from .gaps import CLOSURE_CITES, CLOSURE_REASONS, REOPEN_FALSE_PREMISE
+
+    raw = str(response.get("closure", "")).strip().strip("`").lower().replace(" ", "_")
+    findings: list[str] = []
+    if raw and raw not in CLOSURE_REASONS and raw != REOPEN_FALSE_PREMISE:
+        findings.append(f"{gap_id}: unknown closure reason {raw!r}; use one of {', '.join(CLOSURE_REASONS)}.")
+        raw = ""
+    reason = raw or ("by_removal" if decision in NOT_APPLICABLE_STATUSES else "answered")
+    evidence = str(response.get("evidence", "")).strip()
+    if reason != REOPEN_FALSE_PREMISE and not evidence:
+        findings.append(f"{gap_id}: closed without a citation; fill 'Evidence or reference'.")
+    needed = CLOSURE_CITES.get(reason)
+    if needed and needed not in evidence.upper():
+        findings.append(f"{gap_id}: closure '{reason}' must cite a {needed}* id.")
+    return reason, findings
 
 
 def apply_gap_responses(
@@ -147,6 +171,7 @@ def apply_gap_responses(
     can_close: bool = True,
     block_note: str | None = None,
 ) -> dict[str, object]:
+    findings: list[str] = []
     closed: list[dict[str, str]] = []
     answered: list[dict[str, str]] = []
     partially_closed: list[dict[str, str]] = []
@@ -162,6 +187,42 @@ def apply_gap_responses(
         gap["evidence"] = response.get("evidence", "")
         gap["decision_status"] = response.get("decision_status", "")
         substantive = is_substantive_answer(answer)
+        confirmed = bool(answer) and decision in CONFIRMED_STATUSES and substantive
+        reason, closure_findings = closure_for(gap["id"], response, decision) if confirmed or response.get("closure") else ("", [])
+        if str(response.get("closure", "")).strip().lower().replace(" ", "_") == "reopened_false_premise":
+            # IMP-257: the premise of an earlier closure was false; the gap reopens and keeps that closure on record
+            previous = f"{gap.get('closure_reason') or 'closed'}: {gap.get('resolution_note') or ''}".strip(": ")
+            gap["status"] = "OPEN"
+            gap["closure_reason"] = "reopened_false_premise"
+            gap["resolution_note"] = f"reopened (false premise); previous closure kept: {previous}"
+            open_gaps.append(gap)
+            updated.append(gap)
+            continue
+        if confirmed and _EXAMPLE_EVIDENCE.search(gap["evidence"]):
+            # example data or the current practice never closes a gap
+            gap["status"] = "ANSWERED"
+            gap["resolution_note"] = EXAMPLE_SOURCE_NOTE
+            answered.append(gap)
+            updated.append(gap)
+            continue
+        if confirmed and _TBD_IN_ANSWER.search(answer):
+            gap["status"] = "PARTIALLY_CLOSED"
+            gap["resolution_note"] = "confirmed-tbd: the confirmed answer still says TBD; ask for the value"
+            partially_closed.append(gap)
+            updated.append(gap)
+            continue
+        if confirmed and reason == "resolved_by_inference":
+            # an inference never makes a gap ready: it stays visible until someone ratifies it
+            findings.extend(closure_findings)
+            gap["status"] = "PARTIALLY_CLOSED"
+            gap["closure_reason"] = reason
+            gap["resolution_note"] = f"resolved-by-inference: {gap['evidence']}; ratify to close"
+            partially_closed.append(gap)
+            updated.append(gap)
+            continue
+        if confirmed and can_close:
+            findings.extend(closure_findings)
+            gap["closure_reason"] = reason
         if answer and decision in CONFIRMED_STATUSES and substantive and not can_close:
             gap["status"] = "ANSWERED"
             gap["resolution_note"] = block_note or EXAMPLE_SOURCE_NOTE
@@ -196,6 +257,7 @@ def apply_gap_responses(
         "partially_closed": partially_closed,
         "open": [gap for gap in updated if gap.get("status") == "OPEN"],
         "counts": count_gaps(updated),
+        "findings": findings,
     }
 
 

@@ -1200,170 +1200,170 @@
    },
    {
     "id": "section-4",
-    "line_end": 55,
+    "line_end": 56,
     "line_start": 22,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BUSINESS-RULES - Business Rules"
    },
    {
     "id": "section-5",
-    "line_end": 89,
-    "line_start": 56,
+    "line_end": 91,
+    "line_start": 57,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-PERSONA-DETAIL - PRD Persona Detail"
    },
    {
     "id": "section-6",
-    "line_end": 131,
-    "line_start": 90,
+    "line_end": 134,
+    "line_start": 92,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-METRIC-SOURCE - Metric Source"
    },
    {
     "id": "section-7",
-    "line_end": 173,
-    "line_start": 132,
+    "line_end": 177,
+    "line_start": 135,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-METRIC-DEFINITION - Metric Definition"
    },
    {
     "id": "section-8",
-    "line_end": 207,
-    "line_start": 174,
+    "line_end": 212,
+    "line_start": 178,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRODUCT-ASIS-TOBE - Current And Target Process"
    },
    {
     "id": "section-9",
-    "line_end": 241,
-    "line_start": 208,
+    "line_end": 247,
+    "line_start": 213,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-SLICING-READINESS - Backlog Slicing Readiness"
    },
    {
     "id": "section-10",
-    "line_end": 275,
-    "line_start": 242,
+    "line_end": 282,
+    "line_start": 248,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-FR-AC - Functional Requirements And ACs"
    },
    {
     "id": "section-11",
-    "line_end": 309,
-    "line_start": 276,
+    "line_end": 317,
+    "line_start": 283,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-ACCEPTANCE - Acceptance Signal"
    },
    {
     "id": "section-12",
-    "line_end": 343,
-    "line_start": 310,
+    "line_end": 352,
+    "line_start": 318,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY - Quality Expectations"
    },
    {
     "id": "section-13",
-    "line_end": 377,
-    "line_start": 344,
+    "line_end": 387,
+    "line_start": 353,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-QUALITY-HANDOFF - Quality Handoff"
    },
    {
     "id": "section-14",
-    "line_end": 411,
-    "line_start": 378,
+    "line_end": 422,
+    "line_start": 388,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-NFR-KPI - NFRs, KPIs, And Measurement"
    },
    {
     "id": "section-15",
-    "line_end": 445,
-    "line_start": 412,
+    "line_end": 457,
+    "line_start": 423,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DATA-SOURCE - Systems And Data Ownership"
    },
    {
     "id": "section-16",
-    "line_end": 479,
-    "line_start": 446,
+    "line_end": 492,
+    "line_start": 458,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-NFR - Operational Constraints"
    },
    {
     "id": "section-17",
-    "line_end": 513,
-    "line_start": 480,
+    "line_end": 527,
+    "line_start": 493,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKLOG-ENABLERS - Valid Cross-Cutting Enablers"
    },
    {
     "id": "section-18",
-    "line_end": 555,
-    "line_start": 514,
+    "line_end": 570,
+    "line_start": 528,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-FRONTEND-SURFACE - Frontend Surface"
    },
    {
     "id": "section-19",
-    "line_end": 589,
-    "line_start": 556,
+    "line_end": 605,
+    "line_start": 571,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-BACKEND-SURFACE - Backend Surface"
    },
    {
     "id": "section-20",
-    "line_end": 623,
-    "line_start": 590,
+    "line_end": 640,
+    "line_start": 606,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-TECH-DEEP-DIVE-INPUT - Technology Deep Dive"
    },
    {
     "id": "section-21",
-    "line_end": 657,
-    "line_start": 624,
+    "line_end": 675,
+    "line_start": 641,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-GOVERNANCE-CONSTRAINTS - Governance Constraints"
    },
    {
     "id": "section-22",
-    "line_end": 691,
-    "line_start": 658,
+    "line_end": 710,
+    "line_start": 676,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance"
    },
    {
     "id": "section-23",
-    "line_end": 725,
-    "line_start": 692,
+    "line_end": 745,
+    "line_start": 711,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
    },
    {
     "id": "section-24",
-    "line_end": 759,
-    "line_start": 726,
+    "line_end": 780,
+    "line_start": 746,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
    },
    {
     "id": "section-25",
-    "line_end": 793,
-    "line_start": 760,
+    "line_end": 815,
+    "line_start": 781,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
    },
    {
     "id": "section-26",
-    "line_end": 835,
-    "line_start": 794,
+    "line_end": 858,
+    "line_start": 816,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
    },
    {
     "id": "section-27",
-    "line_end": 877,
-    "line_start": 836,
+    "line_end": 901,
+    "line_start": 859,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
    },
    {
     "id": "section-28",
-    "line_end": 919,
-    "line_start": 878,
+    "line_end": 944,
+    "line_start": 902,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
    },
    {
     "id": "section-29",
-    "line_end": 923,
-    "line_start": 920,
+    "line_end": 948,
+    "line_start": 945,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
    },
    {
     "id": "section-30",
-    "line_end": 955,
-    "line_start": 924,
+    "line_end": 980,
+    "line_start": 949,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
    },
    {
     "id": "section-31",
-    "line_end": 960,
-    "line_start": 956,
+    "line_end": 985,
+    "line_start": 981,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Resolution Trace"
    }
   ],
@@ -3499,170 +3499,170 @@
    },
    {
     "id": "section-4",
-    "line_end": 55,
+    "line_end": 56,
     "line_start": 22,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BUSINESS-RULES - Reglas de negocio"
    },
    {
     "id": "section-5",
-    "line_end": 89,
-    "line_start": 56,
+    "line_end": 91,
+    "line_start": 57,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-PERSONA-DETAIL - Detalle de personas para PRD"
    },
    {
     "id": "section-6",
-    "line_end": 131,
-    "line_start": 90,
+    "line_end": 134,
+    "line_start": 92,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-METRIC-SOURCE - Fuente de métrica"
    },
    {
     "id": "section-7",
-    "line_end": 173,
-    "line_start": 132,
+    "line_end": 177,
+    "line_start": 135,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-METRIC-DEFINITION - Definición de métrica"
    },
    {
     "id": "section-8",
-    "line_end": 207,
-    "line_start": 174,
+    "line_end": 212,
+    "line_start": 178,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRODUCT-ASIS-TOBE - Proceso actual y objetivo"
    },
    {
     "id": "section-9",
-    "line_end": 241,
-    "line_start": 208,
+    "line_end": 247,
+    "line_start": 213,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-SLICING-READINESS - Preparacion de slicing de backlog"
    },
    {
     "id": "section-10",
-    "line_end": 275,
-    "line_start": 242,
+    "line_end": 282,
+    "line_start": 248,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-FR-AC - Requerimientos funcionales y criterios de aceptacion"
    },
    {
     "id": "section-11",
-    "line_end": 309,
-    "line_start": 276,
+    "line_end": 317,
+    "line_start": 283,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-ACCEPTANCE - Señal de aceptación"
    },
    {
     "id": "section-12",
-    "line_end": 343,
-    "line_start": 310,
+    "line_end": 352,
+    "line_start": 318,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY - Expectativas de calidad"
    },
    {
     "id": "section-13",
-    "line_end": 377,
-    "line_start": 344,
+    "line_end": 387,
+    "line_start": 353,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-QUALITY-HANDOFF - Handoff de calidad"
    },
    {
     "id": "section-14",
-    "line_end": 411,
-    "line_start": 378,
+    "line_end": 422,
+    "line_start": 388,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-NFR-KPI - NFRs, KPIs y medicion"
    },
    {
     "id": "section-15",
-    "line_end": 445,
-    "line_start": 412,
+    "line_end": 457,
+    "line_start": 423,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DATA-SOURCE - Sistemas y ownership de datos"
    },
    {
     "id": "section-16",
-    "line_end": 479,
-    "line_start": 446,
+    "line_end": 492,
+    "line_start": 458,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-NFR - Restricciones operativas"
    },
    {
     "id": "section-17",
-    "line_end": 513,
-    "line_start": 480,
+    "line_end": 527,
+    "line_start": 493,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKLOG-ENABLERS - Enablers transversales validos"
    },
    {
     "id": "section-18",
-    "line_end": 547,
-    "line_start": 514,
+    "line_end": 562,
+    "line_start": 528,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-FRONTEND-SURFACE - Superficie frontend"
    },
    {
     "id": "section-19",
-    "line_end": 581,
-    "line_start": 548,
+    "line_end": 597,
+    "line_start": 563,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-BACKEND-SURFACE - Superficie backend"
    },
    {
     "id": "section-20",
-    "line_end": 615,
-    "line_start": 582,
+    "line_end": 632,
+    "line_start": 598,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-TECH-DEEP-DIVE-INPUT - Profundización técnica"
    },
    {
     "id": "section-21",
-    "line_end": 649,
-    "line_start": 616,
+    "line_end": 667,
+    "line_start": 633,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-GOVERNANCE-CONSTRAINTS - Restricciones de gobernanza"
    },
    {
     "id": "section-22",
-    "line_end": 683,
-    "line_start": 650,
+    "line_end": 702,
+    "line_start": 668,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza"
    },
    {
     "id": "section-23",
-    "line_end": 717,
-    "line_start": 684,
+    "line_end": 737,
+    "line_start": 703,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
    },
    {
     "id": "section-24",
-    "line_end": 751,
-    "line_start": 718,
+    "line_end": 772,
+    "line_start": 738,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
    },
    {
     "id": "section-25",
-    "line_end": 785,
-    "line_start": 752,
+    "line_end": 807,
+    "line_start": 773,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
    },
    {
     "id": "section-26",
-    "line_end": 819,
-    "line_start": 786,
+    "line_end": 842,
+    "line_start": 808,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
    },
    {
     "id": "section-27",
-    "line_end": 853,
-    "line_start": 820,
+    "line_end": 877,
+    "line_start": 843,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
    },
    {
     "id": "section-28",
-    "line_end": 887,
-    "line_start": 854,
+    "line_end": 912,
+    "line_start": 878,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
    },
    {
     "id": "section-29",
-    "line_end": 891,
-    "line_start": 888,
+    "line_end": 916,
+    "line_start": 913,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
    },
    {
     "id": "section-30",
-    "line_end": 923,
-    "line_start": 892,
+    "line_end": 948,
+    "line_start": 917,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
    },
    {
     "id": "section-31",
-    "line_end": 928,
-    "line_start": 924,
+    "line_end": 953,
+    "line_start": 949,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Trazabilidad de resolución"
    }
   ],
