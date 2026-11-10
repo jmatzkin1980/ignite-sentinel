@@ -267,6 +267,7 @@ class _Writer:
             if target and status in {"ASSUMED", "INFERRED", "ASSUMPTION"}:
                 self.inferred.setdefault(target, []).append(assumption)
         self.inferred_rows: list[dict[str, str]] = []
+        self.umbrellas: dict[str, set[str]] = {}
         self.interims: dict[str, list[dict[str, Any]]] = {}
         self.unplaced_contradictions: list[dict[str, Any]] = []
         for item in inputs.contradictions:
@@ -299,7 +300,7 @@ class _Writer:
             gap = f" (`{fact.gap}`)" if fact.gap else ""
             line = f"- {transcribe(fact.text)}{gap} {self.cite(fact, title)}"
             if source_says_tbd(fact.text):
-                line += " " + self.pending(sid, sid, "client", fact.gap or None)
+                line += " " + self.pending(sid, sid, "client")
                 pending = True
             else:
                 settled = True
@@ -326,8 +327,18 @@ class _Writer:
             pending = True
         return lines, settled, pending
 
+    def open_gap_for(self, sid: str) -> str:
+        """IMP-255: a mark points to an open gap: the routed one, the lens default, else the section umbrella."""
+        candidates = sorted(g for g, target in V2_GAP_ROUTES.items() if target == sid) + [default_gap_for(sid)]
+        for candidate in candidates:
+            if candidate in self.open_gaps:
+                return candidate
+        umbrella = umbrella_gap_id(_section_of(sid))
+        self.umbrellas.setdefault(umbrella, set()).add(sid)
+        return umbrella
+
     def pending(self, place: str, sid: str, klass: str, gap: str | None = None) -> str:
-        gap = gap or default_gap_for(sid)
+        gap = gap if gap and gap in self.open_gaps else self.open_gap_for(sid)
         key = "pending_domain" if klass == "domain" else "pending"
         self.places.append({"id": place, "fill": key, "class": klass, "gap": gap, "gap_open": gap in self.open_gaps,
                             "section": sid.split(".")[0] if not sid.startswith("A.") else "A"})
@@ -524,6 +535,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         ],
         "sources_cited": dict(sorted(w.cited.items())),
         "replaced": w.replaced,
+        "umbrella_gaps": {gap: sorted(places, key=_sort_key) for gap, places in sorted(w.umbrellas.items())},
         "inferred": w.inferred_rows,
         "unused_sources": [row["id"] for row in inputs.registry
                            if row["id"] not in w.cited and row.get("validity", "current") == "current"],
@@ -686,6 +698,12 @@ def compile_brief_v2(project_id: str, settings: dict[str, Any], language: str) -
 
     inputs = collect_inputs(project_id, settings, language)
     text, report = render_brief_v2(inputs)
+    if sync_umbrella_gaps(project_id, report["umbrella_gaps"], language):
+        # the umbrella rows are now open gaps; render once more so §7.1 lists them (fixed point)
+        previous = inputs.previous_text
+        inputs = collect_inputs(project_id, settings, language)
+        inputs.previous_text = previous
+        text, report = render_brief_v2(inputs)
     base = workspace_path(project_id) / "02_requirements"
     write_text(base / "project-brief.md", text)
     write_text(base / "brief_compile_report.json", json.dumps(report, ensure_ascii=False, indent=2) + "\n")
@@ -838,3 +856,48 @@ def record_brief_inferences(project_id: str, inferred: list[dict[str, str]]) -> 
     payload["units"] = units
     payload["summary"] = summarize_units(units)
     write_json(path, payload)
+
+
+# --- IMP-255: umbrella gaps for pending places with no open gap of their own ---------------
+
+UMBRELLA_PREFIX = "GAP-BRIEF-S"
+
+
+def umbrella_gap_id(section: str) -> str:
+    return f"{UMBRELLA_PREFIX}{section}"
+
+
+def sync_umbrella_gaps(project_id: str, umbrellas: dict[str, list[str]], language: str) -> bool:
+    """Open one non-blocking gap per section whose pending places have no open gap; close the rest."""
+    from ..core.io import write_text
+    from ..discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
+    from ..workspace import update_state, workspace_path
+
+    path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    if not path.exists():
+        return False
+    rows = [row for row in parse_gap_rows(path.read_text(encoding="utf-8")) if row.get("id") != "NONE"]
+    by_id = {row.get("id", "").strip("`"): row for row in rows}
+    changed = False
+    for gap_id, places in umbrellas.items():
+        question = ("Completar en el brief v2: " if language == "es" else "Fill in the brief v2: ") + ", ".join(places)
+        row = by_id.get(gap_id)
+        if row is None:
+            rows.append({"id": gap_id, "lens": "product", "severity": "medium", "status": "OPEN",
+                         "description": f"Brief v2 places with no open gap of their own ({', '.join(places)}).",
+                         "question": question, "evidence_mention": "", "origin": "checklist", "resolution_note": ""})
+            changed = True
+        elif str(row.get("status", "")).upper() == "CLOSED" or row.get("question") != question:
+            row.update(status="OPEN", question=question, resolution_note="")
+            changed = True
+    for gap_id, row in by_id.items():
+        if gap_id.startswith(UMBRELLA_PREFIX) and gap_id not in umbrellas and str(row.get("status", "")).upper() != "CLOSED":
+            row.update(status="CLOSED", resolution_note="No brief v2 place points here any more.")
+            changed = True
+    if not changed:
+        return False
+    req_id = rows[0].get("parent", "REQ-001").strip("`") if rows else "REQ-001"
+    write_text(path, render_gaps(project_id, rows, req_id, language))
+    counts = count_gaps(rows)
+    update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
+    return True

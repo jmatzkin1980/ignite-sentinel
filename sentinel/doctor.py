@@ -127,6 +127,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         optional_dependency_check("sentence_transformers"),
         mcp_dependency_check(),
         brief_schema_check(),
+        brief_vocabulary_check(root),
     ]
     blocking = [check for check in checks if check["status"] == "FAIL"]
     warnings = [check for check in checks if check["status"] == "WARN"]
@@ -918,6 +919,17 @@ def brief_schema_check() -> dict[str, str]:
     if problems:
         return {"name": label, "status": "FAIL", "detail": "; ".join(problems[:5])}
     return {"name": label, "status": "PASS", "detail": f"{len(schema_ids())} stable ids, none renumbered or reused"}
+
+
+def brief_vocabulary_check(root: Path) -> dict[str, str]:
+    """IMP-255: skills and mirrors write the v2 marker and the pending marks only in their canonical form."""
+    from .brief_integrity import skill_vocabulary_problems
+
+    label = "brief v2 marker and mark vocabulary in skills"
+    problems = skill_vocabulary_problems(root)
+    if problems:
+        return {"name": label, "status": "FAIL", "detail": "; ".join(problems[:5])}
+    return {"name": label, "status": "PASS", "detail": "canonical marker and marks only"}
 
 
 def dashboard_artifact_check(root: Path) -> dict[str, str]:

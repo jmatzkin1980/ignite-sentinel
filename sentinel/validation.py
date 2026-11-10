@@ -53,6 +53,10 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
     findings.extend(validate_semantic_artifacts(project_id, base, graph))
     # IMP-249: v2 artifacts cite {doc, section, id}; v1 artifacts carry no marker and are skipped.
     findings.extend(validate_structured_citations(base))
+    # IMP-255: marks, report, forbidden values and residues of a v2 brief (v1 is skipped).
+    from .brief_integrity import brief_v2_integrity_findings
+
+    findings.extend(brief_v2_integrity_findings(base))
 
     semantic_quality, quality_warnings = semantic_quality_report(base)
     requirement_quality, requirement_warnings = requirement_quality_validation(base)
