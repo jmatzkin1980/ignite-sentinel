@@ -121,7 +121,11 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         readiness_stage=readiness_stage_after_gap_change(project_id, resolution_results["counts"]),
     )
     append_gap_resolution_log(project_id, change_id, report_id, resolution_results)
-    return {
+    # IMP-253b: in a v2 project the answers rewrite their places in the brief now
+    from .compilers.brief_v2 import rewrite_after_gap_close
+
+    brief_v2 = rewrite_after_gap_close(project_id, [item["id"] for item in resolution_results["closed"]])
+    result = {
         "change_id": change_id,
         "gap_resolution_report_id": report_id,
         "path": str(report_path.as_posix()),
@@ -132,6 +136,9 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "gap_counts": resolution_results["counts"],
         "knowledge_metabolism": metabolism,
     }
+    if brief_v2:
+        result["brief_v2"] = brief_v2
+    return result
 
 
 def apply_gap_responses(
