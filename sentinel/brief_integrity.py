@@ -168,7 +168,12 @@ def brief_v2_integrity_findings(base: Path) -> list[str]:
     report_path = base / "02_requirements" / "brief_compile_report.json"
     report = read_json(report_path, None) if report_path.exists() else None
     ledger = read_json(base / "01_discovery" / "knowledge_state.json", {})
-    return mark_findings(text, _gap_rows(base)) + report_findings(text, report, ledger) + value_findings(text)
+    from .anchors import anchor_findings  # IMP-258: anchors that hold
+
+    manifest = read_json(base / "00_raw" / "source_manifest.json", {}) or {}
+    registry = manifest.get("registry", []) if isinstance(manifest, dict) else []
+    return (mark_findings(text, _gap_rows(base)) + report_findings(text, report, ledger) + value_findings(text)
+            + anchor_findings(text, registry))
 
 
 # --- /doctor: the marker and the mark vocabulary in skills and mirrors -------------------------

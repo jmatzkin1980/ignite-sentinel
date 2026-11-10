@@ -1,0 +1,47 @@
+{
+  "case": "held-unresolved-superseded",
+  "split": "held_out",
+  "registry": [
+    {
+      "id": "F-01",
+      "validity": "current",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-02",
+      "validity": "retired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-03",
+      "validity": "current",
+      "authority": "own_artifact"
+    },
+    {
+      "id": "F-04",
+      "validity": "superseded",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-05",
+      "validity": "expired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-06",
+      "validity": "current",
+      "authority": "unclassified"
+    }
+  ],
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — ANCHORS\n\n## 5. Technical Lens\n\n\n### 5.1 Architecture and Integrations\n\n- Reads the metrics service. [[sources § Source log - ANCHORS # F-09 — supports: Architecture]]\n- Uses the old billing API. [[sources § Source log - ANCHORS # F-04 — supports: Architecture]]\n- Runs on the shared cluster. [[sources § Source log - ANCHORS # F-01 — supports: Architecture]]\n",
+  "expected": [
+    [
+      "unresolved",
+      "5.1"
+    ],
+    [
+      "stale_source",
+      "5.1"
+    ]
+  ]
+}

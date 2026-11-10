@@ -965,6 +965,13 @@ Checks:
 - **Forbidden values, as a value:** an empty cell, `-`, `—`, a bare `N/A`, the brief's own `TBD`, `ninguno`. `nada`, `ninguna` and `none` are explicit and allowed. A quoted source line (one with a `[[…]]` citation) may say TBD.
 - **Edit residues:** "last updated", "antes decía", "[edit]", "this document was updated"...
 
+**Anchors that hold (IMP-258).** On a v2 brief, `/validate` also reports:
+
+- a statement with no citation, unless its place or line kind is on the closed exemption list in `templates/anchor_exempt.json`;
+- a citation of an F-NN row that does not exist, or of a source that is superseded, retired or expired;
+- an echo of an artifact Sentinel wrote;
+- a line that names two gaps while its anchors hold only one. Split it: one anchor per subject.
+
 A pending place with no open gap of its own points to the non-blocking umbrella gap of its section (`GAP-BRIEF-S<n>`), which the compiler opens and closes. `/doctor` checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
 
 **Id families and structured citations (IMP-249).** Every id family is registered in `sentinel/templates/id_families.json`, with its pattern, an example and whether it is kept (`GAP`, `ASM`, `DEC`, `US`, `SPEC-U`, `CTX`, `RU`, `REQ`, `AC`, `F`), new for v2 artifacts (`RN`, `CA`, `HU`, `SC`, `I`, `P`, `E`, `C`, `R`, `PDef`) or a view of another family (`D-N.M` is a view of `DEC`). Only `RN`, `CA` and `HU` take a release prefix (`r2-RN-04`); gaps stay global. The registry also holds the catalog keys for error codes, events, flags and routes, and the edges `HU → SPEC-U → US`. A retired id is recorded in `06_traceability/retired_ids.json` and never reused.

@@ -1,0 +1,38 @@
+{
+  "case": "clean-symmetric",
+  "split": "tuning",
+  "registry": [
+    {
+      "id": "F-01",
+      "validity": "current",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-02",
+      "validity": "retired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-03",
+      "validity": "current",
+      "authority": "own_artifact"
+    },
+    {
+      "id": "F-04",
+      "validity": "superseded",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-05",
+      "validity": "expired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-06",
+      "validity": "current",
+      "authority": "unclassified"
+    }
+  ],
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — ANCHORS\n\n## 2. Business Lens\n\n\n### 2.1 Actors and Goals by Role\n\n- Operations leads review the queues. [[sources § Source log - ANCHORS # F-01 — supports: Actors (GAP-USERS)]]\n- Analysts export the weekly report. [[sources § Source log - ANCHORS # F-06 — supports: Actors]]\n\n### 2.2 Critical Business Rules\n\n- Breach rule (`GAP-BUSINESS-RULES`) [[sources § Source log - ANCHORS # F-01 — supports: Rules (GAP-BUSINESS-RULES)]]\n- Refund rule (`GAP-REFUNDS`) [[sources § Source log - ANCHORS # F-06 — supports: Rules (GAP-REFUNDS)]]\n⏳ PENDING (GAP-BUSINESS-RULES)\n\n### 4.1 Screen Flow\n\nN/A — the project has no user surface of its own. If a screen is added, §4 opens.\n- (inferred) A single screen lists the queues. (`ASM-FLOW`)\n",
+  "expected": []
+}

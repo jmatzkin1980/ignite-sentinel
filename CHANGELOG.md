@@ -58,6 +58,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Anchors that hold, deterministic part (IMP-258).
+  - **Findings:** for a brief v2, `/validate` now reports, line by line:
+    - a statement with no citation, outside the closed list of exemptions (`templates/anchor_exempt.json`: places such as §0, §7, §8 and provenance; line kinds such as pending marks, N/A, inferences, pointers, tables and computed verdicts);
+    - a `sources` citation whose F-NN row does not exist;
+    - a source that is superseded, retired or expired;
+    - an echo (an artifact Sentinel wrote);
+    - a line that names two gaps while its anchors hold only one. One anchor per subject.
+  - **Count:** `sentinel.anchors.anchor_report` also counts the sites (n of n anchors hold).
+  - **Evals:** `tests/evals/run_anchor_evals.py` runs synthetic fixtures with seeded defects, correct symmetries, exempt distractors and a held-out split. It fails on a miss, an extra finding, or a drop below the floor in `metric_baseline.json`. It runs in `verify.ps1` and CI.
 - Counterpart and cross-cutting scenarios (IMP-256).
   - **Proximity:** a mentioned surface needs its counterpart near the mention (the same sentence or one sentence around it), or in a domain context folder. Before, one counterpart word anywhere in the document suppressed the gap. With no mention, the document-wide test stays, and a check can opt out with `"counterpart_scope": "document"`.
   - **15 counterpart rows** as lens data (`GAP-CTP-*`, medium, never blocking by themselves): integration, state, exclusion, flag, event, batch job, alert, personal data, deadline, write endpoint (idempotency), SLO, regulation (article), error code, design exclusion and manual step. Each carries its own en/es title, question, expected format, why and example, and the gap lookups read them first.

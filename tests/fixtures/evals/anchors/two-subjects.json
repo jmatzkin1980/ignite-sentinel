@@ -1,0 +1,43 @@
+{
+  "case": "two-subjects",
+  "split": "tuning",
+  "registry": [
+    {
+      "id": "F-01",
+      "validity": "current",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-02",
+      "validity": "retired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-03",
+      "validity": "current",
+      "authority": "own_artifact"
+    },
+    {
+      "id": "F-04",
+      "validity": "superseded",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-05",
+      "validity": "expired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-06",
+      "validity": "current",
+      "authority": "unclassified"
+    }
+  ],
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — ANCHORS\n\n## 2. Business Lens\n\n\n### 2.2 Critical Business Rules\n\n- Breach (`GAP-BUSINESS-RULES`) and refund (`GAP-REFUNDS`) rules apply. [[sources § Source log - ANCHORS # F-01 — supports: Rules (GAP-BUSINESS-RULES)]]\n- Breach (`GAP-BUSINESS-RULES`) and refund (`GAP-REFUNDS`) rules apply. [[sources § Source log - ANCHORS # F-01 — supports: Rules (GAP-BUSINESS-RULES)]] [[sources § Source log - ANCHORS # F-06 — supports: Rules (GAP-REFUNDS)]]\n",
+  "expected": [
+    [
+      "two_subjects",
+      "2.2"
+    ]
+  ]
+}
