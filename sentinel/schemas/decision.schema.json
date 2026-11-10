@@ -4,7 +4,7 @@
   "type": "object",
   "required": ["id", "status", "parent_id", "decision"],
   "properties": {
-    "id": { "type": "string", "pattern": "^DEC-[0-9]{3}$" },
+    "id": { "type": "string", "pattern": "^DEC-[A-Z0-9]+(?:-[A-Z0-9]+)*$" },
     "status": { "enum": ["PENDING", "APPROVED", "REJECTED", "SUPERSEDED"] },
     "parent_id": { "type": "string" },
     "decision": { "type": "string" }

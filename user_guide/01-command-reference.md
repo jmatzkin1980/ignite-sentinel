@@ -839,6 +839,17 @@ Checks:
 - missing artifact paths
 - edges pointing to missing nodes
 - expected semantic sections in PRD, specs, and stories
+- structured citations in v2 artifacts (IMP-249)
+
+**Id families and structured citations (IMP-249).** Every id family is registered in `sentinel/templates/id_families.json`, with its pattern, an example and whether it is kept (`GAP`, `ASM`, `DEC`, `US`, `SPEC-U`, `CTX`, `RU`, `REQ`, `AC`, `F`), new for v2 artifacts (`RN`, `CA`, `HU`, `SC`, `I`, `P`, `E`, `C`, `R`, `PDef`) or a view of another family (`D-N.M` is a view of `DEC`). Only `RN`, `CA` and `HU` take a release prefix (`r2-RN-04`); gaps stay global. The registry also holds the catalog keys for error codes, events, flags and routes, and the edges `HU → SPEC-U → US`. A retired id is recorded in `06_traceability/retired_ids.json` and never reused.
+
+A v2 artifact starts with `<!-- sentinel-artifact: v2 -->` and cites as `{doc, section[, subblock], id}` plus what the id supports:
+
+```markdown
+[[brief § 2.2 › Alta # RN-04 — sostiene: el alta exige doble firma]]
+```
+
+`/validate` resolves the id inside the cited section, and reports as findings: an id that is not in that section, a section that does not exist, an id of no registered family, a retired id, a citation that does not say what it supports, and any citation by line number (`project-brief.md:120`, `línea 14`). v1 artifacts carry no marker and are validated exactly as before. Brief v2, which emits the marker, comes with IMP-252.
 
 Requirement quality (non-blocking): the report includes `requirement_quality`, the same IMP-111/IMP-130 linter exposed by `/maturity`. It cites the exact requirement fragments that are vague, passive, missing verification cues, or not normalizable to EARS, and explains ambiguity-like findings by category. These warnings never change `verdict`; structural validity remains separate from requirement testability.
 
