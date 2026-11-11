@@ -424,6 +424,18 @@ Outputs:
 `/self-review` is deliberately a review channel, not an automatic repair pass. It can make risks and hard decisions visible, but changing the PRD/spec narrative still happens through upstream evidence, `/compose`, `/sync`, or a regenerated `/specs` flow.
 
 
+**Semantic crosses (IMP-260b).** `--crosses` reports where the lenses of a brief v2 disagree in substance.
+
+```powershell
+python -m sentinel /self-review PROJECT_ID --crosses --source crosses.json
+```
+
+- **Rules:** each cross names a rule of `templates/semantic_crosses.json`. That covers the lens crosses A–D and the exit checks that need judgment, such as a field's origin, a retention's job or an obligation's control.
+- **`conflict`** quotes both places verbatim (`a`, `b`).
+- **`missing`** quotes `a` and names `missing_in`.
+- **Every cross** carries a `finding` and a `question`.
+- **Result:** accepted crosses open `GAP-XRV-*` gaps.
+
 **Sufficiency (IMP-259).** It runs on a brief v2 alone; no PRD or specs are needed.
 
 ```powershell

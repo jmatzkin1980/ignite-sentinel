@@ -1,0 +1,38 @@
+{
+  "case": "held-mixed",
+  "split": "held_out",
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — XR\n\n## 2. Business Lens\n\n### 2.2 Critical Business Rules\n\n- Refunds above 500 need a supervisor approval. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 3. Product Lens\n\n### 3.2 To-Be Process\n\n- The agent issues the refund directly from the case. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 4. Design Lens\n\n### 4.1 Screen Flow\n\n- The case screen shows the customer tier. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 5. Technical Lens\n\n### 5.4 Data Model / ERD\n\n- Case notes are kept for two years. [[sources § Source log - XR # F-01 — supports: x]]\n\n### 5.12 Services\n\n- The refund service posts to the ledger. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 6. Release Agreements\n\n### 6.1 In Scope\n\n- Refund approval workflow. [[sources § Source log - XR # F-01 — supports: x]]\n",
+  "payload": {
+    "crosses": [
+      {
+        "rule": "endpoint_in_service",
+        "kind": "missing",
+        "a": {
+          "place": "5.12",
+          "quote": "The refund service posts to the ledger"
+        },
+        "missing_in": "5.12",
+        "finding": "the counterpart is not there",
+        "question": "Where is it specified?"
+      },
+      {
+        "rule": "cross_c_product_design",
+        "kind": "conflict",
+        "a": {
+          "place": "3.2",
+          "quote": "issues the refund directly from the case"
+        },
+        "b": {
+          "place": "4.1",
+          "quote": "The case screen shows the customer tier"
+        },
+        "finding": "the two places disagree",
+        "question": "Does the case screen offer the refund action?"
+      }
+    ]
+  },
+  "expected": [
+    "reject",
+    "accept"
+  ]
+}
