@@ -125,7 +125,7 @@ class RescoreIntegrationTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "REC"]), 0)
+        self.assertEqual(main(["init", "REC", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("REC")
 
     def tearDown(self) -> None:

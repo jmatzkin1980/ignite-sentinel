@@ -83,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
 
     init_p = sub.add_parser("init")
     init_p.add_argument("project_id")
+    init_p.add_argument("--brief-version", type=int, choices=(1, 2), help="IMP-26w: 2 (default) compiles the brief v2; 1 keeps v1")
 
     ingest_p = sub.add_parser("ingest")
     ingest_p.add_argument("project_id")
@@ -249,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "init":
             from .workspace import ensure_workspace
 
-            path = ensure_workspace(args.project_id)
+            path = ensure_workspace(args.project_id, brief_version=getattr(args, "brief_version", None))
             result = {"workspace": str(path)}
             print_json(result)
         elif args.command == "doctor":

@@ -65,7 +65,7 @@ class StakeholdersProtocolTests(unittest.TestCase):
         os.chdir(self.tmp)
         self.addCleanup(self._cleanup)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "PROTO"]), 0)
+            self.assertEqual(main(["init", "PROTO", "--brief-version", "1"]), 0)
 
     def _cleanup(self) -> None:
         os.chdir(self.old)

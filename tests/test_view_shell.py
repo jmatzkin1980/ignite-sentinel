@@ -74,7 +74,7 @@ class _ViewWorkspace(unittest.TestCase):
         cls.temp = Path(tempfile.mkdtemp(prefix="sentinel_view_"))
         os.chdir(cls.temp)
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        for argv in (["init", cls.project_id], ["ingest", cls.project_id, "--source", str(fixture)], ["maturity", cls.project_id], ["specs", cls.project_id]):
+        for argv in (["init", cls.project_id, "--brief-version", "1"], ["ingest", cls.project_id, "--source", str(fixture)], ["maturity", cls.project_id], ["specs", cls.project_id]):
             assert main(argv) == 0, argv
         pin_mtimes(cls.temp)
 

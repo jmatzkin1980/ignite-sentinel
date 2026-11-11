@@ -28,7 +28,7 @@ class ArtifactChecksumFlowTests(unittest.TestCase):
             "Need a read-only dashboard for support leads. Acceptance: leads see queue risk before standup.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "CHK"]), 0)
+        self.assertEqual(main(["init", "CHK", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "CHK", "--source", str(source)]), 0)
         self.gaps = workspace_path("CHK") / "01_discovery" / "gaps.md"
 

@@ -60,7 +60,7 @@ class ChallengeLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.src = self.temp / "raw.md"
         self.src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "CHL"]), 0)
+        self.assertEqual(main(["init", "CHL", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "CHL", "--source", str(self.src)]), 0)
         self.ws = self.temp / "workspaces" / "CHL"
 

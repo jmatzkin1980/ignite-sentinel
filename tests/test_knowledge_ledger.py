@@ -38,7 +38,7 @@ class KnowledgeLedgerTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        self.assertEqual(main(["init", "LEDGER"]), 0)
+        self.assertEqual(main(["init", "LEDGER", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "LEDGER", "--source", str(source)]), 0)
 
         base = self.temp / "workspaces" / "LEDGER"

@@ -25,7 +25,7 @@ class AsOfUnitTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "ASOF"]), 0)
+        self.assertEqual(main(["init", "ASOF", "--brief-version", "1"]), 0)
         self.json_path = workspace_path("ASOF") / "01_discovery" / "knowledge_state.json"
         self.json_path.write_text(
             json.dumps(
@@ -109,7 +109,7 @@ class AsOfIntegrationTests(unittest.TestCase):
             "Scope includes a dashboard for queue triage.\n",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "AIN"]), 0)
+        self.assertEqual(main(["init", "AIN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "AIN", "--source", str(source)]), 0)
         self.payload = json.loads(
             (workspace_path("AIN") / "01_discovery" / "knowledge_state.json").read_text(encoding="utf-8")

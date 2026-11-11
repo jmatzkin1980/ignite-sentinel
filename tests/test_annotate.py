@@ -88,7 +88,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.src = self.temp / "raw.md"
         self.src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "ANN"]), 0)
+        self.assertEqual(main(["init", "ANN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ANN", "--source", str(self.src)]), 0)
         self.ws = self.temp / "workspaces" / "ANN"
 

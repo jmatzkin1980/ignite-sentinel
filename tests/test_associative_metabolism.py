@@ -157,7 +157,7 @@ class AssociativeMetabolismIntegrationTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "risk-board.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "ASSOC"]), 0)
+        self.assertEqual(main(["init", "ASSOC", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ASSOC", "--source", str(self.raw)]), 0)
         self.ws = self.temp / "workspaces" / "ASSOC"
         gaps = parse_gap_rows((self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8"))

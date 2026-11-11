@@ -73,7 +73,7 @@ class VerdictTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "VRD"]), 0)
+        self.assertEqual(main(["init", "VRD", "--brief-version", "1"]), 0)
         self.ws = self.temp / "workspaces" / "VRD"
 
     def tearDown(self) -> None:

@@ -99,7 +99,7 @@ class BacklogStoryFormatTests(unittest.TestCase):
         self.assertEqual(main(["resolve-gaps", pid, "--source", str(answer)]), 0)
 
     def _mature(self, pid: str) -> Path:
-        self.assertEqual(main(["init", pid]), 0)
+        self.assertEqual(main(["init", pid, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", pid, "--source", str(self.raw)]), 0)
         for index, statement in enumerate(EARS_STATEMENTS, start=1):
             self._resolve_acceptance_with(pid, statement, index)

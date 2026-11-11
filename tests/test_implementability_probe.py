@@ -110,7 +110,7 @@ class ProbeLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.src = self.temp / "raw.md"
         self.src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "PRB"]), 0)
+        self.assertEqual(main(["init", "PRB", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "PRB", "--source", str(self.src)]), 0)
         self.ws = self.temp / "workspaces" / "PRB"
         units = sorted(known_requirement_unit_ids(self.ws))

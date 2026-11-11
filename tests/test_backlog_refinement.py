@@ -32,7 +32,7 @@ class BacklogRefinementTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "raw.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "BREF"]), 0)
+        self.assertEqual(main(["init", "BREF", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "BREF", "--source", str(self.raw)]), 0)
         answer = self.temp / "answers.md"
         answer.write_text(

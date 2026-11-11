@@ -62,7 +62,7 @@ class SpanishPrdValidationTests(unittest.TestCase):
 
     def test_spanish_workspace_reaches_valid_without_false_prd_section_findings(self):
         project_id = "TABLERO_ES"
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
         answers = self._answer_all_open_gaps(project_id)
         self.assertEqual(main(["resolve-gaps", project_id, "--source", str(answers)]), 0)

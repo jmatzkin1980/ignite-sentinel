@@ -26,7 +26,7 @@ class GateOverrideDecisionTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "raw.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "OVERRIDE"]), 0)
+        self.assertEqual(main(["init", "OVERRIDE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "OVERRIDE", "--source", str(raw)]), 0)
         answers = self.temp / "answers.md"
         answers.write_text(

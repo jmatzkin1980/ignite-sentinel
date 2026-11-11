@@ -63,7 +63,7 @@ class CrossArtifactConsistencyTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def prepare_project(self, project_id: str = "CONSISTENT") -> Path:
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", project_id, "--source", str(self.answers)]), 0)
         self.assertEqual(main(["brief", project_id]), 0)
@@ -75,7 +75,7 @@ class CrossArtifactConsistencyTests(unittest.TestCase):
         answers = self.temp / f"{project_id.lower()}-handoff-answers.md"
         raw.write_text(HANDOFF_RAW, encoding="utf-8")
         answers.write_text(HANDOFF_ANSWER, encoding="utf-8")
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(raw)]), 0)
         self.assertEqual(main(["resolve-gaps", project_id, "--source", str(answers)]), 0)
         self.assertEqual(main(["brief", project_id]), 0)

@@ -86,7 +86,7 @@ class PrdLifecycleCompilerTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def test_generated_prd_is_mixed_not_scaffolding(self):
-        self.assertEqual(main(["init", "PRDC"]), 0)
+        self.assertEqual(main(["init", "PRDC", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "PRDC", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", "PRDC", "--source", str(self.answers)]), 0)
         self.assertEqual(main(["brief", "PRDC"]), 0)

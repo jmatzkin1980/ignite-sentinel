@@ -137,7 +137,7 @@ def _generate(scenario: dict) -> dict[str, str]:
         raw = tmp / "raw.md"
         raw.write_text(scenario["raw"], encoding="utf-8")
         with contextlib.redirect_stdout(io.StringIO()):
-            if main(["init", pid]) != 0:
+            if main(["init", pid, "--brief-version", "1"]) != 0:
                 raise AssertionError("init failed")
             if main(["ingest", pid, "--source", str(raw)]) != 0:
                 raise AssertionError("ingest failed")

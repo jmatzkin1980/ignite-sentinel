@@ -160,7 +160,7 @@ class SettingsTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "billing.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(_run(["init", "BRV2"])[0], 0)
+        self.assertEqual(_run(["init", "BRV2", "--brief-version", "1"])[0], 0)
         self.assertEqual(_run(["ingest", "BRV2", "--source", str(raw)])[0], 0)
 
     def tearDown(self) -> None:
@@ -175,7 +175,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("UI", status["proposal"]["profiles"])
         self.assertEqual(status["gap"]["id"], SETTINGS_GAP_ID)
         self.assertTrue(status["gap"]["blocking"])
-        self.assertNotIn("brief_settings", read_state("BRV2"))  # a proposal is never applied
+        self.assertNotIn("profiles", read_state("BRV2").get("brief_settings", {}))  # a proposal is never applied
 
     def test_the_ba_confirms_them(self) -> None:
         brief = self.temp / "workspaces" / "BRV2" / "02_requirements" / "project-brief.md"

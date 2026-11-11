@@ -172,7 +172,7 @@ class LegacyWorkspaceGitignoreTests(_LocalThemesBase):
         os.chdir(self.tmp)
         self.addCleanup(os.chdir, old)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "LEGACY"]), 0)
+            self.assertEqual(main(["init", "LEGACY", "--brief-version", "1"]), 0)
         base = workspace_path("LEGACY")
         (base / ".gitignore").write_text("memory.lancedb/\n", encoding="utf-8")  # pre-IMP-241 content
         return base
@@ -213,7 +213,7 @@ class SurfaceTests(_LocalThemesBase):
         from sentinel.cli import main
 
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "LOCALTHEME"]), 0)
+            self.assertEqual(main(["init", "LOCALTHEME", "--brief-version", "1"]), 0)
         self.write(workspace_path("LOCALTHEME") / ".sentinel" / "themes", self.brand(label="Workspace"))
         self.write(self.home_themes, self.brand(label="Home"))
         theme, theme_arg, warning = resolve_view_theme("LOCALTHEME", "acme")

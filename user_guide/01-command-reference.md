@@ -126,6 +126,21 @@ Creates:
 - empty traceability graph
 - local retrieval memory metadata files (`memory.lancedb/memory.json`; LanceDB table when the optional package is available)
 
+
+**Brief version (IMP-26w).** A new project compiles the brief v2.
+
+- **Confirmation first:** before the first `/brief`, confirm profile and genesis. Until then `/brief` opens the blocking `GAP-BRIEF-PROFILE` and `/specs` refuses.
+
+```powershell
+python -m sentinel /brief PROJECT_ID --profile UI --genesis greenfield
+```
+
+- **Keeping v1:** `--brief-version 1` keeps the v1 brief, and existing workspaces stay on v1 unless you switch them.
+
+```powershell
+python -m sentinel /init PROJECT_ID --brief-version 1
+```
+
 ## `ingest`
 
 Ingest raw input and create discovery artifacts.

@@ -579,7 +579,7 @@ def run_fixture(
         os.chdir(temp)
         try:
             with contextlib.redirect_stdout(io.StringIO()):
-                assert main(["init", project_id]) == 0, f"init failed for {fixture_dir.name}"
+                assert main(["init", project_id, "--brief-version", "1"]) == 0, f"init failed for {fixture_dir.name}"
                 copy_fixture_domain_context(fixture_dir, Path(temp) / "workspaces" / project_id)
                 assert main(["ingest", project_id, "--source", str(requirement)]) == 0, (
                     f"ingest failed for {fixture_dir.name}"
@@ -1531,7 +1531,7 @@ def self_review_eval() -> dict:
     mismatches: list[str] = []
     with _isolated_workspace() as temp:
         with contextlib.redirect_stdout(io.StringIO()):
-            assert main(["init", "SREV"]) == 0
+            assert main(["init", "SREV", "--brief-version", "1"]) == 0
             assert main(["ingest", "SREV", "--source", str(COMPLETE_REQUIREMENT)]) == 0
             assert main(["maturity", "SREV"]) == 0
             assert main(["specs", "SREV"]) == 0
@@ -1606,7 +1606,7 @@ def compose_eval() -> dict:
         raw = temp / "raw.md"
         raw.write_text(COMPOSE_RAW, encoding="utf-8")
         with contextlib.redirect_stdout(io.StringIO()):
-            assert main(["init", "COMP"]) == 0
+            assert main(["init", "COMP", "--brief-version", "1"]) == 0
             assert main(["ingest", "COMP", "--source", str(raw)]) == 0
             assert main(["brief", "COMP"]) == 0
             assert main(["specs", "COMP"]) == 0
@@ -1688,7 +1688,7 @@ def context_request_eval() -> dict:
     }
     with _isolated_workspace() as temp:
         with contextlib.redirect_stdout(io.StringIO()):
-            assert main(["init", "CTXR"]) == 0
+            assert main(["init", "CTXR", "--brief-version", "1"]) == 0
             assert main(["ingest", "CTXR", "--source", str(COMPLETE_REQUIREMENT)]) == 0
             assert main(["brief", "CTXR"]) == 0
         base = temp / "workspaces" / "CTXR"
@@ -1715,7 +1715,7 @@ def implementability_probe_eval() -> dict:
     mismatches: list[str] = []
     with _isolated_workspace() as temp:
         with contextlib.redirect_stdout(io.StringIO()):
-            assert main(["init", "PROBE"]) == 0
+            assert main(["init", "PROBE", "--brief-version", "1"]) == 0
             assert main(["ingest", "PROBE", "--source", str(COMPLETE_REQUIREMENT)]) == 0
         base = temp / "workspaces" / "PROBE"
         units = sorted(known_requirement_unit_ids(base))

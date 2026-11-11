@@ -94,7 +94,7 @@ class CliBoundaryTests(_TempRoot):
     def test_mcp_tools_get_a_structured_error(self) -> None:
         from sentinel.mcp import run_cli
 
-        result = run_cli(["init", "../escape"])
+        result = run_cli(["init", "../escape", "--brief-version", "1"])
         self.assertNotEqual(result["exit_code"], 0)
         self.assertEqual([p for p in self.outer.rglob("*") if p != self.tmp], [])
 

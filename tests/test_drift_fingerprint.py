@@ -19,7 +19,7 @@ class DriftFingerprintTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "DRIFT"]), 0)
+        self.assertEqual(main(["init", "DRIFT", "--brief-version", "1"]), 0)
         self.base = workspace_path("DRIFT")
         self.brief = self.base / "02_requirements" / "project-brief.md"
         self.reqs = self.base / "02_requirements" / "requirements.md"

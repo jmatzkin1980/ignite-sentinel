@@ -16,7 +16,7 @@ class SlicePlanTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "PLAN"]), 0)
+        self.assertEqual(main(["init", "PLAN", "--brief-version", "1"]), 0)
         self.workspace = self.temp / "workspaces" / "PLAN"
 
     def tearDown(self) -> None:

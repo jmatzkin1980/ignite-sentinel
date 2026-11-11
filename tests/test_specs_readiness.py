@@ -111,7 +111,7 @@ class SpecsGateLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "raw.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "SPEC41"]), 0)
+        self.assertEqual(main(["init", "SPEC41", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SPEC41", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["brief", "SPEC41"]), 0)
         self.ws = self.temp / "workspaces" / "SPEC41"

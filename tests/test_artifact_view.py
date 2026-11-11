@@ -27,7 +27,7 @@ class ArtifactViewTest(unittest.TestCase):
 
     def test_view_model_reconstructs_prd_sections_and_signals(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "VIEW"]), 0)
+        self.assertEqual(main(["init", "VIEW", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "VIEW", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "VIEW"]), 0)
         self.assertEqual(main(["specs", "VIEW"]), 0)
@@ -51,7 +51,7 @@ class ArtifactViewTest(unittest.TestCase):
 
     def test_citations_resolve_source_fragments_and_real_trace_neighborhoods(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "EVIDENCE"]), 0)
+        self.assertEqual(main(["init", "EVIDENCE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "EVIDENCE", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "EVIDENCE"]), 0)
         self.assertEqual(main(["specs", "EVIDENCE"]), 0)
@@ -82,7 +82,7 @@ class ArtifactViewTest(unittest.TestCase):
 
     def test_view_command_generates_self_contained_html_for_gaps(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "GAPVIEW"]), 0)
+        self.assertEqual(main(["init", "GAPVIEW", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "GAPVIEW", "--source", str(fixture)]), 0)
         self.assertEqual(main(["view", "GAPVIEW", "--artifact", "gaps"]), 0)
 
@@ -159,7 +159,7 @@ class ArtifactViewTest(unittest.TestCase):
 
     def test_feedback_export_shape_is_accepted_by_resolve_gaps_and_sync(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "FEEDBACK"]), 0)
+        self.assertEqual(main(["init", "FEEDBACK", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "FEEDBACK", "--source", str(fixture)]), 0)
 
         gap_export = self.temp / "artifact-feedback-gap.md"
@@ -202,7 +202,7 @@ class ArtifactViewTest(unittest.TestCase):
 
     def test_gap_markers_include_elicitation_metadata_and_section_badges(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "GAPMETA"]), 0)
+        self.assertEqual(main(["init", "GAPMETA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "GAPMETA", "--source", str(fixture)]), 0)
 
         model = collect_artifact_model("GAPMETA", "gaps")
@@ -249,7 +249,7 @@ class ArtifactViewTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "ASMMETA"]), 0)
+        self.assertEqual(main(["init", "ASMMETA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ASMMETA", "--source", str(raw)]), 0)
         self.assertEqual(main(["assume", "ASMMETA", "--source", str(assumption_source)]), 0)
         self.assertEqual(main(["maturity", "ASMMETA"]), 0)

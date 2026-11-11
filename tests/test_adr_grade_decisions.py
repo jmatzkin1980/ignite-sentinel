@@ -112,7 +112,7 @@ class SupersessionLifecycleTest(unittest.TestCase):
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "ADR"]), 0)
+        self.assertEqual(main(["init", "ADR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ADR", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "ADR"]), 0)
         self.assertEqual(main(["specs", "ADR"]), 0)

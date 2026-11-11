@@ -63,7 +63,7 @@ class RegistryLifecycleTests(unittest.TestCase):
             "# Risk Dashboard\n\nOperations leads need a dashboard for queue risk before standup.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "STK"]), 0)
+        self.assertEqual(main(["init", "STK", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "STK", "--source", str(self.raw)]), 0)
         self.ws = self.temp / "workspaces" / "STK"
 

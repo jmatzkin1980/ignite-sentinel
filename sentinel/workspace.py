@@ -69,7 +69,12 @@ memory.lancedb/
 """
 
 
-def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
+# IMP-26w (H16b gate): new projects compile the brief v2. A workspace created before
+# this keeps no `brief_version` and stays on v1.
+DEFAULT_BRIEF_VERSION = 2
+
+
+def ensure_workspace(project_id: str, root: Path | None = None, brief_version: int | None = None) -> Path:
     base = workspace_path(project_id, root)
     for relative in WORKSPACE_DIRS:
         (base / relative).mkdir(parents=True, exist_ok=True)
@@ -86,6 +91,7 @@ def ensure_workspace(project_id: str, root: Path | None = None) -> Path:
                 "project_language": "auto",
                 "privacy_mode": "local-only",
                 "readiness_stage": "DISCOVERY_RAW",
+                "brief_settings": {"brief_version": int(brief_version or DEFAULT_BRIEF_VERSION)},
                 "gap_counts": {},
                 "metrics": {
                     "requirements": 0,

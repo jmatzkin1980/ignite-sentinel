@@ -51,7 +51,7 @@ class RetrievalPlanTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def prepare_project(self, project_id: str = "PLAN") -> Path:
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", project_id, "--source", str(self.answers)]), 0)
         self.assertEqual(main(["brief", project_id]), 0)

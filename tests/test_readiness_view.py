@@ -56,7 +56,7 @@ class ReadinessModelTests(unittest.TestCase):
         os.chdir(self.temp)
         src = self.temp / "raw.md"
         src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "RDV"]), 0)
+        self.assertEqual(main(["init", "RDV", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "RDV", "--source", str(src)]), 0)
         self.ws = self.temp / "workspaces" / "RDV"
 

@@ -36,7 +36,7 @@ class LedgerBitemporalFlowTests(unittest.TestCase):
             "Scope includes a dashboard for queue triage.\n",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "BT"]), 0)
+        self.assertEqual(main(["init", "BT", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "BT", "--source", str(source)]), 0)
         self.payload = json.loads(
             (self.temp / "workspaces" / "BT" / "01_discovery" / "knowledge_state.json").read_text(encoding="utf-8")

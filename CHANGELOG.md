@@ -58,6 +58,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- The brief v2 is the default for new projects (IMP-26w).
+  - **New projects:** `/init` records `brief_version: 2`, and `/init --brief-version 1` keeps v1. Workspaces created before this have no `brief_version` and stay on v1.
+  - **Confirmation:** until the BA confirms profile and genesis, `/brief` opens the critical `GAP-BRIEF-PROFILE`, the project stays at `CLIENT_RESPONSE_NEEDED`, and `/specs` refuses. Confirming compiles the v2 brief and unblocks the flow.
+  - **Bug fix:** `/brief` now counts blocking gaps after compiling, so a gap the compilation itself opens (such as `GAP-BRIEF-PROFILE`) blocks the stage instead of leaving it at `READY_FOR_SPECS`.
+  - **Tests:** the test suite pins `--brief-version 1` where it exercises the v1 flow. The brief v2 golden now runs on the default flow.
 - Work versus deliverable (IMP-272).
   - **Exports:** an `/export` of the brief, the PRD or a context request that still has pending marks comes out stamped as a draft (a banner under the title, `draft: true` in MDX metadata) and reports `deliverable: draft` with `pending_marks`. `/export --final` refuses until none remain (CLI, MCP `sentinel_export(final=…)`). Gap exports (`interview`, `faq`, `--artifact gaps`) are working documents.
   - **Domain request packs:** they now carry `when_to_read:` frontmatter and ask for one owner per fact. `/validate`'s cross-consistency warns when a delivered domain context file lacks `when_to_read:` or gives a fact more than one owner.
