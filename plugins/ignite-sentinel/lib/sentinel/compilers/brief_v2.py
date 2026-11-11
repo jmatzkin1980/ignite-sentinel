@@ -508,7 +508,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     _fill(body["8"], "8.1", assumption_lines)
 
     # §9 build list (acyclic: an item may depend only on an earlier one)
-    items = [fact for sid in ("6.1", "3.2") for fact in w.facts.get(sid, [])]
+    items = list(w.facts.get("6.1", []))  # IMP-260: 9.1 ⊆ 6.1, every build item traces to an in-scope item
     if items:
         build = []
         kind = f"{copy['debt']}: " if w.built else ""  # with `built`, §9 carries only Debt and Defect

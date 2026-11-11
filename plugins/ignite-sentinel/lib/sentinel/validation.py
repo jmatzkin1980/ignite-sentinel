@@ -485,6 +485,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
     check_handoff_contracts(project_id, base, checks, warnings)
     check_no_synthetic_citation(project_id, base, checks, warnings)
+    check_brief_v2_cross_checks(project_id, base, checks, warnings)
 
     return {
         "verdict": "WARN" if warnings else "CLEAN",
@@ -492,6 +493,26 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
         "warnings": warnings,
         "checks": checks,
     }
+
+
+def check_brief_v2_cross_checks(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    """IMP-260: the brief v2 contract's exit checks across catalogs and sections (v1 is skipped)."""
+    from .cross_checks import run_cross_checks
+
+    brief_path = base / "02_requirements" / "project-brief.md"
+    if not brief_path.exists():
+        return
+    for result in run_cross_checks(brief_path.read_text(encoding="utf-8")):
+        checks.append({"id": f"brief_v2:{result['id']}", "status": result["status"], "layer": "brief v2",
+                       "artifact": "02_requirements/project-brief.md", "issues": len(result["issues"])})
+        for issue in result["issues"]:
+            add_consistency_warning(warnings, f"brief_v2:{result['id']}", "brief v2", "02_requirements/project-brief.md",
+                                    issue, f"python -m sentinel /gaps {project_id} --top 5")
 
 
 def check_brief_prd_continuity(
