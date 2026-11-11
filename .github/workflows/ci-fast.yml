@@ -38,3 +38,5 @@ jobs:
         run: python tests/evals/run_anchor_evals.py
       - name: Sufficiency evals
         run: python tests/evals/run_sufficiency_evals.py
+      - name: Anchor review evals
+        run: python tests/evals/run_anchor_review_evals.py

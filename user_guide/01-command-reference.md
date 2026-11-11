@@ -354,6 +354,18 @@ python -m sentinel /scrutinize PROJECT_ID --mode implementability-probe --source
 - `finding_type` is `missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`;
 - accepted findings are tagged `origin: implementability-probe`, written to `01_discovery/implementability_probe_report.md` (grouped by Requirement Unit), and copied under `01_discovery/implementability_probe/`. A `implementability_probe` traceability node is linked from the raw input (`probed_by`) and `gap_counts.implementability_probe_origin` appears in `state.json`. The source JSON follows `implementability_probe.schema.json`. Nothing is auto-resolved.
 
+
+**Anchor review (IMP-258b).** `--mode anchors` reviews whether each cited passage holds what the brief v2 attributes to it.
+
+```powershell
+python -m sentinel /scrutinize PROJECT_ID --mode anchors --source review.json
+```
+
+- **Payload:** each review has `place`, `source` (F-NN), `claim` (verbatim from the brief), `source_quote` (verbatim from the source) and `verdict` (`holds`, `says_less`, `says_opposite`).
+- **Findings** also carry `inverted` (what the source alone supports) and a `question`.
+- **Adversarial pass:** an `adversarial` refutation with a verbatim quote turns a "holds" into "says less".
+- **Result:** findings open `GAP-ANC-*` gaps. The brief is never edited.
+
 ## `self-review`
 
 Run a skeptical self-review over generated PRD/spec artifacts and register cited findings without rewriting the artifacts under review.

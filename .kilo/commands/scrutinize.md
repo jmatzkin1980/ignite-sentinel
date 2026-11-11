@@ -27,3 +27,5 @@ python -m sentinel /scrutinize PROJECT_ID --mode implementability-probe --source
 ```
 
 The runtime validates declared lens, optional lens filter, severity, finding type, RU anchor (probe mode), and citation; tags accepted gaps with the mode origin; writes the matching report; refreshes `01_discovery/knowledge_state.md/json`; and records traceability. Nothing is auto-resolved. Summarize merged/skipped gap IDs, updated gap counts, and the report path.
+
+`--mode anchors` (IMP-258b) reviews the anchors of a brief v2: per fact line, holds / says_less / says_opposite with the inverted reading, an adversarial refutation pass, verbatim quotes at both ends and a question per finding (see the `sentinel-scrutiny` skill). Findings open `GAP-ANC-*` gaps; the brief is never edited.

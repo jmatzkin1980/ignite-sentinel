@@ -31,7 +31,7 @@ from typing import Any, Callable
 from .core.io import append_text, read_json, write_json
 
 PROTOCOL_PATH = "sentinel/templates/agent_sweep_protocol.md"
-AGENTIC_ORIGINS = ("agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sufficiency")
+AGENTIC_ORIGINS = ("agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sufficiency", "anchor-review")
 DISPOSITIONS = ("accepted", "rejected", "irrelevant")
 FALSE_ALARM = ("rejected", "irrelevant")
 RUNTIME_FIGURE_KEYS = ("counts", "totals", "summary", "figures", "stats", "metrics")

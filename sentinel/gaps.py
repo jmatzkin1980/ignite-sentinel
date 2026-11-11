@@ -143,7 +143,7 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
 # reading several sources (contradictions, agentic channels); `template` from the
 # structure itself (the brief v2 umbrella gaps).
 GAP_KINDS = ("synthesis", "template", "client", "domain")
-SYNTHESIS_ORIGINS = {"agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sufficiency", "sync",
+SYNTHESIS_ORIGINS = {"agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sufficiency", "anchor-review", "sync",
                      "injection_signal", "contradiction", "cited_not_delivered"}
 # How a gap closed: a closed vocabulary, never free text.
 CLOSURE_REASONS = (

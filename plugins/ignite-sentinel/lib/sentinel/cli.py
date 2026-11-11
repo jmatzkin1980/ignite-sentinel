@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     scrutinize_p.add_argument(
         "--mode",
         default="scrutiny",
-        choices=["scrutiny", "implementability-probe"],
+        choices=["scrutiny", "implementability-probe", "anchors"],
     )
 
     self_review_p = sub.add_parser("self-review")
@@ -360,6 +360,10 @@ def main(argv: list[str] | None = None) -> int:
 
             result = apply_challenge(args.project_id, Path(args.source))
             print_json(result)
+        elif args.command == "scrutinize" and args.mode == "anchors":
+            from .anchor_review import apply_anchor_review  # IMP-258b
+
+            print_json(apply_anchor_review(args.project_id, Path(args.source)))
         elif args.command == "scrutinize":
             from .discovery import apply_scrutiny
 
