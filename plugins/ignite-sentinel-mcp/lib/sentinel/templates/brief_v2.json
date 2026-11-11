@@ -122,8 +122,9 @@
    "no applicable subsection omitted"
   ]
  },
- "series_reserved_fields": {
-  "reserved_until": "H17",
+ "series_fields": {
+  "active_since": "H17a",
+  "model": "release_split_model.json",
   "fields": [
    "release_type",
    "release_goal",

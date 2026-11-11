@@ -42,6 +42,9 @@ SCHEMA_RUNTIME_ENFORCED = {
     "backlog_refinement.schema.json",
     "composition.schema.json",
     "implementation_feedback.schema.json",
+    # IMP-264 (H17a): the release split model is validated by validate_model and
+    # guarded section/enum-for-enum by test_release_split_model.py.
+    "release_split_model.schema.json",
 }
 
 # Documentary contracts with no drift guard yet, each one field/enum change from
