@@ -88,6 +88,27 @@ When a full decision record is heavier than the moment warrants, capture the `de
 
 The `and against <alternatives>` clause maps to `considered_options[]` and the `accepting <downside>` clause maps to `consequences[]`; fill those structured fields when you want them cited and traceable, or keep the Y-statement inline when a lightweight note is enough.
 
+## Sufficiency Mode (IMP-259): "what is missing to start tomorrow?"
+
+Run it on a brief v2, before or without a PRD. Use it as an independent pass, not as the author of the brief.
+
+1. **Clean context.** Read only `02_requirements/project-brief.md` and the sources it cites (`07_changes/source_log.md`, `00_raw/`). Do not use the conversation, earlier reviews or your memory of the project.
+2. **For every applicable place and every §9 item (`C-NN`)**, ask: could a builder start tomorrow with only this? Classify each:
+   - **covered:** enough to start;
+   - **missing:** say what text would resolve it (`would_resolve`), and only if that text is not already in the brief;
+   - **ambiguous:** quote the vague words verbatim from that place;
+   - **contradictory:** quote both places verbatim (`conflicts_with: {place, quote}`).
+3. **Each non-covered obstacle carries one question** that the client or the domain can answer, ending with "?".
+4. **Write the payload and run the command:**
+
+```powershell
+python -m sentinel /self-review PROJECT_ID --sufficiency --source round1.json
+```
+
+5. **Report the result:** gaps opened (`GAP-SUF-*`), obstacles that extended an open gap, rejected obstacles with their reason, and the verdict. Repeat the round after answers arrive, until a round reports only covered places.
+
+The runtime rejects a place that does not exist, a quote that is not verbatim, and a `would_resolve` the brief already says. Never edit the brief yourself.
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.
