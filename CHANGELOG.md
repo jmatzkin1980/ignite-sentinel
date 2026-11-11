@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-11
+
 ### Added
 - Brief v2 schema as data (IMP-252). `sentinel/templates/brief_v2.json` defines the brief v2: §0–§9, 55 numbered subsections, 2 annexes and their sub-blocks.
   - **Each entry:** a stable id, en/es titles, its applicability (required ●, conditional ◐ or N/A —) per profile (`UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`), how the genesis changes it, and a writing contract (inputs, what it produces, what it must include, what it must not invent, and the class of pending mark).
