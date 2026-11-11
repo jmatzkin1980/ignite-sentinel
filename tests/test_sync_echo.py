@@ -94,7 +94,8 @@ class SentinelWritersGuard(unittest.TestCase):
     # Name a bucket without writing into it: sources/workspace define the buckets,
     # maturity.py cites one in the PRD gap-routing table text, source_registry.py
     # maps bucket names to source kinds (it writes only 07_changes/source_log.md).
-    NOT_WRITERS = {"sources.py", "workspace.py", "maturity.py", "source_registry.py"}
+    # anchor_review.py (IMP-258b) reads source copies from 07_changes/00_client_responses; it writes only gaps and its log.
+    NOT_WRITERS = {"sources.py", "workspace.py", "maturity.py", "source_registry.py", "anchor_review.py"}
 
     def test_no_new_writer_into_scanned_buckets(self) -> None:
         buckets = [d.split("/", 1)[1] for d in WORKSPACE_INPUT_DIRS if d.startswith("07_changes/")]

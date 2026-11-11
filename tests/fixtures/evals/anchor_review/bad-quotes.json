@@ -1,0 +1,45 @@
+{
+  "case": "bad-quotes",
+  "split": "tuning",
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — AR\n\n## 2. Business Lens\n\n### 2.1 Actors and Goals by Role\n\n- Operations leads and analysts review every risk queue daily. [[sources § Source log - AR # F-01 — supports: x]]\n\n### 2.2 Critical Business Rules\n\n- A queue is high risk after one SLA breach. [[sources § Source log - AR # F-02 — supports: x]]\n\n## 5. Technical Lens\n\n### 5.16 Observability\n\n- Metrics refresh every hour. [[sources § Source log - AR # F-01 — supports: x]]\n",
+  "sources": {
+    "F-01": "Operations leads review the open risk queues before the daily meeting. Metrics refresh every hour from the support service.",
+    "F-02": "A queue becomes high risk only after three SLA breaches in a week."
+  },
+  "payload": {
+    "anchors": [
+      {
+        "place": "2.1",
+        "source": "F-01",
+        "claim": "Analysts review every queue.",
+        "source_quote": "Operations leads review the open risk queues",
+        "verdict": "says_less",
+        "inverted": "x",
+        "question": "Who?"
+      },
+      {
+        "place": "2.2",
+        "source": "F-02",
+        "claim": "A queue is high risk after one SLA breach.",
+        "source_quote": "after two breaches",
+        "verdict": "says_opposite",
+        "inverted": "x",
+        "question": "How many?"
+      },
+      {
+        "place": "2.2",
+        "source": "F-01",
+        "claim": "A queue is high risk after one SLA breach.",
+        "source_quote": "Metrics refresh every hour",
+        "verdict": "says_less",
+        "inverted": "x",
+        "question": "Which source?"
+      }
+    ]
+  },
+  "expected": [
+    "reject",
+    "reject",
+    "reject"
+  ]
+}

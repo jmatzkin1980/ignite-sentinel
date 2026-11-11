@@ -98,6 +98,24 @@ After the merge, ask the BA to record a disposition on each new gap: `/gaps PROJ
 - The BA remains in control: scrutiny opens governed gaps and ledger units; it does not close gaps or decide assumptions.
 - Local-first: no network, remote embeddings, or external MCP for client/project content.
 
+## Anchor Review Mode (IMP-258b)
+
+Use `--mode anchors` on a brief v2 to judge whether each anchor holds.
+
+1. **For each fact line**, read the cited source (`F-NN` → its file under `00_raw/` or `07_changes/`).
+2. **Inversion:** from the source alone, write what you would claim (`inverted`). Then compare it with the brief's sentence:
+   - **holds:** the source carries all of it;
+   - **says_less:** the sentence claims more than the source;
+   - **says_opposite:** the source says something incompatible.
+3. **Adversarial pass:** try to refute every "holds". If a passage shows the source does not carry all of it, set `adversarial: {refuted: true, quote: <verbatim>}`.
+4. **Quote exactly:** `claim` verbatim from the brief, `source_quote` verbatim from the source. Every finding carries `inverted` and one `question`.
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /scrutinize PROJECT_ID --mode anchors --source review.json
+```
+
+5. **Report** the counts, the `GAP-ANC-*` gaps opened and the rejected reviews with their reasons. Never edit the brief.
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

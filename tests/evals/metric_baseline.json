@@ -1,5 +1,5 @@
 {
-  "measured": "discovery metrics: 2026-11-10 before IMP-256 (unchanged by it); anchor metrics: 2026-11-10 when IMP-258 entered; sufficiency metrics: 2026-11-11 when IMP-259 entered",
+  "measured": "discovery metrics: 2026-11-10 before IMP-256 (unchanged by it); anchor metrics: 2026-11-10 when IMP-258 entered; sufficiency metrics: 2026-11-11 when IMP-259 entered; anchor review metrics: 2026-11-11 when IMP-258b entered",
   "floor": {
     "avg_gap_precision": 1.0,
     "avg_gap_recall": 0.845,
@@ -12,6 +12,9 @@
     "anchor_held_out_f1": 1.0,
     "sufficiency_precision": 1.0,
     "sufficiency_recall": 1.0,
-    "sufficiency_held_out_f1": 1.0
+    "sufficiency_held_out_f1": 1.0,
+    "anchor_review_precision": 1.0,
+    "anchor_review_recall": 1.0,
+    "anchor_review_held_out_f1": 1.0
   }
 }

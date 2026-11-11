@@ -7,6 +7,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Anchors that hold, agentic part (IMP-258b).
+  - **The review:** `/scrutinize PROJECT --mode anchors --source review.json` lets an agent say, for each anchor of the brief v2, whether the cited passage holds the sentence, says less, or says the opposite.
+    - It also gives the inverted reading: what the source alone supports.
+    - An adversarial pass can refute a "holds" with a verbatim quote, which turns it into "says less".
+  - **What the runtime checks:** the sentence sits verbatim at its place on a line that cites that source, and the source passage sits verbatim in the source's text. Every finding needs the inverted reading and a question.
+  - **What happens to the result:** accepted findings open `GAP-ANC-*` gaps (`origin: anchor-review`, says the opposite = high). The brief is never edited, and each review is appended to `01_discovery/anchor_review_log.md`.
+  - **Evals:** `tests/evals/run_anchor_review_evals.py` runs seeded fixtures with a held-out split and a no-regression floor, in `verify.ps1` and CI.
 - Sufficiency of the brief v2 (IMP-259). `/self-review PROJECT --sufficiency --source payload.json` (CLI, MCP `sentinel_self_review(sufficiency=True)`) runs on the brief alone, with no PRD needed.
   - **Who reads:** a clean-context reader, whose protocol the `sentinel-self-review` skill fixes. It asks of each place and each §9 build item what is missing to start tomorrow, and classifies each obstacle as covered, missing, ambiguous or contradictory.
   - **What the runtime checks:**
