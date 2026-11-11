@@ -636,6 +636,19 @@ The `interview` format (gaps only) writes `08_context_packs/exports/gaps-intervi
 
 The `faq` format (gaps only) writes `08_context_packs/exports/gaps-faq.md`: the mirror image of the interview script, for gaps already **closed**. Each question is an elicited gap and each answer is its **CONFIRMED** closure, quoted verbatim from the seed/decision tables (`01_discovery/`) and cited to the gap id and its source. Only confirmed gaps appear — open gaps never show up as answered (never invented). It is likewise a read-only derived view: it never replaces `01_discovery/gaps.md`, closes no gap, and is regenerated rather than hand-edited. With no confirmed gaps the FAQ is an explicit empty marker.
 
+
+**Work versus deliverable (IMP-272).**
+
+- **Drafts:** an export of the brief, the PRD or a context request that still has pending marks is stamped as a draft: a banner under the title, `draft: true` in MDX metadata, and `deliverable: draft` with `pending_marks` in the result.
+- **Final:** `--final` refuses to export until none remain.
+
+```powershell
+python -m sentinel /export PROJECT_ID --artifact prd --format md --final
+```
+
+- **Gap exports** (`interview`, `faq`) are working documents and are never gated.
+- **Domain context files:** they should declare `when_to_read:` in their frontmatter and give each fact one owner. `/validate` warns otherwise.
+
 ## `stakeholders`
 
 Register or list the governed stakeholder registry and route elicitation by owner (IMP-192).

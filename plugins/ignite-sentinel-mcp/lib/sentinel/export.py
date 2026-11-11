@@ -10,14 +10,34 @@ from .secrets_scan import assert_no_leaks
 from .workspace import update_state, workspace_path
 
 
-def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str | None = None) -> dict[str, str]:
+def _language(project_id: str) -> str:
+    from .workspace import read_state
+
+    state = read_state(project_id, {})
+    return "es" if state.get("project_language") == "es" else "en"
+
+
+def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str | None = None,
+                    final: bool = False) -> dict[str, str]:
+    from .deliverables import gate
+
     fmt = fmt.lower()
     base = workspace_path(project_id)
     source = artifact_source(base, artifact, domain)
     if not source.exists():
         raise RuntimeError(f"Export source not found: {source}")
+    # IMP-272: a deliverable has zero pending marks or says it is a draft
+    verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final)
+    result = _export(project_id, artifact, fmt, source, verdict)
+    return {**result, **verdict}
+
+
+def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict) -> dict[str, str]:
+    from .deliverables import with_banner
+
+    base = workspace_path(project_id)
     if fmt == "mdx":
-        return export_mdx(project_id, artifact, source)
+        return export_mdx(project_id, artifact, source, verdict)
     if fmt == "interview":
         return export_interview(project_id, artifact)
     if fmt == "faq":
@@ -28,7 +48,10 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / source.name
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
-    copy_file(source, target)
+    if verdict["deliverable"] == "draft":
+        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id)))
+    else:
+        copy_file(source, target)
     update_state(project_id, last_export=str(target.as_posix()))
     return {
         "project_id": project_id,
@@ -81,7 +104,7 @@ def export_faq(project_id: str, artifact: str) -> dict[str, str]:
     }
 
 
-def export_mdx(project_id: str, artifact: str, source: Path) -> dict[str, str]:
+def export_mdx(project_id: str, artifact: str, source: Path, verdict: dict | None = None) -> dict[str, str]:
     artifact = artifact.lower()
     if artifact != "prd":
         raise RuntimeError("MDX export is currently supported only for --artifact prd.")
@@ -92,7 +115,7 @@ def export_mdx(project_id: str, artifact: str, source: Path) -> dict[str, str]:
     mdx_path = export_dir / "index.mdx"
     blocks_path = export_dir / "blocks.json"
     readme_path = export_dir / "README.md"
-    mdx_text = render_mdx(project_id, artifact, source, block_model)
+    mdx_text = render_mdx(project_id, artifact, source, block_model, verdict or {})
     assert_no_leaks(project_id, mdx_text, workspace_path(project_id), "MDX export")
     write_json(blocks_path, block_model)
     write_text(mdx_path, mdx_text)
@@ -110,7 +133,7 @@ def export_mdx(project_id: str, artifact: str, source: Path) -> dict[str, str]:
     }
 
 
-def render_mdx(project_id: str, artifact: str, source: Path, block_model: dict) -> str:
+def render_mdx(project_id: str, artifact: str, source: Path, block_model: dict, verdict: dict | None = None) -> str:
     metadata = {
         "project_id": project_id,
         "artifact": artifact,
@@ -119,6 +142,9 @@ def render_mdx(project_id: str, artifact: str, source: Path, block_model: dict) 
         "block_catalog": block_model["catalog"],
         "roundtrip": block_model["roundtrip"],
     }
+    if verdict and verdict.get("deliverable") == "draft":  # IMP-272: a draft says so
+        metadata["draft"] = True
+        metadata["pending_marks"] = verdict["pending_marks"]
     lines = [
         "export const sentinelExport = ",
         json.dumps(metadata, ensure_ascii=False, indent=2),

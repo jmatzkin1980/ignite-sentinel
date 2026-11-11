@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
     export_p.add_argument("--artifact", required=True, choices=["gaps", "brief", "context-request", "prd"])
     export_p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx", "interview", "faq"])
     export_p.add_argument("--domain")
+    export_p.add_argument("--final", action="store_true", help="IMP-272: refuse to export while pending marks remain")
 
     backlog_p = sub.add_parser("backlog")
     backlog_p.add_argument("project_id")
@@ -493,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "export":
             from .export import export_artifact
 
-            result = export_artifact(args.project_id, args.artifact, args.format, args.domain)
+            result = export_artifact(args.project_id, args.artifact, args.format, args.domain, final=args.final)
             print_json(result)
         elif args.command == "specs":
             from .generation import generate_specs

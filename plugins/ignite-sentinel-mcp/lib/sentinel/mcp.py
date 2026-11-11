@@ -507,8 +507,8 @@ def build_server():
         return run_cli(["self-review", project_id, "--source", source])
 
     @server.tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
-    def sentinel_export(project_id: str, artifact: str, format: str = "md") -> dict:
-        return run_cli(["export", project_id, "--artifact", artifact, "--format", format])
+    def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False) -> dict:
+        return run_cli(["export", project_id, "--artifact", artifact, "--format", format] + (["--final"] if final else []))
 
     @server.tool(name="sentinel_gap_elicitation", description=TOOL_DESCRIPTIONS["gap_elicitation"])
     def sentinel_gap_elicitation(project_id: str, gap_id: str, client_capabilities: str = "") -> dict:

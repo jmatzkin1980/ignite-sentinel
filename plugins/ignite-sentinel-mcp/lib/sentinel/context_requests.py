@@ -158,7 +158,10 @@ def render_context_request(project_id: str, domain: str, language: str, brief_pa
     lens_checks = lens_checks_section(domain, language)
     gap_candidates = domain_gap_candidate_options_section(domain, language, gaps_path)
     if language == "es":
-        return f"""# {title} - {project_id}
+        return f"""---
+when_to_read: al preparar o revisar el contexto de dominio {domain} de {project_id}
+---
+# {title} - {project_id}
 
 ## Fuente base
 
@@ -191,8 +194,13 @@ Si conocés explícitamente el perfil principal del respondente, agregá frontma
 - Mantener source of truth en archivos versionables del workspace.
 - No usar MCP remoto, servicios externos ni embeddings externos.
 - Marcar cualquier supuesto como `PENDING` o `INFERRED`.
+- Cada archivo entregado declara `when_to_read:` en su frontmatter (cuándo debe leerlo un agente).
+- Cada hecho tiene un único dueño (`Dueño: <una persona o rol>`).
 """
-    return f"""# {title} - {project_id}
+    return f"""---
+when_to_read: when preparing or reviewing the {domain} domain context of {project_id}
+---
+# {title} - {project_id}
 
 ## Base Source
 
@@ -225,6 +233,8 @@ When the main respondent profile is explicitly known, add `respondent_profile: t
 - Keep source of truth in versionable workspace files.
 - Do not use remote MCP, external services, or external embeddings.
 - Mark every assumption as `PENDING` or `INFERRED`.
+- Every delivered file declares `when_to_read:` in its frontmatter (when an agent should read it).
+- Every fact has a single owner (`Owner: <one person or role>`).
 """
 
 

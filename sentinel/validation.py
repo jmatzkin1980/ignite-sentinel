@@ -486,6 +486,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_handoff_contracts(project_id, base, checks, warnings)
     check_no_synthetic_citation(project_id, base, checks, warnings)
     check_brief_v2_cross_checks(project_id, base, checks, warnings)
+    check_domain_packs(project_id, base, checks, warnings)
 
     return {
         "verdict": "WARN" if warnings else "CLEAN",
@@ -493,6 +494,23 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
         "warnings": warnings,
         "checks": checks,
     }
+
+
+def check_domain_packs(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    """IMP-272: delivered domain context files carry `when_to_read` and one owner per fact."""
+    from .deliverables import domain_pack_warnings
+
+    issues = domain_pack_warnings(base)
+    checks.append({"id": "domain_packs", "status": "WARN" if issues else "PASS", "layer": "domain packs",
+                   "artifact": "00_raw/0*_context/", "issues": len(issues)})
+    for issue in issues:
+        add_consistency_warning(warnings, "domain_packs", "domain packs", "00_raw/0*_context/", issue,
+                                f"python -m sentinel /context-request {project_id} --domain <domain>")
 
 
 def check_brief_v2_cross_checks(

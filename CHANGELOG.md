@@ -58,6 +58,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Work versus deliverable (IMP-272).
+  - **Exports:** an `/export` of the brief, the PRD or a context request that still has pending marks comes out stamped as a draft (a banner under the title, `draft: true` in MDX metadata) and reports `deliverable: draft` with `pending_marks`. `/export --final` refuses until none remain (CLI, MCP `sentinel_export(final=…)`). Gap exports (`interview`, `faq`, `--artifact gaps`) are working documents.
+  - **Domain request packs:** they now carry `when_to_read:` frontmatter and ask for one owner per fact. `/validate`'s cross-consistency warns when a delivered domain context file lacks `when_to_read:` or gives a fact more than one owner.
 - Cross-consistency of the brief v2, deterministic part (IMP-260).
   - **Exit checks:** `sentinel/cross_checks.py` runs the contract's exit checks that cross catalogs and sections, declared in `templates/cross_checks.json`:
     - a role of 2.1 named in 4.1/5.11;
