@@ -61,3 +61,5 @@ jobs:
         run: python tests/evals/run_discovery_evals.py
       - name: Faithfulness eval
         run: python tests/evals/run_faithfulness_claim_evals.py
+      - name: Anchor evals
+        run: python tests/evals/run_anchor_evals.py

@@ -1,0 +1,43 @@
+{
+  "case": "retired-source",
+  "split": "tuning",
+  "registry": [
+    {
+      "id": "F-01",
+      "validity": "current",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-02",
+      "validity": "retired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-03",
+      "validity": "current",
+      "authority": "own_artifact"
+    },
+    {
+      "id": "F-04",
+      "validity": "superseded",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-05",
+      "validity": "expired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-06",
+      "validity": "current",
+      "authority": "unclassified"
+    }
+  ],
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — ANCHORS\n\n## 1. Overview\n\n\n### 1.1 Identity and Value\n\n- The dashboard replaces the spreadsheet. [[sources § Source log - ANCHORS # F-02 — supports: Identity]]\n- Leads use it daily. [[sources § Source log - ANCHORS # F-01 — supports: Identity]]\n",
+  "expected": [
+    [
+      "stale_source",
+      "1.1"
+    ]
+  ]
+}

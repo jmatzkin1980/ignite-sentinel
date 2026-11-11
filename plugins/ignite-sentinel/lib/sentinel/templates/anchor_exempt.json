@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "IMP-258: the closed list of what a brief v2 does not anchor. Everything else that states something carries a [[...]] citation of its source.",
+  "places": {
+    "0.1": "the legend names the vocabulary",
+    "0.2": "status and certainty are counts of the body",
+    "6.3": "the cascade is computed from the previous version",
+    "7.1": "open items are rows of gaps.md",
+    "7.2": "seeded marks are counts of the body",
+    "8.1": "assumptions are inferences with their own ASM row",
+    "A.provenance": "provenance is computed from the citations"
+  },
+  "line_kinds": {
+    "heading": "a title",
+    "table": "a table row; tables in the body are indexes or counts",
+    "pending": "a pending mark points to its gap instead",
+    "na": "an N/A carries its counterfactual",
+    "inferred": "an inference carries its ASM row",
+    "reference": "a pointer to another place (→ 1.5)",
+    "out_of_scope": "an out-of-scope line points to its destination",
+    "verdict": "a verdict computed from the counts"
+  },
+  "verdict_prefixes": ["Ready to build:", "Listo para construir:"]
+}

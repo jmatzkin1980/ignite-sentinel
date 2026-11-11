@@ -1,11 +1,14 @@
 {
-  "measured": "2026-11-10, before IMP-256 (unchanged by it)",
+  "measured": "discovery metrics: 2026-11-10 before IMP-256 (unchanged by it); anchor metrics: 2026-11-10 when IMP-258 entered",
   "floor": {
     "avg_gap_precision": 1.0,
     "avg_gap_recall": 0.845,
     "avg_gap_f1": 0.858,
     "avg_target_recall": 0.75,
     "tuning_f1": 0.973,
-    "held_out_f1": 0.667
+    "held_out_f1": 0.667,
+    "anchor_precision": 1.0,
+    "anchor_recall": 1.0,
+    "anchor_held_out_f1": 1.0
   }
 }

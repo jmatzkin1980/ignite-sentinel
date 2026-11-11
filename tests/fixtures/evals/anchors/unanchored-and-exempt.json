@@ -1,0 +1,43 @@
+{
+  "case": "unanchored-and-exempt",
+  "split": "tuning",
+  "registry": [
+    {
+      "id": "F-01",
+      "validity": "current",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-02",
+      "validity": "retired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-03",
+      "validity": "current",
+      "authority": "own_artifact"
+    },
+    {
+      "id": "F-04",
+      "validity": "superseded",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-05",
+      "validity": "expired",
+      "authority": "client_document"
+    },
+    {
+      "id": "F-06",
+      "validity": "current",
+      "authority": "unclassified"
+    }
+  ],
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — ANCHORS\n\n## 2. Business Lens\n\n\n### 2.3 Main Use Case\n\n- The lead opens the dashboard before the meeting.\n\n## 7. Dependencies and Open Questions\n\n\n### 7.2 Open Items Seeded in the Body (⏳)\n\n3 client marks and 2 domain marks in the body.\n\n## 8. Assumptions\n\n\n### 8.1 Assumptions List\n\n- `ASM-QUEUE` — Queue metrics refresh hourly. (ASSUMED)\n\n## 9. Things to Build\n\n\n### 9.1 Build List or Phases\n\nReady to build: no. 3 pending marks block (§7).\n",
+  "expected": [
+    [
+      "unanchored",
+      "2.3"
+    ]
+  ]
+}
