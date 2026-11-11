@@ -474,7 +474,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 
 #### Open items table
 
-27 open gaps in `gaps.md`.
+28 open gaps in `gaps.md`.
 
 | Gap | Severity | Origin |
 |---|---|---|
@@ -496,6 +496,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | `GAP-PRD-DEPENDENCIES-ROADMAP` | medium | checklist |
 | `GAP-PRD-FR-AC` | medium | checklist |
 | `GAP-PRD-GLOSSARY-GOVERNANCE` | medium | checklist |
+| `GAP-PRD-GOVERNANCE` | medium | checklist |
 | `GAP-PRD-NFR-KPI` | medium | checklist |
 | `GAP-PRD-PERSONA-DETAIL` | medium | checklist |
 | `GAP-PRD-ROLLOUT-ENVIRONMENTS` | medium | checklist |

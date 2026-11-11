@@ -271,6 +271,7 @@ V2_GAP_ROUTES = {
     "GAP-BACKLOG-SLICING-READINESS": "9.1",
     "GAP-BACKLOG-ENABLERS": "9.1",
     "GAP-PRD-GLOSSARY-GOVERNANCE": "A.glossary",
+    "GAP-PRD-GOVERNANCE": "5.11",
 }
 # The gap a pending mark points to when no gap is routed to that subsection.
 LENS_DEFAULT_GAP = {

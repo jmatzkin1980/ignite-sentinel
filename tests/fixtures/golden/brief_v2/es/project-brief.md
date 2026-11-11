@@ -473,7 +473,7 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 
 #### Tabla de pendientes
 
-27 gaps abiertos en `gaps.md`.
+28 gaps abiertos en `gaps.md`.
 
 | Gap | Severidad | Origen |
 |---|---|---|
@@ -495,6 +495,7 @@ Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog s
 | `GAP-PRD-DEPENDENCIES-ROADMAP` | medium | checklist |
 | `GAP-PRD-FR-AC` | medium | checklist |
 | `GAP-PRD-GLOSSARY-GOVERNANCE` | medium | checklist |
+| `GAP-PRD-GOVERNANCE` | medium | checklist |
 | `GAP-PRD-NFR-KPI` | medium | checklist |
 | `GAP-PRD-PERSONA-DETAIL` | medium | checklist |
 | `GAP-PRD-ROLLOUT-ENVIRONMENTS` | medium | checklist |

@@ -103,6 +103,8 @@ COPY = {
         "na_generic": "N/A — it does not apply to the {profiles} profile. If the profile or the genesis changes, it opens.",
         "na_see": "N/A — see {first}.",
         "states": "states",
+        "not_given": "(not given)",
+        "glossary_header": "| Term | Definition | Canonical name | Do not confuse with | Source |",
         "cc_header": "| Scenario | Lens | Where it is specified | Status |",
         "cc_specified": "specified",
         "cc_pending": "pending there",
@@ -150,6 +152,8 @@ COPY = {
         "na_generic": "N/A — no aplica al perfil {profiles}. Si cambia el perfil o la génesis, se abre.",
         "na_see": "N/A — ver {first}.",
         "states": "estados",
+        "not_given": "(no indicado)",
+        "glossary_header": "| Término | Definición | Nombre canónico | No confundir con | Fuente |",
         "cc_header": "| Escenario | Lente | Dónde se especifica | Estado |",
         "cc_specified": "especificado",
         "cc_pending": "pendiente allí",
@@ -278,6 +282,9 @@ class _Writer:
                 self.inferred.setdefault(target, []).append(assumption)
         self.inferred_rows: list[dict[str, str]] = []
         self.umbrellas: dict[str, set[str]] = {}
+        from ..glossary import build_glossary
+
+        self.glossary = build_glossary(inputs.raw_sources, inputs.gap_answers)  # IMP-261
         self.interims: dict[str, list[dict[str, Any]]] = {}
         self.unplaced_contradictions: list[dict[str, Any]] = []
         for item in inputs.contradictions:
@@ -347,6 +354,21 @@ class _Writer:
         self.umbrellas.setdefault(umbrella, set()).add(sid)
         return umbrella
 
+    def glossary_lines(self, title: str) -> list[str]:
+        """IMP-261: term · definition · canonical name · do not confuse with · source."""
+        given = self.copy["not_given"]
+        rows = [self.copy["glossary_header"], "|---|---|---|---|---|"]
+        for term in self.glossary:
+            definition = f"{self.markers['inferred'][self.lang]} {term['definition']}" if term.get("inferred") else term["definition"]
+            fact = _Fact(term["definition"], term.get("source", ""), "" if term.get("source") else "GAP-PRD-GLOSSARY-GOVERNANCE")
+            canonical = f"`{term['canonical']}`" if term.get("canonical") else given
+            rows.append(f"| {term['term']} | {definition} | {canonical} | {term.get('not_confuse') or given} | {self.cite(fact, title)} |")
+            if term.get("inferred"):
+                self.inferred_rows.append({"place": "A.glossary", "assumption": "", "statement": f"{term['term']}: {term['definition']}",
+                                           "gap": "GAP-PRD-GLOSSARY-GOVERNANCE"})
+        self.covered("A.glossary", "A.glossary", len(self.glossary))
+        return rows
+
     def pending(self, place: str, sid: str, klass: str, gap: str | None = None) -> str:
         gap = gap if gap and gap in self.open_gaps else self.open_gap_for(sid)
         key = "pending_domain" if klass == "domain" else "pending"
@@ -377,6 +399,8 @@ class _Writer:
         klass = "domain" if mark == "conditional" else item.get("contract", {}).get("missing", "client")
         if sid in _SPECIAL:
             return out  # filled by the section writers
+        if sid == "A.glossary" and self.glossary:
+            return out + self.glossary_lines(title) + [""]
         if mark == "n/a":
             out += [self.na(sid, sid), ""]
             return out
@@ -902,7 +926,7 @@ def record_brief_inferences(project_id: str, inferred: list[dict[str, str]]) -> 
             "status": "INFERRED",
             "evidence": {"trace_id": "brief_compile_report", "quote": row["assumption"]},
             "links": [{"type": BRIEF_PLACE_LINK, "target": row["place"]},
-                      {"type": "assumption", "target": row["assumption"]},
+                      *([{"type": "assumption", "target": row["assumption"]}] if row.get("assumption") else []),
                       *([{"type": "gap", "target": row["gap"]}] if row.get("gap") else [])],
         })
     from ..knowledge.ledger import summarize_units

@@ -167,6 +167,29 @@ def project_title(text: str, fallback: str) -> str:
     return fallback
 
 
+def render_prd_glossary(project_id: str, language: str) -> str:
+    """IMP-261: section 13 is the project's governed glossary, never Sentinel's own terms."""
+    from ..glossary import GLOSSARY_GAP, refresh_glossary
+    from ..workspace import workspace_path
+
+    terms = refresh_glossary(project_id) if workspace_path(project_id).exists() else []
+    english = language != "es"
+    if not terms:
+        return (f"- [PENDING INPUT] - {'no domain term is defined yet; resolve' if english else 'todavía no hay términos del dominio definidos; resolver'} "
+                f"`{GLOSSARY_GAP}`.")
+    header = ("| Term | Definition | Canonical name | Do not confuse with | Source |" if english
+              else "| Término | Definición | Nombre canónico | No confundir con | Fuente |")
+    given = "(not given)" if english else "(no indicado)"
+    inferred = "(inferred)" if english else "(inferido)"
+    rows = [header, "| --- | --- | --- | --- | --- |"]
+    for term in terms:
+        definition = f"{inferred} {term['definition']}" if term.get("inferred") else term["definition"]
+        source = f"`{term['source']}`" if term.get("source") else f"`{GLOSSARY_GAP}`"
+        rows.append(f"| {term['term']} | {definition} | {('`' + term['canonical'] + '`') if term.get('canonical') else given} "
+                    f"| {term.get('not_confuse') or given} | {source} |")
+    return "\n".join(rows)
+
+
 def render_prd_full(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str, evidence_text: str = "") -> str:
     english = language == "en"
     section_context = render_prd_section_context(context)
@@ -189,6 +212,7 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     fr_evidence_title = "Evidence-Backed Functional Statements" if english else "Declaraciones funcionales con evidencia del input"
     ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
     ears_block = render_ears_requirements_table(context)
+    glossary_block = render_prd_glossary(project_id, language)
     compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text)
     non_goals_title = "Non-Goals" if english else "No-Objetivos (Non-Goals)"
     non_goals_context = context.get("non_goals", []) if isinstance(context, dict) else []
@@ -405,12 +429,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 ## 13. Glossary
 
-| Term | Definition | First Used In |
-| --- | --- | --- |
-| Mature requirement | Discovery output with blocking gaps closed or explicitly accepted as non-blocking. | Summary |
-| PRD | Human/business product document explaining what and why. | Summary |
-| Specs | Agent-friendly execution contract for progressive disclosure and backlog generation. | Traceability |
-| Pending input | Explicit missing information that must not be invented. | Governance |
+{glossary_block}
 
 # {project_id} - {governance}
 
