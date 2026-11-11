@@ -58,6 +58,20 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Cross-consistency of the brief v2, deterministic part (IMP-260).
+  - **Exit checks:** `sentinel/cross_checks.py` runs the contract's exit checks that cross catalogs and sections, declared in `templates/cross_checks.json`:
+    - a role of 2.1 named in 4.1/5.11;
+    - error codes of 4.2 and 3.5 present in 5.15;
+    - every business rule with a step in 3.2;
+    - flags of 6.1 declared in 5.3;
+    - analytics events feeding a success metric;
+    - build items within scope (9.1 ⊆ 6.1, 6.2 ∩ 9.1 = ∅, every 6.1 item built);
+    - exclusions with a destination or decision;
+    - priority only in 2.3;
+    - assumptions with a use;
+    - technical pieces and declared training with a build item.
+  - **Reporting:** results are PASS, WARN or SKIP (nothing to cross yet) in `/validate`'s cross-consistency report. They are non-blocking, like the other cross-artifact checks.
+  - **Compiler:** brief v2 §9.1 now derives build items only from §6.1, so every item traces to scope.
 - Governed glossary (IMP-261).
   - **Glossary:** `sentinel/glossary.py` builds `01_discovery/glossary.json`. Each term has a definition, a canonical name (a backticked identifier in the source), a "do not confuse with" note and its source row.
   - **Where terms come from:** confirmed answers to `GAP-PRD-GLOSSARY-GOVERNANCE` (`Term: definition; ...`); definitions in the raw input ("X means Y", "X significa Y", "se define como", a "Glossary"/"Glosario" section); and acronym expansions ("Service Level Agreement (SLA)"), which are kept as `(inferred)` because an expansion is not a definition. Nothing else is inferred.

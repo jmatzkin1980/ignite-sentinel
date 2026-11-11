@@ -974,6 +974,21 @@ Checks:
 - **Forbidden values, as a value:** an empty cell, `-`, `—`, a bare `N/A`, the brief's own `TBD`, `ninguno`. `nada`, `ninguna` and `none` are explicit and allowed. A quoted source line (one with a `[[…]]` citation) may say TBD.
 - **Edit residues:** "last updated", "antes decía", "[edit]", "this document was updated"...
 
+**Cross-consistency of the brief v2 (IMP-260).** The `cross_consistency` block of `/validate` adds `brief_v2:*` checks. The rules are data in `templates/cross_checks.json`:
+
+- roles named alike;
+- error codes in the catalog;
+- business rules with a step;
+- flags declared;
+- events that feed a metric;
+- build items within scope, with every in-scope item built and nothing excluded built;
+- exclusions with a destination;
+- priority only in 2.3;
+- assumptions with a use;
+- technical pieces with a build item.
+
+A check is SKIP when its source places carry nothing yet. Every issue is a non-blocking warning.
+
 **Anchors that hold (IMP-258).** On a v2 brief, `/validate` also reports:
 
 - a statement with no citation, unless its place or line kind is on the closed exemption list in `templates/anchor_exempt.json`;
