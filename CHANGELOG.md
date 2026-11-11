@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Brownfield harvest into the brief v2 (IMP-262). `/harvest PROJECT --source harvest.md` (CLI, MCP `sentinel_harvest`, Claude Code and Kilo commands) ingests a tagged harvest of the existing system's code, written with the rewritten `sentinel-brownfield-harvest` skill.
+  - **Format:** blocks B0 (repository inventory) to B5, and one tag per claim: `[HECHO repo:file]`, `[INFERIDO]`, `[NO ENCONTRADO where]`, `[FUERA DEL CÓDIGO topic]` or `[DIVERGENCIA repo:file]` (English tags work too).
+  - **Validation:** a fact names a repo of B0, "not found" says where, and "out of code" uses the closed topic list. A bad harvest is refused with every reason.
+  - **Storage:** secrets are redacted (IMP-285), and the harvest is stored under `00_raw/02_technology_context/harvest/` as a governed F-NN row with direction `built`.
+  - **Routing:** "out of code" opens a non-blocking domain gap (never asked of the code again), and a README/code divergence opens a high ⚠ gap.
+  - **Brief v2:** facts feed §5 by block with a citation of the harvest row, inferences become `(inferred)` lines with ledger rows, and §0.2 lists the repositories and the coverage per tag.
 - Semantic crosses of the brief v2 (IMP-260b).
   - **The review:** `/self-review PROJECT --crosses --source crosses.json` (MCP `sentinel_self_review(crosses=True)`) lets an agent report crosses against the rules of `templates/semantic_crosses.json`:
     - the four lens crosses A–D: scope against lenses, business against process, process against design, design against technical;

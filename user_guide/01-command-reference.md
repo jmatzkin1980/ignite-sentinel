@@ -318,6 +318,20 @@ Outputs:
 - `challenge_report` traceability node linked from the raw input and to the gap report
 - `gap_counts.challenge_origin` in `state.json` (visible in `/status`)
 
+## `harvest`
+
+Ingest a tagged harvest of an existing system's code (brownfield, IMP-262). Write it with the `sentinel-brownfield-harvest` skill, locally.
+
+```powershell
+python -m sentinel /harvest PROJECT_ID --source harvest.md
+```
+
+- **Format:** blocks `## B0 Inventory` (`- repo: name — path`) to `## B5`, and one tag per claim: `[HECHO repo:file]`, `[INFERIDO]`, `[NO ENCONTRADO where]`, `[FUERA DEL CÓDIGO topic]`, `[DIVERGENCIA repo:file]` (English tags work too).
+- **Validation:** a fact names a repo of B0, "out of code" uses the closed topic list, and a bad harvest is refused with every reason.
+- **Storage:** secrets are redacted, and the harvest becomes a governed F-NN row (`built`) under `00_raw/02_technology_context/harvest/`.
+- **Routing:** "out of code" opens a non-blocking domain gap, and a README/code divergence opens a high gap.
+- **Brief v2:** facts feed §5 by block (B1 → 5.1, B2 → 5.4, B3 → 5.6, B4 → 5.11, B5 → 5.16) and §0.2 shows the repositories and the coverage per tag.
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

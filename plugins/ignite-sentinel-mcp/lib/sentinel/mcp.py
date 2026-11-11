@@ -58,6 +58,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, or readiness (what is missing per item and from whom).", ["project_id", "artifact"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
+    ("harvest", "Ingest a tagged brownfield code harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B5) as a governed source; routes out-of-code topics and README/code divergences to gaps.", ["project_id", "source"]),
     ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger.", ["project_id", "source"]),
     ("assume", "Register governed BA-owned assumptions with risk, local cited basis, optional provisional gap link, optional risk_category (Cagan's four product risks), and ledger refresh.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
@@ -463,6 +464,10 @@ def build_server():
     @server.tool(name="sentinel_challenge", description=TOOL_DESCRIPTIONS["challenge"])
     def sentinel_challenge(project_id: str, source: str) -> dict:
         return run_cli(["challenge", project_id, "--source", source])
+
+    @server.tool(name="sentinel_harvest", description=TOOL_DESCRIPTIONS["harvest"])
+    def sentinel_harvest(project_id: str, source: str) -> dict:
+        return run_cli(["harvest", project_id, "--source", source])
 
     @server.tool(name="sentinel_scrutinize", description=TOOL_DESCRIPTIONS["scrutinize"])
     def sentinel_scrutinize(project_id: str, source: str, lens: str = "", mode: str = "") -> dict:

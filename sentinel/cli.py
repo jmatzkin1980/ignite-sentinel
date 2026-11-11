@@ -30,6 +30,7 @@ COMMANDS = {
     "annotate",
     "challenge",
     "scrutinize",
+    "harvest",
     "self-review",
     "assume",
     "compose",
@@ -136,6 +137,10 @@ def main(argv: list[str] | None = None) -> int:
         default="scrutiny",
         choices=["scrutiny", "implementability-probe", "anchors"],
     )
+
+    harvest_p = sub.add_parser("harvest")  # IMP-262
+    harvest_p.add_argument("project_id")
+    harvest_p.add_argument("--source", required=True)
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -371,6 +376,10 @@ def main(argv: list[str] | None = None) -> int:
 
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
             print_json(result)
+        elif args.command == "harvest":
+            from .harvest import apply_harvest
+
+            print_json(apply_harvest(args.project_id, Path(args.source)))
         elif args.command == "self-review" and args.crosses:
             from .cross_review import apply_cross_review
 

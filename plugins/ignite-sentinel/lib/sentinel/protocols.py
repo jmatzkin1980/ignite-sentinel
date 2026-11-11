@@ -46,6 +46,7 @@ MUTATING_COMMANDS = {
     "annotate",
     "challenge",
     "scrutinize",
+    "harvest",
     "self-review",
     "assume",
     "compose",

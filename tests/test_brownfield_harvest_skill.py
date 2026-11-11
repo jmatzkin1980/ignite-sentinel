@@ -33,9 +33,14 @@ class BrownfieldHarvestSkillTests(unittest.TestCase):
             "## Workflow",
             "## Rules",
             "## Anti-patterns",
-            "[OBSERVED]",
-            "[INFERRED]",
-            "[PENDING DOMAIN CONTEXT]",
+            # IMP-262: the tagged harvest contract replaced [OBSERVED]/[INFERRED]/[PENDING DOMAIN CONTEXT]
+            "[HECHO repo:file]",
+            "[INFERIDO]",
+            "[NO ENCONTRADO where]",
+            "[FUERA DEL CÓDIGO topic]",
+            "[DIVERGENCIA repo:file]",
+            "## B0 Inventory",
+            "/harvest PROJECT_ID",
             "00_raw/02_technology_context",
             "local-first",
         ):
