@@ -1,6 +1,6 @@
 ---
 description: Export a shareable Ignite Sentinel artifact.
-argument-hint: PROJECT_ID --artifact gaps|brief|context-request|prd [OPTIONS]
+argument-hint: PROJECT_ID --artifact gaps|brief|context-request|prd [OPTIONS] [--final]
 ---
 
 # Ignite Export
@@ -25,3 +25,5 @@ python -m sentinel /export PROJECT_ID --artifact prd --format mdx
 ```
 
 Markdown export copies the artifact under `08_context_packs/exports/`. MDX export writes a local derived folder under `08_context_packs/exports/prd-mdx/` with `index.mdx`, `blocks.json`, and `README.md`. It is for teams that already have an offline MDX renderer; it does not enable hosted/remote rendering and does not replace Markdown as source of truth.
+
+A brief, PRD or context-request export that still has pending marks comes out stamped as a DRAFT (`deliverable: draft`, with `pending_marks`). `--final` refuses to export until none remain. Gap exports (interview, faq) are working documents. Report which one you produced; never hand over a draft as final.
