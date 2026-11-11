@@ -33,7 +33,7 @@ from .core.time import utc_now
 
 SOURCE_ID_RE = re.compile(r"^F-(\d{2,})$")
 # Commands whose `source` argument is information entering the project.
-REGISTERING_STATUSES = {"initial_ingested", "synced", "gap_resolved"}
+REGISTERING_STATUSES = {"initial_ingested", "synced", "gap_resolved", "harvested"}  # IMP-262: a code harvest
 # Sentinel's verbatim copies of a registered source (redacted, so the hash may differ).
 COPY_STATUSES = {"raw_copy", "change_copy", "gap_response_copy"}
 VALIDITY_VALUES = ("current", "superseded", "retired", "expired")

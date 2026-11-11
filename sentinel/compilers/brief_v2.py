@@ -103,6 +103,10 @@ COPY = {
         "na_generic": "N/A — it does not apply to the {profiles} profile. If the profile or the genesis changes, it opens.",
         "na_see": "N/A — see {first}.",
         "states": "states",
+        "harvest_repos": "Harvested repositories",
+        "harvest_coverage": "Harvest coverage",
+        "harvest_tags": {"fact": "facts", "inferred": "inferred", "not_found": "not found", "out_of_code": "out of code",
+                         "divergence": "divergences"},
         "not_given": "(not given)",
         "glossary_header": "| Term | Definition | Canonical name | Do not confuse with | Source |",
         "cc_header": "| Scenario | Lens | Where it is specified | Status |",
@@ -152,6 +156,10 @@ COPY = {
         "na_generic": "N/A — no aplica al perfil {profiles}. Si cambia el perfil o la génesis, se abre.",
         "na_see": "N/A — ver {first}.",
         "states": "estados",
+        "harvest_repos": "Repositorios cosechados",
+        "harvest_coverage": "Cobertura del harvest",
+        "harvest_tags": {"fact": "hechos", "inferred": "inferidos", "not_found": "no encontrados", "out_of_code": "fuera del código",
+                         "divergence": "divergencias"},
         "not_given": "(no indicado)",
         "glossary_header": "| Término | Definición | Nombre canónico | No confundir con | Fuente |",
         "cc_header": "| Escenario | Lente | Dónde se especifica | Estado |",
@@ -186,6 +194,7 @@ class BriefInputs:
     gaps: list[dict[str, str]] = field(default_factory=list)  # id, severity, status, origin
     assumptions: list[dict[str, str]] = field(default_factory=list)  # id, statement, status, closes_gap
     contradictions: list[dict[str, Any]] = field(default_factory=list)  # gap, scope, value, source, resolved
+    harvest: dict[str, Any] = field(default_factory=dict)  # IMP-262: 01_discovery/harvest.json
     registry: list[dict[str, Any]] = field(default_factory=list)  # F-NN rows (id, paths, validity)
     source_log_title: str = ""
     previous_text: str = ""
@@ -272,6 +281,21 @@ class _Writer:
                                           "by": answers[sid][0].gap})
             else:
                 facts[sid] = raw[sid]
+        # IMP-262: code facts of a brownfield harvest feed §5 by block, citing the harvest row
+        from ..harvest import BLOCK_PLACES
+
+        harvest_source = str(inputs.harvest.get("source_id") or "")
+        self.harvest_inferred: dict[str, list[dict[str, str]]] = {}
+        for entry in inputs.harvest.get("entries", []) if harvest_source else []:
+            target = BLOCK_PLACES.get(entry.get("block", ""))
+            if not target:
+                continue
+            if entry.get("kind") == "fact":
+                text = f"{entry['text']} ({entry['ref']})"
+                if all(f.text != text for f in facts.get(target, [])):
+                    facts.setdefault(target, []).append(_Fact(text, harvest_source))
+            elif entry.get("kind") == "inferred":
+                self.harvest_inferred.setdefault(target, []).append(entry)
         self.facts = facts
         self.built = inputs.validation_direction == "built"
         self.inferred: dict[str, list[dict[str, str]]] = {}
@@ -330,6 +354,9 @@ class _Writer:
                 lines.append(f"- {self.markers['inferred'][self.lang]} {assumption['statement']} (`{assumption['id']}`)")
                 self.inferred_rows.append({"place": sid, "assumption": assumption["id"], "statement": assumption["statement"],
                                            "gap": str(assumption.get("closes_gap", "")).strip("` ").upper()})
+        for entry in self.harvest_inferred.get(sid, []):  # IMP-262: an inference read from the code
+            lines.append(f"- {self.markers['inferred'][self.lang]} {entry['text']} (harvest {entry['block']})")
+            self.inferred_rows.append({"place": sid, "assumption": "", "statement": entry["text"], "gap": ""})
         for item in self.interims.get(sid, []):
             fact = _Fact(str(item.get("value") or ""), str(item.get("source") or ""), item["gap"])
             if item.get("resolved") and fact.text:
@@ -471,6 +498,18 @@ def _fill_cross_cutting(w: "_Writer", body: dict[str, list[str]]) -> None:
             lines[index:index + 1] = rows
 
 
+def _harvest_status(harvest: dict[str, Any], copy: dict[str, Any]) -> list[str]:
+    """IMP-262: §0.2 lists the harvested repositories and the coverage per tag."""
+    if not harvest.get("repos"):
+        return []
+    cov = harvest.get("coverage", {})
+    return [
+        f"- {copy['harvest_repos']}: {', '.join(f'`{r}`' for r in harvest['repos'])}",
+        f"- {copy['harvest_coverage']}: " + " · ".join(
+            f"{copy['harvest_tags'][k]} {cov.get(k, 0)}" for k in ("fact", "inferred", "not_found", "out_of_code", "divergence")),
+    ]
+
+
 def _section_of(sid: str) -> str:
     return "A" if sid.startswith("A.") else sid.split(".")[0]
 
@@ -564,6 +603,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         f"- {copy['profile']}: {'+'.join(inputs.profiles)}",
         f"- {copy['genesis']}: {inputs.genesis}",
         f"- {copy['direction']}: {inputs.validation_direction}",
+        *_harvest_status(inputs.harvest, copy),
         "", f"{copy['sources']}:", "", *sources, "",
         f"{copy['certainty']}:", "", *cert, "", reliability,
     ]
@@ -713,6 +753,7 @@ def confirmed_answers(text: str, registry: list[dict[str, Any]]) -> list[dict[st
 
 
 def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> BriefInputs:
+    from ..harvest import load_harvest
     from ..assumptions import assumption_rows
     from ..discovery import parse_gap_rows
     from ..workspace import workspace_path
@@ -764,6 +805,7 @@ def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> 
         gaps=gaps,
         assumptions=assumptions,
         contradictions=contradictions,
+        harvest=load_harvest(base),
         registry=registry,
         source_log_title=title,
         previous_text=brief_path.read_text(encoding="utf-8") if brief_path.exists() else "",
