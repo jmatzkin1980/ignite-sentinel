@@ -36,3 +36,5 @@ jobs:
         run: python tests/evals/run_faithfulness_claim_evals.py
       - name: Anchor evals
         run: python tests/evals/run_anchor_evals.py
+      - name: Sufficiency evals
+        run: python tests/evals/run_sufficiency_evals.py

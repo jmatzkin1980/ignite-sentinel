@@ -11,7 +11,8 @@
     2. python -m sentinel /doctor
     3. tests/evals/run_discovery_evals.py,
        tests/evals/run_faithfulness_claim_evals.py y
-       tests/evals/run_anchor_evals.py               (omitibles con -SkipEvals)
+       tests/evals/run_anchor_evals.py y
+       tests/evals/run_sufficiency_evals.py          (omitibles con -SkipEvals)
   Se detiene en el primer paso que falle.
 
 .EXAMPLE
@@ -95,6 +96,9 @@ try {
     Write-Host "`n==> [3/3] anchor evals" -ForegroundColor Cyan
     & $python tests/evals/run_anchor_evals.py
     if ($LASTEXITCODE -ne 0) { Write-Error "anchor evals fallaron (exit $LASTEXITCODE)" }
+    Write-Host "`n==> [3/3] sufficiency evals" -ForegroundColor Cyan
+    & $python tests/evals/run_sufficiency_evals.py
+    if ($LASTEXITCODE -ne 0) { Write-Error "sufficiency evals fallaron (exit $LASTEXITCODE)" }
   }
 
   Write-Host "`n==> Verificacion OK" -ForegroundColor Green

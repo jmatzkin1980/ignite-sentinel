@@ -503,8 +503,8 @@ def build_server():
         return run_cli(["implementation-feedback", project_id, "--source", source])
 
     @server.tool(name="sentinel_self_review", description=TOOL_DESCRIPTIONS["self_review"])
-    def sentinel_self_review(project_id: str, source: str) -> dict:
-        return run_cli(["self-review", project_id, "--source", source])
+    def sentinel_self_review(project_id: str, source: str, sufficiency: bool = False) -> dict:
+        return run_cli(["self-review", project_id, "--source", source] + (["--sufficiency"] if sufficiency else []))
 
     @server.tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
     def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False) -> dict:

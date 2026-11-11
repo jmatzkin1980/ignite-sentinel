@@ -1,0 +1,34 @@
+{
+  "case": "contradictory-both-ends",
+  "split": "tuning",
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — SUF\n\n## 1. Overview\n\n### 1.1 Identity and Value\n\n- Operations leads review risk queues before the daily meeting. [[sources § Source log - SUF # F-01 — supports: x]]\n\n## 2. Business Lens\n\n### 2.2 Critical Business Rules\n\n- A queue is high risk when a case breaches the SLA, usually within a day. [[sources § Source log - SUF # F-01 — supports: x]]\n\n## 3. Product Lens\n\n### 3.2 To-Be Process\n\n- The dashboard reads the queue metrics every morning. [[sources § Source log - SUF # F-01 — supports: x]]\n\n## 5. Technical Lens\n\n### 5.16 Observability\n\n- Metrics refresh every hour. [[sources § Source log - SUF # F-01 — supports: x]]\n\n## 9. Things to Build\n\n### 9.1 Build List or Phases\n\n- `C-01` Read-only queue dashboard. [[sources § Source log - SUF # F-01 — supports: x]] — depends on: none\n",
+  "payload": {
+    "round": 1,
+    "obstacles": [
+      {
+        "place": "3.2",
+        "status": "contradictory",
+        "quote": "reads the queue metrics every morning",
+        "conflicts_with": {
+          "place": "5.16",
+          "quote": "Metrics refresh every hour"
+        },
+        "question": "Is the dashboard daily or hourly?"
+      },
+      {
+        "place": "3.2",
+        "status": "contradictory",
+        "quote": "reads the queue metrics every morning",
+        "conflicts_with": {
+          "place": "5.16",
+          "quote": "Metrics refresh every minute"
+        },
+        "question": "Daily or per minute?"
+      }
+    ]
+  },
+  "expected": [
+    "accept",
+    "reject"
+  ]
+}

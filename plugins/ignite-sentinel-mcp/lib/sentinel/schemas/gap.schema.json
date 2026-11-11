@@ -10,7 +10,7 @@
     "parent_id": { "type": "string" },
     "description": { "type": "string" },
     "lens": { "enum": ["business", "product", "quality", "technical", "compliance", "delivery", "design"] },
-    "origin": { "enum": ["checklist", "agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sync", "injection_signal", "contradiction", "cited_not_delivered"], "default": "checklist" },
+    "origin": { "enum": ["checklist", "agent", "challenge", "scrutiny", "implementability-probe", "self-review", "sufficiency", "sync", "injection_signal", "contradiction", "cited_not_delivered"], "default": "checklist" },
     "question": { "type": "string" },
     "evidence": { "type": "string", "description": "Verbatim quote from the raw input that grounds an agent/challenge gap (IMP-021)." },
     "evidence_mention": { "type": "string", "description": "The trigger detected in the source (table column 'Detected Trigger')." },

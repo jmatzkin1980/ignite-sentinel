@@ -6,6 +6,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- Sufficiency of the brief v2 (IMP-259). `/self-review PROJECT --sufficiency --source payload.json` (CLI, MCP `sentinel_self_review(sufficiency=True)`) runs on the brief alone, with no PRD needed.
+  - **Who reads:** a clean-context reader, whose protocol the `sentinel-self-review` skill fixes. It asks of each place and each §9 build item what is missing to start tomorrow, and classifies each obstacle as covered, missing, ambiguous or contradictory.
+  - **What the runtime checks:**
+    - the place exists (a section, subsection or `C-NN`);
+    - a `missing` obstacle brings text that is not already in the brief;
+    - ambiguous and contradictory quotes are verbatim in their places (both ends for a contradiction);
+    - every non-covered obstacle carries a question.
+  - **What happens to the result:** accepted obstacles open `GAP-SUF-*` gaps (`origin: sufficiency`, topic dedup, BA disposition). Each round is appended to `01_discovery/sufficiency_log.md`, and the verdict is SUFFICIENT when a round reports only covered places and nothing was rejected.
+  - **Evals:** `tests/evals/run_sufficiency_evals.py` runs seeded fixtures with a held-out split and a no-regression floor, in `verify.ps1` and CI.
+
 ## [0.5.0] — 2026-11-11
 
 ### Added

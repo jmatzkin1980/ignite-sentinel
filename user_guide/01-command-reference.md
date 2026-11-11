@@ -411,6 +411,21 @@ Outputs:
 
 `/self-review` is deliberately a review channel, not an automatic repair pass. It can make risks and hard decisions visible, but changing the PRD/spec narrative still happens through upstream evidence, `/compose`, `/sync`, or a regenerated `/specs` flow.
 
+
+**Sufficiency (IMP-259).** It runs on a brief v2 alone; no PRD or specs are needed.
+
+```powershell
+python -m sentinel /self-review PROJECT_ID --sufficiency --source round1.json
+```
+
+- **Payload:** `{"round": 1, "obstacles": [...]}`. Each obstacle has a `place` (a section, subsection or a §9 item `C-NN`), a `status` (`covered`, `missing`, `ambiguous`, `contradictory`) and a `question` when it is not covered.
+- **`missing`** brings the `would_resolve` text, which must not already be in the brief.
+- **`ambiguous`** quotes its place verbatim.
+- **`contradictory`** quotes both places verbatim (`conflicts_with: {place, quote}`).
+- **Result:**
+  - Accepted obstacles open `GAP-SUF-*` gaps; rejected ones come back with their reason.
+  - Each round is logged in `01_discovery/sufficiency_log.md` until a round reports only covered places.
+
 ## `assume`
 
 Register governed BA-owned assumptions (IMP-067) when the team chooses to proceed with explicit risk instead of hiding uncertainty or pretending it is confirmed.

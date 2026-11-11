@@ -140,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
     self_review_p.add_argument("--source", required=True)
+    self_review_p.add_argument("--sufficiency", action="store_true",
+                               help="IMP-259: a clean-context reader checks the brief v2 is enough to start building")
 
     assume_p = sub.add_parser("assume")
     assume_p.add_argument("project_id")
@@ -363,6 +365,10 @@ def main(argv: list[str] | None = None) -> int:
 
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
             print_json(result)
+        elif args.command == "self-review" and args.sufficiency:
+            from .sufficiency import apply_sufficiency
+
+            print_json(apply_sufficiency(args.project_id, Path(args.source)))
         elif args.command == "self-review":
             from .self_review import apply_self_review
 
