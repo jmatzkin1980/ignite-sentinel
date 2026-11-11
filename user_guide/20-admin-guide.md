@@ -20,11 +20,11 @@ This policy allows only the Ignite Sentinel marketplace at one release, register
 ```json
 {
   "strictKnownMarketplaces": [
-    { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.4.0" }
+    { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.5.0" }
   ],
   "extraKnownMarketplaces": {
     "ignite-sentinel": {
-      "source": { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.4.0" },
+      "source": { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.5.0" },
       "autoUpdate": false
     }
   },
@@ -52,7 +52,7 @@ This policy allows only the Ignite Sentinel marketplace at one release, register
 
 `allowManagedHooksOnly` affects more than this plugin: user, project and other plugins' hooks stop running, and `/goal` is unavailable. Drop it if your users rely on their own hooks.
 
-The policy names release `v0.4.0`. Use the release you approved.
+The policy names release `v0.5.0`. Use the release you approved.
 
 ### Where to deploy it
 
@@ -85,7 +85,7 @@ Pick one of three pins. All of them stop a new version from reaching users until
 
 ### To a release tag (the policy above)
 
-The marketplace source carries `"ref": "v0.4.0"`. Releases are cut only by CI, from a tag that matches the version, with attestations. A tag can still be moved by someone with push rights to the repository.
+The marketplace source carries `"ref": "v0.5.0"`. Releases are cut only by CI, from a tag that matches the version, with attestations. A tag can still be moved by someone with push rights to the repository.
 
 ### To a commit SHA
 
@@ -104,8 +104,8 @@ A marketplace source accepts a `ref` but not a `sha`. To pin a commit, declare t
             "source": "git-subdir",
             "url": "https://github.com/jmatzkin1980/ignite-sentinel.git",
             "path": "plugins/ignite-sentinel",
-            "ref": "v0.4.0",
-            "sha": "<40-character commit SHA of v0.4.0>"
+            "ref": "v0.5.0",
+            "sha": "<40-character commit SHA of v0.5.0>"
           }
         }
       ]
@@ -123,8 +123,8 @@ A marketplace source accepts a `ref` but not a `sha`. To pin a commit, declare t
               "source": "git-subdir",
               "url": "https://github.com/jmatzkin1980/ignite-sentinel.git",
               "path": "plugins/ignite-sentinel",
-              "ref": "v0.4.0",
-              "sha": "<40-character commit SHA of v0.4.0>"
+              "ref": "v0.5.0",
+              "sha": "<40-character commit SHA of v0.5.0>"
             }
           }
         ]
@@ -144,7 +144,7 @@ A marketplace source accepts a `ref` but not a `sha`. To pin a commit, declare t
 Get the SHA of a release with:
 
 ```bash
-gh api repos/jmatzkin1980/ignite-sentinel/commits/v0.4.0 --jq .sha
+gh api repos/jmatzkin1980/ignite-sentinel/commits/v0.5.0 --jq .sha
 ```
 
 Claude Code checks out the `sha` even if the tag moves. The allowlist entry for a `settings` source must carry the same `name` and identical `plugins`. This catalog lists only `ignite-sentinel`, so the MCP plugin cannot be installed at all.
@@ -158,7 +158,7 @@ Each release carries `ignite-sentinel-vX.Y.Z.zip` and a `SHA256SUMS` file. An `a
   "name": "ignite-sentinel",
   "source": {
     "source": "archive",
-    "url": "https://github.com/jmatzkin1980/ignite-sentinel/releases/download/v0.4.0/ignite-sentinel-v0.4.0.zip",
+    "url": "https://github.com/jmatzkin1980/ignite-sentinel/releases/download/v0.5.0/ignite-sentinel-v0.5.0.zip",
     "sha256": "<64-hex digest from SHA256SUMS>"
   }
 }
@@ -190,16 +190,16 @@ For each release you approve:
 1. **Provenance.** Download the release assets and verify each one:
 
    ```bash
-   gh release download v0.4.0 --repo jmatzkin1980/ignite-sentinel
-   gh attestation verify ignite-sentinel-v0.4.0.zip --repo jmatzkin1980/ignite-sentinel
+   gh release download v0.5.0 --repo jmatzkin1980/ignite-sentinel
+   gh attestation verify ignite-sentinel-v0.5.0.zip --repo jmatzkin1980/ignite-sentinel
    sha256sum --check SHA256SUMS
    ```
 
 2. **What changed.** Read the release's `CHANGELOG.md` section, then the diff of what runs on the machine:
 
    ```bash
-   git diff v0.3.0 v0.4.0 --stat -- plugins/ignite-sentinel
-   git diff v0.3.0 v0.4.0 -- plugins/ignite-sentinel/hooks plugins/ignite-sentinel/.claude-plugin plugins/ignite-sentinel/launcher.py plugins/ignite-sentinel/python.sh
+   git diff v0.5.0 v0.5.0 --stat -- plugins/ignite-sentinel
+   git diff v0.5.0 v0.5.0 -- plugins/ignite-sentinel/hooks plugins/ignite-sentinel/.claude-plugin plugins/ignite-sentinel/launcher.py plugins/ignite-sentinel/python.sh
    ```
 
 3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py` through `python.sh`, the script that finds Python. Read the hook script and `python.sh`; `python.sh` only looks for an interpreter and runs it. Any new hook, matcher or command is a reason to stop and ask.
