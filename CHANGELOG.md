@@ -6,6 +6,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- Retrieval recency no longer depends on the wall-clock second (IMP-295). `indexed_at` has one-second resolution: two artifacts indexed in the same second tied, and two indexed across a second boundary did not. So the recency re-score (IMP-123) could pick a different top result between identical runs; the backlog's Product evidence row flipped between `REQ-002` and `PRD-001`.
+  - Each indexed artifact now carries `index_seq`, the order of indexing, which is the same on every run. Recency ranks by iteration, then `index_seq`.
+  - `indexed_at` still breaks ties, but only for chunks indexed before this change.
+
 ## [0.6.0] — 2026-11-11
 
 ### Fixed

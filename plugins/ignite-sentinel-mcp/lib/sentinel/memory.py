@@ -492,6 +492,9 @@ class ContextBroker:
             "sensitivity": sensitivity,
             "source_hash": source_hash,
             "indexed_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            # IMP-295: the order of indexing, the same on every run (the wall-clock
+            # second of `indexed_at` is not), so recency ranks deterministically.
+            "index_seq": 1 + max((int(a.get("index_seq", 0) or 0) for a in self.data["artifacts"]), default=0),
         }
         self.data["artifacts"] = [
             current for current in self.data["artifacts"] if current["artifact_id"] != artifact_id
@@ -884,6 +887,7 @@ class ContextBroker:
                 "artifact_type": chunk.get("artifact_type", ""),
                 "title": chunk.get("title", ""),
                 "indexed_at": chunk.get("indexed_at", ""),
+                "index_seq": int(chunk.get("index_seq", 0) or 0),
                 "iteration": int(chunk.get("iteration", 1) or 1),
                 "trace_ids": list(chunk.get("trace_ids", []) or []),
                 "domain": chunk.get("domain", ""),
@@ -1255,11 +1259,13 @@ def why_retrieved(
     return "; ".join(reasons) or "retrieved by local ranking"
 
 
-def _recency_key(chunk: dict[str, Any]) -> tuple[int, str]:
+def _recency_key(chunk: dict[str, Any]) -> tuple[int, int, str]:
     """Deterministic recency ordering key: higher iteration first, then a later
-    ``indexed_at``. ``indexed_at`` is an ISO-8601 string, so lexical order already
-    matches chronological order — no parsing or network needed."""
-    return (int(chunk.get("iteration", 1) or 1), str(chunk.get("indexed_at", "")))
+    ``index_seq`` (IMP-295: the order of indexing, identical across runs), then a
+    later ``indexed_at`` only for chunks indexed before ``index_seq`` existed.
+    ``indexed_at`` is an ISO-8601 string, so lexical order matches chronology."""
+    seq = int(chunk.get("index_seq", 0) or 0)
+    return (int(chunk.get("iteration", 1) or 1), seq, "" if seq else str(chunk.get("indexed_at", "")))
 
 
 def domain_coverage(chunk: dict[str, Any], query_tokens: set[str]) -> float:
@@ -1319,7 +1325,7 @@ def apply_recency_coverage_rescore(
         rows,
         key=lambda row: (
             row["score"],
-            _recency_key(row) if recency_active else (0, ""),
+            _recency_key(row) if recency_active else (0, 0, ""),
             row["chunk_id"],
         ),
         reverse=True,
