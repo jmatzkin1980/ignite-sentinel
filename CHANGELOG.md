@@ -6,6 +6,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- The release split model as data (IMP-264, H17a). `sentinel/templates/release_split_model.json` holds the framework's knowledge on splitting a v2 brief into a series of releases. The coming `/split` command reads it; nothing changes for a workspace without a series.
+  - **When to split:** 7 signals to split and 5 not to, with no numeric threshold.
+  - **How to cut:** 14 cut criteria and 24 patterns. Each pattern has its question, what it contains and inherits, the contract the siblings share, parallel or chained, and when not to use it.
+  - **How to walk it:** the flow (step 0 plus 12 steps), the stopping criterion and the cut evaluation.
+  - **How to order:** the ordering rule in 5 steps, with MoSCoW (Must at most 60 %, about 20 % Could).
+  - **What a release is:** release types and interleave subtypes, the series base vs. a backlog enabler, the spike contract (1–3 questions, a time-box and a DEC), release INVEST and the anti-patterns.
+  - The loader validates the model (`sentinel.release_split_model.validate_model`); `schemas/release_split_model.schema.json` documents it and a drift guard keeps the two in step.
+  - The enabler boundary stays in `slicing/backlog_slicing_model.json`: the model cites it, never copies it.
+  - `brief_v2.json` activates its series fields (`series_fields`, formerly `series_reserved_fields`), each mapped to the model section that defines its vocabulary.
+
 ### Fixed
 - Retrieval recency no longer depends on the wall-clock second (IMP-295). `indexed_at` has one-second resolution: two artifacts indexed in the same second tied, and two indexed across a second boundary did not. So the recency re-score (IMP-123) could pick a different top result between identical runs; the backlog's Product evidence row flipped between `REQ-002` and `PRD-001`.
   - Each indexed artifact now carries `index_seq`, the order of indexing, which is the same on every run. Recency ranks by iteration, then `index_seq`.

@@ -398,7 +398,7 @@ Each epic file includes:
 - YAML frontmatter for machine routing and Git-friendly review;
 - epic outcome, source and retrieval summary;
 - domain context coverage for Product, Technology, Design, Quality, and Delivery;
-- slicing strategy loaded from `sentinel/slicing/backlog_slicing_model.json`, based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns;
+- slicing strategy loaded from `sentinel/slicing/backlog_slicing_model.json`, based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns (splitting a whole brief into a series of releases is a different level: its model is `sentinel/templates/release_split_model.json`, which cites this file's enabler boundary);
 - a story map with dependencies, labels, slicing patterns, and trace IDs;
 - embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, optional task-seed contract, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
 

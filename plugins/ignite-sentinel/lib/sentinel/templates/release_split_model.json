@@ -1,0 +1,249 @@
+{
+ "model": "release_split",
+ "version": 1,
+ "purpose": "How a v2 brief is split into a series of releases: when to split, how to cut, how to order and what each release must declare. Data, not code: /split --assess reads the signals, the release-split skill walks the flow, and the partition validation checks the rules.",
+ "status_rule": "The BA or the provider proposes a partition and the client confirms it. Until then it is written as a proposal with its confirmation gap, and treated as revisable: the real cuts usually appear while working, and an initial partition is almost always corrected at least once.",
+ "signals": {
+  "threshold": "none: there is no numeric threshold, only signals; each lit signal is reported with its anchor",
+  "split": [
+   {"id": "S1", "key": "session_size", "text": "The brief can no longer be read and written whole in one working session (for a person or an agent, context is the scarce resource)."},
+   {"id": "S2", "key": "actor_change", "text": "The actor, the deciding authority or the channel changes in the middle of the scope: identity, permissions and rules change."},
+   {"id": "S3", "key": "different_timing", "text": "Parts are built, validated or approved at different moments: one can be shown to the client while another waits for a definition."},
+   {"id": "S4", "key": "third_party_block", "text": "A third party blocks one part and the rest can move on."},
+   {"id": "S5", "key": "missing_oracle", "text": "An executable definition of done (an acceptance oracle, a parity harness) that every other part will use is missing."},
+   {"id": "S6", "key": "shared_surface", "text": "Several blocks would touch the same file, filter or contract: a cross-cutting base built once is better."},
+   {"id": "S7", "key": "suggested_scope", "text": "There is scope suggested by the analysis and not asked for by the business: a conditional release is better than mixing it with what is committed."}
+  ],
+  "no_split": [
+   {"id": "N1", "key": "nothing_demonstrable", "text": "The resulting release has nothing demonstrable: a front-end skeleton without data validates nothing, and neither does an enabler without a demonstration. Two empty enablers merge into one with a verifiable result."},
+   {"id": "N2", "key": "belongs_to_producers", "text": "The cross-cutting piece is better specified inside each producer (writing to an event log goes in every release that emits; only reading gets its own release)."},
+   {"id": "N3", "key": "tab_of_another_screen", "text": "The supposed release would be a tab of another screen."},
+   {"id": "N4", "key": "undecided_dependency", "text": "It depends on a decision the client has not taken and has no value without it: a conditional inside the series, not a committed release."},
+   {"id": "N5", "key": "is_a_phase", "text": "It is a phase (analysis, design, construction) and not a scope: that is waterfall under another name."}
+  ]
+ },
+ "cut_criteria": {
+  "rule": "A cut usually combines two or three criteria. Verifiable value (C1) always leads. The chosen criteria are written before cutting, as the principles of the partition; without a written criterion, re-scopes go back and forth.",
+  "items": [
+   {"id": "C1", "name": "Verifiable value", "applies": "Always: the release delivers something the client, QA or an external validator can observe and accept. If its announcement cannot be written, the cut is doubtful.", "risk": "Releases that only make sense together."},
+   {"id": "C2", "name": "Actor or journey", "applies": "Who operates changes (end customer, internal operator, other areas): identity, authorization, traceability and rules change.", "risk": "A piece that exists because of the new actor stays in the release of the old one."},
+   {"id": "C3", "name": "Subdomain with its own rules", "applies": "Variants that share a pattern but not rules (two forms with opposite logic): one per release, inheriting the base.", "risk": "Duplicating the base instead of inheriting it."},
+   {"id": "C4", "name": "Bounded context", "applies": "Where the language changes the model changes; a release that crosses two contexts needs the mapping contract first.", "risk": "Mixed models without a contract."},
+   {"id": "C5", "name": "Process inputs and phases", "applies": "Pipelines and batch: one input per release, then each phase.", "risk": "A long single-path chain: every delay belongs to the series."},
+   {"id": "C6", "name": "Technical dependency (enabler)", "applies": "What several releases use and can only exist once: acceptance oracle, third-party contracts that will not change, core schema, platform. It goes first and is justified (what it enables, what risk it reduces, how it is shown done).", "risk": "A generic enabler (prepare environments) without a demonstrable result."},
+   {"id": "C7", "name": "Risk or uncertainty", "applies": "The most uncertain first. Variant measure before designing: a release measures a real property of the data and decides the design of the next one.", "risk": "The measuring release looks small and gets trimmed."},
+   {"id": "C8", "name": "Open decisions", "applies": "Concentrate the pending external integration decisions in one release; before it, come in by reading and go out in shadow.", "risk": "That release stays chronically not ready."},
+   {"id": "C9", "name": "Channel or interface", "applies": "The simple interface or the main channel first; the others later.", "risk": ""},
+   {"id": "C10", "name": "Happy path vs. exceptions", "applies": "The end-to-end case first; then the intermediate steps and the special cases.", "risk": "In regulated domains a release without the rule is not released: building in that order is not releasing in that order."},
+   {"id": "C11", "name": "Unavailable external dependency", "applies": "A third party has not delivered the contract: the real integration moves to an interleaved release and the rest moves on.", "risk": "The next release assumes it built and inherits the delay."},
+   {"id": "C12", "name": "Release segment", "applies": "Replacing a live system: the segment with the least volume and exposure first (one currency, one branch, one customer type).", "risk": "Segments that are not independent."},
+   {"id": "C13", "name": "Legacy seam", "applies": "Migrations: extract along the existing seams, the small first, with transitional architecture that is later retired (strangler fig).", "risk": "Legacy without seams: big-bang replacement."},
+   {"id": "C14", "name": "Session size", "applies": "Upper bound: the release brief fits in one writing session and its construction in bounded agent sessions.", "risk": "It is a writer's criterion, not a product one: never the only criterion.", "never_alone": true}
+  ]
+ },
+ "patterns": {
+  "rule": "Each pattern is triggered by a question. Carried to release level it fixes three things every sibling brief declares: what it contains, what it inherits (by reference, never copied) and the contract the siblings share, frozen before two of them open in parallel.",
+  "shape_rule": "A cut by variation (rule, data, channel, path, segment) over a built core with a frozen contract gives parallel siblings (same wave). A cut by depth (core to extension, low to high quality, learning to building, fixed to dynamic) gives chained siblings (successive waves).",
+  "parallel_condition": "Without code organized by slice (minimal coupling between slices, maximal inside), two parallel variations collide in the same files. Parallelism also costs: several increments in parallel delay all of them. It pays off with separate capacity (teams, or agents in isolated working copies), not by default.",
+  "items": [
+   {"id": "P1", "name": "Workflow steps", "origin": "Lawrence, Leffingwell", "question": "A flow with several steps?", "contains": "The ends first, or a thin slice of the whole flow; then the intermediate steps.", "inherits": "The terminal states and the events already defined.", "contract": "The state machine and its events: the next releases insert steps without touching the terminal states.", "shape": "chained", "shape_note": "Intermediate steps can run in parallel when they insert at different points.", "not_use_if": []},
+   {"id": "P2", "name": "Alternative paths", "origin": "Cohn P, Leffingwell, Wake", "question": "Several ways to complete the action?", "contains": "One path per release, the happy one first.", "inherits": "The main use case and its happy path.", "contract": "The extension points of the use case where the alternatives hook in.", "shape": "parallel", "not_use_if": []},
+   {"id": "P3", "name": "Walking skeleton / tracer bullet", "origin": "Cockburn; Hunt and Thomas", "question": "Components that were never connected?", "contains": "The smallest function that crosses every component.", "inherits": "", "contract": "The interfaces between components; it is the only release that justifies being blocking.", "shape": "chained", "head_of_chain": true, "not_use_if": []},
+   {"id": "P4", "name": "CRUD operations", "origin": "Leffingwell, Shore", "question": "Manage or configure something?", "contains": "Create and read together first; update and delete later.", "inherits": "The schema created by the first.", "contract": "The schema and the invariants that update and delete cannot break.", "shape": "parallel", "not_use_if": []},
+   {"id": "P5", "name": "Data variants", "origin": "Cohn D, Leffingwell", "question": "The same over different types or sources?", "contains": "One data type or source per release.", "inherits": "The canonical model.", "contract": "The canonical model: the next releases only add an adapter.", "shape": "parallel", "not_use_if": []},
+   {"id": "P6", "name": "Start from the outputs", "origin": "Matts, Adzic", "question": "Which output produces the value?", "contains": "One output and the minimal chain of inputs that produces it.", "inherits": "The inputs already built by earlier siblings.", "contract": "The format and lineage of each output.", "shape": "parallel", "not_use_if": ["a regulatory output with a fixed format"]},
+   {"id": "P7", "name": "Fixed first, dynamic later", "origin": "Wake, Adzic", "question": "Can it start with fixed or hand-loaded data?", "contains": "First the version with fixed data; then the real source.", "inherits": "The consumer already built on the fixed version.", "contract": "The source interface, identical for the fixed and the real version.", "shape": "chained", "not_use_if": []},
+   {"id": "P8", "name": "Rule variants", "origin": "Lawrence, Leffingwell", "question": "Does a domain term hide several variants?", "contains": "A subset of rules per release.", "inherits": "The flow and the evaluation point.", "contract": "The single rule evaluation point; siblings add rules without touching the flow.", "shape": "parallel", "shape_note": "Parallel only with a single evaluation point.", "not_use_if": ["a deferred rule fails the Must test", "the rule is legal or regulatory"]},
+   {"id": "P9", "name": "Relax a rule", "origin": "Cohn R", "question": "Build without the rule and restore it later?", "contains": "The version without the rule, and the rule in another release.", "inherits": "Everything built without the rule.", "contract": "The brief names the release that restores the rule; building without the rule is not releasing without it.", "shape": "chained", "shape_note": "Derived: the restoring release follows the relaxed one.", "requires_restored_in": true, "not_use_if": ["the rule is legal", "the rule is regulatory", "the rule is a Must"]},
+   {"id": "P10", "name": "Interface or channel variants", "origin": "Cohn I, Leffingwell", "question": "A complex interface or several channels?", "contains": "The simple interface or one channel first; one release per channel.", "inherits": "The domain API.", "contract": "The domain API behind every channel; a release per channel only adds a client.", "shape": "parallel", "not_use_if": []},
+   {"id": "P11", "name": "Manual before automatic", "origin": "Wake", "question": "Can a person do the step today with a procedure?", "contains": "The manual step with its procedure; then the automation.", "inherits": "The artifact the person produces today.", "contract": "The format of that artifact, which the machine produces tomorrow; the manual step is debt with an owner.", "shape": "chained", "not_use_if": []},
+   {"id": "P12", "name": "Defer qualities (NFR)", "origin": "Lawrence, Leffingwell, Wake", "question": "Does the complexity come from performance or scale?", "contains": "The function with the minimal quality; then the quality.", "inherits": "The function already built.", "contract": "The measurement points, defined from the first release.", "shape": "chained", "shape_note": "Derived: the quality release follows the function.", "not_use_if": ["the quality is a condition for releasing"]},
+   {"id": "P13", "name": "Hamburger", "origin": "Adzic", "question": "Is it only thought of in technical steps?", "contains": "Each layer at its minimal acceptable quality; then one layer's quality is raised.", "inherits": "The other layers at their current level.", "contract": "The interface between layers: each brief is a column of the same table.", "shape": "depends", "shape_note": "Different layers run in parallel; raising quality in the same layer is chained by levels.", "not_use_if": []},
+   {"id": "P14", "name": "Spike / learning release", "origin": "Cohn S, Lawrence, Leffingwell, Shore", "question": "Which 1-3 questions block?", "contains": "The minimum to answer them, with a time-box.", "inherits": "", "contract": "The resulting decision, which the siblings consume.", "shape": "depends", "shape_note": "Chained with what it unblocks; parallel with what does not depend on the answer.", "not_use_if": []},
+   {"id": "P15", "name": "Core complexity (meta-pattern)", "origin": "Lawrence", "question": "Which part will surprise?", "contains": "One complete variation through that part.", "inherits": "The core variation already solved.", "contract": "It is the golden rule of the first release; the other patterns are cases of this one.", "shape": "chained", "not_use_if": []},
+   {"id": "P16", "name": "Shortest impact-map path", "origin": "Adzic", "question": "Which behaviour change of which actor moves the measurable goal?", "contains": "The behaviour change of one actor that moves the goal.", "inherits": "The measurable goal and its baseline.", "contract": "The metric and how it is measured, shared by the siblings of the same goal.", "shape": "depends", "shape_note": "Derived: actors that move the goal independently can run in parallel.", "not_use_if": []},
+   {"id": "P17", "name": "Shrink the segment", "origin": "Adzic and Evans, Wake", "question": "Is everything a Must?", "contains": "The full scope for a smaller segment.", "inherits": "The eligibility model.", "contract": "The eligibility model and, when it applies, the switch.", "shape": "parallel", "shape_note": "Parallel with the eligibility model fixed.", "not_use_if": []},
+   {"id": "P18", "name": "Outcome release strip", "origin": "Patton", "question": "What is the smallest set of activities that reaches the goal?", "contains": "A horizontal strip of the story map.", "inherits": "The earlier strips.", "contract": "The backbone of the story map.", "shape": "chained", "shape_note": "Derived: each strip inherits the earlier ones.", "not_use_if": []},
+   {"id": "P19", "name": "Bounded context", "origin": "Evans", "question": "Does the same term mean different things for two areas?", "contains": "One bounded context per release.", "inherits": "The context map.", "contract": "The context map relation, signed before two briefs open.", "shape": "parallel", "shape_note": "Parallel with the context map contract signed.", "not_use_if": []},
+   {"id": "P20", "name": "Pivotal events", "origin": "Brandolini", "question": "Which few events split the flow?", "contains": "The stretch of flow between two pivotal events: one ends at the pivot and the next starts there.", "inherits": "The pivotal event already emitted.", "contract": "The pivotal event schema as published language.", "shape": "chained", "shape_note": "Derived: the next stretch starts at the emitted pivot.", "not_use_if": []},
+   {"id": "P21", "name": "Core vs. generic", "origin": "Evans", "question": "Which part is the advantage and which is commodity?", "contains": "The core first; the generic later or bought.", "inherits": "", "contract": "Order and buy criterion: the generic part may have no brief of its own.", "shape": "chained", "shape_note": "Derived: the core goes first.", "not_use_if": []},
+   {"id": "P22", "name": "Major effort", "origin": "Lawrence, Leffingwell", "question": "Is the first piece the hardest?", "contains": "The first piece with the infrastructure; the others grouped in no order.", "inherits": "The infrastructure of the first.", "contract": "The infrastructure of the first; the next ones can run in parallel.", "shape": "parallel", "shape_note": "Releases 2..n run in parallel after the infrastructure of the first.", "not_use_if": []},
+   {"id": "P23", "name": "Simple / complex", "origin": "Lawrence, Leffingwell", "question": "A simple core with most of the value?", "contains": "That core is the first release; each what-if is a candidate for a later release.", "inherits": "The simple core.", "contract": "Variant of the meta-pattern: the variations extend the core.", "shape": "chained", "not_use_if": []},
+   {"id": "P24", "name": "Size heuristic", "origin": "Killick; agent guides", "question": "What is the structural cap?", "contains": "It does not define releases: it defines internal milestones of an agent session.", "inherits": "", "contract": "An explicit size policy, recalibrated with real data; it sets the grain of 9.1, not the cut.", "shape": "not_a_cut", "not_use_if": ["as the criterion that defines a release"]}
+  ]
+ },
+ "flow": {
+  "step_0": {
+   "name": "Prepare",
+   "questions": [
+    {"id": "Q1", "text": "Is the brief valuable by itself (not a layer or a component)?", "if_no": "Combine it with another until it forms an increment of value."},
+    {"id": "Q2", "text": "Does it already fit the budget (time, capability cap, agent milestones)?", "if_yes": "Stop: do not cut."},
+    {"id": "Q3", "text": "Is there a measurable goal (1.3)?", "if_no": "Define it first: without it the cut cannot be by outcome (a gap if the brief does not have it)."}
+   ]
+  },
+  "rule": "The steps are walked in order until the stopping criterion holds. Steps 1-3 are release level; 4-12 follow the order of the Lawrence and Green flowchart. Every step that fires records the pattern and the question that justified it.",
+  "steps": [
+   {"step": 1, "name": "Outcome", "question": "Do several actors or impacts move the goal independently?", "patterns": ["P16", "P17"], "then": "Shortest impact-map path, or shrink the segment. If everything is Must, shrink the segment before the function."},
+   {"step": 2, "name": "Domain", "question": "Does it cross more than one bounded context or a pivotal event? Is there a generic subdomain?", "patterns": ["P19", "P20", "P21"], "then": "One brief per context with the context map signed; the boundary at the pivot. The generic part: buy or postpone."},
+   {"step": 3, "name": "Core complexity", "question": "Which part will surprise? Are there components never connected?", "patterns": ["P15", "P3"], "then": "The first release is a complete variation through it. Unconnected components: a walking skeleton as the first release."},
+   {"step": 4, "name": "Flow", "question": "Several steps?", "patterns": ["P1"], "then": "Ends first or a thin slice."},
+   {"step": 5, "name": "Operations", "question": "Manage or configure?", "patterns": ["P4"], "then": "Create and read first."},
+   {"step": 6, "name": "Rules", "question": "Does a term hide variants?", "patterns": ["P8"], "then": "A subset of rules. Every deferred rule passes the Must test (what happens if it is not met; is the project cancelled?); a legal rule is never deferred (P9 does not apply)."},
+   {"step": 7, "name": "Data", "question": "The same over different types? Several outputs?", "patterns": ["P5", "P6"], "then": "One type; one output."},
+   {"step": 8, "name": "Interface", "question": "A complex interface or several channels?", "patterns": ["P10"], "then": "The simple one or one channel."},
+   {"step": 9, "name": "Major effort", "question": "Is the first piece the hardest?", "patterns": ["P22"], "then": "The first release with the infrastructure; the others grouped in no order."},
+   {"step": 10, "name": "Simple / complex", "question": "A simple core with most of the value?", "patterns": ["P23"], "then": "That is the first release."},
+   {"step": 11, "name": "Qualities", "question": "Does the complexity come from non-functional requirements?", "patterns": ["P12", "P13"], "then": "Defer or hamburger, only if the version without the quality is releasable or the release is declared integrable, not releasable."},
+   {"step": 12, "name": "Last resort", "question": "Still no idea how to cut?", "patterns": ["P14"], "then": "1-3 questions and a time-boxed measuring release; when it closes, back to step 0."}
+  ],
+  "stopping_criterion": {
+   "rule": "All at once: the release",
+   "items": [
+    "is a complete variation of the core that crosses every layer and the whole journey of its segment",
+    "has a declared value type (direct, learning or option) with its released condition",
+    "fits the budget",
+    "breaks down into agent milestones with executable validation",
+    "cutting it further would produce pieces without value of their own"
+   ]
+  },
+  "horizon": "Releases outside the horizon are not detailed: they stay as a sketch (goal and cut pattern), not as a brief."
+ },
+ "cut_evaluation": [
+  {"id": "E1", "check": "Are the resulting briefs of similar size?", "if_not": "Apply another pattern to the largest."},
+  {"id": "E2", "check": "Does each one meet release independence (release INVEST)?", "if_not": "Re-cut the one that fails."},
+  {"id": "E3", "check": "Can any of them be deleted or postponed?", "if_not": "There is waste spread across all of them: try another pattern."},
+  {"id": "E4", "check": "Is there an obvious first that gives early value, learning or reduces risk?", "if_not": "Revisit the order before the cut."}
+ ],
+ "what_goes_first": [
+  {"key": "walking_skeleton", "text": "The end-to-end skeleton: the minimal implementation that joins the main components and solves the simplest complete variant. The first strip crosses the whole journey, not a layer."},
+  {"key": "acceptance_oracle", "text": "The acceptance oracle: if done can be executed (compare outputs with the previous system, a regulator's validator), it is built first. Total parity is a statement, not a test, until the tool exists."},
+  {"key": "stable_contracts", "text": "The contracts that will not change: file formats against real definitions, third-party contracts, the shared data schema. They are fixed before two releases that consume them open."},
+  {"key": "cross_cutting_base", "text": "The cross-cutting base, with an explicit list: what two or more releases would touch is built once, each piece with its reason, and with the negative list of what does not go in although it touches shared infrastructure, with its distribution among siblings and the merge-order note."}
+ ],
+ "single_ownership": "Every table, column, parameter, endpoint, event and role is created by a single release; the others use it under the same name. A shared service exposes only the operations with a consumer inside the series. This rule makes the graph and the parallelism possible.",
+ "graph": {
+  "nodes": "The releases and, when useful, the shared contracts (schema, API, file format) as explicit nodes, so they do not stay implicit inside an enabler.",
+  "edges": "depends_on / enables, always in symmetric pairs and with the reason per target. Asymmetry or a cycle is a reading error or a hidden dependency.",
+  "strengths": [
+   {"key": "hard", "text": "Orders: it cannot be built without it."},
+   {"key": "opportunistic", "text": "Enriches if the other one already exists, and does not order."}
+  ],
+  "conditional_edge": "Dotted until its gap is decided.",
+  "waves": "Topological order by layers over the hard edges. Wave 0: enablers, base, oracle, frozen contracts (checkpoint: demonstrable?). Wave 1: what depends only on wave 0 (parallel). Wave N: what depends on closed earlier waves (checkpoint per wave: readiness, blockers, traceability). The integrator depends on all; its premise is verified before writing it.",
+  "hard_edge_rule": "A hard dependency always points to an earlier wave. A cycle is not forced: a contract is missing or a dependency is extra; back to the pattern step.",
+  "wave_tiebreak": "Risk first; then value or cost of delay; in migrations, the small and least risky part of the legacy first.",
+  "numbering": "The series number does not force a construction order (if one must be chosen, the base first). Natural order: r10 never sorts before r2."
+ },
+ "ordering": {
+  "rule": "Prioritization methods assume the pieces already exist: they sequence releases, they do not cut them.",
+  "methods": [
+   {"key": "dependency", "name": "Dependency / precedence", "orders": "Hard constraint", "rule": "A release is eligible only if its predecessors (contracts and infrastructure included) are closed or frozen. It is not a score.", "when": "Always, as a prior filter."},
+   {"key": "risk_value", "name": "Risk x value (Cohn)", "orders": "The first releases", "rule": "High risk / high value first; then low risk / high value; avoid high risk / low value.", "when": "To choose the first and at most the second."},
+   {"key": "learning_first", "name": "Learning first (Cockburn, Shore)", "orders": "First and second", "rule": "The first cuts may prioritize reducing risk.", "when": "New domains or unknown integrations."},
+   {"key": "legal_must", "name": "Legal Musts before attractive (Kano)", "orders": "Content of the first", "rule": "What is a condition for releasing goes before what differentiates.", "when": "Regulated domains."},
+   {"key": "cost_of_delay", "name": "Cost of delay / WSJF", "orders": "Tie-break among eligible", "rule": "Highest cost of delay per unit of duration first.", "when": "Regulatory windows, seasonality."},
+   {"key": "rice", "name": "RICE", "orders": "Candidate portfolio", "rule": "Reach x impact x confidence / effort; dependencies and basic requirements can override it.", "when": "Value is user reach, with product metrics."},
+   {"key": "moscow", "name": "MoSCoW (DSDM)", "orders": "Content of one release", "rule": "Must means without this it is cancelled; no more than 60 % of the effort in Must; about 20 % Could as contingency.", "when": "A release with a fixed date: protect the delivery, do not order briefs among themselves."},
+   {"key": "one_at_a_time", "name": "One at a time (Shore)", "orders": "Work in progress", "rule": "Finishing one increment at a time pays more than several in parallel.", "when": "Single capacity (one team, one agent)."},
+   {"key": "core_first", "name": "Core first (Evans)", "orders": "Domain", "rule": "The core gets the priority; the generic part later or bought.", "when": "Whenever there is an identifiable core."}
+  ],
+  "combination": [
+   {"step": 1, "text": "Filter by dependency.", "method": "dependency"},
+   {"step": 2, "text": "Open the first (and at most the second) by core complexity and risk.", "method": "risk_value"},
+   {"step": 3, "text": "Legal Musts before attractive.", "method": "legal_must"},
+   {"step": 4, "text": "Break the remaining ties by cost of delay (or RICE without a cost model), recalculated when each release closes.", "method": "cost_of_delay"},
+   {"step": 5, "text": "MoSCoW inside each brief to leave contingency, not between briefs.", "method": "moscow"}
+  ],
+  "moscow": {"must_max_share": 0.6, "could_target_share": 0.2},
+  "recalculate": "when each release closes",
+  "not_fixed_by_the_method": [
+   "a size threshold of the product's own",
+   "the maximum size of a cross-cutting base",
+   "how to break order by value against order by dependency when they clash",
+   "when a change is an interleaved release and when a re-scope",
+   "a formal protocol to validate the partition with the client"
+  ]
+ },
+ "release_types": {
+  "rule": "The type is declared in 0.1 of the release brief because it changes what is asked of it and how it is verified. A release that is not functional says so and lists in negative what it does not add.",
+  "items": [
+   {"key": "enabler", "text": "Builds once what everyone uses: platform, core schema, parity oracle, identity and security, shared filters. No UI but a demonstrable result.", "requires": ["capability it supports", "risk it reduces", "why it goes first", "how it is shown done", "negative list of what it does not add"], "may_have_no_units": true},
+   {"key": "functional", "text": "Delivers visible and verifiable value. The default type.", "requires": ["depends_on and enables, each with its reason"], "default": true},
+   {"key": "measuring", "text": "Spike: measures a real property and its result decides the design of the next one.", "requires": ["time-box", "deliverable: the measurement and the decision"], "may_have_no_units": true},
+   {"key": "conditional", "text": "Its existence depends on an open gap. Until then it is a proposal, not a commitment; dotted edge.", "requires": ["condition with the gap that decides it"], "isolation": "If its gap appears in many siblings it is not isolated."},
+   {"key": "interleaved", "text": "Born between two already defined releases; it is named r2.1. It has its own brief because it has its own scope: it is not a re-scope.", "requires": ["whether the actor changes against the next one", "its subtype"]},
+   {"key": "integrator", "text": "Last sibling: connects screens to the backends of the others or consolidates the data they produced.", "requires": ["consumption table (what it uses from whom)", "its premise verified screen by screen before writing it", "depends directly or transitively on every non-conditional release"]},
+   {"key": "segment_cutover", "text": "Turns on what was built for a lower-risk segment. Before it, the system runs in shadow: it generates everything and sends nothing.", "requires": ["the segment", "the eligibility model", "the switch"]},
+   {"key": "already_built", "text": "Documents something that exists: the code or the SAD rules and its §7 holds typed divergences, not open items. Only that release; the next ones go back to the normal direction.", "requires": ["validation direction already-built"], "may_have_no_units": true}
+  ],
+  "interleave_subtypes": [
+   {"key": "late_external_dependency", "text": "An external dependency arrived late."},
+   {"key": "change_found_in_testing", "text": "A change found in testing over something already built."}
+  ],
+  "outside_every_release": "Not a type: a destination for what the client or another team runs and is not built in the series. It is recorded so it does not stay orphaned."
+ },
+ "base_vs_enabler": {
+  "release_base": "The cross-cutting base of a series is a release-level piece: what two or more releases would touch, built once, each piece with its reason and with the negative list of what stays with the siblings.",
+  "backlog_enabler": "A backlog enabler is a cross_cutting_enabler story inside one release, bounded by the backlog slicing model.",
+  "boundary_source": {"model": "slicing/backlog_slicing_model.json", "field": "enabler_boundary", "rule": "cited, never copied"},
+  "distinct": "The base of a series is not a backlog enabler: the base is a release, an enabler is a story. Both pass the same boundary: a concrete capability, a reduced risk, why it goes first and a demonstrable done. Prepare environments or base structure are tasks inside a release, never an enabler, and the base does not grow into everything technical."
+ },
+ "spike": {
+  "release_type": "measuring",
+  "pattern": "P14",
+  "questions_min": 1,
+  "questions_max": 3,
+  "time_box_required": true,
+  "decision_record": "DEC",
+  "rule": "A spike names the 1-3 questions that block, carries a time-box and closes with a DEC that the siblings consume. When it closes, the assessment runs again."
+ },
+ "release_invest": [
+  {"key": "independent", "text": "It does not read or write anything another release in progress is defining. Its dependencies point only to closed releases or frozen contracts. A remaining dependency is declared in §0 and §8; never implicit."},
+  {"key": "negotiable", "text": "The brief fixes the result and the time budget; the inner scope adjusts without moving the goal."},
+  {"key": "valuable", "text": "When it closes, someone external can observe and accept a behaviour change: demo, pilot, segment behind a switch, a file accepted by a validator."},
+  {"key": "estimable", "text": "It has no dependencies left to define. If uncertainty is high it starts with a bounded spike or is redone as measuring."},
+  {"key": "small", "text": "It fits the declared budget; its brief is written in one session; for an agent it breaks down into units that fit one session each."},
+  {"key": "testable", "text": "It has an end-to-end closing check a person or an agent can run, and acceptance criteria with ids."}
+ ],
+ "self_containment": "A release brief reads without opening the other briefs. Shared facts refer to a base document; what the release decides lives in it. For a building agent it is a handoff package: goal, limits, surfaces, contracts to respect, verification and what it must not touch.",
+ "out_of_scope_destinations": [
+  {"key": "release", "text": "Another release of the series (which one)."},
+  {"key": "unassigned", "text": "No release assigned yet: a routing row with its gap."},
+  {"key": "no_longer_needed", "text": "Retired with its reason. Retired is not deferred: say which."},
+  {"key": "outside_every_release", "text": "Run by the client or another team."}
+ ],
+ "anti_patterns": [
+  {"id": "AP1", "key": "layer_cut", "text": "Horizontal cut by layer (database release, backend release, UI release): neither independent nor valuable. It is the plan an agent produces by default unless told otherwise.", "validated": true},
+  {"id": "AP2", "key": "enabler_without_demo", "text": "An enabler without a demonstration of done, or a generic enabler presented as a release.", "validated": true},
+  {"id": "AP3", "key": "empty_release", "text": "A release with no units of the brief, unless it is an enabler, measuring or already built.", "validated": true},
+  {"id": "AP4", "key": "spike_without_questions", "text": "A spike without its 1-3 questions or its time-box.", "validated": true},
+  {"id": "AP5", "key": "release_without_outcome_metric", "text": "A release without an outcome someone external can verify.", "validated": true},
+  {"id": "AP6", "key": "cut_without_source", "text": "A cut whose criterion or units do not cite the brief.", "validated": true},
+  {"id": "AP7", "key": "big_bang", "text": "Big-bang or like-for-like replacement of the legacy.", "validated": false},
+  {"id": "AP8", "key": "below_value", "text": "Cutting below value: micro-releases of a button, an endpoint or a table.", "validated": false},
+  {"id": "AP9", "key": "repeated_spec", "text": "A spec per release that repeats everything (domain, glossary, rules) and drifts.", "validated": false},
+  {"id": "AP10", "key": "disguised_waterfall", "text": "Releases that are phases; a foundational phase that grows without limit.", "validated": false},
+  {"id": "AP11", "key": "risk_last_or_catch_all", "text": "Risk at the end, or a catch-all release (front-end, bugs) nobody can size.", "validated": false},
+  {"id": "AP12", "key": "whole_release_one_session", "text": "Asking for a whole release in one agent session, or closing it without an end-to-end check.", "validated": false},
+  {"id": "AP13", "key": "eternal_switch", "text": "Switches without a retirement date.", "validated": false}
+ ],
+ "series_fields": {
+  "release_type": "release_types",
+  "release_goal": "release_invest",
+  "closing_check": "release_invest",
+  "depends_on": "graph",
+  "enables": "graph",
+  "inherits": "patterns",
+  "builds": "single_ownership",
+  "out_of_scope_destination": "out_of_scope_destinations",
+  "surfaces": "self_containment",
+  "releasable": "flow",
+  "value_type": "flow",
+  "changes_actor": "release_types",
+  "non_technical_start_condition": "ordering",
+  "restored_in": "patterns",
+  "integrator_consumption": "release_types",
+  "suggested_scope": "signals",
+  "tombstones": "self_containment"
+ }
+}

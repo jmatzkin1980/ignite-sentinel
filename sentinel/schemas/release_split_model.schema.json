@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/release_split_model.schema.json",
+  "title": "Release split model",
+  "description": "IMP-264: the framework's release-split knowledge as data (sentinel/templates/release_split_model.json). The runtime validates it with sentinel.release_split_model.validate_model; tests/test_release_split_model.py keeps this schema and the validator in step.",
+  "type": "object",
+  "required": ["model", "version", "signals", "cut_criteria", "patterns", "flow", "cut_evaluation", "ordering", "release_types", "base_vs_enabler", "spike", "release_invest", "anti_patterns", "series_fields"],
+  "properties": {
+    "model": {"const": "release_split"},
+    "version": {"type": "integer", "minimum": 1},
+    "signals": {
+      "type": "object",
+      "required": ["split", "no_split"],
+      "properties": {
+        "split": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/signal"}},
+        "no_split": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"$ref": "#/$defs/signal"}}
+      }
+    },
+    "cut_criteria": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array", "minItems": 14, "maxItems": 14,
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "applies", "risk"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^C([1-9]|1[0-4])$"},
+              "name": {"type": "string"},
+              "applies": {"type": "string"},
+              "risk": {"type": "string"},
+              "never_alone": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "patterns": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array", "minItems": 24, "maxItems": 24,
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "origin", "question", "contains", "inherits", "contract", "shape", "not_use_if"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^P([1-9]|1[0-9]|2[0-4])$"},
+              "name": {"type": "string"},
+              "origin": {"type": "string"},
+              "question": {"type": "string"},
+              "contains": {"type": "string"},
+              "inherits": {"type": "string"},
+              "contract": {"type": "string"},
+              "shape": {"enum": ["parallel", "chained", "depends", "not_a_cut"]},
+              "shape_note": {"type": "string"},
+              "not_use_if": {"type": "array", "items": {"type": "string"}},
+              "requires_restored_in": {"type": "boolean"},
+              "head_of_chain": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["step_0", "steps", "stopping_criterion"],
+      "properties": {
+        "step_0": {"type": "object", "properties": {"questions": {"type": "array", "minItems": 3, "maxItems": 3}}},
+        "steps": {
+          "type": "array", "minItems": 12, "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["step", "name", "question", "patterns", "then"],
+            "properties": {
+              "step": {"type": "integer", "minimum": 1, "maximum": 12},
+              "patterns": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^P[0-9]+$"}}
+            }
+          }
+        },
+        "stopping_criterion": {"type": "object", "properties": {"items": {"type": "array", "minItems": 1}}}
+      }
+    },
+    "cut_evaluation": {"type": "array", "minItems": 1},
+    "ordering": {
+      "type": "object",
+      "required": ["methods", "combination", "moscow"],
+      "properties": {
+        "combination": {"type": "array", "minItems": 5, "maxItems": 5},
+        "moscow": {
+          "type": "object",
+          "properties": {"must_max_share": {"const": 0.6}, "could_target_share": {"const": 0.2}}
+        }
+      }
+    },
+    "release_types": {
+      "type": "object",
+      "required": ["items", "interleave_subtypes"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "text", "requires"],
+            "properties": {
+              "key": {"enum": ["enabler", "functional", "measuring", "conditional", "interleaved", "integrator", "segment_cutover", "already_built"]}
+            }
+          }
+        },
+        "interleave_subtypes": {"type": "array", "minItems": 2, "maxItems": 2}
+      }
+    },
+    "base_vs_enabler": {
+      "type": "object",
+      "required": ["boundary_source"],
+      "properties": {
+        "boundary_source": {
+          "type": "object",
+          "properties": {"model": {"const": "slicing/backlog_slicing_model.json"}, "field": {"const": "enabler_boundary"}}
+        }
+      }
+    },
+    "spike": {
+      "type": "object",
+      "required": ["questions_min", "questions_max", "time_box_required", "decision_record"],
+      "properties": {
+        "questions_min": {"const": 1},
+        "questions_max": {"const": 3},
+        "time_box_required": {"const": true},
+        "decision_record": {"const": "DEC"}
+      }
+    },
+    "release_invest": {"type": "array", "minItems": 6, "maxItems": 6},
+    "anti_patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "key", "text", "validated"],
+        "properties": {"id": {"type": "string", "pattern": "^AP[0-9]+$"}, "validated": {"type": "boolean"}}
+      }
+    },
+    "series_fields": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "$defs": {
+    "signal": {
+      "type": "object",
+      "required": ["id", "key", "text"],
+      "properties": {"id": {"type": "string"}, "key": {"type": "string"}, "text": {"type": "string"}}
+    }
+  }
+}
