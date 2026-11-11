@@ -111,7 +111,8 @@ Auditability and traceability expectations: all downstream artifacts must cite t
 - `GAP-BACKEND-SURFACE` (technical, medium): Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear.
 - `GAP-TECH-DEEP-DIVE-INPUT` (technical, medium): Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis.
 - `GAP-GOVERNANCE-CONSTRAINTS` (compliance, medium): Governance, security, privacy, compliance, or operational restrictions are not explicit.
-- `GAP-PRD-GLOSSARY-GOVERNANCE` (compliance, medium): Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.
+- `GAP-PRD-GLOSSARY-GOVERNANCE` (compliance, medium): Domain terms are used without a glossary: no definitions, canonical names or 'do not confuse with' notes.
+- `GAP-PRD-GOVERNANCE` (compliance, medium): Mandatory constraints, pending inputs or governance and audit notes are not explicit enough for a complete PRD.
 - `GAP-DELIVERY-READINESS` (delivery, medium): Dependencies, environments, ownership, timing, or rollout constraints are not explicit.
 - `GAP-PRD-DEPENDENCIES-ROADMAP` (delivery, medium): Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning.
 - `GAP-PRD-ROLLOUT-ENVIRONMENTS` (delivery, medium): Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning.

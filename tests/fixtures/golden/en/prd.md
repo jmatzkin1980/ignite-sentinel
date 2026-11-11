@@ -184,12 +184,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 ## 13. Glossary
 
-| Term | Definition | First Used In |
-| --- | --- | --- |
-| Mature requirement | Discovery output with blocking gaps closed or explicitly accepted as non-blocking. | Summary |
-| PRD | Human/business product document explaining what and why. | Summary |
-| Specs | Agent-friendly execution contract for progressive disclosure and backlog generation. | Traceability |
-| Pending input | Explicit missing information that must not be invented. | Governance |
+- [PENDING INPUT] - no domain term is defined yet; resolve `GAP-PRD-GLOSSARY-GOVERNANCE`.
 
 # [PROJECT_ID] - Governance
 

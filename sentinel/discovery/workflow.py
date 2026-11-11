@@ -2843,6 +2843,9 @@ def example_response_for_gap(gap_id: str, language: str = "en") -> str:
 
 def unblocks_for_gap(gap_id: str, language: str = "en") -> str:
     """What downstream brief/PRD/spec section the gap's answer unblocks."""
+    data_text = lens_text(gap_id, "unblocks", language)
+    if data_text:
+        return data_text
     if language == "es":
         unblocks = {
             "GAP-OBJECTIVE": "Sección 1 del brief (identidad y objetivo) y el problem statement del PRD; todo lo downstream optimiza hacia esto.",
@@ -3045,6 +3048,7 @@ PRD_SECTION_FOR_GAP = {
     "GAP-PRD-NFR-KPI": "5",
     "GAP-GOVERNANCE-CONSTRAINTS": "11",
     "GAP-PRD-GLOSSARY-GOVERNANCE": "13",
+    "GAP-PRD-GOVERNANCE": "11",  # IMP-261: governance split out of the glossary gap
     "GAP-DELIVERY-READINESS": "10",
     "GAP-PRD-DEPENDENCIES-ROADMAP": "10",
     "GAP-PRD-ROLLOUT-ENVIRONMENTS": "10",

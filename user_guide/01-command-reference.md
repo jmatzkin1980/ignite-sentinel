@@ -212,6 +212,15 @@ When a gap has a concrete local evidence trigger, `gaps.md` may include 2 cited 
 - **Severity:** these gaps are medium, so they do not block on their own.
 - **Brief v2:** §3.6 indexes the 16 cross-cutting scenarios and points to where each one is specified.
 
+**Glossary (IMP-261).** `01_discovery/glossary.json` is the project's governed glossary: term, definition, canonical name, "do not confuse with" and source.
+
+- **Where terms come from:**
+  - definitions in the raw input ("X means Y", "X significa Y", a "Glosario" section);
+  - confirmed answers to `GAP-PRD-GLOSSARY-GOVERNANCE`, written as `Term: definition (canonical `name`; not to be confused with X); ...`;
+  - acronym expansions, kept as `(inferred)`.
+- **Where it renders:** the brief v2 annex and PRD section 13.
+- **Governance gap:** governance and audit are now asked separately, in `GAP-PRD-GOVERNANCE`.
+
 **Rounds.** The next batch of questions comes from:
 
 ```powershell

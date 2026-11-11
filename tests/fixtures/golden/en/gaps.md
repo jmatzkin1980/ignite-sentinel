@@ -716,7 +716,7 @@ Client / domain response:
 - Closure reason:
 
 
-### GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance
+### GAP-PRD-GLOSSARY-GOVERNANCE - Domain Glossary
 
 - Lens: `compliance`
 - Severity: `medium`
@@ -724,22 +724,57 @@ Client / domain response:
 - Related requirement: `REQ-001`
 
 Brief description:
-Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.
+Domain terms are used without a glossary: no definitions, canonical names or 'do not confuse with' notes.
 
 Why it matters (risk if left open):
-Glossary, mandatory constraints, pending inputs, and audit trail preserve shared understanding and traceability.
+Without a glossary every lens names the same thing differently; PRD, specs and code drift apart in vocabulary.
 
 What answering this unblocks:
-The PRD Governance section (glossary, constraints, audit trail).
+The brief v2 glossary annex and PRD section 13.
 
 Question:
-What confirmed information resolves this uncertainty?
+Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?
 
 Expected response format:
-Glossary terms, mandatory constraints, and pending inputs with owner.
+Term: definition (canonical `name`; not to be confused with X); one per line or separated by ';'
 
 Example of a useful answer:
-Glossary: 'disabled state' means not operable. Constraint: do not expose sensitive data in logs. Pending input: metric owner.
+Risk queue: open cases sharing the same SLA (canonical `risk_queue`; not to be confused with a support ticket); Stale data: metrics older than 15 minutes
+
+
+Client / domain response:
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+- Closure reason:
+
+
+### GAP-PRD-GOVERNANCE - PRD Governance
+
+- Lens: `compliance`
+- Severity: `medium`
+- Status: `OPEN`
+- Related requirement: `REQ-001`
+
+Brief description:
+Mandatory constraints, pending inputs or governance and audit notes are not explicit enough for a complete PRD.
+
+Why it matters (risk if left open):
+Without mandatory constraints and audit notes the PRD cannot be audited or governed.
+
+What answering this unblocks:
+PRD section 11 and brief v2 §5.11.
+
+Question:
+Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?
+
+Expected response format:
+Constraint · source or owner · how it is verified
+
+Example of a useful answer:
+Access logs kept 5 years (Security, verified by the audit table); no PII in exports (Legal).
 
 
 Client / domain response:
@@ -1014,7 +1049,8 @@ This table is kept for Sentinel traceability and automated processing.
 | GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | Backend implementation surface is not explicit enough: capabilities, integrations, rules, persistence, contracts, or failure behavior are unclear. | Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Technology has insufficient input to perform repository, architecture, endpoint/event, source-of-truth, or risk analysis. | Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | Governance, security, privacy, compliance, or operational restrictions are not explicit. | Which security, privacy, compliance, audit, or operational restrictions must be respected? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
-| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Domain terms are used without a glossary: no definitions, canonical names or 'do not confuse with' notes. | Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Mandatory constraints, pending inputs or governance and audit notes are not explicit enough for a complete PRD. | Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | Dependencies, environments, ownership, timing, or rollout constraints are not explicit. | Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | What confirmed information resolves this uncertainty? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD? | Context folders and source input. | N/A | checklist | N/A | N/A | domain | N/A |

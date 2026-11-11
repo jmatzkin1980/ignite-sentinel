@@ -274,9 +274,17 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "expected_format": "Term: definition (canonical `name`; not to be confused with X); one per line or separated by ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Constraint · source or owner · how it is verified",
+    "id": "GAP-PRD-GOVERNANCE",
+    "question": "Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?",
     "response_needed": true,
     "statement": ""
    },
@@ -545,38 +553,38 @@
    },
    {
     "id": "marker-50",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GOVERNANCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-52",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-15"
    },
    {
     "id": "marker-53",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-54",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-15"
    },
    {
     "id": "marker-55",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-15"
    },
    {
     "id": "marker-56",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
    },
    {
     "id": "marker-57",
@@ -585,36 +593,41 @@
    },
    {
     "id": "marker-58",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-17"
    },
    {
     "id": "marker-59",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-60",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-18"
    },
    {
-    "id": "marker-60",
+    "id": "marker-61",
     "marker": "GAP-PRD-FR-AC",
     "section_id": "section-18"
    },
    {
-    "id": "marker-61",
+    "id": "marker-62",
     "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-18"
    },
    {
-    "id": "marker-62",
+    "id": "marker-63",
     "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-18"
    },
    {
-    "id": "marker-63",
+    "id": "marker-64",
     "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-18"
    },
    {
-    "id": "marker-64",
+    "id": "marker-65",
     "marker": "[PENDING INPUT]",
     "section_id": "section-18"
    }
@@ -707,32 +720,32 @@
    },
    {
     "id": "section-15",
-    "line_end": 121,
+    "line_end": 122,
     "line_start": 94,
     "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
    },
    {
     "id": "section-16",
-    "line_end": 131,
-    "line_start": 122,
+    "line_end": 132,
+    "line_start": 123,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
    },
    {
     "id": "section-17",
-    "line_end": 140,
-    "line_start": 132,
+    "line_end": 141,
+    "line_start": 133,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
    },
    {
     "id": "section-18",
-    "line_end": 153,
-    "line_start": 141,
+    "line_end": 154,
+    "line_start": 142,
     "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
    },
    {
     "id": "section-19",
-    "line_end": 162,
-    "line_start": 154,
+    "line_end": 163,
+    "line_start": 155,
     "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
    }
   ],
@@ -897,9 +910,17 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "expected_format": "Term: definition (canonical `name`; not to be confused with X); one per line or separated by ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Constraint · source or owner · how it is verified",
+    "id": "GAP-PRD-GOVERNANCE",
+    "question": "Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?",
     "response_needed": true,
     "statement": ""
    },
@@ -1055,163 +1076,173 @@
    },
    {
     "id": "marker-21",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GOVERNANCE",
     "section_id": "section-24"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-25"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-26"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-27"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-28"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-29"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-31"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-30"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-31"
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-32"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-METRIC-SOURCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-32"
    },
    {
     "id": "marker-30",
-    "marker": "GAP-METRIC-DEFINITION",
-    "section_id": "section-31"
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-31",
-    "marker": "GAP-CTP-EXCLUSION",
-    "section_id": "section-31"
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-32"
    },
    {
     "id": "marker-32",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
-    "section_id": "section-31"
+    "marker": "GAP-CTP-EXCLUSION",
+    "section_id": "section-32"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-31"
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-PRD-FR-AC",
-    "section_id": "section-31"
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-ACCEPTANCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-32"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-QUALITY",
-    "section_id": "section-31"
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-QUALITY-HANDOFF",
-    "section_id": "section-31"
+    "marker": "GAP-QUALITY",
+    "section_id": "section-32"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-PRD-NFR-KPI",
-    "section_id": "section-31"
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-32"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-32"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-TECH-NFR",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-BACKLOG-ENABLERS",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-32"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-FRONTEND-SURFACE",
-    "section_id": "section-31"
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-BACKEND-SURFACE",
-    "section_id": "section-31"
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
-    "section_id": "section-31"
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-32"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "section_id": "section-31"
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-DELIVERY-READINESS",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-GOVERNANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
-    "section_id": "section-31"
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-50",
-    "marker": "GAP-DESIGN-FLOW",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-32"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-DESIGN-STATES",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-52",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-32"
+   },
+   {
+    "id": "marker-53",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-32"
+   },
+   {
+    "id": "marker-54",
     "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
-    "section_id": "section-31"
+    "section_id": "section-32"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -1352,60 +1383,66 @@
     "id": "section-23",
     "line_end": 753,
     "line_start": 719,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Glossary And Governance"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GLOSSARY-GOVERNANCE - Domain Glossary"
    },
    {
     "id": "section-24",
     "line_end": 788,
     "line_start": 754,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-GOVERNANCE - PRD Governance"
    },
    {
     "id": "section-25",
     "line_end": 823,
     "line_start": 789,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DELIVERY-READINESS - Delivery Readiness"
    },
    {
     "id": "section-26",
     "line_end": 858,
     "line_start": 824,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencies And Roadmap"
    },
    {
     "id": "section-27",
-    "line_end": 901,
+    "line_end": 893,
     "line_start": 859,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout And Environments"
    },
    {
     "id": "section-28",
-    "line_end": 944,
-    "line_start": 902,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
+    "line_end": 936,
+    "line_start": 894,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-FLOW - User Journey And Screens"
    },
    {
     "id": "section-29",
-    "line_end": 987,
-    "line_start": 945,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
+    "line_end": 979,
+    "line_start": 937,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-STATES - UX States"
    },
    {
     "id": "section-30",
-    "line_end": 991,
-    "line_start": 988,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
+    "line_end": 1022,
+    "line_start": 980,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Client Response Sections > GAP-DESIGN-PROTOTYPE-INPUT - Prototype Focus"
    },
    {
     "id": "section-31",
-    "line_end": 1024,
-    "line_start": 992,
-    "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
+    "line_end": 1026,
+    "line_start": 1023,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Additional Notes"
    },
    {
     "id": "section-32",
-    "line_end": 1029,
-    "line_start": 1025,
+    "line_end": 1060,
+    "line_start": 1027,
+    "section_path": "Discovery Gaps - [PROJECT_ID] > Framework Trace Table"
+   },
+   {
+    "id": "section-33",
+    "line_end": 1065,
+    "line_start": 1061,
     "section_path": "Discovery Gaps - [PROJECT_ID] > Resolution Trace"
    }
   ],
@@ -1458,9 +1495,9 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Glossary terms, mandatory constraints, and pending inputs with owner.",
+    "expected_format": "Term: definition (canonical `name`; not to be confused with X); one per line or separated by ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?",
     "response_needed": true,
     "statement": ""
    },
@@ -1751,66 +1788,76 @@
    },
    {
     "id": "marker-32",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-35"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-35"
+   },
+   {
+    "id": "marker-34",
     "marker": "[PENDING INPUT - Personas]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-33",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-38"
-   },
-   {
-    "id": "marker-34",
-    "marker": "[PENDING INPUT - FR/AC]",
-    "section_id": "section-38"
-   },
-   {
     "id": "marker-35",
-    "marker": "[PENDING INPUT - NFR/KPI]",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-38"
    },
    {
     "id": "marker-36",
-    "marker": "[PENDING INPUT - Dependencies/Roadmap]",
+    "marker": "[PENDING INPUT - FR/AC]",
     "section_id": "section-38"
    },
    {
     "id": "marker-37",
-    "marker": "[PENDING INPUT - Glossary/Governance]",
+    "marker": "[PENDING INPUT - NFR/KPI]",
     "section_id": "section-38"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
+    "marker": "[PENDING INPUT - Dependencies/Roadmap]",
+    "section_id": "section-38"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-39"
+    "marker": "[PENDING INPUT - Glossary/Governance]",
+    "section_id": "section-38"
    },
    {
     "id": "marker-40",
-    "marker": "[PENDING INPUT]",
+    "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-39"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-42",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-43",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-39"
    },
    {
+    "id": "marker-42",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-39"
+   },
+   {
     "id": "marker-44",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-46",
     "marker": "[PENDING INPUT]",
     "section_id": "section-42"
    }
@@ -2023,50 +2070,50 @@
    },
    {
     "id": "section-35",
-    "line_end": 193,
+    "line_end": 188,
     "line_start": 185,
     "section_path": "[PROJECT_ID] - Execution Plan > 13. Glossary"
    },
    {
     "id": "section-36",
-    "line_end": 195,
-    "line_start": 194,
+    "line_end": 190,
+    "line_start": 189,
     "section_path": "[PROJECT_ID] - Governance"
    },
    {
     "id": "section-37",
-    "line_end": 197,
-    "line_start": 196,
+    "line_end": 192,
+    "line_start": 191,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions"
    },
    {
     "id": "section-38",
-    "line_end": 205,
-    "line_start": 198,
+    "line_end": 200,
+    "line_start": 193,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Missing Information Notes"
    },
    {
     "id": "section-39",
-    "line_end": 218,
-    "line_start": 206,
+    "line_end": 213,
+    "line_start": 201,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Context Retrieved From Memory"
    },
    {
     "id": "section-40",
-    "line_end": 225,
-    "line_start": 219,
+    "line_end": 220,
+    "line_start": 214,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Proposed Next Meeting Agenda"
    },
    {
     "id": "section-41",
-    "line_end": 234,
-    "line_start": 226,
+    "line_end": 229,
+    "line_start": 221,
     "section_path": "Session Audit Trail"
    },
    {
     "id": "section-42",
-    "line_end": 239,
-    "line_start": 235,
+    "line_end": 234,
+    "line_start": 230,
     "section_path": "Session Audit Trail > Decisions Made"
    }
   ],
@@ -2615,9 +2662,17 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "expected_format": "Término: definición (canónico `nombre`; no confundir con X); uno por línea o separados por ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Restricción · fuente o dueño · cómo se verifica",
+    "id": "GAP-PRD-GOVERNANCE",
+    "question": "¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?",
     "response_needed": true,
     "statement": ""
    },
@@ -2886,38 +2941,38 @@
    },
    {
     "id": "marker-50",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GOVERNANCE",
     "section_id": "section-15"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-15"
    },
    {
     "id": "marker-52",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-15"
    },
    {
     "id": "marker-53",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-15"
    },
    {
     "id": "marker-54",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-15"
    },
    {
     "id": "marker-55",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-15"
    },
    {
     "id": "marker-56",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-17"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-15"
    },
    {
     "id": "marker-57",
@@ -2926,36 +2981,41 @@
    },
    {
     "id": "marker-58",
-    "marker": "GAP-BACKLOG-ENABLERS",
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
     "section_id": "section-17"
    },
    {
     "id": "marker-59",
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-17"
+   },
+   {
+    "id": "marker-60",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-18"
    },
    {
-    "id": "marker-60",
+    "id": "marker-61",
     "marker": "GAP-PRD-FR-AC",
     "section_id": "section-18"
    },
    {
-    "id": "marker-61",
+    "id": "marker-62",
     "marker": "GAP-PRD-NFR-KPI",
     "section_id": "section-18"
    },
    {
-    "id": "marker-62",
+    "id": "marker-63",
     "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-18"
    },
    {
-    "id": "marker-63",
+    "id": "marker-64",
     "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
     "section_id": "section-18"
    },
    {
-    "id": "marker-64",
+    "id": "marker-65",
     "marker": "[PENDING INPUT]",
     "section_id": "section-18"
    }
@@ -3048,32 +3108,32 @@
    },
    {
     "id": "section-15",
-    "line_end": 120,
+    "line_end": 121,
     "line_start": 93,
     "section_path": "Project Brief - [PROJECT_ID] > 8. Radar de Incertidumbres: GAPs"
    },
    {
     "id": "section-16",
-    "line_end": 130,
-    "line_start": 121,
+    "line_end": 131,
+    "line_start": 122,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog"
    },
    {
     "id": "section-17",
-    "line_end": 139,
-    "line_start": 131,
+    "line_end": 140,
+    "line_start": 132,
     "section_path": "Project Brief - [PROJECT_ID] > 9. Preparacion para PRD, Specs y Backlog > Backlog Readiness Signals"
    },
    {
     "id": "section-18",
-    "line_end": 152,
-    "line_start": 140,
+    "line_end": 153,
+    "line_start": 141,
     "section_path": "Project Brief - [PROJECT_ID] > 10. PRD Coverage Readiness"
    },
    {
     "id": "section-19",
-    "line_end": 161,
-    "line_start": 153,
+    "line_end": 162,
+    "line_start": 154,
     "section_path": "Project Brief - [PROJECT_ID] > 11. Domain Context Pack Requests"
    }
   ],
@@ -3238,9 +3298,17 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "expected_format": "Término: definición (canónico `nombre`; no confundir con X); uno por línea o separados por ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?",
+    "response_needed": true,
+    "statement": ""
+   },
+   {
+    "audience": "domain",
+    "expected_format": "Restricción · fuente o dueño · cómo se verifica",
+    "id": "GAP-PRD-GOVERNANCE",
+    "question": "¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?",
     "response_needed": true,
     "statement": ""
    },
@@ -3396,163 +3464,173 @@
    },
    {
     "id": "marker-21",
-    "marker": "GAP-DELIVERY-READINESS",
+    "marker": "GAP-PRD-GOVERNANCE",
     "section_id": "section-24"
    },
    {
     "id": "marker-22",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "marker": "GAP-DELIVERY-READINESS",
     "section_id": "section-25"
    },
    {
     "id": "marker-23",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
     "section_id": "section-26"
    },
    {
     "id": "marker-24",
-    "marker": "GAP-DESIGN-FLOW",
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
     "section_id": "section-27"
    },
    {
     "id": "marker-25",
-    "marker": "GAP-DESIGN-STATES",
+    "marker": "GAP-DESIGN-FLOW",
     "section_id": "section-28"
    },
    {
     "id": "marker-26",
-    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "marker": "GAP-DESIGN-STATES",
     "section_id": "section-29"
    },
    {
     "id": "marker-27",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-31"
+    "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
+    "section_id": "section-30"
    },
    {
     "id": "marker-28",
-    "marker": "GAP-PRD-PERSONA-DETAIL",
-    "section_id": "section-31"
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-32"
    },
    {
     "id": "marker-29",
-    "marker": "GAP-METRIC-SOURCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-PERSONA-DETAIL",
+    "section_id": "section-32"
    },
    {
     "id": "marker-30",
-    "marker": "GAP-METRIC-DEFINITION",
-    "section_id": "section-31"
+    "marker": "GAP-METRIC-SOURCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-31",
-    "marker": "GAP-CTP-EXCLUSION",
-    "section_id": "section-31"
+    "marker": "GAP-METRIC-DEFINITION",
+    "section_id": "section-32"
    },
    {
     "id": "marker-32",
-    "marker": "GAP-PRODUCT-ASIS-TOBE",
-    "section_id": "section-31"
+    "marker": "GAP-CTP-EXCLUSION",
+    "section_id": "section-32"
    },
    {
     "id": "marker-33",
-    "marker": "GAP-BACKLOG-SLICING-READINESS",
-    "section_id": "section-31"
+    "marker": "GAP-PRODUCT-ASIS-TOBE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-34",
-    "marker": "GAP-PRD-FR-AC",
-    "section_id": "section-31"
+    "marker": "GAP-BACKLOG-SLICING-READINESS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-35",
-    "marker": "GAP-ACCEPTANCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-FR-AC",
+    "section_id": "section-32"
    },
    {
     "id": "marker-36",
-    "marker": "GAP-QUALITY",
-    "section_id": "section-31"
+    "marker": "GAP-ACCEPTANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-37",
-    "marker": "GAP-QUALITY-HANDOFF",
-    "section_id": "section-31"
+    "marker": "GAP-QUALITY",
+    "section_id": "section-32"
    },
    {
     "id": "marker-38",
-    "marker": "GAP-PRD-NFR-KPI",
-    "section_id": "section-31"
+    "marker": "GAP-QUALITY-HANDOFF",
+    "section_id": "section-32"
    },
    {
     "id": "marker-39",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-NFR-KPI",
+    "section_id": "section-32"
    },
    {
     "id": "marker-40",
-    "marker": "GAP-TECH-NFR",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-BACKLOG-ENABLERS",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-NFR",
+    "section_id": "section-32"
    },
    {
     "id": "marker-42",
-    "marker": "GAP-FRONTEND-SURFACE",
-    "section_id": "section-31"
+    "marker": "GAP-BACKLOG-ENABLERS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-43",
-    "marker": "GAP-BACKEND-SURFACE",
-    "section_id": "section-31"
+    "marker": "GAP-FRONTEND-SURFACE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-44",
-    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
-    "section_id": "section-31"
+    "marker": "GAP-BACKEND-SURFACE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-45",
-    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
-    "section_id": "section-31"
+    "marker": "GAP-TECH-DEEP-DIVE-INPUT",
+    "section_id": "section-32"
    },
    {
     "id": "marker-46",
-    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "section_id": "section-31"
+    "marker": "GAP-GOVERNANCE-CONSTRAINTS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-47",
-    "marker": "GAP-DELIVERY-READINESS",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-48",
-    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-GOVERNANCE",
+    "section_id": "section-32"
    },
    {
     "id": "marker-49",
-    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
-    "section_id": "section-31"
+    "marker": "GAP-DELIVERY-READINESS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-50",
-    "marker": "GAP-DESIGN-FLOW",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-DEPENDENCIES-ROADMAP",
+    "section_id": "section-32"
    },
    {
     "id": "marker-51",
-    "marker": "GAP-DESIGN-STATES",
-    "section_id": "section-31"
+    "marker": "GAP-PRD-ROLLOUT-ENVIRONMENTS",
+    "section_id": "section-32"
    },
    {
     "id": "marker-52",
+    "marker": "GAP-DESIGN-FLOW",
+    "section_id": "section-32"
+   },
+   {
+    "id": "marker-53",
+    "marker": "GAP-DESIGN-STATES",
+    "section_id": "section-32"
+   },
+   {
+    "id": "marker-54",
     "marker": "GAP-DESIGN-PROTOTYPE-INPUT",
-    "section_id": "section-31"
+    "section_id": "section-32"
    }
   ],
   "project_id": "[PROJECT_ID]",
@@ -3693,60 +3771,66 @@
     "id": "section-23",
     "line_end": 745,
     "line_start": 711,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GLOSSARY-GOVERNANCE - Glosario del dominio"
    },
    {
     "id": "section-24",
     "line_end": 780,
     "line_start": 746,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-GOVERNANCE - Gobernanza del PRD"
    },
    {
     "id": "section-25",
     "line_end": 815,
     "line_start": 781,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DELIVERY-READINESS - Preparación de delivery"
    },
    {
     "id": "section-26",
     "line_end": 850,
     "line_start": 816,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-DEPENDENCIES-ROADMAP - Dependencias y roadmap"
    },
    {
     "id": "section-27",
     "line_end": 885,
     "line_start": 851,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-PRD-ROLLOUT-ENVIRONMENTS - Rollout y ambientes"
    },
    {
     "id": "section-28",
     "line_end": 920,
     "line_start": 886,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-FLOW - Journey y pantallas"
    },
    {
     "id": "section-29",
     "line_end": 955,
     "line_start": 921,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-STATES - Estados de UX"
    },
    {
     "id": "section-30",
-    "line_end": 959,
+    "line_end": 990,
     "line_start": 956,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Secciones para respuesta del cliente > GAP-DESIGN-PROTOTYPE-INPUT - Foco del prototipo"
    },
    {
     "id": "section-31",
-    "line_end": 992,
-    "line_start": 960,
-    "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
+    "line_end": 994,
+    "line_start": 991,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Notas adicionales"
    },
    {
     "id": "section-32",
-    "line_end": 997,
-    "line_start": 993,
+    "line_end": 1028,
+    "line_start": 995,
+    "section_path": "Gaps de Discovery - [PROJECT_ID] > Tabla de trazabilidad del framework"
+   },
+   {
+    "id": "section-33",
+    "line_end": 1033,
+    "line_start": 1029,
     "section_path": "Gaps de Discovery - [PROJECT_ID] > Trazabilidad de resolución"
    }
   ],
@@ -3799,9 +3883,9 @@
    },
    {
     "audience": "domain",
-    "expected_format": "Términos de glosario, restricciones mandatorias y pending inputs con owner.",
+    "expected_format": "Término: definición (canónico `nombre`; no confundir con X); uno por línea o separados por ';'",
     "id": "GAP-PRD-GLOSSARY-GOVERNANCE",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?",
     "response_needed": true,
     "statement": ""
    },
@@ -4100,66 +4184,76 @@
    },
    {
     "id": "marker-32",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-35"
+   },
+   {
+    "id": "marker-33",
+    "marker": "GAP-PRD-GLOSSARY-GOVERNANCE",
+    "section_id": "section-35"
+   },
+   {
+    "id": "marker-34",
     "marker": "[PENDING INPUT - Personas]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-33",
+    "id": "marker-35",
     "marker": "GAP-PRD-PERSONA-DETAIL",
     "section_id": "section-38"
    },
    {
-    "id": "marker-34",
+    "id": "marker-36",
     "marker": "[PENDING INPUT - FR/AC]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-35",
+    "id": "marker-37",
     "marker": "[PENDING INPUT - NFR/KPI]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-36",
+    "id": "marker-38",
     "marker": "[PENDING INPUT - Dependencies/Roadmap]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-37",
+    "id": "marker-39",
     "marker": "[PENDING INPUT - Glossary/Governance]",
     "section_id": "section-38"
    },
    {
-    "id": "marker-38",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-39",
-    "marker": "GAP-PRD-PERSONA-D",
-    "section_id": "section-39"
-   },
-   {
     "id": "marker-40",
-    "marker": "[PENDING INPUT]",
+    "marker": "GAP-BUSINESS-RULES",
     "section_id": "section-39"
    },
    {
     "id": "marker-41",
-    "marker": "GAP-TECH-DATA-SOURCE",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-42",
-    "marker": "GAP-BUSINESS-RULES",
-    "section_id": "section-39"
-   },
-   {
-    "id": "marker-43",
     "marker": "GAP-PRD-PERSONA-D",
     "section_id": "section-39"
    },
    {
+    "id": "marker-42",
+    "marker": "[PENDING INPUT]",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-43",
+    "marker": "GAP-TECH-DATA-SOURCE",
+    "section_id": "section-39"
+   },
+   {
     "id": "marker-44",
+    "marker": "GAP-BUSINESS-RULES",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-45",
+    "marker": "GAP-PRD-PERSONA-D",
+    "section_id": "section-39"
+   },
+   {
+    "id": "marker-46",
     "marker": "[PENDING INPUT]",
     "section_id": "section-42"
    }
@@ -4372,50 +4466,50 @@
    },
    {
     "id": "section-35",
-    "line_end": 192,
+    "line_end": 187,
     "line_start": 184,
     "section_path": "[PROJECT_ID] - Execution Plan > 13. Glossary"
    },
    {
     "id": "section-36",
-    "line_end": 194,
-    "line_start": 193,
+    "line_end": 189,
+    "line_start": 188,
     "section_path": "[PROJECT_ID] - Governance"
    },
    {
     "id": "section-37",
-    "line_end": 196,
-    "line_start": 195,
+    "line_end": 191,
+    "line_start": 190,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions"
    },
    {
     "id": "section-38",
-    "line_end": 204,
-    "line_start": 197,
+    "line_end": 199,
+    "line_start": 192,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Missing Information Notes"
    },
    {
     "id": "section-39",
-    "line_end": 217,
-    "line_start": 205,
+    "line_end": 212,
+    "line_start": 200,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Context Retrieved From Memory"
    },
    {
     "id": "section-40",
-    "line_end": 224,
-    "line_start": 218,
+    "line_end": 219,
+    "line_start": 213,
     "section_path": "[PROJECT_ID] - Governance > Output Enhancement Suggestions > Proposed Next Meeting Agenda"
    },
    {
     "id": "section-41",
-    "line_end": 233,
-    "line_start": 225,
+    "line_end": 228,
+    "line_start": 220,
     "section_path": "Session Audit Trail"
    },
    {
     "id": "section-42",
-    "line_end": 238,
-    "line_start": 234,
+    "line_end": 233,
+    "line_start": 229,
     "section_path": "Session Audit Trail > Decisions Made"
    }
   ],

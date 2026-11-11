@@ -58,6 +58,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Umbrella gaps:** the compiler points every pending mark at an open gap. A place with none gets its section's non-blocking umbrella gap `GAP-BRIEF-S<n>`, which the compiler opens and closes as needed.
   - **`/doctor`:** checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
   - v1 briefs are never checked.
+- Governed glossary (IMP-261).
+  - **Glossary:** `sentinel/glossary.py` builds `01_discovery/glossary.json`. Each term has a definition, a canonical name (a backticked identifier in the source), a "do not confuse with" note and its source row.
+  - **Where terms come from:** confirmed answers to `GAP-PRD-GLOSSARY-GOVERNANCE` (`Term: definition; ...`); definitions in the raw input ("X means Y", "X significa Y", "se define como", a "Glossary"/"Glosario" section); and acronym expansions ("Service Level Agreement (SLA)"), which are kept as `(inferred)` because an expansion is not a definition. Nothing else is inferred.
+  - **Brief v2:** the annex `A.glossary` renders the glossary as a table with citations; inferred definitions also become `INFERRED` ledger rows. PRD section 13 is now the project glossary, not a fixed table of Sentinel's own terms. With no terms it is an explicit pending line.
+  - **Gap split:** `GAP-PRD-GLOSSARY-GOVERNANCE` now covers only the glossary, and the new `GAP-PRD-GOVERNANCE` takes mandatory constraints, governance and audit (PRD section 11, brief v2 §5.11). Both carry their own en/es elicitation text.
 - Anchors that hold, deterministic part (IMP-258).
   - **Findings:** for a brief v2, `/validate` now reports, line by line:
     - a statement with no citation, outside the closed list of exemptions (`templates/anchor_exempt.json`: places such as §0, §7, §8 and provenance; line kinds such as pending marks, N/A, inferences, pointers, tables and computed verdicts);

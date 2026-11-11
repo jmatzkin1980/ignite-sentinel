@@ -26,20 +26,82 @@
       "severity": "medium",
       "rule": "absent_tokens",
       "evidence_scope": "source",
-      "description": "Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.",
+      "description": "Domain terms are used without a glossary: no definitions, canonical names or 'do not confuse with' notes.",
       "tokens": [
         "glosario",
         "glossary",
+        "means",
+        "significa",
+        "se define como",
+        "is defined as",
+        "refers to",
+        "definition",
+        "definición",
+        "definicion",
+        "terminology",
+        "terminología"
+      ],
+      "why": "Sin glosario cada lente nombra distinto lo mismo; el PRD, las specs y el código divergen en vocabulario.",
+      "text": {
+        "en": {
+          "title": "Domain Glossary",
+          "description": "Domain terms are used without a glossary: no definitions, canonical names or 'do not confuse with' notes.",
+          "question": "Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?",
+          "expected_format": "Term: definition (canonical `name`; not to be confused with X); one per line or separated by ';'",
+          "why": "Without a glossary every lens names the same thing differently; PRD, specs and code drift apart in vocabulary.",
+          "example": "Risk queue: open cases sharing the same SLA (canonical `risk_queue`; not to be confused with a support ticket); Stale data: metrics older than 15 minutes",
+          "unblocks": "The brief v2 glossary annex and PRD section 13."
+        },
+        "es": {
+          "title": "Glosario del dominio",
+          "description": "Se usan términos del dominio sin glosario: sin definiciones, nombres canónicos ni notas de 'no confundir con'.",
+          "question": "¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?",
+          "expected_format": "Término: definición (canónico `nombre`; no confundir con X); uno por línea o separados por ';'",
+          "why": "Sin glosario cada lente nombra distinto lo mismo; el PRD, las specs y el código divergen en vocabulario.",
+          "example": "Cola de riesgo: casos abiertos con el mismo SLA (canónico `risk_queue`; no confundir con un ticket de soporte); Dato viejo: métricas de más de 15 minutos",
+          "unblocks": "El anexo de glosario del brief v2 y la sección 13 del PRD."
+        }
+      }
+    },
+    {
+      "id": "GAP-PRD-GOVERNANCE",
+      "severity": "medium",
+      "rule": "absent_tokens",
+      "evidence_scope": "source",
+      "description": "Mandatory constraints, pending inputs or governance and audit notes are not explicit enough for a complete PRD.",
+      "tokens": [
         "restriccion",
         "restricción",
         "mandatory",
+        "obligatorio",
         "audit",
         "auditoria",
+        "auditoría",
         "governance",
         "gobernanza",
         "pending input"
       ],
-      "why": "El PRD necesita glosario y restricciones obligatorias para ser auditable."
+      "why": "El PRD necesita restricciones obligatorias y notas de gobernanza y auditoría para ser auditable.",
+      "text": {
+        "en": {
+          "title": "PRD Governance",
+          "description": "Mandatory constraints, pending inputs or governance and audit notes are not explicit enough for a complete PRD.",
+          "question": "Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?",
+          "expected_format": "Constraint · source or owner · how it is verified",
+          "why": "Without mandatory constraints and audit notes the PRD cannot be audited or governed.",
+          "example": "Access logs kept 5 years (Security, verified by the audit table); no PII in exports (Legal).",
+          "unblocks": "PRD section 11 and brief v2 §5.11."
+        },
+        "es": {
+          "title": "Gobernanza del PRD",
+          "description": "No están explícitas las restricciones obligatorias, los pending inputs ni las notas de gobernanza y auditoría para un PRD completo.",
+          "question": "¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?",
+          "expected_format": "Restricción · fuente o dueño · cómo se verifica",
+          "why": "Sin restricciones obligatorias ni notas de auditoría el PRD no se puede auditar ni gobernar.",
+          "example": "Logs de acceso por 5 años (Seguridad, verificado por la tabla de auditoría); sin datos personales en exportaciones (Legales).",
+          "unblocks": "La sección 11 del PRD y §5.11 del brief v2."
+        }
+      }
     },
     {
       "id": "GAP-CTP-PERSONAL-DATA",

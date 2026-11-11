@@ -45,27 +45,31 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 - Ask: Which security, privacy, compliance, audit, or operational restrictions must be respected?
 
-7. Glossary And Governance (`GAP-PRD-GLOSSARY-GOVERNANCE`, severity `medium`, lens `compliance`)
+7. Domain Glossary (`GAP-PRD-GLOSSARY-GOVERNANCE`, severity `medium`, lens `compliance`)
 
-- Ask: What confirmed information resolves this uncertainty?
+- Ask: Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?
+
+8. PRD Governance (`GAP-PRD-GOVERNANCE`, severity `medium`, lens `compliance`)
+
+- Ask: Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?
 
 ### delivery
 
-8. Delivery Readiness (`GAP-DELIVERY-READINESS`, severity `medium`, lens `delivery`)
+9. Delivery Readiness (`GAP-DELIVERY-READINESS`, severity `medium`, lens `delivery`)
 
 - Ask: Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?
 
-9. Dependencies And Roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severity `medium`, lens `delivery`)
+10. Dependencies And Roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severity `medium`, lens `delivery`)
 
 - Ask: What confirmed information resolves this uncertainty?
 
-10. Rollout And Environments (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severity `medium`, lens `delivery`)
+11. Rollout And Environments (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severity `medium`, lens `delivery`)
 
 - Ask: Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?
 
 ### design
 
-11. User Journey And Screens (`GAP-DESIGN-FLOW`, severity `medium`, lens `design`)
+12. User Journey And Screens (`GAP-DESIGN-FLOW`, severity `medium`, lens `design`)
 
 - Cited context: The input mentions "dashboard" but does not describe the journey, navigation, or interaction flow around it.
 - Ask: Which user journey, screens, flows, copy, or interaction changes are in scope?
@@ -73,7 +77,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
   - Confirm `dashboard` is in scope and answer the missing `User Journey And Screens` detail. Local citation: `dashboard`.
   - Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
 
-12. Prototype Focus (`GAP-DESIGN-PROTOTYPE-INPUT`, severity `medium`, lens `design`)
+13. Prototype Focus (`GAP-DESIGN-PROTOTYPE-INPUT`, severity `medium`, lens `design`)
 
 - Cited context: The input mentions "dashboard" but does not state what Design must prototype or validate.
 - Ask: What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?
@@ -81,7 +85,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
   - Confirm `dashboard` is in scope and answer the missing `Prototype Focus` detail. Local citation: `dashboard`.
   - Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
 
-13. UX States (`GAP-DESIGN-STATES`, severity `medium`, lens `design`)
+14. UX States (`GAP-DESIGN-STATES`, severity `medium`, lens `design`)
 
 - Cited context: The input mentions "dashboard" but does not describe loading, empty, error, and recovery states.
 - Ask: What loading, empty, error, recovery, and accessibility states must be handled?
@@ -91,43 +95,43 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 ### product
 
-14. Backlog Slicing Readiness (`GAP-BACKLOG-SLICING-READINESS`, severity `medium`, lens `product`)
+15. Backlog Slicing Readiness (`GAP-BACKLOG-SLICING-READINESS`, severity `medium`, lens `product`)
 
 - Ask: What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?
 
-15. Functional Requirements And ACs (`GAP-PRD-FR-AC`, severity `medium`, lens `product`)
+16. Functional Requirements And ACs (`GAP-PRD-FR-AC`, severity `medium`, lens `product`)
 
 - Ask: What confirmed information resolves this uncertainty?
 
-16. Current And Target Process (`GAP-PRODUCT-ASIS-TOBE`, severity `medium`, lens `product`)
+17. Current And Target Process (`GAP-PRODUCT-ASIS-TOBE`, severity `medium`, lens `product`)
 
 - Ask: What is the current process, target process, and exact delta between them?
 
 ### quality
 
-17. NFRs, KPIs, And Measurement (`GAP-PRD-NFR-KPI`, severity `medium`, lens `quality`)
+18. NFRs, KPIs, And Measurement (`GAP-PRD-NFR-KPI`, severity `medium`, lens `quality`)
 
 - Ask: What confirmed information resolves this uncertainty?
 
-18. Quality Expectations (`GAP-QUALITY`, severity `medium`, lens `quality`)
+19. Quality Expectations (`GAP-QUALITY`, severity `medium`, lens `quality`)
 
 - Ask: What quality, testability, risk, or compliance expectations apply?
 
-19. Quality Handoff (`GAP-QUALITY-HANDOFF`, severity `medium`, lens `quality`)
+20. Quality Handoff (`GAP-QUALITY-HANDOFF`, severity `medium`, lens `quality`)
 
 - Ask: Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?
 
 ### technical
 
-20. Backend Surface (`GAP-BACKEND-SURFACE`, severity `medium`, lens `technical`)
+21. Backend Surface (`GAP-BACKEND-SURFACE`, severity `medium`, lens `technical`)
 
 - Ask: Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?
 
-21. Valid Cross-Cutting Enablers (`GAP-BACKLOG-ENABLERS`, severity `medium`, lens `technical`)
+22. Valid Cross-Cutting Enablers (`GAP-BACKLOG-ENABLERS`, severity `medium`, lens `technical`)
 
 - Ask: Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?
 
-22. Frontend Surface (`GAP-FRONTEND-SURFACE`, severity `medium`, lens `technical`)
+23. Frontend Surface (`GAP-FRONTEND-SURFACE`, severity `medium`, lens `technical`)
 
 - Cited context: The input mentions "dashboard" but does not detail validations, roles, copy, or data binding for that surface.
 - Ask: Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?
@@ -135,14 +139,14 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
   - Apply the missing `Frontend Surface` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
   - Declare `dashboard` out of MVP scope and name the alternative or deferral. Local citation: `dashboard`.
 
-23. Systems And Data Ownership (`GAP-TECH-DATA-SOURCE`, severity `medium`, lens `technical`)
+24. Systems And Data Ownership (`GAP-TECH-DATA-SOURCE`, severity `medium`, lens `technical`)
 
 - Ask: Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?
 
-24. Technology Deep Dive (`GAP-TECH-DEEP-DIVE-INPUT`, severity `medium`, lens `technical`)
+25. Technology Deep Dive (`GAP-TECH-DEEP-DIVE-INPUT`, severity `medium`, lens `technical`)
 
 - Ask: Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?
 
-25. Operational Constraints (`GAP-TECH-NFR`, severity `medium`, lens `technical`)
+26. Operational Constraints (`GAP-TECH-NFR`, severity `medium`, lens `technical`)
 
 - Ask: What security, performance, observability, availability, or operational constraints apply?

@@ -45,88 +45,92 @@ Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (g
 
 - Preguntar: ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?
 
-7. Glosario y gobernanza (`GAP-PRD-GLOSSARY-GOVERNANCE`, severidad `medium`, lente `compliance`)
+7. Glosario del dominio (`GAP-PRD-GLOSSARY-GOVERNANCE`, severidad `medium`, lente `compliance`)
 
-- Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
+- Preguntar: ¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?
+
+8. Gobernanza del PRD (`GAP-PRD-GOVERNANCE`, severidad `medium`, lente `compliance`)
+
+- Preguntar: ¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?
 
 ### delivery
 
-8. Preparación de delivery (`GAP-DELIVERY-READINESS`, severidad `medium`, lente `delivery`)
+9. Preparación de delivery (`GAP-DELIVERY-READINESS`, severidad `medium`, lente `delivery`)
 
 - Preguntar: ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?
 
-9. Dependencias y roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severidad `medium`, lente `delivery`)
+10. Dependencias y roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severidad `medium`, lente `delivery`)
 
 - Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
 
-10. Rollout y ambientes (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severidad `medium`, lente `delivery`)
+11. Rollout y ambientes (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severidad `medium`, lente `delivery`)
 
 - Preguntar: ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?
 
 ### design
 
-11. Journey y pantallas (`GAP-DESIGN-FLOW`, severidad `medium`, lente `design`)
+12. Journey y pantallas (`GAP-DESIGN-FLOW`, severidad `medium`, lente `design`)
 
 - Preguntar: ¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?
 
-12. Foco del prototipo (`GAP-DESIGN-PROTOTYPE-INPUT`, severidad `medium`, lente `design`)
+13. Foco del prototipo (`GAP-DESIGN-PROTOTYPE-INPUT`, severidad `medium`, lente `design`)
 
 - Preguntar: ¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?
 
-13. Estados de UX (`GAP-DESIGN-STATES`, severidad `medium`, lente `design`)
+14. Estados de UX (`GAP-DESIGN-STATES`, severidad `medium`, lente `design`)
 
 - Preguntar: ¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?
 
 ### product
 
-14. Preparacion de slicing de backlog (`GAP-BACKLOG-SLICING-READINESS`, severidad `medium`, lente `product`)
+15. Preparacion de slicing de backlog (`GAP-BACKLOG-SLICING-READINESS`, severidad `medium`, lente `product`)
 
 - Preguntar: ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?
 
-15. Requerimientos funcionales y criterios de aceptacion (`GAP-PRD-FR-AC`, severidad `medium`, lente `product`)
+16. Requerimientos funcionales y criterios de aceptacion (`GAP-PRD-FR-AC`, severidad `medium`, lente `product`)
 
 - Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
 
-16. Proceso actual y objetivo (`GAP-PRODUCT-ASIS-TOBE`, severidad `medium`, lente `product`)
+17. Proceso actual y objetivo (`GAP-PRODUCT-ASIS-TOBE`, severidad `medium`, lente `product`)
 
 - Preguntar: ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?
 
 ### quality
 
-17. NFRs, KPIs y medicion (`GAP-PRD-NFR-KPI`, severidad `medium`, lente `quality`)
+18. NFRs, KPIs y medicion (`GAP-PRD-NFR-KPI`, severidad `medium`, lente `quality`)
 
 - Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
 
-18. Expectativas de calidad (`GAP-QUALITY`, severidad `medium`, lente `quality`)
+19. Expectativas de calidad (`GAP-QUALITY`, severidad `medium`, lente `quality`)
 
 - Preguntar: ¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?
 
-19. Handoff de calidad (`GAP-QUALITY-HANDOFF`, severidad `medium`, lente `quality`)
+20. Handoff de calidad (`GAP-QUALITY-HANDOFF`, severidad `medium`, lente `quality`)
 
 - Preguntar: ¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?
 
 ### technical
 
-20. Superficie backend (`GAP-BACKEND-SURFACE`, severidad `medium`, lente `technical`)
+21. Superficie backend (`GAP-BACKEND-SURFACE`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?
 
-21. Enablers transversales validos (`GAP-BACKLOG-ENABLERS`, severidad `medium`, lente `technical`)
+22. Enablers transversales validos (`GAP-BACKLOG-ENABLERS`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?
 
-22. Superficie frontend (`GAP-FRONTEND-SURFACE`, severidad `medium`, lente `technical`)
+23. Superficie frontend (`GAP-FRONTEND-SURFACE`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?
 
-23. Sistemas y ownership de datos (`GAP-TECH-DATA-SOURCE`, severidad `medium`, lente `technical`)
+24. Sistemas y ownership de datos (`GAP-TECH-DATA-SOURCE`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?
 
-24. Profundización técnica (`GAP-TECH-DEEP-DIVE-INPUT`, severidad `medium`, lente `technical`)
+25. Profundización técnica (`GAP-TECH-DEEP-DIVE-INPUT`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?
 
-25. Restricciones operativas (`GAP-TECH-NFR`, severidad `medium`, lente `technical`)
+26. Restricciones operativas (`GAP-TECH-NFR`, severidad `medium`, lente `technical`)
 
 - Preguntar: ¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?

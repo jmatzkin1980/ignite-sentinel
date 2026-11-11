@@ -708,7 +708,7 @@ Respuesta del cliente / dominio:
 - Motivo de cierre:
 
 
-### GAP-PRD-GLOSSARY-GOVERNANCE - Glosario y gobernanza
+### GAP-PRD-GLOSSARY-GOVERNANCE - Glosario del dominio
 
 - Lente: `compliance`
 - Severidad: `medium`
@@ -716,22 +716,57 @@ Respuesta del cliente / dominio:
 - Requerimiento relacionado: `REQ-001`
 
 Descripción breve:
-Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD.
+Se usan términos del dominio sin glosario: sin definiciones, nombres canónicos ni notas de 'no confundir con'.
 
 Por qué importa (riesgo si queda abierto):
-Glosario, restricciones mandatorias, pending inputs y audit trail preservan entendimiento compartido y trazabilidad.
+Sin glosario cada lente nombra distinto lo mismo; el PRD, las specs y el código divergen en vocabulario.
 
 Qué desbloquea esta respuesta:
-La sección de Gobernanza del PRD (glosario, restricciones, audit trail).
+El anexo de glosario del brief v2 y la sección 13 del PRD.
 
 Pregunta:
-¿Qué información confirmada resuelve esta incertidumbre?
+¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?
 
 Formato de respuesta esperado:
-Términos de glosario, restricciones mandatorias y pending inputs con owner.
+Término: definición (canónico `nombre`; no confundir con X); uno por línea o separados por ';'
 
 Ejemplo de respuesta útil:
-Glosario: 'estado grisado' significa no operable. Restriccion: no exponer datos sensibles en logs. Pending input: owner de metrica.
+Cola de riesgo: casos abiertos con el mismo SLA (canónico `risk_queue`; no confundir con un ticket de soporte); Dato viejo: métricas de más de 15 minutos
+
+
+Respuesta del cliente / dominio:
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+- Motivo de cierre:
+
+
+### GAP-PRD-GOVERNANCE - Gobernanza del PRD
+
+- Lente: `compliance`
+- Severidad: `medium`
+- Estado: `OPEN`
+- Requerimiento relacionado: `REQ-001`
+
+Descripción breve:
+No están explícitas las restricciones obligatorias, los pending inputs ni las notas de gobernanza y auditoría para un PRD completo.
+
+Por qué importa (riesgo si queda abierto):
+Sin restricciones obligatorias ni notas de auditoría el PRD no se puede auditar ni gobernar.
+
+Qué desbloquea esta respuesta:
+La sección 11 del PRD y §5.11 del brief v2.
+
+Pregunta:
+¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?
+
+Formato de respuesta esperado:
+Restricción · fuente o dueño · cómo se verifica
+
+Ejemplo de respuesta útil:
+Logs de acceso por 5 años (Seguridad, verificado por la tabla de auditoría); sin datos personales en exportaciones (Legales).
 
 
 Respuesta del cliente / dominio:
@@ -982,7 +1017,8 @@ Esta tabla se mantiene para trazabilidad y procesamiento automático de Sentinel
 | GAP-BACKEND-SURFACE | technical | medium | OPEN | `REQ-001` | La superficie de implementación backend no está suficientemente explícita: capacidades, integraciones, reglas, persistencia, contratos o comportamiento ante fallas. | ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-TECH-DEEP-DIVE-INPUT | technical | medium | OPEN | `REQ-001` | Tecnología no cuenta con suficiente input para análisis de repositorios, arquitectura, endpoints/eventos, source of truth o riesgos. | ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-GOVERNANCE-CONSTRAINTS | compliance | medium | OPEN | `REQ-001` | No están explícitas restricciones de gobernanza, seguridad, privacidad, compliance u operación. | ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
-| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Glossary, mandatory constraints, pending inputs, or governance/audit notes are not explicit enough for a complete PRD. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GLOSSARY-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | Se usan términos del dominio sin glosario: sin definiciones, nombres canónicos ni notas de 'no confundir con'. | ¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
+| GAP-PRD-GOVERNANCE | compliance | medium | OPEN | `REQ-001` | No están explícitas las restricciones obligatorias, los pending inputs ni las notas de gobernanza y auditoría para un PRD completo. | ¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-DELIVERY-READINESS | delivery | medium | OPEN | `REQ-001` | No están explícitas dependencias, ambientes, ownership, fechas o restricciones de rollout. | ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-DEPENDENCIES-ROADMAP | delivery | medium | OPEN | `REQ-001` | Dependencies, owners, MVP scope, nice-to-haves, or roadmap are not explicit enough for PRD execution planning. | ¿Qué información confirmada resuelve esta incertidumbre? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
 | GAP-PRD-ROLLOUT-ENVIRONMENTS | delivery | medium | OPEN | `REQ-001` | Rollout approach, target environments, or release constraints are not explicit enough for PRD execution planning. | ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD? | Carpetas de contexto e input fuente. | N/A | checklist | N/A | N/A | domain | N/A |
