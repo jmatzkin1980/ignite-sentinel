@@ -273,6 +273,15 @@ V2_GAP_ROUTES = {
     "GAP-PRD-GLOSSARY-GOVERNANCE": "A.glossary",
     "GAP-PRD-GOVERNANCE": "5.11",
 }
+# IMP-26u: a counterpart answer (IMP-256) completes what the source already says at
+# its place instead of replacing it: the exclusion stays and gains its decision.
+V2_GAP_COMPLEMENTS = {
+    "GAP-CTP-EXCLUSION": "6.2",
+    "GAP-CTP-DEADLINE": "2.5",
+    "GAP-CTP-PERSONAL-DATA": "5.11",
+    "GAP-CTP-NORM": "5.11",
+    "GAP-CTP-DESIGN-EXCLUSION": "4.2",
+}
 # The gap a pending mark points to when no gap is routed to that subsection.
 LENS_DEFAULT_GAP = {
     "1": "GAP-OBJECTIVE",
@@ -289,6 +298,8 @@ def v2_sections_for_gap(gap_id: str) -> list[str]:
     """The v2 subsection a gap feeds: its route, else every section of its lens."""
     if gap_id in V2_GAP_ROUTES:
         return [V2_GAP_ROUTES[gap_id]]
+    if gap_id in V2_GAP_COMPLEMENTS:
+        return [V2_GAP_COMPLEMENTS[gap_id]]
     from .discovery import brief_section_for_gap
 
     lens = brief_section_for_gap(gap_id)
