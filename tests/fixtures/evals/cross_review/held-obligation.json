@@ -1,0 +1,23 @@
+{
+  "case": "held-obligation",
+  "split": "held_out",
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — XR\n\n## 2. Business Lens\n\n### 2.2 Critical Business Rules\n\n- Refunds above 500 need a supervisor approval. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 3. Product Lens\n\n### 3.2 To-Be Process\n\n- The agent issues the refund directly from the case. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 4. Design Lens\n\n### 4.1 Screen Flow\n\n- The case screen shows the customer tier. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 5. Technical Lens\n\n### 5.4 Data Model / ERD\n\n- Case notes are kept for two years. [[sources § Source log - XR # F-01 — supports: x]]\n\n### 5.12 Services\n\n- The refund service posts to the ledger. [[sources § Source log - XR # F-01 — supports: x]]\n\n## 6. Release Agreements\n\n### 6.1 In Scope\n\n- Refund approval workflow. [[sources § Source log - XR # F-01 — supports: x]]\n",
+  "payload": {
+    "crosses": [
+      {
+        "rule": "obligation_has_control",
+        "kind": "missing",
+        "a": {
+          "place": "2.2",
+          "quote": "need a supervisor approval"
+        },
+        "missing_in": "1.5",
+        "finding": "the counterpart is not there",
+        "question": "Which acceptance criterion proves the approval?"
+      }
+    ]
+  },
+  "expected": [
+    "reject"
+  ]
+}

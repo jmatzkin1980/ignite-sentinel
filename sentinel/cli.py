@@ -142,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
     self_review_p.add_argument("--source", required=True)
     self_review_p.add_argument("--sufficiency", action="store_true",
                                help="IMP-259: a clean-context reader checks the brief v2 is enough to start building")
+    self_review_p.add_argument("--crosses", action="store_true",
+                               help="IMP-260b: semantic crosses between the lenses of the brief v2")
 
     assume_p = sub.add_parser("assume")
     assume_p.add_argument("project_id")
@@ -369,6 +371,10 @@ def main(argv: list[str] | None = None) -> int:
 
             result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
             print_json(result)
+        elif args.command == "self-review" and args.crosses:
+            from .cross_review import apply_cross_review
+
+            print_json(apply_cross_review(args.project_id, Path(args.source)))
         elif args.command == "self-review" and args.sufficiency:
             from .sufficiency import apply_sufficiency
 

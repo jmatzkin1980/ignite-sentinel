@@ -7,6 +7,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Semantic crosses of the brief v2 (IMP-260b).
+  - **The review:** `/self-review PROJECT --crosses --source crosses.json` (MCP `sentinel_self_review(crosses=True)`) lets an agent report crosses against the rules of `templates/semantic_crosses.json`:
+    - the four lens crosses A–D: scope against lenses, business against process, process against design, design against technical;
+    - the six exit checks IMP-260 could not decide by rule: field origin, endpoint in a service, retention with its job, obligation with control and acceptance criterion, existing systems stated, story against acceptance criterion against §9 item.
+  - **What the runtime checks:** the rule allows the kind (`conflict` needs both ends, `missing` names where the counterpart should be), each quote is verbatim at a place on the rule's side, and a finding and a question are present.
+  - **What happens to the result:** accepted crosses open `GAP-XRV-*` gaps (`origin: cross-review`, a conflict is high), and each review goes to `01_discovery/cross_review_log.md`. The brief is never edited.
+  - **Evals:** `tests/evals/run_cross_review_evals.py` runs seeded fixtures with a held-out split and a no-regression floor, in `verify.ps1` and CI.
 - Anchors that hold, agentic part (IMP-258b).
   - **The review:** `/scrutinize PROJECT --mode anchors --source review.json` lets an agent say, for each anchor of the brief v2, whether the cited passage holds the sentence, says less, or says the opposite.
     - It also gives the inverted reading: what the source alone supports.

@@ -109,6 +109,20 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-r
 
 The runtime rejects a place that does not exist, a quote that is not verbatim, and a `would_resolve` the brief already says. Never edit the brief yourself.
 
+## Crosses Mode (IMP-260b): do the lenses agree?
+
+1. **Read the brief v2** and the rule catalog `sentinel/templates/semantic_crosses.json`.
+2. **For each rule**, look for:
+   - a **conflict**: two places that cannot both be true. Quote both verbatim, `a` on the rule's `from` side and `b` on its `to` side.
+   - a **missing counterpart**: what `a` states needs something the brief never gives. Quote `a` and name `missing_in`.
+3. **Write one `finding`** (what does not fit) and one `question` per cross.
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --crosses --source crosses.json
+```
+
+4. **Report** the `GAP-XRV-*` gaps opened and the rejected crosses with their reason. Never edit the brief.
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

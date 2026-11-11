@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "IMP-260b: the semantic crosses of the brief v2. An agent reports each one with verbatim quotes; the runtime checks the quotes sit in the places the rule allows. 'conflict' needs both ends; 'missing' quotes the source end and names where the counterpart should be.",
+  "rules": [
+    {"id": "cross_a_scope_lenses", "from": ["6"], "to": ["2", "3", "4", "5"], "kinds": ["conflict", "missing"],
+     "en": "Scope (§6) against what the lenses describe", "es": "Alcance (§6) contra lo que describen las lentes"},
+    {"id": "cross_b_business_product", "from": ["2"], "to": ["3"], "kinds": ["conflict", "missing"],
+     "en": "Business rules and actors (§2) against the process (§3)", "es": "Reglas y actores (§2) contra el proceso (§3)"},
+    {"id": "cross_c_product_design", "from": ["3"], "to": ["4"], "kinds": ["conflict", "missing"],
+     "en": "Process (§3) against screens and states (§4)", "es": "Proceso (§3) contra pantallas y estados (§4)"},
+    {"id": "cross_d_design_technical", "from": ["4"], "to": ["5"], "kinds": ["conflict", "missing"],
+     "en": "Screens and messages (§4) against the technical lens (§5)", "es": "Pantallas y mensajes (§4) contra el lente técnico (§5)"},
+    {"id": "field_has_origin", "from": ["4.1"], "to": ["5.8", "5.3", "5.4"], "kinds": ["missing", "conflict"],
+     "en": "Every visible field has an origin (or is marked orphan)", "es": "Cada campo visible tiene origen (o está marcado huérfano)"},
+    {"id": "endpoint_in_service", "from": ["5.7"], "to": ["5.12", "5.1"], "kinds": ["missing", "conflict"],
+     "en": "Every endpoint lives in a service or component", "es": "Cada endpoint vive en un servicio o componente"},
+    {"id": "retention_has_job", "from": ["5.4"], "to": ["5.12"], "kinds": ["missing", "conflict"],
+     "en": "Every retention names the job that enforces it", "es": "Cada retención nombra el job que la aplica"},
+    {"id": "obligation_has_control", "from": ["2.2", "5.11"], "to": ["5.11", "1.5"], "kinds": ["missing", "conflict"],
+     "en": "Every obligation has a control and an acceptance criterion", "es": "Cada obligación tiene control y criterio de aceptación"},
+    {"id": "existing_system_is_stated", "from": ["5"], "to": ["8", "5.13", "3.1"], "kinds": ["missing", "conflict"],
+     "en": "Every system §5 takes as existing appears in §8 or as a fact", "es": "Cada sistema que §5 da por existente aparece en §8 o como hecho"},
+    {"id": "story_criterion_item", "from": ["1.5", "9.1"], "to": ["1.5", "9.1", "6.1"], "kinds": ["missing", "conflict"],
+     "en": "Each story, its acceptance criteria and its §9 item agree", "es": "Cada historia, sus criterios de aceptación y su ítem de §9 coinciden"}
+  ]
+}
