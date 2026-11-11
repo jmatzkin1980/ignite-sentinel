@@ -6,6 +6,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-11
+
+### Fixed
+- A confirmed answer now lands in the brief v2 for every gap a round asks (IMP-26u). The H16c close measured the first `/gaps --top 5` round of the support-dashboard fixture on a synthetic answered round: only 1 of 5 answers reached the brief.
+  - **Umbrella gaps:** an answer to `GAP-BRIEF-S<n>` fills its places one line per place (`1.2: … 1.4: …`), and its question says so. Before, the gap closed and the next compile reopened it with the marks still in place.
+  - **Counterpart answers** (`GAP-CTP-*`, IMP-256) complete their place (6.2, 2.5, 5.11, 4.2) next to what the source says, instead of going nowhere.
+  - **Delivery answers** routed to §9.1 (slicing, readiness, enablers) are written under the build list.
+  - With the same synthetic round, `⏳` client goes from 16 to 13, domain from 56 to 51, and covered places from 7 to 13. `tests/test_answered_round.py` keeps the circuit; the real drop is measured on the first real project.
+- The §6.3 cascade of a recompiled brief v2 wrote `—` for places that propagate nowhere, a forbidden value (IMP-255), so `/validate` failed after any recompile that changed §0.2 or §7. It now says "no other document" / "ningún otro documento".
+- The admin guide's upgrade diff compares the previous release with the new one.
+
 ### Added
 - Brownfield harvest into the brief v2 (IMP-262). `/harvest PROJECT --source harvest.md` (CLI, MCP `sentinel_harvest`, Claude Code and Kilo commands) ingests a tagged harvest of the existing system's code, written with the rewritten `sentinel-brownfield-harvest` skill.
   - **Format:** blocks B0 (repository inventory) to B5, and one tag per claim: `[HECHO repo:file]`, `[INFERIDO]`, `[NO ENCONTRADO where]`, `[FUERA DEL CÓDIGO topic]` or `[DIVERGENCIA repo:file]` (English tags work too).

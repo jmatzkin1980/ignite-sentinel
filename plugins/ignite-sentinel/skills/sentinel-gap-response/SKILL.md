@@ -46,7 +46,7 @@ The same contract holds for assumptions (IMP-182). A **test before advancing** a
 - **Ask in rounds.** `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /gaps PROJECT_ID --top 5` gives the next batch: scope > security and privacy > UX > technical, one decision per question, the recommended option first and "leave pending" last. Ask exactly those, not the whole list.
 - **The recommended option is an inference.** Present it first, but only the client or owner closes the gap.
 - **The "meanwhile" value is an inference to ratify,** never an answer.
-- **Read the kind:** `client` blocks, `domain` can be deferred to a context request, `synthesis` came from crossing sources, and `template` is a brief v2 umbrella.
+- **Read the kind:** `client` blocks, `domain` can be deferred to a context request, `synthesis` came from crossing sources, and `template` is a brief v2 umbrella: answer it one line per place (`1.2: … 1.4: …`) so each line fills its place.
 - **Every closure needs `Evidence or reference`.** Add a `- Closure reason:` when it is not a plain answer:
   - `by_decision` must cite a `DEC-*`.
   - `resolved_by_inference` must cite an `ASM-*` and keeps the gap partially closed until ratified.

@@ -1077,7 +1077,7 @@ A check is SKIP when its source places carry nothing yet. Every issue is a non-b
 - an echo of an artifact Sentinel wrote;
 - a line that names two gaps while its anchors hold only one. Split it: one anchor per subject.
 
-A pending place with no open gap of its own points to the non-blocking umbrella gap of its section (`GAP-BRIEF-S<n>`), which the compiler opens and closes. `/doctor` checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
+A pending place with no open gap of its own points to the non-blocking umbrella gap of its section (`GAP-BRIEF-S<n>`), which the compiler opens and closes. Answer it one line per place (`1.2: … 1.4: …`): each line fills its place, and a place outside the umbrella's section is ignored. `/doctor` checks that skills and mirrors write the v2 marker and the pending marks only in their canonical form.
 
 **Id families and structured citations (IMP-249).** Every id family is registered in `sentinel/templates/id_families.json`, with its pattern, an example and whether it is kept (`GAP`, `ASM`, `DEC`, `US`, `SPEC-U`, `CTX`, `RU`, `REQ`, `AC`, `F`), new for v2 artifacts (`RN`, `CA`, `HU`, `SC`, `I`, `P`, `E`, `C`, `R`, `PDef`) or a view of another family (`D-N.M` is a view of `DEC`). Only `RN`, `CA` and `HU` take a release prefix (`r2-RN-04`); gaps stay global. The registry also holds the catalog keys for error codes, events, flags and routes, and the edges `HU → SPEC-U → US`. A retired id is recorded in `06_traceability/retired_ids.json` and never reused.
 

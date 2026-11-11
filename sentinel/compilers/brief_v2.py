@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from ..brief_model import (
+    V2_GAP_COMPLEMENTS,
     V2_GAP_ROUTES,
     default_gap_for,
     lenses_for_v2_id,
@@ -99,6 +100,7 @@ COPY = {
         "cascade_first": "First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerate from this brief.",
         "cascade_none": "No section changed against the previous v2 brief.",
         "cascade_header": "| Place | Change | Propagate to |",
+        "cascade_no_propagation": "no other document",
         "provenance_header": "| Source | Facts cited |",
         "na_generic": "N/A — it does not apply to the {profiles} profile. If the profile or the genesis changes, it opens.",
         "na_see": "N/A — see {first}.",
@@ -152,6 +154,7 @@ COPY = {
         "cascade_first": "Primera compilación v2: todas las secciones son `ADDED`. PRD, specs y backlog se regeneran desde este brief.",
         "cascade_none": "Ninguna sección cambió respecto del brief v2 anterior.",
         "cascade_header": "| Lugar | Cambio | Propagar a |",
+        "cascade_no_propagation": "ningún otro documento",
         "provenance_header": "| Fuente | Hechos citados |",
         "na_generic": "N/A — no aplica al perfil {profiles}. Si cambia el perfil o la génesis, se abre.",
         "na_see": "N/A — ver {first}.",
@@ -242,15 +245,43 @@ def raw_facts(raw_sources: list[tuple[str, str, str]]) -> dict[str, list[_Fact]]
     return facts
 
 
-def answer_facts(gap_answers: list[dict[str, str]], extra_routes: dict[str, str] | None = None) -> dict[str, list[_Fact]]:
+_PLACE_PREFIX_RE = re.compile(r"(?:^|(?<=\s))(\d+\.\d+|A\.[a-z_]+):\s+")
+
+
+def umbrella_places(gap_id: str, statement: str) -> dict[str, str]:
+    """IMP-26u: an answer to an umbrella gap `GAP-BRIEF-S<n>` fills its places one by one
+    (`1.2: … 1.4: …`); a place outside the umbrella's section, or text with no place, is ignored."""
+    if not gap_id.startswith(UMBRELLA_PREFIX):
+        return {}
+    section = gap_id[len(UMBRELLA_PREFIX):]
+    parts = _PLACE_PREFIX_RE.split(" ".join(statement.split()))
+    places: dict[str, str] = {}
+    for place, text in zip(parts[1::2], parts[2::2]):
+        text = text.strip().rstrip(";|").strip()
+        if _section_of(place) == section and text:
+            places[place] = text
+    return places
+
+
+def answer_facts(gap_answers: list[dict[str, str]], extra_routes: dict[str, str] | None = None,
+                 routes: dict[str, str] | None = None) -> dict[str, list[_Fact]]:
     facts: dict[str, list[_Fact]] = {}
-    for answer in gap_answers:
-        sid = V2_GAP_ROUTES.get(answer["gap"]) or (extra_routes or {}).get(answer["gap"])
-        if not sid:
-            continue
-        text = " ".join(answer["statement"].split())
+
+    def add(sid: str, text: str, answer: dict[str, str]) -> None:
         if text and all(f.text != text for f in facts.get(sid, [])):
             facts.setdefault(sid, []).append(_Fact(text, answer.get("source", ""), answer["gap"]))
+
+    for answer in gap_answers:
+        if routes is not None:  # IMP-26u: complements only
+            if answer["gap"] in routes:
+                add(routes[answer["gap"]], " ".join(answer["statement"].split()), answer)
+            continue
+        sid = V2_GAP_ROUTES.get(answer["gap"]) or (extra_routes or {}).get(answer["gap"])
+        if sid:
+            add(sid, " ".join(answer["statement"].split()), answer)
+            continue
+        for place, text in umbrella_places(answer["gap"], answer["statement"]).items():
+            add(place, text, answer)
     return facts
 
 
@@ -281,6 +312,11 @@ class _Writer:
                                           "by": answers[sid][0].gap})
             else:
                 facts[sid] = raw[sid]
+        # IMP-26u: a counterpart answer completes its place, after what the source says
+        for sid, extra in answer_facts(inputs.gap_answers, routes=V2_GAP_COMPLEMENTS).items():
+            for fact in extra:
+                if all(f.text != fact.text for f in facts.get(sid, [])):
+                    facts.setdefault(sid, []).append(fact)
         # IMP-262: code facts of a brownfield harvest feed §5 by block, citing the harvest row
         from ..harvest import BLOCK_PLACES
 
@@ -556,6 +592,9 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         w.covered("9.1/items", "9.1", len(build))
     else:
         build = [w.pending("9.1/items", "9.1", "client")]
+    # IMP-26u: a confirmed delivery answer (slicing, readiness, enablers) is said under the items
+    title_91 = sections[9]["subsections"][0]["title"][lang]
+    build += [f"- {fact.text}{f' (`{fact.gap}`)' if fact.gap else ''} {w.cite(fact, title_91)}" for fact in w.facts.get("9.1", [])]
     if w.built:
         offset = len(items)
         for number, item in enumerate((c for c in inputs.contradictions if c.get("gap") in w.open_gaps), start=offset + 1):
@@ -719,7 +758,7 @@ def _cascade(w: _Writer, draft: str, previous: str) -> list[str]:
         else:
             continue
         lenses = lenses_for_v2_id(sid)
-        rows.append(f"| {sid} | `{delta_marker(status)}` | {_PROPAGATION.get(lenses[0], '—') if lenses else '—'} |")
+        rows.append(f"| {sid} | `{delta_marker(status)}` | {(_PROPAGATION.get(lenses[0]) if lenses else None) or copy['cascade_no_propagation']} |")  # an em dash is a forbidden value (IMP-255)
     if not rows:
         prev_model = parse_brief(previous)
         kept = prev_model.sections.get("6.3")
@@ -902,7 +941,7 @@ def v2_self_correction_findings(brief_text: str, gap_answers: dict[str, dict[str
     lines = brief_text.splitlines()
     findings: list[str] = []
     for gap_id, payload in gap_answers.items():
-        sid = V2_GAP_ROUTES.get(gap_id)
+        sid = V2_GAP_ROUTES.get(gap_id) or V2_GAP_COMPLEMENTS.get(gap_id)
         statement = " ".join(str(payload.get("statement", "")).split())
         if not sid or not statement:
             continue
@@ -1000,7 +1039,9 @@ def sync_umbrella_gaps(project_id: str, umbrellas: dict[str, list[str]], languag
     by_id = {row.get("id", "").strip("`"): row for row in rows}
     changed = False
     for gap_id, places in umbrellas.items():
-        question = ("Completar en el brief v2: " if language == "es" else "Fill in the brief v2: ") + ", ".join(places)
+        # IMP-26u: the answer fills the places one by one, so the question says how
+        question = ("Completar en el brief v2, una línea por lugar (`1.2: …`): " if language == "es"
+                    else "Fill in the brief v2, one line per place (`1.2: …`): ") + ", ".join(places)
         row = by_id.get(gap_id)
         if row is None:
             rows.append({"id": gap_id, "lens": "product", "severity": "medium", "status": "OPEN",
