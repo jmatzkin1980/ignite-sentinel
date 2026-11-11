@@ -173,7 +173,7 @@ class WorkspaceTests(unittest.TestCase):
             with patch.object(ContextBroker, "_connect_lancedb", lambda self: None), contextlib.redirect_stdout(out):
                 raw = tmp / "raw.md"
                 raw.write_text(scenario["raw"], encoding="utf-8")
-                self.assertEqual(main(["init", pid]), 0)
+                self.assertEqual(main(["init", pid, "--brief-version", "1"]), 0)
                 self.assertEqual(main(["ingest", pid, "--source", str(raw)]), 0)
                 for index, statement in enumerate(scenario["ears"], start=1):
                     answer = tmp / f"answer-{index}.md"

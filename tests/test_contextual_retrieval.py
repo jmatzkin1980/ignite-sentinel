@@ -71,7 +71,7 @@ class ContextualIndexingTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def _ingest(self, project_id: str = "CTX") -> ContextBroker:
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(FIXTURE)]), 0)
         return ContextBroker(project_id)
 

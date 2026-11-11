@@ -251,7 +251,7 @@ class ValidateFlowTests(unittest.TestCase):
         raw = self.temp / "billing.md"
         raw.write_text("# Billing Portal\n\nFinance users review monthly invoices before approval.\n", encoding="utf-8")
         with redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "IDS"]), 0)
+            self.assertEqual(main(["init", "IDS", "--brief-version", "1"]), 0)
             self.assertEqual(main(["ingest", "IDS", "--source", str(raw)]), 0)
         self.ws = self.temp / "workspaces" / "IDS"
 

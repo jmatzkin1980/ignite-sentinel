@@ -135,7 +135,7 @@ class UnitImplementabilityIntegrationTests(unittest.TestCase):
         os.chdir(self.temp)
         self.source = self.temp / "ops.md"
         self.source.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "OPS"]), 0)
+        self.assertEqual(main(["init", "OPS", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "OPS", "--source", str(self.source)]), 0)
         self.ws = self.temp / "workspaces" / "OPS"
 

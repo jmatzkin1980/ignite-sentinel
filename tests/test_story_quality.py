@@ -86,7 +86,7 @@ class StoryQualityTests(unittest.TestCase):
     def test_quality_updates_audit_and_story_gate(self) -> None:
         raw = self.temp / "raw.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "QUAL"]), 0)
+        self.assertEqual(main(["init", "QUAL", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "QUAL", "--source", str(raw)]), 0)
         answers = self.temp / "answers.md"
         answers.write_text(

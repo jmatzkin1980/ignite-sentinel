@@ -54,7 +54,7 @@ class RequirementUnitDeltaFlowTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "RUD"]), 0)
+        self.assertEqual(main(["init", "RUD", "--brief-version", "1"]), 0)
         self.base = workspace_path("RUD")
         self.delta = self.base / "01_discovery" / "requirement_unit_deltas.md"
 

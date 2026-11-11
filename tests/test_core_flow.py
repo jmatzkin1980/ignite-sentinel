@@ -45,7 +45,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
 
     def test_incomplete_requirement_blocks_maturity(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "ACME"]), 0)
+        self.assertEqual(main(["init", "ACME", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ACME", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "ACME"]), 0)
         gaps = (self.temp / "workspaces" / "ACME" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
@@ -64,7 +64,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
             "We need better reports soon. The current material is hard to understand.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "THIN"]), 0)
+        self.assertEqual(main(["init", "THIN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "THIN", "--source", str(source)]), 0)
         self.assertEqual(main(["brief", "THIN"]), 0)
         state = json.loads((self.temp / "workspaces" / "THIN" / "state.json").read_text(encoding="utf-8"))
@@ -80,7 +80,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
             "# Nota del cliente\n\nNecesitamos un dashboard para operaciones. El objetivo es reducir trabajo manual.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "LANG_DEMO"]), 0)
+        self.assertEqual(main(["init", "LANG_DEMO", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "LANG_DEMO", "--source", str(source)]), 0)
         state = json.loads((self.temp / "workspaces" / "LANG_DEMO" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["project_language"], "es")
@@ -92,7 +92,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
 
     def test_complete_requirement_generates_traceable_backlog(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(fixture)]), 0)
         lens_review = self.temp / "workspaces" / "NOVA" / "01_discovery" / "lens_review.md"
         self.assertTrue(lens_review.exists())
@@ -207,7 +207,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 """,
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "ENABLE"]), 0)
+        self.assertEqual(main(["init", "ENABLE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ENABLE", "--source", str(source)]), 0)
         answer = self.temp / "input" / "client_requirement" / "enabler-answers.md"
         answer.write_text(
@@ -238,8 +238,8 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
     def test_retrieval_is_project_scoped(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
         incomplete = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
-        self.assertEqual(main(["init", "ACME"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
+        self.assertEqual(main(["init", "ACME", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(complete)]), 0)
         self.assertEqual(main(["ingest", "ACME", "--source", str(incomplete)]), 0)
         results = ContextBroker("NOVA").retrieve("support leads SLA", "maturity")
@@ -248,7 +248,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 
     def test_context_folders_are_indexed_for_hybrid_retrieval(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
         tech_context = self.temp / "workspaces" / "NOVA" / "00_raw" / "02_technology_context" / "integration.md"
         tech_context.write_text(
             "The support queue integration uses webhook retries and the Atlas CRM account identifier.",
@@ -288,7 +288,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
     def test_sync_creates_change_impact_and_context_pack(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
         change = ROOT / "fixtures" / "change_request.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(complete)]), 0)
         self.assertEqual(main(["specs", "NOVA"]), 0)
         self.assertEqual(main(["backlog", "NOVA"]), 0)
@@ -317,7 +317,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 
     def test_autonomous_sync_detects_new_and_modified_inputs(self) -> None:
         complete = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(complete)]), 0)
         self.assertEqual(main(["specs", "NOVA"]), 0)
         self.assertEqual(main(["backlog", "NOVA"]), 0)
@@ -354,7 +354,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
             "<html><body><h1>Risk dashboard prototype</h1><button>Filter stale queues</button></body></html>",
             encoding="utf-8",
         )
-        self.assertEqual(main(["init", "HTML"]), 0)
+        self.assertEqual(main(["init", "HTML", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "HTML", "--source", str(html)]), 0)
         raw_copy = self.temp / "workspaces" / "HTML" / "00_raw" / "prototype.html"
         self.assertTrue(raw_copy.exists())
@@ -374,7 +374,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 
     def test_sync_materializes_only_new_missing_gaps(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "SYNCGAP"]), 0)
+        self.assertEqual(main(["init", "SYNCGAP", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SYNCGAP", "--source", str(fixture)]), 0)
         before = (self.temp / "workspaces" / "SYNCGAP" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
 
@@ -447,7 +447,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 
     def test_gaps_document_renders_evidence_trigger(self) -> None:
         fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"
-        self.assertEqual(main(["init", "EVID"]), 0)
+        self.assertEqual(main(["init", "EVID", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "EVID", "--source", str(fixture)]), 0)
         gaps_md = (self.temp / "workspaces" / "EVID" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         self.assertIn("Evidence that triggers the question:", gaps_md)
@@ -482,7 +482,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
 
         fixture = ROOT / "fixtures" / "complete_requirement.md"
         with mock.patch.dict(sys.modules, {"lancedb": None}):
-            self.assertEqual(main(["init", "NOLANCE"]), 0)
+            self.assertEqual(main(["init", "NOLANCE", "--brief-version", "1"]), 0)
             self.assertEqual(main(["ingest", "NOLANCE", "--source", str(fixture)]), 0)
             broker = ContextBroker("NOLANCE")
             self.assertEqual(broker.backend, "json-hybrid")
@@ -577,7 +577,7 @@ Auth/API enabler: role permissions and API contract are shared by the value stor
         import sentinel.health as health_module
 
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "MEMHEALTH"]), 0)
+        self.assertEqual(main(["init", "MEMHEALTH", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "MEMHEALTH", "--source", str(fixture)]), 0)
 
         real_broker = ContextBroker("MEMHEALTH")
@@ -621,7 +621,7 @@ Second section paragraph.
         from sentinel.memory import reindex_workspace
 
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "INCR"]), 0)
+        self.assertEqual(main(["init", "INCR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "INCR", "--source", str(fixture)]), 0)
 
         first = reindex_workspace("INCR")
@@ -634,7 +634,7 @@ Second section paragraph.
 
     def test_reindex_full_cli_option_is_supported(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "FULLIDX"]), 0)
+        self.assertEqual(main(["init", "FULLIDX", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "FULLIDX", "--source", str(fixture)]), 0)
         self.assertEqual(main(["reindex", "FULLIDX", "--full"]), 0)
 
@@ -691,7 +691,7 @@ Second section paragraph.
             mock.patch.dict(sys.modules, {"lancedb": None}),
             mock.patch.object(memory_module, "detect_embedder", return_value=FakeSemanticEmbedder()),
         ):
-            self.assertEqual(main(["init", "SEMANTIC"]), 0)
+            self.assertEqual(main(["init", "SEMANTIC", "--brief-version", "1"]), 0)
             self.assertEqual(main(["ingest", "SEMANTIC", "--source", str(fixture)]), 0)
             broker = ContextBroker("SEMANTIC")
             results = broker.retrieve("cual es la metrica de exito y el objetivo del tablero", "specs")
@@ -705,7 +705,7 @@ Second section paragraph.
 
     def test_prd_extracts_evidence_backed_personas_frs_and_kpis(self) -> None:
         fixture = ROOT / "fixtures" / "evals" / "support-dashboard" / "requirement.md"
-        self.assertEqual(main(["init", "EXTR"]), 0)
+        self.assertEqual(main(["init", "EXTR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "EXTR", "--source", str(fixture)]), 0)
         from sentinel.generation import render_prd
 
@@ -738,7 +738,7 @@ Second section paragraph.
         self.assertEqual(score_artifact_text(mixed)["classification"], "mixed")
 
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "SEMQ"]), 0)
+        self.assertEqual(main(["init", "SEMQ", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SEMQ", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "SEMQ"]), 0)
         self.assertEqual(main(["specs", "SEMQ"]), 0)
@@ -752,7 +752,7 @@ Second section paragraph.
 
     def test_context_packs_include_scoring_and_coverage(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "SCOR"]), 0)
+        self.assertEqual(main(["init", "SCOR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SCOR", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "SCOR"]), 0)
         self.assertEqual(main(["specs", "SCOR"]), 0)
@@ -790,7 +790,7 @@ Second section paragraph.
         from sentinel.status import project_status
 
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "METR"]), 0)
+        self.assertEqual(main(["init", "METR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "METR", "--source", str(fixture)]), 0)
         first = evaluate("METR")
         metrics = first["metrics"]
@@ -812,7 +812,7 @@ Second section paragraph.
 
         source = self.temp / "vague.md"
         source.write_text("We need a nice dashboard soon that is easy and efficient.", encoding="utf-8")
-        self.assertEqual(main(["init", "RQLT"]), 0)
+        self.assertEqual(main(["init", "RQLT", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "RQLT", "--source", str(source)]), 0)
 
         maturity = evaluate("RQLT")
@@ -830,7 +830,7 @@ Second section paragraph.
 
     def test_domain_context_change_warns_without_forcing_backlog_regeneration(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "STALE"]), 0)
+        self.assertEqual(main(["init", "STALE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "STALE", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "STALE"]), 0)
         self.assertEqual(main(["specs", "STALE"]), 0)
@@ -860,7 +860,7 @@ Second section paragraph.
 
     def test_gap_resolution_distinguishes_intermediate_states(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "NUAN"]), 0)
+        self.assertEqual(main(["init", "NUAN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NUAN", "--source", str(fixture)]), 0)
         response = self.temp / "respuestas.md"
         response.write_text(
@@ -916,7 +916,7 @@ Second section paragraph.
     def test_regeneration_records_visible_diff(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
         change = ROOT / "fixtures" / "change_request.md"
-        self.assertEqual(main(["init", "REGEN"]), 0)
+        self.assertEqual(main(["init", "REGEN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "REGEN", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "REGEN"]), 0)
         self.assertEqual(main(["specs", "REGEN"]), 0)
@@ -1049,7 +1049,7 @@ Second section paragraph.
             self.assertIn(expected, names)
         self.assertIn("sentinel_gap_elicitation", names)
 
-        result = run_cli(["init", "MCPX"])
+        result = run_cli(["init", "MCPX", "--brief-version", "1"])
         self.assertEqual(result["exit_code"], 0)
         self.assertIn("workspace", result["output"])
         blocked = run_cli(["specs", "MCPX"])
@@ -1097,7 +1097,7 @@ Second section paragraph.
 
     def test_gaps_command_regenerates_human_document(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "ACME"]), 0)
+        self.assertEqual(main(["init", "ACME", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ACME", "--source", str(fixture)]), 0)
         self.assertEqual(main(["gaps", "ACME"]), 0)
         gaps = (self.temp / "workspaces" / "ACME" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
@@ -1107,7 +1107,7 @@ Second section paragraph.
 
     def test_resolve_gaps_closes_only_confirmed_structured_answers(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "ACME"]), 0)
+        self.assertEqual(main(["init", "ACME", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ACME", "--source", str(fixture)]), 0)
 
         response = self.temp / "client-gap-response.md"
@@ -1141,7 +1141,7 @@ Second section paragraph.
 
     def test_resolve_gaps_creates_traceable_seeds_decisions_and_report(self) -> None:
         fixture = ROOT / "fixtures" / "incomplete_requirement.md"
-        self.assertEqual(main(["init", "ACME"]), 0)
+        self.assertEqual(main(["init", "ACME", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ACME", "--source", str(fixture)]), 0)
 
         response = self.temp / "client-gap-response.md"
@@ -1179,7 +1179,7 @@ Second section paragraph.
 
     def test_brief_context_request_status_export_and_retrieve_filters(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "NOVA"]), 0)
+        self.assertEqual(main(["init", "NOVA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "NOVA", "--source", str(fixture)]), 0)
         self.assertEqual(main(["brief", "NOVA"]), 0)
         self.assertEqual(main(["context-request", "NOVA", "--domain", "technology"]), 0)

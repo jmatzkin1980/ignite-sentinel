@@ -29,7 +29,7 @@ class KnowledgeMetabolismTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "risk-board.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "METAB"]), 0)
+        self.assertEqual(main(["init", "METAB", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "METAB", "--source", str(self.raw)]), 0)
         self.ws = self.temp / "workspaces" / "METAB"
         self.gap_id = self._first_gap_id()

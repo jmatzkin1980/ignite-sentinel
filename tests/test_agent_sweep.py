@@ -87,7 +87,7 @@ class FlowTests(unittest.TestCase):
         raw = self.temp / "portal.md"
         raw.write_text(RAW, encoding="utf-8")
         with redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "SWP"]), 0)
+            self.assertEqual(main(["init", "SWP", "--brief-version", "1"]), 0)
             self.assertEqual(main(["ingest", "SWP", "--source", str(raw)]), 0)
         self.ws = self.temp / "workspaces" / "SWP"
 

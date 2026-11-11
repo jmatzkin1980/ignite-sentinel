@@ -29,7 +29,7 @@ class SourceSynthesisTests(unittest.TestCase):
             "Need a read-only dashboard for support leads. Acceptance: leads see queue risk before standup.",
         )
 
-        self.assertEqual(main(["init", "SYNTH"]), 0)
+        self.assertEqual(main(["init", "SYNTH", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SYNTH", "--source", str(source)]), 0)
 
         workspace = self.temp / "workspaces" / "SYNTH"
@@ -54,7 +54,7 @@ class SourceSynthesisTests(unittest.TestCase):
             "Need a dashboard for finance reviewers. Metric source is the billing queue and baseline is last quarter.",
         )
 
-        self.assertEqual(main(["init", "DIVERGE"]), 0)
+        self.assertEqual(main(["init", "DIVERGE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "DIVERGE", "--source", str(first)]), 0)
         self.assertEqual(main(["ingest", "DIVERGE", "--source", str(second)]), 0)
 
@@ -83,7 +83,7 @@ class SourceSynthesisTests(unittest.TestCase):
             "single.md",
             "Need a read-only dashboard for support leads. Acceptance: leads see queue risk before standup.",
         )
-        self.assertEqual(main(["init", "MEM"]), 0)
+        self.assertEqual(main(["init", "MEM", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "MEM", "--source", str(source)]), 0)
         self.assertEqual(main(["reindex", "MEM", "--full"]), 0)
         memory = read_json(self.temp / "workspaces" / "MEM" / "memory.json", {"chunks": []})

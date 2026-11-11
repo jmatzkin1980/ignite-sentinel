@@ -58,7 +58,7 @@ class TraceSuspiciousSymmetryTests(unittest.TestCase):
         from sentinel.cli import main
 
         with contextlib.redirect_stdout(io.StringIO()):
-            if main(["init", PID]) != 0:
+            if main(["init", PID, "--brief-version", "1"]) != 0:
                 raise AssertionError("init failed")
         graph_path(PID).parent.mkdir(parents=True, exist_ok=True)
         save_graph(PID, GRAPH)

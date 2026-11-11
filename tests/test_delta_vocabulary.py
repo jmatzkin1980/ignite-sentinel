@@ -91,7 +91,7 @@ class AcceptanceDeltaColumnTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "DEMO"]), 0)
+        self.assertEqual(main(["init", "DEMO", "--brief-version", "1"]), 0)
         self.ws = self.temp / "workspaces" / "DEMO"
 
     def tearDown(self):

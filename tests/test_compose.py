@@ -33,7 +33,7 @@ class ComposeLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "raw.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "COMP"]), 0)
+        self.assertEqual(main(["init", "COMP", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "COMP", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["brief", "COMP"]), 0)
         self.assertEqual(main(["specs", "COMP"]), 0)

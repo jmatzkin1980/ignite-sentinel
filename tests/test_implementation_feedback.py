@@ -29,7 +29,7 @@ class ImplementationFeedbackTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "raw.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "IFB"]), 0)
+        self.assertEqual(main(["init", "IFB", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "IFB", "--source", str(raw)]), 0)
         answers = self.temp / "answers.md"
         answers.write_text(

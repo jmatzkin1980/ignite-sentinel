@@ -47,7 +47,7 @@ class SpecUnitGenerationTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def test_specs_decompose_confirmed_ears_into_stable_units(self):
-        self.assertEqual(main(["init", "UNITS"]), 0)
+        self.assertEqual(main(["init", "UNITS", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "UNITS", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", "UNITS", "--source", str(self.answers)]), 0)
         self.assertEqual(main(["brief", "UNITS"]), 0)
@@ -79,7 +79,7 @@ class SpecUnitGenerationTests(unittest.TestCase):
         self.assertIn({"from": "SPEC-U-001", "to": "REQ-EARS-001", "relation": "traces_to"}, graph["edges"])
 
     def test_expected_evidence_contract_warns_on_incongruent_spec_unit_sources(self):
-        self.assertEqual(main(["init", "EVIDENCE"]), 0)
+        self.assertEqual(main(["init", "EVIDENCE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "EVIDENCE", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", "EVIDENCE", "--source", str(self.answers)]), 0)
         self.assertEqual(main(["brief", "EVIDENCE"]), 0)

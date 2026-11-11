@@ -62,7 +62,7 @@ class GapCommandsKeepTheStageTests(unittest.TestCase):
         os.chdir(self.temp)
         src = self.temp / "raw.md"
         src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "STG"]), 0)
+        self.assertEqual(main(["init", "STG", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "STG", "--source", str(src)]), 0)
         self.ws = self.temp / "workspaces" / "STG"
         self._close_blocking_gaps()

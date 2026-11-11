@@ -111,7 +111,7 @@ class DigestEndToEndTests(unittest.TestCase):
         os.chdir(self.temp)
         self.raw = self.temp / "billing.md"
         self.raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "DIG"]), 0)
+        self.assertEqual(main(["init", "DIG", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "DIG", "--source", str(self.raw)]), 0)
         self.ws = self.temp / "workspaces" / "DIG"
         gaps = [g for g in parse_gap_rows((self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")) if g.get("id") != "NONE"]

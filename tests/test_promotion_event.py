@@ -27,7 +27,7 @@ class PromotionEventUnitTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "PROMO"]), 0)
+        self.assertEqual(main(["init", "PROMO", "--brief-version", "1"]), 0)
         self.json_path = workspace_path("PROMO") / "01_discovery" / "knowledge_state.json"
 
     def tearDown(self) -> None:
@@ -107,7 +107,7 @@ class PromotionEventIntegrationTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "risk.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "PIN"]), 0)
+        self.assertEqual(main(["init", "PIN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "PIN", "--source", str(raw)]), 0)
         self.ws = workspace_path("PIN")
         gaps = parse_gap_rows((self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8"))

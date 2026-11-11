@@ -460,6 +460,9 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     not_implementable = list(impl_summary.get("not_implementable", []))
     impl_warnings = implementability_gate_warnings(impl_summary, language) if not_implementable else []
     warnings = warnings + impl_warnings
+    # IMP-26w: compiling can open gaps (GAP-BRIEF-PROFILE, the v2 umbrellas); count what is there now
+    if gaps_path.exists():
+        gaps_text = gaps_path.read_text(encoding="utf-8")
     gap_counts = count_gaps(parse_gap_rows(gaps_text))
     readiness_stage = readiness_stage_for_counts(gap_counts)
     has_blocking_gaps = bool(gap_counts.get("blocking_open", 0))

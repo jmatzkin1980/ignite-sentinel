@@ -68,7 +68,7 @@ class FocusPackTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "FP"]), 0)
+        self.assertEqual(main(["init", "FP", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("FP")
         for index in range(3):
             self.broker.index_artifact(
@@ -125,7 +125,7 @@ class NeedsContextGateTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "NC"]), 0)
+        self.assertEqual(main(["init", "NC", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("NC")
         for index in range(13):
             self.broker.index_artifact(

@@ -24,7 +24,7 @@ class ChangeTimelineTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "TL"]), 0)
+        self.assertEqual(main(["init", "TL", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("TL")
 
     def tearDown(self) -> None:
@@ -97,7 +97,7 @@ class RetrieveRecencyOrderTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "ORD"]), 0)
+        self.assertEqual(main(["init", "ORD", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("ORD")
         # Older artifact is the strong lexical match; newer one is a weaker match.
         self.broker.index_artifact(

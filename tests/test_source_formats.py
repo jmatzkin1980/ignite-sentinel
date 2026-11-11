@@ -159,7 +159,7 @@ class FlowTests(unittest.TestCase):
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
         with redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["init", "DOC"]), 0)
+            self.assertEqual(main(["init", "DOC", "--brief-version", "1"]), 0)
         self.ws = self.temp / "workspaces" / "DOC"
 
     def tearDown(self) -> None:

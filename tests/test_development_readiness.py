@@ -44,7 +44,7 @@ class DevelopmentReadinessTests(unittest.TestCase):
         os.chdir(self.temp)
         self.source = self.temp / "risk-dashboard.md"
         self.source.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "READY"]), 0)
+        self.assertEqual(main(["init", "READY", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "READY", "--source", str(self.source)]), 0)
         self.ws = self.temp / "workspaces" / "READY"
 

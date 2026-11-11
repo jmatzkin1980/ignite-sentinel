@@ -138,7 +138,7 @@ def _run_fixture(fixture_dir: Path, distractors: set[str]) -> dict | None:
         os.chdir(temp)
         try:
             with contextlib.redirect_stdout(io.StringIO()):
-                assert main(["init", project_id]) == 0
+                assert main(["init", project_id, "--brief-version", "1"]) == 0
                 assert main(["ingest", project_id, "--source", str(fixture_dir / "requirement.md")]) == 0
                 workspace = Path(temp) / "workspaces" / project_id
                 seeded = seed_distractors(workspace)

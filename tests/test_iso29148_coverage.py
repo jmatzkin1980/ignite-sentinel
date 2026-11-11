@@ -162,7 +162,7 @@ class ValidateIntegrationTests(unittest.TestCase):
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "ISO"]), 0)
+        self.assertEqual(main(["init", "ISO", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "ISO", "--source", str(fixture)]), 0)
 
     def tearDown(self):

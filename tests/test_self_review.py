@@ -25,7 +25,7 @@ class SelfReviewTest(unittest.TestCase):
 
     def test_self_review_registers_cited_gap_and_hard_to_reverse_decision(self) -> None:
         fixture = ROOT / "fixtures" / "complete_requirement.md"
-        self.assertEqual(main(["init", "SREV"]), 0)
+        self.assertEqual(main(["init", "SREV", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "SREV", "--source", str(fixture)]), 0)
         self.assertEqual(main(["maturity", "SREV"]), 0)
         self.assertEqual(main(["specs", "SREV"]), 0)

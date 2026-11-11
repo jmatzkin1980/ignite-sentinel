@@ -60,7 +60,7 @@ class ScrutinyLifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         self.src = self.temp / "raw.md"
         self.src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "SCR"]), 0)
+        self.assertEqual(main(["init", "SCR", "--brief-version", "1"]), 0)
         self.ws = self.temp / "workspaces" / "SCR"
         tech_dir = self.ws / "00_raw" / "02_technology_context"
         tech_dir.mkdir(parents=True, exist_ok=True)

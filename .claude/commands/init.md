@@ -1,6 +1,6 @@
 ---
 description: Create an Ignite Sentinel project workspace.
-argument-hint: PROJECT_ID
+argument-hint: PROJECT_ID [--brief-version 1|2]
 ---
 
 # Ignite Init
@@ -20,3 +20,5 @@ python -m sentinel /init PROJECT_ID
 ```
 
 After execution, confirm the workspace path and remind the user that real project execution should stay in a project branch.
+
+A new project compiles the brief v2 (`--brief-version 1` keeps v1). Before the first `/brief`, ask the BA to confirm profile and genesis (`/brief PROJECT_ID --profile ... --genesis ...`); until then `GAP-BRIEF-PROFILE` blocks the flow.

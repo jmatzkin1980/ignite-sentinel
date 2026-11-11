@@ -91,7 +91,7 @@ class FlowTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "billing.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "CTR"]), 0)
+        self.assertEqual(main(["init", "CTR", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "CTR", "--source", str(raw)]), 0)
         self.ws = self.temp / "workspaces" / "CTR"
 

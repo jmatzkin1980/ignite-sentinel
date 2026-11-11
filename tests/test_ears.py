@@ -140,7 +140,7 @@ class EarsResolutionTests(unittest.TestCase):
         os.chdir(self.temp)
         src = self.temp / "raw.md"
         src.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "EARS"]), 0)
+        self.assertEqual(main(["init", "EARS", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "EARS", "--source", str(src)]), 0)
         self.ws = self.temp / "workspaces" / "EARS"
 

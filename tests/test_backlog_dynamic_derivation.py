@@ -60,7 +60,7 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
 
     def test_backlog_derives_one_story_per_confirmed_spec_unit(self):
         project_id = "DYNBACKLOG"
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
         for index, statement in enumerate(EARS_STATEMENTS, start=1):
             self._resolve_acceptance_with(project_id, statement, index)
@@ -113,7 +113,7 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
 
     def test_backlog_execution_context_is_retrieved_per_story(self):
         project_id = "STORYCTX"
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         workspace = self.temp / "workspaces" / project_id
         tech_context = workspace / "00_raw" / "02_technology_context"
         tech_context.mkdir(parents=True, exist_ok=True)
@@ -174,7 +174,7 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
 
     def test_backlog_without_spec_units_keeps_pending_stub_instead_of_fixed_seeds(self):
         project_id = "PENDINGBACKLOG"
-        self.assertEqual(main(["init", project_id]), 0)
+        self.assertEqual(main(["init", project_id, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", project_id, "--source", str(self.raw)]), 0)
         answer = self.temp / "pending-answers.md"
         answer.write_text(

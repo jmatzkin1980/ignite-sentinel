@@ -80,7 +80,7 @@ class KnowledgeStalenessLifecycleTests(unittest.TestCase):
         return answers
 
     def _reach_specs_with_assumption(self):
-        self.assertEqual(main(["init", self.project]), 0)
+        self.assertEqual(main(["init", self.project, "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", self.project, "--source", str(self.temp / "raw.md")]), 0)
         self.assertEqual(main(["resolve-gaps", self.project, "--source", str(self._answer_all_open_gaps())]), 0)
         assumption = self.temp / "assumption.json"

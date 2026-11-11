@@ -25,7 +25,7 @@ class CandidateGenerationTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(main(["init", "ANN"]), 0)
+        self.assertEqual(main(["init", "ANN", "--brief-version", "1"]), 0)
         self.broker = ContextBroker("ANN")
         self._index("A", "alpha unique widget metric for the dashboard")
         self._index("B", "beta distinct gadget pipeline for the service")

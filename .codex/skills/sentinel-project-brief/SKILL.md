@@ -45,7 +45,7 @@ python -m sentinel /brief PROJECT_ID --brief-version 2 --profile UI,REG --genesi
 
 - **`MIG` implies `brownfield-replacement`.** Any other genesis with `MIG` comes back as a contradiction; resolve it with the BA. An initial load in greenfield is not `MIG`.
 - **Mixed genesis:** pass both values, comma-separated. The most demanding one is declared and the other is noted.
-- **Opting in without confirmed settings** opens the blocking gap `GAP-BRIEF-PROFILE` and keeps the v1 brief. Confirming closes it.
+- **New projects compile the brief v2 by default** (`/init --brief-version 1` keeps v1; older workspaces stay on v1). Without confirmed settings `/brief` opens the blocking `GAP-BRIEF-PROFILE`, keeps the v1 brief and the project cannot reach `/specs`. Confirm profile and genesis with the BA first; confirming closes the gap.
 
 ## The Brief v2
 

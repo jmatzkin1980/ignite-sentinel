@@ -41,7 +41,7 @@ class LifecycleTests(unittest.TestCase):
         os.chdir(self.temp)
         raw = self.temp / "billing.md"
         raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(_run(["init", "CTXL"])[0], 0)
+        self.assertEqual(_run(["init", "CTXL", "--brief-version", "1"])[0], 0)
         self.assertEqual(_run(["ingest", "CTXL", "--source", str(raw)])[0], 0)
         code, result = _run(["context-request", "CTXL", "--domain", "technology"])
         self.assertEqual(code, 0)
@@ -118,7 +118,7 @@ class NextTests(unittest.TestCase):
         self.old_cwd = Path.cwd()
         self.temp = Path(tempfile.mkdtemp())
         os.chdir(self.temp)
-        self.assertEqual(_run(["init", "NXT"])[0], 0)
+        self.assertEqual(_run(["init", "NXT", "--brief-version", "1"])[0], 0)
 
     def tearDown(self) -> None:
         os.chdir(self.old_cwd)

@@ -60,7 +60,7 @@ class SpecUnitDeltaTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def test_regenerated_specs_report_unit_delta_and_stale_readiness(self):
-        self.assertEqual(main(["init", "DELTA"]), 0)
+        self.assertEqual(main(["init", "DELTA", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "DELTA", "--source", str(self.raw)]), 0)
         self.assertEqual(main(["resolve-gaps", "DELTA", "--source", str(self.first_answer)]), 0)
         self.assertEqual(main(["brief", "DELTA"]), 0)

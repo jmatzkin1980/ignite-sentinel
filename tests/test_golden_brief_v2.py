@@ -1,8 +1,8 @@
 """H16a close (26z): golden snapshots of the brief v2 in English and Spanish.
 
 The same populated lifecycle as `test_golden_artifacts` (EARS answers that close
-the acceptance gap), then `/brief --brief-version 2 --profile UI --genesis
-greenfield`. The brief and its compile report are pinned. The v1 goldens stay
+the acceptance gap), then `/brief --profile UI --genesis greenfield` on the default
+flow (IMP-26w: a new project compiles the brief v2). The brief and its compile report are pinned. The v1 goldens stay
 untouched in `fixtures/golden/<lang>/`.
 
 Regenerate intentionally with `SENTINEL_UPDATE_GOLDEN=1` and review the git diff.
@@ -47,7 +47,7 @@ def _generate(language: str) -> dict[str, str]:
                 answer = tmp / f"answer-{index}.md"
                 answer.write_text(scenario["answer"].format(s=statement, i=index), encoding="utf-8")
                 assert main(["resolve-gaps", pid, "--source", str(answer)]) == 0
-            assert main(["brief", pid, "--brief-version", "2", "--profile", "UI", "--genesis", "greenfield"]) == 0
+            assert main(["brief", pid, "--profile", "UI", "--genesis", "greenfield"]) == 0  # IMP-26w: v2 is the default
         base = tmp / "workspaces" / pid / "02_requirements"
         report = json.loads((base / "brief_compile_report.json").read_text(encoding="utf-8"))
         return {
