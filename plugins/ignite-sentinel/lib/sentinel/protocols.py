@@ -62,6 +62,8 @@ MUTATING_COMMANDS = {
     "stakeholders",
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
     "sources",
+    # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
+    "split",
 }
 # IMP-244: the only commands outside the protocol, each with its reason. A test
 # requires every CLI command to be in exactly one of READ_ONLY, MUTATING or here.
@@ -131,6 +133,12 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         "last_command_at": entry["timestamp"],
         "command_log": command_log[-25:],
     }
+    if command in MUTATING_COMMANDS and command != "split":
+        # IMP-263 [A45]: a command that changed the brief (a spike or measurer
+        # closed, a gap answered) re-runs an existing split assessment.
+        from .split import refresh_if_stale
+
+        refresh_if_stale(project_id)
     if command in MUTATING_COMMANDS:
         # IMP-147: a mutating command is the only sanctioned writer of governed
         # artifacts, so refresh their checksum registry here. /health compares

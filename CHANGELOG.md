@@ -7,6 +7,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/split PROJECT_ID --assess` (IMP-263, H17a): should this brief v2 be split into a release series?
+  - **Signals:** each of the model's 7 split and 5 no-split signals gets a deterministic detector and comes out `lit` (with its anchor in the brief), `off`, `undetermined` (its places are pending) or `on_proposal` (checked on a proposed release).
+  - **No numeric threshold:** keyword cues read only cited fact lines.
+  - **Recommendation:** `split`, `no_split` or `cannot_decide`, each with its reasons, plus the step 0 questions.
+  - **Output:** `01_discovery/split_assessment.md` and its JSON. The brief is never touched.
+  - **Re-assessment:** a later command that changes the brief runs an existing assessment again.
+  - **v1:** a v1 brief is rejected, because a series does not mix v1 and v2.
+  - **Surfaces:** CLI, the MCP tool `sentinel_split`, the command manifest (Claude Code and Kilo) and the router.
+  - **Control:** the support-dashboard, crm-billing-sync and portal-autogestion eval fixtures all come out `no_split`.
 - The release split model as data (IMP-264, H17a). `sentinel/templates/release_split_model.json` holds the framework's knowledge on splitting a v2 brief into a series of releases. The coming `/split` command reads it; nothing changes for a workspace without a series.
   - **When to split:** 7 signals to split and 5 not to, with no numeric threshold.
   - **How to cut:** 14 cut criteria and 24 patterns. Each pattern has its question, what it contains and inherits, the contract the siblings share, parallel or chained, and when not to use it.
