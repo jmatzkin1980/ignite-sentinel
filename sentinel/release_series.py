@@ -393,6 +393,24 @@ def compile_series(project_id: str) -> dict[str, Any]:
             "reattributions": len(reattributions)}
 
 
+def series_validation_findings(base: Path) -> list[str]:
+    """What /validate reports for a compiled series: a block, units out of sync, release integrity."""
+    from .core.io import read_json
+
+    report = read_json(base.joinpath(*PROPOSAL_DIR, REPORT_FILE), None)
+    if not isinstance(report, dict):
+        return []
+    if report.get("status") == "blocked":
+        return [f"release series: {report.get('reason', 'blocked')}"]
+    findings = [f"release series: {u.get('where')}: the unit no longer resolves in the brief ({u.get('quote')})."
+                for u in _dicts(report.get("unresolved"))]
+    findings += [f"release series: {u.get('family')}: {u.get('unit')} is not routed to any release; propose the series again."
+                 for u in _dicts(report.get("unrouted"))]
+    for rid, found in sorted((report.get("integrity") or {}).items(), key=lambda kv: release_order(kv[0])):
+        findings += [f"release series {rid}: {f}" for f in found]
+    return findings
+
+
 def refresh_series_if_stale(project_id: str) -> dict[str, Any] | None:
     """Recompile an existing series when the brief changed. No confirmed partition, nothing happens."""
     from .core.io import read_json, write_text

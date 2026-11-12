@@ -7,6 +7,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Derivations by release (IMP-267b, H17a): `--release rN`, in `sentinel/release_scope.py`.
+  - **Commands:** `specs`, `backlog` (including the slice plan), `story-status`, `view`, `validate`, `trace`, `status` and `next` accept a release of a confirmed series. They also take it from MCP, as `release`.
+  - **How it runs:** the pipeline runs unchanged inside a mirror workspace (`workspaces/<P>/.series_work/rN/`) whose brief is `02_requirements/rN/project-brief.md`.
+  - **Outputs:** they land under `03_specs/rN/`, `04_backlog/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`, with the paths inside rewritten.
+  - **Isolation:**
+    - each release keeps its own lifecycle: phase, story states, gates and acceptance-criteria freezes when its stories go to construction;
+    - the project's `state.json` and its own derived artifacts are not touched;
+    - whole-project EARS rows are not carried into a release, because the release brief is the input.
+  - **Readiness:** the verdict knows the release it covers.
+  - **`/validate`:** with a confirmed series it also reports the series' sync findings and each release's integrity.
+  - **Invariant:** without `--release` nothing changes.
 - Series compilation (IMP-267a, H17a), in `sentinel/release_series.py`. `/split --confirm` compiles two outputs from the whole brief v2 and the confirmed partition:
   - `02_requirements/series/index.md`, with:
     - the project in one page;
@@ -79,6 +90,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - `brief_v2.json` activates its series fields (`series_fields`, formerly `series_reserved_fields`), each mapped to the model section that defines its vocabulary.
 
 ### Fixed
+- `GAP-SPLIT-CLIENT` (IMP-266) opened as `high`, which blocks by default. A confirmed series froze `/specs` until the client confirmed. It now opens as `medium`: it stays visible and does not block what the BA and the technical team already confirmed (IMP-267b).
 - Retrieval recency no longer depends on the wall-clock second (IMP-295). `indexed_at` has one-second resolution: two artifacts indexed in the same second tied, and two indexed across a second boundary did not. So the recency re-score (IMP-123) could pick a different top result between identical runs; the backlog's Product evidence row flipped between `REQ-002` and `PRD-001`.
   - Each indexed artifact now carries `index_seq`, the order of indexing, which is the same on every run. Recency ranks by iteration, then `index_seq`.
   - `indexed_at` still breaks ties, but only for chunks indexed before this change.

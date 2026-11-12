@@ -57,6 +57,10 @@ def validate_project(project_id: str, override_source: Path | None = None) -> di
     from .brief_integrity import brief_v2_integrity_findings
 
     findings.extend(brief_v2_integrity_findings(base))
+    # IMP-267b: /validate walks the releases of a confirmed series (none, nothing is added).
+    from .release_series import series_validation_findings
+
+    findings.extend(series_validation_findings(base))
 
     semantic_quality, quality_warnings = semantic_quality_report(base)
     requirement_quality, requirement_warnings = requirement_quality_validation(base)

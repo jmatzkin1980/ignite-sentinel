@@ -42,6 +42,7 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
 8. **Submit:** `/split PROJECT_ID --propose --source proposal.json`. A refused proposal lists every finding with its code. Fix them all and submit again. A stored proposal comes back with `partition_preview`: the codes `--confirm` would still refuse.
 9. **Confirm with the people who own it:** once the BA and the technical team agree, run `/split PROJECT_ID --confirm --ba NAME --tech TEAM`. It refuses with every finding unless the partition is green, and refuses when the brief changed since the proposal. A confirmation freezes each contract by hash; changing one later needs an audited `contract_deltas` row `{contract, why, finding}`. Never run it on your own: the names are theirs.
 10. **Read the compiled series:** the confirmation writes `02_requirements/series/index.md` and one `02_requirements/r<N>/project-brief.md` per release. Report the index's sync findings. A release brief is never edited by hand: change the whole brief or the partition, and the series recompiles. A unit flagged "not routed" means the brief grew: propose the series again.
+11. **Derive by release:** `/specs PROJECT_ID --release rN`, then `/backlog PROJECT_ID --release rN`; read the results under `03_specs/rN/` and `04_backlog/rN/`, and the verdict with `/status PROJECT_ID --release rN`.
 
 ## Proposal format
 

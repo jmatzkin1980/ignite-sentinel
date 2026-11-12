@@ -259,7 +259,21 @@ def main(argv: list[str] | None = None) -> int:
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
 
+    for name in ("specs", "backlog", "story-status", "view", "validate", "trace", "status", "next"):
+        # IMP-267b: derive for one release of a confirmed series (outputs under <folder>/<rN>/)
+        sub.choices[name].add_argument("--release", help="a release of the confirmed series (r<N> or r<N>.<M>)")
+
     args = parser.parse_args(argv)
+    if getattr(args, "release", None):
+        try:
+            from .core.paths import validate_project_id
+            from .release_scope import run_release_command, scoped_argv
+
+            validate_project_id(args.project_id)
+            return run_release_command(scoped_argv(argv)[1], args.project_id, args.release)
+        except Exception as exc:
+            print(f"sentinel error: {exc}", file=sys.stderr)
+            return 1
     try:
         project_id = getattr(args, "project_id", None)
         if project_id is not None:

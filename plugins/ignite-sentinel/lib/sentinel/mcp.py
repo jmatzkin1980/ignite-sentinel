@@ -45,17 +45,17 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
     ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
-    ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics.", ["project_id", "full"]),
+    ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog.", ["project_id", "full"]),
     ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
-    ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED).", ["project_id"]),
-    ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health).", ["project_id"]),
+    ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/.", ["project_id"]),
+    ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health). release=rN derives that release's backlog and slice plan into 04_backlog/rN/.", ["project_id"]),
     ("quality", "Generate test cases and the backlog readiness audit.", ["project_id"]),
-    ("trace", "Generate the traceability matrix and graph.", ["project_id"]),
+    ("trace", "Generate the traceability matrix and graph. release=rN traces that release into 06_traceability/rN/.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
-    ("validate", "Validate structure plus non-blocking semantic quality scores.", ["project_id"]),
-    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, or readiness (what is missing per item and from whom).", ["project_id", "artifact"]),
+    ("validate", "Validate structure plus non-blocking semantic quality scores; with a confirmed series it also reports the series' sync and per-release integrity. release=rN validates that release's brief and derivations.", ["project_id"]),
+    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, or readiness (what is missing per item and from whom). release=rN views that release (08_context_packs/rN/views/).", ["project_id", "artifact"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
     ("harvest", "Ingest a tagged brownfield code harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B5) as a governed source; routes out-of-code topics and README/code divergences to gaps.", ["project_id", "source"]),
@@ -202,6 +202,11 @@ def dashboard_arguments(open_browser: bool = False, theme: str = "") -> list[str
     return arguments
 
 
+def release_arguments(release: str = "") -> list[str]:
+    """IMP-267b: `--release rN` derives for one release of a confirmed series (outputs under <folder>/<rN>/)."""
+    return ["--release", release] if release else []
+
+
 def view_arguments(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> list[str]:
     """CLI arguments for the view tool; ``theme`` is a built-in name or a local theme path."""
     arguments = ["view", project_id, "--artifact", artifact]
@@ -308,12 +313,12 @@ def build_server():
         return run_cli(arguments)
 
     @server.tool(name="sentinel_next", description=TOOL_DESCRIPTIONS["next"])
-    def sentinel_next(project_id: str) -> dict:
-        return run_cli(["next", project_id])
+    def sentinel_next(project_id: str, release: str = "") -> dict:
+        return run_cli(["next", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
-    def sentinel_status(project_id: str, full: bool = False) -> dict:
-        return run_cli(["status", project_id] + (["--full"] if full else []))
+    def sentinel_status(project_id: str, full: bool = False, release: str = "") -> dict:
+        return run_cli(["status", project_id] + (["--full"] if full else []) + release_arguments(release))
 
     @server.tool(name="sentinel_stakeholders", description=TOOL_DESCRIPTIONS["stakeholders"])
     def sentinel_stakeholders(
@@ -429,35 +434,35 @@ def build_server():
         return run_cli(arguments)
 
     @server.tool(name="sentinel_specs", description=TOOL_DESCRIPTIONS["specs"])
-    def sentinel_specs(project_id: str) -> dict:
-        return run_cli(["specs", project_id])
+    def sentinel_specs(project_id: str, release: str = "") -> dict:
+        return run_cli(["specs", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_backlog", description=TOOL_DESCRIPTIONS["backlog"])
-    def sentinel_backlog(project_id: str, with_task_seeds: bool = False) -> dict:
+    def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "") -> dict:
         arguments = ["backlog", project_id]
         if with_task_seeds:
             arguments.append("--with-task-seeds")
-        return run_cli(arguments)
+        return run_cli(arguments + release_arguments(release))
 
     @server.tool(name="sentinel_quality", description=TOOL_DESCRIPTIONS["quality"])
     def sentinel_quality(project_id: str) -> dict:
         return run_cli(["quality", project_id])
 
     @server.tool(name="sentinel_trace", description=TOOL_DESCRIPTIONS["trace"])
-    def sentinel_trace(project_id: str) -> dict:
-        return run_cli(["trace", project_id])
+    def sentinel_trace(project_id: str, release: str = "") -> dict:
+        return run_cli(["trace", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_health", description=TOOL_DESCRIPTIONS["health"])
     def sentinel_health(project_id: str) -> dict:
         return run_cli(["health", project_id])
 
     @server.tool(name="sentinel_validate", description=TOOL_DESCRIPTIONS["validate"])
-    def sentinel_validate(project_id: str) -> dict:
-        return run_cli(["validate", project_id])
+    def sentinel_validate(project_id: str, release: str = "") -> dict:
+        return run_cli(["validate", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
-    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> dict:
-        return run_cli(view_arguments(project_id, artifact, open_browser, theme))
+    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", release: str = "") -> dict:
+        return run_cli(view_arguments(project_id, artifact, open_browser, theme) + release_arguments(release))
 
     @server.tool(name="sentinel_annotate", description=TOOL_DESCRIPTIONS["annotate"])
     def sentinel_annotate(project_id: str, source: str) -> dict:
@@ -500,13 +505,14 @@ def build_server():
         return run_cli(["refine-backlog", project_id, "--source", source])
 
     @server.tool(name="sentinel_story_status", description=TOOL_DESCRIPTIONS["story_status"])
-    def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "") -> dict:
+    def sentinel_story_status(project_id: str, story: str, status: str, owner: str = "", evidence: str = "",
+                              release: str = "") -> dict:
         arguments = ["story-status", project_id, "--story", story, "--set", status]
         if owner:
             arguments += ["--owner", owner]
         if evidence:
             arguments += ["--evidence", evidence]
-        return run_cli(arguments)
+        return run_cli(arguments + release_arguments(release))
 
     @server.tool(name="sentinel_backlog_status", description=TOOL_DESCRIPTIONS["backlog_status"])
     def sentinel_backlog_status(project_id: str) -> dict:
