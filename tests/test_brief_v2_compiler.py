@@ -142,6 +142,37 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(report["sources_cited"]["F-01"] >= 1, True)
 
 
+class ScopeHarvestTests(unittest.TestCase):
+    """IMP-296: every scope sentence of a source reaches 6.1/6.2, and 9.1 has one item per 6.1 item."""
+
+    RAW3 = ("Objective: cut the time a claim takes from filing to payment.\n\n"
+            "In scope: online claim filing with attachments. In scope: claim review and approval by adjusters. "
+            "In scope: payment of approved claims. Out of scope: fraud scoring. Out of scope: agent commissions.\n")
+
+    def test_every_scope_sentence_is_kept(self):
+        from sentinel.compilers.brief_v2 import raw_facts
+
+        facts = raw_facts([("F-01", "raw.md", self.RAW3)])
+        self.assertEqual([f.text for f in facts["6.1"]], [
+            "In scope: online claim filing with attachments.", "In scope: claim review and approval by adjusters.",
+            "In scope: payment of approved claims."])
+        self.assertEqual([f.text for f in facts["6.2"]], ["Out of scope: fraud scoring.", "Out of scope: agent commissions."])
+
+    def test_build_list_has_one_item_per_scope_item(self):
+        text, _ = render_brief_v2(inputs(raw_sources=[("F-01", "raw.md", self.RAW3)]))
+        model = parse_brief(text)
+        section = model.sections["9.1"]
+        items = re.findall(r"`C-\d{2}`", "\n".join(text.splitlines()[section.start:section.end]))
+        self.assertEqual(items, ["`C-01`", "`C-02`", "`C-03`"])
+
+    def test_one_scope_sentence_is_unchanged(self):
+        from sentinel.compilers.brief_v2 import raw_facts
+
+        facts = raw_facts([("F-01", "raw.md", RAW)])
+        self.assertEqual([f.text for f in facts["6.1"]], ["In scope: read-only risk dashboard for open queues."])
+        self.assertEqual([f.text for f in facts["6.2"]], ["Out of scope: editing cases."])
+
+
 class RouteTests(unittest.TestCase):
     def test_routes_point_at_schema_ids_and_agree_with_the_lens_map(self):
         known = set(schema_ids())

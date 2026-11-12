@@ -238,10 +238,13 @@ def raw_facts(raw_sources: list[tuple[str, str, str]]) -> dict[str, list[_Fact]]
         add("3.1", _first_with(sentences, _ASIS_CUES), source_id)
         for signal in extract_functional_signals(text)[:3]:
             add("3.2", signal["statement"], source_id)
-        out_scope = next((s for s in sentences if any(c in s.lower() for c in _OUT_SCOPE_CUES)), "")
-        in_scope = next((s for s in sentences if s != out_scope and any(c in s.lower() for c in _IN_SCOPE_CUES)), "")
-        add("6.1", in_scope, source_id)
-        add("6.2", out_scope, source_id)
+        # IMP-296: every scope sentence of the source, not only the first (9.1 grows one item per 6.1 item)
+        out_scope = [s for s in sentences if any(c in s.lower() for c in _OUT_SCOPE_CUES)]
+        in_scope = [s for s in sentences if s not in out_scope and any(c in s.lower() for c in _IN_SCOPE_CUES)]
+        for sentence in in_scope:
+            add("6.1", sentence, source_id)
+        for sentence in out_scope:
+            add("6.2", sentence, source_id)
     return facts
 
 
