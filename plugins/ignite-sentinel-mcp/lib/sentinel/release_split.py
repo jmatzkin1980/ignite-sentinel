@@ -380,8 +380,8 @@ def validate_partition(brief_text: str, payload: dict[str, Any], open_gaps: set[
 # --- /split --confirm ---------------------------------------------------------------------
 
 
-def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None:
-    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed."""
+def open_split_gap(project_id: str, row: dict[str, str], language: str) -> None:
+    """Open a gap of the series in gaps.md once; reopen it if it was closed. A workspace without gaps.md is left alone."""
     from .core.io import write_text
     from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from .workspace import update_state, workspace_path
@@ -389,24 +389,29 @@ def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None
     path = workspace_path(project_id) / "01_discovery" / "gaps.md"
     if not path.exists():
         return
-    rows = [row for row in parse_gap_rows(path.read_text(encoding="utf-8")) if row.get("id") != "NONE"]
-    current = next((row for row in rows if row.get("id", "").strip("`") == CLIENT_GAP_ID), None)
+    rows = [r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if r.get("id") != "NONE"]
+    current = next((r for r in rows if r.get("id", "").strip("`") == row["id"]), None)
     if current is not None and str(current.get("status", "")).upper() != "CLOSED":
         return
     if current is not None:
         current.update(status="OPEN", resolution_note="")
     else:
-        rows.append({
-            # medium: visible, never blocking; the BA and the technical team already confirmed (IMP-267b)
-            "id": CLIENT_GAP_ID, "lens": "business", "severity": "medium", "status": "OPEN",
-            "description": f"The client has not confirmed the release series (confirmed by the BA {ba} and the technical team {tech}).",
-            "question": "Does the client confirm the release series in 02_requirements/series/partition.json?",
-            "evidence_mention": "02_requirements/series/partition.json", "origin": "split", "resolution_note": "",
-        })
+        rows.append(row)
     req_id = rows[0].get("parent", "REQ-001").strip("`") if rows else "REQ-001"
     write_text(path, render_gaps(project_id, rows, req_id, language))
     counts = count_gaps(rows)
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
+
+
+def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None:
+    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed."""
+    open_split_gap(project_id, {
+        # medium: visible, never blocking; the BA and the technical team already confirmed (IMP-267b)
+        "id": CLIENT_GAP_ID, "lens": "business", "severity": "medium", "status": "OPEN",
+        "description": f"The client has not confirmed the release series (confirmed by the BA {ba} and the technical team {tech}).",
+        "question": "Does the client confirm the release series in 02_requirements/series/partition.json?",
+        "evidence_mention": "02_requirements/series/partition.json", "origin": "split", "resolution_note": "",
+    }, language)
 
 
 def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:

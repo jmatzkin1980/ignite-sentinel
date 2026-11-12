@@ -159,7 +159,7 @@ class SurfaceTests(unittest.TestCase):
     def test_mcp_modes_and_skill(self) -> None:
         from sentinel.mcp import SPLIT_MODES
 
-        self.assertEqual(SPLIT_MODES, ("assess", "propose", "confirm"))
+        self.assertEqual(SPLIT_MODES, ("assess", "propose", "confirm", "move"))  # IMP-268 adds move
         text = SKILL.read_text(encoding="utf-8-sig")
         for anchor in ("/split PROJECT_ID --confirm", "contracts", "restored_in", "UMBRAL_TRANSVERSAL"):
             self.assertIn(anchor, text)

@@ -22,6 +22,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/split PROJECT_ID --assess`
 - `/split PROJECT_ID --propose --source PROPOSAL.json`
 - `/split PROJECT_ID --confirm --ba NAME --tech TEAM`
+- `/split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT [--finding ID] [--criterion Cn] --ba NAME --tech TEAM`
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
@@ -93,6 +94,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/split --assess`: report the recommendation (`split`, `no_split` or `cannot_decide`) with its reasons, every lit signal with its anchor and the undetermined ones. The assessment never splits anything: it is the input to the BA's decision.
 - `/split --propose`: use `sentinel-release-split` to author the proposal JSON before executing. A refused proposal lists every finding with its code; a stored one is still a proposal (nothing is compiled).
 - `--release rN` on `/specs`, `/backlog`, `/quality`, `/story-status`, `/view`, `/validate`, `/trace`, `/status` and `/next`: the command runs for one release of a confirmed series; report the paths under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`.
+- `/split --move`: run it only with the reason and the BA's and the technical team's names, given by them. Report the dated change, `releases_changed` and `stale_derivations`; a round trip is refused and opens `GAP-SPLIT-CRITERION`.
 - `/split --confirm`: run it only with the BA's and the technical team's names, given by them. It refuses unless the partition validation is green; report every finding by code. A confirmation opens `GAP-SPLIT-CLIENT` for the client's confirmation, freezes the contracts and compiles the series (`02_requirements/series/index.md` and `02_requirements/r<N>/project-brief.md`); report the index's sync findings.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/resolve-gaps`: use `sentinel-gap-response`.
