@@ -420,7 +420,27 @@ python -m sentinel /split PROJECT_ID --confirm --ba "Ana" --tech "Core team"
   - A partition that is not green is refused with every finding, and so is a brief that changed since the proposal.
   - A green one writes `02_requirements/series/partition.json` with who confirmed, the waves, the coverage, the signals and the frozen contracts.
   - The client's confirmation opens `GAP-SPLIT-CLIENT`.
-  - Nothing is compiled.
+- **Series compilation (IMP-267a):** the confirmation compiles:
+  - `02_requirements/series/index.md`, with:
+    - the project in one page;
+    - the series table;
+    - the waves;
+    - the frozen contracts;
+    - the id map;
+    - the sketches;
+    - the sync findings.
+  - one self-contained `02_requirements/r<N>/project-brief.md` per release.
+- **Each release brief:**
+  - It is the whole brief, except that every unit another release owns becomes a tombstone ("➡ lives in rN" / "➡ vive en rN") in every section. A unit that moved says REATRIBUIDO.
+  - The build items `C-NN` become local (`C-01`…) and are mapped in the index.
+  - §0.1 declares the release in the series: type, goal, closing check, edges, inherited gaps, and the contracts it builds and uses.
+- **Not split:** the SAD and the prototype; every release reads them whole.
+- **Checks:** integrity (marks and forbidden values) and anchors run on each release brief.
+- **Sync:** recompiling is the synchronization.
+  - Any later command that changes the brief recompiles the series.
+  - A unit the brief gained and no release owns is "not routed" until the series is proposed again.
+  - A v1 brief blocks the series [A43].
+- A workspace without a confirmed partition is never touched.
   - Nothing is compiled.
 - **Next:** the partition rules (graph, waves, n-of-n coverage, single owner, frozen contracts) run in `/split --confirm` (IMP-266).
 

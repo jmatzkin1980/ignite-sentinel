@@ -48,6 +48,8 @@ def _line_kind(line: str) -> str | None:
         return "na"
     if body.startswith("→"):
         return "reference"
+    if body.startswith("➡"):
+        return "tombstone"  # IMP-267a: a release brief points to the release that owns the unit
     if re.match(r"\((inferred|inferido)\)", body):
         return "inferred"
     if V2_PENDING_RE.match(body) or body.startswith("⏳"):

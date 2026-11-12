@@ -139,6 +139,10 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         from .split import refresh_if_stale
 
         refresh_if_stale(project_id)
+        # IMP-267a: recompiling is the synchronization; a confirmed series follows the brief.
+        from .release_series import refresh_series_if_stale
+
+        refresh_series_if_stale(project_id)
     if command in MUTATING_COMMANDS:
         # IMP-147: a mutating command is the only sanctioned writer of governed
         # artifacts, so refresh their checksum registry here. /health compares
