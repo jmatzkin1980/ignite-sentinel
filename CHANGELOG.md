@@ -6,11 +6,20 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-12
+
+H17a: the release series. A brief v2 can be assessed, proposed, validated, confirmed and compiled into a series of self-contained release briefs, and every derivation runs per release. A workspace without a series compiles, validates and derives exactly as 0.6.0 did.
+
 ### Added
+- H17a closing check (IMP-26v): `tests/test_series_e2e.py` runs the series end to end on a synthetic multi-release fixture, labelled as such (`tests/fixtures/synthetic_series/`).
+  - The fixture is three sources (filing, approval, payment), their gap answers and the agent's proposal.
+  - The test runs the v2 flow, then `/split --assess`, `--propose` and `--confirm`. That compiles the index and the release briefs.
+  - Per release, `specs`, `backlog` (with the slice plan) and `quality` run, and `/validate` is VALID for each.
+  - Two full runs give identical release artifacts.
 - Derivations by release (IMP-267b, H17a): `--release rN`, in `sentinel/release_scope.py`.
-  - **Commands:** `specs`, `backlog` (including the slice plan), `story-status`, `view`, `validate`, `trace`, `status` and `next` accept a release of a confirmed series. They also take it from MCP, as `release`.
+  - **Commands:** `specs`, `backlog` (including the slice plan), `quality`, `story-status`, `view`, `validate`, `trace`, `status` and `next` accept a release of a confirmed series. They also take it from MCP, as `release`. `quality` was added at the H17a close.
   - **How it runs:** the pipeline runs unchanged inside a mirror workspace (`workspaces/<P>/.series_work/rN/`) whose brief is `02_requirements/rN/project-brief.md`.
-  - **Outputs:** they land under `03_specs/rN/`, `04_backlog/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`, with the paths inside rewritten.
+  - **Outputs:** they land under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`, with the paths inside rewritten.
   - **Isolation:**
     - each release keeps its own lifecycle: phase, story states, gates and acceptance-criteria freezes when its stories go to construction;
     - the project's `state.json` and its own derived artifacts are not touched;

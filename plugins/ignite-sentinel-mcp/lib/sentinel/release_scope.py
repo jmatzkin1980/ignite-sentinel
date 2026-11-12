@@ -1,6 +1,6 @@
 """IMP-267b (H17a): derivations by release, `--release rN`.
 
-PRD, specs, backlog, slice plan, `/view`, `/validate`, `/trace`, `/story-status`,
+PRD, specs, backlog, slice plan, `/quality`, `/view`, `/validate`, `/trace`, `/story-status`,
 `/status` and `/next` accept a release of a confirmed series. The compilers are not
 forked: the command runs unchanged inside a mirror workspace whose brief is the
 release brief, and its outputs are mirrored back:
@@ -35,8 +35,9 @@ from .release_split import ReleaseSplitError
 from .split_proposal import RELEASE_ID_RE
 
 WORK_DIR = ".series_work"
-MIRRORED = ("03_specs", "04_backlog", "06_traceability", "08_context_packs")
-NOT_COPIED = {*MIRRORED, "07_changes", "memory.lancedb", WORK_DIR, "state.json"}
+MIRRORED = ("03_specs", "04_backlog", "05_quality", "06_traceability", "08_context_packs")
+# 07_changes is input (the source log the brief's `sources` citations resolve to); it is not mirrored back
+NOT_COPIED = {*MIRRORED, "memory.lancedb", WORK_DIR, "state.json"}
 TEXT_SUFFIXES = {".md", ".html", ".json", ".txt", ".mdx", ".csv"}
 # what the release's own pipeline writes into state: kept in the mirror, never taken from the project
 RELEASE_STATE_KEYS = {
@@ -45,7 +46,7 @@ RELEASE_STATE_KEYS = {
     "artifact_hashes", "command_log", "last_command", "last_command_at",
 }
 PATH_OPTIONS = ("--evidence", "--override", "--source", "--theme")
-RELEASE_COMMANDS = ("specs", "backlog", "story-status", "view", "validate", "trace", "status", "next")
+RELEASE_COMMANDS = ("specs", "backlog", "quality", "story-status", "view", "validate", "trace", "status", "next")
 _ACTIVE: dict[str, str] = {}
 
 
