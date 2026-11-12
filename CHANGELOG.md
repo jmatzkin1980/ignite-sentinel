@@ -7,6 +7,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- The series end to end with every release type (IMP-297, H17a′). `tests/test_series_e2e.py` runs a second synthetic fixture, labelled as such (`tests/fixtures/synthetic_series_types/`).
+  - **The fixture:** one source with five scope sentences, which IMP-296 turns into five build items.
+  - **The series:**
+    - a measuring spike with its questions, time-box and DEC contract;
+    - two functional releases;
+    - an interleaved `r2.1` (change found in testing);
+    - a conditional with its open gap;
+    - an integrator with its consumption table.
+  - **Checks:**
+    - every release derives (`specs`, `backlog` with the slice plan, and `quality`) and validates VALID;
+    - each brief keeps its type's series fields;
+    - the guide sorts `r2.1` in natural order;
+    - two full runs are identical.
 - Series guide and closing a release (IMP-269, H17a′), in `sentinel/release_guide.py`.
   - **`/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM`:** closes a release only when every story of it is Done (in the release's own lifecycle) and a local evidence file of its closing check exists, fingerprinted by sha256.
     - The close is recorded in `partition.json` and survives later confirmations and moves while the release exists.
