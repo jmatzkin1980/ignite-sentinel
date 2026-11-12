@@ -7,6 +7,25 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Series compilation (IMP-267a, H17a), in `sentinel/release_series.py`. `/split --confirm` compiles two outputs from the whole brief v2 and the confirmed partition:
+  - `02_requirements/series/index.md`, with:
+    - the project in one page;
+    - the series table;
+    - the waves;
+    - the frozen contracts;
+    - the id map;
+    - the sketches;
+    - the sync findings.
+  - one self-contained `02_requirements/r<N>/project-brief.md` per release.
+  - **Tombstones:** in each release brief, every unit another release owns becomes a tombstone ("➡ lives in rN" / "➡ vive en rN") in every section, and a unit that moved says REATRIBUIDO. Anchors treat tombstones as exempt.
+  - **Ids and §0.1:** build items `C-NN` become local and are mapped in the index. §0.1 declares the release in the series.
+  - **Not split:** the SAD and the prototype. Releases sort in natural order (`r2` < `r2.1` < `r10`).
+  - **Checks:** integrity and anchors run on each release brief.
+  - **Recompiling is the synchronization:**
+    - a later mutating command that changes the brief recompiles the series;
+    - a unit the brief gained is "not routed" until the series is proposed again;
+    - a v1 brief blocks the series [A43].
+  - **Invariant:** a workspace without a confirmed partition is never touched.
 - `/split PROJECT_ID --confirm --ba NAME --tech TEAM` (IMP-266, H17a): deterministic validation of the partition, `sentinel/release_split.py`.
   - **Graph with contracts as nodes:** shared schemas, APIs, file formats, events, roles and spike DECs are `contracts` (`K<N>`). Each hard edge carries its why and the contract it consumes, created by its target. Edges come in symmetric `depends_on`/`enables` pairs.
   - **Cycles and waves:** a cycle over hard edges is a missing contract (a gap, with its path). A hard dependency points to an earlier wave, and the topological waves are reported. A committed release never hard-depends on a conditional one.

@@ -457,6 +457,10 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
     target = series / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
     _open_client_gap(project_id, _s(ba), _s(tech), project_language(project_id))
+    from .release_series import compile_series  # IMP-267a: the confirmed partition compiles the series
+
+    series = compile_series(project_id)
     return {"status": "confirmed", "path": target.as_posix(), "confirmed_by": partition["confirmed_by"],
             "client_confirmation_gap": CLIENT_GAP_ID, "releases": releases, "waves": result["waves"],
-            "coverage": result["coverage"], "signals": result["signals"], "contract_deltas": len(result["deltas"])}
+            "coverage": result["coverage"], "signals": result["signals"], "contract_deltas": len(result["deltas"]),
+            "series": series}

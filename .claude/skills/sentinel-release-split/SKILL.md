@@ -1,6 +1,6 @@
 ---
 name: sentinel-release-split
-description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (sentinel/templates/release_split_model.json), write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, shared contracts as graph nodes, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table) and get the partition green for /split --confirm. Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases', 'confirm the partition'. Not for slicing a backlog into stories (use sentinel-backlog) or for compiling the series briefs (IMP-267, after the confirmation)."
+description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (sentinel/templates/release_split_model.json), write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, shared contracts as graph nodes, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table), get the partition green for /split --confirm and read the compiled series. Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases', 'confirm the partition'. Not for slicing a backlog into stories (use sentinel-backlog) or for editing a release brief by hand (the series recompiles from the whole brief)."
 ---
 
 # Sentinel Release Split
@@ -41,6 +41,7 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
    Re-cut before writing if one of these fails.
 8. **Submit:** `/split PROJECT_ID --propose --source proposal.json`. A refused proposal lists every finding with its code. Fix them all and submit again. A stored proposal comes back with `partition_preview`: the codes `--confirm` would still refuse.
 9. **Confirm with the people who own it:** once the BA and the technical team agree, run `/split PROJECT_ID --confirm --ba NAME --tech TEAM`. It refuses with every finding unless the partition is green, and refuses when the brief changed since the proposal. A confirmation freezes each contract by hash; changing one later needs an audited `contract_deltas` row `{contract, why, finding}`. Never run it on your own: the names are theirs.
+10. **Read the compiled series:** the confirmation writes `02_requirements/series/index.md` and one `02_requirements/r<N>/project-brief.md` per release. Report the index's sync findings. A release brief is never edited by hand: change the whole brief or the partition, and the series recompiles. A unit flagged "not routed" means the brief grew: propose the series again.
 
 ## Proposal format
 
