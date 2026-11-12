@@ -259,7 +259,7 @@ def main(argv: list[str] | None = None) -> int:
     reindex_p.add_argument("project_id")
     reindex_p.add_argument("--full", action="store_true")
 
-    for name in ("specs", "backlog", "story-status", "view", "validate", "trace", "status", "next"):
+    for name in ("specs", "backlog", "quality", "story-status", "view", "validate", "trace", "status", "next"):
         # IMP-267b: derive for one release of a confirmed series (outputs under <folder>/<rN>/)
         sub.choices[name].add_argument("--release", help="a release of the confirmed series (r<N> or r<N>.<M>)")
 

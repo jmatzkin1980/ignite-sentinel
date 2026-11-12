@@ -449,6 +449,7 @@ Run a derivation for one release of a confirmed series (IMP-267b).
 ```powershell
 python -m sentinel /specs PROJECT_ID --release r1
 python -m sentinel /backlog PROJECT_ID --release r1
+python -m sentinel /quality PROJECT_ID --release r1
 python -m sentinel /story-status PROJECT_ID --release r1 --story US-001 --set Ready
 python -m sentinel /view PROJECT_ID --release r1 --artifact prd
 python -m sentinel /validate PROJECT_ID --release r1
@@ -462,6 +463,7 @@ python -m sentinel /status PROJECT_ID --release r1
 - **Outputs:**
   - `03_specs/rN/` (PRD and specs);
   - `04_backlog/rN/` (backlog and slice plan);
+  - `05_quality/rN/` (test cases and the backlog readiness audit);
   - `06_traceability/rN/`;
   - `08_context_packs/rN/` (views included).
 - **State:**

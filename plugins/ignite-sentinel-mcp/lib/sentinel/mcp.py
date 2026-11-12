@@ -51,7 +51,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
     ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/.", ["project_id"]),
     ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health). release=rN derives that release's backlog and slice plan into 04_backlog/rN/.", ["project_id"]),
-    ("quality", "Generate test cases and the backlog readiness audit.", ["project_id"]),
+    ("quality", "Generate test cases and the backlog readiness audit. release=rN audits that release into 05_quality/rN/.", ["project_id"]),
     ("trace", "Generate the traceability matrix and graph. release=rN traces that release into 06_traceability/rN/.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
     ("validate", "Validate structure plus non-blocking semantic quality scores; with a confirmed series it also reports the series' sync and per-release integrity. release=rN validates that release's brief and derivations.", ["project_id"]),
@@ -445,8 +445,8 @@ def build_server():
         return run_cli(arguments + release_arguments(release))
 
     @server.tool(name="sentinel_quality", description=TOOL_DESCRIPTIONS["quality"])
-    def sentinel_quality(project_id: str) -> dict:
-        return run_cli(["quality", project_id])
+    def sentinel_quality(project_id: str, release: str = "") -> dict:
+        return run_cli(["quality", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_trace", description=TOOL_DESCRIPTIONS["trace"])
     def sentinel_trace(project_id: str, release: str = "") -> dict:
