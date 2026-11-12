@@ -6,7 +6,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-12
+
+H17a′: the living series. A confirmed series can be re-scoped with a dated, confirmed move, releases close with evidence and free their dependents, and a guide shows the series as a whole. It also fixes two defects: releases derived from the whole brief, and a brief's scope reduced to one sentence per source. A workspace without a series compiles, validates and derives exactly as 0.7.0 did; the H17a′ closing control found 30/30 identical Markdown on `support-dashboard`.
+
 ### Added
+- H17a′ closing check (IMP-26w). No code change. The control without a series, on `support-dashboard`:
+  - v1 has 12/12 phases green and 30/30 Markdown identical to `v0.7.0`;
+  - the default v2 flow gives two identical runs;
+  - `--assess` gives `no_split`.
 - The series end to end with every release type (IMP-297, H17a′). `tests/test_series_e2e.py` runs a second synthetic fixture, labelled as such (`tests/fixtures/synthetic_series_types/`).
   - **The fixture:** one source with five scope sentences, which IMP-296 turns into five build items.
   - **The series:**

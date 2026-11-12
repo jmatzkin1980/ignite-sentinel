@@ -1,7 +1,7 @@
 {
   "name": "ignite-sentinel",
   "displayName": "Ignite Sentinel",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Repo-local BA/Product requirements operating framework for AI PODs.",
   "author": {
     "name": "jmatzkin1980"
