@@ -356,6 +356,35 @@ python -m sentinel /split PROJECT_ID --assess
 - **Re-assessment:** a later command that changes the brief (a spike or measurer closes, a gap is answered) runs an existing assessment again.
 - **v1:** a v1 brief is rejected, because a series does not mix v1 and v2. Recompile with `/brief PROJECT_ID --brief-version 2`.
 
+### `split --propose`
+
+Validate and store a release-series proposal written with the `sentinel-release-split` skill (IMP-265).
+
+```powershell
+python -m sentinel /split PROJECT_ID --propose --source proposal.json
+```
+
+- **Contract:** `sentinel/schemas/release_split_proposal.schema.json`. It covers:
+  - core and variations;
+  - criteria written before cutting;
+  - the base with its negative list;
+  - releases, sketches and inheritance;
+  - the integrator's consumption table.
+- **Checks:**
+  - every anchor is verbatim in its place;
+  - criteria come from C1–C14, C1 leads and C14 is never alone;
+  - each release uses written criteria and a pattern that cuts;
+  - no release is empty unless it is an enabler, measuring or already built;
+  - no layer cut, judged by name or by units in §4 or §5 only;
+  - release contracts: a conditional names an open gap, a spike has 1–3 questions and a time-box, an interleaved release is `r<N>.<M>` with a subtype, an integrator has its consumption table;
+  - edges point to releases that exist;
+  - each open gap is inherited by the first release that needs it.
+- **Result:**
+  - A refused proposal lists every finding with its code and stores nothing.
+  - A valid one goes to `02_requirements/series/proposal.json` as a proposal, with the brief's sha256 and the assessment, which runs first if missing.
+  - Nothing is compiled.
+- **Next:** the partition rules (graph, waves, n-of-n coverage, single owner, frozen contracts) run in `/split --confirm` (IMP-266).
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

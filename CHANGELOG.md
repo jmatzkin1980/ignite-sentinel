@@ -7,6 +7,20 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/split PROJECT_ID --propose --source proposal.json` and the `sentinel-release-split` skill (IMP-265, H17a). The agent walks the release split model and writes the series proposal:
+  - core and variations;
+  - criteria written before cutting;
+  - the base with its negative list;
+  - releases with type, wave, pattern, goal and the brief units they contain;
+  - conditionals with their gap, spikes, interleaved releases and sketches;
+  - inheritance of each open gap to the first release that needs it;
+  - the integrator's consumption table.
+
+  The runtime validates structure, anchors (verbatim in their place) and release contracts.
+  - A refused proposal lists every finding with its code and stores nothing.
+  - A valid one is stored in `02_requirements/series/proposal.json` as a proposal, next to the assessment. Nothing is compiled.
+  - The contract is `schemas/release_split_proposal.schema.json`, guarded against the validator.
+  - **Evals:** 10 seeded proposals, tuning and held-out, with a no-regression floor in `metric_baseline.json`. The seeded defects are a criterion without source, an empty release, a layer cut by name and by lens, a misplaced inheritance, spike and conditional contracts, and an integrator without consumption, plus clean proposals that must pass. They run in `verify.ps1` and CI.
 - `/split PROJECT_ID --assess` (IMP-263, H17a): should this brief v2 be split into a release series?
   - **Signals:** each of the model's 7 split and 5 no-split signals gets a deterministic detector and comes out `lit` (with its anchor in the brief), `off`, `undetermined` (its places are pending) or `on_proposal` (checked on a proposed release).
   - **No numeric threshold:** keyword cues read only cited fact lines.
