@@ -19,6 +19,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/challenge PROJECT_ID --source ANALYSIS.json`
 - `/scrutinize PROJECT_ID --source ANALYSIS.json [--lens LENS] [--mode implementability-probe|anchors]`
 - `/harvest PROJECT_ID --source HARVEST.md`
+- `/split PROJECT_ID --assess`
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
@@ -87,6 +88,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/challenge`: use `sentinel-challenge` to author the findings JSON before executing.
 - `/scrutinize` (every mode): use `sentinel-scrutiny` to author the findings JSON before executing.
 - `/harvest`: use `sentinel-brownfield-harvest` to read the local code and write the tagged harvest before executing.
+- `/split --assess`: report the recommendation (`split`, `no_split` or `cannot_decide`) with its reasons, every lit signal with its anchor and the undetermined ones. The assessment never splits anything: it is the input to the BA's decision.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.

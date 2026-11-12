@@ -332,6 +332,30 @@ python -m sentinel /harvest PROJECT_ID --source harvest.md
 - **Routing:** "out of code" opens a non-blocking domain gap, and a README/code divergence opens a high gap.
 - **Brief v2:** facts feed §5 by block (B1 → 5.1, B2 → 5.4, B3 → 5.6, B4 → 5.11, B5 → 5.16) and §0.2 shows the repositories and the coverage per tag.
 
+## `split`
+
+Assess whether a brief v2 should be split into a series of releases (H17a, IMP-263). `--assess` is the first mode; proposing and confirming a series come next.
+
+```powershell
+python -m sentinel /split PROJECT_ID --assess
+```
+
+- **Signals:** the 7 split signals and 5 no-split signals of `sentinel/templates/release_split_model.json`, each with a deterministic detector over the compiled brief v2. Each signal is:
+  - `lit`, with the brief lines that anchor it;
+  - `off`;
+  - `undetermined`: the places it reads are still pending;
+  - `on_proposal`: it judges a proposed release, so it is checked on the proposal.
+- **No numeric threshold:** keyword cues read only cited fact lines, never template text. The only size parameter lights one signal: more than 12 build items in 9.1 no longer fit one session.
+- **Recommendation:**
+  - `split`: a split signal is lit and no no-split signal is;
+  - `cannot_decide`: both kinds are lit, or nothing is lit while the build list is still pending;
+  - `no_split`: nothing is lit and the brief fits one session.
+
+  Each recommendation comes with its reasons and the step 0 questions.
+- **Output:** `01_discovery/split_assessment.md` and `.json` with the brief's sha256. The brief is never touched.
+- **Re-assessment:** a later command that changes the brief (a spike or measurer closes, a gap is answered) runs an existing assessment again.
+- **v1:** a v1 brief is rejected, because a series does not mix v1 and v2. Recompile with `/brief PROJECT_ID --brief-version 2`.
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

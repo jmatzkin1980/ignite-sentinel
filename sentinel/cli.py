@@ -31,6 +31,7 @@ COMMANDS = {
     "challenge",
     "scrutinize",
     "harvest",
+    "split",
     "self-review",
     "assume",
     "compose",
@@ -141,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
     harvest_p = sub.add_parser("harvest")  # IMP-262
     harvest_p.add_argument("project_id")
     harvest_p.add_argument("--source", required=True)
+
+    split_p = sub.add_parser("split")  # IMP-263 (H17a): release series; --propose/--confirm follow
+    split_p.add_argument("project_id")
+    split_mode = split_p.add_mutually_exclusive_group(required=True)
+    split_mode.add_argument("--assess", action="store_true",
+                            help="deterministic split signals over the brief v2: split, no split or cannot decide")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -380,6 +387,11 @@ def main(argv: list[str] | None = None) -> int:
             from .harvest import apply_harvest
 
             print_json(apply_harvest(args.project_id, Path(args.source)))
+        elif args.command == "split":
+            from .split import run_assess
+
+            result = run_assess(args.project_id)
+            print_json(result)
         elif args.command == "self-review" and args.crosses:
             from .cross_review import apply_cross_review
 

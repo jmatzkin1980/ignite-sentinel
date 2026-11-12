@@ -20,6 +20,7 @@ When the user describes a situation instead of typing a command, the agent shoul
 | "The client answered the gaps document" | `/resolve-gaps` → `/maturity` → `/status` | Report closed / answered / partially-closed with notes; for functional prose answers, mention any `EARS-eligible, not normalized` count and propose a BA-confirmed EARS rewrite. |
 | "Is this requirement ready to move forward?" | `/maturity` → `/status` | Quote `maturity_score` and `trend_vs_previous_run`. |
 | "Generate the brief / crystallize discovery" | `/brief` → `/status` | Only meaningful after blocking gaps are resolved. |
+| "Is this project too big for one release? / should we split it?" | `/split --assess` | Brief v2 only. Report the recommendation (`split`, `no_split` or `cannot_decide`) with its reasons, each lit signal with its anchor and the undetermined ones; nothing is split. |
 | "Technology/Design/Quality updated their context" | `/sync` -> `/reindex` -> `/health` | If backlog exists, expect a freshness warning naming the domain; rerun `/backlog` only for material story/AC/dependency/execution changes. |
 | "I received meeting notes / an email with changes" | `/sync --source PATH --note "..."` → `/health` | Check `07_changes/04_regeneration/` after regenerating. |
 | "Metabolize these raw mails / call transcripts / Slack threads" | `/sync --digest --source PATH` → `/health` | Distills UNSTRUCTURED interactions into impact routed by owning channel; use instead of a structured `/sync --source` when the input is raw conversation rather than a curated change file. |
