@@ -43,6 +43,7 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
 9. **Confirm with the people who own it:** once the BA and the technical team agree, run `/split PROJECT_ID --confirm --ba NAME --tech TEAM`. It refuses with every finding unless the partition is green, and refuses when the brief changed since the proposal. A confirmation freezes each contract by hash; changing one later needs an audited `contract_deltas` row `{contract, why, finding}`. Never run it on your own: the names are theirs.
 10. **Read the compiled series:** the confirmation writes `02_requirements/series/index.md` and one `02_requirements/r<N>/project-brief.md` per release. Report the index's sync findings. A release brief is never edited by hand: change the whole brief or the partition, and the series recompiles. A unit flagged "not routed" means the brief grew: propose the series again.
 11. **Derive by release:** `/specs PROJECT_ID --release rN`, then `/backlog PROJECT_ID --release rN`; read the results under `03_specs/rN/` and `04_backlog/rN/`, and the verdict with `/status PROJECT_ID --release rN`.
+12. **Move a unit when the cut changes:** `/split PROJECT_ID --move --unit "C-NN|P-N|<quote>" --from rA --to rB --reason "..." [--finding F-NN] --ba NAME --tech TEAM`; `--to sketch:<name>` sends it out of the horizon. The partition must stay green and the BA and the technical team confirm it again. Report `releases_changed` and `stale_derivations` (re-run their `--release` derivations). A round trip (A→B→A) is refused and opens `GAP-SPLIT-CRITERION`: write the cut criterion that decides it and name it with `--criterion Cn`. Moving to a sketch closes no gap: excluded is not resolved.
 
 ## Proposal format
 
@@ -87,7 +88,7 @@ The contract is `sentinel/schemas/release_split_proposal.schema.json`. The relea
 - An artifact extended by two or more siblings carries a `cross_note` and a `merge_order` of exactly those siblings. A shared service exposes only operations with a consumer.
 - The gap that decides a conditional must not repeat in two or more siblings (`tentacle_partition_defect`): cut again. A gap that holds back the start of `UMBRAL_TRANSVERSAL` (75 %) or more of the releases is reported as transversal readiness: resolve it before the series starts; it is not a cut defect.
 - The integrator depends, directly or transitively, on every non-conditional release, and its consumption table uses something from each release it depends on.
-- The partition stays a **proposal** until `--confirm`. The runtime records the assessment next to it. Re-scopes after confirmation are `/split --move` (H17a′), never an edit.
+- The partition stays a **proposal** until `--confirm`. The runtime records the assessment next to it. Re-scopes after confirmation are `/split --move`, never an edit; every move is dated in `02_requirements/series/scope_changes.md`.
 
 ## Anti-patterns
 

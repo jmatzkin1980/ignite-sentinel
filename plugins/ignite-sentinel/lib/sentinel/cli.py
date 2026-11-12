@@ -152,9 +152,17 @@ def main(argv: list[str] | None = None) -> int:
                             help="IMP-265: validate an agent-written series proposal (--source PROPOSAL.json) and store it")
     split_mode.add_argument("--confirm", action="store_true",
                             help="IMP-266: validate the partition of the stored proposal and confirm it (--ba, --tech)")
+    split_mode.add_argument("--move", action="store_true",
+                            help="IMP-268: move a unit between releases (--unit, --from, --to, --reason, --ba, --tech)")
     split_p.add_argument("--source", help="the proposal JSON for --propose")
-    split_p.add_argument("--ba", help="the BA who confirms the partition (--confirm)")
-    split_p.add_argument("--tech", help="the technical team that confirms the partition (--confirm)")
+    split_p.add_argument("--ba", help="the BA who confirms the partition (--confirm, --move)")
+    split_p.add_argument("--tech", help="the technical team that confirms the partition (--confirm, --move)")
+    split_p.add_argument("--unit", help="--move: the unit, a C-NN, a P-N or a quote of the brief")
+    split_p.add_argument("--from", dest="from_holder", help="--move: the release (rN) or sketch (sketch:<name>) it leaves")
+    split_p.add_argument("--to", dest="to_holder", help="--move: the release (rN) or sketch (sketch:<name>) it goes to")
+    split_p.add_argument("--reason", help="--move: why the unit moves")
+    split_p.add_argument("--finding", default="", help="--move: the finding that motivated it (F-NN, GAP-..., DEC-...)")
+    split_p.add_argument("--criterion", default="", help="--move: the written cut criterion that decides a round trip")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -419,6 +427,13 @@ def main(argv: list[str] | None = None) -> int:
             from .release_split import confirm_partition
 
             print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+        elif args.command == "split" and args.move:
+            if not (args.unit and args.from_holder and args.to_holder):
+                raise ValueError("/split --move needs --unit, --from and --to (and --reason, --ba, --tech)")
+            from .release_move import move_unit
+
+            print_json(move_unit(args.project_id, args.unit, args.from_holder, args.to_holder, args.reason or "",
+                                 args.ba or "", args.tech or "", finding=args.finding, criterion=args.criterion))
         elif args.command == "split":
             from .split import run_assess
 

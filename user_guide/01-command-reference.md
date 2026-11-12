@@ -442,6 +442,24 @@ python -m sentinel /split PROJECT_ID --confirm --ba "Ana" --tech "Core team"
   - A v1 brief blocks the series [A43].
 - A workspace without a confirmed partition is never touched.
 
+### `split --move`
+
+Move one unit of a confirmed series between releases, or out of the horizon (IMP-268).
+
+```powershell
+python -m sentinel /split PROJECT_ID --move --unit C-04 --from sketch:status-tracking --to r1 --reason "the client asked for tracking in the first release" --finding F-03 --ba "Ana" --tech "Core team"
+```
+
+- **The unit:** a `C-NN`, a `P-N` or a quote of one of the units of `--from`. `--to sketch:<name>` sends it to a sketch outside the horizon.
+- **A governed change of the partition:**
+  - the whole partition validation must stay green;
+  - the BA and the technical team confirm it again, as in `--confirm`;
+  - the client's confirmation gap reopens if it was closed.
+- **Cascade:** the series recompiles: both briefs, the tombstones in the neighbours (REATRIBUIDO) and the index. The derivations of the touched releases are not regenerated; the output lists them in `stale_derivations`, and their `/status --release` shows the drift.
+- **Record:** every move is dated, with its reason, the finding and who confirmed it, in `02_requirements/series/scope_changes.md` and its JSON.
+- **Excluded is not resolved:** moving a unit to a sketch closes none of its gaps.
+- **Round trip (A→B→A):** a cut criterion is not written [A42], so the move is refused and `GAP-SPLIT-CRITERION` opens. It goes through when `--criterion Cn` names a criterion written in the proposal (and used by the destination release).
+
 ### Derivations by release (`--release rN`)
 
 Run a derivation for one release of a confirmed series (IMP-267b).

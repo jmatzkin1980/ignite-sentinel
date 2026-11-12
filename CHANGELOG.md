@@ -6,6 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- `/split PROJECT_ID --move` (IMP-268, H17a′): re-scope and cascade, in `sentinel/release_move.py`.
+  - **What moves:** one unit (`C-NN`, `P-N` or a quote of the brief) between releases of a confirmed series, or to a sketch (`--to sketch:<name>`).
+  - **Confirmation:** the partition must stay green, and the BA and the technical team confirm it again (`--ba`, `--tech`). The client's confirmation gap reopens if it was closed.
+  - **Cascade:** the series recompiles, with both briefs, REATRIBUIDO tombstones in the neighbours and the index. The touched releases with derivations are listed as `stale_derivations`, and their mirror's drift shows them.
+  - **Record:** every move is dated, with its reason, the finding that motivated it and who confirmed it, in `02_requirements/series/scope_changes.md` and its JSON.
+  - **Excluded is not resolved:** moving to a sketch closes no gap.
+  - **Round trip (A→B→A):** it means "cut criterion not written" [A42]. The move is refused and `GAP-SPLIT-CRITERION` opens, until `--criterion Cn` names the written criterion that decides it.
+  - **Surfaces:** CLI, MCP (`sentinel_split` with `mode=move`), the manifest, the router, the `sentinel-release-split` skill and `user_guide` 01.
+
 ### Fixed
 - The brief v2 keeps all the scope of each source (IMP-296, H17a′). §6.1 and §6.2 took only the first "in scope" and the first "out of scope" sentence of each source, so the rest of a source's scope was silently lost, together with its build items in §9.1.
   - Now every scope sentence lands in its place, with no duplicates across sources, and §9.1 gets one `C-NN` per §6.1 item, as before.
