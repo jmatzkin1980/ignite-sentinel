@@ -923,7 +923,13 @@ def _set_profile_gap(project_id: str, gap: dict[str, Any] | None, language: str)
 def compile_v2_if_opted_in(project_id: str, language: str) -> dict[str, Any] | None:
     """Compile the v2 brief when the project opted in and the settings are confirmed."""
     from ..brief_schema import brief_settings, settings_status
+    from ..release_scope import active_release
 
+    if active_release():
+        # Inside a release scope the brief is the release brief, compiled by the series from the
+        # whole brief (IMP-267a); recompiling it from the mirror's sources would replace it with the
+        # whole project's brief. Never compile here.
+        return None
     settings = brief_settings(project_id)
     if int(settings.get("brief_version", 1) or 1) != 2:
         return None

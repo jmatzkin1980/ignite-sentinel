@@ -1,6 +1,6 @@
 ---
 description: Release series of a brief v2: assess whether to split, validate and store an agent-written series proposal, validate the partition, confirm it and compile the series, and move units later.
-argument-hint: PROJECT_ID --assess | --propose --source PROPOSAL.json | --confirm --ba NAME --tech TEAM | --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM
+argument-hint: PROJECT_ID --assess | --propose --source PROPOSAL.json | --confirm --ba NAME --tech TEAM | --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM | --close rN --evidence PATH --ba NAME --tech TEAM
 ---
 
 # Ignite Split
@@ -14,6 +14,7 @@ Parse `PROJECT_ID` and the mode from:
 /split PROJECT_ID --propose --source PROPOSAL.json
 /split PROJECT_ID --confirm --ba NAME --tech TEAM
 /split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT [--finding ID] [--criterion Cn] --ba NAME --tech TEAM
+/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM
 ```
 
 `--assess` (IMP-263) reads the compiled brief v2 and the release split model (`sentinel/templates/release_split_model.json`). Each of the 7 split signals and 5 no-split signals is `lit` (with the brief lines that anchor it), `off`, `undetermined` (the places it reads are still pending) or `on_proposal` (it judges a proposed release and is checked on the proposal). There is no numeric threshold. The recommendation is `split`, `no_split` or `cannot_decide`, each with its reasons, plus the step 0 questions.
@@ -26,6 +27,8 @@ The confirmation compiles the series (IMP-267a): `02_requirements/series/index.m
 
 `--move` (IMP-268) moves one unit (`C-NN`, `P-N` or a quote of the brief) of a confirmed series from one release to another, or to a sketch (`--to sketch:<name>`). The partition validation must stay green and the BA and the technical team confirm it again; the series recompiles (REATRIBUIDO tombstones) and the touched releases with derivations come back as `stale_derivations`. Every move is dated with its reason and finding in `02_requirements/series/scope_changes.md`. Moving to a sketch closes no gap. A round trip (A→B→A) is refused and opens `GAP-SPLIT-CRITERION` until `--criterion Cn` names the written criterion that decides it.
 
+`--close rN` (IMP-269) closes a release when every story of it is Done and `--evidence` is a local file with the result of its closing check. A release that depends hard on one not closed is NOT READY by inheritance in `/status --release`. The series guide `02_requirements/series/release-guide.md` (`/view --artifact release-guide`) shows waves, edges, status, contracts and the coverage matrix.
+
 Run from the repository root:
 
 ```powershell
@@ -33,6 +36,7 @@ python -m sentinel /split PROJECT_ID --assess
 python -m sentinel /split PROJECT_ID --propose --source PROPOSAL.json
 python -m sentinel /split PROJECT_ID --confirm --ba NAME --tech TEAM
 python -m sentinel /split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM
+python -m sentinel /split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM
 ```
 
 The runtime writes `01_discovery/split_assessment.md` and `.json` (with the brief sha256) and never touches the brief. A later command that changes the brief re-runs an existing assessment. A v1 brief is rejected: a series does not mix v1 and v2. Report the recommendation with its reasons, the lit signals with their anchors and the undetermined ones.

@@ -149,7 +149,7 @@ def assign_owners(brief_text: str, payload: dict[str, Any]) -> dict[str, Any]:
     }
     unrouted = [{"family": fam, "line": i, "unit": _plain(lines[i])[:80]} for fam, rows in families.items()
                 for i in rows if i not in owners]
-    return {"owners": owners, "unresolved": unresolved, "unrouted": unrouted}
+    return {"owners": owners, "unresolved": unresolved, "unrouted": unrouted, "families": families}
 
 
 def _local_items(lines: list[str], owners: dict[int, list[str]], rid: str) -> dict[str, str]:
@@ -388,6 +388,9 @@ def compile_series(project_id: str) -> dict[str, Any]:
                                              ensure_ascii=False, indent=2) + "\n")
     report = {"status": "compiled", "brief_sha256": sha, "releases": releases, "reattributions": reattributions, **sync}
     write_text(series / REPORT_FILE, json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    from .release_guide import write_release_guide  # IMP-269: the guide recompiles with the series
+
+    write_release_guide(project_id)
     return {"status": "compiled", "index": (series / INDEX_FILE).as_posix(), "releases": paths,
             "findings": len(sync["unresolved"]) + len(sync["unrouted"]) + sum(len(v) for v in integrity.values()),
             "reattributions": len(reattributions)}

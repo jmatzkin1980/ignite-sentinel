@@ -153,6 +153,9 @@ def collect_readiness_model(project_id: str) -> dict[str, Any]:
             "stories": stories,
         })
 
+    from .release_guide import release_items  # IMP-269: IMP-247 gains the release axis (none without a series)
+
+    items.extend(release_items(project_id))
     ordered_recipients = sorted(recipients.values(), key=lambda r: (not r["assigned"], r["key"]))
     sources = _sources(project_id, base, [
         "state.json",

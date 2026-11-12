@@ -7,6 +7,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- Series guide and closing a release (IMP-269, H17a′), in `sentinel/release_guide.py`.
+  - **`/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM`:** closes a release only when every story of it is Done (in the release's own lifecycle) and a local evidence file of its closing check exists, fingerprinted by sha256.
+    - The close is recorded in `partition.json` and survives later confirmations and moves while the release exists.
+    - The output names the releases it unblocks.
+  - **NOT READY by inheritance** [A38]: within `--release rN`, a hard dependency on a release that is not closed is a verdict blocker, with a new `series_dependencies` gate.
+  - **The guide:** `02_requirements/series/release-guide.md`, also as `/view --artifact release-guide`. It recompiles with the series and shows:
+    - the waves;
+    - each release with its type, goal, edges and status (closed, waiting on a dependency, or open with its own stage);
+    - the frozen contracts;
+    - the coverage matrix, with each §6.1 line, `C-NN` and `P-N` and its owner;
+    - what has no source (`[NO SOURCE]`), counted against what is declared absent (sketches and §6.2).
+  - **Release axis in the readiness view** (IMP-247): one item per release, with its inherited, closed or own verdict.
+  - **Surfaces:** CLI, MCP (`sentinel_split` with `mode=close`, `release` and `evidence`; `/view` lists `release-guide`), the manifest, the router, the skill and `user_guide` 01.
 - `/split PROJECT_ID --move` (IMP-268, H17a′): re-scope and cascade, in `sentinel/release_move.py`.
   - **What moves:** one unit (`C-NN`, `P-N` or a quote of the brief) between releases of a confirmed series, or to a sketch (`--to sketch:<name>`).
   - **Confirmation:** the partition must stay green, and the BA and the technical team confirm it again (`--ba`, `--tech`). The client's confirmation gap reopens if it was closed.
@@ -17,6 +30,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Surfaces:** CLI, MCP (`sentinel_split` with `mode=move`), the manifest, the router, the `sentinel-release-split` skill and `user_guide` 01.
 
 ### Fixed
+- Derivations by release used the whole project's brief (IMP-267b, shipped in 0.7.0; fixed in IMP-269).
+  - **The defect:** inside a release's mirror, `/specs` runs the maturity evaluation, which recompiled the brief v2 from the mirror's sources. That replaced the release brief with the whole brief, so a release's PRD and specs were derived from the whole project, and its fresh derivations reported drift.
+  - **The fix:** inside a release scope the brief is never compiled; the release brief comes only from the series.
+  - **A test** checks that the mirror's brief is the release brief after deriving, and that fresh derivations show no drift.
+  - Releases derived on 0.7.0 should be derived again with `--release`.
 - The brief v2 keeps all the scope of each source (IMP-296, H17a′). §6.1 and §6.2 took only the first "in scope" and the first "out of scope" sentence of each source, so the rest of a source's scope was silently lost, together with its build items in §9.1.
   - Now every scope sentence lands in its place, with no duplicates across sources, and §9.1 gets one `C-NN` per §6.1 item, as before.
   - **Behaviour change:** a v2 brief whose sources state several scope sentences compiles more §6.1, §6.2 and §9.1 items than in 0.7.0. A source with a single scope sentence compiles exactly as before. The goldens and the `support-dashboard` control are unchanged.

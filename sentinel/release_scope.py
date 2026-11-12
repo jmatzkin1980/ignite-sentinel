@@ -55,6 +55,29 @@ def active_release() -> str | None:
     return _ACTIVE.get("release")
 
 
+def active_main() -> Path | None:
+    """The project workspace behind the current release scope (IMP-269: its partition says what is closed)."""
+    return Path(_ACTIVE["main"]) if _ACTIVE.get("main") else None
+
+
+def release_verdict(project_id: str, rid: str) -> dict[str, Any] | None:
+    """A release's own readiness verdict, read from its mirror as it is (nothing refreshed). None if not derived."""
+    from .core.paths import repo_root
+    from .readiness_verdict import build_readiness_verdict
+
+    root = repo_root().resolve()
+    mirror_root = root / "workspaces" / project_id / WORK_DIR / rid
+    if not (mirror_root / "workspaces" / project_id / "state.json").is_file():
+        return None
+    _ACTIVE.update(release=rid, main=str(root / "workspaces" / project_id))
+    try:
+        with _in_dir(mirror_root):
+            return build_readiness_verdict(project_id)
+    finally:
+        _ACTIVE.pop("release", None)
+        _ACTIVE.pop("main", None)
+
+
 def _series_releases(base: Path) -> list[str]:
     from .core.io import read_json
 
@@ -256,12 +279,13 @@ def run_release_command(argv: list[str], project_id: str, rid: str) -> int:
     root = repo_root().resolve()
     mirror_root = prepare_mirror(project_id, rid, root)
     out, err = io.StringIO(), io.StringIO()
-    _ACTIVE["release"] = rid
+    _ACTIVE.update(release=rid, main=str(root / "workspaces" / project_id))
     try:
         with _in_dir(mirror_root), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main(argv)
     finally:
         _ACTIVE.pop("release", None)
+        _ACTIVE.pop("main", None)
     mirror_outputs(project_id, rid, root)
     sys.stdout.write(remap(out.getvalue(), project_id, rid, root))
     sys.stderr.write(remap(err.getvalue(), project_id, rid, root))

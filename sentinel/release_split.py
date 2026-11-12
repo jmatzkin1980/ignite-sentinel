@@ -460,6 +460,10 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
         "contracts_frozen": result["contracts"],
         "contract_deltas": list(previous.get("contract_deltas") or []) + result["deltas"],
     }
+    # IMP-269: a closed release stays closed across confirmations and moves while it exists
+    closed = {rid: info for rid, info in (previous.get("closed") or {}).items() if rid in releases}
+    if closed:
+        partition["closed"] = closed
     target = series / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
     _open_client_gap(project_id, _s(ba), _s(tech), project_language(project_id))

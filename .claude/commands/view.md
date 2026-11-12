@@ -1,6 +1,6 @@
 ---
 description: Generate a local read-only HTML view for one Sentinel artifact.
-argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|specs [OPTIONS] [--release rN]
+argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|release-guide|specs [OPTIONS] [--release rN]
 ---
 
 # Ignite View
@@ -14,7 +14,7 @@ Parse `PROJECT_ID`, `--artifact`, and optional `--open` / `--theme` from:
 /view PROJECT_ID --artifact brief --open
 ```
 
-Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness`. `readiness` is not a Markdown artifact: it shows what is missing per item (workspace, stories, SLICE-PLAN waves) and from whom, with the ready-to-build verdict of `/status`.
+Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness, release-guide`. `readiness` is not a Markdown artifact: it shows what is missing per item (workspace, stories, SLICE-PLAN waves) and from whom, with the ready-to-build verdict of `/status`.
 
 `--release rN` (IMP-267b) runs this command for one release of a confirmed series: the release brief `02_requirements/rN/project-brief.md` is the input and the outputs land under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`. The release keeps its own lifecycle; the project's state and artifacts are not touched. Without `--release` nothing changes.
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .protocols import postflight_command, preflight_command
 
-VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness"}
+VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide"}
 
 COMMANDS = {
     "doctor",
@@ -154,6 +154,9 @@ def main(argv: list[str] | None = None) -> int:
                             help="IMP-266: validate the partition of the stored proposal and confirm it (--ba, --tech)")
     split_mode.add_argument("--move", action="store_true",
                             help="IMP-268: move a unit between releases (--unit, --from, --to, --reason, --ba, --tech)")
+    split_mode.add_argument("--close", metavar="RELEASE",
+                            help="IMP-269: close a release (every story Done, --evidence of its closing check, --ba, --tech)")
+    split_p.add_argument("--evidence", help="--close: a local file with the result of the release's closing check")
     split_p.add_argument("--source", help="the proposal JSON for --propose")
     split_p.add_argument("--ba", help="the BA who confirms the partition (--confirm, --move)")
     split_p.add_argument("--tech", help="the technical team that confirms the partition (--confirm, --move)")
@@ -427,6 +430,10 @@ def main(argv: list[str] | None = None) -> int:
             from .release_split import confirm_partition
 
             print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+        elif args.command == "split" and args.close:
+            from .release_guide import close_release
+
+            print_json(close_release(args.project_id, args.close, args.evidence or "", args.ba or "", args.tech or ""))
         elif args.command == "split" and args.move:
             if not (args.unit and args.from_holder and args.to_holder):
                 raise ValueError("/split --move needs --unit, --from and --to (and --reason, --ba, --tech)")
