@@ -6,6 +6,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- The brief v2 keeps all the scope of each source (IMP-296, H17a′). §6.1 and §6.2 took only the first "in scope" and the first "out of scope" sentence of each source, so the rest of a source's scope was silently lost, together with its build items in §9.1.
+  - Now every scope sentence lands in its place, with no duplicates across sources, and §9.1 gets one `C-NN` per §6.1 item, as before.
+  - **Behaviour change:** a v2 brief whose sources state several scope sentences compiles more §6.1, §6.2 and §9.1 items than in 0.7.0. A source with a single scope sentence compiles exactly as before. The goldens and the `support-dashboard` control are unchanged.
+
 ## [0.7.0] — 2026-11-12
 
 H17a: the release series. A brief v2 can be assessed, proposed, validated, confirmed and compiled into a series of self-contained release briefs, and every derivation runs per release. A workspace without a series compiles, validates and derives exactly as 0.6.0 did.
