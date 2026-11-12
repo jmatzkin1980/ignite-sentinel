@@ -55,11 +55,11 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("trace", "Generate the traceability matrix and graph. release=rN traces that release into 06_traceability/rN/.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
     ("validate", "Validate structure plus non-blocking semantic quality scores; with a confirmed series it also reports the series' sync and per-release integrity. release=rN validates that release's brief and derivations.", ["project_id"]),
-    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, or readiness (what is missing per item and from whom). release=rN views that release (08_context_packs/rN/views/).", ["project_id", "artifact"]),
+    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, readiness (what is missing per item and from whom, with one row per release when there is a series) or release-guide (the series guide). release=rN views that release (08_context_packs/rN/views/).", ["project_id", "artifact"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
     ("harvest", "Ingest a tagged brownfield code harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B5) as a governed source; routes out-of-code topics and README/code divergences to gaps.", ["project_id", "source"]),
-    ("split", "Release series of a brief v2 (H17a). mode=assess: deterministic split signals (7 to split, 5 not to) with their anchors and a recommendation (split, no_split or cannot_decide) with its reasons; writes 01_discovery/split_assessment.md and .json. mode=propose with source: validates an agent-written series proposal (structure, anchors to the brief, release contracts) and stores it in 02_requirements/series/proposal.json; nothing is compiled. mode=confirm with ba and tech: validates the partition (contracts as graph nodes, symmetric edges, cycles, waves, n-of-n coverage, single owner, frozen contracts, relaxed rules, anti-patterns, pending with tentacles, integrator premise) and, only when green, writes 02_requirements/series/partition.json with who confirmed; the client's confirmation opens GAP-SPLIT-CLIENT. The confirmation compiles the series: 02_requirements/series/index.md (the project in one page, series table, waves, contracts, id map, sync findings) and one self-contained 02_requirements/r<N>/project-brief.md per release, where other releases' units are tombstones and build items get local ids; a later brief change recompiles it. mode=move with unit, from_holder, to_holder, reason, ba and tech (optional finding, criterion): moves one unit (C-NN, P-N or a brief quote) between releases or to a sketch (sketch:<name>), keeps the partition green, confirms it again, recompiles the series and records the dated change in 02_requirements/series/scope_changes.md; a round trip A->B->A is refused and opens GAP-SPLIT-CRITERION until it names the written criterion that decides it. A v1 brief is rejected.", ["project_id"]),
+    ("split", "Release series of a brief v2 (H17a). mode=assess: deterministic split signals (7 to split, 5 not to) with their anchors and a recommendation (split, no_split or cannot_decide) with its reasons; writes 01_discovery/split_assessment.md and .json. mode=propose with source: validates an agent-written series proposal (structure, anchors to the brief, release contracts) and stores it in 02_requirements/series/proposal.json; nothing is compiled. mode=confirm with ba and tech: validates the partition (contracts as graph nodes, symmetric edges, cycles, waves, n-of-n coverage, single owner, frozen contracts, relaxed rules, anti-patterns, pending with tentacles, integrator premise) and, only when green, writes 02_requirements/series/partition.json with who confirmed; the client's confirmation opens GAP-SPLIT-CLIENT. The confirmation compiles the series: 02_requirements/series/index.md (the project in one page, series table, waves, contracts, id map, sync findings) and one self-contained 02_requirements/r<N>/project-brief.md per release, where other releases' units are tombstones and build items get local ids; a later brief change recompiles it. mode=move with unit, from_holder, to_holder, reason, ba and tech (optional finding, criterion): moves one unit (C-NN, P-N or a brief quote) between releases or to a sketch (sketch:<name>), keeps the partition green, confirms it again, recompiles the series and records the dated change in 02_requirements/series/scope_changes.md; a round trip A->B->A is refused and opens GAP-SPLIT-CRITERION until it names the written criterion that decides it. mode=close with release, evidence, ba and tech: closes a release when every story of it is Done and a local evidence file of its closing check exists; a release that depends hard on one not closed is NOT READY by inheritance, and the series guide (02_requirements/series/release-guide.md, view artifact release-guide) shows waves, edges, status, contracts and the coverage matrix. A v1 brief is rejected.", ["project_id"]),
     ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger.", ["project_id", "source"]),
     ("assume", "Register governed BA-owned assumptions with risk, local cited basis, optional provisional gap link, optional risk_category (Cagan's four product risks), and ledger refresh.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
@@ -78,7 +78,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
 # positional index of TOOL_SPECS (IMP-176 F4: inserting a tool used to silently
 # shift every later `TOOL_SPECS[N][1]` reference).
 TOOL_DESCRIPTIONS: dict[str, str] = {name: description for name, description, _ in TOOL_SPECS}
-SPLIT_MODES = ("assess", "propose", "confirm", "move")  # IMP-263, IMP-265, IMP-266, IMP-268
+SPLIT_MODES = ("assess", "propose", "confirm", "move", "close")  # IMP-263, IMP-265, IMP-266, IMP-268, IMP-269
 
 
 def run_cli(arguments: list[str]) -> dict[str, object]:
@@ -479,12 +479,16 @@ def build_server():
     @server.tool(name="sentinel_split", description=TOOL_DESCRIPTIONS["split"])
     def sentinel_split(project_id: str, mode: str = "assess", source: str = "", ba: str = "", tech: str = "",
                        unit: str = "", from_holder: str = "", to_holder: str = "", reason: str = "",
-                       finding: str = "", criterion: str = "") -> dict:
+                       finding: str = "", criterion: str = "", release: str = "", evidence: str = "") -> dict:
         if mode not in SPLIT_MODES:
             raise ValueError(f"mode must be one of {', '.join(SPLIT_MODES)}")
+        if mode == "close" and not release:
+            raise ValueError("mode=close needs release (the release to close)")
         options = (("--source", source), ("--ba", ba), ("--tech", tech), ("--unit", unit), ("--from", from_holder),
-                   ("--to", to_holder), ("--reason", reason), ("--finding", finding), ("--criterion", criterion))
-        return run_cli(["split", project_id, f"--{mode}", *[part for flag, value in options if value for part in (flag, value)]])
+                   ("--to", to_holder), ("--reason", reason), ("--finding", finding), ("--criterion", criterion),
+                   ("--evidence", evidence))
+        head = ["split", project_id, "--close", release] if mode == "close" else ["split", project_id, f"--{mode}"]
+        return run_cli([*head, *[part for flag, value in options if value for part in (flag, value)]])
 
     @server.tool(name="sentinel_scrutinize", description=TOOL_DESCRIPTIONS["scrutinize"])
     def sentinel_scrutinize(project_id: str, source: str, lens: str = "", mode: str = "") -> dict:

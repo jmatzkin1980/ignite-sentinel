@@ -107,12 +107,18 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     if not stories:
         partial.append({"check": "story_dor", "reason": "No backlog stories; Definition of Ready was not checked."})
 
-    from .release_scope import active_release  # IMP-267b: the verdict knows the release it covers
+    from .release_scope import active_main, active_release  # IMP-267b: the verdict knows the release it covers
 
     scoped = active_release()
     if release is None:
         release = scoped
-    elif release != scoped:
+    if scoped and release == scoped and active_main() is not None:
+        from .release_guide import inherited_blockers  # IMP-269 [A38]: a hard dependency not closed blocks
+
+        inherited = inherited_blockers(active_main(), scoped)
+        blockers.extend(inherited)
+        gate_matrix.append({"gate": "series_dependencies", "state": "WAITING" if inherited else "CLEAR", "blocks": bool(inherited)})
+    elif release is not None and release != scoped:
         partial.append({"check": "release", "reason": f"Release {release} was named outside its scope; run the command with --release {release} for a verdict over that release's brief and backlog. This verdict covers the whole workspace."})
 
     if blockers:

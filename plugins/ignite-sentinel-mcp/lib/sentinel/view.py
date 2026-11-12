@@ -48,6 +48,11 @@ ARTIFACTS = {
         "fallback_relative": "04_backlog/EPIC-001.md",
         "phase": "Backlog",
     },
+    "release-guide": {  # IMP-269: the series guide, compiled with the series
+        "label": "Series Guide",
+        "relative": "02_requirements/series/release-guide.md",
+        "phase": "Series",
+    },
 }
 
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")

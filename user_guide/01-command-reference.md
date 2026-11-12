@@ -460,6 +460,25 @@ python -m sentinel /split PROJECT_ID --move --unit C-04 --from sketch:status-tra
 - **Excluded is not resolved:** moving a unit to a sketch closes none of its gaps.
 - **Round trip (A→B→A):** a cut criterion is not written [A42], so the move is refused and `GAP-SPLIT-CRITERION` opens. It goes through when `--criterion Cn` names a criterion written in the proposal (and used by the destination release).
 
+### `split --close` and the series guide
+
+Close a release of a confirmed series (IMP-269).
+
+```powershell
+python -m sentinel /split PROJECT_ID --close r1 --evidence closing-check-r1.md --ba "Ana" --tech "Core team"
+python -m sentinel /view PROJECT_ID --artifact release-guide
+```
+
+- **When it closes:** every story of the release is Done (`/story-status --release r1`) and `--evidence` is a local file with the result of its closing check, fingerprinted by sha256. The close is recorded in `partition.json` and survives later confirmations and moves.
+- **NOT READY by inheritance:** a release that depends hard on one that is not closed is NOT READY in `/status --release rN`, with the dependency named. Closing it unblocks the dependents.
+- **The guide:** `02_requirements/series/release-guide.md` shows:
+  - the waves;
+  - each release with its type, goal, edges and status;
+  - the frozen contracts;
+  - the coverage matrix;
+  - what has no source, counted against what is declared absent.
+- **Readiness view:** with a series it also lists one row per release, with its verdict.
+
 ### Derivations by release (`--release rN`)
 
 Run a derivation for one release of a confirmed series (IMP-267b).
