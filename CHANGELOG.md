@@ -7,6 +7,25 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/split PROJECT_ID --confirm --ba NAME --tech TEAM` (IMP-266, H17a): deterministic validation of the partition, `sentinel/release_split.py`.
+  - **Graph with contracts as nodes:** shared schemas, APIs, file formats, events, roles and spike DECs are `contracts` (`K<N>`). Each hard edge carries its why and the contract it consumes, created by its target. Edges come in symmetric `depends_on`/`enables` pairs.
+  - **Cycles and waves:** a cycle over hard edges is a missing contract (a gap, with its path). A hard dependency points to an earlier wave, and the topological waves are reported. A committed release never hard-depends on a conditional one.
+  - **Coverage n of n:** every §6.1 scope line, every `C-NN` of §9 and every screen `P-N` goes to exactly one release or sketch.
+  - **Single owner:** one creator and one name per contract. Two or more siblings extending one carry a cross note and a merge order. A shared service exposes only operations with a consumer.
+  - **Frozen contracts:** the confirmation freezes each contract by sha256, and a later change needs an audited `contract_deltas` row.
+  - **Relaxed rules:** never legal, regulatory or Must, and always `restored_in` a later release.
+  - **The model's six validated anti-patterns**, reported by key.
+  - **Pending with tentacles**, two distinct signals:
+    - a conditional's gap repeated in two or more siblings is a finding;
+    - a gap holding back `UMBRAL_TRANSVERSAL` (75 %) or more of the releases is a transversal-readiness signal.
+  - **The integrator's premise** is checked against its consumption table.
+  - **Confirmation:**
+    - It requires all of the above green, and the brief unchanged since the proposal.
+    - It writes `02_requirements/series/partition.json` with who confirmed (the BA and the technical team), the waves, the coverage and the frozen contracts.
+    - The client's confirmation opens `GAP-SPLIT-CLIENT`.
+    - Nothing is compiled.
+  - `--propose` now returns `partition_preview`. The proposal schema adds `contracts`, `relaxed_rules`, `contract_deltas`, edge `consumes`, sketch `contains` and `{item: P-N}` units.
+  - **Evals:** 13 seeded partitions, tuning and held-out, with a no-regression floor. They run in `verify.ps1` and CI.
 - `/split PROJECT_ID --propose --source proposal.json` and the `sentinel-release-split` skill (IMP-265, H17a). The agent walks the release split model and writes the series proposal:
   - core and variations;
   - criteria written before cutting;

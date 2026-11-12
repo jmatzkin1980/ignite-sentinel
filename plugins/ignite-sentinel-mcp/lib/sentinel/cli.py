@@ -143,14 +143,18 @@ def main(argv: list[str] | None = None) -> int:
     harvest_p.add_argument("project_id")
     harvest_p.add_argument("--source", required=True)
 
-    split_p = sub.add_parser("split")  # IMP-263 (H17a): release series; --propose/--confirm follow
+    split_p = sub.add_parser("split")  # IMP-263/265/266 (H17a): release series
     split_p.add_argument("project_id")
     split_mode = split_p.add_mutually_exclusive_group(required=True)
     split_mode.add_argument("--assess", action="store_true",
                             help="deterministic split signals over the brief v2: split, no split or cannot decide")
     split_mode.add_argument("--propose", action="store_true",
                             help="IMP-265: validate an agent-written series proposal (--source PROPOSAL.json) and store it")
+    split_mode.add_argument("--confirm", action="store_true",
+                            help="IMP-266: validate the partition of the stored proposal and confirm it (--ba, --tech)")
     split_p.add_argument("--source", help="the proposal JSON for --propose")
+    split_p.add_argument("--ba", help="the BA who confirms the partition (--confirm)")
+    split_p.add_argument("--tech", help="the technical team that confirms the partition (--confirm)")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -397,6 +401,10 @@ def main(argv: list[str] | None = None) -> int:
 
             result = apply_proposal(args.project_id, Path(args.source))
             print_json(result)
+        elif args.command == "split" and args.confirm:
+            from .release_split import confirm_partition
+
+            print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
         elif args.command == "split":
             from .split import run_assess
 

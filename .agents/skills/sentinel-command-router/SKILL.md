@@ -21,6 +21,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/harvest PROJECT_ID --source HARVEST.md`
 - `/split PROJECT_ID --assess`
 - `/split PROJECT_ID --propose --source PROPOSAL.json`
+- `/split PROJECT_ID --confirm --ba NAME --tech TEAM`
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
@@ -91,6 +92,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/harvest`: use `sentinel-brownfield-harvest` to read the local code and write the tagged harvest before executing.
 - `/split --assess`: report the recommendation (`split`, `no_split` or `cannot_decide`) with its reasons, every lit signal with its anchor and the undetermined ones. The assessment never splits anything: it is the input to the BA's decision.
 - `/split --propose`: use `sentinel-release-split` to author the proposal JSON before executing. A refused proposal lists every finding with its code; a stored one is still a proposal (nothing is compiled).
+- `/split --confirm`: run it only with the BA's and the technical team's names, given by them. It refuses unless the partition validation is green; report every finding by code. A confirmation opens `GAP-SPLIT-CLIENT` for the client's confirmation and freezes the contracts.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.

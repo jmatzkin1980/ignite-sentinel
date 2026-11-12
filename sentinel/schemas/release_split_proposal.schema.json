@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ignite-sentinel.local/schemas/release_split_proposal.schema.json",
   "title": "Release series proposal",
-  "description": "IMP-265: the JSON the sentinel-release-split skill writes for /split --propose. The runtime validates it with sentinel.split_proposal.validate_proposal (structure, anchors verbatim in the brief v2, release contracts); tests/test_split_proposal.py keeps this schema and the validator in step.",
+  "description": "IMP-265: the JSON the sentinel-release-split skill writes for /split --propose. The runtime validates it with sentinel.split_proposal.validate_proposal (structure, anchors verbatim in the brief v2, release contracts); tests/test_split_proposal.py keeps this schema and the validator in step. IMP-266: contracts, relaxed_rules, contract_deltas, edge consumes and sketch contains are what sentinel.release_split.validate_partition reads before /split --confirm; tests/test_release_split.py guards them.",
   "type": "object",
   "required": ["core", "criteria", "releases"],
   "properties": {
@@ -34,7 +34,7 @@
           "criteria": {"type": "array", "items": {"type": "string"}},
           "goal": {"type": "string"},
           "closing_check": {"type": "string"},
-          "contains": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/anchor"}, {"type": "object", "required": ["item"], "properties": {"item": {"type": "string", "pattern": "^C-[0-9]{2,}$"}}}]}},
+          "contains": {"$ref": "#/$defs/units"},
           "needs": {"type": "array", "items": {"type": "string"}},
           "depends_on": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
           "enables": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
@@ -45,12 +45,33 @@
         }
       }
     },
-    "sketches": {"type": "array", "items": {"type": "object", "required": ["name", "goal", "pattern"], "properties": {"name": {"type": "string"}, "goal": {"type": "string"}, "pattern": {"type": "string"}}}},
+    "sketches": {"type": "array", "items": {"type": "object", "required": ["name", "goal", "pattern"], "properties": {"name": {"type": "string"}, "goal": {"type": "string"}, "pattern": {"type": "string"}, "contains": {"$ref": "#/$defs/units"}}}},
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "created_by", "definition"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^K[0-9]+$"},
+          "name": {"type": "string"},
+          "kind": {"enum": ["schema", "api", "file_format", "table", "column", "parameter", "endpoint", "event", "role", "service", "decision"]},
+          "created_by": {"type": "string"},
+          "definition": {"type": "string"},
+          "extended_by": {"type": "array", "items": {"type": "string"}},
+          "cross_note": {"type": "string"},
+          "merge_order": {"type": "array", "items": {"type": "string"}},
+          "operations": {"type": "array", "items": {"type": "object", "required": ["name", "consumers"], "properties": {"name": {"type": "string"}, "consumers": {"type": "array", "minItems": 1, "items": {"type": "string"}}}}}
+        }
+      }
+    },
+    "relaxed_rules": {"type": "array", "items": {"type": "object", "required": ["rule", "anchor", "release", "restored_in"], "properties": {"rule": {"type": "string"}, "anchor": {"$ref": "#/$defs/anchor"}, "release": {"type": "string"}, "restored_in": {"type": "string"}, "kind": {"type": "string"}, "priority": {"type": "string"}}}},
+    "contract_deltas": {"type": "array", "items": {"type": "object", "required": ["contract", "why"], "properties": {"contract": {"type": "string"}, "why": {"type": "string"}, "finding": {"type": "string"}}}},
     "inheritance": {"type": "array", "items": {"type": "object", "required": ["gap", "release", "why"], "properties": {"gap": {"type": "string"}, "release": {"type": "string"}, "why": {"type": "string"}}}},
     "integrator_consumption": {"type": "array", "items": {"type": "object", "required": ["piece", "uses", "from"], "properties": {"piece": {"type": "string"}, "uses": {"type": "string"}, "from": {"type": "string"}}}}
   },
   "$defs": {
     "anchor": {"type": "object", "required": ["place", "quote"], "properties": {"place": {"type": "string"}, "quote": {"type": "string"}}},
-    "edge": {"type": "object", "required": ["release", "why"], "properties": {"release": {"type": "string"}, "why": {"type": "string"}, "strength": {"enum": ["hard", "opportunistic"]}}}
+    "edge": {"type": "object", "required": ["release", "why"], "properties": {"release": {"type": "string"}, "why": {"type": "string"}, "strength": {"enum": ["hard", "opportunistic"]}, "consumes": {"type": "string", "pattern": "^K[0-9]+$"}}},
+    "units": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/anchor"}, {"type": "object", "required": ["item"], "properties": {"item": {"type": "string", "pattern": "^(C-[0-9]{2,}|P-[0-9]+)$"}}}]}}
   }
 }

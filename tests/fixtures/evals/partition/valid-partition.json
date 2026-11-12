@@ -1,0 +1,273 @@
+{
+  "case": "valid-partition",
+  "split": "tuning",
+  "synthetic": true,
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — SYN (synthetic fixture)\n\n## 1. Overview\n\n### 1.1 Identity and Value\n\n- A claims portal lets policyholders file and track insurance claims. [[sources § Source log - SYN # F-01 — supports: x]]\n\n### 1.3 Success Metrics / Scope\n\n- Claims filed online reach 60 percent within two quarters. [[sources § Source log - SYN # F-01 — supports: x]]\n\n### 1.5 Release Acceptance Criteria\n\n- A policyholder files a claim and sees it registered. [[sources § Source log - SYN # F-01 — supports: x]]\n- An adjuster approves a claim and the policyholder sees the decision. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 2. Business Lens\n\n### 2.1 Actors and Goals by Role\n\n- Policyholders file claims. [[sources § Source log - SYN # F-01 — supports: x]]\n- Back office adjusters review and approve claims. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 3. Product Lens\n\n### 3.2 To-Be Process\n\n- The policyholder files a claim with attachments. [[sources § Source log - SYN # F-01 — supports: x]]\n- The adjuster approves or rejects the claim. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 4. Design Lens\n\n### 4.1 Screen Flow\n\n- The claim form screen P-1 collects the incident data. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 5. Technical Lens\n\n### 5.1 Architecture and Integrations\n\n- Every module uses a shared authorization filter. [[sources § Source log - SYN # F-01 — supports: x]]\n\n### 5.6 Integration Map\n\n- The payment provider pays approved claims. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 6. Release Agreements\n\n### 6.1 In Scope\n\n- Online claim filing. [[sources § Source log - SYN # F-01 — supports: x]]\n- Claim approval by adjusters. [[sources § Source log - SYN # F-01 — supports: x]]\n- Payment of approved claims. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 9. Things to Build\n\n### 9.1 Build List or Phases\n\n- `C-01` Claim filing [[sources § Source log - SYN # F-01 — supports: x]] — depends on: none\n- `C-02` Claim approval [[sources § Source log - SYN # F-01 — supports: x]] — depends on: none\n- `C-03` Claim payment [[sources § Source log - SYN # F-01 — supports: x]] — depends on: none\n- `C-04` Claim status tracking [[sources § Source log - SYN # F-01 — supports: x]] — depends on: none\n",
+  "open_gaps": [
+    "GAP-BRIEF-S5",
+    "GAP-PAY-01"
+  ],
+  "frozen": {},
+  "payload": {
+    "core": {
+      "text": "file a claim and see it registered",
+      "anchor": {
+        "place": "1.1",
+        "quote": "lets policyholders file and track insurance claims"
+      }
+    },
+    "variations": [
+      {
+        "id": "V1",
+        "text": "adjuster approval",
+        "anchor": {
+          "place": "2.1",
+          "quote": "Back office adjusters review and approve claims"
+        }
+      }
+    ],
+    "criteria": [
+      {
+        "id": "C1",
+        "why": "each release is accepted by the claims lead",
+        "anchor": {
+          "place": "1.3",
+          "quote": "Claims filed online reach 60 percent"
+        }
+      },
+      {
+        "id": "C2",
+        "why": "the adjuster is a new actor",
+        "anchor": {
+          "place": "2.1",
+          "quote": "Back office adjusters review and approve claims"
+        }
+      }
+    ],
+    "base": {
+      "pieces": [
+        {
+          "piece": "shared authorization filter",
+          "reason": "r1 and r2 both apply it",
+          "used_by": [
+            "r1",
+            "r2"
+          ]
+        }
+      ],
+      "not_in_base": [
+        {
+          "piece": "payment adapter",
+          "goes_to": "r3",
+          "reason": "only r3 pays"
+        }
+      ]
+    },
+    "contracts": [
+      {
+        "id": "K1",
+        "name": "Authorization filter",
+        "kind": "service",
+        "created_by": "r0",
+        "definition": "authorize(user, action) -> allow or deny",
+        "operations": [
+          {
+            "name": "authorize",
+            "consumers": [
+              "r1",
+              "r2"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "K2",
+        "name": "Claim record",
+        "kind": "schema",
+        "created_by": "r1",
+        "definition": "claim id, policy, incident data, status"
+      },
+      {
+        "id": "K3",
+        "name": "Claim decision event",
+        "kind": "event",
+        "created_by": "r2",
+        "definition": "claim id, decision, adjuster, at"
+      }
+    ],
+    "releases": [
+      {
+        "id": "r0",
+        "name": "Authorization base",
+        "type": "enabler",
+        "wave": 0,
+        "pattern": "P3",
+        "criteria": [
+          "C1"
+        ],
+        "goal": "the authorization filter runs on both channels, shown with one command",
+        "closing_check": "one command shows the filter rejecting an anonymous call",
+        "contains": [],
+        "enables": [
+          {
+            "release": "r1",
+            "why": "r1 applies the filter",
+            "strength": "hard"
+          },
+          {
+            "release": "r2",
+            "why": "r2 applies the filter",
+            "strength": "hard"
+          }
+        ]
+      },
+      {
+        "id": "r1",
+        "name": "Online claim filing",
+        "type": "functional",
+        "wave": 1,
+        "pattern": "P15",
+        "criteria": [
+          "C1"
+        ],
+        "goal": "a policyholder files a claim and sees it registered",
+        "closing_check": "a policyholder files a claim in the demo and sees it registered",
+        "contains": [
+          {
+            "place": "3.2",
+            "quote": "The policyholder files a claim with attachments"
+          },
+          {
+            "place": "6.1",
+            "quote": "Online claim filing"
+          },
+          {
+            "item": "C-01"
+          },
+          {
+            "item": "P-1"
+          }
+        ],
+        "depends_on": [
+          {
+            "release": "r0",
+            "why": "it applies the authorization filter",
+            "strength": "hard",
+            "consumes": "K1"
+          }
+        ],
+        "enables": [
+          {
+            "release": "r2",
+            "why": "r2 approves the claims r1 registers",
+            "strength": "hard"
+          }
+        ]
+      },
+      {
+        "id": "r2",
+        "name": "Adjuster approval",
+        "type": "functional",
+        "wave": 2,
+        "pattern": "P2",
+        "criteria": [
+          "C1",
+          "C2"
+        ],
+        "goal": "an adjuster approves a claim and the policyholder sees the decision",
+        "closing_check": "an adjuster approves a claim and the policyholder sees the decision",
+        "contains": [
+          {
+            "place": "2.1",
+            "quote": "Back office adjusters review and approve claims"
+          },
+          {
+            "place": "6.1",
+            "quote": "Claim approval by adjusters"
+          },
+          {
+            "item": "C-02"
+          }
+        ],
+        "depends_on": [
+          {
+            "release": "r0",
+            "why": "it applies the authorization filter",
+            "strength": "hard",
+            "consumes": "K1"
+          },
+          {
+            "release": "r1",
+            "why": "it approves the claims r1 registers",
+            "strength": "hard",
+            "consumes": "K2"
+          }
+        ],
+        "enables": [
+          {
+            "release": "r3",
+            "why": "r3 pays the claims r2 approves",
+            "strength": "hard"
+          }
+        ]
+      },
+      {
+        "id": "r3",
+        "name": "Claim payment",
+        "type": "conditional",
+        "wave": 3,
+        "pattern": "P5",
+        "criteria": [
+          "C1"
+        ],
+        "condition": "GAP-BRIEF-S5",
+        "goal": "approved claims are paid",
+        "closing_check": "an approved claim is paid in the provider sandbox",
+        "contains": [
+          {
+            "place": "5.6",
+            "quote": "The payment provider pays approved claims"
+          },
+          {
+            "place": "6.1",
+            "quote": "Payment of approved claims"
+          },
+          {
+            "item": "C-03"
+          }
+        ],
+        "needs": [
+          "GAP-BRIEF-S5"
+        ],
+        "depends_on": [
+          {
+            "release": "r2",
+            "why": "it pays the claims r2 approves",
+            "strength": "hard",
+            "consumes": "K3"
+          }
+        ]
+      }
+    ],
+    "sketches": [
+      {
+        "name": "status tracking",
+        "goal": "policyholders follow the claim status",
+        "pattern": "P10",
+        "contains": [
+          {
+            "item": "C-04"
+          }
+        ]
+      }
+    ],
+    "inheritance": [
+      {
+        "gap": "GAP-BRIEF-S5",
+        "release": "r3",
+        "why": "the first release that needs the payment contract"
+      }
+    ]
+  },
+  "expected": []
+}

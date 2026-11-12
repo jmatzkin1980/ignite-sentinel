@@ -1,11 +1,11 @@
 ---
 name: sentinel-release-split
-description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (sentinel/templates/release_split_model.json) and write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table). Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases'. Not for slicing a backlog into stories (use sentinel-backlog) or for compiling the series (that is /split --confirm, after the partition validation)."
+description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (sentinel/templates/release_split_model.json), write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, shared contracts as graph nodes, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table) and get the partition green for /split --confirm. Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases', 'confirm the partition'. Not for slicing a backlog into stories (use sentinel-backlog) or for compiling the series briefs (IMP-267, after the confirmation)."
 ---
 
 # Sentinel Release Split
 
-Use this skill to propose how a brief v2 becomes a series of releases. You write a proposal; the runtime validates it and stores it as a **proposal**. Nothing is compiled and the brief is never touched until `/split --confirm` (IMP-266), which needs the partition validation in green and the BA's and the technical team's confirmation. The client's confirmation stays an open gap.
+Use this skill to propose how a brief v2 becomes a series of releases. You write a proposal; the runtime validates it and stores it as a **proposal**. Nothing is compiled and the brief is never touched. `/split --confirm` validates the partition deterministically (contracts, waves, coverage, single owner) and, only when it is green, records the BA's and the technical team's confirmation. The client's confirmation stays an open gap (`GAP-SPLIT-CLIENT`).
 
 ## Workflow
 
@@ -20,12 +20,15 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
 6. **Shape the series:**
    - **Core and variations:** each with its anchor.
    - **The base:** each piece with its reason, plus the negative list (`not_in_base`) of what stays with a sibling and which one.
-   - **The releases:** type, wave, goal and the units of the brief each one contains (`{place, quote}` or `{item: C-NN}`).
-   - **Edges:** `depends_on` / `enables`, each with its `why` and strength.
+   - **The releases:** type, wave, goal, `closing_check` (the outcome someone external verifies; for an enabler, how it is shown done) and the units of the brief each one contains (`{place, quote}`, `{item: C-NN}` or `{item: P-N}`).
+   - **Contracts as nodes:** every shared schema, API, file format, event, role, parameter or spike DEC is a `contracts` entry `{id: K<N>, name, kind, created_by, definition}`. One release creates it; the others use it under the same name.
+   - **Edges:** `depends_on` / `enables` in symmetric pairs, each with its `why` and strength. A hard `depends_on` names the contract it consumes (`consumes: K<N>`), which its target creates.
    - **Conditionals** with their open gap.
    - **Spikes** with 1–3 questions and a time-box.
    - **Interleaved releases** as `r<N>.<M>` with their subtype.
-   - **Sketches** for what lies outside the horizon: a goal and a pattern.
+   - **Sketches** for what lies outside the horizon: a goal, a pattern and the units they take (`contains`).
+   - **Coverage n of n:** every scope line of §6.1, every `C-NN` of §9 and every screen `P-N` goes to exactly one release or sketch.
+   - **Relaxed rules** (`relaxed_rules`): a rule a first release relaxes names `restored_in`, a later release. Never a legal, regulatory or Must rule.
    - **Inheritance:** each open gap goes to the first release that needs it.
    - **Suggested scope**, marked.
    - **Integrator:** its consumption table.
@@ -36,7 +39,8 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
    - Is there an obvious first?
 
    Re-cut before writing if one of these fails.
-8. **Submit:** `/split PROJECT_ID --propose --source proposal.json`. A refused proposal lists every finding with its code. Fix them all and submit again.
+8. **Submit:** `/split PROJECT_ID --propose --source proposal.json`. A refused proposal lists every finding with its code. Fix them all and submit again. A stored proposal comes back with `partition_preview`: the codes `--confirm` would still refuse.
+9. **Confirm with the people who own it:** once the BA and the technical team agree, run `/split PROJECT_ID --confirm --ba NAME --tech TEAM`. It refuses with every finding unless the partition is green, and refuses when the brief changed since the proposal. A confirmation freezes each contract by hash; changing one later needs an audited `contract_deltas` row `{contract, why, finding}`. Never run it on your own: the names are theirs.
 
 ## Proposal format
 
@@ -49,12 +53,19 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
  "releases": [
    {"id": "r1", "name": "Online claim filing", "type": "functional", "wave": 1, "pattern": "P15", "criteria": ["C1"],
     "goal": "a policyholder files a claim and sees it registered", "closing_check": "file one claim end to end",
-    "contains": [{"place": "3.2", "quote": "<verbatim>"}, {"item": "C-01"}],
-    "needs": ["GAP-..."], "depends_on": [{"release": "r0", "why": "it applies the base filter", "strength": "hard"}],
+    "contains": [{"place": "3.2", "quote": "<verbatim>"}, {"place": "6.1", "quote": "<verbatim>"}, {"item": "C-01"}],
+    "needs": ["GAP-..."],
+    "depends_on": [{"release": "r0", "why": "it applies the base filter", "strength": "hard", "consumes": "K1"}],
+    "enables": [{"release": "r2", "why": "r2 approves the claims r1 registers", "strength": "hard"}],
     "suggested_scope": false}],
- "sketches": [{"name": "mobile channel", "goal": "policyholders file from the app", "pattern": "P10"}],
+ "contracts": [{"id": "K1", "name": "Authorization filter", "kind": "service", "created_by": "r0",
+                "definition": "authorize(user, action) -> allow or deny",
+                "operations": [{"name": "authorize", "consumers": ["r1", "r2"]}]}],
+ "sketches": [{"name": "mobile channel", "goal": "policyholders file from the app", "pattern": "P10", "contains": [{"item": "C-04"}]}],
  "inheritance": [{"gap": "GAP-...", "release": "r3", "why": "the first release that needs it"}],
- "integrator_consumption": [{"piece": "claims workspace", "uses": "approval API", "from": "r2"}]}
+ "relaxed_rules": [{"rule": "attachments are optional in r1", "anchor": {"place": "3.2", "quote": "<verbatim>"},
+                    "release": "r1", "restored_in": "r2"}],
+ "integrator_consumption": [{"piece": "claims workspace", "uses": "K3", "from": "r2"}]}
 ```
 
 The contract is `sentinel/schemas/release_split_proposal.schema.json`. The release types come from the model:
@@ -69,7 +80,12 @@ The contract is `sentinel/schemas/release_split_proposal.schema.json`. The relea
 - Each open gap is inherited by the first release that lists it in `needs`, by wave and then by id.
 - A conditional names the open gap that decides it. A spike carries 1–3 questions and a time-box and closes with a DEC.
 - Mark `suggested_scope: true` on what the analysis suggests and the business did not ask for.
-- The partition stays a **proposal**. The runtime records the assessment next to it. Re-scopes after confirmation are `/split --move` (H17a′), never an edit.
+- A hard dependency always points to an earlier wave. A cycle is never forced: it means a contract is missing or a dependency is extra (`missing_contract`); go back to the pattern step.
+- A committed release never hard-depends on a conditional one: the conditional edge stays dotted until its gap is decided.
+- An artifact extended by two or more siblings carries a `cross_note` and a `merge_order` of exactly those siblings. A shared service exposes only operations with a consumer.
+- The gap that decides a conditional must not repeat in two or more siblings (`tentacle_partition_defect`): cut again. A gap that holds back the start of `UMBRAL_TRANSVERSAL` (75 %) or more of the releases is reported as transversal readiness: resolve it before the series starts; it is not a cut defect.
+- The integrator depends, directly or transitively, on every non-conditional release, and its consumption table uses something from each release it depends on.
+- The partition stays a **proposal** until `--confirm`. The runtime records the assessment next to it. Re-scopes after confirmation are `/split --move` (H17a′), never an edit.
 
 ## Anti-patterns
 
@@ -77,4 +93,7 @@ The contract is `sentinel/schemas/release_split_proposal.schema.json`. The relea
 - A release with no unit of the brief that is not an enabler, measuring or already built (`empty_release`).
 - A criterion without its anchor (`criterion_without_source`), or criteria made up after cutting (`criterion_not_written`).
 - Inheriting an open gap into a later release than the first one that needs it (`misplaced_inheritance`).
+- An enabler without a demonstration of done (`enabler_without_demo`), or a release without the outcome someone external verifies (`release_without_outcome_metric`).
+- A spike without its 1–3 questions or time-box (`spike_contract`).
+- The same table, event or role created by two releases (`duplicate_owner`).
 - A spec per release that repeats the domain and glossary: release briefs refer to the base, they never copy it.

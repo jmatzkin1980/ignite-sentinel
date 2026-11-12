@@ -48,7 +48,8 @@ FINDING_CODES = (
     "integrator_without_consumption",
 )
 RELEASE_ID_RE = re.compile(r"^r(\d+)(?:\.(\d+))?$")
-C_ITEM_RE = re.compile(r"^C-\d{2,}$")
+# an item unit: a build item C-NN of 9.1, or a screen P-N (IMP-249 family) the brief names
+C_ITEM_RE = re.compile(r"^(?:C-\d{2,}|P-\d+)$")
 GAP_RE = re.compile(r"^GAP-[A-Z0-9-]+$")
 STRENGTHS = ("hard", "opportunistic")
 # release types that may carry no unit of the brief (release_split_model: may_have_no_units)
@@ -85,7 +86,8 @@ class _Checker:
         self.lines = brief_text.splitlines()
         self.sections = model.sections
         self.text = brief_text
-        self.items = {m.group(0).strip("`") for m in re.finditer(r"`C-\d{2,}`", brief_text)}
+        self.items = {m.group(0).strip("`") for m in re.finditer(r"`C-\d{2,}`", brief_text)} \
+            | set(re.findall(r"\bP-\d+\b", brief_text))
         self.open_gaps = open_gaps
         self.model = load_release_split_model()
         self.criteria = {c["id"] for c in self.model["cut_criteria"]["items"]}
@@ -187,7 +189,7 @@ def validate_proposal(brief_text: str, payload: dict[str, Any], open_gaps: set[s
         for index, unit in enumerate(contains, start=1):
             if not c.contains_ok(unit):
                 c.add("contains_without_source", f"{rid} contains[{index}]",
-                      "each unit is {place, quote} verbatim in the brief or {item: C-NN} of 9.1")
+                      "each unit is {place, quote} verbatim in the brief, {item: C-NN} of 9.1 or {item: P-N} the brief names")
         if rtype != "enabler" and _LAYER_NAME_RE.search(str(release.get("name", ""))):
             c.add("layer_cut", rid, "a release named after a technical layer is a horizontal cut")
         places = [str(u.get("place", "")).split(".")[0] for u in contains if isinstance(u, dict) and u.get("place")]
@@ -315,6 +317,12 @@ def apply_proposal(project_id: str, source: Path) -> dict[str, Any]:
     target = base.joinpath(*PROPOSAL_DIR, PROPOSAL_FILE)
     write_text(target, json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
     out = {"status": "proposal", "path": target.as_posix(), "assessment": assessment, **stored["summary"]}
+    from .release_split import PARTITION_FILE, validate_partition  # IMP-266: what --confirm will ask for
+
+    previous = read_json(base.joinpath(*PROPOSAL_DIR, PARTITION_FILE), None)
+    frozen = previous.get("contracts_frozen") if isinstance(previous, dict) else None
+    preview = validate_partition(brief_path.read_text(encoding="utf-8"), payload, open_gaps, frozen or {})
+    out["partition_preview"] = {"valid": preview["valid"], "codes": sorted({f["code"] for f in preview["findings"]})}
     if assessment != "split":
         out["warning"] = f"the assessment says {assessment}: the BA decides whether a series is worth it"
     return out
