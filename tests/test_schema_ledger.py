@@ -45,6 +45,9 @@ SCHEMA_RUNTIME_ENFORCED = {
     # IMP-264 (H17a): the release split model is validated by validate_model and
     # guarded section/enum-for-enum by test_release_split_model.py.
     "release_split_model.schema.json",
+    # IMP-265: the agent-written series proposal, guarded against validate_proposal
+    # by test_split_proposal.py.
+    "release_split_proposal.schema.json",
 }
 
 # Documentary contracts with no drift guard yet, each one field/enum change from

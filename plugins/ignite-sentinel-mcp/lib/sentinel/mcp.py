@@ -59,7 +59,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
     ("harvest", "Ingest a tagged brownfield code harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B5) as a governed source; routes out-of-code topics and README/code divergences to gaps.", ["project_id", "source"]),
-    ("split", "Release series of a brief v2 (H17a). mode=assess: deterministic split signals (7 to split, 5 not to) with their anchors and a recommendation (split, no_split or cannot_decide) with its reasons; writes 01_discovery/split_assessment.md and .json. A v1 brief is rejected.", ["project_id"]),
+    ("split", "Release series of a brief v2 (H17a). mode=assess: deterministic split signals (7 to split, 5 not to) with their anchors and a recommendation (split, no_split or cannot_decide) with its reasons; writes 01_discovery/split_assessment.md and .json. mode=propose with source: validates an agent-written series proposal (structure, anchors to the brief, release contracts) and stores it in 02_requirements/series/proposal.json; nothing is compiled. A v1 brief is rejected.", ["project_id"]),
     ("scrutinize", "Merge validated systematic per-lens scrutiny findings (origin: scrutiny) grounded in raw input or local domain context; refreshes the knowledge ledger.", ["project_id", "source"]),
     ("assume", "Register governed BA-owned assumptions with risk, local cited basis, optional provisional gap link, optional risk_category (Cagan's four product risks), and ledger refresh.", ["project_id", "source"]),
     ("compose", "Merge validated agent-authored PRD narrative blocks; every paragraph cites verbatim local source-of-truth evidence.", ["project_id", "source"]),
@@ -78,7 +78,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
 # positional index of TOOL_SPECS (IMP-176 F4: inserting a tool used to silently
 # shift every later `TOOL_SPECS[N][1]` reference).
 TOOL_DESCRIPTIONS: dict[str, str] = {name: description for name, description, _ in TOOL_SPECS}
-SPLIT_MODES = ("assess",)  # IMP-263; IMP-265 adds propose and IMP-266 confirm
+SPLIT_MODES = ("assess", "propose")  # IMP-263, IMP-265; IMP-266 adds confirm
 
 
 def run_cli(arguments: list[str]) -> dict[str, object]:
@@ -472,10 +472,10 @@ def build_server():
         return run_cli(["harvest", project_id, "--source", source])
 
     @server.tool(name="sentinel_split", description=TOOL_DESCRIPTIONS["split"])
-    def sentinel_split(project_id: str, mode: str = "assess") -> dict:
+    def sentinel_split(project_id: str, mode: str = "assess", source: str = "") -> dict:
         if mode not in SPLIT_MODES:
             raise ValueError(f"mode must be one of {', '.join(SPLIT_MODES)}")
-        return run_cli(["split", project_id, f"--{mode}"])
+        return run_cli(["split", project_id, f"--{mode}", *(["--source", source] if source else [])])
 
     @server.tool(name="sentinel_scrutinize", description=TOOL_DESCRIPTIONS["scrutinize"])
     def sentinel_scrutinize(project_id: str, source: str, lens: str = "", mode: str = "") -> dict:

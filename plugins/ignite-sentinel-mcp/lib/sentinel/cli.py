@@ -148,6 +148,9 @@ def main(argv: list[str] | None = None) -> int:
     split_mode = split_p.add_mutually_exclusive_group(required=True)
     split_mode.add_argument("--assess", action="store_true",
                             help="deterministic split signals over the brief v2: split, no split or cannot decide")
+    split_mode.add_argument("--propose", action="store_true",
+                            help="IMP-265: validate an agent-written series proposal (--source PROPOSAL.json) and store it")
+    split_p.add_argument("--source", help="the proposal JSON for --propose")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -387,6 +390,13 @@ def main(argv: list[str] | None = None) -> int:
             from .harvest import apply_harvest
 
             print_json(apply_harvest(args.project_id, Path(args.source)))
+        elif args.command == "split" and args.propose:
+            if not args.source:
+                raise ValueError("/split --propose needs --source PROPOSAL.json (written with the sentinel-release-split skill)")
+            from .split_proposal import apply_proposal
+
+            result = apply_proposal(args.project_id, Path(args.source))
+            print_json(result)
         elif args.command == "split":
             from .split import run_assess
 

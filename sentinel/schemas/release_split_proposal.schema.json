@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ignite-sentinel.local/schemas/release_split_proposal.schema.json",
+  "title": "Release series proposal",
+  "description": "IMP-265: the JSON the sentinel-release-split skill writes for /split --propose. The runtime validates it with sentinel.split_proposal.validate_proposal (structure, anchors verbatim in the brief v2, release contracts); tests/test_split_proposal.py keeps this schema and the validator in step.",
+  "type": "object",
+  "required": ["core", "criteria", "releases"],
+  "properties": {
+    "core": {"type": "object", "required": ["text", "anchor"], "properties": {"text": {"type": "string"}, "anchor": {"$ref": "#/$defs/anchor"}}},
+    "variations": {"type": "array", "items": {"type": "object", "required": ["id", "text", "anchor"], "properties": {"id": {"type": "string"}, "text": {"type": "string"}, "anchor": {"$ref": "#/$defs/anchor"}}}},
+    "criteria": {
+      "type": "array", "minItems": 1,
+      "items": {"type": "object", "required": ["id", "why", "anchor"], "properties": {"id": {"type": "string", "pattern": "^C([1-9]|1[0-4])$"}, "why": {"type": "string"}, "anchor": {"$ref": "#/$defs/anchor"}}}
+    },
+    "base": {
+      "type": "object",
+      "required": ["pieces", "not_in_base"],
+      "properties": {
+        "pieces": {"type": "array", "items": {"type": "object", "required": ["piece", "reason"], "properties": {"piece": {"type": "string"}, "reason": {"type": "string"}, "used_by": {"type": "array", "items": {"type": "string"}}}}},
+        "not_in_base": {"type": "array", "items": {"type": "object", "required": ["piece", "goes_to", "reason"], "properties": {"piece": {"type": "string"}, "goes_to": {"type": "string"}, "reason": {"type": "string"}}}}
+      }
+    },
+    "releases": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type", "pattern", "goal"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^r[0-9]+(\\.[0-9]+)?$"},
+          "name": {"type": "string"},
+          "type": {"enum": ["enabler", "functional", "measuring", "conditional", "interleaved", "integrator", "segment_cutover", "already_built"]},
+          "wave": {"type": "integer", "minimum": 0},
+          "pattern": {"type": "string", "pattern": "^P[0-9]+$"},
+          "criteria": {"type": "array", "items": {"type": "string"}},
+          "goal": {"type": "string"},
+          "closing_check": {"type": "string"},
+          "contains": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/anchor"}, {"type": "object", "required": ["item"], "properties": {"item": {"type": "string", "pattern": "^C-[0-9]{2,}$"}}}]}},
+          "needs": {"type": "array", "items": {"type": "string"}},
+          "depends_on": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+          "enables": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+          "condition": {"type": "string"},
+          "spike": {"type": "object", "required": ["questions", "time_box"], "properties": {"questions": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string"}}, "time_box": {"type": "string"}}},
+          "interleave_subtype": {"enum": ["late_external_dependency", "change_found_in_testing"]},
+          "suggested_scope": {"type": "boolean"}
+        }
+      }
+    },
+    "sketches": {"type": "array", "items": {"type": "object", "required": ["name", "goal", "pattern"], "properties": {"name": {"type": "string"}, "goal": {"type": "string"}, "pattern": {"type": "string"}}}},
+    "inheritance": {"type": "array", "items": {"type": "object", "required": ["gap", "release", "why"], "properties": {"gap": {"type": "string"}, "release": {"type": "string"}, "why": {"type": "string"}}}},
+    "integrator_consumption": {"type": "array", "items": {"type": "object", "required": ["piece", "uses", "from"], "properties": {"piece": {"type": "string"}, "uses": {"type": "string"}, "from": {"type": "string"}}}}
+  },
+  "$defs": {
+    "anchor": {"type": "object", "required": ["place", "quote"], "properties": {"place": {"type": "string"}, "quote": {"type": "string"}}},
+    "edge": {"type": "object", "required": ["release", "why"], "properties": {"release": {"type": "string"}, "why": {"type": "string"}, "strength": {"enum": ["hard", "opportunistic"]}}}
+  }
+}

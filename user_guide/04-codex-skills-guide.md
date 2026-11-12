@@ -32,6 +32,7 @@ All 24 canonical skills, grouped by lifecycle activity:
 | `sentinel-specs` | Generating PRD and AI-friendly specs |
 | `sentinel-compose` | Proposing cited PRD narrative through `/compose` (never hand-edits) |
 | `sentinel-self-review` | Adversarial pass over PRD/specs: cited findings + hard-to-reverse decisions |
+| `sentinel-release-split` | Proposing a release series for a brief v2 over the release split model, for `/split --propose` |
 | `sentinel-backlog` | Generating and operating the governed backlog (lifecycle, AC freeze, board) |
 | `sentinel-backlog-refine` | Proposing cited backlog refinements through `/refine-backlog` |
 | `sentinel-implementation-feedback` | Downstream agents reporting blockers as governed feedback |
