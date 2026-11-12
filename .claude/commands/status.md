@@ -1,6 +1,6 @@
 ---
 description: Show the ready-to-build verdict, gap counts, gate matrix, maturity score and next step.
-argument-hint: PROJECT_ID [--full]
+argument-hint: PROJECT_ID [--full] [--release rN]
 ---
 
 # Ignite Status
@@ -12,6 +12,8 @@ Parse `PROJECT_ID` from:
 ```text
 /status PROJECT_ID [--full]
 ```
+
+`--release rN` (IMP-267b) runs this command for one release of a confirmed series: the release brief `02_requirements/rN/project-brief.md` is the input and the outputs land under `03_specs/rN/`, `04_backlog/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`. The release keeps its own lifecycle; the project's state and artifacts are not touched. Without `--release` nothing changes.
 
 Run from the repository root:
 

@@ -107,8 +107,13 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     if not stories:
         partial.append({"check": "story_dor", "reason": "No backlog stories; Definition of Ready was not checked."})
 
-    if release is not None:
-        partial.append({"check": "release", "reason": f"Release scoping ({release}) arrives with the release series; this verdict covers the whole workspace."})
+    from .release_scope import active_release  # IMP-267b: the verdict knows the release it covers
+
+    scoped = active_release()
+    if release is None:
+        release = scoped
+    elif release != scoped:
+        partial.append({"check": "release", "reason": f"Release {release} was named outside its scope; run the command with --release {release} for a verdict over that release's brief and backlog. This verdict covers the whole workspace."})
 
     if blockers:
         verdict = "NOT_READY"

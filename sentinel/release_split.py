@@ -397,7 +397,8 @@ def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None
         current.update(status="OPEN", resolution_note="")
     else:
         rows.append({
-            "id": CLIENT_GAP_ID, "lens": "business", "severity": "high", "status": "OPEN",
+            # medium: visible, never blocking; the BA and the technical team already confirmed (IMP-267b)
+            "id": CLIENT_GAP_ID, "lens": "business", "severity": "medium", "status": "OPEN",
             "description": f"The client has not confirmed the release series (confirmed by the BA {ba} and the technical team {tech}).",
             "question": "Does the client confirm the release series in 02_requirements/series/partition.json?",
             "evidence_mention": "02_requirements/series/partition.json", "origin": "split", "resolution_note": "",

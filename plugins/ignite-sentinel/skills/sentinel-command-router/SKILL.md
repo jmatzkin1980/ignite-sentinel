@@ -92,6 +92,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - `/harvest`: use `sentinel-brownfield-harvest` to read the local code and write the tagged harvest before executing.
 - `/split --assess`: report the recommendation (`split`, `no_split` or `cannot_decide`) with its reasons, every lit signal with its anchor and the undetermined ones. The assessment never splits anything: it is the input to the BA's decision.
 - `/split --propose`: use `sentinel-release-split` to author the proposal JSON before executing. A refused proposal lists every finding with its code; a stored one is still a proposal (nothing is compiled).
+- `--release rN` on `/specs`, `/backlog`, `/story-status`, `/view`, `/validate`, `/trace`, `/status` and `/next`: the command runs for one release of a confirmed series; report the paths under `03_specs/rN/`, `04_backlog/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`.
 - `/split --confirm`: run it only with the BA's and the technical team's names, given by them. It refuses unless the partition validation is green; report every finding by code. A confirmation opens `GAP-SPLIT-CLIENT` for the client's confirmation, freezes the contracts and compiles the series (`02_requirements/series/index.md` and `02_requirements/r<N>/project-brief.md`); report the index's sync findings.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/resolve-gaps`: use `sentinel-gap-response`.

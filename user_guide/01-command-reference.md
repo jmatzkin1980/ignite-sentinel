@@ -441,6 +441,35 @@ python -m sentinel /split PROJECT_ID --confirm --ba "Ana" --tech "Core team"
   - A unit the brief gained and no release owns is "not routed" until the series is proposed again.
   - A v1 brief blocks the series [A43].
 - A workspace without a confirmed partition is never touched.
+
+### Derivations by release (`--release rN`)
+
+Run a derivation for one release of a confirmed series (IMP-267b).
+
+```powershell
+python -m sentinel /specs PROJECT_ID --release r1
+python -m sentinel /backlog PROJECT_ID --release r1
+python -m sentinel /story-status PROJECT_ID --release r1 --story US-001 --set Ready
+python -m sentinel /view PROJECT_ID --release r1 --artifact prd
+python -m sentinel /validate PROJECT_ID --release r1
+python -m sentinel /trace PROJECT_ID --release r1
+python -m sentinel /status PROJECT_ID --release r1
+```
+
+- **Input:** the release brief, `02_requirements/rN/project-brief.md`.
+  - Raw input, discovery, settings and config come from the project.
+  - Whole-project EARS rows are not carried, so one release does not inherit the others' requirements.
+- **Outputs:**
+  - `03_specs/rN/` (PRD and specs);
+  - `04_backlog/rN/` (backlog and slice plan);
+  - `06_traceability/rN/`;
+  - `08_context_packs/rN/` (views included).
+- **State:**
+  - Each release keeps its own lifecycle (phase, stories, gates) in its mirror workspace, `.series_work/rN/`.
+  - Acceptance criteria freeze per release when its stories go to Ready.
+  - The project's `state.json` and its own artifacts are not touched.
+- **Readiness:** `/status --release rN` gives the verdict over that release.
+- **Without `--release`:** nothing changes. A plain `/validate` on a project with a series also reports the series' sync findings and each release's integrity.
   - Nothing is compiled.
 - **Next:** the partition rules (graph, waves, n-of-n coverage, single owner, frozen contracts) run in `/split --confirm` (IMP-266).
 
