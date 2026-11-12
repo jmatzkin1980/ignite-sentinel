@@ -382,6 +382,45 @@ python -m sentinel /split PROJECT_ID --propose --source proposal.json
 - **Result:**
   - A refused proposal lists every finding with its code and stores nothing.
   - A valid one goes to `02_requirements/series/proposal.json` as a proposal, with the brief's sha256 and the assessment, which runs first if missing.
+  - The output's `partition_preview` lists the codes `--confirm` would still refuse.
+
+### `split --confirm`
+
+Validate the partition of the stored proposal and confirm it (IMP-266).
+
+```powershell
+python -m sentinel /split PROJECT_ID --confirm --ba "Ana" --tech "Core team"
+```
+
+- **Graph:**
+  - Shared contracts are nodes (`contracts`, `K<N>`).
+  - Each hard edge names its why and the contract it consumes (`consumes`), which its target creates.
+  - Edges come in symmetric `depends_on`/`enables` pairs.
+  - A cycle is a missing contract.
+  - A hard dependency points to an earlier wave, and never to a conditional release from a committed one.
+- **Coverage n of n:** each §6.1 scope line, `C-NN` of §9 and screen `P-N` goes to exactly one release or sketch.
+- **Single owner:**
+  - One creator and one name per contract.
+  - Two or more siblings extending one need a cross note and a merge order.
+  - A shared service exposes only operations with a consumer.
+- **Frozen contracts:** the confirmation freezes each contract by hash. A later change needs a `contract_deltas` row `{contract, why, finding}`, which is kept as an audit trail.
+- **Relaxed rules:** never legal, regulatory or Must, and always `restored_in` a later release.
+- **Anti-patterns:**
+  - layer cut;
+  - enabler without demo;
+  - empty release;
+  - spike without questions;
+  - release without an outcome check;
+  - cut without source.
+- **Pending with tentacles:**
+  - a conditional's gap repeated in two or more siblings is a finding;
+  - a gap holding back 75 % or more of the releases is a transversal-readiness signal, which does not block.
+- **Integrator:** it reaches every non-conditional release, and its consumption table uses something from each release it depends on.
+- **Result:**
+  - A partition that is not green is refused with every finding, and so is a brief that changed since the proposal.
+  - A green one writes `02_requirements/series/partition.json` with who confirmed, the waves, the coverage, the signals and the frozen contracts.
+  - The client's confirmation opens `GAP-SPLIT-CLIENT`.
+  - Nothing is compiled.
   - Nothing is compiled.
 - **Next:** the partition rules (graph, waves, n-of-n coverage, single owner, frozen contracts) run in `/split --confirm` (IMP-266).
 
