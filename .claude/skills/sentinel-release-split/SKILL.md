@@ -76,11 +76,16 @@ The contract is `sentinel/schemas/release_split_proposal.schema.json`. The relea
 - `enabler`, `measuring` and `already_built` may carry no unit of the brief;
 - `functional`, `conditional`, `interleaved`, `integrator` and `segment_cutover` may not.
 
+Three types carry their own block, and the release brief copies it into §0.1:
+- an `enabler` carries `"enabler": {"capability", "risk", "why_first", "not_adding": [...]}`;
+- a `segment_cutover` carries `"cutover": {"segment", "eligibility", "switch"}`;
+- an `already_built` release needs no block: its brief alone says validation direction `built`, and the next releases go back to `to-build`.
+
 ## Rules
 
 - Every anchor is quoted verbatim from its place. A quote found elsewhere, or paraphrased, is refused.
 - A release is a complete variation of the core: entry, exit and something visible. It is never a technical layer and never a phase.
-- An enabler names the capability it supports, the risk it reduces and how it is shown done (`goal`). It is not "prepare environments".
+- An enabler names the capability it supports, the risk it reduces, why it goes first, how it is shown done (`closing_check`) and what it does not add. It is not "prepare environments".
 - Each open gap is inherited by the first release that lists it in `needs`, by wave and then by id.
 - A conditional names the open gap that decides it. A spike carries 1–3 questions and a time-box and closes with a DEC.
 - Mark `suggested_scope: true` on what the analysis suggests and the business did not ask for.

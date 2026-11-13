@@ -7,6 +7,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- The release series end to end with the three remaining release types (IMP-298, H17b).
+  - **Fixture:** a new synthetic fixture `tests/fixtures/synthetic_series_more_types/` covers an already built release, an enabler, a functional release and a segment cutover. Each one derives (specs, backlog, quality) and gives `/validate` VALID, and two runs are identical (`tests/test_series_e2e.py`).
+  - **Release brief:** §0.1 now carries what each type requires (`release_split_model.json#release_types`):
+    - an enabler: `supports`, `reduces_risk`, `goes_first` and `does_not_add` (its negative list);
+    - a segment cutover: `segment`, `eligibility` and `switch`;
+    - an already built release: `validation_direction: built`, and its §0.2 says `built`. Only that release: the next ones keep `to-build`.
+  - **Proposal contract:** new optional `enabler` and `cutover` objects on a release (`release_split_proposal.schema.json`).
 - `/view PROJECT_ID --artifact diagrams` (IMP-273, H17b): the to-be diagrams, generated deterministically as Mermaid from the v2 brief, in `sentinel/diagrams.py`.
   - **Diagrams:**
     - §3.4 → `stateDiagram-v2`;

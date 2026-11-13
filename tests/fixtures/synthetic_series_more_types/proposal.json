@@ -1,0 +1,44 @@
+{
+  "synthetic": true,
+  "core": {"text": "file a claim and get it registered", "anchor": {"place": "1.1", "quote": "cut the time a claim takes from filing to registration"}},
+  "criteria": [
+    {"id": "C1", "why": "each release is accepted by the claims lead on its own", "anchor": {"place": "1.3", "quote": "target is 60 percent of claims filed online"}},
+    {"id": "C2", "why": "motor claims carry less risk and go first", "anchor": {"place": "6.1", "quote": "switched on for motor claims first"}}
+  ],
+  "contracts": [
+    {"id": "K1", "name": "Intake rules", "kind": "decision", "created_by": "r0", "definition": "the intake rules the claim intake desk applies today, as written down"},
+    {"id": "K2", "name": "Portal identity", "kind": "role", "created_by": "r1", "definition": "policyholder and adjuster roles, signed in through one identity service"},
+    {"id": "K3", "name": "Claim record", "kind": "schema", "created_by": "r2", "definition": "claim id, policy, segment, incident data, attachments, status"}
+  ],
+  "releases": [
+    {"id": "r0", "name": "Claim intake desk as it runs", "type": "already_built", "wave": 0, "pattern": "P21", "criteria": ["C1"],
+     "goal": "the claim intake desk that runs today is documented with the intake rules it applies",
+     "closing_check": "the documented intake rules match the running desk in a walkthrough with the claims lead",
+     "contains": [{"place": "3.1", "quote": "The claim intake desk already runs today, and its intake rules are written down"}],
+     "enables": [{"release": "r2", "why": "r2 registers claims with the intake rules r0 documents", "strength": "hard"}]},
+    {"id": "r1", "name": "Policyholder and adjuster sign-in", "type": "enabler", "wave": 0, "pattern": "P22", "criteria": ["C1"],
+     "goal": "policyholders and adjusters sign in through one identity service before any claim screen exists",
+     "closing_check": "a policyholder and an adjuster sign in on the demo environment and each sees only their role",
+     "enabler": {"capability": "online claim filing (r2) and the motor cutover (r3)",
+                 "risk": "two releases inventing their own sign-in and roles",
+                 "why_first": "every claim screen needs the policyholder and adjuster roles",
+                 "not_adding": ["claim screens: they live in r2", "segment eligibility: it lives in r3"]},
+     "contains": [],
+     "enables": [{"release": "r2", "why": "r2 files claims as the signed-in policyholder", "strength": "hard"}]},
+    {"id": "r2", "name": "Online claim filing", "type": "functional", "wave": 1, "pattern": "P15", "criteria": ["C1"],
+     "goal": "a policyholder files a claim with attachments and sees it registered",
+     "closing_check": "a policyholder files a claim end to end in the demo and the adjuster sees it registered",
+     "contains": [{"place": "6.1", "quote": "online claim filing with attachments"}, {"item": "C-01"}],
+     "depends_on": [{"release": "r0", "why": "it registers claims with the documented intake rules", "strength": "hard", "consumes": "K1"},
+                    {"release": "r1", "why": "it files claims as the signed-in policyholder", "strength": "hard", "consumes": "K2"}],
+     "enables": [{"release": "r3", "why": "r3 switches on the filing r2 builds", "strength": "hard"}]},
+    {"id": "r3", "name": "Motor claims switched on", "type": "segment_cutover", "wave": 2, "pattern": "P17", "criteria": ["C1", "C2"],
+     "goal": "online filing is switched on for motor claims while the other claims run in shadow",
+     "closing_check": "a motor claim filed online is registered, and a home claim runs in shadow and sends nothing",
+     "cutover": {"segment": "motor claims",
+                 "eligibility": "a claim is eligible when its policy is a motor policy",
+                 "switch": "online filing on for eligible claims; the others are generated in shadow and sent nowhere"},
+     "contains": [{"place": "6.1", "quote": "online filing switched on for motor claims first"}, {"item": "C-02"}],
+     "depends_on": [{"release": "r2", "why": "it switches on the filing r2 builds", "strength": "hard", "consumes": "K3"}]}
+  ]
+}
