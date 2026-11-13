@@ -1,12 +1,16 @@
-"""IMP-26v / IMP-297: the release series end to end, on synthetic multi-release fixtures.
+"""IMP-26v / IMP-297 / IMP-298: the release series end to end, on synthetic multi-release fixtures.
 
-Two fixtures, both labelled synthetic:
+Three fixtures, all labelled synthetic:
 - `tests/fixtures/synthetic_series/` (IMP-26v): three sources (filing, approval,
   payment) and a chain of three functional releases.
 - `tests/fixtures/synthetic_series_types/` (IMP-297): one source with five scope
   sentences (IMP-296) and a series with every kind the derivation must survive: a
   measuring spike with its DEC, functional releases, an interleaved `r2.1`, a
   conditional with its open gap and an integrator with its consumption table.
+- `tests/fixtures/synthetic_series_more_types/` (IMP-298): the three remaining types,
+  an already built release (its brief alone carries the `built` validation direction),
+  an enabler with no unit of the brief and a segment cutover with its segment,
+  eligibility model and switch.
 
 The flow: v2 flow → `/split --assess` → `--propose` → validation → `--confirm`
 (index and release briefs) → per release `specs`, `backlog` (with the slice plan),
@@ -51,6 +55,7 @@ class Case:
 CHAIN = Case(ROOT / "fixtures" / "synthetic_series", ("requirement.md", "approval_notes.md", "payment_notes.md"),
              ("r1", "r2", "r3"))
 ALL_TYPES = Case(ROOT / "fixtures" / "synthetic_series_types", ("requirement.md",), ("r0", "r1", "r2", "r2.1", "r3", "r4"))
+MORE_TYPES = Case(ROOT / "fixtures" / "synthetic_series_more_types", ("requirement.md",), ("r0", "r1", "r2", "r3"))
 
 
 def _cli(argv: list[str]) -> tuple[int, str]:
@@ -169,6 +174,46 @@ class SeriesAllTypesEndToEnd(_SeriesEndToEnd, unittest.TestCase):
         guide = self.first["artifacts"]["02_requirements/series/release-guide.md"]
         rows = [line.split("|")[1].strip().split()[0] for line in guide.splitlines() if line.startswith("| r")]
         self.assertEqual(rows[:6], ["r0", "r1", "r2", "r2.1", "r3", "r4"])
+
+
+class SeriesRemainingTypesEndToEnd(_SeriesEndToEnd, unittest.TestCase):
+    """IMP-298: an already built release, an enabler, a functional release and a segment cutover."""
+
+    CASE = MORE_TYPES
+
+    def _briefs(self) -> dict[str, str]:
+        return {rid: self.first["artifacts"][f"02_requirements/{rid}/project-brief.md"] for rid in self.CASE.releases}
+
+    def test_already_built_carries_its_validation_direction(self) -> None:
+        briefs = self._briefs()
+        self.assertIn("- `release_type`: already_built", briefs["r0"])
+        self.assertIn("- `validation_direction`: built", briefs["r0"])
+        self.assertIn("- Validation direction: built", briefs["r0"])
+        for rid in ("r1", "r2", "r3"):  # only that release: the next ones go back to the normal direction
+            self.assertIn("- Validation direction: to-build", briefs[rid], rid)
+            self.assertNotIn("`validation_direction`", briefs[rid], rid)
+
+    def test_the_enabler_says_what_it_supports_and_what_it_does_not_add(self) -> None:
+        brief = self._briefs()["r1"]
+        self.assertIn("- `release_type`: enabler", brief)
+        self.assertIn("- `closing_check`: a policyholder and an adjuster sign in on the demo environment", brief)
+        self.assertIn("- `supports`: online claim filing (r2) and the motor cutover (r3)", brief)
+        self.assertIn("- `reduces_risk`: two releases inventing their own sign-in and roles", brief)
+        self.assertIn("- `goes_first`: every claim screen needs the policyholder and adjuster roles", brief)
+        self.assertIn("- `does_not_add`: claim screens: they live in r2; segment eligibility: it lives in r3", brief)
+
+    def test_the_cutover_names_segment_eligibility_and_switch(self) -> None:
+        brief = self._briefs()["r3"]
+        self.assertIn("- `release_type`: segment_cutover", brief)
+        self.assertIn("- `segment`: motor claims", brief)
+        self.assertIn("- `eligibility`: a claim is eligible when its policy is a motor policy", brief)
+        self.assertIn("- `switch`: online filing on for eligible claims; the others are generated in shadow", brief)
+
+    def test_the_index_lists_every_remaining_type(self) -> None:
+        index = self.first["artifacts"]["02_requirements/series/index.md"]
+        for row in ("| r0 | Claim intake desk as it runs | already_built | 0 |", "| r1 | Policyholder and adjuster sign-in | enabler | 0 |",
+                    "| r3 | Motor claims switched on | segment_cutover | 2 |"):
+            self.assertIn(row, index)
 
 
 if __name__ == "__main__":

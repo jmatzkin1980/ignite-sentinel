@@ -41,6 +41,8 @@
           "condition": {"type": "string"},
           "spike": {"type": "object", "required": ["questions", "time_box"], "properties": {"questions": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "string"}}, "time_box": {"type": "string"}}},
           "interleave_subtype": {"enum": ["late_external_dependency", "change_found_in_testing"]},
+          "enabler": {"type": "object", "required": ["capability", "risk", "why_first", "not_adding"], "properties": {"capability": {"type": "string"}, "risk": {"type": "string"}, "why_first": {"type": "string"}, "not_adding": {"type": "array", "items": {"type": "string"}}}},
+          "cutover": {"type": "object", "required": ["segment", "eligibility", "switch"], "properties": {"segment": {"type": "string"}, "eligibility": {"type": "string"}, "switch": {"type": "string"}}},
           "suggested_scope": {"type": "boolean"}
         }
       }

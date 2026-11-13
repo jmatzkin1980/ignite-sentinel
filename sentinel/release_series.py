@@ -44,6 +44,14 @@ REPORT_FILE = "series_report.json"
 TOMBSTONE = "➡"
 _CITE_RE = re.compile(r"\[\[[^\]]+\]\]")
 _C_RE = re.compile(r"`(C-\d{2,})`")
+BUILT = "built"
+
+
+def _direction_re() -> re.Pattern[str]:
+    from .compilers.brief_v2 import COPY as BRIEF_COPY
+
+    labels = "|".join(sorted({re.escape(c["direction"]) for c in BRIEF_COPY.values()}))
+    return re.compile(rf"^(- (?:{labels}): )\S+$")
 
 COPY = {
     "en": {
@@ -163,6 +171,23 @@ def _edge_text(edge: dict[str, Any]) -> str:
     return f"{_s(edge.get('release'))} ({_s(edge.get('strength')) or 'hard'}{consumes}: {_s(edge.get('why'))})"
 
 
+def _type_rows(release: dict[str, Any], nothing: str) -> list[tuple[str, str]]:
+    """IMP-298: what each remaining type requires (release_split_model.json#release_types), in §0.1."""
+    rtype = _s(release.get("type"))
+    if rtype == "enabler" and isinstance(release.get("enabler"), dict):
+        e = release["enabler"]
+        return [("supports", _s(e.get("capability")) or nothing), ("reduces_risk", _s(e.get("risk")) or nothing),
+                ("goes_first", _s(e.get("why_first")) or nothing),
+                ("does_not_add", "; ".join(_s(x) for x in e.get("not_adding") or []) or nothing)]
+    if rtype == "segment_cutover" and isinstance(release.get("cutover"), dict):
+        k = release["cutover"]
+        return [("segment", _s(k.get("segment")) or nothing), ("eligibility", _s(k.get("eligibility")) or nothing),
+                ("switch", _s(k.get("switch")) or nothing)]
+    if rtype == "already_built":
+        return [("validation_direction", BUILT)]
+    return []
+
+
 def _series_block(payload: dict[str, Any], release: dict[str, Any], tombstones: int, copy: dict[str, str]) -> list[str]:
     rid = _s(release.get("id"))
     nothing = copy["nothing"]
@@ -193,6 +218,7 @@ def _series_block(payload: dict[str, Any], release: dict[str, Any], tombstones: 
         rows.append(("spike", f"{' / '.join(_s(q) for q in spike.get('questions') or [])} — time-box {_s(spike.get('time_box'))}"))
     if _s(release.get("interleave_subtype")):
         rows.append(("interleave_subtype", _s(release.get("interleave_subtype"))))
+    rows += _type_rows(release, nothing)
     if relaxed or restores:
         rows.append(("restored_in", "; ".join(relaxed + [f"restores {x}" for x in restores])))
     if _s(release.get("type")) == "integrator":
@@ -248,6 +274,9 @@ def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: 
         if holder and release_id in holder:
             line = _C_RE.sub(lambda m: f"`{local.get(m.group(1), m.group(1))}`", line)
         out.append(line)
+    if _s(release.get("type")) == "already_built":  # IMP-298: only this release documents what exists
+        direction = _direction_re()
+        out = [direction.sub(rf"\g<1>{BUILT}", line) for line in out]
     title = next((n for n, line in enumerate(out) if line.startswith("# ")), None)
     if title is not None:
         out[title] = f"{out[title]} · {release_id} {_s(release.get('name'))}".rstrip()
