@@ -512,6 +512,24 @@ python -m sentinel /status PROJECT_ID --release r1
   - Nothing is compiled.
 - **Next:** the partition rules (graph, waves, n-of-n coverage, single owner, frozen contracts) run in `/split --confirm` (IMP-266).
 
+## `prototype`
+
+HTML prototypes (H17b). Ingest the prototype first (`/ingest PROJECT_ID --source prototype.html`); it goes through the secrets redaction and the injection shield like any source.
+
+```powershell
+python -m sentinel /prototype PROJECT_ID --inventory
+python -m sentinel /view PROJECT_ID --artifact prototype
+```
+
+- **`--inventory`** (IMP-274) writes `02_requirements/prototype/inventory.json` and `inventory.md` from the redacted copy in `00_raw`.
+  - **Screens:** an element with `data-screen` is a screen; otherwise each `<section id>`; otherwise the whole page.
+  - **Elements:**
+    - each visible element (heading, label, button, link, field, option, table column, image alt, message, paragraph) has its literal text, its line and whether it starts hidden;
+    - its id (`S1-E01`) is stable.
+  - **JavaScript copy:** strings in `<script>` that read as user copy (states, error messages), with ids `JS-01`. Code (URLs, selectors, identifiers) is left out.
+  - `--source F-NN` limits it to one prototype.
+- The audit and the manual of the prototype (IMP-275, 276) cite these ids. An element that is not in the inventory does not exist.
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

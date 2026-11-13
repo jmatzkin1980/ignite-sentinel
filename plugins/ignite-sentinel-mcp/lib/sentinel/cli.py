@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .protocols import postflight_command, preflight_command
 
-VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide"}
+VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype"}
 
 COMMANDS = {
     "doctor",
@@ -32,6 +32,7 @@ COMMANDS = {
     "scrutinize",
     "harvest",
     "split",
+    "prototype",
     "self-review",
     "assume",
     "compose",
@@ -166,6 +167,13 @@ def main(argv: list[str] | None = None) -> int:
     split_p.add_argument("--reason", help="--move: why the unit moves")
     split_p.add_argument("--finding", default="", help="--move: the finding that motivated it (F-NN, GAP-..., DEC-...)")
     split_p.add_argument("--criterion", default="", help="--move: the written cut criterion that decides a round trip")
+
+    prototype_p = sub.add_parser("prototype")  # IMP-274 (H17b): HTML prototypes; --trace/--manual follow
+    prototype_p.add_argument("project_id")
+    prototype_mode = prototype_p.add_mutually_exclusive_group(required=True)
+    prototype_mode.add_argument("--inventory", action="store_true",
+                                help="inventory of visible elements per screen and JS copy of the ingested HTML prototypes")
+    prototype_p.add_argument("--source", help="--inventory: only this source (F-NN)")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -430,6 +438,11 @@ def main(argv: list[str] | None = None) -> int:
             from .release_split import confirm_partition
 
             print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+        elif args.command == "prototype":
+            from .prototype import build_inventory
+
+            result = build_inventory(args.project_id, args.source or "")
+            print_json(result)
         elif args.command == "split" and args.close:
             from .release_guide import close_release
 

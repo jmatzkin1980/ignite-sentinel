@@ -947,7 +947,7 @@ Second section paragraph.
         from sentinel.doctor import command_surface_parity_check
 
         names = manifest_command_names()
-        self.assertEqual(len(names), 37)  # IMP-262 added harvest, IMP-263 split
+        self.assertEqual(len(names), 38)  # IMP-262 added harvest, IMP-263 split, IMP-274 prototype
         self.assertIn("harvest", names)
         self.assertIn("split", names)
         self.assertIn("sentinel", names)
@@ -1044,7 +1044,7 @@ Second section paragraph.
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 37)  # IMP-262 added sentinel_harvest, IMP-263 sentinel_split
+        self.assertEqual(len(names), 38)  # IMP-262 sentinel_harvest, IMP-263 sentinel_split, IMP-274 sentinel_prototype
         self.assertIn("sentinel_harvest", names)
         self.assertIn("sentinel_split", names)
         self.assertIn("sentinel_stakeholders", names)
