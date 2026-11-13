@@ -37,6 +37,7 @@ REQUIRED_CODEX_SKILLS = [
     "sentinel-maturity",
     "sentinel-privacy-local-first",
     "sentinel-project-brief",
+    "sentinel-prototype-trace",
     "sentinel-quality",
     "sentinel-release-split",
     "sentinel-self-review",

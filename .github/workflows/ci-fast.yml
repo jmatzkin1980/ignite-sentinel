@@ -46,3 +46,5 @@ jobs:
         run: python tests/evals/run_split_proposal_evals.py
       - name: Partition evals
         run: python tests/evals/run_partition_evals.py
+      - name: Prototype trace evals
+        run: python tests/evals/run_prototype_trace_evals.py

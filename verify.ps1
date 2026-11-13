@@ -16,7 +16,8 @@
        tests/evals/run_anchor_review_evals.py y
        tests/evals/run_cross_review_evals.py y
        tests/evals/run_split_proposal_evals.py y
-       tests/evals/run_partition_evals.py            (omitibles con -SkipEvals)
+       tests/evals/run_partition_evals.py y
+       tests/evals/run_prototype_trace_evals.py      (omitibles con -SkipEvals)
   Se detiene en el primer paso que falle.
 
 .EXAMPLE
@@ -115,6 +116,9 @@ try {
     Write-Host "`n==> [3/3] partition evals" -ForegroundColor Cyan
     & $python tests/evals/run_partition_evals.py
     if ($LASTEXITCODE -ne 0) { Write-Error "partition evals fallaron (exit $LASTEXITCODE)" }
+    Write-Host "`n==> [3/3] prototype trace evals" -ForegroundColor Cyan
+    & $python tests/evals/run_prototype_trace_evals.py
+    if ($LASTEXITCODE -ne 0) { Write-Error "prototype trace evals fallaron (exit $LASTEXITCODE)" }
   }
 
   Write-Host "`n==> Verificacion OK" -ForegroundColor Green

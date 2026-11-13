@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .protocols import postflight_command, preflight_command
 
-VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype"}
+VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype", "prototype-trace"}
 
 COMMANDS = {
     "doctor",
@@ -173,7 +173,9 @@ def main(argv: list[str] | None = None) -> int:
     prototype_mode = prototype_p.add_mutually_exclusive_group(required=True)
     prototype_mode.add_argument("--inventory", action="store_true",
                                 help="inventory of visible elements per screen and JS copy of the ingested HTML prototypes")
-    prototype_p.add_argument("--source", help="--inventory: only this source (F-NN)")
+    prototype_mode.add_argument("--trace", action="store_true",
+                                help="IMP-275: validate and store one screen trace (--source TRACE.json, sentinel-prototype-trace skill)")
+    prototype_p.add_argument("--source", help="--inventory: only this source (F-NN); --trace: the trace JSON")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -438,6 +440,13 @@ def main(argv: list[str] | None = None) -> int:
             from .release_split import confirm_partition
 
             print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+        elif args.command == "prototype" and args.trace:
+            if not args.source:
+                raise ValueError("/prototype --trace needs --source TRACE.json (written with the sentinel-prototype-trace skill)")
+            from .prototype_trace import apply_trace
+
+            result = apply_trace(args.project_id, Path(args.source))
+            print_json(result)
         elif args.command == "prototype":
             from .prototype import build_inventory
 

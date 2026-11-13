@@ -1,5 +1,5 @@
 {
-  "measured": "discovery metrics: 2026-11-10 before IMP-256 (unchanged by it); anchor metrics: 2026-11-10 when IMP-258 entered; sufficiency metrics: 2026-11-11 when IMP-259 entered; anchor review metrics: 2026-11-11 when IMP-258b entered; cross review metrics: 2026-11-11 when IMP-260b entered; split proposal metrics: 2026-11-11 when IMP-265 entered; partition metrics: 2026-11-12 when IMP-266 entered",
+  "measured": "discovery metrics: 2026-11-10 before IMP-256 (unchanged by it); anchor metrics: 2026-11-10 when IMP-258 entered; sufficiency metrics: 2026-11-11 when IMP-259 entered; anchor review metrics: 2026-11-11 when IMP-258b entered; cross review metrics: 2026-11-11 when IMP-260b entered; split proposal metrics: 2026-11-11 when IMP-265 entered; partition metrics: 2026-11-12 when IMP-266 entered; prototype trace metrics: 2026-11-13 when IMP-275 entered",
   "floor": {
     "avg_gap_precision": 1.0,
     "avg_gap_recall": 0.845,
@@ -24,6 +24,9 @@
     "split_proposal_held_out_f1": 1.0,
     "partition_precision": 1.0,
     "partition_recall": 1.0,
-    "partition_held_out_f1": 1.0
+    "partition_held_out_f1": 1.0,
+    "prototype_trace_precision": 1.0,
+    "prototype_trace_recall": 1.0,
+    "prototype_trace_held_out_f1": 1.0
   }
 }
