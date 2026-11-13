@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- Synthetic prototype fixture for IMP-274/275/276: no real client is behind it. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Claims portal prototype (synthetic fixture)</title>
+  <style>.hidden { display: none; } .error { color: #b00; }</style>
+</head>
+<body>
+  <nav><a href="#claims">My claims</a> <a href="#new-claim">File a claim</a></nav>
+
+  <section data-screen="sign-in">
+    <h1>Sign in</h1>
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="you@example.com">
+    <label for="password">Password</label>
+    <input id="password" type="password" aria-label="Password">
+    <button type="submit">Continue</button>
+    <p class="error hidden" role="alert">The email or the password is not right.</p>
+  </section>
+
+  <section data-screen="claims">
+    <h2>My claims</h2>
+    <table>
+      <tr><th>Claim</th><th>Filed on</th><th>Status</th><th>Amount</th></tr>
+      <tr><td>CL-1001</td><td>2026-10-02</td><td>Under review</td><td>1,200.00</td></tr>
+    </table>
+    <div class="empty hidden">You have not filed any claim yet.</div>
+    <button>File a claim</button>
+  </section>
+
+  <section data-screen="new-claim" hidden>
+    <h2>File a claim</h2>
+    <label for="incident">What happened?</label>
+    <textarea id="incident" placeholder="Describe the incident"></textarea>
+    <label for="kind">Kind of claim</label>
+    <select id="kind" aria-label="Kind of claim">
+      <option>Car accident</option>
+      <option>Home damage</option>
+      <option>Theft</option>
+    </select>
+    <label for="files">Attachments</label>
+    <input id="files" type="file" aria-label="Attachments">
+    <input type="submit" value="Submit claim">
+    <div class="toast hidden">Your claim was filed. We will review it in two business days.</div>
+  </section>
+
+  <script>
+    const STATES = {
+      submitted: "Submitted",
+      review: "Under review",
+      approved: "Approved, payment on its way.",
+      rejected: "Rejected: see the reason in the claim."
+    };
+    const ERRORS = ["The attachment is larger than 10 MB.", "Your session expired. Sign in again."];
+    function show(id) { document.querySelector("#" + id).hidden = false; }
+    const endpoint = "/api/claims";
+  </script>
+</body>
+</html>

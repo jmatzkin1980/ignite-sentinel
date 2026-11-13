@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- `/prototype PROJECT_ID --inventory` (IMP-274, H17b): the inventory of each ingested HTML prototype, in `sentinel/prototype.py`.
+  - **Input:** the redacted, shielded copy in `00_raw`, so secrets (IMP-285) and injection (IMP-286) are handled as for any source.
+  - **Screens:** by `data-screen`, else `<section id>`, else the page.
+  - **Elements:**
+    - every visible element with its literal text, line and whether it starts hidden;
+    - its stable id (`S1-E01`).
+  - **JavaScript copy literals** (`JS-01`): state texts and error messages, with code left out.
+  - **Output:** `02_requirements/prototype/inventory.json` and `inventory.md` (`/view --artifact prototype`). It is deterministic and stdlib only.
+  - **Surfaces:** CLI, MCP (`sentinel_prototype`, `mode=inventory`), the manifest, the router and `user_guide` 01.
+  - **Fixture:** a synthetic prototype (`tests/fixtures/synthetic_prototype/`, labelled) with three screens, hidden states and JS copy. The test seeds a secret at run time and checks it is redacted.
+
 ## [0.8.0] — 2026-11-12
 
 H17a′: the living series. A confirmed series can be re-scoped with a dated, confirmed move, releases close with evidence and free their dependents, and a guide shows the series as a whole. It also fixes two defects: releases derived from the whole brief, and a brief's scope reduced to one sentence per source. A workspace without a series compiles, validates and derives exactly as 0.7.0 did; the H17a′ closing control found 30/30 identical Markdown on `support-dashboard`.

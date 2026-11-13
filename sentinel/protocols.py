@@ -64,6 +64,8 @@ MUTATING_COMMANDS = {
     "sources",
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     "split",
+    # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
+    "prototype",
 }
 # IMP-244: the only commands outside the protocol, each with its reason. A test
 # requires every CLI command to be in exactly one of READ_ONLY, MUTATING or here.

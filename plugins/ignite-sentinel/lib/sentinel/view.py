@@ -53,6 +53,11 @@ ARTIFACTS = {
         "relative": "02_requirements/series/release-guide.md",
         "phase": "Series",
     },
+    "prototype": {  # IMP-274: the prototype inventory
+        "label": "Prototype Inventory",
+        "relative": "02_requirements/prototype/inventory.md",
+        "phase": "Prototype",
+    },
 }
 
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")
