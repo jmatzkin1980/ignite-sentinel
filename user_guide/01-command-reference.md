@@ -547,6 +547,18 @@ python -m sentinel /view PROJECT_ID --artifact prototype-trace
   - **Refusals:** a refused trace lists every finding and stores nothing.
   - **Storage:** a valid one goes to `02_requirements/prototype/trace/F-NN-SN.json`, and `trace.md` gathers every screen with its verdict (`supported`, `has_gaps` or `not_executed`).
 
+```powershell
+python -m sentinel /prototype PROJECT_ID --manual --source manual.json
+python -m sentinel /view PROJECT_ID --artifact prototype-manual
+```
+
+- **`--manual`** (IMP-276) validates and merges the user manual, written with the `sentinel-prototype-manual` skill.
+  - **Per screen:** a purpose, steps and notes in the agent's prose.
+  - **Citations:** the prose cites elements as `{{S2-E06}}`, an element of that screen or a JS literal. The manual shows each element's literal text, so the interface's words are never typed by the agent.
+  - **Refusals:** a paragraph without a citation, a figure in the prose, an unknown element or screen, and a duplicate screen. A refused manual stores nothing.
+  - **Merging:** each submission replaces the screens it brings and keeps the others.
+  - **Output:** `02_requirements/prototype/manual.md`, printable, lists every screen. A screen without manual is a visible **hole**, never an omission.
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

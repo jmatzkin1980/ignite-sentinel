@@ -63,6 +63,11 @@ ARTIFACTS = {
         "relative": "02_requirements/prototype/trace.md",
         "phase": "Prototype",
     },
+    "prototype-manual": {  # IMP-276: the printable user manual of the prototype
+        "label": "Prototype User Manual",
+        "relative": "02_requirements/prototype/manual.md",
+        "phase": "Prototype",
+    },
 }
 
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")
