@@ -92,10 +92,13 @@ python -m sentinel /view PROJECT_ID --artifact prd
 python -m sentinel /view PROJECT_ID --artifact specs
 python -m sentinel /view PROJECT_ID --artifact backlog
 python -m sentinel /view PROJECT_ID --artifact readiness
+python -m sentinel /view PROJECT_ID --artifact diagrams
 python -m sentinel /view PROJECT_ID --artifact prd --open
 ```
 
 `--artifact readiness` is not a Markdown artifact: it shows the build-readiness view, with what is missing per item and from whom (see [Artifact Views](15-artifact-views.md#build-readiness-view)).
+
+`--artifact diagrams` (IMP-273) is not a Markdown artifact either. It shows the to-be diagrams of the v2 brief, one card per diagram, each with what changes and what is still to define (see [Artifact Views](15-artifact-views.md#to-be-diagrams)).
 
 `/view` reads the Markdown source of truth, derives a lossless block model, then combines it with workspace state, assumptions, gaps, development readiness, and traceability graph data before writing `workspaces/PROJECT_ID/08_context_packs/views/ARTIFACT.html`. The HTML is self-contained, opens without a server, and is ignored by git. It is a rebuildable review surface, not a second source of truth. Pending and assumption markers link back to exact inline highlights and show their governed metadata in the side panel.
 

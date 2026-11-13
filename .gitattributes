@@ -31,5 +31,8 @@ tests/fixtures/golden/**/*.html text eol=lf
 plugins/** linguist-generated=true
 .claude-plugin/marketplace.json linguist-generated=true
 
+# Vendored third-party files are pinned by sha256 (IMP-273, /doctor): never touch their bytes.
+**/vendor/mermaid/* -text
+
 # Shell scripts run under sh/bash; CRLF would break them on a Windows checkout (IMP-290).
 *.sh text eol=lf

@@ -1,0 +1,49 @@
+* { box-sizing: border-box; }
+.view-header { padding: 22px 28px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.15; letter-spacing: 0; }
+.render-status { margin: 0; color: var(--text-muted); font-size: 13px; }
+.render-status[data-ok="0"] { color: var(--warn-text); }
+code { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; }
+.view-nav { padding: 0 8px; }
+.stats { margin: 10px 6px; font-size: 13px; color: var(--text-muted); }
+.toc { margin: 0; padding-left: 22px; }
+.toc a { display: block; padding: 4px 2px; color: var(--text); text-decoration: none; font-size: 13px; }
+.diagram-cards { display: grid; gap: 18px; padding: 18px 30px 30px; }
+.diagram-card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 14px 16px; min-width: 0; }
+.diagram-card.status-pending, .diagram-card.status-no_notation { border-style: dashed; border-color: var(--warn); }
+.diagram-card header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.diagram-card h2 { margin: 0; font-size: 18px; }
+.sections { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.diagram-render { margin: 12px 0; overflow-x: auto; text-align: center; }
+.diagram-render svg { max-width: 100%; height: auto; }
+.unrendered { margin: 12px 0 6px; color: var(--warn-text); font-size: 13px; }
+.diagram-code summary { cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.mermaid-src { margin: 8px 0 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow-x: auto; font-family: var(--font-mono); font-size: 12px; white-space: pre; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 20px; }
+.facts h3 { font-size: 14px; margin: 12px 0 4px; }
+.facts ul { margin: 0; padding-left: 20px; font-size: 14px; }
+.facts li { margin: 3px 0; }
+.muted { color: var(--text-muted); font-size: 13px; margin: 0; }
+.sources { color: var(--text-muted); font-size: 12px; margin: 10px 0 0; }
+.view-section { padding: 0 30px 24px; }
+.diagram-legend { margin-bottom: 8px; }
+
+/* Each status class paints with a semantic role of the theme (the legend says which). */
+.diagram-render .st_new > rect, .diagram-render .st_new > polygon, .diagram-render .st_new > path,
+.diagram-render .st_closed > rect, .diagram-render .st_closed > path { fill: var(--ok-soft) !important; stroke: var(--ok) !important; }
+.diagram-render .st_extends > rect, .diagram-render .st_extends > polygon, .diagram-render .st_extends > path,
+.diagram-render .st_open > rect, .diagram-render .st_open > path { fill: var(--info-soft) !important; stroke: var(--info) !important; }
+.diagram-render .st_retired > rect, .diagram-render .st_retired > polygon, .diagram-render .st_retired > path,
+.diagram-render .st_waiting > rect, .diagram-render .st_waiting > path { fill: var(--block-soft) !important; stroke: var(--block) !important; }
+.diagram-render .st_pending > rect, .diagram-render .st_pending > polygon, .diagram-render .st_pending > path { fill: var(--warn-soft) !important; stroke: var(--warn) !important; }
+.diagram-render .st_unchanged > rect, .diagram-render .st_unchanged > path,
+.diagram-render .st_external > rect, .diagram-render .st_external > path { fill: var(--surface-2) !important; stroke: var(--text-muted) !important; }
+.diagram-render .st_pending > *, .diagram-render .st_conditional > * { stroke-dasharray: 6 4 !important; }
+
+@media print {
+  .diagram-code, .toc { display: none; }
+  .diagram-card { break-inside: avoid; }
+}
+@media (max-width: 860px) { .diagram-cards { padding: 16px; } .view-section { padding: 0 16px 20px; } }

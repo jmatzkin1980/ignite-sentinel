@@ -1,0 +1,14 @@
+flowchart LR
+  subgraph w1["Wave 1"]
+    r1["r1 · Claim intake · mvp"]:::st_closed
+  end
+  subgraph w2["Wave 2"]
+    r2["r2 · Payout · increment"]:::st_open
+    r3["r3 · Reporting · enabler"]:::st_waiting
+  end
+  r1 -->|"K1"| r2
+  r2 --> r3
+  r1 -.-> r3
+  classDef st_closed stroke-width:2px
+  classDef st_open stroke-width:2px
+  classDef st_waiting stroke-width:2px

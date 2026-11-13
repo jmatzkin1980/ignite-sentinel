@@ -35,15 +35,21 @@ python -m sentinel /dashboard --open
 When the user wants one artifact as a navigable page instead of the portfolio:
 
 ```powershell
-python -m sentinel /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog | readiness
+python -m sentinel /view PROJECT_ID --artifact prd            # gaps | brief | prd | specs | backlog | readiness | diagrams
 python -m sentinel /view PROJECT_ID --artifact prd --theme NAME_OR_PATH
 ```
+
+Also `release-guide`, `prototype`, `prototype-trace` and `prototype-manual`.
 
 - Report the generated path, theme and source cut-off.
 - Inline provenance is hidden by default (reader edition). Tell the user about the **Show provenance** toggle when they need citations.
 - Local notes survive rebuilds. The page warns when the source changed and marks orphaned notes without deleting them.
 - Feedback leaves only through the page's Markdown export, routed to `/resolve-gaps` or `/sync`.
 - `--artifact readiness` answers "what is missing, and from whom?". Report the workspace verdict and the requests that block `start` first. Then report who has to answer each request: an unassigned recipient means no stakeholder is registered for that lens, so suggest `/stakeholders`. The page's local marks never change the governed verdict.
+- `--artifact diagrams` draws the to-be diagrams of the v2 brief: states (§3.4), sequence (§3.3), architecture (§5.1 and §5.6, with a compared As-Is) and the series waves.
+  - **Report:** the cards drawn, pending and without notation, and each card's "what is still to define".
+  - **Nothing is inferred.** A dashed card is pending, with its GAP. A card "without diagrammable notation" says how to write that section (`A → B: label`, `Component (new)` or a table with named columns). Route that to the BA; never invent the diagram.
+  - **Rendering** is offline with the vendored mermaid. If the page says "not rendered", the code is still there: report the reason (minimal `.pyz`, hash mismatch) and suggest `/doctor`.
 
 ## Rules
 

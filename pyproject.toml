@@ -42,4 +42,4 @@ sentinel = "sentinel.cli:main"
 include = ["sentinel*"]
 
 [tool.setuptools.package-data]
-sentinel = ["schemas/*.json", "templates/*.json", "templates/*.md", "lenses/*.json", "smells/*.json", "techniques/*.json", "risk_categories/*.json", "iso29148/*.json", "retrieval_plans/*.json", "slicing/*.json", "handoff_contracts/*.json", "themes/*.json", "themes/*.css", "themes/templates/*.html", "themes/templates/*.css", "themes/templates/*.js"]
+sentinel = ["schemas/*.json", "templates/*.json", "templates/*.md", "lenses/*.json", "smells/*.json", "techniques/*.json", "risk_categories/*.json", "iso29148/*.json", "retrieval_plans/*.json", "slicing/*.json", "handoff_contracts/*.json", "themes/*.json", "themes/*.css", "themes/templates/*.html", "themes/templates/*.css", "themes/templates/*.js", "vendor/mermaid/*.js", "vendor/mermaid/*.md", "vendor/mermaid/LICENSE"]

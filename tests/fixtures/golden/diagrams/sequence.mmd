@@ -1,0 +1,9 @@
+sequenceDiagram
+  participant p1 as Policyholder
+  participant p2 as Claims portal
+  participant p3 as Claims API
+  participant p4 as Fraud check
+  p1->>p2: files a claim
+  p2->>p3: POST claim
+  p3-->>p4: score claim (optional)
+  p3->>p2: claim number
