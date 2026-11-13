@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/prototype PROJECT_ID --manual --source manual.json` and the `sentinel-prototype-manual` skill (IMP-276, H17b), in `sentinel/prototype_manual.py`.
+  - **A `/compose`-like channel:** the agent writes the prose of each screen (purpose, steps, notes) and cites the inventory as `{{S2-E06}}`. The generator injects the element's literal text, so the agent never types the interface's words or figures.
+  - **Refusals:** a paragraph without a citation, a figure in the prose, an element outside the screen (JS literals allowed), an unknown screen and a duplicate. A refused manual stores nothing.
+  - **Merging:** submissions merge by screen.
+  - **Output:** `02_requirements/prototype/manual.md` (`/view --artifact prototype-manual`, printable) lists every screen in order. A screen without manual is a visible hole.
+  - **Surfaces:** CLI, MCP (`sentinel_prototype` with `mode=manual`), the manifest, the router, the new skill (in `/doctor` required skills, mirrored) and `user_guide` 01.
 - `/prototype PROJECT_ID --trace --source trace.json` and the `sentinel-prototype-trace` skill (IMP-275, H17b), in `sentinel/prototype_trace.py`.
   - **One screen per pass:** the agent walks it in the surface's browser and traces each element element → data → contract → rule. With no browser it declares `executed: false`, which is "not executed", never invented.
   - **What the runtime validates**, against the inventory and the brief v2:

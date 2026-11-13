@@ -7,7 +7,8 @@ from pathlib import Path
 
 from .protocols import postflight_command, preflight_command
 
-VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype", "prototype-trace"}
+VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype", "prototype-trace",
+                  "prototype-manual"}
 
 COMMANDS = {
     "doctor",
@@ -175,7 +176,9 @@ def main(argv: list[str] | None = None) -> int:
                                 help="inventory of visible elements per screen and JS copy of the ingested HTML prototypes")
     prototype_mode.add_argument("--trace", action="store_true",
                                 help="IMP-275: validate and store one screen trace (--source TRACE.json, sentinel-prototype-trace skill)")
-    prototype_p.add_argument("--source", help="--inventory: only this source (F-NN); --trace: the trace JSON")
+    prototype_mode.add_argument("--manual", action="store_true",
+                                help="IMP-276: validate and merge the user manual (--source MANUAL.json, sentinel-prototype-manual skill)")
+    prototype_p.add_argument("--source", help="--inventory: only this source (F-NN); --trace/--manual: the JSON")
 
     self_review_p = sub.add_parser("self-review")
     self_review_p.add_argument("project_id")
@@ -440,6 +443,13 @@ def main(argv: list[str] | None = None) -> int:
             from .release_split import confirm_partition
 
             print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+        elif args.command == "prototype" and args.manual:
+            if not args.source:
+                raise ValueError("/prototype --manual needs --source MANUAL.json (written with the sentinel-prototype-manual skill)")
+            from .prototype_manual import apply_manual
+
+            result = apply_manual(args.project_id, Path(args.source))
+            print_json(result)
         elif args.command == "prototype" and args.trace:
             if not args.source:
                 raise ValueError("/prototype --trace needs --source TRACE.json (written with the sentinel-prototype-trace skill)")
