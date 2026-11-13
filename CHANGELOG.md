@@ -6,7 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-11-13
+
+H17b: the derived artifacts. The to-be diagrams of a brief v2 render offline with a vendored, pinned mermaid. An ingested HTML prototype gets its inventory, the trace of each screen against the brief, and a user manual that quotes the interface's own words. The release series end to end now covers all eight release types. A workspace without a prototype or a series compiles, validates and derives exactly as 0.8.0 did: the H17b closing control found 30/30 identical Markdown on `support-dashboard`.
+
 ### Added
+- H17b closing check (IMP-27z).
+  - **Without a prototype**, on `support-dashboard`:
+    - v1 has 12/12 phases green and 30/30 Markdown identical to `v0.8.0`, with `/validate` VALID;
+    - the default v2 flow gives two identical runs;
+    - `--assess` gives `no_split`.
+  - **With a prototype:** `tests/test_prototype_e2e.py` takes the synthetic prototype through inventory, the trace of one screen and the manual. Each view matches its golden (`tests/fixtures/golden/prototype/`), and two runs in fresh workspaces are identical.
+  - **Diagrams:** golden per type, a pending section drawn dashed, and a view that opens offline under the CSP (`tests/test_diagrams.py`).
 - The release series end to end with the three remaining release types (IMP-298, H17b).
   - **Fixture:** a new synthetic fixture `tests/fixtures/synthetic_series_more_types/` covers an already built release, an enabler, a functional release and a segment cutover. Each one derives (specs, backlog, quality) and gives `/validate` VALID, and two runs are identical (`tests/test_series_e2e.py`).
   - **Release brief:** §0.1 now carries what each type requires (`release_split_model.json#release_types`):
