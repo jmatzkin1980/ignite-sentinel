@@ -58,6 +58,11 @@ ARTIFACTS = {
         "relative": "02_requirements/prototype/inventory.md",
         "phase": "Prototype",
     },
+    "prototype-trace": {  # IMP-275: element → data → contract → rule, one screen per pass
+        "label": "Prototype Trace",
+        "relative": "02_requirements/prototype/trace.md",
+        "phase": "Prototype",
+    },
 }
 
 MARKER_RE = re.compile(r"\[(?:PENDING INPUT|PENDING DOMAIN CONTEXT|PENDING [^\]]+)\]|GAP-[A-Z0-9-]+|ASM-[A-Z0-9-]+|\bASSUMED\b")

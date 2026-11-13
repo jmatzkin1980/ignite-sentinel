@@ -530,6 +530,23 @@ python -m sentinel /view PROJECT_ID --artifact prototype
   - `--source F-NN` limits it to one prototype.
 - The audit and the manual of the prototype (IMP-275, 276) cite these ids. An element that is not in the inventory does not exist.
 
+```powershell
+python -m sentinel /prototype PROJECT_ID --trace --source trace.json
+python -m sentinel /view PROJECT_ID --artifact prototype-trace
+```
+
+- **`--trace`** (IMP-275) validates and stores the trace of **one screen**, written with the `sentinel-prototype-trace` skill. The agent walks that screen in the surface's browser; with no browser it declares `executed: false`.
+  - **Each element:** a literal `element_quote` of an inventory element of that screen, or a `JS-NN` literal, traced element → data → contract → rule. Its level is one of:
+    - `established`: it cites the brief verbatim;
+    - `inferred`: it names its basis;
+    - `unsupported`: it names an open gap;
+    - `demo`: it cites the source that says it is not built; without that source it is unsupported.
+  - **The four states** (ideal, empty, loading, error) are marked `shown`, `unreachable` or `not_built`. Unreachable is not not built.
+  - **Checks** (create/edit symmetry, fallback on a domain value, who reads the value, dynamic text, contract and not mapping) each name the side to fix.
+  - **Limits:** at most four questions per pass, and no figures in the agent's prose (ids are fine).
+  - **Refusals:** a refused trace lists every finding and stores nothing.
+  - **Storage:** a valid one goes to `02_requirements/prototype/trace/F-NN-SN.json`, and `trace.md` gathers every screen with its verdict (`supported`, `has_gaps` or `not_executed`).
+
 ## `scrutinize`
 
 Run deep multi-lens scrutiny (IMP-066) and merge cited findings as gaps with `origin: scrutiny`.

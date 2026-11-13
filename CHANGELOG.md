@@ -7,6 +7,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/prototype PROJECT_ID --trace --source trace.json` and the `sentinel-prototype-trace` skill (IMP-275, H17b), in `sentinel/prototype_trace.py`.
+  - **One screen per pass:** the agent walks it in the surface's browser and traces each element element → data → contract → rule. With no browser it declares `executed: false`, which is "not executed", never invented.
+  - **What the runtime validates**, against the inventory and the brief v2:
+    - the element exists in that screen (or is a `JS-NN` literal) and its `element_quote` is literal;
+    - `established` cites the brief verbatim, `inferred` names its basis, `unsupported` names an open gap, and `demo` cites the source that says it is not built;
+    - the four states are declared as shown, unreachable or not_built;
+    - the checks name a known check and a side to fix;
+    - there are at most four questions;
+    - there are no figures in the agent's prose (ids are fine).
+  - **Refusals:** a refused trace lists every finding and stores nothing.
+  - **Storage:** a valid one goes to `02_requirements/prototype/trace/F-NN-SN.json`, and `trace.md` (`/view --artifact prototype-trace`) shows the screen verdict (`supported`, `has_gaps` or `not_executed`).
+  - **Evals:** 11 seeded synthetic traces, tuning and held-out, with a no-regression floor. They run in `verify.ps1` and CI.
+  - **Surfaces:** CLI, MCP (`sentinel_prototype` with `mode=trace`), the manifest, the router, the new skill (in `/doctor` required skills, mirrored) and `user_guide` 01.
 - `/prototype PROJECT_ID --inventory` (IMP-274, H17b): the inventory of each ingested HTML prototype, in `sentinel/prototype.py`.
   - **Input:** the redacted, shielded copy in `00_raw`, so secrets (IMP-285) and injection (IMP-286) are handled as for any source.
   - **Screens:** by `data-screen`, else `<section id>`, else the page.

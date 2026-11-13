@@ -1,0 +1,367 @@
+{
+  "case": "demo-without-source",
+  "split": "tuning",
+  "synthetic": true,
+  "brief": "<!-- sentinel-artifact: v2 -->\n# Project Brief — SYN (synthetic fixture)\n\n## 1. Overview\n\n### 1.1 Identity and Value\n\n- A claims portal lets policyholders file and track insurance claims. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 3. Product Lens\n\n### 3.2 To-Be Process\n\n- The policyholder signs in with email and password before filing a claim. [[sources § Source log - SYN # F-01 — supports: x]]\n- The policyholder sees the list of claims with their status. [[sources § Source log - SYN # F-01 — supports: x]]\n\n## 6. Release Agreements\n\n### 6.1 In Scope\n\n- Online claim filing. [[sources § Source log - SYN # F-01 — supports: x]]\n\n### 6.2 Out of Scope\n\n- Out of scope: the claims list is a demo only and is not built in this release. [[sources § Source log - SYN # F-01 — supports: x]]\n",
+  "inventory": {
+    "project_id": "SYN",
+    "prototypes": [
+      {
+        "source": "F-01",
+        "path": "00_raw/claims-portal.html",
+        "screens": [
+          {
+            "id": "S1",
+            "key": "page",
+            "title": "Outside any screen",
+            "line": 10,
+            "elements": [
+              {
+                "id": "S1-E01",
+                "kind": "link",
+                "text": "My claims",
+                "line": 10,
+                "hidden": false
+              },
+              {
+                "id": "S1-E02",
+                "kind": "link",
+                "text": "File a claim",
+                "line": 10,
+                "hidden": false
+              }
+            ],
+            "hidden": false
+          },
+          {
+            "id": "S2",
+            "key": "sign-in",
+            "title": "Sign in",
+            "line": 12,
+            "elements": [
+              {
+                "id": "S2-E01",
+                "kind": "heading",
+                "text": "Sign in",
+                "line": 13,
+                "hidden": false
+              },
+              {
+                "id": "S2-E02",
+                "kind": "label",
+                "text": "Email",
+                "line": 14,
+                "hidden": false
+              },
+              {
+                "id": "S2-E03",
+                "kind": "field",
+                "text": "you@example.com",
+                "line": 15,
+                "hidden": false
+              },
+              {
+                "id": "S2-E04",
+                "kind": "label",
+                "text": "Password",
+                "line": 16,
+                "hidden": false
+              },
+              {
+                "id": "S2-E05",
+                "kind": "field",
+                "text": "Password",
+                "line": 17,
+                "hidden": false
+              },
+              {
+                "id": "S2-E06",
+                "kind": "button",
+                "text": "Continue",
+                "line": 18,
+                "hidden": false
+              },
+              {
+                "id": "S2-E07",
+                "kind": "message",
+                "text": "The email or the password is not right.",
+                "line": 19,
+                "hidden": true
+              }
+            ],
+            "hidden": false
+          },
+          {
+            "id": "S3",
+            "key": "claims",
+            "title": "My claims",
+            "line": 22,
+            "elements": [
+              {
+                "id": "S3-E01",
+                "kind": "heading",
+                "text": "My claims",
+                "line": 23,
+                "hidden": false
+              },
+              {
+                "id": "S3-E02",
+                "kind": "column",
+                "text": "Claim",
+                "line": 25,
+                "hidden": false
+              },
+              {
+                "id": "S3-E03",
+                "kind": "column",
+                "text": "Filed on",
+                "line": 25,
+                "hidden": false
+              },
+              {
+                "id": "S3-E04",
+                "kind": "column",
+                "text": "Status",
+                "line": 25,
+                "hidden": false
+              },
+              {
+                "id": "S3-E05",
+                "kind": "column",
+                "text": "Amount",
+                "line": 25,
+                "hidden": false
+              },
+              {
+                "id": "S3-E06",
+                "kind": "message",
+                "text": "You have not filed any claim yet.",
+                "line": 28,
+                "hidden": true
+              },
+              {
+                "id": "S3-E07",
+                "kind": "button",
+                "text": "File a claim",
+                "line": 29,
+                "hidden": false
+              }
+            ],
+            "hidden": false
+          },
+          {
+            "id": "S4",
+            "key": "new-claim",
+            "title": "File a claim",
+            "line": 32,
+            "elements": [
+              {
+                "id": "S4-E01",
+                "kind": "heading",
+                "text": "File a claim",
+                "line": 33,
+                "hidden": true
+              },
+              {
+                "id": "S4-E02",
+                "kind": "label",
+                "text": "What happened?",
+                "line": 34,
+                "hidden": true
+              },
+              {
+                "id": "S4-E03",
+                "kind": "field",
+                "text": "Describe the incident",
+                "line": 35,
+                "hidden": true
+              },
+              {
+                "id": "S4-E04",
+                "kind": "label",
+                "text": "Kind of claim",
+                "line": 36,
+                "hidden": true
+              },
+              {
+                "id": "S4-E05",
+                "kind": "field",
+                "text": "Kind of claim",
+                "line": 37,
+                "hidden": true
+              },
+              {
+                "id": "S4-E06",
+                "kind": "option",
+                "text": "Car accident",
+                "line": 38,
+                "hidden": true
+              },
+              {
+                "id": "S4-E07",
+                "kind": "option",
+                "text": "Home damage",
+                "line": 39,
+                "hidden": true
+              },
+              {
+                "id": "S4-E08",
+                "kind": "option",
+                "text": "Theft",
+                "line": 40,
+                "hidden": true
+              },
+              {
+                "id": "S4-E09",
+                "kind": "label",
+                "text": "Attachments",
+                "line": 42,
+                "hidden": true
+              },
+              {
+                "id": "S4-E10",
+                "kind": "field",
+                "text": "Attachments",
+                "line": 43,
+                "hidden": true
+              },
+              {
+                "id": "S4-E11",
+                "kind": "button",
+                "text": "Submit claim",
+                "line": 44,
+                "hidden": true
+              },
+              {
+                "id": "S4-E12",
+                "kind": "message",
+                "text": "Your claim was filed. We will review it in two business days.",
+                "line": 45,
+                "hidden": true
+              }
+            ],
+            "hidden": true
+          }
+        ],
+        "js_literals": [
+          {
+            "id": "JS-01",
+            "text": "Submitted",
+            "line": 50
+          },
+          {
+            "id": "JS-02",
+            "text": "Under review",
+            "line": 51
+          },
+          {
+            "id": "JS-03",
+            "text": "Approved, payment on its way.",
+            "line": 52
+          },
+          {
+            "id": "JS-04",
+            "text": "Rejected: see the reason in the claim.",
+            "line": 53
+          },
+          {
+            "id": "JS-05",
+            "text": "The attachment is larger than 10 MB.",
+            "line": 55
+          },
+          {
+            "id": "JS-06",
+            "text": "Your session expired. Sign in again.",
+            "line": 55
+          }
+        ]
+      }
+    ]
+  },
+  "open_gaps": [
+    "GAP-DESIGN-STATES",
+    "GAP-BRIEF-S4"
+  ],
+  "payload": {
+    "prototype": "F-01",
+    "screen": "S2",
+    "executed": true,
+    "mode": "proposed",
+    "elements": [
+      {
+        "element": "S2-E01",
+        "element_quote": "Sign in",
+        "level": "established",
+        "data": "the screen title",
+        "contract": "none",
+        "rule": "sign in before filing",
+        "anchor": {
+          "place": "3.2",
+          "quote": "signs in with email and password"
+        }
+      },
+      {
+        "element": "S2-E06",
+        "element_quote": "Continue",
+        "level": "established",
+        "data": "the email and password typed",
+        "contract": "sign-in request",
+        "rule": "only registered policyholders sign in",
+        "reads_value": "the authentication service",
+        "anchor": {
+          "place": "3.2",
+          "quote": "signs in with email and password before filing a claim"
+        }
+      },
+      {
+        "element": "S2-E07",
+        "element_quote": "The email or the password is not right.",
+        "level": "demo"
+      },
+      {
+        "element": "S2-E03",
+        "element_quote": "you@example.com",
+        "level": "unsupported",
+        "gap": "GAP-DESIGN-STATES"
+      }
+    ],
+    "states": [
+      {
+        "state": "ideal",
+        "status": "shown"
+      },
+      {
+        "state": "empty",
+        "status": "not_built"
+      },
+      {
+        "state": "loading",
+        "status": "not_built"
+      },
+      {
+        "state": "error",
+        "status": "shown",
+        "element": "S2-E07"
+      }
+    ],
+    "checks": [
+      {
+        "check": "who_reads_value",
+        "finding": "the password field is read by the authentication service",
+        "fix_side": "none"
+      },
+      {
+        "check": "four_states",
+        "finding": "loading and empty are not built",
+        "fix_side": "prototype"
+      }
+    ],
+    "questions": [
+      "Which message does a locked account see?",
+      "Is there a password recovery path?"
+    ]
+  },
+  "expected": [
+    "demo_without_source"
+  ]
+}
