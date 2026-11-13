@@ -12,7 +12,9 @@ Parse `PROJECT_ID`, `--artifact`, and optional `--open` / `--theme` from:
 /view PROJECT_ID --artifact brief --open
 ```
 
-Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness, release-guide, prototype, prototype-trace, prototype-manual`. `readiness` is not a Markdown artifact: it shows what is missing per item (workspace, stories, SLICE-PLAN waves) and from whom, with the ready-to-build verdict of `/status`.
+Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness, release-guide, prototype, prototype-trace, prototype-manual, diagrams`. `readiness` is not a Markdown artifact: it shows what is missing per item (workspace, stories, SLICE-PLAN waves) and from whom, with the ready-to-build verdict of `/status`.
+
+`diagrams` (IMP-273) is not a Markdown artifact either: it draws the to-be diagrams of the v2 brief (states §3.4, sequence §3.3, architecture §5.1/§5.6, the series waves) as Mermaid, only from structured lines (`A → B: label`, `Component (new)`, tables with named columns). A pending section is dashed with its GAP. It renders offline with the vendored mermaid; without it, each card shows its code, not rendered.
 
 `--release rN` (IMP-267b) runs this command for one release of a confirmed series: the release brief `02_requirements/rN/project-brief.md` is the input and the outputs land under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`. The release keeps its own lifecycle; the project's state and artifacts are not touched. Without `--release` nothing changes.
 

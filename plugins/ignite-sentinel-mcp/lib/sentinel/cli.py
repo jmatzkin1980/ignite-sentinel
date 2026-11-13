@@ -8,7 +8,7 @@ from pathlib import Path
 from .protocols import postflight_command, preflight_command
 
 VIEW_ARTIFACTS = {"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype", "prototype-trace",
-                  "prototype-manual"}
+                  "prototype-manual", "diagrams"}
 
 COMMANDS = {
     "doctor",

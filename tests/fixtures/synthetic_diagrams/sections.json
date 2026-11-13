@@ -1,0 +1,46 @@
+{
+  "_note": "Synthetic fixture (IMP-273): invented for the tests; no real client or system.",
+  "3.3": [
+    "- Policyholder → Claims portal: files a claim [[sources § Source log # F-01 — supports: Sequence]]",
+    "- Claims portal → Claims API: POST claim",
+    "- Claims API → Fraud check: score claim (optional)",
+    "- Claims API → Claims portal: claim number"
+  ],
+  "3.4": [
+    "| State | Event | Next state |",
+    "|---|---|---|",
+    "| Draft | submit | Submitted |",
+    "| Submitted | approve | Approved |",
+    "| Submitted | reject | Rejected |",
+    "| Approved | pay (conditional) | Paid |"
+  ],
+  "5.1": [
+    "#### Architecture and components",
+    "",
+    "- Claims portal (new) [[sources § Source log # F-01 — supports: Architecture]]",
+    "- Claims API (extends)",
+    "- Policy service (unchanged)",
+    "- Legacy fax intake (retired)",
+    "",
+    "#### Existing resources inventory",
+    "",
+    "N/A — see 3.2/cutover.",
+    "",
+    "#### Architecture decisions",
+    "",
+    "⏳ PENDING DOMAIN (GAP-FRONTEND-SURFACE)"
+  ],
+  "5.6": [
+    "#### Integration map",
+    "",
+    "| From | To | Contract |",
+    "|---|---|---|",
+    "| Claims portal | Claims API | REST v1 |",
+    "| Claims API | Policy service | policy lookup |",
+    "| Claims API | Payments gateway | payout (conditional) |",
+    "",
+    "#### Integration resilience",
+    "",
+    "⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)"
+  ]
+}

@@ -34,12 +34,17 @@ def build_pyz(target: Path | str = DEFAULT_TARGET) -> Path:
     return target_path
 
 
-def _ignore_build_artifacts(_directory: str, names: list[str]) -> set[str]:
-    return {
+def _ignore_build_artifacts(directory: str, names: list[str]) -> set[str]:
+    ignored = {
         name
         for name in names
         if name == "__pycache__" or name.endswith(".pyc") or name.endswith(".pyo")
     }
+    # IMP-273: the minimal .pyz leaves the vendored mermaid out (~3.5 MB); /view diagrams
+    # then shows each diagram's code unrendered.
+    if Path(directory).name == "sentinel" and "vendor" in names:
+        ignored.add("vendor")
+    return ignored
 
 
 def main(argv: list[str] | None = None) -> int:

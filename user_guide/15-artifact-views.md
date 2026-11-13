@@ -110,6 +110,40 @@ This view answers "what is missing, and from whom?". It writes `08_context_packs
 
 The provenance block fingerprints only the fields the view reads, so the page is reproducible for the same workspace.
 
+## To-Be Diagrams
+
+```powershell
+python -m sentinel /view PROJECT_ID --artifact diagrams
+```
+
+IMP-273 writes `08_context_packs/views/diagrams.html` from the v2 brief. A workspace that compiles v1 is refused. The view is read-only and generated deterministically: the same brief gives the same page.
+
+| Card | From | Mermaid |
+|---|---|---|
+| State machine and lifecycle | §3.4 | `stateDiagram-v2` |
+| Sequence / to-be flow | §3.3 | `sequenceDiagram` |
+| Architecture and integrations | §5.1 components, §5.6 integration map | `flowchart`, with each component's status |
+| Architecture today (As-Is) | §5.1, when a component extends, keeps or retires something | `flowchart` |
+| Release series | the confirmed series (`/split --confirm`) | `flowchart` with its waves |
+
+- **Nothing is inferred.** A diagram is drawn only from structured lines of its section:
+  - `STATE → STATE: event` (also `->`), `Actor → Actor: message`, `A → B: contract`;
+  - `Component (new|extends|unchanged|retired)`, Spanish accepted (`nuevo`, `extiende`, `sin cambios`, `se retira`);
+  - a Markdown table whose header names its columns (`State | Event | Next state`, `From | To | Message`, `Component | Status`).
+- **Dashed means pending, conditional or optional.**
+  - A pending section is a dashed placeholder with its GAP.
+  - A line marked conditional or optional is dashed.
+  - A component that appears only in the integration map is drawn as external and listed under "what is still to define" (confirm it in §5.1).
+- **Without notation.** A populated section with none of that notation is a card "without diagrammable notation" that says how to write it.
+- **Each card** says what changes and what is still to define, with release and pending chips.
+  - The legend appears once.
+  - A diagram over 24 edges is split into parts.
+- **Rendering** is offline, under the same CSP as every view.
+  - The page inlines the vendored mermaid (`sentinel/vendor/mermaid`, version `11.17.2`, MIT License), whose sha256 `/doctor` checks.
+  - Colours come from the theme's semantic roles, and the page re-renders when you switch light/dark mode.
+  - Without the library (the minimal `.pyz` leaves it out) or when its hash does not match, each card shows its Mermaid code marked "not rendered".
+  - The code is also always available under **Mermaid code**.
+
 ## Optional PRD MDX Export
 
 Teams that already run an offline MDX renderer can export the PRD as a local derived MDX folder:

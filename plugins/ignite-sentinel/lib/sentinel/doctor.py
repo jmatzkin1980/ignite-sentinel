@@ -80,6 +80,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         command_surface_parity_check(),
         stdlib_purity_check(root),
         themes_check(root),
+        vendored_mermaid_check(root),
         user_themes_check(root),
         project_ids_check(root),
         *docs_command_mentions_checks(root),
@@ -1036,8 +1037,30 @@ VIEW_TEMPLATES = frozenset(
         "dashboard-page.html", "dashboard.css", "dashboard.js",
         "view-page.html", "view-nav.html", "view.css", "view.js",
         "readiness-page.html", "readiness-nav.html", "readiness.css", "readiness.js",
+        "diagrams.css", "diagrams.js",
     }
 )
+
+
+def vendored_mermaid_check(root: Path) -> dict[str, str]:
+    """IMP-273: the vendored mermaid and its MIT notice match their pinned sha256.
+
+    When the running package is a checkout's ``sentinel/`` both files must be there. A
+    package that leaves the vendor out (the minimal ``.pyz``) passes, whatever ``--root``
+    points at: the diagrams view shows the code unrendered.
+    """
+    from . import diagrams
+    from .diagrams import MERMAID_VERSION, VENDOR_DIR
+
+    name = "vendored mermaid"
+    status, detail = diagrams.mermaid_status()
+    if status == "ok":
+        return {"name": name, "status": "PASS", "detail": f"mermaid {MERMAID_VERSION}, sha256 pinned (MIT notice present)"}
+    package = Path(diagrams.__file__).resolve().parent
+    checkout = package == (root / "sentinel").resolve() and (package / "diagrams.py").is_file()
+    if status == "missing" and not checkout:
+        return {"name": name, "status": "PASS", "detail": "not bundled: /view diagrams shows each diagram's code unrendered"}
+    return {"name": name, "status": "FAIL", "detail": f"{detail} ({'/'.join(('sentinel',) + VENDOR_DIR)})"}
 
 
 def project_ids_check(root: Path) -> dict[str, str]:

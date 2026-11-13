@@ -1,0 +1,16 @@
+flowchart LR
+  c1["Claims portal"]:::st_new
+  c2["Claims API"]:::st_extends
+  c3["Policy service"]:::st_unchanged
+  c4["Legacy fax intake"]:::st_retired
+  c5(["Payments gateway"]):::st_external
+  pending1["⏳ Pending · GAP-FRONTEND-SURFACE, GAP-TECH-DEEP-DIVE-INPUT"]:::st_pending
+  c1 -->|"REST v1"| c2
+  c2 -->|"policy lookup"| c3
+  c2 -.->|"payout (conditional)"| c5
+  classDef st_extends stroke-width:2px
+  classDef st_external stroke-width:1px
+  classDef st_new stroke-width:2px
+  classDef st_pending stroke-dasharray:6 4
+  classDef st_retired stroke-width:2px
+  classDef st_unchanged stroke-width:1px

@@ -1,0 +1,15 @@
+stateDiagram-v2
+  state "Draft" as s1
+  state "Submitted" as s2
+  state "Approved" as s3
+  state "Rejected" as s4
+  state "Paid" as s5
+  [*] --> s1
+  s1 --> s2 : submit
+  s2 --> s3 : approve
+  s2 --> s4 : reject
+  s3 --> s5 : pay (conditional)
+  s4 --> [*]
+  s5 --> [*]
+  class s5 st_conditional
+  classDef st_conditional stroke-dasharray:6 4

@@ -7,6 +7,22 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Added
+- `/view PROJECT_ID --artifact diagrams` (IMP-273, H17b): the to-be diagrams, generated deterministically as Mermaid from the v2 brief, in `sentinel/diagrams.py`.
+  - **Diagrams:**
+    - §3.4 → `stateDiagram-v2`;
+    - §3.3 → `sequenceDiagram`;
+    - §5.1 and §5.6 → `flowchart`, with each component's status (new, extends, unchanged, retired), plus a compared As-Is when something already exists;
+    - the confirmed series → `flowchart` with its waves.
+  - **Nothing is inferred:** a diagram is drawn only from structured lines: `A → B: label`, `Component (new)` or a table whose header names its columns.
+    - A pending section is a dashed placeholder with its GAP.
+    - A populated section without that notation says how to write it.
+    - Conditional and optional lines are dashed.
+  - **Each card** says what changes and what is still to define, with pending and release chips. The legend appears once. A diagram over 24 edges is split.
+  - **Render:** offline, under the views' CSP.
+    - The page inlines a vendored mermaid `11.17.2` (MIT, `sentinel/vendor/mermaid`), pinned by sha256 and checked by the new `/doctor` check `vendored mermaid`.
+    - The colours come from the theme's semantics, and the page re-renders on the light/dark toggle.
+    - Without the library (the minimal `.pyz` leaves it out) or on a hash mismatch, each card shows its code, marked "not rendered".
+  - **Surfaces:** CLI and MCP `view`, the manifest, the `sentinel-views` skill, `user_guide` 01 and 15, `VIEW_TEMPLATES` and package-data.
 - `/prototype PROJECT_ID --manual --source manual.json` and the `sentinel-prototype-manual` skill (IMP-276, H17b), in `sentinel/prototype_manual.py`.
   - **A `/compose`-like channel:** the agent writes the prose of each screen (purpose, steps, notes) and cites the inventory as `{{S2-E06}}`. The generator injects the element's literal text, so the agent never types the interface's words or figures.
   - **Refusals:** a paragraph without a citation, a figure in the prose, an element outside the screen (JS literals allowed), an unknown screen and a duplicate. A refused manual stores nothing.
