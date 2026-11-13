@@ -6,6 +6,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- A single command registry (IMP-303, H18), `sentinel/commands.py`. Each command is declared once: its name, its place in the command protocol, whether it takes `--release`, its MCP tool and its arguments.
+  - **Built from it:** the CLI parser, `cli.COMMANDS`, the protocol sets (`READ_ONLY_COMMANDS`, `MUTATING_COMMANDS`, `PROTOCOL_EXEMPT_COMMANDS`), the release commands and the runtime list the adapters compare with the manifest. The parser is identical to 0.9.0's.
+  - **Checked against it** (`tests/test_command_registry.py`): the CLI dispatch, the MCP tools and every parameter they take, the commands manifest, one section per command in `user_guide/01` and the artifacts the MCP `view` tool describes. A CLI option with no MCP parameter, or the other way round, fails the test unless the registry states why it is left out.
+  - **MCP gains the options it lacked:** `sentinel_init` takes `brief_version`; `sentinel_retrieve` takes `limit`, `artifact_type`, `domain`, `trace_id`, `iteration_min`, `status`, `language`, `sensitivity`, `section`, `max_chars` and `summary_only`; `sentinel_backlog` takes `story_format`; `sentinel_export` takes `domain`; `sentinel_quality`, `sentinel_validate` and `sentinel_backlog_status` take `override`; `sentinel_reindex` takes `full`.
+
 ## [0.9.0] — 2026-11-13
 
 H17b: the derived artifacts. The to-be diagrams of a brief v2 render offline with a vendored, pinned mermaid. An ingested HTML prototype gets its inventory, the trace of each screen against the brief, and a user manual that quotes the interface's own words. The release series end to end now covers all eight release types. A workspace without a prototype or a series compiles, validates and derives exactly as 0.8.0 did: the H17b closing control found 30/30 identical Markdown on `support-dashboard`.

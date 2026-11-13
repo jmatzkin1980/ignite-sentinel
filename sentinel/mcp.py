@@ -34,6 +34,8 @@ import json
 import sys
 
 
+# IMP-303: one tool per command of the single command registry (sentinel/commands.py) plus
+# MCP_ONLY_TOOLS; tests/test_command_registry.py keeps names and parameters in step with it.
 TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("doctor", "Validate that Ignite Sentinel is ready in this repository.", []),
     ("dashboard", "Generate the local read-only HTML portfolio dashboard for all workspaces.", []),
@@ -79,6 +81,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
 # positional index of TOOL_SPECS (IMP-176 F4: inserting a tool used to silently
 # shift every later `TOOL_SPECS[N][1]` reference).
 TOOL_DESCRIPTIONS: dict[str, str] = {name: description for name, description, _ in TOOL_SPECS}
+MCP_ONLY_TOOLS = frozenset({"gap_elicitation"})  # tools with no CLI command
 PROTOTYPE_MODES = ("inventory", "trace", "manual")  # IMP-274, IMP-275, IMP-276
 SPLIT_MODES = ("assess", "propose", "confirm", "move", "close")  # IMP-263, IMP-265, IMP-266, IMP-268, IMP-269
 
@@ -209,6 +212,11 @@ def release_arguments(release: str = "") -> list[str]:
     return ["--release", release] if release else []
 
 
+def override_arguments(override: str = "") -> list[str]:
+    """`--override PATH`: a local override file for /quality, /validate and /backlog-status."""
+    return ["--override", override] if override else []
+
+
 def view_arguments(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> list[str]:
     """CLI arguments for the view tool; ``theme`` is a built-in name or a local theme path."""
     arguments = ["view", project_id, "--artifact", artifact]
@@ -272,8 +280,8 @@ def build_server():
         return run_cli(dashboard_arguments(open_browser, theme))
 
     @server.tool(name="sentinel_init", description=TOOL_DESCRIPTIONS["init"])
-    def sentinel_init(project_id: str) -> dict:
-        return run_cli(["init", project_id])
+    def sentinel_init(project_id: str, brief_version: int = 0) -> dict:
+        return run_cli(["init", project_id] + (["--brief-version", str(brief_version)] if brief_version else []))
 
     @server.tool(name="sentinel_ingest", description=TOOL_DESCRIPTIONS["ingest"])
     def sentinel_ingest(project_id: str, source: str) -> dict:
@@ -410,8 +418,8 @@ def build_server():
         return run_cli(arguments)
 
     @server.tool(name="sentinel_reindex", description=TOOL_DESCRIPTIONS["reindex"])
-    def sentinel_reindex(project_id: str) -> dict:
-        return run_cli(["reindex", project_id])
+    def sentinel_reindex(project_id: str, full: bool = False) -> dict:
+        return run_cli(["reindex", project_id] + (["--full"] if full else []))
 
     @server.tool(name="sentinel_retrieve", description=TOOL_DESCRIPTIONS["retrieve"])
     def sentinel_retrieve(
@@ -421,6 +429,17 @@ def build_server():
         order: str = "relevance",
         timeline: bool = False,
         write_pack: bool = False,
+        limit: int = 0,
+        artifact_type: str = "",
+        domain: str = "",
+        trace_id: str = "",
+        iteration_min: int = 0,
+        status: str = "",
+        language: str = "",
+        sensitivity: str = "",
+        section: str = "",
+        max_chars: int = 0,
+        summary_only: bool = False,
     ) -> dict:
         arguments = ["retrieve", project_id]
         if query:
@@ -429,10 +448,16 @@ def build_server():
             arguments += ["--workflow", workflow]
         if order and order != "relevance":
             arguments += ["--order", order]
-        if timeline:
-            arguments.append("--timeline")
-        if write_pack:
-            arguments.append("--write-pack")
+        for flag, value in (("--limit", str(limit) if limit else ""), ("--artifact-type", artifact_type),
+                            ("--domain", domain), ("--trace-id", trace_id),
+                            ("--iteration-min", str(iteration_min) if iteration_min else ""), ("--status", status),
+                            ("--language", language), ("--sensitivity", sensitivity), ("--section", section),
+                            ("--max-chars", str(max_chars) if max_chars else "")):
+            if value:
+                arguments += [flag, value]
+        for flag, enabled in (("--timeline", timeline), ("--write-pack", write_pack), ("--summary-only", summary_only)):
+            if enabled:
+                arguments.append(flag)
         return run_cli(arguments)
 
     @server.tool(name="sentinel_specs", description=TOOL_DESCRIPTIONS["specs"])
@@ -440,15 +465,17 @@ def build_server():
         return run_cli(["specs", project_id, *release_arguments(release)])
 
     @server.tool(name="sentinel_backlog", description=TOOL_DESCRIPTIONS["backlog"])
-    def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "") -> dict:
+    def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "", story_format: str = "") -> dict:
         arguments = ["backlog", project_id]
         if with_task_seeds:
             arguments.append("--with-task-seeds")
+        if story_format:
+            arguments += ["--story-format", story_format]
         return run_cli(arguments + release_arguments(release))
 
     @server.tool(name="sentinel_quality", description=TOOL_DESCRIPTIONS["quality"])
-    def sentinel_quality(project_id: str, release: str = "") -> dict:
-        return run_cli(["quality", project_id, *release_arguments(release)])
+    def sentinel_quality(project_id: str, release: str = "", override: str = "") -> dict:
+        return run_cli(["quality", project_id, *override_arguments(override), *release_arguments(release)])
 
     @server.tool(name="sentinel_trace", description=TOOL_DESCRIPTIONS["trace"])
     def sentinel_trace(project_id: str, release: str = "") -> dict:
@@ -459,8 +486,8 @@ def build_server():
         return run_cli(["health", project_id])
 
     @server.tool(name="sentinel_validate", description=TOOL_DESCRIPTIONS["validate"])
-    def sentinel_validate(project_id: str, release: str = "") -> dict:
-        return run_cli(["validate", project_id, *release_arguments(release)])
+    def sentinel_validate(project_id: str, release: str = "", override: str = "") -> dict:
+        return run_cli(["validate", project_id, *override_arguments(override), *release_arguments(release)])
 
     @server.tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
     def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", release: str = "") -> dict:
@@ -530,8 +557,8 @@ def build_server():
         return run_cli(arguments + release_arguments(release))
 
     @server.tool(name="sentinel_backlog_status", description=TOOL_DESCRIPTIONS["backlog_status"])
-    def sentinel_backlog_status(project_id: str) -> dict:
-        return run_cli(["backlog-status", project_id])
+    def sentinel_backlog_status(project_id: str, override: str = "") -> dict:
+        return run_cli(["backlog-status", project_id, *override_arguments(override)])
 
     @server.tool(name="sentinel_implementation_feedback", description=TOOL_DESCRIPTIONS["implementation_feedback"])
     def sentinel_implementation_feedback(project_id: str, source: str) -> dict:
@@ -543,8 +570,9 @@ def build_server():
                        + (["--crosses"] if crosses else []))
 
     @server.tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
-    def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False) -> dict:
-        return run_cli(["export", project_id, "--artifact", artifact, "--format", format] + (["--final"] if final else []))
+    def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False, domain: str = "") -> dict:
+        return run_cli(["export", project_id, "--artifact", artifact, "--format", format] + (["--final"] if final else [])
+                       + (["--domain", domain] if domain else []))
 
     @server.tool(name="sentinel_gap_elicitation", description=TOOL_DESCRIPTIONS["gap_elicitation"])
     def sentinel_gap_elicitation(project_id: str, gap_id: str, client_capabilities: str = "") -> dict:
