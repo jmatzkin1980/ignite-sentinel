@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterator
 
+from .commands import RELEASE_COMMANDS as _REGISTRY_RELEASE_COMMANDS
 from .release_split import ReleaseSplitError
 from .split_proposal import RELEASE_ID_RE
 
@@ -46,7 +47,7 @@ RELEASE_STATE_KEYS = {
     "artifact_hashes", "command_log", "last_command", "last_command_at",
 }
 PATH_OPTIONS = ("--evidence", "--override", "--source", "--theme")
-RELEASE_COMMANDS = ("specs", "backlog", "quality", "story-status", "view", "validate", "trace", "status", "next")
+RELEASE_COMMANDS = _REGISTRY_RELEASE_COMMANDS  # IMP-303: from the single command registry
 _ACTIVE: dict[str, str] = {}
 
 

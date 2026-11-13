@@ -1,10 +1,10 @@
-"""IMP-244: every CLI command is classified for the command protocol, exactly once.
+"""IMP-244: a command that writes runs inside the command protocol.
 
-A command is read-only (logged), mutating (logged, snapshot of governed artifacts,
-traceability refresh) or explicitly exempt with a stated reason (it has no project,
-or it creates the workspace the protocol needs). A new command that is not
-classified fails this test instead of silently skipping the protocol, which is how
-`/stakeholders` used to write without leaving a log entry.
+Every command is read-only (logged), mutating (logged, snapshot of governed
+artifacts, traceability refresh) or explicitly exempt with a stated reason. Since
+IMP-303 that classification lives in the single command registry and is checked by
+`tests/test_command_registry.py`. This file keeps the behaviour check: `/stakeholders`
+used to write without leaving a log entry.
 """
 
 from __future__ import annotations
@@ -13,49 +13,12 @@ import contextlib
 import io
 import json
 import os
-import re
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel.cli import COMMANDS, main
-from sentinel.protocols import MUTATING_COMMANDS, PROTOCOL_EXEMPT_COMMANDS, READ_ONLY_COMMANDS
-
-
-def argparse_commands() -> set[str]:
-    err = io.StringIO()
-    with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
-        try:
-            main(["__not_a_command__"])
-        except SystemExit:
-            pass
-    match = re.search(r"choose from ([^)]*)\)", err.getvalue())
-    assert match, err.getvalue()
-    return {name.strip(" '\"") for name in match.group(1).split(",")}
-
-
-class ProtocolSetsTests(unittest.TestCase):
-    def test_every_argparse_command_is_in_exactly_one_set(self) -> None:
-        sets = {"read-only": READ_ONLY_COMMANDS, "mutating": MUTATING_COMMANDS, "exempt": set(PROTOCOL_EXEMPT_COMMANDS)}
-        for command in sorted(argparse_commands()):
-            with self.subTest(command=command):
-                homes = [name for name, members in sets.items() if command in members]
-                self.assertEqual(len(homes), 1, f"{command} is in {homes or 'no set'}")
-
-    def test_sets_name_only_real_commands(self) -> None:
-        commands = argparse_commands()
-        self.assertEqual(commands, set(COMMANDS), "cli.COMMANDS must match the argparse subcommands")
-        for members in (READ_ONLY_COMMANDS, MUTATING_COMMANDS, set(PROTOCOL_EXEMPT_COMMANDS)):
-            self.assertEqual(members - commands, set())
-
-    def test_exemptions_state_a_reason(self) -> None:
-        self.assertEqual(set(PROTOCOL_EXEMPT_COMMANDS), {"doctor", "dashboard", "init"})
-        for command, reason in PROTOCOL_EXEMPT_COMMANDS.items():
-            self.assertTrue(reason.strip(), command)
-
-    def test_stakeholders_is_mutating(self) -> None:
-        self.assertIn("stakeholders", MUTATING_COMMANDS)
+from sentinel.cli import main
 
 
 class StakeholdersProtocolTests(unittest.TestCase):

@@ -33,47 +33,10 @@ def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
                 hashes[path.relative_to(base).as_posix()] = file_content_hash(path)  # IMP-291
     return hashes
 
-READ_ONLY_COMMANDS = {"retrieve", "maturity", "health", "trace", "validate", "status", "view", "next"}
-MUTATING_COMMANDS = {
-    "ingest",
-    "sync",
-    "specs",
-    "backlog",
-    "backlog-status",
-    "quality",
-    "reindex",
-    "gaps",
-    "annotate",
-    "challenge",
-    "scrutinize",
-    "harvest",
-    "self-review",
-    "assume",
-    "compose",
-    "refine-backlog",
-    "implementation-feedback",
-    "story-status",
-    "brief",
-    "resolve-gaps",
-    "context-request",
-    "export",
-    # IMP-244: /stakeholders writes the stakeholder registry, so it is logged and
-    # snapshotted like every other writer (listing goes through it too; cost is negligible).
-    "stakeholders",
-    # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
-    "sources",
-    # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
-    "split",
-    # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
-    "prototype",
-}
-# IMP-244: the only commands outside the protocol, each with its reason. A test
-# requires every CLI command to be in exactly one of READ_ONLY, MUTATING or here.
-PROTOCOL_EXEMPT_COMMANDS = {
-    "doctor": "environment check over the repository, no project workspace",
-    "dashboard": "read-only portfolio view across workspaces, no single project",
-    "init": "creates the workspace (state.json) that the protocol log needs",
-}
+# IMP-244: every command is read-only, mutating or exempt with its reason, exactly once.
+# IMP-303: the sets come from the single command registry (sentinel/commands.py).
+from .commands import MUTATING_COMMANDS, PROTOCOL_EXEMPT_COMMANDS, READ_ONLY_COMMANDS  # noqa: E402
+
 PROJECT_COMMANDS = READ_ONLY_COMMANDS | MUTATING_COMMANDS
 
 

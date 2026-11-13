@@ -31,7 +31,7 @@ def manifest_command_names() -> list[str]:
 
 
 def runtime_command_names() -> list[str]:
-    from .cli import COMMANDS
+    from .commands import COMMANDS  # IMP-303: the single command registry
 
     return sorted(COMMANDS)
 
