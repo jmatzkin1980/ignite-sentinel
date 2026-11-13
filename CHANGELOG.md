@@ -60,6 +60,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **Surfaces:** CLI, MCP (`sentinel_prototype`, `mode=inventory`), the manifest, the router and `user_guide` 01.
   - **Fixture:** a synthetic prototype (`tests/fixtures/synthetic_prototype/`, labelled) with three screens, hidden states and JS copy. The test seeds a secret at run time and checks it is redacted.
 
+### Security
+- The `[mcp]` lock pins `opentelemetry-api` 1.45.2, which fixes CVE-2026-126360 reported by pip-audit in 1.45.1.
+
 ## [0.8.0] — 2026-11-12
 
 H17a′: the living series. A confirmed series can be re-scoped with a dated, confirmed move, releases close with evidence and free their dependents, and a guide shows the series as a whole. It also fixes two defects: releases derived from the whole brief, and a brief's scope reduced to one sentence per source. A workspace without a series compiles, validates and derives exactly as 0.7.0 did; the H17a′ closing control found 30/30 identical Markdown on `support-dashboard`.
