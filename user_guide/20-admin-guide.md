@@ -234,6 +234,17 @@ Each workspace keeps its state in three files:
 
 **Opening a workspace with an older Sentinel.** If a later Sentinel wrote the workspace, an older one refuses it with exit code 3 and does not touch it. Upgrade Sentinel.
 
+## Moving or cloning a workspace
+
+The traceability graph, the memory (`memory.lancedb/`) and the artifact pointers in `state.json` store paths relative to the workspace. You can move a workspace folder, or clone the repository elsewhere, and `/validate`, `/health` and `/retrieve` give the same results.
+
+**Workspaces from 0.9.0** stored absolute paths. Sentinel still reads them against the workspace's current folder. To rewrite them on disk:
+
+- the 0.9.0 migration does it on the first command;
+- `/reindex PROJECT_ID` does it at any time.
+
+`/doctor` reports any workspace that still carries absolute paths or an old `schema_version`. `/health` reports any graph path that does not exist or points outside the workspace.
+
 ## The workspace lock
 
 Each workspace has a lock file at `workspaces/<PROJECT_ID>/.sentinel/lock`. `.sentinel/` is git-ignored.

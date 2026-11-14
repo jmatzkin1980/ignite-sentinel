@@ -9,9 +9,10 @@ from collections import Counter
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from .workspace import graph_path, memory_path, read_json, write_json, workspace_path
+from .core.paths import resolve_in_workspace, workspace_relative
+from .workspace import memory_path, read_json, write_json, workspace_path
 
 
 TOKEN_RE = re.compile(r"\w+", re.UNICODE)
@@ -51,6 +52,8 @@ EPISODIC_ARTIFACT_TYPES = {
     "change_context",
 }
 RETRIEVE_ORDERS = ("relevance", "recency")
+# IMP-301: stored relative to the workspace, resolved against its current folder on load.
+MEMORY_PATH_KEYS = ("source_path", "file_path")
 
 
 def tokenize(text: str) -> list[str]:
@@ -359,7 +362,10 @@ class ContextBroker:
     def __init__(self, project_id: str):
         self.project_id = project_id
         self.path = memory_path(project_id)
-        self.data = read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []})
+        self.data = with_memory_paths(
+            read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []}),
+            lambda value: resolve_in_workspace(project_id, value).as_posix(),
+        )
         self.lance_dir = self.path.parent / "lance"
         self.manifest_path = self.path.parent / "artifact_manifest.json"
         self.table_name = "ba_memory"
@@ -529,10 +535,18 @@ class ContextBroker:
                     "embedding": self.embedder.embed(context_text),
                 }
             )
-        write_json(self.path, self.data)
-        write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": self.data["artifacts"]})
+        self._save()
         self._upsert_lancedb_chunks(artifact_id)
         return True
+
+    def _relative(self, value: object) -> str:
+        return workspace_relative(self.project_id, value)
+
+    def _save(self) -> None:
+        """IMP-301: persist with paths relative to the workspace (in memory they stay absolute)."""
+        stored = with_memory_paths(self.data, self._relative)
+        write_json(self.path, stored)
+        write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": stored["artifacts"]})
 
     def artifact_is_current(self, artifact_id: str, source_hash: str) -> bool:
         for artifact in self.data.get("artifacts", []):
@@ -561,8 +575,8 @@ class ContextBroker:
                     "id": chunk["id"],
                     "type": chunk["type"],
                     "title": chunk["title"],
-                    "source_path": chunk["source_path"],
-                    "file_path": chunk["file_path"],
+                    "source_path": self._relative(chunk["source_path"]),
+                    "file_path": self._relative(chunk["file_path"]),
                     "domain": chunk["domain"],
                     "trace_ids": ",".join(chunk.get("trace_ids", [])),
                     "iteration": int(chunk.get("iteration", 1)),
@@ -601,7 +615,7 @@ class ContextBroker:
 
     def index_trace_edges(self, edges: list[dict[str, Any]]) -> None:
         self.data["trace_edges"] = edges
-        write_json(self.path, self.data)
+        self._save()
 
     def retrieve(
         self,
@@ -1033,8 +1047,28 @@ def apply_pack_disclosure_budget(sections: dict[str, Any], global_budget_chars: 
     }
 
 
+def with_memory_paths(data: dict[str, Any], convert: Callable[[object], str]) -> dict[str, Any]:
+    """A copy of the memory `data` with `convert` applied to each artifact and chunk path (IMP-301)."""
+
+    def mapped(item: dict[str, Any]) -> dict[str, Any]:
+        changes = {key: convert(item[key]) for key in MEMORY_PATH_KEYS if item.get(key)}
+        return {**item, **changes} if changes else item
+
+    return {
+        **data,
+        "artifacts": [mapped(item) for item in data.get("artifacts", [])],
+        "chunks": [mapped(item) for item in data.get("chunks", [])],
+    }
+
+
 def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
-    graph = read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    from .core.state import migrate_paths
+    from .core.graph import load_graph
+
+    # IMP-301: rewrite the absolute paths a 0.9.0 (or moved) workspace still carries,
+    # then read the graph with each path resolved against the current folder.
+    migrate_paths(project_id)
+    graph = load_graph(project_id)
     broker = ContextBroker(project_id)
     indexed = []
     skipped = []
@@ -1049,8 +1083,6 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
         if node.get("type") == "source_synthesis":
             continue
         path = Path(path_value)
-        if not path.is_absolute():
-            path = Path.cwd() / path
         if not path.exists() or path.suffix.lower() not in INDEXABLE_SUFFIXES:
             continue
         changed = broker.index_artifact(

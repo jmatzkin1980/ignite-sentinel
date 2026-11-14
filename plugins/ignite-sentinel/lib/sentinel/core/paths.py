@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 # IMP-243: one id grammar for every command (CLI, slash aliases and MCP tools).
 PROJECT_ID_PATTERN = r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
@@ -59,6 +59,44 @@ def repo_root() -> Path:
 
 def workspace_path(project_id: str, root: Path | None = None) -> Path:
     return (root or repo_root()) / "workspaces" / project_id
+
+
+def is_absolute_path(value: str) -> bool:
+    """True for an absolute path in either OS's form (a Windows path read on Linux too)."""
+    return PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
+
+
+def workspace_relative(project_id: str, value: object, root: Path | None = None) -> str:
+    """IMP-301: ``value`` as a posix path relative to the workspace, when it lies inside it.
+
+    A path written by another copy of the same workspace (moved or cloned: an
+    absolute path with a ``workspaces/<id>/`` segment, or one relative to the repo
+    root) maps too. Anything else comes back unchanged, in posix form.
+    """
+    text = str(value or "").replace("\\", "/")
+    if not text:
+        return text
+    prefix = f"workspaces/{project_id}/"
+    if not is_absolute_path(text):
+        text = text[2:] if text.startswith("./") else text
+        return text[len(prefix):] if text.startswith(prefix) else text
+    base = workspace_path(project_id, root)
+    for candidate in (base, base.resolve()):
+        try:
+            return Path(text).relative_to(candidate).as_posix()
+        except ValueError:
+            continue
+    # The last segment wins: a release mirror nests `workspaces/<id>/` inside the workspace.
+    matches = list(re.finditer("/" + re.escape(prefix), text, re.IGNORECASE))
+    return text[matches[-1].end():] if matches else text
+
+
+def resolve_in_workspace(project_id: str, value: object, root: Path | None = None) -> Path:
+    """IMP-301: the path ``value`` names, read against the workspace's current folder."""
+    relative = workspace_relative(project_id, value, root)
+    if is_absolute_path(relative):
+        return Path(relative)
+    return workspace_path(project_id, root) / relative
 
 
 def state_path(project_id: str, root: Path | None = None) -> Path:

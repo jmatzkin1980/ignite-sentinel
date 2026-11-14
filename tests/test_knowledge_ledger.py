@@ -81,7 +81,7 @@ class KnowledgeLedgerTest(unittest.TestCase):
         )
 
         state = json.loads((base / "state.json").read_text(encoding="utf-8"))
-        self.assertEqual(state["artifacts"]["knowledge_state"], ledger_md.as_posix())
+        self.assertEqual(state["artifacts"]["knowledge_state"], ledger_md.relative_to(base).as_posix())
         self.assertEqual(state["metrics"]["knowledge_units"], payload["summary"]["total"])
 
         status_code = main(["status", "LEDGER"])
