@@ -22,6 +22,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **In the code:** `sentinel/errors.py` holds `SentinelError`, `InputError`, `GateRefusal` and `WorkspaceBusy`. `InputError` and `GateRefusal` are also `RuntimeError`, so existing handlers keep catching them. The deliberate `RuntimeError`s of the runtime now raise a typed error. A plain `ValueError` counts as invalid input; any other exception counts as a bug.
   - **MCP:** a failed command comes back as an error result (`isError`) whose text is JSON with `code`, `kind`, `error`, `next_step` and `output`. `run_cli` adds the same fields to its result.
   - **Scripts:** any failure is still non-zero. A script that compared the exit code to exactly 1 needs updating.
+- One command at a time per workspace (IMP-299, H18). Two commands on one workspace (CLI and MCP, or two sessions) used to overwrite each other's `state.json` and traceability graph, and the later write won.
+  - **The lock:** every command that names a project locks its workspace (`.sentinel/lock`) while it runs. The read-only commands lock it too, because each one records itself in `state.json`. The lock is the operating system's, so a crashed process never leaves it behind.
+  - **Waiting:** a second command waits up to 10 seconds (`SENTINEL_LOCK_TIMEOUT`), then exits with code 6, naming the command that holds the workspace.
+  - **Write conflicts:** a JSON file that changed on disk between a command's read and its write used to raise a warning and be overwritten. Now the command stops with code 6 and leaves the file as it is.
+  - **MCP:** one MCP server runs one tool call at a time, so two overlapping calls no longer mix their output.
+  - **Deletions:** files are now deleted through `core.io.remove`, confined like a write, and the single-writer test covers deletions.
+  - **Admin guide:** `user_guide/20` explains the lock and what to do when a session holds it.
 
 ### Added
 - A single command registry (IMP-303, H18), `sentinel/commands.py`. Each command is declared once: its name, its place in the command protocol, whether it takes `--release`, its MCP tool and its arguments.

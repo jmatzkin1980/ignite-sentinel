@@ -25,6 +25,31 @@ def require_retrieve_workflow(workflow: str | None) -> str:
 def main(argv: list[str] | None = None) -> int:
     argv = normalize_slash_command(sys.argv[1:] if argv is None else argv)
     args = build_parser().parse_args(argv)
+    from .core.lock import command_scope
+
+    try:
+        # IMP-299: one command at a time per workspace (exit 6 after a bounded wait).
+        with command_scope(args.command, command_workspace(args)):
+            return run_command(args, argv)
+    except Exception as exc:
+        return report_error(exc)
+
+
+def command_workspace(args) -> Path | None:
+    """The workspace a command locks: its project's, once the project id is known to be valid."""
+    project_id = getattr(args, "project_id", None)
+    if not project_id:
+        return None
+    from .core.paths import validate_project_id, workspace_path
+
+    try:
+        validate_project_id(project_id)
+    except Exception:
+        return None  # run_command reports the invalid id
+    return workspace_path(project_id)
+
+
+def run_command(args, argv: list[str]) -> int:
     if getattr(args, "release", None):
         try:
             from .core.paths import validate_project_id

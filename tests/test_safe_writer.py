@@ -130,7 +130,9 @@ WRITER_EXEMPT = {
     "sentinel/build.py": "builds dist/sentinel.pyz from a private staging tempdir (maintainer tool, not runtime)",
 }
 _WRITE_ATTRS = {"write_text", "write_bytes", "write_json_text"}
-_COPY_FUNCS = {"copyfile", "copy", "copy2", "copytree", "move"}
+_COPY_FUNCS = {"copyfile", "copy", "copy2", "copytree", "move", "rmtree"}
+_DELETE_ATTRS = {"unlink", "rmdir"}  # IMP-299: deletions go through core_io.remove too
+_OS_DELETE_FUNCS = {"remove", "unlink", "rmdir", "removedirs"}
 
 
 def _write_calls(tree: ast.AST) -> list[tuple[int, str]]:
@@ -145,6 +147,11 @@ def _write_calls(tree: ast.AST) -> list[tuple[int, str]]:
             found.append((node.lineno, f".{func.attr}("))
         if isinstance(func, ast.Attribute) and func.attr in _COPY_FUNCS and isinstance(func.value, ast.Name) and func.value.id == "shutil":
             found.append((node.lineno, f"shutil.{func.attr}("))
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id == "os":
+            if func.attr in _OS_DELETE_FUNCS:
+                found.append((node.lineno, f"os.{func.attr}("))
+        elif isinstance(func, ast.Attribute) and func.attr in _DELETE_ATTRS:
+            found.append((node.lineno, f".{func.attr}("))
         is_open = (isinstance(func, ast.Name) and func.id == "open") or (isinstance(func, ast.Attribute) and func.attr in {"open", "fdopen"})
         if is_open:
             mode = None
@@ -168,14 +175,15 @@ class WriterGuardTests(unittest.TestCase):
                 continue
             for line, call in _write_calls(ast.parse(path.read_text(encoding="utf-8"))):
                 offenders.append(f"{relative}:{line} {call}")
-        self.assertEqual(offenders, [], "write through sentinel.core.io (write_text/write_bytes/append_text/copy_file)")
+        self.assertEqual(offenders, [], "write and delete through sentinel.core.io (write_text/write_bytes/append_text/copy_file/remove)")
 
     def test_guard_detects_each_form(self) -> None:
         sample = (
             "p.write_text('x')\np.write_bytes(b'x')\nopen(p, 'w')\np.open('a')\nopen(p, mode='xb')\n"
             "shutil.copyfile(a, b)\nopen(p)\np.read_text()\n"
+            "p.unlink()\nd.rmdir()\nos.remove(p)\nos.unlink(p)\nshutil.rmtree(d)\n"
         )
-        self.assertEqual(len(_write_calls(ast.parse(sample))), 6)
+        self.assertEqual(len(_write_calls(ast.parse(sample))), 11)
 
 
 if __name__ == "__main__":

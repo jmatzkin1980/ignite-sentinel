@@ -76,16 +76,21 @@ class CoreWorkspaceTests(unittest.TestCase):
         self.assertEqual(caught, [])
         self.assertEqual(read_json(path, {})["phase"], "updated")
 
-    def test_core_io_warns_when_file_changed_between_read_and_write(self):
+    def test_core_io_refuses_when_file_changed_between_read_and_write(self):
+        # IMP-299: the conflict used to be a warning and the other change was lost.
+        from sentinel.core.io import WriteConflict
+        from sentinel.errors import EXIT_BUSY, exit_code_for
+
         path = workspace_path("CORE") / "state.json"
         write_json(path, {"project_id": "CORE", "phase": "initialized"})
         self.assertEqual(read_json(path, {})["phase"], "initialized")
         path.write_text('{"project_id": "CORE", "phase": "external"}\n', encoding="utf-8")
 
-        with self.assertWarnsRegex(RuntimeWarning, "Optimistic write conflict detected"):
+        with self.assertRaisesRegex(WriteConflict, "changed since this command read it") as caught:
             write_json(path, {"project_id": "CORE", "phase": "updated"})
 
-        self.assertEqual(read_json(path, {})["phase"], "updated")
+        self.assertEqual(exit_code_for(caught.exception), EXIT_BUSY)
+        self.assertEqual(read_json(path, {})["phase"], "external")
 
     def test_read_json_cache_hits_and_invalidates_on_write(self):
         path = workspace_path("CORE") / "state.json"
