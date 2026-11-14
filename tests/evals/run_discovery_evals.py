@@ -1591,7 +1591,7 @@ def self_review_eval() -> dict:
         fake_src.write_text(json.dumps(fabricated), encoding="utf-8")
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             fake_code = main(["self-review", "SREV", "--source", str(fake_src)])
-        if fake_code != 1:
+        if fake_code != 3:  # IMP-302: a refused payload is invalid input
             mismatches.append("self-review accepted a fabricated citation (cite-or-silence broken)")
     return {"ok": not mismatches, "mismatches": mismatches}
 
@@ -1669,7 +1669,7 @@ def compose_eval() -> dict:
         fake_src.write_text(json.dumps(fake), encoding="utf-8")
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             fake_code = main(["compose", "COMP", "--source", str(fake_src)])
-        if fake_code != 1:
+        if fake_code != 3:  # IMP-302: a refused payload is invalid input
             mismatches.append("compose accepted a fabricated citation (cite-or-silence broken)")
         else:
             report = (base / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
@@ -1758,7 +1758,7 @@ def implementability_probe_eval() -> dict:
         fake_src.write_text(json.dumps({"gaps": [fake]}), encoding="utf-8")
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             fake_code = main(["scrutinize", "PROBE", "--mode", "implementability-probe", "--source", str(fake_src)])
-        if fake_code != 1:
+        if fake_code != 3:  # IMP-302: a refused payload is invalid input
             mismatches.append("probe accepted a fabricated citation (cite-or-silence broken)")
     return {"ok": not mismatches, "mismatches": mismatches}
 

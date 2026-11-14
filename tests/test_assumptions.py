@@ -341,7 +341,7 @@ class AssumptionLifecycleTests(unittest.TestCase):
 
     def test_cli_assume_rejects_invalid_citation(self):
         bad = self._write({"assumptions": [_assumption(justification="fabricated quote")]})
-        self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 1)
+        self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 3)  # IMP-302: invalid input
 
     def test_register_groups_by_risk_category_and_readiness_reports_coverage(self):
         result = apply_assumptions(
@@ -362,7 +362,7 @@ class AssumptionLifecycleTests(unittest.TestCase):
 
     def test_cli_assume_rejects_invalid_risk_category(self):
         bad = self._write({"assumptions": [_assumption(risk_category="strategy")]})
-        self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 1)
+        self.assertEqual(main(["assume", "ASM", "--source", str(bad)]), 3)  # IMP-302: invalid input
 
 
 if __name__ == "__main__":

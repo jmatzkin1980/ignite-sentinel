@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..errors import InputError  # IMP-302: typed errors
+
 from pathlib import Path
 from typing import Any
 
@@ -170,7 +172,7 @@ def register_acceptance_evidence(project_id: str, story_id: str, source: Path) -
     base = workspace_path(project_id)
     source = source.resolve()
     if not source.exists() or not source.is_file():
-        raise RuntimeError(f"Acceptance evidence file does not exist: {source}")
+        raise InputError(f"Acceptance evidence file does not exist: {source}")
     target_dir = base / "04_backlog" / "acceptance_evidence"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{story_id}-{source.name}"

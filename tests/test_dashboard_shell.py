@@ -256,7 +256,7 @@ class DashboardThemeFlagTests(DashboardFixtureMixin, unittest.TestCase):
 
     def test_unknown_theme_fails_without_writing(self) -> None:
         code, _, err = self._run("--theme", "nope")
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 3)  # IMP-302: invalid input
         self.assertIn("neutral", err)
         self.assertFalse((self.temp / "dashboard.html").exists())
 

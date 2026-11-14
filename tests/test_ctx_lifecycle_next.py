@@ -96,12 +96,12 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(CTX_TRANSITIONS["obsolete"], ())
 
     def test_cli_obsolete_and_regenerate_reopens(self) -> None:
-        self.assertEqual(_run(["context-request", "CTXL", "--id", self.ctx, "--status", "obsolete"])[0], 1)  # no reason
+        self.assertEqual(_run(["context-request", "CTXL", "--id", self.ctx, "--status", "obsolete"])[0], 3)  # no reason  # IMP-302: invalid input
         code, result = _run(["context-request", "CTXL", "--id", self.ctx, "--status", "obsolete", "--reason", "scope dropped"])
         self.assertEqual((code, result["to"]), (0, "obsolete"))
-        self.assertEqual(_run(["context-request", "CTXL", "--id", self.ctx])[0], 1)  # --id needs --status
-        self.assertEqual(_run(["context-request", "CTXL"])[0], 1)  # needs --domain or --id
-        self.assertEqual(_run(["context-request", "CTXL", "--id", "CTX-999", "--status", "answered"])[0], 1)
+        self.assertEqual(_run(["context-request", "CTXL", "--id", self.ctx])[0], 3)  # --id needs --status  # IMP-302: invalid input
+        self.assertEqual(_run(["context-request", "CTXL"])[0], 3)  # needs --domain or --id  # IMP-302: invalid input
+        self.assertEqual(_run(["context-request", "CTXL", "--id", "CTX-999", "--status", "answered"])[0], 3)  # IMP-302: invalid input
         code, result = _run(["context-request", "CTXL", "--domain", "technology"])
         self.assertEqual(result["context_request_id"], self.ctx)
         self.assertEqual(self._status(), "active")

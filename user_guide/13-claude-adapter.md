@@ -140,7 +140,7 @@ Claude Desktop / Claude Code configuration:
 }
 ```
 
-Tools are named `sentinel_init`, `sentinel_ingest`, `sentinel_maturity`, etc. Gate violations return structured errors with the failing reason, so the client can recommend the right prior step. Without the optional `mcp` package, everything else (chat adapters, CLI) keeps working and `/doctor` reports a WARN.
+Tools are named `sentinel_init`, `sentinel_ingest`, `sentinel_maturity`, etc. A failed command comes back as an error result (`isError`) whose text is JSON with `code` (the exit codes in `01-command-reference.md`), `error` and `next_step`, so the client can recommend the right prior step. Without the optional `mcp` package, everything else (chat adapters, CLI) keeps working and `/doctor` reports a WARN.
 
 ## Governed-Artifact Verifier Hook (Optional, IMP-146)
 

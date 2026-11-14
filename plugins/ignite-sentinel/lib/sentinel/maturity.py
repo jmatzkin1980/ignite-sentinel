@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import re
 from pathlib import Path
 
@@ -431,7 +433,7 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     gaps_path = base / "01_discovery" / "gaps.md"
     requirements_path = base / "02_requirements" / "requirements.md"
     if not requirements_path.exists():
-        raise RuntimeError("Cannot generate project brief before /ingest creates requirements.md.")
+        raise GateRefusal("Cannot generate project brief before /ingest creates requirements.md.")
     req_text = requirements_path.read_text(encoding="utf-8")
     gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
     brief_path = materialize_project_brief(project_id, req_text, gaps_text)

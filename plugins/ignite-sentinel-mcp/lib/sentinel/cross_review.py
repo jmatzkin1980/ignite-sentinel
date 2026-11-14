@@ -20,6 +20,8 @@ crosses open `GAP-XRV-*` gaps (`origin: cross-review`); the brief is never edite
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import hashlib
 from pathlib import Path
 from typing import Any
@@ -30,7 +32,7 @@ from .resources import read_package_json
 LENS_NAMES = {"1": "business", "2": "business", "3": "product", "4": "design", "5": "technical", "6": "compliance"}
 
 
-class CrossReviewError(RuntimeError):
+class CrossReviewError(InputError):
     pass
 
 

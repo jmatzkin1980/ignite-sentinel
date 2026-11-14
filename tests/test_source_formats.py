@@ -215,7 +215,7 @@ class FlowTests(unittest.TestCase):
         err = io.StringIO()
         from contextlib import redirect_stderr
         with redirect_stderr(err), redirect_stdout(io.StringIO()):
-            self.assertEqual(main(["sync", "DOC", "--source", str(broken)]), 1)
+            self.assertEqual(main(["sync", "DOC", "--source", str(broken)]), 3)  # IMP-302: invalid input
         self.assertIn("not a valid .docx", err.getvalue())
 
     def _seed(self) -> Path:

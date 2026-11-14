@@ -22,6 +22,22 @@ Project commands use a deterministic protocol inspired by the original Sentinel 
 
 `/backlog` and `/quality` are blocked while project health is `DIRTY`.
 
+## Exit codes
+
+Every command exits with one of these codes. A failure prints `sentinel error: ...` and, when the runtime knows it, a `next step: ...` line.
+
+| Code | Meaning | Examples |
+|---|---|---|
+| 0 | Success | |
+| 1 | Unexpected error: a bug. The traceback follows the message. | |
+| 2 | Wrong usage | A missing argument or an unknown option. |
+| 3 | Invalid input | An invalid project id, a missing file, a refused payload. |
+| 4 | Gate refusal: a prerequisite, the project's health or its phase stops the command | `/specs` before `/ingest`, `/backlog` while health is `DIRTY`, `/export --final` with pending marks. |
+| 5 | Unfavourable verdict | `/validate` is not VALID, `/doctor` is not PASS. |
+| 6 | Workspace busy: another command holds the workspace | |
+
+Over MCP, a failed command comes back as an error result (`isError`) whose text is JSON with `code`, `kind`, `error` and `next_step`.
+
 Run help:
 
 ```powershell
@@ -1327,7 +1343,7 @@ Cross-artifact consistency (non-blocking): the report also includes `cross_artif
 
 ISO 29148 coverage (non-blocking, IMP-189): the report includes an `iso29148_coverage` block mapping the nine ISO/IEC/IEEE 29148 individual-requirement quality characteristics (Necessary, Appropriate, Unambiguous, Complete, Singular, Feasible, Verifiable, Correct, Conforming) to the deterministic checks Ignite already runs. Each existing check declares which characteristics it covers via `covers_29148` (inert metadata in `sentinel/iso29148/check_catalog.json`), and each characteristic ends up `covered` (listing the covering check IDs), an open `heuristic_gap` (a deterministic rule is feasible but not yet written — e.g. implementation-leak detection for Appropriate), or `out_of_scope` with a stated reason. Characteristics no local deterministic heuristic can honestly decide without domain knowledge — Complete, Feasible, Correct, Necessary — are declared out of scope rather than simulated. The block also lists `verifiability_findings`: requirement statements (including well-formed EARS ones the EARS scorer leaves unscrutinized) that carry no measurable or observable acceptance anchor. It is an auditability lens against the standard, zero-LLM, and never changes `verdict`.
 
-Returns non-zero when invalid.
+Exits with code 5 when the verdict is not VALID (see [Exit codes](#exit-codes)).
 
 ## `sync`
 

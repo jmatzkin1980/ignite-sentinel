@@ -27,6 +27,8 @@ IMP-266's, run before `/split --confirm`.
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import hashlib
 import json
 import re
@@ -58,7 +60,7 @@ _LAYER_NAME_RE = re.compile(
     r"ui layer|api layer|persistence|persistencia|presentation layer|service layer)\b", re.I)
 
 
-class SplitProposalError(RuntimeError):
+class SplitProposalError(InputError):
     pass
 
 

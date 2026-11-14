@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..errors import InputError  # IMP-302: typed errors
+
 import shutil
 from pathlib import Path
 from typing import Any
@@ -10,7 +12,7 @@ from ..memory import ContextBroker
 from ..workspace import update_state, workspace_path
 
 
-class BacklogRefinementError(RuntimeError):
+class BacklogRefinementError(InputError):
     """Raised when no backlog refinement proposal can be accepted."""
 
 

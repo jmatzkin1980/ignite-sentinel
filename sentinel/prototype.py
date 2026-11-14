@@ -26,6 +26,8 @@ the inventory does not exist. The inventory is written to
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import json
 import re
 from html.parser import HTMLParser
@@ -46,7 +48,7 @@ _STRING = re.compile(r"\"((?:[^\"\\\n]|\\.){3,200})\"|'((?:[^'\\\n]|\\.){3,200})
 _CODE_LIKE = re.compile(r"[{}<>;=]|=>|\$\{|^\s*[#.\[]|^https?://|^[\w./-]+$")
 
 
-class PrototypeError(RuntimeError):
+class PrototypeError(InputError):
     pass
 
 

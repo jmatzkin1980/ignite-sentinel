@@ -6,6 +6,23 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+- Typed errors and exit codes (IMP-302, H18). Every failure used to exit with 1. Now:
+  - **Codes:**
+    - 0: success;
+    - 1: an unexpected error (a bug), now followed by its traceback;
+    - 2: wrong usage;
+    - 3: invalid input (an invalid project id, a missing file, a refused payload);
+    - 4: a gate refusal (a prerequisite, the project's health or its phase);
+    - 5: an unfavourable verdict (`/validate` not VALID, `/doctor` not PASS);
+    - 6: workspace busy, reserved for the workspace lock (IMP-299).
+
+    The table is in `user_guide/01`.
+  - **The next step:** a failure prints `next step: ...` when the runtime knows it. Examples: `Run /init P first.` for a missing workspace, `Run /ingest first.` for a prerequisite.
+  - **In the code:** `sentinel/errors.py` holds `SentinelError`, `InputError`, `GateRefusal` and `WorkspaceBusy`. `InputError` and `GateRefusal` are also `RuntimeError`, so existing handlers keep catching them. The deliberate `RuntimeError`s of the runtime now raise a typed error. A plain `ValueError` counts as invalid input; any other exception counts as a bug.
+  - **MCP:** a failed command comes back as an error result (`isError`) whose text is JSON with `code`, `kind`, `error`, `next_step` and `output`. `run_cli` adds the same fields to its result.
+  - **Scripts:** any failure is still non-zero. A script that compared the exit code to exactly 1 needs updating.
+
 ### Added
 - A single command registry (IMP-303, H18), `sentinel/commands.py`. Each command is declared once: its name, its place in the command protocol, whether it takes `--release`, its MCP tool and its arguments.
   - **Built from it:** the CLI parser, `cli.COMMANDS`, the protocol sets (`READ_ONLY_COMMANDS`, `MUTATING_COMMANDS`, `PROTOCOL_EXEMPT_COMMANDS`), the release commands and the runtime list the adapters compare with the manifest. The parser is identical to 0.9.0's.

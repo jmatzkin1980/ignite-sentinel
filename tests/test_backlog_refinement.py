@@ -140,7 +140,7 @@ class BacklogRefinementTests(unittest.TestCase):
             ]
         }
 
-        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
         self.assertIn("discarded_alternative requires reason", report)
 
@@ -158,7 +158,7 @@ class BacklogRefinementTests(unittest.TestCase):
             ]
         }
 
-        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
         self.assertIn("citation not found verbatim", report)
 
@@ -213,7 +213,7 @@ class BacklogRefinementTests(unittest.TestCase):
             ]
         }
 
-        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
         self.assertIn("requires verification_method", report)
 
@@ -237,7 +237,7 @@ class BacklogRefinementTests(unittest.TestCase):
             ]
         }
 
-        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "04_backlog" / "refinements" / "refinement_report.md").read_text(encoding="utf-8")
         self.assertIn("loose precondition", report)
 

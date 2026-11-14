@@ -200,7 +200,7 @@ class SourceRegistryFlowTests(unittest.TestCase):
     def test_list_and_change_need_an_id(self) -> None:
         listing = _run(["sources", "REG"])
         self.assertEqual(listing["summary"]["rows"], 1)
-        self.assertEqual(main(["sources", "REG", "--retire", "--reason", "x"]), 1)
+        self.assertEqual(main(["sources", "REG", "--retire", "--reason", "x"]), 3)  # IMP-302: invalid input
 
     def test_source_log_follows_the_project_language(self) -> None:
         state_file = self.ws / "state.json"

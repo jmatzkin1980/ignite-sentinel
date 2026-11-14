@@ -14,6 +14,8 @@ when the workspace opts in with `pii_report: true`: it is never redacted.
 
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -252,7 +254,7 @@ def output_leaks(project_id: str, text: str, workspace: Path) -> list[str]:
     return leaks
 
 
-class OutputLeak(RuntimeError):
+class OutputLeak(InputError):
     """A view or export would carry a secret or another workspace's content (IMP-285)."""
 
 

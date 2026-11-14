@@ -201,7 +201,7 @@ class SettingsTests(unittest.TestCase):
         self.assertFalse(status["confirmed"])
         self.assertIn("contradiction", status["contradictions"][0])
         self.assertIn("contradiction", status["gap"]["reason"])
-        self.assertEqual(_run(["brief", "BRV2", "--profile", "XYZ", "--genesis", "greenfield"])[0], 1)
+        self.assertEqual(_run(["brief", "BRV2", "--profile", "XYZ", "--genesis", "greenfield"])[0], 3)  # IMP-302: invalid input
 
     def test_mcp_passes_the_settings(self) -> None:
         result = run_cli(["brief", "BRV2", "--profile", "API", "--genesis", "greenfield"])

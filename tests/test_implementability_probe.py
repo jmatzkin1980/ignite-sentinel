@@ -169,7 +169,7 @@ class ProbeLifecycleTests(unittest.TestCase):
         bad = self._probe(id="GAP-PROBE-FAKE", evidence="not present in the raw input")
         self.assertEqual(
             main(["scrutinize", "PRB", "--mode", "implementability-probe", "--source", str(bad)]),
-            1,
+            3,  # IMP-302: invalid input
         )
 
     def test_default_scrutiny_mode_unaffected(self):

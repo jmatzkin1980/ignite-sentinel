@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import json
 import re
 import shutil
@@ -248,7 +250,7 @@ def register_gate_override(
 ) -> dict[str, object]:
     base = workspace_path(project_id)
     if verdict in {"PASS", "VALID"} and not findings:
-        raise RuntimeError(f"/{gate} has no failing or warning gate state to override.")
+        raise InputError(f"/{gate} has no failing or warning gate state to override.")
     data = load_decision_source(source, label=f"{gate} override source")
     decisions = validate_cited_decisions(data, workspace_grounding_text(base), label=f"{gate} override")
     if not decisions:

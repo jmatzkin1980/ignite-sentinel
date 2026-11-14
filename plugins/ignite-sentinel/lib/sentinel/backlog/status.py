@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..errors import GateRefusal, InputError  # IMP-302: typed errors
+
 import re
 from hashlib import sha256
 from pathlib import Path
@@ -18,8 +20,12 @@ from ..workspace import read_json, state_path, update_state, utc_now, workspace_
 from ..core.io import write_text
 
 
-class StoryStatusError(RuntimeError):
+class StoryStatusError(InputError):
     """Raised when a story lifecycle update cannot be applied."""
+
+
+class StoryGateRefusal(GateRefusal, StoryStatusError):
+    """IMP-302: a DoR/DoD gate or a missing backlog stops the update (exit code 4)."""
 
 
 STORY_STATUSES = ("Draft", "Ready", "In Progress", "In Review", "Done", "Blocked", "Stale")
@@ -107,7 +113,7 @@ def update_story_status(
     base = workspace_path(project_id)
     story_path = base / "04_backlog" / f"{story_id}.md"
     if not story_path.exists():
-        raise StoryStatusError(f"Story does not exist: {story_id}. Run /backlog before /story-status.")
+        raise StoryGateRefusal(f"Story does not exist: {story_id}. Run /backlog before /story-status.")
 
     current = lifecycle_for_story(project_id, story_id)
     current_status = current["status"]
@@ -118,9 +124,9 @@ def update_story_status(
     evidence_record = register_acceptance_evidence(project_id, story_id, evidence) if evidence else None
     gate_result = evaluate_story_gates(project_id, story_for_gate(project_id, story_id, next_owner))
     if next_status == "Ready" and gate_result["strict"] and not gate_result["dor"]["passed"]:
-        raise StoryStatusError("DoR gate blocks Ready: " + "; ".join(gate_result["dor"]["missing"]))
+        raise StoryGateRefusal("DoR gate blocks Ready: " + "; ".join(gate_result["dor"]["missing"]))
     if next_status == "Done" and gate_result["strict"] and not gate_result["dod"]["passed"]:
-        raise StoryStatusError("DoD gate blocks Done: " + "; ".join(gate_result["dod"]["missing"]))
+        raise StoryGateRefusal("DoD gate blocks Done: " + "; ".join(gate_result["dod"]["missing"]))
 
     freeze_record = None
     if next_status == "Ready":

@@ -83,7 +83,7 @@ class ExportTests(unittest.TestCase):
                 self.assertEqual(main(["ingest", pid, "--source", str(raw)]), 0)
                 self.assertEqual(main(["brief", pid]), 0)
                 result = export_artifact(pid, "brief", "md")
-                self.assertEqual(main(["export", pid, "--artifact", "brief", "--final"]), 1)
+                self.assertEqual(main(["export", pid, "--artifact", "brief", "--final"]), 4)  # IMP-302: gate refusal
                 gaps = export_artifact(pid, "gaps", "interview", final=True)
             self.assertEqual(result["deliverable"], "draft")
             self.assertGreater(result["pending_marks"], 0)

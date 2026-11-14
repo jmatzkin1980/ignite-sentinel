@@ -88,7 +88,7 @@ class GateOverrideDecisionTests(unittest.TestCase):
             quote,
             stem="validate-override",
         )
-        self.assertEqual(main(["validate", "OVERRIDE", "--override", str(source)]), 1)
+        self.assertEqual(main(["validate", "OVERRIDE", "--override", str(source)]), 5)  # IMP-302: unfavourable verdict
         self.assert_gate_override("validate", "DEC-VALIDATE-CONFIG-OVERRIDE")
 
     def write_override(self, decision_id: str, decision: str, evidence: str, *, stem: str) -> Path:

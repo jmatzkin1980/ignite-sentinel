@@ -124,7 +124,7 @@ class FlowTests(unittest.TestCase):
 
     def test_rejected_payload_merges_nothing(self) -> None:
         before = (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
-        self.assertEqual(self._annotate({"gaps": [_gap()], "absent": ["nothing here"]}), 1)
+        self.assertEqual(self._annotate({"gaps": [_gap()], "absent": ["nothing here"]}), 3)  # IMP-302: invalid input
         self.assertEqual((self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8"), before)
         self.assertFalse((self.ws / "01_discovery" / "agent_sweep_log.md").exists())
 
@@ -140,7 +140,7 @@ class FlowTests(unittest.TestCase):
         code, result = self._run(["gaps", "SWP", "--id", "GAP-DATA-RETENTION", "--disposition", "accepted"])
         self.assertEqual(code, 0)
         self.assertEqual(result["disposition"], "accepted")
-        self.assertEqual(self._run(["gaps", "SWP", "--id", "GAP-REPORT-OWNER", "--disposition", "rejected"])[0], 1)  # no reason
+        self.assertEqual(self._run(["gaps", "SWP", "--id", "GAP-REPORT-OWNER", "--disposition", "rejected"])[0], 3)  # no reason  # IMP-302: invalid input
         self.assertEqual(self._run(["gaps", "SWP", "--id", "GAP-REPORT-OWNER", "--disposition", "rejected",
                                     "--reason", "the team is named in the kickoff"])[0], 0)
         telemetry = maturation_telemetry("SWP")["agent_channel_dispositions"]
@@ -151,8 +151,8 @@ class FlowTests(unittest.TestCase):
         checklist = next(row for row in (self.ws / "01_discovery" / "gaps.md").read_text(encoding="utf-8").splitlines()
                          if row.startswith("| GAP-"))
         gap_id = checklist.split("|")[1].strip()
-        self.assertEqual(self._run(["gaps", "SWP", "--id", gap_id, "--disposition", "accepted"])[0], 1)
-        self.assertEqual(self._run(["gaps", "SWP", "--disposition", "accepted"])[0], 1)  # needs --id
+        self.assertEqual(self._run(["gaps", "SWP", "--id", gap_id, "--disposition", "accepted"])[0], 3)  # IMP-302: invalid input
+        self.assertEqual(self._run(["gaps", "SWP", "--disposition", "accepted"])[0], 3)  # needs --id  # IMP-302: invalid input
         self.assertEqual(channel_dispositions(self.ws, []), {})
 
     def test_protocol_guide_is_shipped_and_cited(self) -> None:

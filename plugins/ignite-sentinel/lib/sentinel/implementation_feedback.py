@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import shutil
 from pathlib import Path
 from typing import Any
@@ -11,7 +13,7 @@ from .workspace import read_json, state_path, update_state, utc_now, workspace_p
 from .core.io import copy_file, write_text
 
 
-class ImplementationFeedbackError(RuntimeError):
+class ImplementationFeedbackError(InputError):
     """Raised when implementation feedback cannot be metabolized."""
 
 

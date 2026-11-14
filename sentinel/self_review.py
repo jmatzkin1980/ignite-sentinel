@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import shutil
 from pathlib import Path
 from typing import Any
@@ -16,9 +18,9 @@ from .core.io import copy_file, write_text
 def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     if not specs_sources_exist(base):
-        raise RuntimeError("Cannot self-review before /specs creates PRD/spec artifacts.")
+        raise GateRefusal("Cannot self-review before /specs creates PRD/spec artifacts.")
 
     data = load_decision_source(source, label="self-review source")
     grounding_text = self_review_grounding_text(base)
@@ -30,7 +32,7 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
 
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot self-review before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot self-review before /ingest creates 01_discovery/gaps.md.")
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
