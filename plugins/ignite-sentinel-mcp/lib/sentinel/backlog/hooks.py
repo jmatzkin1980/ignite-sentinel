@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..errors import GateRefusal  # IMP-302: typed errors
+
 import re
 import sys
 from pathlib import Path
@@ -326,7 +328,7 @@ def enforce_pre_handoff_gate(project_id: str, readiness_pack: dict[str, Any]) ->
     gate = pre_handoff_gate(project_id, readiness_pack)
     if gate["strict"] and gate["warnings"]:
         story_ids = ", ".join(str(item.get("story_id")) for item in gate["warnings"])
-        raise RuntimeError(f"Pre-handoff DoR gate blocks backlog handoff for: {story_ids}.")
+        raise GateRefusal(f"Pre-handoff DoR gate blocks backlog handoff for: {story_ids}.")
     return gate
 
 
@@ -379,7 +381,7 @@ def assert_backlog_privacy_clean(project_id: str, findings: list[dict[str, Any]]
     result = evaluate_backlog_privacy(project_id, findings)
     if result["verdict"] == "BLOCKED":
         first = result["findings"][0]
-        raise RuntimeError(
+        raise GateRefusal(
             "Backlog privacy scan blocked handoff: "
             f"{first['path']}:{first['line']} matched {first['pattern']}."
         )

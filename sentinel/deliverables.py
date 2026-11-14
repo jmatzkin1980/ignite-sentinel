@@ -18,6 +18,8 @@ files that do not, as non-blocking warnings.
 """
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import re
 from pathlib import Path
 
@@ -26,7 +28,7 @@ WORKING_ARTIFACTS = {"gaps"}
 WORKING_FORMATS = {"interview", "faq"}
 
 
-class DeliverableNotReady(RuntimeError):
+class DeliverableNotReady(GateRefusal):
     pass
 
 

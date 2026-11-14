@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import re
 from pathlib import Path
 from typing import Any
@@ -66,7 +68,7 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
     base = workspace_path(project_id)
     stories = nodes_by_type(project_id, "user_story")
     if not stories:
-        raise RuntimeError("Cannot generate quality artifacts without user stories.")
+        raise GateRefusal("Cannot generate quality artifacts without user stories.")
 
     readiness_by_story = implementation_readiness_by_story(project_id)
     quality_results: dict[str, dict[str, Any]] = {}

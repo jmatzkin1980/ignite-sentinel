@@ -29,6 +29,8 @@ The runtime:
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import hashlib
 import re
 from pathlib import Path
@@ -55,7 +57,7 @@ _BLOCK_RE = re.compile(r"^#{2,3}\s*(?P<block>B[0-5])\b")
 _REPO_RE = re.compile(r"^\s*[-*]\s*repo\s*:\s*(?P<name>[\w.\-/]+)", re.I)
 
 
-class HarvestError(RuntimeError):
+class HarvestError(InputError):
     pass
 
 

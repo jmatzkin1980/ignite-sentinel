@@ -112,7 +112,7 @@ class StoryStatusTests(unittest.TestCase):
 
         self.assertEqual(
             main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
-            1,
+            4,  # IMP-302: gate refusal
         )
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "Draft")
@@ -140,7 +140,7 @@ class StoryStatusTests(unittest.TestCase):
         self.assertIn('"relation": "acceptance_evidence_for"', graph)
 
     def test_story_status_rejects_illegal_transition(self):
-        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "Done"]), 1)
+        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "Done"]), 3)  # IMP-302: invalid input
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "Draft")
 

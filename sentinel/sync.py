@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import re
 import shutil
 from pathlib import Path
@@ -37,7 +39,7 @@ from .workspace import load_config, read_json, update_state, utc_now, workspace_
 def sync_change(project_id: str, source: Path, note: str = "", digest: bool = False) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
 
     target_dir = change_target_dir(base, source)
     target = unique_target(target_dir / f"{source.stem}{target_suffix(source)}")
@@ -218,7 +220,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
 def sync_pending_sources(project_id: str, note: str = "autonomous sync", digest: bool = False) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
 
     novelty = discover_source_novelty(project_id)
     pending = novelty["pending"]

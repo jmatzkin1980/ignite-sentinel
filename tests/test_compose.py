@@ -88,7 +88,7 @@ class ComposeLifecycleTests(unittest.TestCase):
                 }
             ]
         }
-        self.assertEqual(main(["compose", "COMP", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["compose", "COMP", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
         self.assertIn("citation not found verbatim", report)
 
@@ -106,7 +106,7 @@ class ComposeLifecycleTests(unittest.TestCase):
                 }
             ]
         }
-        self.assertEqual(main(["compose", "COMP", "--source", str(self._draft(draft))]), 1)
+        self.assertEqual(main(["compose", "COMP", "--source", str(self._draft(draft))]), 3)  # IMP-302: invalid input
         report = (self.ws / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
         self.assertIn("pending input", report)
 

@@ -115,7 +115,7 @@ class ImplementationFeedbackTests(unittest.TestCase):
         )
         self.assertEqual(
             main(["story-status", "IFB", "--story", "US-001", "--set", "Done", "--evidence", str(evidence)]),
-            1,
+            4,  # IMP-302: gate refusal
         )
 
     def test_feedback_rejects_unknown_story_without_rewriting_backlog(self) -> None:
@@ -132,7 +132,7 @@ class ImplementationFeedbackTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(source)]), 1)
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(source)]), 3)  # IMP-302: invalid input
         report = (self.ws / "07_changes" / "05_implementation_feedback" / "feedback_report.md").read_text(encoding="utf-8")
         self.assertIn("story does not exist", report)
         self.assertFalse((self.ws / "04_backlog" / "US-999.md").exists())

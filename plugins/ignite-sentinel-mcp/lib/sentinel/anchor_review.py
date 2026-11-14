@@ -24,6 +24,8 @@ never edited. Each review is appended to `01_discovery/anchor_review_log.md`.
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import hashlib
 from pathlib import Path
 from typing import Any
@@ -35,7 +37,7 @@ SEVERITY = {"says_less": "medium", "says_opposite": "high"}
 LENS_NAMES = {"1": "business", "2": "business", "3": "product", "4": "design", "5": "technical", "6": "compliance"}
 
 
-class AnchorReviewError(RuntimeError):
+class AnchorReviewError(InputError):
     pass
 
 

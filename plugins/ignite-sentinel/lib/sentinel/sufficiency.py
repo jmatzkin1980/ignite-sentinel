@@ -24,6 +24,8 @@ only "covered" and nothing was rejected.
 """
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import hashlib
 import re
 from pathlib import Path
@@ -37,7 +39,7 @@ LENS_NAMES = {"1": "business", "2": "business", "3": "product", "4": "design", "
 C_ITEM_RE = re.compile(r"^C-[0-9]{2,}$")
 
 
-class SufficiencyError(RuntimeError):
+class SufficiencyError(InputError):
     pass
 
 

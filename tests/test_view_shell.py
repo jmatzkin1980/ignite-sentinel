@@ -228,7 +228,7 @@ class ViewShellRenderTests(_ViewWorkspace):
             self.assertEqual(main(["view", self.project_id, "--artifact", "prd", "--theme", "neutral"]), 0)
         self.assertEqual(json.loads(out.getvalue())["theme"], "neutral")
         with contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(main(["view", self.project_id, "--artifact", "prd", "--theme", "nope"]), 1)
+            self.assertEqual(main(["view", self.project_id, "--artifact", "prd", "--theme", "nope"]), 3)  # IMP-302: invalid input
 
     def test_mcp_view_arguments_forward_theme(self) -> None:
         from sentinel.mcp import view_arguments

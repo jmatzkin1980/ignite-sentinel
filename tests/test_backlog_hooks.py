@@ -113,7 +113,7 @@ class BacklogHooksTests(unittest.TestCase):
             config.read_text(encoding="utf-8") + "\nbacklog_gate:\n  threshold: 1.0\n  strict: true\n",
             encoding="utf-8",
         )
-        self.assertEqual(main(["backlog", "HOOKS"]), 1)
+        self.assertEqual(main(["backlog", "HOOKS"]), 4)  # IMP-302: gate refusal
 
     def test_backlog_privacy_scan_warns_by_default_without_blocking(self) -> None:
         story_path = self.ws / "04_backlog" / "US-001.md"
@@ -135,7 +135,7 @@ class BacklogHooksTests(unittest.TestCase):
         story_path = self.ws / "04_backlog" / "US-001.md"
         story_path.write_text(story_path.read_text(encoding="utf-8") + "\npassword: super-secret\n", encoding="utf-8")
 
-        self.assertEqual(main(["quality", "HOOKS"]), 1)
+        self.assertEqual(main(["quality", "HOOKS"]), 4)  # IMP-302: gate refusal
 
     def test_backlog_privacy_scan_off_suppresses_scan(self) -> None:
         config = self.ws / "sentinel.config.yaml"

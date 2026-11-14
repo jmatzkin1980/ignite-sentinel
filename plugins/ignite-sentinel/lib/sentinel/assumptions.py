@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import json
 import shutil
 from pathlib import Path
@@ -14,7 +16,7 @@ from .core.markdown import parse_table_rows
 from .workspace import read_json, read_state, state_path, update_state, workspace_path, write_json
 
 
-class AssumptionError(RuntimeError):
+class AssumptionError(InputError):
     """Raised when a governed assumption source cannot be accepted."""
 
 

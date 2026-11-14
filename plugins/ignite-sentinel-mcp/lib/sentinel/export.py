@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import json
 import shutil
 from pathlib import Path
@@ -25,7 +27,7 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     base = workspace_path(project_id)
     source = artifact_source(base, artifact, domain)
     if not source.exists():
-        raise RuntimeError(f"Export source not found: {source}")
+        raise InputError(f"Export source not found: {source}")
     # IMP-272: a deliverable has zero pending marks or says it is a draft
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final)
     result = _export(project_id, artifact, fmt, source, verdict)
@@ -43,7 +45,7 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     if fmt == "faq":
         return export_faq(project_id, artifact)
     if fmt != "md":
-        raise RuntimeError("Unsupported export format. Use md, mdx, interview, or faq.")
+        raise InputError("Unsupported export format. Use md, mdx, interview, or faq.")
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / source.name
@@ -64,7 +66,7 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
 
 def export_interview(project_id: str, artifact: str) -> dict[str, str]:
     if artifact.lower() != "gaps":
-        raise RuntimeError("Interview export is currently supported only for --artifact gaps.")
+        raise InputError("Interview export is currently supported only for --artifact gaps.")
     from .discovery import build_interview_script
 
     script = build_interview_script(project_id)
@@ -85,7 +87,7 @@ def export_interview(project_id: str, artifact: str) -> dict[str, str]:
 
 def export_faq(project_id: str, artifact: str) -> dict[str, str]:
     if artifact.lower() != "gaps":
-        raise RuntimeError("FAQ export is currently supported only for --artifact gaps.")
+        raise InputError("FAQ export is currently supported only for --artifact gaps.")
     from .discovery import build_faq
 
     faq = build_faq(project_id)
@@ -107,7 +109,7 @@ def export_faq(project_id: str, artifact: str) -> dict[str, str]:
 def export_mdx(project_id: str, artifact: str, source: Path, verdict: dict | None = None) -> dict[str, str]:
     artifact = artifact.lower()
     if artifact != "prd":
-        raise RuntimeError("MDX export is currently supported only for --artifact prd.")
+        raise InputError("MDX export is currently supported only for --artifact prd.")
     text = source.read_text(encoding="utf-8")
     block_model = markdown_to_blocks(text, artifact=artifact)
     export_dir = workspace_path(project_id) / "08_context_packs" / "exports" / f"{artifact}-mdx"
@@ -210,6 +212,6 @@ def artifact_source(base: Path, artifact: str, domain: str | None) -> Path:
         return base / "03_specs" / "prd.md"
     if artifact == "context-request":
         if not domain:
-            raise RuntimeError("--domain is required when exporting context-request.")
+            raise InputError("--domain is required when exporting context-request.")
         return base / "08_context_packs" / "requests" / f"{domain.lower()}_context_request.md"
-    raise RuntimeError(f"Unsupported export artifact: {artifact}")
+    raise InputError(f"Unsupported export artifact: {artifact}")

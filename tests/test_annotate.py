@@ -161,7 +161,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
 
     def test_cli_rejects_fabricated_evidence(self):
         bad = self._write_annotation({"gaps": [_gap(evidence="totally invented quote")]})
-        self.assertEqual(main(["annotate", "ANN", "--source", str(bad)]), 1)
+        self.assertEqual(main(["annotate", "ANN", "--source", str(bad)]), 3)  # IMP-302: invalid input
 
 
 def _load_runner():

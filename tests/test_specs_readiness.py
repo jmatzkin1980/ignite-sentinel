@@ -136,7 +136,7 @@ class SpecsGateLifecycleTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        self.assertEqual(main(["specs", "SPEC41"]), 1)
+        self.assertEqual(main(["specs", "SPEC41"]), 4)  # IMP-302: gate refusal
 
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["readiness_stage"], "SPECS_BELOW_THRESHOLD")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 from hashlib import sha256
 from pathlib import Path
 import re
@@ -219,7 +221,7 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
     warnings = foundation_drift_warnings(project_id, phase)
     gate = config.get("drift_gate", {}) if isinstance(config.get("drift_gate", {}), dict) else {}
     if warnings and bool(gate.get("strict", False)):
-        raise RuntimeError(
+        raise GateRefusal(
             f"Cannot run /{phase} while its foundation is stale (drift_gate.strict): "
             + " ".join(warnings)
         )
@@ -229,7 +231,7 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
 def generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise RuntimeError("Cannot generate specs while requirement maturity is BLOCKED.")
+        raise GateRefusal("Cannot generate specs while requirement maturity is BLOCKED.")
     base = workspace_path(project_id)
     config = load_config(project_id)
     # IMP-151: soft gate — warn when the foundation drifted since last generation.
@@ -279,7 +281,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
             specs_gate={"threshold": specs_threshold, "strict": specs_strict, "below_threshold": below_specs_threshold},
             specs_gate_warnings=specs_warnings,
         )
-        raise RuntimeError("Cannot complete /specs while PRD section readiness is below specs_gate threshold.")
+        raise GateRefusal("Cannot complete /specs while PRD section readiness is below specs_gate threshold.")
     spec_units = write_spec_units(project_id, context, source_path.name)
     spec_unit_delta = record_spec_unit_delta(project_id, previous_spec_units)
     write_text(specs_path, render_specs(project_id, req_text, context, source_path.name, spec_units))
@@ -377,7 +379,7 @@ def generate_backlog(
 ) -> dict[str, str]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
-        raise RuntimeError("Cannot generate backlog while requirement maturity is BLOCKED.")
+        raise GateRefusal("Cannot generate backlog while requirement maturity is BLOCKED.")
     specs = nodes_by_type(project_id, "spec")
     if not specs:
         generate_specs(project_id)

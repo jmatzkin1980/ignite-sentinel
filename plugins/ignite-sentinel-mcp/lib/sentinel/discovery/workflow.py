@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..errors import GateRefusal, InputError  # IMP-302: typed errors
+
 import json
 import re
 import shutil
@@ -864,11 +866,11 @@ def record_gap_disposition(project_id: str, gap_id: str, disposition: str, reaso
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot record a disposition before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot record a disposition before /ingest creates 01_discovery/gaps.md.")
     gaps = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
     gap = next((item for item in gaps if item["id"] == gap_id.strip().upper()), None)
     if gap is None:
-        raise RuntimeError(f"{gap_id} is not in 01_discovery/gaps.md.")
+        raise InputError(f"{gap_id} is not in 01_discovery/gaps.md.")
     try:
         record = set_disposition(base, gap, disposition, reason)
     except SweepProtocolError as exc:
@@ -880,7 +882,7 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot regenerate gaps before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot regenerate gaps before /ingest creates 01_discovery/gaps.md.")
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
     state_language = load_config(project_id).get("project_language", "auto")
@@ -970,7 +972,7 @@ GAP_ID_RE = re.compile(r"^GAP-[A-Z0-9-]+$")
 RU_ID_RE = re.compile(r"^RU-[0-9]{3}$")
 
 
-class AnnotationError(RuntimeError):
+class AnnotationError(InputError):
     """Raised when an agentic annotation fails validation (IMP-021)."""
 
 
@@ -1120,7 +1122,7 @@ def refresh_knowledge_ledger(project_id: str, broker: ContextBroker | None = Non
     decisions_path = base / "01_discovery" / "decisions.md"
     assumptions_path = base / "01_discovery" / "assumptions.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot refresh knowledge ledger before gaps.md exists.")
+        raise GateRefusal("Cannot refresh knowledge ledger before gaps.md exists.")
     ledger = materialize_knowledge_ledger(
         project_id,
         seeds_path.read_text(encoding="utf-8") if seeds_path.exists() else "",
@@ -1243,14 +1245,14 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
     """Validate, merge, and trace an agentic annotation of the raw input (IMP-021)."""
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot annotate before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot annotate before /ingest creates 01_discovery/gaps.md.")
 
     raw_text = raw_input_text(base)
     if not raw_text.strip():
-        raise RuntimeError("No raw input found under 00_raw/ to ground the annotation against.")
+        raise GateRefusal("No raw input found under 00_raw/ to ground the annotation against.")
 
     data = load_agent_annotation(source)
     agent_gaps = validate_agent_gaps(data, raw_text)
@@ -1436,15 +1438,15 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
     """
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     respondent_profile = respondent_profile_from_domain_context(base)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot challenge before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot challenge before /ingest creates 01_discovery/gaps.md.")
 
     raw_text = raw_input_text(base)
     if not raw_text.strip():
-        raise RuntimeError("No raw input found under 00_raw/ to ground the challenge against.")
+        raise GateRefusal("No raw input found under 00_raw/ to ground the challenge against.")
 
     data = load_agent_annotation(source)
     challenge_gaps = validate_agent_gaps(data, raw_text, origin="challenge")
@@ -1759,14 +1761,14 @@ def apply_scrutiny(
     is_probe = spec["origin"] == "implementability-probe"
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot scrutinize before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot scrutinize before /ingest creates 01_discovery/gaps.md.")
 
     grounding_text = scrutiny_grounding_text(base)
     if not grounding_text.strip():
-        raise RuntimeError("No raw or domain context evidence found under 00_raw/ to ground scrutiny against.")
+        raise GateRefusal("No raw or domain context evidence found under 00_raw/ to ground scrutiny against.")
 
     lens_filter = lens.strip().lower() if lens else None
     data = load_agent_annotation(source)
@@ -2511,7 +2513,7 @@ def build_interview_script(project_id: str) -> str:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot export an interview script before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot export an interview script before /ingest creates 01_discovery/gaps.md.")
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     state = read_json(base / "state.json", {})
     configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
@@ -2532,7 +2534,7 @@ def build_faq(project_id: str) -> str:
     seeds_path = base / "01_discovery" / "identity_seeds.md"
     decisions_path = base / "01_discovery" / "decisions.md"
     if not seeds_path.exists() and not decisions_path.exists():
-        raise RuntimeError(
+        raise GateRefusal(
             "Cannot export a FAQ before gaps are resolved into "
             "01_discovery/decisions.md or identity_seeds.md."
         )
@@ -3623,7 +3625,7 @@ def gap_round(project_id: str, top: int = 5) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot plan a round before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot plan a round before /ingest creates 01_discovery/gaps.md.")
     state = read_state(project_id, {})
     language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
     gaps = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8"))

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import json
 import re
 import shutil
@@ -12,7 +14,7 @@ from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
-class ComposeError(RuntimeError):
+class ComposeError(InputError):
     """Raised when a PRD composition draft has no valid blocks."""
 
 

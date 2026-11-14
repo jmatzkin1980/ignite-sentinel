@@ -15,6 +15,8 @@ scope (that is delivery, not discovery).
 """
 from __future__ import annotations
 
+from .errors import GateRefusal, InputError  # IMP-302: typed errors
+
 from typing import Any
 
 from .core.graph import add_node
@@ -144,18 +146,18 @@ def add_stakeholder(
 ) -> dict[str, Any]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     if not str(name).strip():
-        raise RuntimeError("/stakeholders --add requires --name.")
+        raise InputError("/stakeholders --add requires --name.")
     normalized_domain = _norm_domain(domain)
     if not normalized_domain:
-        raise RuntimeError("/stakeholders --add requires --domain (the lens/domain this owner answers for).")
+        raise InputError("/stakeholders --add requires --domain (the lens/domain this owner answers for).")
     rows = load_stakeholders(project_id)
     existing_ids = {row["id"].upper() for row in rows}
     if stakeholder_id:
         stakeholder_id = stakeholder_id.strip()
         if stakeholder_id.upper() in existing_ids:
-            raise RuntimeError(f"Stakeholder id already registered: {stakeholder_id}")
+            raise InputError(f"Stakeholder id already registered: {stakeholder_id}")
     else:
         stakeholder_id = _next_id(rows)
     # respondent_profile is optional; when provided it must be a recognized
@@ -183,7 +185,7 @@ def add_stakeholder(
 def list_stakeholders(project_id: str) -> dict[str, Any]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     rows = load_stakeholders(project_id)
     # Re-render so the generated artifact exists and stays canonical even on a read.
     path = _write_registry(project_id, rows)

@@ -112,7 +112,7 @@ class ScrutinyLifecycleTests(unittest.TestCase):
             0,
         )
         bad = self._write({"gaps": [_finding(id="GAP-SCRUTINY-DESIGN", lens="design")]})
-        self.assertEqual(main(["scrutinize", "SCR", "--lens", "technical", "--source", str(bad)]), 1)
+        self.assertEqual(main(["scrutinize", "SCR", "--lens", "technical", "--source", str(bad)]), 3)  # IMP-302: invalid input
 
 
 if __name__ == "__main__":

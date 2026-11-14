@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 from pathlib import Path
 
 from .commands import COMMANDS, VIEW_ARTIFACTS, build_parser  # noqa: F401  IMP-303: the single command registry
+from .errors import EXIT_BUG, EXIT_OK, EXIT_VERDICT, exit_code_for, next_step_for
 from .protocols import postflight_command, preflight_command
 
 
@@ -31,8 +33,7 @@ def main(argv: list[str] | None = None) -> int:
             validate_project_id(args.project_id)
             return run_release_command(scoped_argv(argv)[1], args.project_id, args.release)
         except Exception as exc:
-            print(f"sentinel error: {exc}", file=sys.stderr)
-            return 1
+            return report_error(exc)
     try:
         project_id = getattr(args, "project_id", None)
         if project_id is not None:
@@ -54,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
 
             result = run_doctor(Path(args.root))
             print_json(result)
-            return 0 if result["verdict"] == "PASS" else 1
+            return EXIT_OK if result["verdict"] == "PASS" else EXIT_VERDICT
         elif args.command == "dashboard":
             from .dashboard import generate_dashboard
 
@@ -398,17 +399,28 @@ def main(argv: list[str] | None = None) -> int:
             result = validate_project(args.project_id, override_source=Path(args.override) if args.override else None)
             print_json(result)
             postflight_command(args.command, project_id, result)
-            return 0 if result["verdict"] == "VALID" else 1
+            return EXIT_OK if result["verdict"] == "VALID" else EXIT_VERDICT
         elif args.command == "reindex":
             from .memory import reindex_workspace
 
             result = reindex_workspace(args.project_id, full=args.full)
             print_json(result)
         postflight_command(args.command, project_id, result)
-        return 0
+        return EXIT_OK
     except Exception as exc:
-        print(f"sentinel error: {exc}", file=sys.stderr)
-        return 1
+        return report_error(exc)
+
+
+def report_error(exc: BaseException) -> int:
+    """IMP-302: print the error and its next step; return its exit code (see sentinel/errors.py)."""
+    code = exit_code_for(exc)
+    print(f"sentinel error: {exc}", file=sys.stderr)
+    next_step = next_step_for(exc)
+    if next_step:
+        print(f"next step: {next_step}", file=sys.stderr)
+    if code == EXIT_BUG:
+        traceback.print_exception(exc, file=sys.stderr)
+    return code
 
 
 def normalize_slash_command(argv: list[str]) -> list[str]:

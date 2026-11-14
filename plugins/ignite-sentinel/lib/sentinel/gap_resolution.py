@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal  # IMP-302: typed errors
+
 import re
 import shutil
 from pathlib import Path
@@ -49,10 +51,10 @@ def is_ears_eligible_gap(gap_id: str) -> bool:
 def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}")
+        raise GateRefusal(f"Workspace not found: {project_id}")
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise RuntimeError("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
+        raise GateRefusal("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
 
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"

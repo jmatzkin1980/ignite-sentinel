@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import InputError  # IMP-302: typed errors
+
 import re
 from pathlib import Path
 from typing import Any
@@ -43,7 +45,7 @@ def lens_checks_section(domain: str, language: str) -> str:
 def generate_context_request(project_id: str, domain: str) -> dict[str, str]:
     domain = domain.lower()
     if domain not in DOMAINS:
-        raise RuntimeError(f"Unsupported context request domain: {domain}")
+        raise InputError(f"Unsupported context request domain: {domain}")
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     gaps_path = base / "01_discovery" / "gaps.md"
@@ -120,7 +122,7 @@ def transition_context_request(project_id: str, request_id: str, status: str, re
         raise ValueError(f"--status must be one of {', '.join(CTX_STATES)}.")
     node = _context_nodes(project_id).get(request_id.strip().upper())
     if node is None:
-        raise RuntimeError(f"{request_id} is not a context request of {project_id}.")
+        raise InputError(f"{request_id} is not a context request of {project_id}.")
     current = str(node.get("status") or "active")
     if current not in CTX_STATES:
         current = "active"

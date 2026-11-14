@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .errors import GateRefusal, InputError  # IMP-302: typed errors
+
 from pathlib import Path
 from typing import Any
 
@@ -44,21 +46,21 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if command not in PROJECT_COMMANDS:
         return
     if not project_id:
-        raise RuntimeError(f"{command} requires PROJECT_ID.")
+        raise InputError(f"{command} requires PROJECT_ID.")
 
     base = workspace_path(project_id)
     if not base.exists():
-        raise RuntimeError(f"Workspace not found: {project_id}. Run /init {project_id} first.")
+        raise GateRefusal(f"Workspace not found: {project_id}. Run /init {project_id} first.")
 
     state = read_json(state_path(project_id), {})
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
     if command in {"specs", "backlog"} and phase == "initialized":
-        raise RuntimeError("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
+        raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
     if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
-        raise RuntimeError(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
+        raise GateRefusal(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
 
     if command in {"backlog", "backlog-status", "quality", "refine-backlog", "implementation-feedback", "story-status"}:
         from .backlog.hooks import assert_backlog_privacy_clean
@@ -69,7 +71,7 @@ def preflight_command(command: str, project_id: str | None) -> None:
         from .core.graph import load_graph
 
         if not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
-            raise RuntimeError("Cannot generate quality artifacts without backlog user stories.")
+            raise GateRefusal("Cannot generate quality artifacts without backlog user stories.")
 
 
 def postflight_command(command: str, project_id: str | None, result: Any) -> None:
