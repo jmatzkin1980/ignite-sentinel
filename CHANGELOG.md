@@ -22,6 +22,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **In the code:** `sentinel/errors.py` holds `SentinelError`, `InputError`, `GateRefusal` and `WorkspaceBusy`. `InputError` and `GateRefusal` are also `RuntimeError`, so existing handlers keep catching them. The deliberate `RuntimeError`s of the runtime now raise a typed error. A plain `ValueError` counts as invalid input; any other exception counts as a bug.
   - **MCP:** a failed command comes back as an error result (`isError`) whose text is JSON with `code`, `kind`, `error`, `next_step` and `output`. `run_cli` adds the same fields to its result.
   - **Scripts:** any failure is still non-zero. A script that compared the exit code to exactly 1 needs updating.
+- A durable, versioned `state.json` (IMP-300, H18). It used to mix what cannot be rebuilt with counts and metrics the runtime recomputes, plus the command log, and had no version.
+  - **`state.json`** keeps the durable state (phase, health, story lifecycle and gates, language, privacy, `artifact_hashes`…) and `schema_version: 1`.
+  - **`.sentinel/derived/state.json`** keeps `gap_counts`, `maturity_metrics`, `prd_section_readiness` and `backlog_rollup`. Deleting it loses nothing: `/status` gives the same answer.
+  - **`.sentinel/command_log.jsonl`** keeps one line per command, append-only. A line torn by a crash is skipped. `command_protocol_log.md` still shows the last 25.
+  - **Migration:** the first command that opens a 0.9.0 workspace migrates it, once, after copying `state.json` to `.sentinel/state.json.bak-0.9.0`. `last_export` becomes relative to the workspace.
+  - **A newer schema** (a workspace written by a later Sentinel) is refused with exit code 3 and left untouched.
+  - **In the code:** `read_state` returns both halves merged and `update_state` splits them again, so callers see one dict. Code or scripts that read `state.json` directly for the derived keys should use `read_state` or `read_workspace_state`.
 - One command at a time per workspace (IMP-299, H18). Two commands on one workspace (CLI and MCP, or two sessions) used to overwrite each other's `state.json` and traceability graph, and the later write won.
   - **The lock:** every command that names a project locks its workspace (`.sentinel/lock`) while it runs. The read-only commands lock it too, because each one records itself in `state.json`. The lock is the operating system's, so a crashed process never leaves it behind.
   - **Waiting:** a second command waits up to 10 seconds (`SENTINEL_LOCK_TIMEOUT`), then exits with code 6, naming the command that holds the workspace.

@@ -7,6 +7,7 @@ pre-IMP-254 algorithm, copied verbatim below, over the golden briefs.
 """
 
 import re
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import unittest
 from pathlib import Path
 
@@ -237,7 +238,7 @@ class V2WorkspaceTests(unittest.TestCase):
                     self.assertEqual(main([command, pid]), 0, command)
                 model = collect_artifact_model(pid, "brief")
             self.assertEqual(brief.read_text(encoding="utf-8"), v2_text(pid), "the v1 compiler must not overwrite v2")
-            state = json.loads((tmp / "workspaces" / pid / "state.json").read_text(encoding="utf-8"))
+            state = read_workspace_state(tmp / "workspaces" / pid)
             readiness = state["maturity_metrics"]["brief_section_readiness"]
             self.assertEqual(readiness["brief_version"], 2)
             self.assertEqual(readiness["coverage_score"], 0.5)

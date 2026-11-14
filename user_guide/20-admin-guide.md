@@ -220,6 +220,20 @@ Sentinel keeps client content in four places. None of them is in the plugin fold
 
 The memory index is rebuildable from the artifacts (`/reindex`); deleting it loses nothing.
 
+## The project state
+
+Each workspace keeps its state in three files:
+
+| File | What | If deleted |
+|------|------|------------|
+| `state.json` | The durable state: phase, health, story lifecycle and gates, language, privacy, artifact checksums. Carries `schema_version`. | Lost: restore it from git or a backup. |
+| `.sentinel/derived/state.json` | Counts, metrics and roll-ups the runtime recomputes. | Nothing is lost; commands rebuild it. |
+| `.sentinel/command_log.jsonl` | One line per command, append-only. | Only the history is lost. |
+
+**Upgrading from 0.9.0.** The first command that opens a 0.9.0 workspace migrates it once. The original stays at `.sentinel/state.json.bak-0.9.0`.
+
+**Opening a workspace with an older Sentinel.** If a later Sentinel wrote the workspace, an older one refuses it with exit code 3 and does not touch it. Upgrade Sentinel.
+
 ## The workspace lock
 
 Each workspace has a lock file at `workspaces/<PROJECT_ID>/.sentinel/lock`. `.sentinel/` is git-ignored.

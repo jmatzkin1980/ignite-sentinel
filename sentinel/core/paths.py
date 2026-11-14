@@ -65,6 +65,16 @@ def state_path(project_id: str, root: Path | None = None) -> Path:
     return workspace_path(project_id, root) / "state.json"
 
 
+def derived_state_path(project_id: str, root: Path | None = None) -> Path:
+    """IMP-300: the regenerable part of the state (counts, metrics, roll-ups)."""
+    return workspace_path(project_id, root) / ".sentinel" / "derived" / "state.json"
+
+
+def command_log_path(project_id: str, root: Path | None = None) -> Path:
+    """IMP-300: one JSON line per command, append-only."""
+    return workspace_path(project_id, root) / ".sentinel" / "command_log.jsonl"
+
+
 def graph_path(project_id: str, root: Path | None = None) -> Path:
     return workspace_path(project_id, root) / "06_traceability" / "traceability_graph.json"
 

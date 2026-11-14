@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -98,7 +99,7 @@ class ScrutinyLifecycleTests(unittest.TestCase):
         self.assertIn('"relation": "scrutinized_by"', graph)
         self.assertIn('"type": "knowledge_ledger"', graph)
 
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertGreaterEqual(state["gap_counts"].get("scrutiny_origin", 0), 1)
 
         ledger = json.loads((self.ws / "01_discovery" / "knowledge_state.json").read_text(encoding="utf-8"))

@@ -34,6 +34,11 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     return {**result, **verdict}
 
 
+def workspace_relative(project_id: str, path: Path) -> str:
+    """IMP-300: `last_export` is stored relative to the workspace, so a moved workspace keeps it."""
+    return path.relative_to(workspace_path(project_id)).as_posix()
+
+
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict) -> dict[str, str]:
     from .deliverables import with_banner
 
@@ -54,7 +59,7 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
         write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id)))
     else:
         copy_file(source, target)
-    update_state(project_id, last_export=str(target.as_posix()))
+    update_state(project_id, last_export=workspace_relative(project_id, target))
     return {
         "project_id": project_id,
         "artifact": artifact,
@@ -75,7 +80,7 @@ def export_interview(project_id: str, artifact: str) -> dict[str, str]:
     target = export_dir / "gaps-interview.md"
     assert_no_leaks(project_id, script, workspace_path(project_id), "interview export")
     write_text(target, script)
-    update_state(project_id, last_export=str(target.as_posix()))
+    update_state(project_id, last_export=workspace_relative(project_id, target))
     return {
         "project_id": project_id,
         "artifact": "gaps",
@@ -96,7 +101,7 @@ def export_faq(project_id: str, artifact: str) -> dict[str, str]:
     target = export_dir / "gaps-faq.md"
     assert_no_leaks(project_id, faq, workspace_path(project_id), "FAQ export")
     write_text(target, faq)
-    update_state(project_id, last_export=str(target.as_posix()))
+    update_state(project_id, last_export=workspace_relative(project_id, target))
     return {
         "project_id": project_id,
         "artifact": "gaps",
@@ -122,7 +127,7 @@ def export_mdx(project_id: str, artifact: str, source: Path, verdict: dict | Non
     write_json(blocks_path, block_model)
     write_text(mdx_path, mdx_text)
     write_text(readme_path, render_mdx_readme(project_id, artifact, source))
-    update_state(project_id, last_export=str(mdx_path.as_posix()))
+    update_state(project_id, last_export=workspace_relative(project_id, mdx_path))
     return {
         "project_id": project_id,
         "artifact": artifact,

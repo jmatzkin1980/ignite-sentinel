@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -119,7 +120,7 @@ class AnnotateLifecycleTests(unittest.TestCase):
         self.assertIn('"relation": "raises"', graph)
 
         # /status visibility: agent_origin count in state gap_counts
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertGreaterEqual(state["gap_counts"].get("agent_origin", 0), 1)
 
         # auditable annotation log records the citation

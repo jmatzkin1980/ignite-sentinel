@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import shutil
 import tempfile
 import unittest
@@ -67,7 +68,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
         self.assertEqual(main(["init", "THIN", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "THIN", "--source", str(source)]), 0)
         self.assertEqual(main(["brief", "THIN"]), 0)
-        state = json.loads((self.temp / "workspaces" / "THIN" / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.temp / "workspaces" / "THIN")
         self.assertEqual(state["health"], "DIRTY")
         self.assertEqual(state["readiness_stage"], "CLIENT_RESPONSE_NEEDED")
         self.assertGreater(state["gap_counts"]["blocking_open"], 0)
@@ -82,7 +83,7 @@ class SentinelCoreFlowTest(unittest.TestCase):
         )
         self.assertEqual(main(["init", "LANG_DEMO", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "LANG_DEMO", "--source", str(source)]), 0)
-        state = json.loads((self.temp / "workspaces" / "LANG_DEMO" / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.temp / "workspaces" / "LANG_DEMO")
         self.assertEqual(state["project_language"], "es")
         gaps = (self.temp / "workspaces" / "LANG_DEMO" / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
         self.assertIn("Versión del documento: `1.0`", gaps)
@@ -836,7 +837,7 @@ Second section paragraph.
         self.assertEqual(main(["specs", "STALE"]), 0)
         self.assertEqual(main(["backlog", "STALE"]), 0)
         self.assertEqual(main(["health", "STALE"]), 0)
-        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.temp / "workspaces" / "STALE")
         self.assertEqual(state["health"], "CLEAN")
 
         tech_dir = self.temp / "workspaces" / "STALE" / "00_raw" / "02_technology_context"
@@ -850,12 +851,12 @@ Second section paragraph.
         self.assertIn("Domain context changed after backlog generation", report)
         self.assertIn("Technology", report)
         self.assertIn("Regenerate backlog only if the change materially affects", report)
-        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.temp / "workspaces" / "STALE")
         self.assertEqual(state["health"], "CLEAN")
 
         self.assertEqual(main(["reindex", "STALE"]), 0)
         self.assertEqual(main(["health", "STALE"]), 0)
-        state = json.loads((self.temp / "workspaces" / "STALE" / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.temp / "workspaces" / "STALE")
         self.assertEqual(state["health"], "CLEAN")
 
     def test_gap_resolution_distinguishes_intermediate_states(self) -> None:
@@ -1081,7 +1082,7 @@ Second section paragraph.
         self.assertEqual(main(["/init", "SLASH_DEMO"]), 0)
         workspace = self.temp / "workspaces" / "SLASH_DEMO"
         self.assertTrue((workspace / "state.json").exists())
-        state = json.loads((workspace / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(workspace)
         config = (workspace / "sentinel.config.yaml").read_text(encoding="utf-8")
         self.assertEqual(state["project_language"], "auto")
         self.assertEqual(state["privacy_mode"], "local-only")

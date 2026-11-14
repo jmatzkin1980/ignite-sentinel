@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -123,7 +124,7 @@ class SpecsGateLifecycleTests(unittest.TestCase):
     def test_default_specs_gate_warns_without_blocking(self):
         self.assertEqual(main(["specs", "SPEC41"]), 0)
 
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertEqual(state["phase"], "specs_completed")
         self.assertEqual(state["specs_gate"]["strict"], False)
         self.assertIn("prd_section_readiness", state)
@@ -138,7 +139,7 @@ class SpecsGateLifecycleTests(unittest.TestCase):
 
         self.assertEqual(main(["specs", "SPEC41"]), 4)  # IMP-302: gate refusal
 
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertEqual(state["readiness_stage"], "SPECS_BELOW_THRESHOLD")
         self.assertTrue(state["specs_gate"]["strict"])
         self.assertTrue(state["specs_gate"]["below_threshold"])

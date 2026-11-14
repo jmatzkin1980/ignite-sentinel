@@ -9,6 +9,7 @@ blocking it. And two stages that /brief writes were unknown to the dashboard.
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import re
 import shutil
@@ -73,7 +74,7 @@ class GapCommandsKeepTheStageTests(unittest.TestCase):
         shutil.rmtree(self.temp, ignore_errors=True)
 
     def _state(self) -> dict:
-        return json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        return read_workspace_state(self.ws)
 
     def _set_stage(self, stage: str) -> None:
         state = self._state()

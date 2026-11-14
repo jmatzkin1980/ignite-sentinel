@@ -10,6 +10,7 @@ and nothing is auto-resolved.
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -157,7 +158,7 @@ class ProbeLifecycleTests(unittest.TestCase):
         self.assertIn('"type": "implementability_probe"', graph)
         self.assertIn('"relation": "probed_by"', graph)
 
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertIn("last_probe_id", state)
         self.assertGreaterEqual(state["gap_counts"].get("implementability_probe_origin", 0), 1)
 
