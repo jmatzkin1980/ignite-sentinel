@@ -11,7 +11,7 @@ from ..deltas import DeltaStatus, delta_marker
 from ..memory import ContextBroker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
 from .prd import render_ears_requirements_table, render_prd_section_context
-from ..core.io import write_text
+from ..core.io import remove, write_text
 
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
@@ -270,7 +270,7 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
         active_paths.add(path)
     for stale in units_dir.glob("SPEC-U-*.md"):
         if stale not in active_paths:
-            stale.unlink()
+            remove(stale)
     return units
 
 

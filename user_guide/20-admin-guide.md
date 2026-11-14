@@ -220,6 +220,23 @@ Sentinel keeps client content in four places. None of them is in the plugin fold
 
 The memory index is rebuildable from the artifacts (`/reindex`); deleting it loses nothing.
 
+## The workspace lock
+
+Each workspace has a lock file at `workspaces/<PROJECT_ID>/.sentinel/lock`. `.sentinel/` is git-ignored.
+
+**How it works.** A command holds the lock while it runs, and the file names that command, its process id and when it started. The lock belongs to the operating system, not to the file:
+
+- if the process ends, even by a crash or a kill, the lock is released;
+- deleting the file does not release a lock, and is never needed.
+
+**If a command keeps exiting with code 6:**
+
+1. Read the file to see which command holds the workspace.
+2. Wait for that command to finish, or stop that process.
+3. If it is a stuck Claude Code session or MCP server, close it.
+
+**Unsupported:** concurrent use of one workspace over network drives and synced folders (OneDrive, Dropbox). Their file locks are not reliable.
+
 ## Audit trail
 
 What happened in a project is recorded in append-only files in its workspace:

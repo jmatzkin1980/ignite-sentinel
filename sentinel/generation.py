@@ -85,7 +85,7 @@ from .slice_plan import generate_slice_plan
 from .core.graph import add_edge, add_node, nodes_by_type, upsert_node
 from .drift import foundation_drift_warnings, record_derived_source_fingerprint
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
-from .core.io import write_text
+from .core.io import remove, write_text
 
 
 DOMAIN_CONTEXT_FOLDERS = {
@@ -483,7 +483,7 @@ def generate_backlog(
 
     for stale_story_path in (base / "04_backlog").glob("US-*.md"):
         if stale_story_path not in active_story_paths:
-            stale_story_path.unlink()
+            remove(stale_story_path)
 
     assert_backlog_privacy_clean(project_id)
 

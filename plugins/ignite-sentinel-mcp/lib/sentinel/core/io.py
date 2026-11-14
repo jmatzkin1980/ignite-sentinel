@@ -4,11 +4,12 @@ import json
 import os
 import stat
 import tempfile
-import warnings
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+
+from ..errors import WorkspaceBusy
 
 
 _READ_SNAPSHOTS: dict[Path, str | None] = {}
@@ -61,17 +62,27 @@ def _invalidate_json_cache(path: Path) -> None:
     _JSON_READ_CACHE.pop(_normalized_path(path), None)
 
 
-def _warn_if_changed(path: Path) -> None:
+def forget_read_snapshots() -> None:
+    """Forget what earlier commands read (IMP-299: each command starts from the disk)."""
+    _READ_SNAPSHOTS.clear()
+
+
+class WriteConflict(WorkspaceBusy):
+    """IMP-299: a file changed on disk between this command's read and its write."""
+
+
+def _refuse_if_changed(path: Path) -> None:
     normalized = _normalized_path(path)
     if normalized not in _READ_SNAPSHOTS:
         return
     expected = _READ_SNAPSHOTS[normalized]
     actual = _file_hash(path)
     if expected != actual:
-        warnings.warn(
-            f"Optimistic write conflict detected for {path.as_posix()}: artifact changed since last read.",
-            RuntimeWarning,
-            stacklevel=2,
+        # IMP-299: writing would silently drop the other change. Under the workspace
+        # lock only a writer outside Sentinel can cause this.
+        raise WriteConflict(
+            f"Write conflict on {path.as_posix()}: it changed since this command read it.",
+            next_step="Check who else edits the workspace, then run this command again.",
         )
 
 
@@ -217,7 +228,7 @@ def copy_file(source: Path | str, destination: Path | str, *, root: Path | str |
 
 def write_json(path: Path, data: Any, *, root: Path | str | None = None) -> None:
     destination = confine(path, root)
-    _warn_if_changed(destination)
+    _refuse_if_changed(destination)
     _invalidate_json_cache(destination)
     _atomic_write(destination, (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     _remember_snapshot(destination)
@@ -227,7 +238,7 @@ def append_bytes(path: Path | str, data: bytes, *, root: Path | str | None = Non
     """Append-only write: existing bytes are never rewritten (fsynced, not atomic by nature)."""
     destination = confine(path, root)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    _warn_if_changed(destination)
+    # IMP-299: no conflict check. An append keeps whatever another writer added.
     _invalidate_json_cache(destination)
     with open(destination, "ab") as handle:
         handle.write(data)
@@ -239,3 +250,18 @@ def append_bytes(path: Path | str, data: bytes, *, root: Path | str | None = Non
 
 def append_text(path: Path | str, text: str, *, root: Path | str | None = None, newline: str | None = None) -> Path:
     return append_bytes(path, _translate_newlines(text, newline).encode("utf-8"), root=root)
+
+
+def remove(path: Path | str, *, root: Path | str | None = None) -> bool:
+    """IMP-299: delete a file, or an empty folder, confined like a write. False when it was already gone."""
+    destination = confine(path, root)
+    _invalidate_json_cache(destination)
+    _READ_SNAPSHOTS.pop(_normalized_path(destination), None)
+    try:
+        if destination.is_dir() and not destination.is_symlink():
+            destination.rmdir()
+        else:
+            destination.unlink()
+    except FileNotFoundError:
+        return False
+    return True

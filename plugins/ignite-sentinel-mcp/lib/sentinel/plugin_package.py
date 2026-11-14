@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 
 from .adapters import render_skills
-from .core.io import parse_json, write_bytes
+from .core.io import parse_json, remove, write_bytes
 
 PLUGIN_NAME = "ignite-sentinel"
 MCP_PLUGIN_NAME = "ignite-sentinel-mcp"
@@ -272,14 +272,14 @@ def regenerate_plugin(root: Path | None = None) -> dict[str, int]:
         written += 1
     removed = 0
     for relative in sorted(_existing_plugin_files(root) - set(expected)):
-        (root / relative).unlink()
+        remove(root / relative, root=root)
         removed += 1
     for name in PLUGIN_NAMES:
         base = root / PLUGINS_DIR / name
         if base.is_dir():
             for directory in sorted((d for d in base.rglob("*") if d.is_dir()), key=lambda d: len(d.parts), reverse=True):
                 if not any(directory.iterdir()):
-                    directory.rmdir()
+                    remove(directory, root=root)
     return {"written": written, "removed": removed}
 
 

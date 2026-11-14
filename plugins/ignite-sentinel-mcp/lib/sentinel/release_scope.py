@@ -150,7 +150,7 @@ def _copy_tree(src: Path, dst: Path) -> None:
 
 def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
     """Refresh the release mirror from the project; return the mirror root (the cwd to run in)."""
-    from .core.io import read_json, write_json, write_text
+    from .core.io import read_json, remove, write_json, write_text
 
     main = root / "workspaces" / project_id
     if not RELEASE_ID_RE.match(rid):
@@ -181,7 +181,7 @@ def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
         write_json(report, _release_compile_report(read_json(report, None), brief_text))
     for stale in ("split_assessment.json", "split_assessment.md"):
         if (mirror / "01_discovery" / stale).exists():
-            (mirror / "01_discovery" / stale).unlink()  # the mirror's own copy; the project keeps its assessment
+            remove(mirror / "01_discovery" / stale)  # the mirror's own copy; the project keeps its assessment
     main_state = read_json(main / "state.json", {}) or {}
     state = {k: v for k, v in main_state.items() if k not in RELEASE_STATE_KEYS}
     state.update({k: v for k, v in previous_state.items() if k in RELEASE_STATE_KEYS or k not in main_state})
@@ -210,7 +210,7 @@ def remap(text: str, project_id: str, rid: str, root: Path) -> str:
 
 def mirror_outputs(project_id: str, rid: str, root: Path) -> list[str]:
     """Mirror the release's outputs to `<folder>/<rN>/`, paths inside rewritten. Returns the written files."""
-    from .core.io import copy_file, write_text
+    from .core.io import copy_file, remove, write_text
 
     main = root / "workspaces" / project_id
     mirror = main / WORK_DIR / rid / "workspaces" / project_id
@@ -233,7 +233,7 @@ def mirror_outputs(project_id: str, rid: str, root: Path) -> list[str]:
             written.append(target.as_posix())
         for old in sorted(p for p in dst.rglob("*") if p.is_file()) if dst.is_dir() else []:
             if old not in produced:
-                old.unlink()  # a generated mirror file the release no longer produces
+                remove(old)  # a generated mirror file the release no longer produces
     return written
 
 

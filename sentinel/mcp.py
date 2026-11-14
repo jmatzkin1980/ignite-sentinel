@@ -34,6 +34,7 @@ import io
 import json
 import re
 import sys
+import threading
 
 
 # IMP-303: one tool per command of the single command registry (sentinel/commands.py) plus
@@ -88,8 +89,21 @@ PROTOTYPE_MODES = ("inventory", "trace", "manual")  # IMP-274, IMP-275, IMP-276
 SPLIT_MODES = ("assess", "propose", "confirm", "move", "close")  # IMP-263, IMP-265, IMP-266, IMP-268, IMP-269
 
 
+_RUN_CLI_LOCK = threading.RLock()
+
+
 def run_cli(arguments: list[str]) -> dict[str, object]:
-    """Run a Sentinel CLI command in-process and capture its JSON/text output."""
+    """Run a Sentinel CLI command in-process and capture its JSON/text output.
+
+    IMP-299: one call at a time per server process. Capturing stdout swaps the
+    process-wide ``sys.stdout``, so two overlapping calls would mix their output;
+    across processes, the workspace lock serializes the commands themselves.
+    """
+    with _RUN_CLI_LOCK:
+        return _run_cli(arguments)
+
+
+def _run_cli(arguments: list[str]) -> dict[str, object]:
     from .cli import main
 
     stdout, stderr = io.StringIO(), io.StringIO()

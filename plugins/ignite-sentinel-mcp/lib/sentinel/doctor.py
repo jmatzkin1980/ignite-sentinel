@@ -13,7 +13,7 @@ from typing import Any, NamedTuple
 from .adapters import SKILL_TARGET_DIRS, manifest_command_names, runtime_command_names
 from .memory import ContextBroker, active_embedder_status, embedder_diagnostics
 from .portability import stdlib_purity_violations
-from .core.io import write_text
+from .core.io import remove, write_text
 
 
 REQUIRED_CODEX_SKILLS = [
@@ -905,7 +905,7 @@ def write_check(root: Path) -> dict[str, str]:
     probe = root / ".sentinel_doctor_write_test"
     try:
         write_text(probe, "ok", root=root)
-        probe.unlink()
+        remove(probe, root=root)
         return {"name": "repo write access", "status": "PASS", "detail": str(root)}
     except OSError as exc:
         return {"name": "repo write access", "status": "FAIL", "detail": str(exc)}

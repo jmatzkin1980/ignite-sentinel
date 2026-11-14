@@ -34,9 +34,19 @@ Every command exits with one of these codes. A failure prints `sentinel error: .
 | 3 | Invalid input | An invalid project id, a missing file, a refused payload. |
 | 4 | Gate refusal: a prerequisite, the project's health or its phase stops the command | `/specs` before `/ingest`, `/backlog` while health is `DIRTY`, `/export --final` with pending marks. |
 | 5 | Unfavourable verdict | `/validate` is not VALID, `/doctor` is not PASS. |
-| 6 | Workspace busy: another command holds the workspace | |
+| 6 | Workspace busy: another command holds the workspace, or a file changed on disk while the command ran | `/status` while `/ingest` runs in another session. |
 
 Over MCP, a failed command comes back as an error result (`isError`) whose text is JSON with `code`, `kind`, `error` and `next_step`.
+
+### One command at a time per workspace
+
+Every command that names a project holds a lock on its workspace while it runs, including `/status`, `/health` and the other read-only commands: each one records itself in `state.json`.
+
+- A second command, from another terminal, session or MCP client, waits up to 10 seconds. Then it exits with code 6, naming the command that holds the workspace and since when.
+- `SENTINEL_LOCK_TIMEOUT` sets the wait, in seconds.
+- Commands on different workspaces never wait for each other.
+- The lock belongs to the process. If that process ends, even by a crash, the lock is released.
+- One MCP server runs one tool call at a time.
 
 Run help:
 

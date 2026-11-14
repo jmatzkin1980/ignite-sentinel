@@ -28,6 +28,7 @@ class CoreArchitectureTests(unittest.TestCase):
         allowed = {
             SENTINEL_ROOT / "core" / "io.py",  # append_text centralizes append-only writes.
             SENTINEL_ROOT / "core" / "local_browser.py",  # IMP-284: the single file:// browser opener.
+            SENTINEL_ROOT / "core" / "lock.py",  # IMP-299: os.open of the workspace lock file.
             SENTINEL_ROOT / "sources.py",  # binary hashing reader.
         }
         offenders = [
