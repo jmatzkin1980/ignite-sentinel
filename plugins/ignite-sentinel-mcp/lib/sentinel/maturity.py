@@ -408,7 +408,9 @@ def evaluate(project_id: str) -> dict[str, object]:
         trace_ids=["MATURITY-001"],
     )
     metrics = maturity_metrics(project_id, persist_development_readiness=True)
-    previous = read_json(state_path(project_id), {}).get("maturity_metrics") or {}
+    from .core.state import read_state
+
+    previous = read_state(project_id, {}).get("maturity_metrics") or {}  # IMP-300: derived half
     if isinstance(previous, dict) and "maturity_score" in previous:
         metrics["trend_vs_previous_run"] = round(
             float(metrics["maturity_score"]) - float(previous["maturity_score"]), 3

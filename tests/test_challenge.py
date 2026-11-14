@@ -13,6 +13,7 @@ Deterministic and local-first: real CLI in a temp cwd, no network.
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -100,7 +101,7 @@ class ChallengeLifecycleTests(unittest.TestCase):
         self.assertIn('"relation": "challenged_by"', graph)
 
         # /status visibility: challenge_origin count in state gap_counts
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertGreaterEqual(state["gap_counts"].get("challenge_origin", 0), 1)
 
     def test_origin_survives_gaps_regeneration(self):

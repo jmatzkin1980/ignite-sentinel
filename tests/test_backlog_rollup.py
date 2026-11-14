@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -70,7 +71,7 @@ class BacklogRollupTests(unittest.TestCase):
         self.assertIn("Pending domain context: Technology", board)
         self.assertIn("BA, QA", board)
 
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(self.ws)
         self.assertEqual(state["backlog_rollup"]["stories_total"], 3)
         self.assertEqual(state["backlog_rollup"]["status_counts"]["Ready"], 1)
         self.assertEqual(state["backlog_rollup"]["status_counts"]["Done"], 1)

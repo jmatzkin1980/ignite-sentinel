@@ -29,7 +29,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # IMP-299: one command at a time per workspace (exit 6 after a bounded wait).
-        with command_scope(args.command, command_workspace(args)):
+        workspace = command_workspace(args)
+        with command_scope(args.command, workspace):
+            if workspace is not None and (workspace / "state.json").is_file():
+                from .core.state import migrate_state
+
+                migrate_state(args.project_id)  # IMP-300: a 0.9.0 workspace, once; a newer schema exits 3
             return run_command(args, argv)
     except Exception as exc:
         return report_error(exc)

@@ -85,8 +85,9 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         write_traceability_matrix(project_id)
         write_mermaid_graph(project_id)
 
+    from .core.state import append_command_log, read_command_log
+
     state = read_json(state_path(project_id), {})
-    command_log = list(state.get("command_log", []))
     entry = {
         "timestamp": utc_now(),
         "command": command,
@@ -94,11 +95,11 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         "health": state.get("health", "UNKNOWN"),
         "summary": summarize_result(result),
     }
-    command_log.append(entry)
+    append_command_log(project_id, entry)  # IMP-300: .sentinel/command_log.jsonl, append-only
+    command_log = read_command_log(project_id, limit=25)
     state_updates: dict[str, Any] = {
         "last_command": command,
         "last_command_at": entry["timestamp"],
-        "command_log": command_log[-25:],
     }
     if command in MUTATING_COMMANDS and command != "split":
         # IMP-263 [A45]: a command that changed the brief (a spike or measurer
@@ -116,7 +117,7 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         # current bytes against this snapshot to flag out-of-CLI edits.
         state_updates["artifact_hashes"] = snapshot_governed_artifact_hashes(project_id)
     update_state(project_id, **state_updates)
-    write_command_protocol_log(project_id, command_log[-25:])
+    write_command_protocol_log(project_id, command_log)
 
 
 def evaluate_needs_context(project_id: str, indexed_chunks: int) -> dict[str, Any]:

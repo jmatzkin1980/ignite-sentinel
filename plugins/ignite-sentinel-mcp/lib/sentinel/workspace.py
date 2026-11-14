@@ -79,8 +79,8 @@ def ensure_workspace(project_id: str, root: Path | None = None, brief_version: i
     for relative in WORKSPACE_DIRS:
         (base / relative).mkdir(parents=True, exist_ok=True)
     if not state_path(project_id, root).exists():
-        write_json(
-            state_path(project_id, root),
+        write_state(  # IMP-300: durable state.json with schema_version, derived counts apart
+            project_id,
             {
                 "project_id": project_id,
                 "phase": "initialized",
@@ -100,6 +100,7 @@ def ensure_workspace(project_id: str, root: Path | None = None, brief_version: i
                     "user_stories": 0,
                 },
             },
+            root,
         )
     if not graph_path(project_id, root).exists():
         write_json(graph_path(project_id, root), {"nodes": [], "edges": []})

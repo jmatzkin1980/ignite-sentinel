@@ -52,6 +52,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from report_store import write_report  # noqa: E402
 from sentinel.cli import main  # noqa: E402
 from sentinel.discovery import parse_gap_rows  # noqa: E402
+from sentinel.core.state import read_workspace_state  # noqa: E402  IMP-300: state.json + .sentinel/derived
 
 GAP_HEADING = re.compile(r"^### (GAP-[A-Z-]+)", re.M)
 BRIEF_SECTION = re.compile(r"^## (\d+)\.", re.M)
@@ -531,7 +532,7 @@ def lifecycle_guard_status(ws: Path, project_id: str, fixture_dir: Path, key: di
     if not guard:
         return {"ok": True, "mismatches": []}
     mismatches: list[str] = []
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     for field, expected in guard.get("expected_state", {}).items():
         actual = state.get(field)
         if actual != expected:
@@ -666,7 +667,7 @@ def run_fixture(
             gap_rows = parse_gap_rows(gaps_md)
             fired = set(GAP_HEADING.findall(gaps_md))
             gap_details = {row["id"]: row for row in gap_rows}
-            state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+            state = read_workspace_state(ws)
             brief_status = brief_section_status(
                 (ws / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             )
@@ -1154,7 +1155,7 @@ def story_status_eval(ws: Path, key: dict) -> dict[str, object]:
     story_id = str(status_key.get("story", ""))
     expected_status = str(status_key.get("set", ""))
     expected_owner = str(status_key.get("owner", ""))
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     lifecycle = state.get("story_lifecycle", {}).get(story_id, {})
     gate = state.get("story_gates", {}).get(story_id, {})
     if lifecycle.get("status") != expected_status:
@@ -1194,7 +1195,7 @@ def backlog_rollup_eval(ws: Path, key: dict) -> dict[str, object]:
     if not board_path.exists():
         mismatches.append("BACKLOG.md missing")
         return {"ok": False, "mismatches": mismatches}
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     summary = state.get("backlog_rollup", {})
     for status, expected in rollup_key.get("expected_status_counts", {}).items():
         actual = summary.get("status_counts", {}).get(status)
@@ -1258,7 +1259,7 @@ def story_quality_eval(ws: Path, key: dict) -> dict[str, object]:
     if not quality_key:
         return {"ok": True, "mismatches": [], "min_score": 1.0}
     mismatches: list[str] = []
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     story_quality = state.get("story_quality", {})
     audit_path = ws / "05_quality" / "backlog_readiness_audit.md"
     if not audit_path.exists():
@@ -1299,7 +1300,7 @@ def backlog_hooks_eval(ws: Path, key: dict) -> dict[str, object]:
     if not hooks_key:
         return {"ok": True, "mismatches": []}
     mismatches: list[str] = []
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     plan_path = ws / "08_context_packs" / "slice_plan.json"
     if hooks_key.get("expect_pre_handoff_warn"):
         if not plan_path.exists():
@@ -1361,7 +1362,7 @@ def implementation_feedback_eval(ws: Path, key: dict) -> dict[str, object]:
     if not feedback_key:
         return {"ok": True, "mismatches": []}
     mismatches: list[str] = []
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     payload = state.get("implementation_feedback", {})
     findings = payload.get("findings", {}) if isinstance(payload, dict) else {}
     expected_id = str(feedback_key.get("expected_finding", ""))
@@ -1418,7 +1419,7 @@ def metabolism_status(ws: Path, key: dict, project_id: str, fixture_dir: Path) -
     with contextlib.redirect_stdout(io.StringIO()):
         if main(["sync", project_id, "--source", str(source), "--note", "eval knowledge metabolism"]) != 0:
             return {"ok": False, "mismatches": [f"sync failed for metabolism source {source.name}"]}
-    state = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    state = read_workspace_state(ws)
     payload = state.get("last_knowledge_metabolism", {})
     expected_invalidated = sorted(str(item) for item in metabolism_key.get("expected_invalidated_assumptions", []))
     actual_invalidated = sorted(str(item) for item in payload.get("invalidated_assumptions", []))
@@ -1571,7 +1572,7 @@ def self_review_eval() -> dict:
             gaps_md = (base / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             register = (base / "03_specs" / "self_review" / "decision_register.md").read_text(encoding="utf-8")
             graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
-            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            state = read_workspace_state(base)
             if "GAP-SELF-REVIEW-ROLLBACK" not in gaps_md or "self-review" not in gaps_md:
                 mismatches.append("self-review gap not merged into gaps.md")
             if "DEC-SELF-REVIEW-SCOPE-LOCK" not in register or "hard-to-reverse" not in register:
@@ -1644,7 +1645,7 @@ def compose_eval() -> dict:
             prd_after = (base / "03_specs" / "prd.md").read_text(encoding="utf-8")
             report = (base / "03_specs" / "compositions" / "composition_report.md").read_text(encoding="utf-8")
             graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
-            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            state = read_workspace_state(base)
             if "### Agent Composition" not in prd_after or "Origin: agent" not in prd_after:
                 mismatches.append("agent composition not merged into prd.md")
             if "COMP-001" not in report:
@@ -1743,7 +1744,7 @@ def implementability_probe_eval() -> dict:
             gaps_md = (base / "01_discovery" / "gaps.md").read_text(encoding="utf-8")
             report = (base / "01_discovery" / "implementability_probe_report.md").read_text(encoding="utf-8")
             graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
-            state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+            state = read_workspace_state(base)
             if "GAP-PROBE-METRIC-SOURCE" not in gaps_md or "implementability-probe" not in gaps_md:
                 mismatches.append("probe finding not merged with origin implementability-probe")
             if "Implementability Probe Report" not in report or f"Unit: `{unit}`" not in report:

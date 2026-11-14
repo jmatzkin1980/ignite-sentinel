@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
 import shutil
 import tempfile
@@ -72,7 +73,7 @@ class SelfReviewTest(unittest.TestCase):
         report = (base / "03_specs" / "self_review" / "self_review_report.md").read_text(encoding="utf-8")
         register = (base / "03_specs" / "self_review" / "decision_register.md").read_text(encoding="utf-8")
         graph = (base / "06_traceability" / "traceability_graph.json").read_text(encoding="utf-8")
-        state = json.loads((base / "state.json").read_text(encoding="utf-8"))
+        state = read_workspace_state(base)
 
         self.assertIn("GAP-SELF-REVIEW-ROLLBACK", report)
         self.assertIn("DEC-SELF-REVIEW-SCOPE-LOCK", register)
