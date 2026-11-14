@@ -15,6 +15,7 @@ from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
 from .core.hashing import hash_matches
 from .core.io import write_text
+from .core.paths import is_absolute_path, workspace_relative
 
 METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
@@ -50,6 +51,7 @@ def run_health(project_id: str) -> dict[str, object]:
         # citations of already-indexed raw sources, so absence from memory is by design.
         if node.get("path") and node["path"] not in indexed_paths and node["type"] not in {"acceptance_criteria", "source_synthesis"}:
             findings.append(f"{node['id']} is not indexed in memory.")
+    findings.extend(graph_path_findings(project_id, graph))
 
     node_types = {node.get("type") for node in graph.get("nodes", [])}
     if "raw_input" in node_types and "identity_seed_bank" not in node_types:
@@ -111,6 +113,24 @@ def run_health(project_id: str) -> dict[str, object]:
         "needs_context_gate": needs_context,
         "assumptions_projection": assumption_projection["summary"],
     }
+
+
+def graph_path_findings(project_id: str, graph: dict) -> list[str]:
+    """IMP-301: every graph path lies inside the workspace and exists.
+
+    Comparing the graph with memory is not enough: after a move both can carry
+    the same stale path and agree.
+    """
+    findings: list[str] = []
+    for node in graph.get("nodes", []):
+        if not node.get("path"):
+            continue
+        stored = workspace_relative(project_id, node["path"])
+        if is_absolute_path(stored):
+            findings.append(f"{node['id']} points outside the workspace: {stored}. Move the file into the workspace and regenerate it.")
+        elif not Path(node["path"]).exists():
+            findings.append(f"{node['id']} points to a path that does not exist: {stored}.")
+    return findings
 
 
 def render_health(project_id: str, verdict: str, findings: list[str], warnings: list[str] | None = None) -> str:

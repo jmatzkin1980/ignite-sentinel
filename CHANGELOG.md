@@ -7,6 +7,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ## [Unreleased]
 
 ### Changed
+- Portable workspaces (IMP-301, H18). The graph, the memory and the artifact pointers in `state.json` stored absolute paths. A moved or cloned workspace failed in silence: `/validate` reported missing artifacts, `/reindex` skipped them, and `/health` compared two equally stale paths and saw nothing.
+  - **Storage:** paths are stored relative to the workspace, the same rule as the context artifact ids. This covers graph node paths, memory `source_path`/`file_path` (JSON, manifest and LanceDB), `state.artifacts` and `last_*_source`. Sentinel resolves them against the workspace's current folder when it reads them, so callers and Markdown artifacts are unchanged.
+  - **Legacy paths:** an absolute path from another copy of the workspace (one with a `workspaces/<id>/` segment) is read against the current folder. The 0.9.0 migration and `/reindex` rewrite it on disk.
+  - **`/health`** reports any graph path that does not exist or points outside the workspace.
+  - **`/doctor`** reports workspaces with an old or newer `schema_version`, or with absolute paths in the graph or memory.
+  - **Release mirrors:** they keep the input nodes' relative paths instead of re-rooting absolute ones.
 - Typed errors and exit codes (IMP-302, H18). Every failure used to exit with 1. Now:
   - **Codes:**
     - 0: success;

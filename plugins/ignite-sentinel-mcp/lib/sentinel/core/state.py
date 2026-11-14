@@ -22,7 +22,7 @@ from typing import Any
 
 from ..errors import InputError
 from .io import append_text, copy_file, parse_json, read_json, write_json
-from .paths import command_log_path, derived_state_path, state_path, workspace_path
+from .paths import command_log_path, derived_state_path, state_path, workspace_path, workspace_relative
 from .time import utc_now
 
 SCHEMA_VERSION = 1
@@ -67,7 +67,7 @@ def write_state(project_id: str, state: dict[str, Any], root: Path | None = None
     if isinstance(current, dict):
         _check_version(current, path)  # never overwrite a newer schema
     durable = {
-        key: value
+        key: _relative_paths(project_id, key, value, root)
         for key, value in state.items()
         if key not in DERIVED_KEYS and key not in (COMMAND_LOG_KEY, "schema_version")
     }
@@ -76,6 +76,15 @@ def write_state(project_id: str, state: dict[str, Any], root: Path | None = None
     derived_path = derived_state_path(project_id, root)
     if (derived or derived_path.exists()) and read_json(derived_path, None) != derived:
         write_json(derived_path, derived)
+
+
+def _relative_paths(project_id: str, key: str, value: Any, root: Path | None) -> Any:
+    """IMP-301: the artifact pointers in the state stay relative to the workspace."""
+    if key == "artifacts" and isinstance(value, dict):
+        return {name: workspace_relative(project_id, item, root) if isinstance(item, str) else item for name, item in value.items()}
+    if key.startswith("last_") and key.endswith("_source") and isinstance(value, str):
+        return workspace_relative(project_id, value, root)
+    return value
 
 
 def update_state(project_id: str, **changes: Any) -> dict[str, Any]:
@@ -147,4 +156,42 @@ def migrate_state(project_id: str, root: Path | None = None) -> dict[str, Any] |
         state["last_export"] = _relative_to_workspace(state["last_export"], workspace)
     state["migrated_from"] = "0.9.0"
     write_state(project_id, state, root)
+    migrate_paths(project_id, root)
     return {"migrated_from": "0.9.0", "backup": backup.as_posix()}
+
+
+def migrate_paths(project_id: str, root: Path | None = None) -> list[str]:
+    """IMP-301: rewrite the absolute paths of the graph and the memory relative to the workspace.
+
+    Paths under the workspace's current folder, or under the folder it was moved
+    or cloned from, become relative. Paths outside it stay as they are; /health
+    reports them. Returns the files rewritten.
+    """
+    workspace = workspace_path(project_id, root)
+    memory_dir = workspace / "memory.lancedb"
+    targets = (
+        (workspace / "06_traceability" / "traceability_graph.json", ("nodes",), ("path",)),
+        (memory_dir / "memory.json", ("artifacts", "chunks"), ("source_path", "file_path")),
+        (memory_dir / "artifact_manifest.json", ("artifacts",), ("source_path", "file_path")),
+    )
+    rewritten: list[str] = []
+    for path, lists, keys in targets:
+        data = read_json(path, None)
+        if not isinstance(data, dict):
+            continue
+        changed = False
+        for list_key in lists:
+            for item in data.get(list_key) or []:
+                if not isinstance(item, dict):
+                    continue
+                for key in keys:
+                    value = item.get(key)
+                    if isinstance(value, str) and value:
+                        relative = workspace_relative(project_id, value, root)
+                        if relative != value:
+                            item[key] = relative
+                            changed = True
+        if changed:
+            write_json(path, data)
+            rewritten.append(path.relative_to(workspace).as_posix())
+    return rewritten

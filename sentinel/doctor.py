@@ -83,6 +83,7 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         vendored_mermaid_check(root),
         user_themes_check(root),
         project_ids_check(root),
+        workspace_portability_check(root),
         *docs_command_mentions_checks(root),
         dashboard_artifact_check(root),
         path_check(root, ".claude/commands", "Claude Code slash commands"),
@@ -1105,6 +1106,61 @@ def project_ids_check(root: Path) -> dict[str, str]:
     if findings:
         return {"name": name, "status": "WARN", "detail": "; ".join(findings)}
     return {"name": name, "status": "PASS", "detail": "all workspace ids are valid"}
+
+
+def workspace_portability_check(root: Path) -> dict[str, str]:
+    """IMP-300/301: each workspace's state schema, and no absolute path in its graph or memory.
+
+    A workspace with no ``schema_version`` (0.9.0) is migrated by its next command; a
+    newer one needs a newer Sentinel. Absolute paths break when the workspace moves;
+    ``/reindex`` rewrites them.
+    """
+    from .core.io import parse_json
+    from .core.paths import is_absolute_path, is_valid_project_id
+    from .core.state import SCHEMA_VERSION
+
+    name = "workspace state schema and portable paths"
+    workspaces = root / "workspaces"
+    if not workspaces.is_dir():
+        return {"name": name, "status": "PASS", "detail": "no workspaces"}
+
+    def load(path: Path) -> Any:
+        try:
+            return parse_json(path.read_text(encoding="utf-8")) if path.is_file() else None
+        except (ValueError, OSError):
+            return None
+
+    findings: list[str] = []
+    for folder in sorted(path for path in workspaces.iterdir() if path.is_dir() and path.name != "_template"):
+        if not is_valid_project_id(folder.name):
+            continue  # workspace ids check reports it
+        state = load(folder / "state.json")
+        if isinstance(state, dict):
+            version = state.get("schema_version")
+            if version is None:
+                findings.append(f"{folder.name}: state.json has no schema_version (0.9.0); its next command migrates it")
+            elif version != SCHEMA_VERSION:
+                findings.append(f"{folder.name}: state.json schema_version {version!r}; this Sentinel reads {SCHEMA_VERSION}")
+        absolute = 0
+        sources = (
+            (folder / "06_traceability" / "traceability_graph.json", ("nodes",), ("path",)),
+            (folder / "memory.lancedb" / "memory.json", ("artifacts", "chunks"), ("source_path", "file_path")),
+        )
+        for path, lists, keys in sources:
+            data = load(path)
+            if not isinstance(data, dict):
+                continue
+            for list_key in lists:
+                for item in data.get(list_key) or []:
+                    if isinstance(item, dict):
+                        absolute += sum(
+                            1 for key in keys if isinstance(item.get(key), str) and item[key] and is_absolute_path(item[key])
+                        )
+        if absolute:
+            findings.append(f"{folder.name}: {absolute} absolute paths in graph or memory; run /reindex {folder.name}")
+    if findings:
+        return {"name": name, "status": "WARN", "detail": "; ".join(findings)}
+    return {"name": name, "status": "PASS", "detail": "every workspace is on the current schema with portable paths"}
 
 
 def themes_check(root: Path, builtin: list[str] | None = None) -> dict[str, str]:

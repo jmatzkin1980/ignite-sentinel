@@ -6,14 +6,40 @@ from typing import Any
 from .ids import next_id
 from .workspace import graph_path, read_json, write_json
 from .core.io import write_text
+from .core.paths import resolve_in_workspace, workspace_relative
 
 
 def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
-    return read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    """The graph, with each node path resolved against the workspace's current folder.
+
+    IMP-301: the file stores paths relative to the workspace, so a moved or cloned
+    workspace still finds its artifacts; callers keep seeing absolute paths.
+    """
+    graph = read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    nodes = []
+    for node in graph.get("nodes", []):
+        if node.get("path"):
+            node = {**node, "path": resolve_in_workspace(project_id, node["path"]).as_posix()}
+        nodes.append(node)
+    return {**graph, "nodes": nodes, "edges": list(graph.get("edges", []))}
 
 
 def save_graph(project_id: str, graph: dict[str, list[dict[str, Any]]]) -> None:
-    write_json(graph_path(project_id), graph)
+    write_json(graph_path(project_id), relative_graph(project_id, graph))
+
+
+def relative_graph(project_id: str, graph: dict[str, Any]) -> dict[str, Any]:
+    """IMP-301: `graph` as stored, each node path relative to the workspace when it lies inside."""
+    nodes = []
+    for node in graph.get("nodes", []):
+        if node.get("path"):
+            node = {**node, "path": workspace_relative(project_id, node["path"])}
+        nodes.append(node)
+    return {**graph, "nodes": nodes}
+
+
+def _same_path(project_id: str, stored: object, path: Path) -> bool:
+    return workspace_relative(project_id, stored) == workspace_relative(project_id, path.as_posix())
 
 
 def existing_ids(graph: dict[str, list[dict[str, Any]]]) -> list[str]:
@@ -33,7 +59,7 @@ def add_node(
     # Upsert: regenerating an artifact at the same path with the same type keeps
     # its stable trace ID instead of accumulating duplicate nodes (IMP-009).
     for node in graph["nodes"]:
-        if node.get("type") == artifact_type and node.get("path") == str(path.as_posix()):
+        if node.get("type") == artifact_type and _same_path(project_id, node.get("path"), path):
             node["title"] = title
             node["status"] = status
             node["domain"] = domain

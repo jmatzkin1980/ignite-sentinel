@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .commands import RELEASE_COMMANDS as _REGISTRY_RELEASE_COMMANDS
+from .core.paths import is_absolute_path, workspace_relative
 from .release_split import ReleaseSplitError
 from .split_proposal import RELEASE_ID_RE
 
@@ -117,15 +118,20 @@ def _release_compile_report(report: Any, brief_text: str) -> Any:
     return {**report, "fill_sites": sites}
 
 
-def _sync_graph(main_graph: dict[str, Any], mirror_graph: dict[str, Any], main_ws: str, mirror_ws: str) -> dict[str, Any]:
-    """Project input nodes (raw, discovery, requirements) re-rooted, plus the release's own derived nodes."""
+def _sync_graph(main_graph: dict[str, Any], mirror_graph: dict[str, Any], relative_path: Any) -> dict[str, Any]:
+    """Project input nodes (raw, discovery, requirements), plus the release's own derived nodes.
+
+    IMP-301: graph paths are relative to the workspace, so an input node keeps its
+    path in the mirror; `relative_path` also maps a 0.9.0 absolute path.
+    """
     inputs = []
     for node in main_graph.get("nodes", []):
-        path = str(node.get("path", "")).replace("\\", "/")
-        relative = path[len(main_ws) + 1:] if path.startswith(main_ws + "/") else ""
+        relative = relative_path(node.get("path", ""))
+        if is_absolute_path(relative):
+            continue
         top = relative.split("/")[0]
         if top in ("00_raw", "01_discovery") or (top == "02_requirements" and relative.count("/") == 1):
-            inputs.append({**node, "path": f"{mirror_ws}/{relative}"})
+            inputs.append({**node, "path": relative})
     input_ids = {n.get("id") for n in inputs}
     derived = [n for n in mirror_graph.get("nodes", []) if n.get("id") not in input_ids]
     ids = input_ids | {n.get("id") for n in derived}
@@ -187,11 +193,10 @@ def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
     state.update({k: v for k, v in previous_state.items() if k in RELEASE_STATE_KEYS or k not in main_state})
     state["release_scope"] = rid
     write_json(mirror / "state.json", state)
-    main_ws, mirror_ws = main.resolve().as_posix(), mirror.resolve().as_posix()
     graph = mirror / "06_traceability" / "traceability_graph.json"
     main_graph = read_json(main / "06_traceability" / "traceability_graph.json", {"nodes": [], "edges": []})
     mirror_graph = read_json(graph, {"nodes": [], "edges": []}) if graph.exists() else {"nodes": [], "edges": []}
-    write_json(graph, _sync_graph(main_graph, mirror_graph, main_ws, mirror_ws))
+    write_json(graph, _sync_graph(main_graph, mirror_graph, lambda value: workspace_relative(project_id, value, root)))
     return mirror_root
 
 
