@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-11-15
+
 ### Fixed
 - The Claude Code plugin on Windows, found in a live install from the marketplace (IMP-315).
   - **Git Bash rewrote the command name.** Claude Code runs the plugin's commands through Git Bash, which turns a leading `/init` into `C:/Program Files/Git/init` before Python starts, so every command failed unless the agent worked around it. The CLI now reads a drive path whose last segment is a command back as that command.
