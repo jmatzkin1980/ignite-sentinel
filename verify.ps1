@@ -7,7 +7,7 @@
   Mismo resolver que installers\sentinel.ps1: prueba SENTINEL_PYTHON, luego
   .venv\Scripts\python.exe, luego `python` del PATH, luego el launcher `py`, y
   por ultimo el runtime de Codex. Con el interprete resuelto corre, en orden:
-    1. tools/run_tests.py --tier full --slowest 10 (toda la suite, y los 10 modulos mas lentos)
+    1. tools/run_tests.py --tier full --jobs auto --slowest 10 (toda la suite en paralelo, un proceso por CPU, y los 10 modulos mas lentos)
     2. python -m sentinel /doctor
     3. tests/evals/run_discovery_evals.py,
        tests/evals/run_faithfulness_claim_evals.py y
@@ -82,7 +82,7 @@ Write-Host "==> Interprete: $python" -ForegroundColor Cyan
 Push-Location $repoRoot
 try {
   Write-Host "`n==> [1/3] unittest discover -s tests (con los modulos mas lentos al final)" -ForegroundColor Cyan
-  & $python tools/run_tests.py --tier full --slowest 10
+  & $python tools/run_tests.py --tier full --jobs auto --slowest 10
   if ($LASTEXITCODE -ne 0) { Write-Error "unittest fallo (exit $LASTEXITCODE)" }
 
   Write-Host "`n==> [2/3] sentinel /doctor" -ForegroundColor Cyan
