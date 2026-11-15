@@ -1,354 +1,350 @@
-# Ignite Sentinel User Guide
+# Start here
 
-Ignite Sentinel vNext is a local-first framework for maturing business and product requirements inside AI PODs. It does not replace Product, Technology, Design, Quality, Delivery, or Compliance judgment. It organizes the work so raw requirements do not jump straight into implementation without context, traceability, explicit questions, and verifiable handoffs.
+This page explains the ideas behind Ignite Sentinel and then walks one synthetic project from an empty folder to tested backlog stories. Read it first if you are a business analyst, a product manager or a developer who has never used Sentinel. It assumes Sentinel is installed; if not, see [Install: choose your path](06-installation-vscode.md).
 
-The core idea is simple: clients and stakeholders usually bring needs in an incomplete form. The input may be a short Markdown note, Mermaid diagrams inside Markdown, HTML prototypes, screenshots curated by Design, emails, meeting notes, technical references, or a mixed bundle of partial evidence. Sentinel treats that material as initial evidence, pressure-tests it, detects gaps, records decisions, and builds mature understanding until it can produce a `project-brief.md`.
+## The idea in one picture
 
-That brief becomes the bridge between discovery and downstream artifacts: PRD, specs, backlog, acceptance criteria, quality artifacts, domain context requests, and execution-ready context packs for AI agents.
+A client rarely brings a complete requirement. Sentinel treats what they bring as **evidence**, finds what is missing, asks for it, and only builds downstream documents on what has been confirmed.
 
-This guide is written for people who are new to the framework. If you are a BA, Product Owner, Product Manager, Tech Lead, UX/UI designer, QA, Delivery lead, or someone working with AI agents, it answers three questions:
+```mermaid
+flowchart LR
+    E["Evidence<br/>request, notes, prototypes, code"] --> G["Gaps<br/>questions with owners"]
+    G --> A["Answers and decisions"]
+    A --> B["Project brief"]
+    B --> S["PRD and specs"]
+    S --> K["Backlog and tests"]
+    A -. "still missing" .-> G
+```
 
-- What problem Sentinel solves.
-- What to do at each moment of the lifecycle.
-- Which artifacts are generated and how to use them without losing traceability.
+Sentinel does not replace product, design, technology or quality judgment. It makes sure that judgment is written down, cited and traceable before someone builds on it.
 
-## One Sentence Summary
+## Concepts
 
-Sentinel turns raw information into mature requirements through discovery, gap resolution, traceability, health checks, specs, backlog readiness, and local retrieval. Versionable workspace files are always the source of truth; local memory is only a context retrieval aid.
+### Workspace
 
-## What Sentinel Does
+Each project lives in its own folder, `workspaces/<PROJECT_ID>/` (for example `workspaces/ACME_PORTAL/`). Everything about the project is a file in that folder: the evidence, the gaps, the brief, the specs, the backlog, the traceability graph. Those files are the **source of truth**. The local retrieval index (`memory.lancedb/` or its JSON fallback) only helps agents find context; if it disagrees with a file, the file wins.
 
-At a high level:
+Artifacts cite paths relative to the repository (`workspaces/ACME_PORTAL/...`), and the graph and memory store paths relative to the workspace, so you can move or clone a workspace.
 
-1. A project workspace is created.
-2. Initial client or stakeholder documentation is ingested.
-3. Product, Technology, Design, Quality, Delivery, and Compliance lenses review the input critically.
-4. Initial requirements, identity seeds, decisions, gaps, and traceability are generated.
-5. `gaps.md` is shared with the client or domain owners to capture missing information.
-6. Structured gap responses are processed.
-7. A mature `project-brief.md` is generated when the requirement is ready.
-8. PRD and specs are generated from the mature brief and supporting context.
-9. Backlog artifacts are generated only when the project is healthy enough to proceed.
-10. Backlog generation produces both human-readable epics/stories and machine-friendly implementation readiness packs.
-11. Quality artifacts and test coverage are generated from user stories.
-12. Health, validation, and traceability are audited before downstream handoffs.
+### Governed artifacts
 
-Sentinel does not assume that a stakeholder sentence is automatically final truth. It treats input as evidence. When evidence is strong enough, it can become a seed or decision. When information is missing or risky, Sentinel turns it into a gap.
+Some files may only change through a Sentinel command, because other files are derived from them:
 
-## Workspace Model
+| File | Main writer (other commands update it too) |
+|---|---|
+| `01_discovery/gaps.md` | `/ingest`, `/gaps`, `/resolve-gaps` |
+| `02_requirements/requirements.md` | `/ingest`, `/resolve-gaps` |
+| `02_requirements/project-brief.md` | `/brief` |
+| `03_specs/*.md` | `/specs` |
+| `04_backlog/*.md` | `/backlog`, `/story-status` |
 
-Each project lives in:
+In Claude Code a hook denies an agent's hand edit of the brief, specs and backlog files (Codex and Kilo Code carry their own guards). `/health` flags a hand edit of any file in the table. Client answers go through `/resolve-gaps` or `/sync`; new evidence goes through `/ingest`, `/sync`, `/harvest` or `/sources`.
+
+> [!IMPORTANT]
+> Never hand-edit a governed artifact. If something in it is wrong, fix the evidence or the answer and rerun the command that owns the file.
+
+### Evidence and sources
+
+Every file you load becomes a row in the source registry, numbered `F-01`, `F-02`, and so on. `/ingest` stores a redacted copy (secrets become `<SECRETO:type>` and are listed in `01_discovery/secret_alerts.md`) and flags passages that look like instructions to an AI (`01_discovery/injection_signals.md`); those passages are left out of the analysis. When two sources contradict each other, Sentinel opens a blocking gap instead of picking one. `/sources` lists the rows and lets you say which version governs.
+
+### Gaps
+
+A **gap** is something missing, ambiguous, risky or unverifiable. A gap is not a failure; it is how Sentinel avoids inventing. Each gap has an id (`GAP-...`), a [lens](#glossary) (business, product, technical, design, quality, compliance, delivery), a severity, a status and, when it came from an agent, an origin.
+
+| Status | Meaning |
+|---|---|
+| `OPEN` | Nobody has answered yet. |
+| `ANSWERED` | An answer exists but the decision is not confirmed. A severe gap here still blocks. |
+| `PARTIALLY_CLOSED` | Some information arrived, not enough (for example "TBD"). The report explains why. |
+| `CLOSED` | A confirmed, substantive answer closed it. |
+
+Which severities block is set in `sentinel.config.yaml`; critical and high block by default.
+
+### Gates
+
+A **gate** is a check that stops a command when its foundation is not ready. Examples: `/specs` refuses while blocking gaps remain; `/backlog`, `/quality` and `/refine-backlog` refuse while health is `DIRTY`; `/quality` refuses without stories. A refusal exits with code 4 and, when the runtime knows it, prints a `next step:` line. Gates never decide for you; they show you what is missing.
+
+### Traceability
+
+Every artifact carries an id and links to what it came from: source (`F-NN`), gap (`GAP-`), requirement (`REQ-`, `REQ-EARS-`), brief, PRD (`PRD-`), spec unit (`SPEC-U-`), epic (`EPIC-`), story (`US-`), acceptance criterion (`AC-`), test case (`TC-`), change (`CHG-`). The graph lives in `06_traceability/`, and `/trace` rewrites its matrix. It answers "where did this story come from?" and "what does this change affect?".
+
+### State, health, stage and verdict
+
+| Signal | Where | Values |
+|---|---|---|
+| Health | `/status`, `/health` | `CLEAN` (no structural finding) or `DIRTY`. A new project starts `DIRTY`. |
+| Readiness stage | `/status` | `DISCOVERY_RAW`, `CLIENT_RESPONSE_NEEDED`, `DOMAIN_RESPONSE_NEEDED`, `READY_FOR_PROJECT_BRIEF`, `BRIEF_BELOW_THRESHOLD`, `SELF_CORRECTION_FAILED`, `UNITS_NOT_IMPLEMENTABLE`, `READY_FOR_SPECS`, `SPECS_BELOW_THRESHOLD`, `READY_FOR_BACKLOG` |
+| Maturity | `/maturity` | `READY_FOR_SPECS` or `BLOCKED` |
+| Verdict | `/status` | `READY`, `READY_WITH_WARNINGS`, `NOT_READY` |
+
+The project state is `state.json` (durable). Counts and metrics that can be recomputed live in `.sentinel/derived/state.json`, and every command is appended to `.sentinel/command_log.jsonl`.
+
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| **Assumption (`ASM-`)** | A statement the BA decides to proceed with without confirmation, registered with `/assume`: owner, risk, uncertainty, cited basis. Stays visible downstream. |
+| **Brief v1 / v2** | The project brief format. v2 (the default for new projects) has sections §0–§9 and two annexes, fills each place with a cited fact, a pending mark or an N/A, and is rewritten in place as answers arrive. v1 has six narrative sections and is kept for older projects or with `--brief-version 1`. |
+| **Context pack** | A focused JSON bundle of context for one workflow or story, under `08_context_packs/`, so an agent reads only what it needs. |
+| **Decision (`DEC-`)** | A decision derived from the request or from a confirmed answer, listed in `01_discovery/decisions.md` with its status. |
+| **Context request (`CTX-`)** | A cited request for a domain team (technology, design, quality, frontend, backend), made with `/context-request`. Moves `active` → `answered` → `closed`, or `obsolete`. |
+| **DoR / DoD** | Definition of Ready (a story may start) and Definition of Done (a story may close). `/story-status` checks both; by default a failed check warns, in strict mode it blocks. |
+| **EARS** | Easy Approach to Requirements Syntax, a sentence pattern such as "When <trigger>, the system shall <response>." A confirmed answer in EARS becomes a testable `REQ-EARS-*` requirement. |
+| **Enabler** | A story for technical work that must exist before value stories can work (for example an integration). Must name the capability it supports and the evidence that closes it. |
+| **Evidence / source (`F-NN`)** | A file loaded into the workspace, with its row in the source registry. Brief v2 citations look like `[[sources § ... # F-NN]]`. |
+| **Gap** | A missing, ambiguous or risky point, written as a question. See [Gaps](#gaps). |
+| **Gate** | A check that refuses a command whose foundation is not ready. Exit code 4. |
+| **Genesis** | Where the project starts: `greenfield` (new), `brownfield-integration` (consumes an existing system), `brownfield-extension` (extends one), `brownfield-replacement` (replaces one). Confirmed with `/brief --genesis`. |
+| **Governed artifact** | A file only a command may change. See [Governed artifacts](#governed-artifacts). |
+| **Harvest** | A tagged extract of an existing codebase, loaded with `/harvest` as evidence of what is already built (brownfield projects). |
+| **INVEST / SPIDR** | Story checks used by `/quality`. INVEST: Independent, Negotiable, Valuable, Estimable, Small, Testable. SPIDR: ways to split a story that is too big (Spike, Paths, Interfaces, Data, Rules). |
+| **LanceDB / MCP** | LanceDB: an optional local database for retrieval (`.[memory]` extra); without it a JSON fallback is used. MCP (Model Context Protocol): an optional local server (`.[mcp]` extra) that exposes Sentinel commands as tools to an agent. |
+| **Lens** | A point of view used to review the evidence and to classify gaps: business, product, technical, design, quality, compliance, delivery. The **multi-lens review** `/ingest` writes (`01_discovery/lens_review.md`) reads the request through each lens. |
+| **Maturity** | Whether discovery is ready for specs: no blocking gap left and requirements exist. `/maturity` answers `READY_FOR_SPECS` or `BLOCKED`. |
+| **Maturity score** | A number from 0 to 1 that `/maturity` and `/status` report: the gap closure rate, averaged with an evidence score when there is one. It shows progress and its trend; it is not a gate. |
+| **Pending mark** | `⏳ PENDING (GAP-X)` in a v2 brief: a place that waits for a client answer; `⏳ PENDING DOMAIN (GAP-X)` waits for domain context. `[PENDING INPUT]` plays the same role in v1 briefs and backlog stubs. |
+| **PRD** | Product requirements document: `03_specs/prd.md`, the human-readable spec written by `/specs`. |
+| **Pre-mortem** | A stress test that imagines the project has failed and asks why; one of the `/challenge` techniques. |
+| **Profile** | What kind of system the brief describes, one or more of `UI` (UI + backend), `API` (backend/API), `BAT` (batch/pipeline), `INT` (third-party integration), `MIG` (legacy migration), `REG` (regulatory), `MT` (multi-tenant/platform). Decides which brief sections are required. Confirmed with `/brief --profile`. |
+| **Readiness matrix** | The development readiness matrix in `01_discovery/development_readiness.json`, written by `/maturity`: for each lens and area, what is confirmed, assumed or open. Its state can be `READY_WITH_GOVERNED_ASSUMPTIONS`: ready, but some cells rest on registered assumptions rather than confirmations. |
+| **Redaction** | `/ingest` and `/sync` replace secrets in a loaded file with `<SECRETO:type>` before storing it. |
+| **Release series** | A project split into releases `r1`, `r2`, ... with contracts between them, planned with `/split`. Each release gets its own brief under `02_requirements/r<N>/`. A proposed partition is **green** when it has no finding left that `/split --confirm` would refuse. |
+| **Seed** | An atomic statement of known truth, for example "Monthly exports are out of scope." Seeds keep agents from reinterpreting the raw input each time. |
+| **Slice plan** | `04_backlog/SLICE-PLAN.md`, written by `/backlog`: the order in which stories can be built as thin end-to-end (vertical) slices. |
+| **Spec unit (`SPEC-U-`)** | A bounded piece of the spec with its source anchors, written by `/specs` under `03_specs/units/`. `/backlog` derives one value story per spec unit. |
+| **Trace** | A link in the traceability graph between two artifacts. `/trace` rewrites the matrix. |
+| **Umbrella gap** | A brief v2 gap such as `GAP-BRIEF-S3` that covers several places of one section; answer it one line per place (`3.1: ... 3.2: ...`). |
+| **Validation direction** | `to-build` (the brief describes what will be built, the default) or `built` (it documents something that exists; divergences get `⚠`). Set with `/brief --validation-direction`. |
+| **Verdict** | The `/status` answer to "can we build?": `READY`, `READY_WITH_WARNINGS` or `NOT_READY`. |
+
+## First run end to end
+
+The project is synthetic: **ACME_PORTAL**, a customer portal where account holders check open invoices. Create a folder `input/` in the folder you run Sentinel from (the repository root in a clone; `workspaces/` will appear next to it), save a short description as `input/acme-request.md` (the [README](../README.md#quick-start-your-first-gaps-document) has a ready sample) and follow the steps. Each step shows the chat form; in a terminal, put `python -m sentinel` in front (`python -m sentinel /init ACME_PORTAL`). In Codex and with the Claude Code plugin, prefix chat commands with `sentinel ` (see [chat commands](11-chat-commands.md)).
+
+```mermaid
+flowchart TD
+    S1["1 /init"] --> S2["2 /ingest"] --> S3["3 /brief --profile --genesis"] --> S4["4 /next"]
+    S4 --> S5["5 /gaps --top 5 and export"] --> S6["6 /resolve-gaps"] --> S7{"7 /maturity"}
+    S7 -- BLOCKED --> S5
+    S7 -- READY_FOR_SPECS --> S8["8 /specs"] --> S9["9 /backlog"] --> S10["10 /quality"] --> S11["11 /trace /health /validate /status"]
+```
+
+### 1. Create the project
 
 ```text
-workspaces/[PROJECT_ID]/
+/init ACME_PORTAL
 ```
 
-That directory contains raw input, discovery artifacts, requirements, specs, backlog, quality artifacts, traceability, changes, context packs, and local memory. Project separation prevents mixing information from different clients or initiatives.
+In a Claude Code clone, `/init` can start Claude Code's own built-in project setup (it writes a `CLAUDE.md`) instead of Sentinel's; if that happens, send `/sentinel /init ACME_PORTAL`.
 
-The source of truth is the versionable workspace files. Local memory, including LanceDB and JSON fallback indexes, is only a retrieval index. If memory disagrees with a Markdown artifact in the workspace, the workspace artifact wins.
+**What you get:** `workspaces/ACME_PORTAL/` with its folders, `state.json`, `sentinel.config.yaml`, an empty traceability graph, an empty source registry and a per-workspace `.gitignore`. The brief format is v2. Health is `DIRTY` and the stage `DISCOVERY_RAW`: expected, nothing is known yet.
 
-## Seeds
+**Next step:** load the request.
 
-A seed is an atomic statement that captures known or pending truth. Examples:
-
-- "The first value slice is an authorized user seeing one high-risk item."
-- "Monthly historical exports are out of MVP scope."
-- "The source of truth for SLA risk is Case Management."
-
-Seeds help agents avoid reinterpreting the full raw input every time they work on the project.
-
-## Gaps
-
-A gap is missing, ambiguous, risky, or unverifiable information. A gap is not a failure. It is a healthy way to avoid invention.
-
-If the team does not know which user uses a screen, which endpoint exists, which metric has a baseline, which UX states are required, or which quality evidence proves completion, Sentinel marks that uncertainty as a gap.
-
-Discovery is inquisitive about what the input mentions but does not explain: naming a screen, portal, API, or integration does not answer the questions about its journey, UI states, contracts, or failure behavior. Those gaps stay open and cite the exact mention that triggered the question, so the client sees why it is being asked.
-
-Common gap statuses:
-
-- `OPEN`: still missing or unresolved.
-- `ANSWERED`: a substantive answer exists with decision still pending confirmation; severe gaps in this state keep blocking specs/backlog.
-- `PARTIALLY_CLOSED`: some information arrived but it is not enough — including vague answers (`TBD`, deferrals) even when marked as confirmed; the resolution report explains why with a note.
-- `CLOSED`: structured evidence is sufficient to close the gap.
-
-This matters because downstream artifacts should not hide uncertainty. A PRD, spec, backlog, or test plan should expose unresolved assumptions rather than inventing them away.
-
-## Domain Context
-
-Technology, Design, Quality, Delivery, Business, and other domain owners can keep enriching the workspace throughout the lifecycle.
-
-Typical domain context includes:
-
-- Technology: architecture notes, as-is/to-be context, affected services, endpoints, data contracts, commands, engineering practices, deployment constraints, security and observability notes.
-- Design: user journeys, prototypes, screens, states, design tokens, interaction rules, accessibility constraints, copy and validation behavior.
-- Quality: test strategy, regression suites, test data, automation conventions, quality gates, fail-to-pass and pass-to-pass expectations.
-- Delivery: dependencies, release constraints, environment readiness, rollout notes, ownership and timing.
-- Product or Business: current state, target state, personas, business rules, exclusions, KPIs, and decision rationale.
-
-This context is ingested and reindexed locally. Agents use `/retrieve` for progressive disclosure, pulling only the focused evidence needed for the active workflow.
-
-## Traceability
-
-Every important artifact has an ID:
-
-- `RAW`: raw input.
-- `SEED`: identity or product truth seed.
-- `DISC`: discovery log or lens review.
-- `GAP`: gap report.
-- `DEC`: decision or impact report.
-- `REQ`: requirement.
-- `PRD`: product requirements document.
-- `SPEC`: agent-oriented spec.
-- `EPIC`: epic.
-- `US`: user story.
-- `AC`: acceptance criteria.
-- `TC`: test case.
-- `CHG`: change event.
-- `CTX`: context request.
-
-Traceability lets the team answer questions such as:
-
-- Where did this user story come from?
-- Which decision closed this gap?
-- Which change may affect this spec?
-- Which test covers this acceptance criterion?
-- Which domain context was used before handing work to an implementation agent?
-
-## Health And Validation
-
-`/health` does not replace human approval. It is a deterministic control that checks structural signals such as blocking gaps, metrics without sources, orphan trace nodes, missing memory indexing, stale domain context, and story-to-epic linkage.
-
-A project can be:
-
-- `CLEAN`: no structural findings were detected.
-- `DIRTY`: unresolved findings exist.
-
-`CLEAN` means "structurally ready to continue." It does not mean "approved by the client."
-
-`/validate` checks semantic completeness: required artifacts, expected sections, trace IDs, specs context packs, backlog readiness audit, story execution contracts, retrieval plans, and `implementation_readiness.json`.
-
-## Backlog And Implementation Readiness
-
-Backlog generation is intentionally strict because downstream AI agents may use the backlog to plan, implement, and test.
-
-`/backlog` generates:
+### 2. Load the request
 
 ```text
-04_backlog/EPIC-001.md
-04_backlog/US-001.md
-08_context_packs/backlog_generation.json
-08_context_packs/implementation_readiness.json
+/ingest ACME_PORTAL --source input/acme-request.md
 ```
 
-It may also create:
+**What you get:** a redacted copy under `00_raw/`, source row `F-01`, `02_requirements/requirements.md`, seeds and decisions, a multi-lens review, and **`01_discovery/gaps.md`**. If a secret or an injected instruction was found, `secret_alerts.md` or `injection_signals.md` appears in `01_discovery/`. Formats: `.md`, `.txt`, `.html` and `.docx`; other UTF-8 text is stored as Markdown with a warning, and a binary file such as a PDF is refused. If the command ends with a traceback (exit 1), check the `--source` path first: a file that does not exist currently ends this way.
+
+**Next step:** confirm the brief settings, right away.
+
+### 3. Confirm the brief settings
+
+A new project's brief needs to know what kind of system it describes, its [profile and genesis](#glossary). Do this once, right after the first `/ingest` and before any `/maturity` or `/specs`. `/next` does not prompt for it yet, so do not wait for it to.
+
+If you are not sure which values fit, run `/brief` without flags first to see Sentinel's proposal (in `brief_settings.proposal`). That run opens the critical gap `GAP-BRIEF-PROFILE` and writes a provisional brief in the older v1 layout; both go away when you confirm:
 
 ```text
-04_backlog/EPIC-002-cross-cutting-enablers.md
+/brief ACME_PORTAL
+/brief ACME_PORTAL --profile UI --genesis greenfield
 ```
 
-Backlog rules:
+**What you get:** the confirmed settings in `state.json`, and the v2 brief compiled at `02_requirements/project-brief.md` with `02_requirements/brief_compile_report.json`. Places with no evidence carry `⏳ PENDING (GAP-X)`. From now on every `/resolve-gaps` recompiles the brief in place.
 
-- Epics are the primary human review artifacts.
-- Story mirrors exist for traceability and quality tooling.
-- Stories should be vertical, value-oriented slices.
-- INVEST is applied pragmatically: `Small` means small but still independently valuable, testable, and useful.
-- Missing domain context remains visible as `[PENDING DOMAIN CONTEXT]`.
-- Each story includes `Domain Context Coverage`, `Agent Execution Contract`, and `Retrieval Plan For Execution Agents`.
-- When a downstream consumer explicitly asks for implementation intentions, `/backlog --with-task-seeds` adds optional `Task Seed Contract` sections traced to acceptance criteria and confirmed critical surfaces. Default `/backlog` omits them, and Sentinel still does not execute, estimate, assign, schedule, or manage tasks.
-- Acceptance criteria are declarative Given/When/Then scenarios and classify fail-to-pass, pass-to-pass, and evidence expectations.
-- Cross-cutting enablers are valid only when concrete implementation work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
-- Generic setup, broad hardening, environment availability, or vague operability work is a precondition or external task unless tied to this project's confirmed functionality and objective completion evidence.
+Combine profiles with commas (`--profile UI,REG`). `MIG` requires `--genesis brownfield-replacement` (a `MIG` + `greenfield` pair is stored as a contradiction and keeps `GAP-BRIEF-PROFILE` open). Add `--validation-direction built` only when the brief documents an existing system.
 
-`implementation_readiness.json` is the machine-friendly handoff pack. It records story readiness, required domains, pending context, retrieval queries, validation expectations, dependencies, trace IDs, blast radius, and the domain context snapshot used during backlog generation.
+#### If you skip the brief settings
 
-If domain context changes after backlog generation, `/health` emits a warning and names the changed domain. Backlog is meant to remain a stable development reference, so the usual handoff response is to refresh retrieval and inspect focused context:
+> [!WARNING]
+> Nothing reminds you: `/ingest`, `/next` and `/status` do not mention the step, and while blocking gaps remain no brief is compiled. Answers you process in the meantime do not update a brief. The first time a brief is compiled (a `/brief`, or the first `/maturity` or `/specs` that finds no blocking gap left), Sentinel writes a provisional brief in the older v1 layout and opens the critical gap `GAP-BRIEF-PROFILE`. That run does not see the new gap: a `/maturity` still reports `READY_FOR_SPECS`, and a `/specs` goes on and generates the PRD from the provisional brief. From the next run on, `/maturity` is `BLOCKED` and `/specs` refuses until you run `/brief ACME_PORTAL --profile ... --genesis ...`. If specs were already generated from the provisional brief, run `/specs` again after confirming.
+
+**Next step:** ask Sentinel what to do next.
+
+### 4. Ask for the next step
 
 ```text
-/reindex PROJECT_ID
-/retrieve PROJECT_ID --query "implementation context for affected story" --workflow implementation
+/next ACME_PORTAL
 ```
 
-For Codex, prefix each line with `sentinel` if needed.
+**What you get:** one step with a title, a sentence and the command to run. Right after intake it says *Waiting for client answers* and suggests `/resolve-gaps`: there are always blocking gaps at this point. `/status ACME_PORTAL` gives the same step plus the verdict, gap counts and [maturity score](#glossary).
 
-Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts. Then rerun quality, trace, health, and validation before implementation handoff.
+**Next step:** plan the first question round.
 
-## Basic Flow
-
-Use VS Code chat as the primary interface when Kilo Code or Codex is available.
-
-- In Kilo Code, type the slash command directly.
-- In Codex, prefix the same command with `sentinel` if the slash command is intercepted.
-- If you do not know the exact command, explain the situation in plain language and ask the agent to run the appropriate Sentinel workflow.
-
-### 1. Initialize A Project
+### 5. Plan a question round and share it
 
 ```text
-/init PROJECT_ID
+/gaps ACME_PORTAL --top 5
+/export ACME_PORTAL --artifact gaps --format interview
 ```
 
-Codex-safe form:
+**What you get:** `01_discovery/gap_round.md` with the five most useful questions to ask now, and `08_context_packs/exports/gaps-interview.md`, a script grouped by owner for a meeting. You can also send `gaps.md` itself: it is written for clients. Register who owns which topic with `/stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business` so gaps route to a person.
+
+Optional: let an agent find more gaps before you ask (`/annotate`, `/challenge`, `/scrutinize`). See [deepen discovery](03-workflows.md#deepen-discovery-with-the-agent).
+
+**Next step:** wait for the answers.
+
+### 6. Process the answers
+
+The client answers in a copy of `gaps.md`. Keep each `### GAP-...` heading and fill the template fields under it:
 
 ```text
-sentinel /init PROJECT_ID
+- Answer: Customers log in with their customer number and a one-time code by email.
+- Owner / source: Head of Billing
+- Evidence or reference: Billing meeting, minutes item 3
+- Decision status: confirmed
 ```
 
-This creates folders, `state.json`, `sentinel.config.yaml`, an empty traceability graph, source manifest, and local memory area.
-
-### 2. Ingest Initial Input
+A gap closes only with `Decision status: confirmed` (or `not applicable`, which records a scope exclusion) and an `Evidence or reference` line; `pending` or a missing status leaves it open. Save the file as `input/acme-answers.md`:
 
 ```text
-/ingest PROJECT_ID --source input\client_requirement\request.md
+/resolve-gaps ACME_PORTAL --source input/acme-answers.md
 ```
 
-Sentinel copies the input to the workspace, creates initial requirements, gaps, seeds, decisions, and multi-lens review artifacts. It also indexes generated artifacts and domain context folders into local memory.
+**What you get:** confirmed answers close their gaps, become seeds and decisions, and (when written in EARS) `REQ-EARS-*` requirements. Vague or unconfirmed answers leave the gap `ANSWERED` or `PARTIALLY_CLOSED` with a note. The v2 brief recompiles right away: only the answered places change, listed in `brief_v2.rewritten_places`.
 
-### 3. Review Gaps
+**Next step:** check maturity. If gaps remain, go back to step 5.
+
+### 7. Check maturity
 
 ```text
-/gaps PROJECT_ID
+/maturity ACME_PORTAL
 ```
 
-`01_discovery/gaps.md` is designed for humans. Each gap is framed as elicitation (IMP-022): besides the question, it states why it matters (the risk if left open), what answering it unblocks (the downstream brief/PRD/spec section that consumes the answer), the expected response format, an example answer, owner/source fields, evidence fields, and decision status. It can be shared with a client or domain owner without requiring them to understand the framework internals.
+**What you get:** `01_discovery/requirement_maturity_report.md`, `01_discovery/development_readiness.json` (certainty per lens and area: confirmed, assumed, open), a maturity score and its trend. The answer is `READY_FOR_SPECS` or `BLOCKED` with the blocking gaps listed. When ready, it also rewrites the brief.
 
-### 3b. (Optional) Deepen Discovery With The Agent
+Optional, before specs: ask a clean-context reader whether the brief is enough to start building with `/self-review ACME_PORTAL --sufficiency --source sufficiency.json` (the `sentinel-self-review` skill writes the JSON).
 
-Beyond the deterministic checklist, the agent operating the framework can contribute gaps it reads semantically — gaps a reassuring keyword would otherwise suppress:
+**Next step:** `BLOCKED` → step 5. `READY_FOR_SPECS` → specs. If the scope is too big for one release, see [release split](03-workflows.md#release-split) first.
+
+### 8. Generate the PRD and specs
 
 ```text
-/annotate PROJECT_ID --source analysis.json
-/challenge PROJECT_ID --source findings.json
+/specs ACME_PORTAL
 ```
 
-`/annotate` merges semantic gaps the agent found while reading the raw input; `/challenge` runs advanced elicitation from the declarative technique registry — pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces by default; red/blue team, first principles, and stakeholder round-robin opt-in — and writes a `challenge_report.md`. Both validate every finding against a verbatim quote from the raw input before merging (the agent proposes with evidence; the runtime never invents), tagging them `origin: agent` / `origin: challenge`. The merged gaps then flow through `/resolve-gaps` like any other.
+**What you get:** `03_specs/prd.md` (the human PRD), `03_specs/specs.md` (the compact index for agents), `03_specs/units/SPEC-U-NNN.md` (one bounded unit per confirmed requirement) and `08_context_packs/specs_generation.json`. Refuses while maturity is `BLOCKED`.
 
-### 4. Resolve Structured Gap Answers
+**Next step:** request domain context if teams need it (`/context-request ACME_PORTAL --domain technology`), then the backlog.
+
+### 9. Generate the backlog
 
 ```text
-/resolve-gaps PROJECT_ID --source input\interactions\answered-gaps.md
+/backlog ACME_PORTAL
+/backlog-status ACME_PORTAL
 ```
 
-Sentinel automatically closes only gaps with confirmed structured answers. If an answer exists but the decision is still pending, the gap remains partially closed. When a confirmed answer is written in EARS syntax ("When <trigger>, the system shall <response>." and the other four patterns, EN or ES), it is also accumulated into `requirements.md` as a testable `REQ-EARS-*` statement. Generated PRD/spec/backlog artifacts cite those `REQ-EARS-*` IDs so the normalized requirements survive downstream planning and testing.
+**What you get:** `04_backlog/EPIC-001.md`, one `US-NNN.md` per spec unit, an `EPIC-002` for enablers when needed, `04_backlog/SLICE-PLAN.md` (the [slice plan](#glossary)), `08_context_packs/implementation_readiness.json`, and the BA board `04_backlog/BACKLOG.md`. A missing piece stays visible as `[PENDING INPUT]` or `[PENDING DOMAIN CONTEXT]`. Refuses while health is `DIRTY`.
 
-### 5. Check Maturity
+**Next step:** check story quality.
+
+### 10. Check quality
 
 ```text
-/maturity PROJECT_ID
+/quality ACME_PORTAL
 ```
 
-If critical or high gaps remain open or partial, the project stays blocked. If maturity reaches `READY_FOR_SPECS`, Sentinel can generate or refresh the project brief. `/maturity` and `/status` also report per-section brief readiness and maturation telemetry: how many resolve rounds ran, how gaps closed by provenance and by answer source (`client`, `domain`, `inference`), which closed gaps were triggered again by `/sync`, and the oldest blocking-gap age in rounds.
+**What you get:** test cases `05_quality/TC-NNN.md` and `05_quality/backlog_readiness_audit.md`, which scores each story ([INVEST, SPIDR](#glossary), vertical slicing) and feeds Definition of Ready warnings. Refuses without stories.
 
-### 6. Generate The Project Brief
+**Next step:** audit before handoff.
+
+### 11. Audit and hand off
 
 ```text
-/brief PROJECT_ID
+/trace ACME_PORTAL
+/health ACME_PORTAL
+/validate ACME_PORTAL
+/status ACME_PORTAL
 ```
 
-The brief is the closure of discovery. It should be clear enough for PRD/specs/backlog and for Technology or Design to deepen their own context packs, without pretending to include every low-level implementation contract.
+**What you get:** the traceability matrix in `06_traceability/traceability_matrix.md`, `06_traceability/health_report.md`, a validation verdict (`VALID` or exit 5) and the readiness verdict. Hand off when health is `CLEAN`, validation `VALID` and the verdict `READY` (or `READY_WITH_WARNINGS` with the warnings understood).
 
-### 7. Request Domain Context
+**Next step:** move stories with `/story-status`, and bring implementation findings back with `/implementation-feedback`. See [handoff and export](03-workflows.md#handoff-and-export).
+
+## Reading results
+
+Every command prints JSON. The fields to look at:
+
+| Command | Look at |
+|---|---|
+| `/status` | `verdict.verdict` and `verdict.blockers` (`verdict` is an object), `gap_counts`, `readiness_stage`, `next_step` (text) and `next_action` (the same step as an object) |
+| `/next` | `title`, `text`, `command` |
+| `/maturity` | `readiness`, `blocking_gaps` |
+| `/brief` | `brief_settings.confirmed`, `brief_settings.proposal`, `warnings` |
+| `/validate` | `verdict` |
+
+`/status` always exits 0, even for `NOT_READY`; read the verdict. A failing command prints `sentinel error: ...` and often `next step: ...` on stderr, and exits with:
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Unexpected error, a traceback follows. Check the `--source` path first: a file that does not exist currently ends this way. Otherwise it is a bug; report it. |
+| 2 | Wrong usage: a missing required option or an unknown value |
+| 3 | Invalid input: a bad value, an unsupported file, a refused payload |
+| 4 | Gate refusal: a prerequisite, the health or the phase stops the command |
+| 5 | Unfavourable verdict: `/validate` not `VALID`, `/doctor` not `PASS` |
+| 6 | Workspace busy: another command holds the workspace lock (it waits 10 seconds first) |
+
+What to do for each code: [A gate refused](03-workflows.md#a-gate-refused).
+
+## What you may edit
+
+| You may | You may not |
+|---|---|
+| `sentinel.config.yaml` (domains, gate thresholds, language, privacy scan) | Any governed artifact (see the table above) |
+| Your own files in `input/` before loading them | `state.json`, `.sentinel/`, the traceability graph |
+| Add evidence or domain context with `/ingest` or `/sync` | Leave files copied into `00_raw/` unprocessed: until `/sync` picks them up they skip redaction, the source registry and contradiction checks |
+
+## Workspace shape
 
 ```text
-/context-request PROJECT_ID --domain technology
-/context-request PROJECT_ID --domain design
-/context-request PROJECT_ID --domain quality
+workspaces/ACME_PORTAL/
+  00_raw/              evidence: client request, business, technology, design, quality, interactions
+  01_discovery/        gaps, seeds, decisions, lens review, maturity report, knowledge state
+  02_requirements/     requirements, project-brief.md, series/ and r<N>/ for releases, prototype/
+  03_specs/            prd.md, specs.md, units/, self_review/
+  04_backlog/          epics, stories, BACKLOG.md, SLICE-PLAN.md
+  05_quality/          test cases, readiness audit
+  06_traceability/     graph, matrix, health report, command protocol log
+  07_changes/          changes, client responses, source_log.md, implementation feedback
+  08_context_packs/    retrieval packs, exports, domain requests, views
+  memory.lancedb/      rebuildable retrieval index
+  .sentinel/           lock, derived state, command log, local themes (git-ignored)
+  state.json  sentinel.config.yaml  .gitignore
 ```
 
-Domain requests are focused, traceable prompts for domain owners. They should enrich the relevant workspace context folders and then be ingested, synced, or reindexed.
+Every file is described in the [artifact reference](02-artifact-reference.md).
 
-### 8. Generate Specs, Backlog, And Quality Artifacts
+## Privacy
 
-```text
-/specs PROJECT_ID
-/backlog PROJECT_ID
-/quality PROJECT_ID
-```
+Client content stays in local files. Sentinel uses no remote MCP server, no external vector database and no external embedding service for project content. Retrieval runs locally (LanceDB when installed, a deterministic JSON fallback otherwise). Exports go only to `08_context_packs/exports/`. The one file written outside a workspace is `dashboard.html`, in the folder you run `/dashboard` from. Never put real client names, systems or data in examples or framework files.
 
-Run these only when project maturity and health allow it. `/backlog` and `/quality` are blocked while project health is `DIRTY`.
+## Where to go next
 
-### 9. Audit Traceability And Health
+**Everyone:** [workflows by situation](03-workflows.md), [scenarios](12-scenarios.md), [chat commands](11-chat-commands.md).
 
-```text
-/trace PROJECT_ID
-/health PROJECT_ID
-/validate PROJECT_ID
-```
+**Business analyst:** [artifact reference](02-artifact-reference.md), [skills catalog](04-codex-skills-guide.md).
 
-Use these before human review, agent handoff, or repository changes.
+**Product manager:** [artifact views](15-artifact-views.md), [dashboard](14-dashboard.md), [themes](17-themes.md).
 
-Terminal fallback:
+**Developer:** [command reference](01-command-reference.md), [traceability and memory](05-traceability-and-memory.md).
 
-```powershell
-python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
-```
+**Setup and IT:** [install](06-installation-vscode.md), [Kilo Code](07-kilo-code-adapter.md), [Codex](08-codex-adapter.md), [Claude Code](13-claude-adapter.md), [Claude Code plugin](18-claude-plugin.md), [secure environments](09-secure-environments.md), [portability](16-portability.md), [versioning workspaces](10-repo-and-branching-strategy.md), [threat model](19-threat-model.md), [admin guide](20-admin-guide.md).
 
-Portable launcher fallback when a laptop does not expose a valid `python` command:
+## Next
 
-```powershell
-.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
-```
-
-On Unix-like shells:
-
-```sh
-sh installers/sentinel.sh /COMMAND PROJECT_ID [OPTIONS]
-```
-
-## Workspace Shape
-
-```text
-workspaces/[PROJECT_ID]/
-  00_raw/             Original evidence and domain context
-  01_discovery/       Gaps, decisions, seeds, lens review, maturity report
-  02_requirements/    Requirements and project brief
-  03_specs/           PRD and agent-oriented specs
-  04_backlog/         Epics, user stories, acceptance criteria
-  05_quality/         Test cases and backlog readiness audit
-  06_traceability/    Graph, matrix, health reports, command protocol log
-  07_changes/         Changes, client responses, meeting notes, domain updates
-  08_context_packs/   Retrieval packs, exports, domain requests, readiness packs
-  memory.lancedb/     Rebuildable local retrieval index
-```
-
-## Privacy Model
-
-Sentinel is designed for environments where client information or code should not travel through external channels by default.
-
-By default:
-
-- Client and project content stays in local files.
-- LanceDB memory is local.
-- JSON fallback indexes are local.
-- Remote MCP, external vector databases, and external embeddings are not used for client/project content unless explicitly approved.
-- Versionable workspace files remain the source of truth.
-
-## How To Read The Rest Of The Guide
-
-- [Command Reference](01-command-reference.md): what each command does.
-- [Artifact Reference](02-artifact-reference.md): what each generated file is for.
-- [Workflows](03-workflows.md): recommended lifecycle flows.
-- [Codex Skills Guide](04-codex-skills-guide.md): how Codex skills map to Sentinel workflows.
-- [Traceability And Memory](05-traceability-and-memory.md): how local memory and progressive disclosure work.
-- [Installation And VS Code](06-installation-vscode.md): how to use Sentinel after cloning or downloading the repo.
-- [Portability](16-portability.md): environment matrix, no-install mode, `.pyz`, and a short IT approval note.
-- [Kilo Code Adapter](07-kilo-code-adapter.md): how Kilo Code reads repo-local agents and commands.
-- [Codex Adapter](08-codex-adapter.md): how Codex reads skills and `AGENTS.md`.
-- [Claude Adapter](13-claude-adapter.md): how Claude Code and Claude Desktop read `.claude/commands/` and `CLAUDE.md`.
-- [Secure Environments](09-secure-environments.md): privacy-first operation.
-- [Repo And Branching Strategy](10-repo-and-branching-strategy.md): how to maintain the framework.
-- [Chat Commands](11-chat-commands.md): how chat commands map to CLI commands.
-- [Scenarios](12-scenarios.md): concrete examples of common situations.
-- [Dashboard](14-dashboard.md): read-only portfolio view across local workspaces.
-- [Artifact Views](15-artifact-views.md): read-only local HTML views for gaps, brief, PRD, specs, and backlog, plus optional local PRD MDX export.
-- [Claude Code Plugin](18-claude-plugin.md): install Sentinel in Claude Code from the marketplace, without a clone.
-- [Visual Themes](17-themes.md): choose or create a local theme (palette, legend, embedded fonts) for the dashboard and artifact views.
-
-## Practical Advice
-
-- Do not hide uncertainty. Convert doubt into a gap.
-- Do not treat generated artifacts as magical truth. Review them.
-- Do not let memory override source files.
-- Use `/retrieve` for focused context instead of loading the whole workspace.
-- Rerun `/reindex` after manual edits to workspace artifacts or domain context.
-- Rerun `/health` and `/validate` before handoff.
-- Keep examples and framework rules agnostic: never persist client names, private system names, URLs, account IDs, raw payloads, or identifiable business facts.
+- [Workflows: what to do in each situation](03-workflows.md)
+- [Command reference](01-command-reference.md)
+- [Driving Sentinel from chat](11-chat-commands.md)

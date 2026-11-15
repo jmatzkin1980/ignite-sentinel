@@ -89,7 +89,7 @@ sentinel/          runtime Python (cli, discovery, generation, memory, sync, hea
 sentinel/core/     primitivas compartidas: markdown, IO JSON/texto, rutas de workspace, state.json, grafo y tiempo UTC
 tests/             unittest suite
 .codex/ .kilo/     adapters Codex y Kilo Code (skills canónicas en .codex/skills/, espejos en .agents/ y .claude/)
-user_guide/        documentación de usuario (00-16)
+user_guide/        documentación de usuario (00-20)
 input/             staging local de inputs (no versionado)
 workspaces/        workspaces por proyecto (solo _template versionado)
 docs/evolution/    memoria operativa local (baseline, roadmap, backlog) — git-ignored, NO se publica

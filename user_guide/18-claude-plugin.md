@@ -1,10 +1,12 @@
-# Claude Code Plugin
+# Claude Code plugin
 
-Ignite Sentinel installs as a Claude Code plugin, so you do not need a clone of the repository. The repository is also the marketplace that lists the plugin.
+This page covers installing Ignite Sentinel as a Claude Code plugin, so you do not need a copy of the repository: how to install it, which version you get, how to install without git, and the optional MCP plugin. Read it if you use Claude Code and want the least setup. For day-to-day use, see [Using Sentinel on Claude Code](13-claude-adapter.md).
+
+The repository is also the marketplace (the catalog) that lists the plugin.
 
 ## Install
 
-In Claude Code, from any project:
+You need Python 3.10 or newer. The plugin has no other dependency. In Claude Code, from any project:
 
 ```text
 /plugin marketplace add jmatzkin1980/ignite-sentinel
@@ -18,24 +20,45 @@ claude plugin marketplace add jmatzkin1980/ignite-sentinel
 claude plugin install ignite-sentinel@ignite-sentinel
 ```
 
-The plugin needs Python 3.10 or newer. It has no other dependency. It does not need `python` on `PATH`: the hook and the skills start Python through `python.sh`, which tries, in order, `SENTINEL_PYTHON`, `python3`, `python` and `py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders (`%LOCALAPPDATA%\Programs\Python\Python3*`, `%LOCALAPPDATA%\Python\pythoncore-3*`, `%ProgramFiles%\Python3*`). If none is found it says so and how to fix it. To pick an interpreter yourself, set `SENTINEL_PYTHON` to its full path.
+The plugin does not need `python` on `PATH`. Its hook and skills start Python through `python.sh`, which tries `SENTINEL_PYTHON`, then `python3`, `python` and `py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders. If it finds none it says so and how to fix it. To choose an interpreter yourself, set `SENTINEL_PYTHON` to its full path. `python.sh` is a plain shell script that Claude Code runs with the `sh` it uses for hooks (Git Bash on Windows).
+
+Use the plugin **or** a clone, not both: a clone already provides the skills and the hook, and the plugin would load the skills a second time.
+
+## First run
+
+The plugin has no slash commands of its own: it ships skills and one hook. A skill is run with the plugin's name as a prefix, for example `/ignite-sentinel:sentinel-views`. To run Sentinel commands, send them in chat with the `sentinel` prefix, or describe what you want; the `sentinel-command-router` skill turns either into the CLI call.
+
+1. Open the folder where your project data should live. Workspaces, views and the dashboard are written there, never in the plugin folder.
+2. Start a project and ask for the next step:
+
+   ```text
+   sentinel /init ACME_PORTAL
+   sentinel /next ACME_PORTAL
+   ```
+
+3. Ingest your first source: `sentinel /ingest ACME_PORTAL --source notes/request.md`.
+
+**Check:** `claude plugin list` shows `ignite-sentinel` enabled and `workspaces/ACME_PORTAL/` appears in your folder.
+
+> [!NOTE]
+> `/doctor` checks a full framework folder (it looks for `AGENTS.md`, `.kilo/` and so on), so inside a plain project folder it reports `FAIL` on missing files. Use it in a clone, not with the plugin. Also, running a skill in a signed-in session from the GitHub marketplace has not yet been watched; the bundled runtime and hook are exercised by tests from a copied plugin folder.
+
+The rest of the lifecycle is the same on every surface: see [Workflows](03-workflows.md) and the [command reference](01-command-reference.md).
 
 ## What you get
 
 | Component | What it does |
 |-----------|--------------|
-| 24 skills | The same `sentinel-*` skills as the clone, prefixed with the plugin name: `/ignite-sentinel:sentinel-views`, `/ignite-sentinel:sentinel-discovery`, and so on. |
-| 1 hook | Read-only `PreToolUse` guard: a hand `Write`/`Edit` of a governed artifact (`workspaces/<id>/02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) is denied with the command that owns it. Nothing outside `workspaces/<id>/` is affected. |
-| `launcher.py` + `lib/sentinel/` | The runtime, in source form, so it can be audited. The launcher locates `lib/` by its own path. |
-| `python.sh` | Finds Python 3.10+ for the hook and the skills (see above). A plain POSIX shell script; Claude Code runs it with the `sh` it uses for hooks (Git Bash on Windows). |
+| 27 skills | The same `sentinel-*` skills as the clone, prefixed with the plugin name: `/ignite-sentinel:sentinel-views`, `/ignite-sentinel:sentinel-discovery`, and so on. |
+| 1 hook | A read-only `PreToolUse` guard: a hand `Write` or `Edit` of a governed artifact (`workspaces/<id>/02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) is denied with the command that owns it. Nothing outside `workspaces/<id>/` is affected. |
+| `launcher.py` and `lib/sentinel/` | The runtime in source form, so it can be audited. |
+| `python.sh` | Finds Python 3.10+ for the hook and the skills. |
 
-Workspaces, views and the dashboard are written in the project you have open, never in the plugin folder.
-
-The plugin has no `bin/`, monitors, LSP servers or telemetry. It makes no network calls (`/doctor` → `network_isolation_check`).
+The plugin has no `bin/` folder, monitors, LSP servers or telemetry, and makes no network call (`/doctor` runs `network_isolation_check` for that).
 
 ## Versions and channels
 
-The plugin carries the package version (`plugin.json` → `version`). Claude Code updates an installed plugin only when that version changes.
+The plugin carries the package version (`plugin.json` field `version`). Claude Code updates an installed plugin only when that version changes.
 
 | Channel | Add the marketplace with | You get |
 |---------|--------------------------|---------|
@@ -43,9 +66,7 @@ The plugin carries the package version (`plugin.json` → `version`). Claude Cod
 | One release | `/plugin marketplace add jmatzkin1980/ignite-sentinel#vX.Y.Z` | Exactly that release, until you add another ref. |
 | `main` | `/plugin marketplace add jmatzkin1980/ignite-sentinel` | Everything merged, released or not. |
 
-The first release that carries the plugin is `0.3.0`.
-
-A marketplace name can be registered only once, so switch channels with `/plugin marketplace remove ignite-sentinel` and add it again with the new ref.
+A marketplace name can be registered only once, so switch channels with `/plugin marketplace remove ignite-sentinel` and add it again with the new ref. An organization that wants one approved version on every machine pins it with managed settings: see the [admin guide](20-admin-guide.md).
 
 ### Without git: the release archive
 
@@ -68,11 +89,13 @@ The zip is the input of an `archive` plugin source, which installs over HTTPS wi
 }
 ```
 
-Claude Code refuses a download whose digest does not match (Claude Code 2.1.224 or newer).
+Claude Code refuses a download whose digest does not match (Claude Code 2.1.224 or newer). The administrator's version, with the review checklist, is in the [admin guide](20-admin-guide.md#without-git-the-release-archive).
 
 ## MCP server (optional)
 
-The MCP server is a second plugin, `ignite-sentinel-mcp`. It installs **disabled**, because it needs the third-party `mcp` package. It starts `python` directly (MCP servers do not run through a shell), so it does need Python on `PATH` as `python`:
+MCP (Model Context Protocol) lets an AI tool call a program's functions directly. Sentinel's MCP server exposes its lifecycle as 38 tools over a local stdio channel, with the same gates, and makes no network call. Everything else works without it.
+
+It is a second plugin, `ignite-sentinel-mcp`. It installs **disabled** because it needs the third-party `mcp` package. Unlike the main plugin, it starts the command `python` directly, so a `python` on `PATH` must have `mcp` installed:
 
 ```bash
 python -m pip install "mcp>=1.2,<3"
@@ -80,48 +103,33 @@ claude plugin install ignite-sentinel-mcp@ignite-sentinel
 claude plugin enable ignite-sentinel-mcp@ignite-sentinel
 ```
 
-It starts in the project directory and exposes the same tools as the clone's MCP server ([Claude adapter](13-claude-adapter.md#local-mcp-server-optional)).
+For a reproducible install with pinned versions and hashes, take `constraints/mcp.txt` from the release you use and run `python -m pip install --require-hashes -r mcp.txt` instead of the first line.
+
+The server starts in your project folder. In Claude Code, `/mcp` should list `ignite-sentinel`. A failed command returns an error result whose text carries the exit `code`, the `error` and the `next_step`. This plugin has not yet been watched enabled in a session.
+
+**From a clone,** install the extra with the hashed lock (`python -m pip install --require-hashes -r constraints/mcp.txt`, then `python -m pip install --no-deps -e .`), list the tools with `python -m sentinel.mcp --describe`, and register the server in the project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "ignite-sentinel": { "command": "python", "args": ["-m", "sentinel.mcp"] }
+  }
+}
+```
+
+Claude Code starts it from the folder you opened, so open the repository root. Among the tools, `sentinel_gap_elicitation` returns a structured question for one gap when the connected client supports elicitation, and falls back to the plain `sentinel_gaps` text when it does not.
 
 ## Codex and Kilo Code
 
-The plugin targets Claude Code. In Codex and Kilo Code, use the clone: it is the supported path, and the plugin has not been observed running a skill there. See the [Codex adapter](08-codex-adapter.md#plugin-not-supported-yet).
+The plugin targets Claude Code. In Codex and Kilo Code use the clone: see [Codex](08-codex-adapter.md#plugin-not-supported) and [Kilo Code](07-kilo-code-adapter.md#why-a-clone-and-not-a-plugin).
 
-## Clone and plugin together
+## Do not edit the plugin by hand
 
-In a clone, `.claude/skills` and `.claude/settings.json` already provide the skills and the hook. Installing the plugin as well loads the skills twice (once with the `ignite-sentinel:` prefix). Use one or the other.
+`plugins/` and `.claude-plugin/marketplace.json` are generated from the repository's sources. Do not edit them; a check in `/doctor` (`claude_plugin_check`) fails on any difference.
 
-## For maintainers
+## Next
 
-`plugins/` and `.claude-plugin/marketplace.json` are generated. Never edit them by hand:
-
-```bash
-python -m sentinel.adapters            # commands, skill mirrors and plugin
-python -m sentinel.adapters --plugin   # plugin only
-```
-
-The skills are rendered from `.codex/skills` with the `claude-plugin` overlay, which only changes the runtime invocation (IMP-278). The version comes from `pyproject.toml`. `lib/sentinel/` is a byte-for-byte copy of `sentinel/`.
-
-Two checks keep it honest:
-
-- `/doctor` → `claude_plugin_check` (offline): it fails on drift, and on the manifest mistakes `claude plugin validate` rejects (`..` in a source, entry name different from manifest name, version in the entry, `homepage` that is not a URL, reserved names, top-level `bin/`, `hooks.json` without its `"hooks"` wrapper).
-- CI → `plugin-validate`: runs Claude Code's own `claude plugin validate --strict` on the marketplace and both plugins.
-
-### Cutting a release
-
-The version lives in `pyproject.toml`. `sentinel/__init__.py` and both `plugin.json` repeat it, and `python tools/release.py check` fails when any of them differs (CI → `release-check`).
-
-1. On a branch, bump `version` in `pyproject.toml` and `__version__` in `sentinel/__init__.py`. Run `python -m sentinel.adapters --plugin`.
-2. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` and open a new, empty `## [Unreleased]` above it.
-3. Merge the PR. Nobody tags by hand: `release-check` on `main` does it.
-   - It tags `vX.Y.Z` on the merge commit that introduced the version.
-   - It calls `release-attest`, which:
-     - fails on a tag that is not the version ("tag without a bump") or that has no dated CHANGELOG section;
-     - builds the wheel, the SBOM and the plugin zips, and validates each zip;
-     - attests all of them and creates the GitHub release, with the CHANGELOG section as notes;
-     - fast-forwards `stable` to the tag.
-
-`release-check` on `main` fails when the version is untagged and CHANGELOG has no dated section for it. It also fails when the version sources disagree. When the commit that introduced an untagged version is older than the push, it is only tagged, with no release. This is how `v0.2.0` gets its tag, on the merge of #207.
-
-A tag pushed by hand (`git push origin vX.Y.Z`) runs the same `release-attest`.
-
-`python tools/release.py zip --out dist` builds the same zips locally. They are reproducible: same commit, same bytes (`SOURCE_DATE_EPOCH`, sorted entries, LF endings).
+- [Using Sentinel on Claude Code](13-claude-adapter.md)
+- [Start here: concepts and your first run](00-user-guide.md)
+- [Admin guide: managed settings and pinning](20-admin-guide.md)
+- [Threat model](19-threat-model.md)

@@ -1,156 +1,89 @@
-# Repo And Branching Strategy
+# Versioning your workspaces in git
 
-This guide defines how to keep Ignite Sentinel portable, clean, and safe to download in secured environments.
+This page explains how to keep a Sentinel project under version control: what is worth committing, what is left out on purpose, and two simple ways to set it up so that client data never reaches a public copy of the framework. Read it if you want a history of every artifact, or if several people share one project.
 
-## Principle
+You do not need git to use Sentinel. Git adds a history you can review and a way to share the workspace. Terms: a *repository* is a folder tracked by git; a *commit* is a saved snapshot; a *branch* is a named line of commits.
 
-`main` is the framework branch. It should contain only:
+## What lives where
 
-- Sentinel runtime code;
-- Codex skills;
-- Kilo Code agents;
-- user guides;
-- installers and adapter config;
-- empty scaffolding such as `input/` and `workspaces/_template/`.
+```mermaid
+flowchart LR
+  A[input/ staging folder] -->|/ingest| B[workspaces/ACME_PORTAL/]
+  B --> C[(your project repository)]
+  F[framework clone] -. never holds client data .- C
+```
 
-`main` should not contain:
+| Place | What | Versioned? |
+|-------|------|------------|
+| The framework (clone of Sentinel) | Runtime, skills, adapters, guides | Yes, in the framework repository. It must never contain client data. |
+| `input/` | A staging area for raw files before `/ingest` | No: the framework ignores everything in it except empty folders |
+| `workspaces/<PROJECT_ID>/` | Your project: sources, gaps, brief, specs, backlog, traceability, `state.json` | **Yours.** The framework ignores `workspaces/*` so a project is never published by accident. |
 
-- client documents;
-- generated project workspaces;
-- workflow test outputs;
-- meeting transcripts, email exports, Slack exports, screenshots, architecture files, or design files from a real project.
+The staging folders under `input/` are only a convention: `client_requirement/`, `business_context/`, `technology_context/`, `design_context/`, `quality_context/` and `interactions/`. After `/ingest` the workspace holds the source of truth.
 
-## Project Branches
+## What to commit and what not
 
-Create a dedicated branch when running a real client/project workflow or a workflow test with realistic data.
+Every workspace is created with its own `.gitignore`. It keeps the evidence and the matured artifacts in git, and leaves out what can be rebuilt:
+
+| Tracked | Left out (rebuildable) |
+|---------|------------------------|
+| `00_raw/`, discovery files, requirements, brief, specs, backlog, quality, traceability | `memory.lancedb/` (rebuild with `/reindex PROJECT_ID`) |
+| `state.json` (the durable state) | `08_context_packs/views/*.html` (rebuild with `/view` or `/dashboard`) |
+| `07_changes/` (the change history) | `08_context_packs/synthetic/` |
+| | `.sentinel/` (the derived state, the command log, local themes, the lock) |
+
+Artifact paths are stored relative to the workspace, so a workspace can be moved or cloned to another machine and gives the same results.
+
+> [!WARNING]
+> Commit only into a **private** repository, and only if your data classification allows it. Workspaces hold client material. Never commit a workspace to the public framework repository or to a fork you publish.
+
+## Option 1: one folder inside the clone, its own repository
+
+The simplest way to give a project its own history, with no change to the framework:
 
 ```powershell
-git switch main
-git pull
-git switch -c project/PROJECT_ID
+cd workspaces/ACME_PORTAL
+git init
+git add .
+git commit -m "ACME_PORTAL: first ingest"
+git remote add origin <PRIVATE_REPO_URL>
+git push -u origin main
 ```
 
-Examples:
+The framework repository ignores `workspaces/*`, so the two histories do not mix, and you can update the framework (`git pull` in the clone) without touching your project. On another machine, clone the private repository into `workspaces/ACME_PORTAL`.
 
-```powershell
-git switch -c project/ACME_DASHBOARD
-git switch -c test/backlog-readiness-fixture
-```
+## Option 2: a project repository that contains the framework
 
-Use `project/` for real client execution and `test/` for disposable workflow experiments.
+Use this when the team wants one private repository holding the framework and the projects, for example a fork that stays private.
 
-## Project Intake Folder Contract
+1. Work on a branch, not on `main`: `git switch -c project/ACME_PORTAL`.
+2. Un-ignore the project by adding this line to the root `.gitignore`, below the `workspaces/*` rule:
 
-Use `input/` as the local staging area for raw evidence before ingestion:
+   ```text
+   !workspaces/ACME_PORTAL/
+   ```
+3. Commit the workspace. Its own `.gitignore` still keeps the rebuildable files out.
 
-```text
-input/
-  client_requirement/     Initial synchronization guide or raw requirement
-  business_context/       Business rules, glossary, policies, operating model
-  technology_context/     Architecture docs, repo URLs, API notes, integration notes
-  design_context/         Snapshots, sketches, design-system references, UX notes
-  quality_context/        QA risks, known defects, acceptance expectations
-  interactions/           Meeting notes, transcripts, email, Slack excerpts
-```
+Do not delete the blanket `workspaces/*` rule in a copy you push publicly. Do not merge a project branch that holds client artifacts into a public `main`.
 
-These folders are staging conventions. The source of truth after ingestion lives under the project workspace.
+## A working rhythm
 
-## Workspace Contract
+1. Run a command (`/ingest`, `/resolve-gaps`, `/sync`, `/specs`, ...).
+2. Check `git status`: only workspace files should change.
+3. Commit with a message that names the command and the reason: `ACME_PORTAL: /resolve-gaps, client answers of 12 Nov`.
+4. After pulling someone else's work, run `/health ACME_PORTAL` and, if retrieval looks stale, `/reindex ACME_PORTAL`.
 
-Each project workspace is created under:
+**One writer at a time.** Two people running commands on the same workspace will produce conflicting `state.json` and artifacts, and Sentinel's workspace lock does not protect files on network drives or synced folders such as OneDrive or Dropbox. Share through git instead.
 
-```text
-workspaces/PROJECT_ID/
-```
+**Do not hand-edit** the brief, specs, backlog, `gaps.md` or `requirements.md`: `/health` flags the edit, and in an agent the hook denies it. Resolve a gap through `/resolve-gaps` or `/sync`; add evidence through `/ingest` or `/sources` ([Workflows](03-workflows.md)). If a merge conflict lands in one of those files, take one side, then run the owning command again to regenerate it.
 
-The repo includes `workspaces/_template/` so a fresh clone already shows the expected structure.
+## Audit trail
 
-Raw evidence should be organized by source type:
+Git history plus the workspace's own logs answer "who decided what and when": `01_discovery/decisions.md`, `01_discovery/gap_resolution_log.md`, `01_discovery/agent_annotation_log.md` and `07_changes/metabolism_log.md`. The [admin guide](20-admin-guide.md#audit-trail) lists them. The command log in `.sentinel/` is local and not committed.
 
-```text
-workspaces/PROJECT_ID/00_raw/
-  00_client_requirement/
-  01_business_context/
-  02_technology_context/
-  03_design_context/
-  04_quality_context/
-  05_interactions/
-```
+## Next
 
-New information after the initial discovery should be treated as a controlled change:
-
-```text
-workspaces/PROJECT_ID/07_changes/
-  00_client_responses/
-  01_meetings/
-  02_mail_slack/
-  03_domain_updates/
-```
-
-## Merge Rules
-
-Merge into `main` only when the change improves the framework itself.
-
-Good candidates to merge:
-
-- new CLI behavior;
-- better validators;
-- improved templates;
-- improved Codex/Kilo instructions;
-- user guide improvements;
-- generic fixtures that contain no client data.
-
-Do not merge:
-
-- generated `workspaces/PROJECT_ID/` data from a real project;
-- client-specific raw input;
-- project-specific PRDs, backlog, traceability graphs, or memory indexes;
-- workflow experiments that exist only to test one client scenario.
-
-## Recommended Lifecycle
-
-1. Start from clean `main`.
-2. Create `project/PROJECT_ID`.
-3. Stage raw documents in `input/`.
-4. Run `/init`, `/ingest`, and `/maturity`.
-5. Use gaps as the conversation contract with the client and POD domains.
-6. Ingest answers, meeting notes, and domain updates with `/sync`.
-7. Generate `/specs` and `/backlog` only when maturity is no longer blocked.
-8. Run `/trace`, `/health`, and `/validate`.
-9. Keep the project branch separate unless there is an explicit reason to preserve or share it.
-
-## Clean Download Check
-
-Before publishing or merging framework changes:
-
-```powershell
-git status --short
-python -m sentinel /doctor
-python -m unittest discover -s tests
-```
-
-On Windows machines without a valid `python` command, use:
-
-```powershell
-.\installers\sentinel.ps1 /doctor
-```
-
-Confirm no real project workspace is staged.
-
-## Line Endings And Local Files Policy
-
-- `.gitattributes` normalizes line endings (`* text=auto`, LF in the repository). If `git status` ever shows mass "modified" files with no content changes, run `git add --renormalize .` in a dedicated commit with no functional changes mixed in.
-- Archives (`*.7z`, `*.zip`) and local tooling residue (such as `.sentinel_doctor_write_test`) are git-ignored and must never be committed. If a launcher or binary genuinely belongs in the repo, add an explicit negation rule and justify it in the PR.
-- Personal handoff or context documents live outside the repository (in your personal folders). Evolution/operational memory lives in the local `docs/` folder, which is git-ignored and never published to the public repository.
-
-## Command Adapter Source Of Truth
-
-Chat command definitions live in `sentinel/templates/commands_manifest.json`. The `.kilo/commands/` and `.claude/commands/` files are generated from it:
-
-```powershell
-python -m sentinel.adapters
-```
-
-Skills follow the same model: `.codex/skills/` is the canonical source and `python -m sentinel.adapters` mirrors every skill into the Agent Skills standard directories (`.agents/skills/` for Codex, Cursor, Gemini CLI and other standard readers; `.claude/skills/` for Claude Code), so one SKILL.md serves every tool that reads the open standard.
-
-Never edit the generated files directly: change the manifest (or the canonical skill) and regenerate. The unit suite fails if any adapter file drifts from the manifest, and `/doctor` verifies the manifest exists. When adding a lifecycle command, update the manifest, regenerate, and review the Codex command-router skill, which routes by pattern and does not need per-command files.
+- [Secure environments](09-secure-environments.md): handling client data
+- [Workflows by situation](03-workflows.md)
+- [Artifact reference](02-artifact-reference.md)
+- [Traceability and memory](05-traceability-and-memory.md)

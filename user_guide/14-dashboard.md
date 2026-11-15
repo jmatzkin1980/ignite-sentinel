@@ -1,70 +1,68 @@
 # Dashboard
 
-`/dashboard` creates a local, read-only portfolio view across every Sentinel workspace under `workspaces/`. It is meant for BA/Product review moments when you want to see phase, health, gaps, generated documents, backlog readiness, and recommended next steps without opening many Markdown files.
+`/dashboard` builds one local HTML page that shows every Sentinel workspace side by side: phase, health, gaps, documents, backlog readiness and the recommended next step. Use it in review meetings, or whenever you manage several projects and want the picture without opening many Markdown files. For a single artifact use [Artifact views](15-artifact-views.md).
 
-Run it from the repository root:
+> [!NOTE]
+> The dashboard interface is written in Spanish ("Indicadores", "Próximo paso", "Leyenda de colores", "Procedencia"), whatever the project language. Your project documents are not translated or changed. The per-artifact [views](15-artifact-views.md) do follow the project language.
 
-```powershell
-python -m sentinel /dashboard
+## Build it
+
+Run it from the repository root, where the `workspaces/` folder lives.
+
+```bash
+/dashboard
+python -m sentinel /dashboard --open
 ```
 
-It writes:
+| Option | Effect |
+|---|---|
+| `--open` | Open the page in your default browser when it is built. |
+| `--theme NAME_OR_PATH` | A built-in theme name, or the path to a theme JSON. Default `neutral`. See [Themes](17-themes.md). |
+| `--root PATH` | The repository root to read (default: the current folder). |
 
-```text
-dashboard.html
-```
+The command writes `dashboard.html` at `--root` (by default the folder you run it from). It is self-contained and opens offline. In a clone it is git-ignored because it can embed local workspace Markdown; with the plugin or the wheel it lands in your project folder, where nothing ignores it, so keep it out of commits yourself. Treat it as a rebuildable snapshot, not as a source of truth: it is not refreshed by other commands, so rerun `/dashboard` whenever workspace state changes.
 
-The file is self-contained and opens offline. It is intentionally git-ignored because it can embed local workspace Markdown. Treat it as a rebuildable snapshot, not as source of truth.
+The dashboard lists every folder under `workspaces/` that has a `state.json` and a valid project id. It skips `_template` and any folder commands could not act on, and it does not read release series: it shows each project as a whole. `--release` is not supported.
 
-## Themes and layout
+## What it shows
 
-```powershell
-python -m sentinel /dashboard --theme neutral
-python -m sentinel /dashboard --theme C:\path\to\my-theme.json
-```
+Each section appears only when there is data for it.
 
-- `--theme` takes a built-in theme name or the path to a local theme JSON. Only `neutral` ships in the repo; a brand theme stays on your machine.
-- The page follows the system light/dark preference; the top-bar button switches mode and remembers the choice in the browser.
-- The sidebar lists sections and workspaces; below 900 px it collapses into a menu button. A skip link jumps straight to the content.
-- The colour legend is generated from the theme, so every colour has a stated meaning.
-- Printing hides the navigation and the interactive panels.
+| Section (as labelled) | What it tells you |
+|---|---|
+| Indicadores | Portfolio totals and attention signals across all workspaces. |
+| Workspaces | One card per workspace: phase, health, language, privacy mode, maturity, development certainty, open gaps, backlog roll-up, warnings. |
+| Próximo paso | The recommended next step for that workspace (see `/next`). |
+| Acciones según la situación | Five ready-made prompts with the command chain for common situations: client answered gaps, new context arrived, a requirement changed, a meeting or email brought new definitions, prepare the handoff to development. |
+| Lifecycle de maduración | Whether the workspace is still in discovery, moving through specs, or ready for backlog and implementation review. |
+| Resumen | The `/status` summary, including the development-certainty score and the Crystallization Gate state, so confirmed, assumed and open uncertainty stays visible at portfolio level. |
+| Gaps pendientes | Open gaps, which you can copy for client or domain follow-up. |
+| Documentos | The workspace documents, opened inside the dashboard. The canonical files stay in each workspace. |
+| Backlog, Story gates (DoR / DoD), Warnings | Backlog totals, the latest Definition of Ready and Done evaluation per story, and warnings. |
 
-## Provenance and reproducibility
+The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance (**Procedencia**) shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
 
-The **Procedencia** section shows the source cut-off date (the newest modification time among the files read, not the time the HTML was built), the 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces produce byte-identical HTML. The model is validated before rendering (unique ids, counts derived from data); an inconsistent model fails instead of writing a misleading page.
-
-## From Chat
-
-You can ask for it in natural language:
-
-```text
-Mostrame el estado de los workspaces.
-```
-
-```text
-Show me the Sentinel dashboard and summarize what needs attention.
-```
-
-The agent should run `/dashboard`, report the generated path, summarize the portfolio signals, and stop before running any mutating lifecycle command unless you explicitly ask for the next action.
-
-Codex-safe exact form:
-
-```text
-sentinel /dashboard
-```
-
-## How To Read It
-
-- Portfolio cards show totals and attention signals across workspaces.
-- Workspace rows show phase, health, language, privacy mode, maturity, development certainty, gaps, backlog rollup, warnings, and next step.
-- The workspace summary includes the `development_readiness` score and Crystallization Gate state from `/status`, so confirmed, assumed, and open uncertainty remains visible at portfolio level.
-- Lifecycle stages help you see whether a workspace is still in discovery, moving through specs, or ready for backlog/implementation review.
-- Gaps can be copied for client/domain follow-up.
-- Documents open in the dashboard for quick review, but the canonical files still live under each workspace.
+The dashboard has no feedback panel by design; capture and comments exist only in the artifact views.
 
 ## Guardrails
 
-- Read-only: the dashboard never mutates workspaces.
-- Local-first: no remote rendering, no external services, and no network calls.
-- Rebuildable: rerun `/dashboard` whenever workspace state changes.
-- Governed: follow-up changes still go through lifecycle commands such as `/resolve-gaps`, `/sync`, `/story-status`, `/health`, or `/validate`.
+- **Read-only.** It never changes a workspace.
+- **Local-first.** No remote rendering, no external services, no network calls.
+- **Governed.** Follow-up changes still go through the lifecycle commands: `/resolve-gaps`, `/sync`, `/story-status`, `/health`, `/validate`.
+
+## From chat
+
+You can ask in natural language, in either language:
+
+```text
+Show me the Sentinel dashboard and summarize what needs attention.
+Mostrame el estado de los workspaces.
+```
+
+The agent should run `/dashboard`, report the generated path, summarize the portfolio signals, and stop before running any mutating command unless you ask for the next action. The exact form that Codex accepts is `sentinel /dashboard`.
+
+## Next
+
+- [Artifact views](15-artifact-views.md): per-artifact pages, the shared shell and provenance.
+- [Themes](17-themes.md): change colours and fonts.
+- [Workflows](03-workflows.md): what to do after reading the dashboard.

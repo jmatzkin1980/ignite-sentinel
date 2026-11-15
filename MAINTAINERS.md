@@ -25,6 +25,76 @@ The rules below exist because, in this repository, the framework and its trial p
 - **Tune project domains and maturity gates** in `sentinel.config.yaml`.
 - **Keep the checkout lean.** Eval reports under `tests/evals/reports/` keep only the newest `SENTINEL_EVAL_KEEP_REPORTS` (default 5) per kind; `SENTINEL_EVAL_REPORTS=0` skips writing them (CI). `python tools/clean_local.py` lists regenerable local residue (git-ignored caches and build output, old reports, leftover test tempdirs) as a dry-run; `--apply` deletes it. It never touches tracked files, `.venv/`, `docs/` or `*.local.*`, and offers `workspaces/*` only with `--include-workspaces` plus a typed per-workspace confirmation. Tests must clean what they create: prefer `tempfile.TemporaryDirectory` with `addCleanup` over a bare `mkdtemp()`.
 
+## Generated surfaces: adapters, skill mirrors and plugins
+
+Never edit a generated file by hand. Change the source and regenerate:
+
+| Generated | Source | Command |
+|---|---|---|
+| `.claude/commands/`, `.kilo/commands/` | `sentinel/templates/commands_manifest.json` | `python -m sentinel.adapters` |
+| `.agents/skills/`, `.claude/skills/` | `.codex/skills/` | `python -m sentinel.adapters` |
+| `plugins/`, `.claude-plugin/marketplace.json` | `.codex/skills/` (with the `claude-plugin` overlay, which only changes the runtime invocation), `sentinel/`, `pyproject.toml` | `python -m sentinel.adapters --plugin` |
+
+- `plugins/*/lib/sentinel/` is a byte-for-byte copy of `sentinel/`; the plugin version comes from `pyproject.toml`.
+- The unit suite fails when an adapter or mirror drifts from its source, and `/doctor` → `claude_plugin_check` fails on plugin drift and on the manifest mistakes `claude plugin validate` rejects (`..` in a source, entry name different from manifest name, version in the entry, a `homepage` that is not a URL, reserved names, a top-level `bin/`, `hooks.json` without its `"hooks"` wrapper).
+- CI → `plugin-validate` runs Claude Code's own `claude plugin validate --strict` on the marketplace and both plugins.
+- When you add a lifecycle command, update the registry (`sentinel/commands.py`) and the manifest, regenerate, and review the command-router skill, which routes by pattern and needs no per-command file.
+
+## Cutting a release
+
+The version lives in `pyproject.toml`. `sentinel/__init__.py` and both `plugin.json` repeat it, and `python tools/release.py check` fails when any of them differs (CI → `release-check`).
+
+1. On a branch, bump `version` in `pyproject.toml` and `__version__` in `sentinel/__init__.py`, then run `python -m sentinel.adapters --plugin`.
+2. Bump the pinned ref in `user_guide/20-admin-guide.md` and `user_guide/references/managed-settings.json` by hand: the release tooling does not update them.
+3. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` and open a new, empty `## [Unreleased]` above it.
+4. Merge the PR. Nobody tags by hand: `release-check` on `main` tags `vX.Y.Z` on the merge commit that introduced the version, then calls `release-attest`, which:
+   - fails on a tag that is not the version ("tag without a bump") or that has no dated CHANGELOG section;
+   - builds the wheel, the SBOM and the two plugin zips, and validates each zip;
+   - attests all of them and creates the GitHub release with the CHANGELOG section as notes, plus `SHA256SUMS` for the zips;
+   - fast-forwards `stable` to the tag.
+5. Verify the release: download the assets, check `SHA256SUMS`, and run `gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel` on each.
+
+`release-check` on `main` also fails when the version is untagged and CHANGELOG has no dated section for it, or when the version sources disagree. A tag pushed by hand (`git push origin vX.Y.Z`) runs the same `release-attest`. `python tools/release.py zip --out dist` builds the same zips locally and reproducibly (same commit, same bytes: `SOURCE_DATE_EPOCH`, sorted entries, LF endings). The `.pyz` zipapp is built locally (`python -m sentinel.build`) and is not a release asset.
+
+## Clean-clone check
+
+Run this end to end on a new machine, or after a change that touches the runtime, to confirm a fresh clone works:
+
+1. Clone into a fresh folder and run `python -m sentinel /doctor` (on Windows without a working `python`, use `.\installers\sentinel.ps1 /doctor`).
+2. Run `.\verify.ps1` (or `./verify.sh`): the parallel unit suite, `/doctor` and the evals. Stage your changes first (`git add -A`): `/doctor` only scans tracked files. If a change added a command or a skill, run `python -m sentinel.adapters` before.
+3. Smoke the lifecycle on a synthetic input, never client data: `/init SMOKE`, `/ingest SMOKE --source <synthetic note>`, `/status SMOKE` (expect discovery and open gaps), `/specs SMOKE` (expect a gate refusal, exit 4).
+4. Open the folder in your agent and confirm it sees its adapter: `.claude/` and `CLAUDE.md`, `.agents/skills/` and `AGENTS.md`, `.kilo/`.
+5. Delete the smoke workspace before committing anything.
+
+`python -m unittest -b tests.test_build_pyz` builds `sentinel.pyz`, copies the framework without `.git`, `.venv` or `dist`, and runs `/doctor` from the `.pyz` against that copy.
+
+## Framework branches and merges
+
+- Merge into `main` only what improves the framework: CLI behaviour, validators, templates, agent instructions, user-guide improvements, synthetic fixtures.
+- Never merge generated workspaces from a real project, client raw input, project-specific PRDs, backlogs, graphs or memory indexes, or experiments that exist only for one client scenario. Run framework trials in project branches (`project/<ID>`) and keep them apart.
+- `.gitattributes` normalizes line endings (`* text=auto`, LF in the repository). If `git status` shows mass "modified" files with no content change, run `git add --renormalize .` in a commit of its own.
+- Archives (`*.7z`, `*.zip`) and local tool residue are git-ignored and never committed; a binary that genuinely belongs in the repo needs an explicit negation rule justified in the PR.
+
+## Lens knowledge base (`sentinel/lenses/`)
+
+What each lens scrutinizes, with which severity, which tokens close it and which question it asks is declarative data, one JSON file per lens (`business`, `product`, `quality`, `technical`, `compliance`, `delivery`, `design`). The discovery engine (`detect_gaps`) and the per-domain context requests read the same files, so they never diverge.
+
+Each entry of a lens's `checks` array declares:
+
+- `id`: a stable `GAP-*` identifier; `severity`: `critical | high | medium | low`; `description`: what is missing (in English, like the artifacts).
+- `rule`, one of:
+  - `absent_tokens`: fires when none of the `tokens` appears in the evidence;
+  - `mention_without_counterpart`: a surface-level inquisitive check that fires unless a `counterparts` term appears (the optional `trigger` only supplies the quote);
+  - `mention_requires_counterpart`: fires only when the concept is named (`triggers`) and its counterpart is missing; severity `medium`, anchored to the quoted mention;
+  - `metric_without_source`: fires on a quantitative metric with none of the `suppressors` (source or baseline words).
+- `evidence_scope`: `source | technical | design | quality | frontend | all`.
+- `weak_word_smell`: fires on a phrase from `sentinel/smells/*.json` used as weak wording (a review signal, not a block), referenced with `catalog` and `categories`.
+- `why` (optional): the field experience behind the check, shown in the context request.
+
+A reassuring token should not close a question when it brings no detail a PRD can use (a goal is not persona detail; a target without a measurement method and window is not a KPI).
+
+To add a check: add the object to the lens file, then run `python tests/evals/run_discovery_evals.py` and the suite. For PRD-grade checks, also update `tests/fixtures/evals/*/answer_key.json` (`must_fire`, `target_fire`, `must_not_fire`, `distractors`) and, when a fixture must pass real gates to `/specs`, add a synthetic answer to its `gap_responses.md`. The eval report includes `gap_benchmark` (precision, recall, F1, per-lens recall, distractor false-positive rate); expect zero new false positives. Backlog changes use the `backlog` block of the same answer keys. The lens model is the team's own knowledge: put field experience here for review in a PR, not generic checklists copied from elsewhere.
+
 ## Semantic verification is portable; the automation is not
 
 Two layers check that a governed artifact still matches its cited evidence, and only one of them is portable:
