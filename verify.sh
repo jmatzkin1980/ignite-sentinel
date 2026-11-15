@@ -3,7 +3,7 @@
 #
 # Resolves a Python 3.10+ interpreter (SENTINEL_PYTHON, then .venv/bin/python,
 # then python3, then python) and runs, stopping at the first failure:
-#   1. tools/run_tests.py --tier full --slowest 10 (the whole suite, then the 10 slowest modules)
+#   1. tools/run_tests.py --tier full --jobs auto --slowest 10 (the whole suite in parallel, then the 10 slowest modules)
 #   2. python -m sentinel doctor
 #   3. tests/evals/run_discovery_evals.py and
 #      tests/evals/run_faithfulness_claim_evals.py   (skipped with --skip-evals)
@@ -47,7 +47,7 @@ cd "$repo_root"
 
 echo
 echo "==> [1/3] unittest discover -s tests (then the slowest modules)"
-"$python" tools/run_tests.py --tier full --slowest 10
+"$python" tools/run_tests.py --tier full --jobs auto --slowest 10
 
 echo
 echo "==> [2/3] sentinel doctor"

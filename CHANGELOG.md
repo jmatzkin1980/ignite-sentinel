@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+- A parallel test run (IMP-309, H19). `tools/run_tests.py --jobs N` (or `--jobs auto`, one process per CPU) runs whole test modules in worker processes and prints the same closing lines as unittest (`Ran N tests`, `OK` or `FAILED`), with every failure's traceback.
+  - **The unit is the module:** a module's fixtures and its working-directory changes are process state. Inside one worker, modules run one after another, as in a serial run.
+  - **Order:** the modules in `tests/slow_modules.txt` start first, so the longest ones do not start last.
+  - **Output:** each worker's own stdout (the CLI output many tests print) is discarded.
+  - **Effect:** `verify.ps1` and `verify.sh` now use `--jobs auto`. On a 16-CPU Windows machine the suite went from about 27 minutes to about 5. The slowest-modules list then measures time under load, so read its shares, not its seconds.
+  - **CI:** the CI workflows keep running the suite serially.
+
 ### Fixed
 - Path conversion slowed every command (IMP-304, a regression from IMP-301).
   - **The cause:** converting a stored path to or from workspace-relative form resolved the workspace folder each time, a filesystem call on Windows. It runs for every graph node and every memory chunk on every save, so it took a third of a whole flow.
