@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-11-15
+
 ### Fixed
 - The one-time brief v2 settings step was neither asked for nor enforced (IMP-311, H20).
   - **Before:** `/next` and `/status` said "Waiting for client answers" on a new project and never mentioned `/brief --profile --genesis`. When the step was skipped, `/maturity` decided `READY_FOR_SPECS` before compiling, then compiled a provisional brief in the old v1 layout, and a first `/specs` generated the PRD from it.
