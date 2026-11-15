@@ -6,6 +6,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+- A leaner test suite (IMP-305). The suite had grown to about 40 minutes on Windows, and most of its cost sat in a few modules that rebuilt the same workspace for every test.
+  - **One build per class:** `tests/helpers.py` adds `SnapshotWorkspaceCase`, which builds a workspace once per class and restores a fresh copy, at the same path, before each test. Six backlog modules now use it: story status, refinement, hooks, gate overrides, implementation feedback and story format.
+  - **Series E2E:** the second full run, which only proves determinism, now runs for one case instead of three.
+  - **Removed duplicates**, each covered by a stronger test that is still there:
+    - the hardcoded command and MCP tool lists in `test_core_flow` (the registry pins both);
+    - a `/doctor` command-list check that held by construction;
+    - a second Kilo allowlist test;
+    - five copies of the skill mirror check and three of the per-skill metadata check;
+    - a second plugin-sync check;
+    - the discovery-eval assertions repeated in `test_annotate`.
+  - **Where the time goes:** `verify.ps1` and `verify.sh` run the suite through `tools/run_tests.py --tier full --slowest 10`, which ends with the 10 slowest modules. A jump in the suite's time now shows in the PR that causes it.
+
 ## [0.10.0] — 2026-11-14
 
 H18: robustness. One command registry feeds the CLI, the MCP server and the docs. Failures exit with typed codes from 0 to 6 and name the next step. One command at a time per workspace, under an operating-system lock. `state.json` is durable and versioned, and a 0.9.0 workspace migrates itself once, after a backup. The graph and the memory store workspace-relative paths, so a workspace can be moved or cloned. The Markdown artifacts are unchanged: the H18 closing control found 30/30 identical on `support-dashboard`.

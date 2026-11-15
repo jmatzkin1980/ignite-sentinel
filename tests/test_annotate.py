@@ -13,7 +13,6 @@ Deterministic and local-first: real CLI in a temp cwd, no network.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 from sentinel.core.state import read_workspace_state  # IMP-300: state.json + .sentinel/derived
 import os
@@ -25,7 +24,6 @@ from pathlib import Path
 from sentinel.cli import main
 from sentinel.discovery import AnnotationError, apply_annotation, parse_gap_rows, validate_agent_gaps
 
-ROOT = Path(__file__).parent
 
 RAW = (
     "# Reporting Portal\n\n"
@@ -165,32 +163,8 @@ class AnnotateLifecycleTests(unittest.TestCase):
         self.assertEqual(main(["annotate", "ANN", "--source", str(bad)]), 3)  # IMP-302: invalid input
 
 
-def _load_runner():
-    spec = importlib.util.spec_from_file_location(
-        "run_discovery_evals", ROOT / "evals" / "run_discovery_evals.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-class AnnotateBreaksLexicalCeilingTests(unittest.TestCase):
-    """The falsifiable IMP-021 result on the expense-approval fixture."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.runner = _load_runner()
-        cls.fixture = ROOT / "fixtures" / "evals" / "expense-approval"
-
-    def test_lexical_pass_still_suppresses(self):
-        lexical = self.runner.run_fixture(self.fixture)
-        self.assertEqual(lexical["target_recall"], 0.0)
-
-    def test_annotation_pass_recovers_all_targets(self):
-        agentic = self.runner.run_fixture(self.fixture, apply_annotation=True)
-        self.assertEqual(agentic["target_recall"], 1.0)
-        self.assertEqual(agentic["target_fire_total"], 5)
-        self.assertEqual(len(agentic["target_fire_detected"]), 5)
+# IMP-305: the IMP-021 result on expense-approval (lexical recall 0.0, annotated 1.0)
+# is locked in test_evals_brief (ExpenseApprovalCeilingTests, AnnotatedDiscoveryEvalTests).
 
 
 if __name__ == "__main__":
