@@ -6,7 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-11-15
+
+H19: closing open topics. `verify.ps1` runs the suite in parallel and takes about 6 minutes; before the IMP-305 cleanup it took about 47. `/trace` and `/maturity` are registered as the writers they are, and a test keeps every read-only command from writing an artifact. The skill metadata check catches any surface named in a description. Generated artifacts cite paths as `workspaces/<id>/...` instead of the absolute folder, so a moved workspace regenerates the same Markdown.
+
 ### Added
+- H19 closing check (IMP-31z), outside the suite, on `support-dashboard`:
+  - **v1:** 12/12 phases green on this branch and on `v0.10.0`, with `/validate` VALID. 25 of 30 Markdown are identical. The 5 differences are the IMP-308 citations: `<absolute folder>/workspaces/SUPDASH/...` became `workspaces/SUPDASH/...` in the maturity report, the epic, one story, the traceability matrix and the gap-resolution report.
+  - **Default v2 flow:** two runs are identical (30/30), compared without normalizing paths. Neither cites the absolute folder.
+  - **Portability:** one workspace copied to two different folders and regenerated in each, from `/status` to `/validate`. 31 of 31 Markdown are identical without normalizing paths, there are 26 unique graph nodes, and no path is absolute.
+  - **`--assess`:** gives `no_split`.
 - A parallel test run (IMP-309, H19). `tools/run_tests.py --jobs N` (or `--jobs auto`, one process per CPU) runs whole test modules in worker processes and prints the same closing lines as unittest (`Ran N tests`, `OK` or `FAILED`), with every failure's traceback.
   - **The unit is the module:** a module's fixtures and its working-directory changes are process state. Inside one worker, modules run one after another, as in a serial run.
   - **Order:** the modules in `tests/slow_modules.txt` start first, so the longest ones do not start last.
