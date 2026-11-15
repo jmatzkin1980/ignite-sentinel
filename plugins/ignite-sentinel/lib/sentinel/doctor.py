@@ -251,9 +251,9 @@ def skill_metadata_checks(root: Path) -> list[dict[str, str]]:
         elif name != skill:
             status = "FAIL"
             detail = f"frontmatter name '{name}' does not match directory '{skill}'"
-        elif "codex" in description.lower():
+        elif leaks := surface_leaks(description):  # IMP-307: the shared detector, not "codex" alone
             status = "WARN"
-            detail = "description names a specific agent; keep it agent-neutral (mirrored to every surface)"
+            detail = f"description names {', '.join(leaks)}; keep it agent-neutral (mirrored to every surface)"
         else:
             status = "PASS"
             detail = str(path)

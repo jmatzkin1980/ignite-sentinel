@@ -80,6 +80,33 @@ class SkillMetadataChecksTests(unittest.TestCase):
             checks = {check["name"]: check for check in skill_metadata_checks(root)}
             self.assertEqual(checks["skill metadata: sentinel-annotate"]["status"], "FAIL")
 
+    def test_any_surface_named_in_a_description_warns(self):
+        # IMP-307: the check used to look for "codex" only; it now shares surface_leaks().
+        for surface in ("Kilo", "Claude", "Codex", "VS Code"):
+            with self.subTest(surface=surface), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                skill_dir = root / ".codex" / "skills" / "sentinel-annotate"
+                skill_dir.mkdir(parents=True)
+                (skill_dir / "SKILL.md").write_text(
+                    f'---\nname: sentinel-annotate\ndescription: "Use when {surface} must merge gaps."\n---\n\n# Body\n',
+                    encoding="utf-8",
+                )
+                check = {c["name"]: c for c in skill_metadata_checks(root)}["skill metadata: sentinel-annotate"]
+                self.assertEqual(check["status"], "WARN")
+                self.assertIn(surface, check["detail"])
+
+    def test_a_cited_repo_file_is_not_a_leak(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            skill_dir = root / ".codex" / "skills" / "sentinel-annotate"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                '---\nname: sentinel-annotate\ndescription: "Use when merging gaps; rules in CLAUDE.md."\n---\n\n# Body\n',
+                encoding="utf-8",
+            )
+            check = {c["name"]: c for c in skill_metadata_checks(root)}["skill metadata: sentinel-annotate"]
+            self.assertEqual(check["status"], "PASS")
+
 
 class RouterMentionGuardTests(unittest.TestCase):
     def test_router_documents_every_manifest_command(self):
