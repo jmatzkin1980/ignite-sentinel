@@ -16,7 +16,7 @@ python -m sentinel /view ACME_PORTAL --artifact prd --open
 | `--theme NAME_OR_PATH` | A built-in theme name, a local theme name, or the path to a theme JSON. Without it: `theme:` in `sentinel.config.yaml`, then `neutral`. See [Themes](17-themes.md). |
 | `--release rN` | Build the view for one release of a confirmed series. |
 
-`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it fails with `Artifact not found for /view: workspaces/<ID>/<path>`; run the command that creates it first.
+`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first.
 
 **Output path.** The file is `workspaces/<PROJECT_ID>/08_context_packs/views/<artifact>.html`. With `--release rN` it is `workspaces/<PROJECT_ID>/08_context_packs/rN/views/<artifact>.html`. Views are ignored by git and safe to delete: rebuild them any time. The Markdown stays the source of truth; do not edit the HTML.
 

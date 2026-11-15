@@ -56,7 +56,7 @@ def _place_lines(brief_text: str, place: str) -> list[str] | None:
 def validate_reviews(brief_text: str, sources: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
     """Accepted gaps, rejected reviews (with reasons) and counts per verdict. Pure."""
     if parse_brief(brief_text).version != 2:
-        raise AnchorReviewError("Anchor review reads a brief v2; compile one with /brief first.")
+        raise AnchorReviewError("Anchor review reads a brief v2; compile one with /brief first.", gate=True)
     reviews = payload.get("anchors")
     if not isinstance(reviews, list) or not reviews:
         raise AnchorReviewError("The payload needs a non-empty `anchors` list.")
@@ -158,7 +158,7 @@ def apply_anchor_review(project_id: str, source_path: Path) -> dict[str, Any]:
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.exists():
-        raise AnchorReviewError("Anchor review needs a compiled brief: run /brief first.")
+        raise AnchorReviewError("Anchor review needs a compiled brief: run /brief first.", gate=True)
     payload = read_json(source_path, None)
     if not isinstance(payload, dict):
         raise AnchorReviewError("The anchor review payload must be a JSON object.")

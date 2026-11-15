@@ -59,6 +59,8 @@ class ExitCodeMatrixTests(SnapshotWorkspaceCase):
             "--release before a series": ["status", PROJECT, "--release", "r1"],
             "prototype --manual before an inventory": ["prototype", PROJECT, "--manual", "--source", payload],
             "prototype --trace before a brief": ["prototype", PROJECT, "--trace", "--source", payload],
+            "scrutinize --mode anchors before a brief": ["scrutinize", PROJECT, "--source", payload, "--mode", "anchors"],
+            "self-review --sufficiency before a brief": ["self-review", PROJECT, "--source", payload, "--sufficiency"],
         }
         for label, argv in cases.items():
             with self.subTest(label):
