@@ -95,6 +95,7 @@ Execution rule:
 - `/dashboard` is portfolio-scoped and does not take `PROJECT_ID`: run `python -m sentinel /dashboard [--root PATH] [--open]`.
 - If `python` is not available, use the configured or bundled Python runtime when visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]` on Windows.
 - For commands that mutate project artifacts, run the CLI rather than editing generated files manually.
+- When a command leaves the user a decision or a next step, close with one short question and 2 to 4 options, the recommended one first (the surface's question tool when it has one, otherwise a numbered list). Picking an option never closes a gap or confirms anything on the user's behalf.
 - `/gaps PROJECT_ID` regenerates the human-friendly discovery gap document.
 - `/annotate PROJECT_ID --source ANALYSIS.json` merges an agentic semantic analysis of the raw input into gaps: each proposed gap needs a declared lens, a valid severity, and a verbatim evidence quote. The runtime validates and tags them `origin: agent`; ungrounded gaps are rejected.
 - `/resolve-gaps PROJECT_ID --source PATH` processes structured client/domain answers and safely closes only confirmed or not-applicable gaps.

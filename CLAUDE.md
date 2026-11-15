@@ -46,6 +46,7 @@ Reglas de routing (aplican también en Claude Desktop/Cowork, donde no hay slash
 - Nunca editar artefactos generados a mano: siempre mutar vía CLI.
 - Respetar los gates; si un comando se bloquea, explicar por qué y recomendar el paso previo correcto.
 - Tras cada comando, resumir resultado, artefactos generados y próximo paso recomendado.
+- Si queda una decisión o un próximo paso para el usuario, cerrar con una pregunta corta y 2 a 4 opciones, la recomendada primero (con `AskUserQuestion` cuando esté disponible). Elegir una opción nunca cierra un gap ni confirma nada por el usuario.
 
 Gates implementados (no forzarlos): `/specs` y `/backlog` requieren ingest previo y fallan con maturity `BLOCKED`; `/backlog`, `/refine-backlog` y `/quality` se bloquean con health `DIRTY`; `/quality` requiere user stories existentes. `/story-status` es el único canal para estado/owner de historias y evidencia local de DoD; evalúa DoR/DoD con `backlog_gate` blando por default y strict opt-in. `/backlog-status` regenera `04_backlog/BACKLOG.md` como tablero BA desde estado gobernado/readiness; no editar `BACKLOG.md`, `US-NNN.md`, `state.json` ni evidencia de gate a mano. `/refine-backlog` solo acepta propuestas agénticas citadas y las registra como overlay `origin: agent`; no reescribe historias ni el boundary de enablers.
 

@@ -88,6 +88,16 @@ For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root 
 
 The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md` (the append-only log is `workspaces/PROJECT_ID/.sentinel/command_log.jsonl`).
 
+## Closing the turn
+
+When a command leaves the user a decision or a next step, end with one short question and 2 to 4 options, your recommendation first. An action buried in a paragraph is easy to miss, above all for users who do not know the commands.
+
+- In Claude Code, ask with the `AskUserQuestion` tool when it is available, so the options show as choices; elsewhere, as a numbered list.
+- Each option says what happens: the command it runs, or the file the user has to fill in. The user can always answer in their own words or call a skill instead.
+- A gate refusal already names its prerequisite: offer that step as the first option.
+- Options never decide for the user. Picking one never closes a gap, confirms a brief setting or signs a `/split` step: those still need the user's own answers and names.
+- Ask nothing when nothing is pending.
+
 ## Routing
 
 - `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.

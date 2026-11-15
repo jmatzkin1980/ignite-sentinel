@@ -8,6 +8,8 @@ Every chat command is a shortcut for the same command-line call. Typing `/gaps A
 
 You can type the command, or describe the situation in plain words and let the agent pick the command. Either way the agent should end by telling you what was written, the gap and health state, and the next step.
 
+When something is waiting on you, the agent closes with one question and a few options, the recommended one first: for example "run `/brief` with the proposed settings", "export the gaps as an interview" or "stop here". In Claude Code they can show as choices to click; elsewhere as a numbered list. You can pick one or answer in your own words. Picking an option never closes a gap or confirms anything for you.
+
 ```mermaid
 flowchart LR
     U["You: /gaps ACME_PORTAL<br/>or 'what is still missing?'"] --> A["Agent and skill"]
