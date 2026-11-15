@@ -30,7 +30,7 @@ The same Claude Code works in the terminal and in the VS Code extension. A chat-
    Claude Code has a built-in `/init` of its own. If it answers instead of Sentinel, send `/sentinel /init ACME_PORTAL`.
 4. A new project uses brief v2: confirm its profile and genesis once with `/brief ACME_PORTAL --profile UI,API --genesis greenfield`. Until then `GAP-BRIEF-PROFILE` is open and `/specs` refuses. See [Workflows](03-workflows.md).
 
-With the plugin the steps are the same, spelled `sentinel /init ACME_PORTAL`, and `/doctor` is not used (see the [plugin guide](18-claude-plugin.md#first-run)).
+With the plugin the steps are the same, spelled `sentinel /init ACME_PORTAL`, and `/doctor` runs in runtime mode, checking the runtime but not the clone's files (see the [plugin guide](18-claude-plugin.md#first-run)).
 
 ## Commands
 

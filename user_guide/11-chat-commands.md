@@ -109,7 +109,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 
 | You say | Run | Notes |
 |---|---|---|
-| "Is Sentinel working on this machine?" | `/doctor` | A clone check. `WARN` on LanceDB is healthy. |
+| "Is Sentinel working on this machine?" | `/doctor` | Full check in a clone, runtime check elsewhere (plugin, wheel, `.pyz`). `WARN` on LanceDB is healthy. |
 | "I got a pile of requests, how many projects is this?" | `sentinel-intake-triage` skill, then `/init` | Groups requests by theme before any project exists. |
 | "I have a new client requirement in this file" | `/init` → `/ingest --source FILE` → `/brief --profile ... --genesis ...` → `/next` | `gaps.md` is ready after `/ingest`. Confirm the brief settings right after the first `/ingest`; `/next` asks for it and suggests values. In a Claude Code clone, if `/init` starts Claude Code's own setup, send `/sentinel /init`. |
 | "Set up the brief for a new screen-based system" | `/brief` → `/brief --profile UI --genesis greenfield` | Required once on a new project, right after the first `/ingest`. If skipped, see [what happens](00-user-guide.md#if-you-skip-the-brief-settings). |

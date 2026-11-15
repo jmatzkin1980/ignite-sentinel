@@ -204,7 +204,7 @@ For each release you approve:
 
 3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py` through `python.sh`, the script that finds Python. Read the hook script and `python.sh`; `python.sh` only looks for an interpreter and runs it. Any new hook, matcher or command is a reason to stop and ask.
 4. **Surface.** The plugin still has no `bin/`, monitors, LSP servers or MCP servers (those live only in `ignite-sentinel-mcp`).
-5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`. Without a clone, unpack the release zip and read `lib/sentinel/` yourself: it is the same source. (`/doctor` checks a full framework folder, so it does not run on the unpacked plugin.)
+5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`. Without a clone, unpack the release zip and read `lib/sentinel/` yourself: it is the same source. (`/doctor` does run on the unpacked plugin folder, but in runtime mode it only checks the runtime; `stdlib_purity_check` and `claude_plugin_check` still need a clone.)
 6. **Dependencies.** The SBOM (`ignite-sentinel-vX.Y.Z.cdx.json`) lists only the optional extras; the plugin itself uses none of them.
 
 ## Retention and cleanup

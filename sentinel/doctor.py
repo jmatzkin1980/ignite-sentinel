@@ -61,8 +61,46 @@ REQUIRED_KILO_AGENTS = [
 ]
 
 
+def is_framework_root(root: Path) -> bool:
+    """IMP-314: a framework clone (or a copy of its tree), as opposed to a project folder.
+
+    A user of the Claude Code plugin, the wheel or a `.pyz` runs Sentinel from a project
+    folder that has none of the clone's files; checking those paths there only fails.
+    """
+    return (root / "sentinel" / "__init__.py").is_file() or (root / ".codex" / "skills").is_dir()
+
+
+def runtime_checks(root: Path) -> list[dict[str, str]]:
+    """IMP-314: what /doctor can check outside a clone: the interpreter, the package, this folder."""
+    return [
+        python_check(),
+        {
+            "name": "doctor mode",
+            "status": "PASS",
+            "detail": (
+                f"{root} is not a framework clone (plugin, wheel or .pyz install), so the checks of the "
+                "clone's files are skipped. To check a clone, run /doctor --root PATH_TO_THE_CLONE."
+            ),
+        },
+        command_surface_parity_check(),
+        network_isolation_check(),
+        project_ids_check(root),
+        workspace_portability_check(root),
+        write_check(root),
+        memory_dependency_check(),
+        semantic_embedder_check(),
+        lancedb_smoke_check(),
+        memory_backend_mode_check(),
+        optional_dependency_check("sentence_transformers"),
+        mcp_dependency_check(),
+        brief_schema_check(),
+    ]
+
+
 def run_doctor(root: Path | None = None) -> dict[str, Any]:
     root = (root or Path.cwd()).resolve()
+    if not is_framework_root(root):
+        return _doctor_result(root, runtime_checks(root), "runtime")
     checks = [
         python_check(),
         path_check(root, "sentinel", "core runtime"),
@@ -134,10 +172,15 @@ def run_doctor(root: Path | None = None) -> dict[str, Any]:
         brief_schema_check(),
         brief_vocabulary_check(root),
     ]
+    return _doctor_result(root, checks, "framework")
+
+
+def _doctor_result(root: Path, checks: list[dict[str, str]], mode: str) -> dict[str, Any]:
     blocking = [check for check in checks if check["status"] == "FAIL"]
     warnings = [check for check in checks if check["status"] == "WARN"]
     return {
         "verdict": "PASS" if not blocking else "FAIL",
+        "mode": mode,
         "root": str(root),
         "platform": {
             "system": platform.system(),

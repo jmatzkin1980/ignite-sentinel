@@ -41,7 +41,7 @@ The plugin has no slash commands of its own: it ships skills and one hook. A ski
 **Check:** `claude plugin list` shows `ignite-sentinel` enabled and `workspaces/ACME_PORTAL/` appears in your folder.
 
 > [!NOTE]
-> `/doctor` checks a full framework folder (it looks for `AGENTS.md`, `.kilo/` and so on), so inside a plain project folder it reports `FAIL` on missing files. Use it in a clone, not with the plugin. Also, running a skill in a signed-in session from the GitHub marketplace has not yet been watched; the bundled runtime and hook are exercised by tests from a copied plugin folder.
+> Inside a plain project folder `/doctor` runs in runtime mode (`"mode": "runtime"`): it checks the interpreter, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. To check a clone, run `/doctor --root PATH_TO_THE_CLONE`. Also, running a skill in a signed-in session from the GitHub marketplace has not yet been watched; the bundled runtime and hook are exercised by tests from a copied plugin folder.
 
 The rest of the lifecycle is the same on every surface: see [Workflows](03-workflows.md) and the [command reference](01-command-reference.md).
 

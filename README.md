@@ -106,7 +106,7 @@ python -m sentinel /next ACME_PORTAL
 
 What happens:
 
-1. `/doctor` checks Python and the repository files. `PASS` means go; a `WARN` about LanceDB is healthy. (Skip it with the plugin: it checks a clone.)
+1. `/doctor` checks Python and the repository files. `PASS` means go; a `WARN` about LanceDB is healthy. (With the plugin, the wheel or a `.pyz` it runs in runtime mode: it checks the interpreter, the folder and the optional extras, and skips the clone's files.)
 2. `/init` creates `workspaces/ACME_PORTAL/`. The project starts with health `DIRTY` and stage `DISCOVERY_RAW`. That is normal: nothing is known yet.
 3. `/ingest` copies a redacted version of the request (secrets masked) into the workspace and writes **`workspaces/ACME_PORTAL/01_discovery/gaps.md`**. Open it: each gap has a question, why it matters, what answering it unblocks, and an answer template. If the command stops with exit 3 and `--source file not found`, check the path: it is read relative to the folder you run Sentinel from.
 4. `/brief --profile --genesis` confirms, once, what kind of system this is (here a user interface on a new build), and compiles the project brief with a pending mark wherever an answer is missing. Do it right after the first `/ingest`; until then `/next` asks for it.
