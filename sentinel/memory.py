@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .core.paths import resolve_in_workspace, workspace_relative
+from .core.paths import workspace_absolute, workspace_relative
 from .workspace import memory_path, read_json, write_json, workspace_path
 
 
@@ -364,7 +364,7 @@ class ContextBroker:
         self.path = memory_path(project_id)
         self.data = with_memory_paths(
             read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []}),
-            lambda value: resolve_in_workspace(project_id, value).as_posix(),
+            lambda value: workspace_absolute(project_id, value),
         )
         self.lance_dir = self.path.parent / "lance"
         self.manifest_path = self.path.parent / "artifact_manifest.json"
