@@ -235,14 +235,14 @@ def build_inventory(project_id: str, source: str = "") -> dict[str, Any]:
     sources = _html_sources(project_id, source)
     if not sources:
         raise PrototypeError(f"no HTML prototype {'for ' + source + ' ' if source else ''}among the ingested sources; "
-                             "ingest it first (/ingest PROJECT_ID --source prototype.html)")
+                             "ingest it first (/ingest PROJECT_ID --source prototype.html)", gate=True)
     base = workspace_path(project_id)
     prototypes = []
     for row in sources:
         copy = Path(row["copy"])
         path = copy if copy.is_absolute() else repo_root() / copy
         if not path.is_file():
-            raise PrototypeError(f"{row['id']}: its copy {row['copy']} is missing; ingest it again")
+            raise PrototypeError(f"{row['id']}: its copy {row['copy']} is missing; ingest it again", gate=True)
         inventory = extract_inventory(path.read_text(encoding="utf-8", errors="replace"))
         relative = path.resolve().relative_to(base.resolve()).as_posix() if path.resolve().is_relative_to(base.resolve()) else row["copy"]
         prototypes.append({"source": row["id"], "path": relative, **inventory})
@@ -262,5 +262,5 @@ def load_inventory(project_id: str) -> dict[str, Any]:
 
     data = read_json(workspace_path(project_id).joinpath(*INVENTORY_DIR, INVENTORY_JSON), None)
     if not isinstance(data, dict):
-        raise PrototypeError("there is no prototype inventory yet; run /prototype PROJECT_ID --inventory")
+        raise PrototypeError("there is no prototype inventory yet; run /prototype PROJECT_ID --inventory", gate=True)
     return data

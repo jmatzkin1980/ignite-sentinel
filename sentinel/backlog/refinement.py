@@ -31,7 +31,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     base = workspace_path(project_id)
     epic_path = base / "04_backlog" / "EPIC-001.md"
     if not epic_path.exists():
-        raise BacklogRefinementError("Cannot refine backlog before /backlog creates 04_backlog/EPIC-001.md.")
+        raise BacklogRefinementError("Cannot refine backlog before /backlog creates 04_backlog/EPIC-001.md.", gate=True)
     if not source.exists():
         raise BacklogRefinementError(f"Backlog refinement source not found: {source}")
 

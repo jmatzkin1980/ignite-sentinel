@@ -405,10 +405,10 @@ In a terminal, check the exit code right after the command (`echo $?` in a Unix 
 | Exit | Meaning | What to do |
 | --- | --- | --- |
 | 0 | Success | Carry on. |
-| 1 | Unexpected error, with a traceback | Check the `--source` path first: a file that does not exist currently ends this way. Otherwise it is a bug; report it with the command and the output. |
+| 1 | Unexpected error, with a traceback | A genuine bug; report it with the command and the output. |
 | 2 | Wrong usage | The command or a flag is mistyped, or a required option is missing. Check the syntax in the [command reference](01-command-reference.md). |
-| 3 | Invalid input | A file is malformed or unsupported, a value or project id is invalid, or a proposal was rejected. Read the listed reasons and fix the input. |
-| 4 | Gate refusal | A prerequisite, the phase or the health stops the command (a project that does not exist yet is one: run `/init`). Do the step it names. |
+| 3 | Invalid input | A file is malformed, unsupported or does not exist (a `--source` path is read relative to the folder you run Sentinel from), a value or project id is invalid, or a proposal was rejected. Read the listed reasons and fix the input. |
+| 4 | Gate refusal | A missing prerequisite or the project's state (phase, health) stops the command (a project that does not exist yet is one: run `/init`). Do the step it names. |
 | 5 | Unfavourable verdict | `/validate` is not `VALID`, or `/doctor` is not `PASS`. Read the findings. |
 | 6 | Workspace busy | Another command is running on this workspace. Wait, then retry. |
 
@@ -475,7 +475,7 @@ Exit 5. For `/validate`, `INVALID` means a structural problem: read the findings
 
 ### 4f. A proposal was rejected (exit 3)
 
-When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is rejected, every reason is listed: a quote that is not verbatim, an undeclared lens, a place that does not exist. Fix all reasons and submit again. Never paraphrase a quote to get past the check; shorten it to the exact words in the source or drop the finding.
+When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is rejected, every reason is listed: a quote that is not verbatim, an undeclared lens, a place that does not exist. Fix all reasons and submit again. Never paraphrase a quote to get past the check; shorten it to the exact words in the source or drop the finding. A refusal for a missing prerequisite (for example `/split --confirm` with no stored proposal, or `/prototype --trace` without a compiled brief) is exit 4, not 3: run the step the `next step:` line names.
 
 **Decision point.** Do not retry a command hoping for a different answer. Every refusal names a missing step; do that step.
 
@@ -529,7 +529,7 @@ When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is reje
    /next ACME_CLAIMS --release r1
    ```
 
-   Results land under `03_specs/r1/`, `04_backlog/r1/`, `05_quality/r1/`, `06_traceability/r1/` and `08_context_packs/r1/`. The verdict from `/status --release r1` covers that release's brief and backlog. A release that depends hard on one not yet closed reads `NOT_READY` by inheritance, with a `series_dependencies` gate in the gate matrix. Without a confirmed series, `--release` fails with exit 3 and tells you to run `/split --confirm` first.
+   Results land under `03_specs/r1/`, `04_backlog/r1/`, `05_quality/r1/`, `06_traceability/r1/` and `08_context_packs/r1/`. The verdict from `/status --release r1` covers that release's brief and backlog. A release that depends hard on one not yet closed reads `NOT_READY` by inheritance, with a `series_dependencies` gate in the gate matrix. Without a confirmed series, `--release` fails with exit 4 and tells you to run `/split --confirm` first.
 
 5. Build r1. Stories move with `/story-status ACME_CLAIMS --release r1 --story US-001 --set ...` (scenario 8 shows the lifecycle).
 

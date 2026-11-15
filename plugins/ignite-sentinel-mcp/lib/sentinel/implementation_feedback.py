@@ -23,8 +23,9 @@ VALID_STATUSES = {"open", "resolved"}
 
 def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
-    if not (base / "04_backlog").exists():
-        raise ImplementationFeedbackError("Cannot process implementation feedback before /backlog creates 04_backlog/.")
+    if not any((base / "04_backlog").glob("EPIC-*.md")):
+        # IMP-312: /init creates the folder; the backlog exists once /backlog wrote an epic
+        raise ImplementationFeedbackError("Cannot process implementation feedback before /backlog creates 04_backlog/EPIC-001.md.", gate=True)
     if not source.exists():
         raise ImplementationFeedbackError(f"Implementation feedback source not found: {source}")
 

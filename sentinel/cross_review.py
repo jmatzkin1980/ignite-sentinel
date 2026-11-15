@@ -60,7 +60,7 @@ def _body(brief_text: str, place: str) -> str | None:
 def validate_crosses(brief_text: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Accepted gaps, rejected crosses (with reasons) and counts per kind. Pure."""
     if parse_brief(brief_text).version != 2:
-        raise CrossReviewError("Cross review reads a brief v2; compile one with /brief first.")
+        raise CrossReviewError("Cross review reads a brief v2; compile one with /brief first.", gate=True)
     crosses = payload.get("crosses")
     if not isinstance(crosses, list) or not crosses:
         raise CrossReviewError("The payload needs a non-empty `crosses` list.")
@@ -144,7 +144,7 @@ def apply_cross_review(project_id: str, source: Path) -> dict[str, Any]:
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.exists():
-        raise CrossReviewError("Cross review needs a compiled brief: run /brief first.")
+        raise CrossReviewError("Cross review needs a compiled brief: run /brief first.", gate=True)
     payload = read_json(source, None)
     if not isinstance(payload, dict):
         raise CrossReviewError("The cross review payload must be a JSON object.")

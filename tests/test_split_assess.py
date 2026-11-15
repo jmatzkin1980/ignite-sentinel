@@ -204,8 +204,12 @@ class RunAssessTests(unittest.TestCase):
         self.assertIn("A43", str(caught.exception))
 
     def test_rejects_a_missing_brief(self) -> None:
-        with self.assertRaises(ValueError):
+        from sentinel.errors import EXIT_GATE, GateRefusal, exit_code_for
+
+        with self.assertRaises(GateRefusal) as caught:  # IMP-312: a missing prerequisite, exit 4
             sp.run_assess("P")
+        self.assertEqual(exit_code_for(caught.exception), EXIT_GATE)
+        self.assertIn("/brief", str(caught.exception))
 
     def test_reassesses_when_the_brief_changes(self) -> None:
         self.write_brief(brief(SMALL))

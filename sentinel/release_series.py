@@ -366,15 +366,15 @@ def compile_series(project_id: str) -> dict[str, Any]:
     series = base.joinpath(*PROPOSAL_DIR)
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
-        raise ReleaseSplitError("the series compiles only from a confirmed partition; run /split --confirm")
+        raise ReleaseSplitError("the series compiles only from a confirmed partition; run /split --confirm", gate=True)
     stored = read_json(series / PROPOSAL_FILE, None)
     payload = stored.get("proposal") if isinstance(stored, dict) else None
     if not isinstance(payload, dict) or stored.get("proposal_sha256") != partition.get("proposal_sha256"):
-        raise ReleaseSplitError("the stored proposal is not the one confirmed; run /split --confirm again")
+        raise ReleaseSplitError("the stored proposal is not the one confirmed; run /split --confirm again", gate=True)
     brief_path = base / "02_requirements" / "project-brief.md"
     text = brief_path.read_text(encoding="utf-8")
     if parse_brief(text).version != 2:
-        raise ReleaseSplitError("a series does not mix v1 and v2 [A43]: the brief is v1; recompile it as v2")
+        raise ReleaseSplitError("a series does not mix v1 and v2 [A43]: the brief is v1; recompile it as v2", gate=True)
     language = project_language(project_id)
     sha = brief_hash(brief_path)
     assignment = assign_owners(text, payload)

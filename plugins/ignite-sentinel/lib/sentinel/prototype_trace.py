@@ -199,7 +199,7 @@ def apply_trace(project_id: str, source: Path) -> dict[str, Any]:
     payload = read_json(Path(source), None)
     brief = base / "02_requirements" / "project-brief.md"
     if not brief.is_file():
-        raise PrototypeError("/prototype --trace needs the compiled brief v2 to check the anchors")
+        raise PrototypeError("/prototype --trace needs the compiled brief v2 to check the anchors", gate=True)
     gaps_path = base / "01_discovery" / "gaps.md"
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {_s(g.get("id")).strip("`") for g in rows if _s(g.get("status")).upper() != "CLOSED"}

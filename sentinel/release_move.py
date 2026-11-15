@@ -123,13 +123,13 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
     series = base.joinpath(*PROPOSAL_DIR)
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
-        raise ReleaseSplitError("/split --move needs a confirmed series; run /split --confirm first")
+        raise ReleaseSplitError("/split --move needs a confirmed series; run /split --confirm first", gate=True)
     stored = read_json(series / PROPOSAL_FILE, None)
     if not isinstance(stored, dict) or stored.get("proposal_sha256") != partition.get("proposal_sha256"):
-        raise ReleaseSplitError("the stored proposal is not the confirmed one; confirm it before moving units")
+        raise ReleaseSplitError("the stored proposal is not the confirmed one; confirm it before moving units", gate=True)
     brief_path = base / "02_requirements" / "project-brief.md"
     if brief_hash(brief_path) != stored.get("brief_sha256"):
-        raise ReleaseSplitError("the brief changed since the series was confirmed; run /split --propose again")
+        raise ReleaseSplitError("the brief changed since the series was confirmed; run /split --propose again", gate=True)
     payload = stored["proposal"]
     moved, unit = plan_move(payload, spec, source, target)
     history = read_json(series / CHANGES_JSON, None)

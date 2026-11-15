@@ -68,7 +68,7 @@ def _lens_for(place: str) -> str:
 def validate_obstacles(brief_text: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Accepted gaps, rejected obstacles (with reasons) and counts per status. Pure."""
     if parse_brief(brief_text).version != 2:
-        raise SufficiencyError("Sufficiency reads a brief v2; compile one with /brief first.")
+        raise SufficiencyError("Sufficiency reads a brief v2; compile one with /brief first.", gate=True)
     obstacles = payload.get("obstacles")
     if not isinstance(obstacles, list) or not obstacles:
         raise SufficiencyError("The payload needs a non-empty `obstacles` list.")
@@ -154,7 +154,7 @@ def apply_sufficiency(project_id: str, source: Path) -> dict[str, Any]:
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.exists():
-        raise SufficiencyError("Sufficiency needs a compiled brief: run /brief first.")
+        raise SufficiencyError("Sufficiency needs a compiled brief: run /brief first.", gate=True)
     from .core.io import read_json
 
     payload = read_json(source, None)

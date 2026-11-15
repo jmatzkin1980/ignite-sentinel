@@ -48,9 +48,13 @@ class SentinelError(Exception):
 
     code = EXIT_INPUT
 
-    def __init__(self, message: str = "", next_step: str = "") -> None:
+    def __init__(self, message: str = "", next_step: str = "", *, gate: bool = False) -> None:
         super().__init__(message)
         self.next_step = next_step or infer_next_step(message)
+        if gate:
+            # IMP-312: a module's own error type, raised for a missing prerequisite, is a
+            # gate refusal (4) like every other prerequisite; its payload errors stay 3.
+            self.code = EXIT_GATE
 
 
 class InputError(SentinelError, RuntimeError):

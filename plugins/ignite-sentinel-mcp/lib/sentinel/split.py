@@ -291,7 +291,9 @@ def _inputs(project_id: str) -> tuple[Path, str, dict[str, Any], dict[str, Any],
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.is_file():
-        raise ValueError(f"/split --assess needs a compiled brief v2: {brief_path.as_posix()} does not exist; run /brief {project_id} --profile ... --genesis ... first")
+        from .errors import GateRefusal  # IMP-312: a prerequisite, not invalid input
+
+        raise GateRefusal(f"/split --assess needs a compiled brief v2: {brief_path.as_posix()} does not exist; run /brief {project_id} --profile ... --genesis ... first")
     report_path = base / "02_requirements" / "brief_compile_report.json"
     report = read_json(report_path, {}) or {}
     state = read_state(project_id, {}) or {}

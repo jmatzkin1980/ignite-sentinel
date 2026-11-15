@@ -603,7 +603,7 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
         raise AssumptionError(f"Workspace not found: {project_id}")
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise AssumptionError("Cannot register assumptions before /ingest creates 01_discovery/gaps.md.")
+        raise AssumptionError("Cannot register assumptions before /ingest creates 01_discovery/gaps.md.", gate=True)
     data = load_assumption_source(source)
     rows = validate_assumptions(data, assumption_grounding_text(base))
     assumption_path = base / "01_discovery" / "assumptions.md"

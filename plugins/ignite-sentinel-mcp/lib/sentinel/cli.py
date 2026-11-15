@@ -54,6 +54,20 @@ def command_workspace(args) -> Path | None:
     return workspace_path(project_id)
 
 
+def check_source_exists(args) -> None:
+    """IMP-312: a `--source` file that does not exist is invalid input (exit 3), not a traceback."""
+    source = getattr(args, "source", None)
+    if not source or (args.command == "prototype" and getattr(args, "inventory", False)):
+        return  # --inventory takes a source id (F-NN), not a path
+    if not Path(source).exists():
+        from .errors import InputError
+
+        raise InputError(
+            f"--source file not found: {source}",
+            next_step=f"Check the path; it is read relative to the folder you run Sentinel from ({Path.cwd()}).",
+        )
+
+
 def run_command(args, argv: list[str]) -> int:
     if getattr(args, "release", None):
         try:
@@ -72,6 +86,7 @@ def run_command(args, argv: list[str]) -> int:
             from .core.paths import validate_project_id
 
             validate_project_id(project_id)
+        check_source_exists(args)
         preflight_command(args.command, project_id)
         result = None
         if args.command == "init":

@@ -141,7 +141,7 @@ Then run `/maturity ACME_PORTAL` to see the effect.
 
 **Check:** new gaps carry `origin: agent`, `challenge`, `scrutiny` or `self-review` in `gaps.md`; `/status` counts them by origin. Assumptions appear in `01_discovery/assumptions.md` and the brief shows `(inferred) ... (ASM-X)` lines. `/maturity` may report `READY_WITH_GOVERNED_ASSUMPTIONS` in `development_readiness.json`: a visible BA decision, not a confirmation.
 
-**If it fails:** exit 3 lists every rejected finding and why (usually a quote that is not verbatim in the source). Nothing is merged; fix the JSON and run it again. Run before `/ingest`, `/annotate`, `/challenge` and `/scrutinize` exit 4 and `/assume` exits 3: load the request first. `/compose` before `/specs` exits 3.
+**If it fails:** exit 3 lists every rejected finding and why (usually a quote that is not verbatim in the source). Nothing is merged; fix the JSON and run it again. Run before `/ingest`, `/annotate`, `/challenge`, `/scrutinize` and `/assume` exit 4: load the request first. `/compose` before `/specs` exits 4. A `--source` file that does not exist exits 3 on any command; check the path, it is read relative to the folder you run Sentinel from.
 
 ## Domain context and context requests
 
@@ -224,27 +224,28 @@ Then run `/maturity ACME_PORTAL` to see the effect.
 flowchart TD
     R["Command failed"] --> C{"Exit code?"}
     C -- "2 wrong usage" --> U["Fix the syntax: a missing required option<br/>such as --source, or an unknown value.<br/>Check the command reference."]
-    C -- "3 invalid input" --> I["Fix what the message names: an unsupported file,<br/>a bad id or value, a refused JSON payload,<br/>--release without a confirmed series."]
+    C -- "3 invalid input" --> I["Fix what the message names: an unsupported file,<br/>a bad id or value, a refused JSON payload,<br/>a --source file that does not exist (check the path)."]
     C -- "4 gate refusal" --> G{"What does the message say?"}
     G -- "Workspace not found" --> G1["/init PROJECT_ID"]
     G -- "before /ingest" --> G2["/ingest PROJECT_ID --source FILE"]
     G -- "maturity is BLOCKED" --> G3["/status, answer the blocking gaps,<br/>/resolve-gaps, /maturity"]
     G -- "health is DIRTY" --> G4["/health and /maturity to see blockers"]
     G -- "without backlog user stories" --> G5["/backlog first"]
+    G -- "no compiled brief, proposal or series;<br/>artifact not generated yet" --> G7["/next PROJECT_ID, then the step it names"]
     G -- "other: privacy scan, strict gate,<br/>pending marks with --final, DoR/DoD" --> G6["/next PROJECT_ID, then fix what it names"]
     C -- "5 unfavourable verdict" --> V["Read the findings of /validate or /doctor"]
     C -- "6 workspace busy" --> B["Another command holds the workspace.<br/>Wait and retry."]
-    C -- "1 unexpected error" --> X["Check the --source path first.<br/>Otherwise a bug: keep the traceback and report it"]
+    C -- "1 unexpected error" --> X["A genuine bug: keep the traceback and report it"]
 ```
 
 | Code | Common causes | What to do |
 |---|---|---|
 | 2 | A required option is missing (`--source`, `--artifact`, `--story`, `--set`); a value outside the list; two `/split` or `/prototype` modes at once | Fix the syntax; see the [command reference](01-command-reference.md). |
-| 3 | An unsupported file (binary, not `.docx`); an invalid project id; an agent JSON with a non-verbatim quote; options that must go together (`/gaps --id` with `--disposition`); `--release` before `/split --confirm`; a `/split` or `/prototype` payload with findings; an illegal story transition | Fix the input the message names and run again. Nothing was written. |
-| 4 | Workspace missing; `/specs` or `/backlog` before `/ingest`; maturity `BLOCKED` (often `GAP-BRIEF-PROFILE`: see [New project](#new-project)); health `DIRTY` for `/backlog`, `/quality`, `/refine-backlog`; `/quality` with no stories; the backlog privacy scan in `block` mode; a strict gate in `sentinel.config.yaml`; `/export --final` with pending marks; a strict Definition of Ready or Done | Do the step the message or `/next` names. |
+| 3 | A `--source` file that does not exist (on every command); an unsupported file (binary, not `.docx`); an invalid project id; an unknown profile or genesis; an agent JSON with a non-verbatim quote; options that are missing or conflict (`/gaps --id` with `--disposition`, `/split` without `--ba`/`--tech`); an invalid release id; a `/split` or `/prototype` payload with findings; an illegal story transition | Fix the input the message names and run again; for a missing file, check the path (it is read relative to the folder you run Sentinel from). Nothing was written. |
+| 4 | Workspace missing; `/specs`, `/backlog`, `/assume` or `/gaps --top` before `/ingest`; `/compose` before `/specs`; `/refine-backlog` or `/implementation-feedback` before `/backlog` wrote an epic; `/self-review --sufficiency` or `--crosses`, `/split` or `/prototype --trace` without a compiled brief; `/split --confirm` without a stored proposal or after the brief changed; `/split --move` or `--release` without a confirmed series; `/split --close` on a closed release or with stories not Done; `/prototype` before an inventory or with no HTML prototype ingested; `/view` of an artifact not generated yet; maturity `BLOCKED` (often `GAP-BRIEF-PROFILE`: see [New project](#new-project)); health `DIRTY` for `/backlog`, `/quality`, `/refine-backlog`; `/quality` with no stories; the backlog privacy scan in `block` mode; a strict gate in `sentinel.config.yaml`; `/export --final` with pending marks; a strict Definition of Ready or Done | Do the step the message or `/next` names. |
 | 5 | `/validate` verdict is not `VALID`; `/doctor` verdict is not `PASS` | Read the findings. To proceed on purpose, record a cited decision with `/validate ACME_PORTAL --override decisions.json`: the rationale is kept, the verdict is not faked. |
 | 6 | Another command (or another chat) is working on the same workspace | Wait for it to finish. A command waits 10 seconds before giving up; set `SENTINEL_LOCK_TIMEOUT` to wait longer. See [the workspace lock](20-admin-guide.md#the-workspace-lock). |
-| 1 | A `--source` path that does not exist (it currently ends with a traceback, not a clean refusal); otherwise an unexpected error | Check the path first. If it is right, keep the traceback and report it. |
+| 1 | An unexpected error: a genuine bug | Keep the traceback and report it. |
 
 **Check:** `/next ACME_PORTAL` prints the one step that unblocks the project. `/status` always exits 0, even when the verdict is `NOT_READY`.
 
@@ -300,7 +301,7 @@ flowchart TD
 
 **Check:** the stored proposal returns `partition_preview` (what `--confirm` would still refuse); moves are dated in `02_requirements/series/scope_changes.md`; `/validate` reports the series' integrity.
 
-**If it fails:** a v1 brief cannot be split. `--assess` needs a compiled v2 brief (confirm the settings with `/brief --profile ... --genesis ...`, which compiles it). A refused proposal, confirmation, move or close exits 3 and lists every finding by code; fix them and run again. A round trip of a unit (r1 → r2 → r1) is refused and opens `GAP-SPLIT-CRITERION` until you pass `--criterion` naming the written cut criterion. `--close` refuses while any story of the release is not Done.
+**If it fails:** a v1 brief cannot be split. `--assess` needs a compiled v2 brief (confirm the settings with `/brief --profile ... --genesis ...`, which compiles it). A refused proposal, partition or move payload exits 3 and lists every finding by code; fix them and run again. A missing prerequisite exits 4 with a next step: `--assess` or `--propose` without a compiled brief v2, `--confirm` without a stored proposal or after the brief changed, `--move` or `--release` without a confirmed series, `--close` on a closed release or with no stories. A round trip of a unit (r1 → r2 → r1) is refused and opens `GAP-SPLIT-CRITERION` until you pass `--criterion` naming the written cut criterion. `--close` refuses while any story of the release is not Done.
 
 ## Prototype available
 
@@ -331,7 +332,7 @@ flowchart TD
 
 **Check:** `02_requirements/prototype/inventory.md` lists screens with ids such as `S1-E01`; each trace gets a screen verdict and at most four questions; a screen with no manual entry shows as a hole.
 
-**If it fails:** "no HTML prototype among the ingested sources": `/ingest` the `.html` file first. `--trace` needs a compiled v2 brief. A refused trace or manual exits 3, stores nothing and lists every finding.
+**If it fails:** "no HTML prototype among the ingested sources": `/ingest` the `.html` file first. `--trace` needs a compiled v2 brief, and `--manual` and `--trace` need an inventory first: all of these exit 4. A refused trace or manual exits 3, stores nothing and lists every finding.
 
 ## Existing system
 

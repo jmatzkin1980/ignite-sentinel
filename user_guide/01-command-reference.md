@@ -66,10 +66,10 @@ Every command ends with one of these codes. A failure prints `sentinel error: ..
 | Code | Meaning | Typical cause | What to do |
 |---|---|---|---|
 | 0 | Success | The command finished. | Read the JSON result. `/status` and `/health` also exit 0 when the verdict is not good: read their `verdict`. |
-| 1 | Unexpected error | A traceback follows the message. A `--source` path that does not exist currently ends this way; otherwise it is a bug. | Check the paths you passed, then report the traceback. |
+| 1 | Unexpected error | A traceback follows the message. It is a genuine bug. | Report the traceback. |
 | 2 | Wrong usage | A missing required option (`--source`), an unknown option or a value outside its choices. Printed by the argument parser with the usage line, without `next step:`. | Fix the command line; `python -m sentinel /command --help` shows the options. |
-| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), an input file some commands check before reading (for example `/assume`, `/export`, `/annotate`; a missing `--source` for `/ingest`, `/resolve-gaps` or `/sync` is still exit 1), options that do not go together, any `/split` refusal, `--release` without a confirmed series. | Fix the input named in the message and run again. Nothing was stored. |
-| 4 | Gate refusal | A prerequisite, the project's phase or its health stops the command: no workspace, `/specs` before `/ingest`, `/backlog` while health is `DIRTY`, `/export --final` with pending marks. | Run the command the `next step:` line names (often `/init`, `/ingest`, `/maturity` or `/resolve-gaps`). See the [gate matrix](#gate-matrix). |
+| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), a `--source` file that does not exist (on every command; `/prototype --inventory` is the exception, it takes a source id `F-NN`), missing or conflicting options (`--ba`/`--tech` missing, `/split --move` without unit/from/to), an invalid release id, an unknown profile or genesis, a `state.json` with a newer schema. | Fix the input named in the message and run again. For a missing file, check the path: it is read relative to the folder you run Sentinel from. Nothing was stored. |
+| 4 | Gate refusal | A missing prerequisite or the project's state stops the command: no workspace, `/assume` before `/ingest`, `/specs` before `/ingest`, `/compose` before `/specs`, `/backlog` while health is `DIRTY`, `/split` without the brief, proposal or series it needs, `/view` of an artifact not generated yet, `/export --final` with pending marks. | Run the command the `next step:` line names (often `/init`, `/ingest`, `/maturity` or `/resolve-gaps`). See the [gate matrix](#gate-matrix). |
 | 5 | Unfavourable verdict | `/validate` is not `VALID`, or `/doctor` is not `PASS`. The full result is still printed. | Read the findings in the result and fix them, or record a cited override (`/validate --override`). |
 | 6 | Workspace busy | Another command holds this workspace's lock, or a file changed on disk while the command ran. | Wait for the other command to finish and run again. |
 
@@ -87,6 +87,7 @@ flowchart LR
     L -- busy after 10 s --> X6[exit 6]
     L --> P{Preflight gates}
     P -- refused --> X4[exit 3 or 4]
+    A -. source file missing .-> X3[exit 3]
     P --> R[Run the command]
     R -- refused --> X[exit 3, 4 or 5]
     R --> Q[Postflight]
@@ -367,7 +368,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 - The workspace does not exist → exit 4.
 - The file is not UTF-8 text and not a readable `.docx` (a PDF, a damaged `.docx`) → exit 3, before any source row opens. Convert it to Markdown first.
-- The file does not exist → currently exit 1 with a traceback; check the path.
+- The file does not exist → exit 3 (`--source file not found`) with no traceback; check the path, it is read relative to the folder you run Sentinel from.
 
 **You get.** The paths created and the source row.
 
@@ -637,7 +638,7 @@ python -m sentinel /assume ACME_PORTAL --source assumptions.json
 
 **Writes.** `01_discovery/assumptions.md`, a copy under `01_discovery/assumptions/`, `knowledge_state.*` with `ASSUMED` units, a graph node.
 
-**Refuses when.** Before `/ingest` → exit 3. Payload refused → exit 3.
+**Refuses when.** Before `/ingest` → exit 4. Payload refused, or `--source` file not found → exit 3.
 
 **You get.** The registered assumptions. `risk=high` with `uncertainty=high` is flagged "test before advancing" (non-blocking).
 
@@ -1055,7 +1056,10 @@ The modes are mutually exclusive; giving none or two is exit 2.
 - `--move`: the partition, the recompiled series, `02_requirements/series/scope_changes.md` and its JSON.
 - `--close`: the close in `partition.json` and `02_requirements/series/release-guide.md`.
 
-**Refuses when.** Every refusal is exit 3 and stores nothing: a v1 brief or no brief v2 (`--assess`, `--propose`), `--propose` without `--source`, a refused proposal (every finding with its code), no stored proposal, a brief that changed since the proposal, a partition that is not green, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without evidence or with stories not Done.
+**Refuses when.** Nothing is stored in either case.
+
+- A missing prerequisite or the project's state → exit 4: `--assess` or `--propose` without a compiled brief v2, a series on a v1 brief, `--confirm` without a stored proposal or with a brief that changed since the proposal, `--move` without a confirmed series, `--close` on a release already closed, with no stories or with stories not Done, and `--release` on any command without a confirmed series.
+- A refused payload or bad options → exit 3: a refused proposal (every finding with its code), a partition that is not green, `--propose` without `--source`, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without `--evidence`, an invalid release id, a `--source` file that does not exist.
 
 **You get.** `--assess`: the recommendation, its reasons, the lit and undetermined signals. `--propose`: the `partition_preview`. `--confirm`: the waves, coverage and sync findings. `--move`: `releases_changed` and `stale_derivations`. `--close`: the releases it unblocks.
 
@@ -1098,7 +1102,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 **Writes.** `02_requirements/prototype/inventory.json` and `inventory.md`; `02_requirements/prototype/trace/F-NN-SN.json` and `trace.md`; `02_requirements/prototype/manual.md`.
 
-**Refuses when.** No ingested HTML prototype, no inventory yet, `--trace`/`--manual` without `--source`, a refused payload (every finding listed), or `--trace` without a brief v2 → exit 3.
+**Refuses when.** No ingested HTML prototype for `--inventory`, `--manual` or `--trace` before an inventory, or `--trace` without a compiled brief → exit 4. `--trace`/`--manual` without `--source`, a `--source` file that does not exist, or a refused payload (every finding listed) → exit 3. With `--inventory`, `--source` is a source id (`F-NN`), not a path.
 
 **You get.** Screens and elements; the screen verdict (`supported`, `has_gaps`, `not_executed`) and questions; the screens with and without a manual.
 
@@ -1139,7 +1143,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 **Writes.** Default: `03_specs/self_review/` (copy, `self_review_report.md`, `decision_register.md`) and `01_discovery/gaps.md` when gaps are accepted. `--sufficiency`: gaps and `01_discovery/sufficiency_log.md`. `--crosses`: gaps.
 
-**Refuses when.** Default mode before `/specs` or before `/ingest` → exit 4. `--sufficiency` or `--crosses` without a brief v2, or a refused payload → exit 3.
+**Refuses when.** Default mode before `/specs` or before `/ingest` → exit 4. `--sufficiency` or `--crosses` without a compiled brief → exit 4. A refused payload → exit 3.
 
 **You get.** The accepted gaps and decisions, or the obstacles with their reasons.
 
@@ -1211,7 +1215,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **Writes.** `03_specs/prd.md` (an `Agent Composition` subsection), `03_specs/compositions/` (copy, `accepted_blocks.json`, `composition_report.md`). A later `/specs` reapplies still-valid blocks and writes `regeneration_report.md`.
 
-**Refuses when.** No PRD yet, or no block accepted → exit 3.
+**Refuses when.** No PRD yet (before `/specs`) → exit 4. No block accepted → exit 3.
 
 **You get.** The accepted and refused blocks.
 
@@ -1426,7 +1430,7 @@ python -m sentinel /refine-backlog ACME_PORTAL --source refinement.json
 
 **Writes.** `04_backlog/EPIC-001.md` and the targeted stories (an `Agent Backlog Refinements` section), `04_backlog/refinements/` (copy, `accepted_refinements.json`, `refinement_report.md`).
 
-**Refuses when.** Health `DIRTY` or privacy scan in `block` mode → exit 4. No `04_backlog/EPIC-001.md`, or a refused proposal → exit 3.
+**Refuses when.** Health `DIRTY` or privacy scan in `block` mode → exit 4. No `04_backlog/EPIC-001.md` (`/backlog` has not written an epic yet) → exit 4. A refused proposal → exit 3.
 
 **You get.** The accepted and refused proposals.
 
@@ -1460,7 +1464,7 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories.
 
-**Refuses when.** Privacy scan in `block` mode → exit 4. No `04_backlog/`, or a refused payload → exit 3.
+**Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload → exit 3.
 
 **You get.** The recorded findings and the stories affected.
 
@@ -1718,7 +1722,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **Writes.** `08_context_packs/views/<artifact>.html` (git-ignored). Comments in the feedback panel stay in the browser; their export uses the `/resolve-gaps` answer shape for gap markers and `/sync --source` for the rest.
 
-**Refuses when.** An unknown theme → exit 3. The artifact's file does not exist yet → currently exit 1; run the command that generates it first.
+**Refuses when.** An unknown theme → exit 3. The artifact has not been generated yet → exit 4 with the next step "Run /next PROJECT_ID to see which command comes first".
 
 **You get.** The view path.
 
