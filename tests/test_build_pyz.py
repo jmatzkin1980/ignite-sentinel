@@ -14,6 +14,9 @@ from sentinel.build import build_pyz
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# /doctor takes about 13 s on its own; a cold zipapp start inside the parallel suite
+# (IMP-309, one process per CPU) went past 60 s, so the limit only catches a hang.
+DOCTOR_TIMEOUT = 180
 
 PORTABLE_ROOT_FILES = (
     ".gitignore",
@@ -66,7 +69,7 @@ class BuildPyzTest(unittest.TestCase):
                 cwd=temp,
                 text=True,
                 capture_output=True,
-                timeout=60,
+                timeout=DOCTOR_TIMEOUT,
                 check=True,
             )
             module_result = subprocess.run(
@@ -74,7 +77,7 @@ class BuildPyzTest(unittest.TestCase):
                 cwd=ROOT,
                 text=True,
                 capture_output=True,
-                timeout=60,
+                timeout=DOCTOR_TIMEOUT,
                 check=True,
             )
 
@@ -106,7 +109,7 @@ class BuildPyzTest(unittest.TestCase):
                 env=env,
                 text=True,
                 capture_output=True,
-                timeout=60,
+                timeout=DOCTOR_TIMEOUT,
                 check=True,
             )
 

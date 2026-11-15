@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .core.paths import workspace_absolute, workspace_relative
+from .core.paths import workspace_absolute, workspace_citation, workspace_relative
 from .workspace import memory_path, read_json, write_json, workspace_path
 
 
@@ -717,7 +717,8 @@ class ContextBroker:
                     row["text"] = row["summary"]
                     row["content"] = row["summary"]
                 row["read_plan"] = {
-                    "source_path": row.get("source_path", row.get("file_path", "")),
+                    # IMP-308: context packs and backlog anchors cite it; repo-relative.
+                    "source_path": workspace_citation(self.project_id, row.get("source_path", row.get("file_path", ""))),
                     "section_path": row.get("section_path", ""),
                     "line_start": int(row.get("line_start", 0) or 0),
                     "line_end": int(row.get("line_end", 0) or 0),

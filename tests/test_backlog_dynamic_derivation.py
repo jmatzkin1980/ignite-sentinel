@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
+from sentinel.core.paths import resolve_in_workspace
 from sentinel.traceability import load_graph
 
 
@@ -158,9 +159,9 @@ class DynamicBacklogDerivationTests(unittest.TestCase):
             stories["US-005"]["execution_contract"]["critical_surfaces"],
         )
         stale_anchor = stories["US-004"]["execution_contract"]["critical_surfaces"]["anchor"]
-        stale_anchor_path = Path(stale_anchor["source_path"])
-        if not stale_anchor_path.is_absolute():
-            stale_anchor_path = workspace / stale_anchor_path
+        # IMP-308: anchors cite `workspaces/<id>/...`, openable from the repo root.
+        self.assertTrue(stale_anchor["source_path"].startswith(f"workspaces/{workspace.name}/"), stale_anchor["source_path"])
+        stale_anchor_path = resolve_in_workspace(workspace.name, stale_anchor["source_path"])
         self.assertTrue(stale_anchor_path.exists())
         anchor_lines = stale_anchor_path.read_text(encoding="utf-8").splitlines()
         anchor_text = "\n".join(anchor_lines[stale_anchor["line_start"] - 1 : stale_anchor["line_end"]])

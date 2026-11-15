@@ -12,6 +12,7 @@ from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path, write_json
 from .core.io import write_text
+from .core.paths import workspace_citation
 
 DOMAINS = {"technology", "design", "quality", "frontend", "backend"}
 
@@ -167,8 +168,8 @@ when_to_read: al preparar o revisar el contexto de dominio {domain} de {project_
 
 ## Fuente base
 
-- Project brief: `{brief_path.as_posix()}`
-- Gaps: `{gaps_path.as_posix()}`
+- Project brief: `{workspace_citation(project_id, brief_path)}`
+- Gaps: `{workspace_citation(project_id, gaps_path)}`
 
 ## Objetivo
 
@@ -206,8 +207,8 @@ when_to_read: when preparing or reviewing the {domain} domain context of {projec
 
 ## Base Source
 
-- Project brief: `{brief_path.as_posix()}`
-- Gaps: `{gaps_path.as_posix()}`
+- Project brief: `{workspace_citation(project_id, brief_path)}`
+- Gaps: `{workspace_citation(project_id, gaps_path)}`
 
 ## Goal
 

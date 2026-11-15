@@ -6,7 +6,7 @@ from typing import Any
 from .ids import next_id
 from .workspace import graph_path, read_json, write_json
 from .core.io import write_text
-from .core.paths import workspace_absolute, workspace_relative
+from .core.paths import workspace_absolute, workspace_citation, workspace_relative
 
 
 def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
@@ -189,7 +189,7 @@ def write_traceability_matrix(project_id: str) -> Path:
             f"| `{edge['from']}` | {source.get('type', 'unknown')} | `{edge['to']}` | {target.get('type', 'unknown')} | {relation} | {target.get('domain', 'n/a')} | {target.get('status', 'n/a')} |"
         )
     node_rows = [
-        f"| `{node['id']}` | {node.get('type', 'artifact')} | {node.get('domain', 'n/a')} | {node.get('status', 'n/a')} | `{node.get('path', '')}` |"
+        f"| `{node['id']}` | {node.get('type', 'artifact')} | {node.get('domain', 'n/a')} | {node.get('status', 'n/a')} | `{workspace_citation(project_id, node.get('path', ''))}` |"
         for node in graph.get("nodes", [])
     ]
     matrix_path = graph_path(project_id).parent / "traceability_matrix.md"

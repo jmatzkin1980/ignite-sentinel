@@ -51,6 +51,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from report_store import write_report  # noqa: E402
 from sentinel.cli import main  # noqa: E402
+from sentinel.core.paths import resolve_in_workspace  # noqa: E402
 from sentinel.discovery import parse_gap_rows  # noqa: E402
 from sentinel.core.state import read_workspace_state  # noqa: E402  IMP-300: state.json + .sentinel/derived
 
@@ -1096,7 +1097,8 @@ def backlog_anchor_status(ws: Path, value_stories: list[dict], backlog_key: dict
     mismatches = []
     valid = 0
     for anchor in anchors:
-        source_path = ws / str(anchor.get("source_path", ""))
+        # IMP-308: anchors cite `workspaces/<id>/...`; read them against this workspace.
+        source_path = resolve_in_workspace(ws.name, str(anchor.get("source_path", "")), ws.parent.parent)
         line_start = int(anchor.get("line_start", 0) or 0)
         line_end = int(anchor.get("line_end", 0) or 0)
         if not source_path.exists():

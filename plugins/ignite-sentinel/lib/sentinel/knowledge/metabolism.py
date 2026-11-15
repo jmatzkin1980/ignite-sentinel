@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from ..assumptions import load_assumptions, update_assumption_statuses
+from ..core.paths import workspace_citation
 from ..development_readiness import compute_development_readiness
 from ..discovery import refresh_knowledge_ledger
 from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
@@ -96,8 +97,9 @@ def metabolize_knowledge(
             for e in promotions
         ],
         "associative_findings": associative_findings,
-        "knowledge_state": str(ledger["md_path"].as_posix()),
-        "development_readiness": str((base / "01_discovery" / "development_readiness.json").as_posix()),
+        # IMP-308: cited in the gap-resolution and sync reports, so repo-relative.
+        "knowledge_state": workspace_citation(project_id, ledger["md_path"]),
+        "development_readiness": workspace_citation(project_id, base / "01_discovery" / "development_readiness.json"),
         "readiness_summary": readiness.get("summary", {}),
         "downstream_stale_artifacts": stale_artifacts,
     }
