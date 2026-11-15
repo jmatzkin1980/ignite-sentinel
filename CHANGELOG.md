@@ -24,6 +24,11 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **The fix:** both are now `MUTATING`. The protocol refreshes the checksums after them and no longer special-cases `/trace` for the traceability refresh.
   - **The guard:** `tests/test_read_only_commands.py` runs every read-only command on a matured workspace and fails if it writes a file outside the protocol's bookkeeping, the memory cache and the reports it declares. `/health` keeps its report as a declared output and stays read-only: it audits those checksums, so refreshing them after it would hide a hand edit.
 - The skill metadata check of `/doctor` caught only "codex" in a description (IMP-307). It now uses the same detector as the command descriptions, `surface_leaks()`: a skill description that names Kilo, Claude, Codex, Cursor, Gemini or VS Code gives a WARN that names the surface. A cited repo file such as `CLAUDE.md` is still not a leak. Every current skill is clean.
+- Generated artifacts quoted the absolute workspace folder (IMP-308, the remainder of IMP-301).
+  - **Where:** the backlog anchors, the traceability matrix, the maturity, context-request and gap-resolution reports, the MDX export and its README, and the context packs (`read_plan.source_path`). A moved or cloned workspace regenerated different bytes, and the files carried the machine's folder names.
+  - **The fix:** `core/paths.workspace_citation` writes every such path as `workspaces/<id>/<path>`, relative to the repo root: the same wherever the workspace lives, and openable from the repo root, where agents and people work. A path outside the workspace is kept as it is.
+  - **Goldens:** unchanged. Their normalization already collapsed the absolute prefix to `workspaces/[PROJECT_ID]`, which is the form the artifacts now write.
+  - **The guard:** `tests/test_portable_citations.py` scans every generated text file for the absolute folder, then regenerates the same workspace in place and in another folder: every Markdown file comes out identical.
 
 ### Changed
 - A leaner test suite (IMP-305). The suite had grown to about 40 minutes on Windows, and most of its cost sat in a few modules that rebuilt the same workspace for every test.

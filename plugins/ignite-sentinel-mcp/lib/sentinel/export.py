@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .blocks import markdown_to_blocks
 from .core.io import copy_file, write_json, write_text
+from .core.paths import workspace_citation
 from .secrets_scan import assert_no_leaks
 from .workspace import update_state, workspace_path
 
@@ -144,7 +145,7 @@ def render_mdx(project_id: str, artifact: str, source: Path, block_model: dict, 
     metadata = {
         "project_id": project_id,
         "artifact": artifact,
-        "source": source.as_posix(),
+        "source": workspace_citation(project_id, source),  # IMP-308
         "source_sha256": block_model["source_sha256"],
         "block_catalog": block_model["catalog"],
         "roundtrip": block_model["roundtrip"],
@@ -188,7 +189,7 @@ def render_mdx_readme(project_id: str, artifact: str, source: Path) -> str:
 
 Project: `{project_id}`
 Artifact: `{artifact}`
-Source of truth: `{source.as_posix()}`
+Source of truth: `{workspace_citation(project_id, source)}`
 
 This folder is a derived local-files export for teams that already have an offline MDX renderer.
 It does not install or require a renderer, does not call a hosted Plan MCP, and does not change the governed Markdown contract.

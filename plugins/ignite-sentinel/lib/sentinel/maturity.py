@@ -958,7 +958,9 @@ def summarize_table_artifact(text: str, first_header: str, max_rows: int) -> str
 
 def render_report(project_id: str, readiness: str, blocking_gaps: list[str], project_brief: Path | None) -> str:
     gaps = ", ".join(f"`{gap}`" for gap in blocking_gaps) or "None"
-    brief_line = f"- Project brief: `{project_brief.as_posix()}`" if project_brief else "- Project brief: not generated while maturity is blocked."
+    from .core.paths import workspace_citation
+
+    brief_line = f"- Project brief: `{workspace_citation(project_id, project_brief)}`" if project_brief else "- Project brief: not generated while maturity is blocked."
     return f"""# Requirement Maturity Report - {project_id}
 
 - Readiness: `{readiness}`

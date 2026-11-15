@@ -139,6 +139,19 @@ def workspace_absolute(project_id: str, value: object, root: Path | None = None)
     return base if relative in ("", ".") else f"{base}/{relative}"
 
 
+def workspace_citation(project_id: str, value: object, root: Path | None = None) -> str:
+    """IMP-308: how an artifact cites a path: ``workspaces/<id>/<relative>``, from the repo root.
+
+    The same text wherever the workspace lives, and openable from the repo root, where
+    agents and people work. A path outside the workspace is kept as it is.
+    """
+    relative = workspace_relative(project_id, value, root)
+    if not relative or is_absolute_path(relative):
+        return relative
+    base = f"workspaces/{project_id}"
+    return base if relative == "." else f"{base}/{relative}"
+
+
 def resolve_in_workspace(project_id: str, value: object, root: Path | None = None) -> Path:
     """IMP-301: the path ``value`` names, read against the workspace's current folder."""
     return Path(workspace_absolute(project_id, value, root))
