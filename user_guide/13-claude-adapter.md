@@ -63,7 +63,7 @@ When it denies, it names the command that owns the file (`/brief`, `/specs`, `/b
 The hook was watched refusing a write in Claude Code. It covers Claude's editor tools only: a write through some other channel is not seen by the hook, so `/health` also flags a hand edit of any hash-tracked file. Other rules Claude follows are in `CLAUDE.md`: gates are respected, missing information stays a visible `GAP-*`, and nothing is sent to external services.
 
 > [!NOTE]
-> In a clone the hook command is `python .claude/hooks/deny-governed-artifact-write.py`, so `python` must be on `PATH`. The plugin's hook finds Python by itself. If the clone's hook seems to do nothing on Windows, check that `python` is not the Microsoft Store alias.
+> In a clone and in the plugin alike, the hook finds Python by itself through `python.sh` (`.claude/hooks/python.sh` in a clone): `SENTINEL_PYTHON` first, then `python3`, `python` or `py -3` on `PATH` (the Microsoft Store alias is skipped), then the usual Windows install folders. If the hook seems to do nothing, set `SENTINEL_PYTHON` to the full path of `python.exe`.
 
 ### Optional: verify edits with a subagent
 

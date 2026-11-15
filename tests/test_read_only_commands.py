@@ -59,11 +59,13 @@ DERIVED_OUTPUTS: dict[str, tuple[str, ...]] = {
     "health": ("06_traceability/health_report.json", "06_traceability/health_report.md"),
     # A derived HTML snapshot of one artifact.
     "view": ("08_context_packs/views/*",),
+    # IMP-313: --write-pack saves the retrieved context as a pack, derived from memory.
+    "retrieve": ("08_context_packs/*.json",),
 }
 
 ARGV: dict[str, list[str]] = {
     "view": ["--artifact", "brief"],
-    "retrieve": ["--query", "risk queues"],
+    "retrieve": ["--query", "risk queues", "--workflow", "discovery", "--write-pack"],
 }
 
 
@@ -104,6 +106,10 @@ class ReadOnlyCommandsWriteNoArtifact(SnapshotWorkspaceCase):
                 self.assertEqual({p for p in written if not matches(p, allowed)}, set(),
                                  f"/{command} writes artifacts; register it as MUTATING")
                 self.assertEqual({p for p in written if matches(p, GOVERNED_ARTIFACT_GLOBS)}, set())
+
+    def test_retrieve_write_pack_writes_its_pack(self) -> None:
+        written = self.run_and_collect("retrieve")
+        self.assertTrue(any(matches(p, DERIVED_OUTPUTS["retrieve"]) for p in written), written)
 
     def test_declared_outputs_belong_to_read_only_commands(self) -> None:
         self.assertLessEqual(set(DERIVED_OUTPUTS), READ_ONLY_COMMANDS)

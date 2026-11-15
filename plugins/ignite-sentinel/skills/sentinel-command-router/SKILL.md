@@ -45,7 +45,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
 - `/export PROJECT_ID --artifact gaps --format faq`
-- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]`
+- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open] [--theme NAME] [--release rN]`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
@@ -76,7 +76,7 @@ Translate short chat commands into Sentinel CLI executions.
 sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /COMMAND PROJECT_ID [OPTIONS]
 ```
 
-For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH` and `--open`. `/view` requires `PROJECT_ID` and writes a derived read-only HTML snapshot under `08_context_packs/views/`.
+For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH`, `--open` and `--theme NAME`. `/view` requires `PROJECT_ID` and writes a derived read-only HTML snapshot under `08_context_packs/views/`.
 
 3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
 
@@ -86,7 +86,7 @@ For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root 
 
 4. Return a concise summary of the CLI result and point to generated artifacts.
 
-The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md`.
+The CLI applies the Sentinel vNext command protocol automatically: preflight guard, command execution, trace refresh for mutating commands, and a command anchor in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md` (the append-only log is `workspaces/PROJECT_ID/.sentinel/command_log.jsonl`).
 
 ## Routing
 
