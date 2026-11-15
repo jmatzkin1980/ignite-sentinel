@@ -86,6 +86,44 @@ class WorkspaceRelativeTests(unittest.TestCase):
         self.assertEqual(workspace_relative(PROJECT, "/srv/other/workspaces/OTHER/x.md", root), "/srv/other/workspaces/OTHER/x.md")
 
 
+class WorkspaceRelativeCostTests(unittest.TestCase):
+    """IMP-304: path conversion runs for every graph node and memory chunk on every save.
+
+    Resolving the workspace root per path cost a filesystem call each time (a third
+    of a whole flow on Windows); the root is resolved once per root instead.
+    """
+
+    def test_the_workspace_root_is_resolved_once_not_per_path(self) -> None:
+        from unittest import mock
+
+        root = Path(tempfile.gettempdir()) / "repo-cost-check"
+        base = workspace_path(PROJECT, root).as_posix()
+        calls = 0
+        real = Path.resolve
+
+        def counting(self: Path, *args: object, **kwargs: object) -> Path:
+            nonlocal calls
+            calls += 1
+            return real(self, *args, **kwargs)
+
+        with mock.patch.object(Path, "resolve", counting):
+            for index in range(200):
+                self.assertEqual(workspace_relative(PROJECT, f"{base}/03_specs/s{index}.md", root), f"03_specs/s{index}.md")
+                resolve_in_workspace(PROJECT, f"03_specs/s{index}.md", root)
+                workspace_relative(PROJECT, f"C:/old/workspaces/{PROJECT}/x{index}.md", root)
+        self.assertLessEqual(calls, 1)
+
+    def test_absolute_detection_matches_both_path_flavours(self) -> None:
+        from sentinel.core.paths import is_absolute_path
+
+        for value in ("/srv/x.md", "C:/x.md", "c:\\x.md", "\\\\server\\share\\x.md", "//server/share/x.md", "\\\\server\\share"):
+            self.assertTrue(is_absolute_path(value), value)
+            self.assertEqual(is_absolute_path(value), PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute(), value)
+        for value in ("03_specs/a.md", "C:x.md", "\\x.md", "x", "", "./a.md"):
+            self.assertFalse(is_absolute_path(value), value)
+            self.assertEqual(is_absolute_path(value), PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute(), value)
+
+
 class PortablePathsTests(unittest.TestCase):
     def setUp(self) -> None:
         self.old_cwd = Path.cwd()

@@ -6,7 +6,7 @@ from typing import Any
 from .ids import next_id
 from .workspace import graph_path, read_json, write_json
 from .core.io import write_text
-from .core.paths import resolve_in_workspace, workspace_relative
+from .core.paths import workspace_absolute, workspace_relative
 
 
 def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
@@ -19,7 +19,7 @@ def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
     nodes = []
     for node in graph.get("nodes", []):
         if node.get("path"):
-            node = {**node, "path": resolve_in_workspace(project_id, node["path"]).as_posix()}
+            node = {**node, "path": workspace_absolute(project_id, node["path"])}
         nodes.append(node)
     return {**graph, "nodes": nodes, "edges": list(graph.get("edges", []))}
 

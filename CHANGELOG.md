@@ -6,6 +6,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- Path conversion slowed every command (IMP-304, a regression from IMP-301).
+  - **The cause:** converting a stored path to or from workspace-relative form resolved the workspace folder each time, a filesystem call on Windows. It runs for every graph node and every memory chunk on every save, so it took a third of a whole flow.
+  - **The fix:** the folder is resolved once per workspace root and process. The comparison is a string prefix, case-insensitive on Windows. `is_absolute_path` no longer builds two path objects per call.
+  - **The result:** the 12-phase `support-dashboard` flow went from 11.3 s to 5.4 s, faster than before IMP-300 (6.5 s). Paths and artifacts are unchanged.
+
 ### Changed
 - A leaner test suite (IMP-305). The suite had grown to about 40 minutes on Windows, and most of its cost sat in a few modules that rebuilt the same workspace for every test.
   - **One build per class:** `tests/helpers.py` adds `SnapshotWorkspaceCase`, which builds a workspace once per class and restores a fresh copy, at the same path, before each test. Six backlog modules now use it: story status, refinement, hooks, gate overrides, implementation feedback and story format.

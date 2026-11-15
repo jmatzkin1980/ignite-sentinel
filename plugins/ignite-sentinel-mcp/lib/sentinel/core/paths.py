@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from contextlib import suppress
+from functools import lru_cache
+from pathlib import Path
 
 # IMP-243: one id grammar for every command (CLI, slash aliases and MCP tools).
 PROJECT_ID_PATTERN = r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
@@ -61,9 +64,45 @@ def workspace_path(project_id: str, root: Path | None = None) -> Path:
     return (root or repo_root()) / "workspaces" / project_id
 
 
+# A drive path (C:/ or C:\) or a UNC path (//server/share); a rooted path with no
+# drive (\x) is relative on Windows, as PureWindowsPath says.
+_WINDOWS_ABSOLUTE_RE = re.compile(r"[A-Za-z]:[\\/]|[\\/]{2}[^\\/]+[\\/][^\\/]+")
+_CASE_INSENSITIVE_PATHS = os.name == "nt"
+
+
 def is_absolute_path(value: str) -> bool:
-    """True for an absolute path in either OS's form (a Windows path read on Linux too)."""
-    return PurePosixPath(value).is_absolute() or PureWindowsPath(value).is_absolute()
+    """True for an absolute path in either OS's form (a Windows path read on Linux too).
+
+    The same answer as ``PurePosixPath(v).is_absolute() or PureWindowsPath(v).is_absolute()``,
+    without building two path objects: it runs for every stored path (IMP-304).
+    """
+    return value.startswith("/") or _WINDOWS_ABSOLUTE_RE.match(value) is not None
+
+
+@lru_cache(maxsize=256)
+def _workspace_roots(project_id: str, root: str) -> tuple[str, tuple[str, ...]]:
+    """The workspace folder as written, and every form of it to strip, longest first.
+
+    IMP-304: resolving the folder is a filesystem call; doing it per stored path
+    made path conversion a third of a whole flow on Windows. It is done once per
+    workspace root and process.
+    """
+    base = Path(root) / "workspaces" / project_id
+    forms = {base.as_posix()}
+    with suppress(OSError):
+        forms.add(base.resolve().as_posix())
+    return base.as_posix(), tuple(sorted(forms, key=len, reverse=True))
+
+
+def _roots(project_id: str, root: Path | None) -> tuple[str, tuple[str, ...]]:
+    return _workspace_roots(project_id, str(root or repo_root()))
+
+
+def _strip_prefix(text: str, head: str) -> str | None:
+    start = text[: len(head)]
+    if start == head or (_CASE_INSENSITIVE_PATHS and start.casefold() == head.casefold()):
+        return text[len(head):]
+    return None
 
 
 def workspace_relative(project_id: str, value: object, root: Path | None = None) -> str:
@@ -80,23 +119,29 @@ def workspace_relative(project_id: str, value: object, root: Path | None = None)
     if not is_absolute_path(text):
         text = text[2:] if text.startswith("./") else text
         return text[len(prefix):] if text.startswith(prefix) else text
-    base = workspace_path(project_id, root)
-    for candidate in (base, base.resolve()):
-        try:
-            return Path(text).relative_to(candidate).as_posix()
-        except ValueError:
-            continue
+    for form in _roots(project_id, root)[1]:
+        relative = _strip_prefix(text, form + "/")
+        if relative is not None:
+            return relative or "."
+        if _strip_prefix(text, form) == "":
+            return "."
     # The last segment wins: a release mirror nests `workspaces/<id>/` inside the workspace.
     matches = list(re.finditer("/" + re.escape(prefix), text, re.IGNORECASE))
     return text[matches[-1].end():] if matches else text
 
 
-def resolve_in_workspace(project_id: str, value: object, root: Path | None = None) -> Path:
-    """IMP-301: the path ``value`` names, read against the workspace's current folder."""
+def workspace_absolute(project_id: str, value: object, root: Path | None = None) -> str:
+    """The posix path ``value`` names, read against the workspace's current folder (IMP-304)."""
     relative = workspace_relative(project_id, value, root)
     if is_absolute_path(relative):
-        return Path(relative)
-    return workspace_path(project_id, root) / relative
+        return relative
+    base = _roots(project_id, root)[0]
+    return base if relative in ("", ".") else f"{base}/{relative}"
+
+
+def resolve_in_workspace(project_id: str, value: object, root: Path | None = None) -> Path:
+    """IMP-301: the path ``value`` names, read against the workspace's current folder."""
+    return Path(workspace_absolute(project_id, value, root))
 
 
 def state_path(project_id: str, root: Path | None = None) -> Path:
