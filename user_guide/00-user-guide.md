@@ -153,7 +153,7 @@ In a Claude Code clone, `/init` can start Claude Code's own built-in project set
 
 ### 3. Confirm the brief settings
 
-A new project's brief needs to know what kind of system it describes, its [profile and genesis](#glossary). Do this once, right after the first `/ingest` and before any `/maturity` or `/specs`. `/next` does not prompt for it yet, so do not wait for it to.
+A new project's brief needs to know what kind of system it describes, its [profile and genesis](#glossary). Do this once, right after the first `/ingest`. `/next` and `/status` ask for it (*Confirm the brief settings*) until you do, with a suggested command whose values come from the request.
 
 If you are not sure which values fit, run `/brief` without flags first to see Sentinel's proposal (in `brief_settings.proposal`). That run opens the critical gap `GAP-BRIEF-PROFILE` and writes a provisional brief in the older v1 layout; both go away when you confirm:
 
@@ -169,7 +169,7 @@ Combine profiles with commas (`--profile UI,REG`). `MIG` requires `--genesis bro
 #### If you skip the brief settings
 
 > [!WARNING]
-> Nothing reminds you: `/ingest`, `/next` and `/status` do not mention the step, and while blocking gaps remain no brief is compiled. Answers you process in the meantime do not update a brief. The first time a brief is compiled (a `/brief`, or the first `/maturity` or `/specs` that finds no blocking gap left), Sentinel writes a provisional brief in the older v1 layout and opens the critical gap `GAP-BRIEF-PROFILE`. That run does not see the new gap: a `/maturity` still reports `READY_FOR_SPECS`, and a `/specs` goes on and generates the PRD from the provisional brief. From the next run on, `/maturity` is `BLOCKED` and `/specs` refuses until you run `/brief ACME_PORTAL --profile ... --genesis ...`. If specs were already generated from the provisional brief, run `/specs` again after confirming.
+> Until the settings are confirmed, `/next` and `/status` keep asking for them, and `/maturity` opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED`. So `/specs` and `/backlog` refuse (exit 4), and no brief is compiled from `/maturity`. Answers you process in the meantime are kept, but no brief carries them yet. Confirming with `/brief ACME_PORTAL --profile ... --genesis ...` closes the gap and compiles the v2 brief from everything answered so far.
 
 **Next step:** ask Sentinel what to do next.
 
@@ -179,7 +179,7 @@ Combine profiles with commas (`--profile UI,REG`). `MIG` requires `--genesis bro
 /next ACME_PORTAL
 ```
 
-**What you get:** one step with a title, a sentence and the command to run. Right after intake it says *Waiting for client answers* and suggests `/resolve-gaps`: there are always blocking gaps at this point. `/status ACME_PORTAL` gives the same step plus the verdict, gap counts and [maturity score](#glossary).
+**What you get:** one step with a title, a sentence and the command to run. Until the brief settings are confirmed it says *Confirm the brief settings*; after that, right after intake, it says *Waiting for client answers* and suggests `/resolve-gaps`: there are always blocking gaps at this point. `/status ACME_PORTAL` gives the same step plus the verdict, gap counts and [maturity score](#glossary).
 
 **Next step:** plan the first question round.
 

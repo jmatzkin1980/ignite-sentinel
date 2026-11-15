@@ -111,7 +111,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 |---|---|---|
 | "Is Sentinel working on this machine?" | `/doctor` | A clone check. `WARN` on LanceDB is healthy. |
 | "I got a pile of requests, how many projects is this?" | `sentinel-intake-triage` skill, then `/init` | Groups requests by theme before any project exists. |
-| "I have a new client requirement in this file" | `/init` → `/ingest --source FILE` → `/brief --profile ... --genesis ...` → `/next` | `gaps.md` is ready after `/ingest`. Confirm the brief settings right after the first `/ingest`; `/next` does not prompt for it yet. In a Claude Code clone, if `/init` starts Claude Code's own setup, send `/sentinel /init`. |
+| "I have a new client requirement in this file" | `/init` → `/ingest --source FILE` → `/brief --profile ... --genesis ...` → `/next` | `gaps.md` is ready after `/ingest`. Confirm the brief settings right after the first `/ingest`; `/next` asks for it and suggests values. In a Claude Code clone, if `/init` starts Claude Code's own setup, send `/sentinel /init`. |
 | "Set up the brief for a new screen-based system" | `/brief` → `/brief --profile UI --genesis greenfield` | Required once on a new project, right after the first `/ingest`. If skipped, see [what happens](00-user-guide.md#if-you-skip-the-brief-settings). |
 | "What is still missing?" | `/status` or `/gaps` | `/status` gives the verdict and counts. |
 | "Which questions should I ask first?" | `/gaps --top 5` | Writes `gap_round.md`. |
@@ -147,7 +147,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Which source wins for payment rules?" | `/sources --precedence SCOPE --between F-NN,F-MM` | |
 | "Write the closing report of the sources" | `/sources --report` | `07_changes/closing_report.md`. |
 | "Is it ready to move forward?" | `/maturity` → `/status` | `READY_FOR_SPECS` or `BLOCKED`. |
-| "What do I do next?" | `/next` | One step, one command. It does not prompt for the one-time brief settings yet. |
+| "What do I do next?" | `/next` | One step, one command. On a new project it first asks for the one-time brief settings. |
 | "Why did the command refuse?" | `/next`, then [A gate refused](03-workflows.md#a-gate-refused) | Read the exit code. |
 
 ### Releases, specs and backlog

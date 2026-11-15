@@ -120,7 +120,7 @@ system and be secure and compliant. Details to be defined later.
 
    (In a Claude Code clone, if `/init` starts Claude Code's own built-in setup, send `/sentinel /init ACME_PORTAL`.) `/init` creates `workspaces/ACME_PORTAL/` and records brief v2, the default. `/ingest` stores a redacted copy of the request (secrets are masked, text that reads like an order is flagged and ignored), registers it as source `F-01`, and finds the gaps. In `/status`, look at `verdict.verdict`, `verdict.blockers`, `gap_counts`, `readiness_stage` and `next_step`. **A new project reads `NOT_READY` with the health `DIRTY` by design.** That is the starting point, not an error.
 
-3. Confirm the brief settings, once, right after the first `/ingest` and before any `/maturity` or `/specs`. This is the step first-time users miss: `/next` and `/status` do not prompt for it yet (see [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings)).
+3. Confirm the brief settings, once, right after the first `/ingest`. `/next` and `/status` ask for it (*Confirm the brief settings*) with values proposed from the request; until you confirm, `/maturity` stays `BLOCKED` (see [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings)).
 
    ```text
    /brief ACME_PORTAL

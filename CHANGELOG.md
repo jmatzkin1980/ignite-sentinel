@@ -6,6 +6,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- The one-time brief v2 settings step was neither asked for nor enforced (IMP-311, H20).
+  - **Before:** `/next` and `/status` said "Waiting for client answers" on a new project and never mentioned `/brief --profile --genesis`. When the step was skipped, `/maturity` decided `READY_FOR_SPECS` before compiling, then compiled a provisional brief in the old v1 layout, and a first `/specs` generated the PRD from it.
+  - **Now:** `/next` and `/status` ask for the settings first (*Confirm the brief settings*) with a suggested command whose profile and genesis come from the raw input. On a v2 project with unconfirmed settings, `/maturity` opens `GAP-BRIEF-PROFILE` before deciding and reports `BLOCKED` without compiling a brief, so `/specs` and `/backlog` refuse (exit 4). A brief v1 project is not asked.
+  - `/split --assess` and `--propose` without a compiled brief now name `/brief --profile --genesis` instead of `/maturity`.
+
 ### Changed
 - The README and the user guide are rewritten for business analysts, product managers and developers (IMP-310). They had fallen behind releases 0.6–0.11: the first run skipped the brief v2 settings, five commands and the release-split, prototype, brownfield and gate-refusal flows had no page, and several counts and paths were stale.
   - **README** is a landing page: what Sentinel is, who it is for, the flow as a diagram, a "choose your path" install table, a quick start to a first `gaps.md`, next steps by role, and all 37 commands.
