@@ -1548,7 +1548,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Codex", "Kilo Code"),
         live_check="Invoke `sentinel-backlog` on the surface and have it read `references/handoff-contracts.md`; the text must match the repo byte for byte.",
         observed="2026-07-26",
-        note="Observed on both surfaces: Kilo Code lists the 24 skills and reads the `references/` layer; Codex surfaces them on `/`.",
+        note="Observed on both surfaces (24 skills at the time): Kilo Code lists them and reads the `references/` layer; Codex surfaces them on `/`.",
     ),
     ".claude/agents": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1565,13 +1565,14 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ".claude/hooks": SurfaceContract(
         surfaces=("Claude Code",),
         live_check="Attempt a Write/Edit on a governed artifact; the deny hook blocks it with an actionable message naming the owning command.",
-        observed="2026-07-07",
-        note="Observed by the IMP-178 smoke (H6). Same observation covers `.claude/settings.json`, which registers the hook.",
+        observed="",
+        note="The IMP-178 smoke observed it on 2026-07-07 with a bare `python` command. IMP-313 starts the hook through `.claude/hooks/python.sh`; that command has not been watched yet. Same observation covers `.claude/settings.json`, which registers the hook.",
     ),
     ".claude/settings.json": SurfaceContract(
         surfaces=("Claude Code",),
         live_check="Same as `.claude/hooks`: if the deny fires, Claude Code read and applied this file.",
-        observed="2026-07-07",
+        observed="",
+        note="Last observed 2026-07-07 with the earlier bare-`python` hook command; re-observe after IMP-313.",
     ),
     ".claude/settings.local.json": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1582,7 +1583,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ),
     ".claude/skills": SurfaceContract(
         surfaces=("Claude Code",),
-        live_check="In a session whose folder is this repo, the 24 `sentinel-*` skills are listed as available and scoped to this directory; invoking one loads SKILL.md and can read its `references/` layer.",
+        live_check="In a session whose folder is this repo, every `sentinel-*` skill of `.codex/skills` is listed as available and scoped to this directory; invoking one loads SKILL.md and can read its `references/` layer.",
         observed="2026-07-26",
         note="Same discovery path and per-session memoization as `.claude/commands`.",
     ),
@@ -1594,9 +1595,9 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
     ),
     "plugins/ignite-sentinel": SurfaceContract(
         surfaces=("Claude Code",),
-        live_check="After installing, `claude plugin details ignite-sentinel` lists 24 skills and 1 PreToolUse hook; `/ignite-sentinel:sentinel-views` writes the dashboard into the project, not the plugin; a hand Write to `workspaces/<id>/03_specs/*.md` is denied.",
+        live_check="After installing, `claude plugin details ignite-sentinel` lists one skill per folder of `.codex/skills` and 1 PreToolUse hook; `/ignite-sentinel:sentinel-views` writes the dashboard into the project, not the plugin; a hand Write to `workspaces/<id>/03_specs/*.md` is denied.",
         observed="2026-11-07",
-        note="Observed: details shows Skills (24) and Hooks (1) PreToolUse. A skill run inside a signed-in session from the GitHub marketplace is still to be watched; the bundled runtime and hook are exercised from a copied plugin folder by tests/test_claude_plugin.py.",
+        note="Observed with 0.3.0: details shows Skills (24, the count at the time) and Hooks (1) PreToolUse. A skill run inside a signed-in session from the GitHub marketplace is still to be watched; the bundled runtime and hook are exercised from a copied plugin folder by tests/test_claude_plugin.py.",
     ),
     "plugins/ignite-sentinel-mcp": SurfaceContract(
         surfaces=("Claude Code",),

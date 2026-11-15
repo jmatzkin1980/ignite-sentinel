@@ -90,7 +90,24 @@ def regenerate(root: Path | None = None) -> dict[str, int]:
         if not claude_target.exists() or normalized(claude_target.read_text(encoding="utf-8-sig")) != normalized(claude_text):
             write_text(claude_target, claude_text, root=root)
             written["claude"] += 1
+    # IMP-313: the clone's deny hook starts Python through the same shim as the plugin's.
+    shim = root / CLONE_PYTHON_SHIM
+    if not shim.exists() or shim.read_bytes() != clone_shim_bytes():
+        write_bytes(shim, clone_shim_bytes(), root=root)
+        written["claude"] += 1
     return written
+
+
+# IMP-313: the clone's PreToolUse hook used a bare `python`, which on many Windows
+# laptops is missing or the Microsoft Store alias. Claude Code runs hook commands
+# through a shell, so the clone uses the plugin's shim, copied here byte for byte.
+CLONE_PYTHON_SHIM = ".claude/hooks/python.sh"
+
+
+def clone_shim_bytes() -> bytes:
+    from .plugin_package import PYTHON_SHIM_SCRIPT
+
+    return PYTHON_SHIM_SCRIPT.encode("utf-8")
 
 
 def out_of_sync(root: Path | None = None) -> list[str]:
@@ -107,6 +124,11 @@ def out_of_sync(root: Path | None = None) -> list[str]:
                 issues.append(f"{surface}: missing {target.name}")
             elif normalized(target.read_text(encoding="utf-8-sig")) != normalized(renderer(entry)):
                 issues.append(f"{surface}: {target.name} differs from manifest")
+    shim = root / CLONE_PYTHON_SHIM
+    if not shim.exists():
+        issues.append(f"claude: missing {CLONE_PYTHON_SHIM}")
+    elif shim.read_bytes() != clone_shim_bytes():
+        issues.append(f"claude: {CLONE_PYTHON_SHIM} differs from the plugin shim")
     return issues
 
 
@@ -139,7 +161,7 @@ SKILL_TARGET_DIRS = (AGENTS_SKILLS_DIR, CLAUDE_SKILLS_DIR)
 # IMP-231 (H12): the skill directories Kilo discovers *by default*. Kilo also
 # reads `.kilo/skills/` and `~/.kilo/skills/`, and `.claude/skills/` only when
 # "Claude Code Compatibility" is enabled — an opt-in this repo does not require,
-# and one that would double-load the same 24 skills, so the Claude mirror stays
+# and one that would double-load the same skills, so the Claude mirror stays
 # out on purpose.
 #
 # IMP-235 corrected what used to be written here: this constant claimed the
@@ -147,7 +169,7 @@ SKILL_TARGET_DIRS = (AGENTS_SKILLS_DIR, CLAUDE_SKILLS_DIR)
 # `kilo.jsonc` or progressive disclosure would fall to `ask`/deny. That key does
 # not exist in Kilo's schema, so no allowlist ever applied — reads are open by
 # default and the `references/*.md` layer loads without any entry. Confirmed live
-# on Kilo Code 7.4.16 (2026-07-26): the 24 skills load from here and a reference
+# on Kilo Code 7.4.16 (2026-07-26): the skills (24 at the time) load from here and a reference
 # file opens without a prompt. See doc 45 §3.2.
 KILO_DEFAULT_SKILL_DIRS = (AGENTS_SKILLS_DIR,)
 

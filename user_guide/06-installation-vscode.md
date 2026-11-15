@@ -224,7 +224,7 @@ Set `SENTINEL_PYTHON` to the full path of an approved interpreter to pin one.
 | `python` is not recognized, or opens the Microsoft Store | Use `py -m sentinel /doctor`, the launcher in `installers/`, or set `SENTINEL_PYTHON`. |
 | `No module named lancedb` | Not an error. Install `.[memory]` if you want vector retrieval, then run `/reindex PROJECT_ID`. |
 | Kilo asks permission for every command | The invocation differs from the pre-approved `python -m sentinel *`, for example `py -m sentinel`. Approve once or use the documented form. |
-| Claude Code's clone hook does nothing | The hook command is `python .claude/hooks/...`; make `python` available on `PATH`. |
+| Claude Code's clone hook does nothing | The hook starts Python through `.claude/hooks/python.sh`, which tries `SENTINEL_PYTHON`, then `python3`/`python`/`py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders. If none is found, set `SENTINEL_PYTHON` to the full path of `python.exe`. |
 | A command exits with 6 | Another command holds the workspace. See the [admin guide](20-admin-guide.md#the-workspace-lock). |
 
 ## Next

@@ -33,9 +33,9 @@ The `/brief` output carries `brief_settings`. Profile and genesis decide which b
 - **Profile:** one or more of `UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`.
 - **Genesis:** `greenfield` or `brownfield-integration|extension|replacement`.
 - **Validation direction:** `to-build` or `built`.
-- **Brief version:** `1` (default) or `2` (opt-in per project).
+- **Brief version:** `2` (the default a new project gets from `/init`) or `1` (`/init --brief-version 1`, or `/brief --brief-version 1` to switch).
 
-While profile and genesis are unconfirmed, the output shows a `proposal` built from keyword cues in the raw input.
+While profile and genesis are unconfirmed, the output shows a `proposal` built from keyword cues in the raw input, `/next` and `/status` ask for them, and `/maturity` stays `BLOCKED` on `GAP-BRIEF-PROFILE`.
 
 - **Never apply the proposal yourself.** Ask the BA and record the answer:
 
