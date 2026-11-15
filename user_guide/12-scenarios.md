@@ -422,7 +422,7 @@ In a terminal, check the exit code right after the command (`echo $?` in a Unix 
 sentinel error: Cannot generate specs while requirement maturity is BLOCKED.
 ```
 
-This is exit 4. The cause is an open blocking gap. On a brief v2 project where the settings step was skipped, it is `GAP-BRIEF-PROFILE`, opened the first time a brief was compiled ([what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings)). `/next` does not point to the brief step yet, so look at the blockers yourself. Recover:
+This is exit 4. The cause is an open blocking gap. On a brief v2 project where the settings step was skipped, it is `GAP-BRIEF-PROFILE`, which `/maturity` opens before it decides ([what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings)). `/next` and `/status` show *Confirm the brief settings* with a suggested `/brief ... --profile ... --genesis ...` command, whose values come from the raw input, so check them first. You can also look at the blockers yourself. Recover:
 
 ```text
 /status ACME_PORTAL

@@ -162,17 +162,19 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/gaps`, `/resolve-gaps`, `/annotate`, `/challenge`, `/scrutinize`, `/self-review`, `/brief` | Before `/ingest` | `Cannot ... before /ingest creates ...` | 4 | `/ingest` |
 | `/annotate`, `/challenge`, `/scrutinize` | No raw input under `00_raw/` to check quotes against | `No raw input found under 00_raw/` | 4 | `/ingest` |
 | `/self-review` (default mode) | No PRD or specs | `Cannot self-review before /specs` | 4 | `/specs` |
-| `/assume` | Before `/ingest` | `Cannot register assumptions before /ingest` | 3 | `/ingest` |
-| `/compose` | No `03_specs/prd.md` | `Cannot compose PRD before /specs` | 3 | `/specs` |
-| `/refine-backlog` | No `04_backlog/EPIC-001.md` | `Cannot refine backlog before /backlog` | 3 | `/backlog` |
-| `/implementation-feedback` | No `04_backlog/` | `Cannot process implementation feedback before /backlog` | 3 | `/backlog` |
+| `/assume` | Before `/ingest` | `Cannot register assumptions before /ingest` | 4 | `/ingest` |
+| `/compose` | No `03_specs/prd.md` | `Cannot compose PRD before /specs` | 4 | `/specs` |
+| `/refine-backlog` | No `04_backlog/EPIC-001.md` | `Cannot refine backlog before /backlog` | 4 | `/backlog` |
+| `/implementation-feedback` | No epic in `04_backlog/` | `Cannot process implementation feedback before /backlog` | 4 | `/backlog` |
 | `/export --final` | The brief, PRD or context request still has pending marks | `/export --final refused: N pending marks remain` | 4 | Close the gaps, or export without `--final` |
 | `/export --format faq` | No resolved gaps yet | `Cannot export a FAQ before gaps are resolved` | 4 | `/resolve-gaps` |
 | `/export --format interview` | Before `/ingest` | `Cannot export an interview script before /ingest` | 4 | `/ingest` |
-| `/split` (every mode) | v1 brief, no brief v2, refused proposal, partition not green, brief changed, missing `--ba`/`--tech`, stories not Done on `--close` | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
-| Release commands with `--release` | No confirmed series, or the release is not in it | `--release needs a confirmed release series` | 3 | `/split --confirm` |
-| `/prototype --trace`, `--manual` | Payload refused, or no brief v2 (`--trace`) | `the trace/manual was refused (N findings)` | 3 | Fix the findings |
-| `/self-review --sufficiency`, `--crosses`; `/scrutinize --mode anchors` | No compiled brief v2 | `... reads a brief v2; compile one with /brief first` | 3 | `/brief` |
+| `/split` (prerequisites) | v1 brief or no brief v2, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
+| `/split` (refused input) | Refused proposal, partition not green, missing `--ba`/`--tech` or other bad options | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
+| Release commands with `--release` | No confirmed series | `--release needs a confirmed release series` | 4 | `/split --confirm` |
+| `/prototype --trace`, `--manual` | No brief v2 or no inventory (a refused payload stays exit 3) | `... needs a compiled brief v2` / `... needs an inventory` | 4 | `/brief`, or `/prototype --inventory` |
+| `/prototype --trace`, `--manual` | Payload refused | `the trace/manual was refused (N findings)` | 3 | Fix the findings |
+| `/self-review --sufficiency`, `--crosses`; `/scrutinize --mode anchors` | No compiled brief v2 | `... reads a brief v2; compile one with /brief first` | 4 | `/brief` |
 | `/validate`, `/backlog-status`, `/quality` with `--override` | Nothing fails or warns, so there is nothing to override | `has no failing or warning gate state to override` | 3 | Run without `--override` |
 | `/validate` | Verdict is not `VALID` | (result printed) | 5 | Fix the findings or `--override` |
 | `/doctor` | Verdict is `FAIL` | (result printed) | 5 | Fix the failing checks |
@@ -606,7 +608,7 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 - `implementability-probe`: `01_discovery/implementability_probe_report.md` and a copy under `01_discovery/implementability_probe/`; gaps with `origin: implementability-probe`.
 - `anchors`: `GAP-ANC-*` gaps. The brief is never edited.
 
-**Refuses when.** Before `/ingest`, or no evidence under `00_raw/` → exit 4. Payload refused, or `anchors` without a brief v2 → exit 3.
+**Refuses when.** Before `/ingest`, or no evidence under `00_raw/` → exit 4. `anchors` without a brief v2 → exit 4. Payload refused → exit 3.
 
 **You get.** The accepted findings and gaps.
 
@@ -951,7 +953,7 @@ python -m sentinel /maturity ACME_PORTAL
 
 **You get.** `readiness`, `blocking_gaps`, `metrics` (gap closure, requirement quality, brief and PRD section readiness, maturation telemetry, development readiness, `maturity_score`, trend) and the brief path.
 
-**Next step.** `BLOCKED`: answer the blocking gaps (`/resolve-gaps`, `/assume`). `READY_FOR_SPECS`: `/specs`.
+**Next step.** `BLOCKED`: answer the blocking gaps (`/resolve-gaps`, `/assume`). If `GAP-BRIEF-PROFILE` is open, confirm the settings with `/brief PROJECT_ID --profile ... --genesis ...` (`/maturity` opens that gap itself on a brief v2 project with unconfirmed settings). `READY_FOR_SPECS`: `/specs`.
 
 **See also.** [User guide: maturity](00-user-guide.md) · skill `sentinel-maturity`.
 
@@ -1655,7 +1657,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 - `gap_counts`, `maturity_score`, the `sources` summary.
 - `next_step` and `next_action` (`key`, `title`, `text`, `command`).
 
-**Next step.** Run the command in `next_action`.
+**Next step.** Run the command in `next_action`. On a brief v2 project whose settings are not confirmed, it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 
 **See also.** [`next`](#next) · [Dashboard](14-dashboard.md).
 
@@ -1689,7 +1691,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **You get.** `key`, `title`, `text` and the `command` to run.
 
-**Next step.** Run that command.
+**Next step.** Run that command. On a brief v2 project with unconfirmed settings it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 
 **See also.** [`status`](#status).
 
