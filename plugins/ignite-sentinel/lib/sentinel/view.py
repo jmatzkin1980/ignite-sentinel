@@ -93,7 +93,13 @@ def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
         relative = str(config["fallback_relative"])
         path = base / relative
     if not path.exists():
-        raise FileNotFoundError(f"Artifact not found for /view: workspaces/{project_id}/{relative}")
+        # IMP-312: a prerequisite (the command that writes the artifact has not run), so a gate refusal
+        from .errors import GateRefusal
+
+        raise GateRefusal(
+            f"Artifact not generated yet for /view: workspaces/{project_id}/{relative}",
+            next_step=f"Run /next {project_id} to see which command comes first.",
+        )
 
     text = path.read_text(encoding="utf-8")
     block_model = markdown_to_blocks(text, artifact=artifact)

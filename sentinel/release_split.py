@@ -428,12 +428,12 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
     series = base.joinpath(*PROPOSAL_DIR)
     stored = read_json(series / PROPOSAL_FILE, None)
     if not isinstance(stored, dict) or not isinstance(stored.get("proposal"), dict):
-        raise ReleaseSplitError("/split --confirm needs a stored proposal; run /split --propose first")
+        raise ReleaseSplitError("/split --confirm needs a stored proposal; run /split --propose first", gate=True)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.is_file():
-        raise ReleaseSplitError("/split --confirm needs the compiled brief v2")
+        raise ReleaseSplitError("/split --confirm needs the compiled brief v2", gate=True)
     if brief_hash(brief_path) != stored.get("brief_sha256"):
-        raise ReleaseSplitError("the brief changed since the proposal was stored; run /split --propose again")
+        raise ReleaseSplitError("the brief changed since the proposal was stored; run /split --propose again", gate=True)
     gaps_path = base / "01_discovery" / "gaps.md"
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {_s(g.get("id")).strip("`") for g in rows if _s(g.get("status")).upper() != "CLOSED"}

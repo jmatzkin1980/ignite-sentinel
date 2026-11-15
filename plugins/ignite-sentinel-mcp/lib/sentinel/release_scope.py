@@ -85,7 +85,7 @@ def _series_releases(base: Path) -> list[str]:
 
     partition = read_json(base / "02_requirements" / "series" / "partition.json", None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
-        raise ReleaseSplitError("--release needs a confirmed release series; run /split --confirm first")
+        raise ReleaseSplitError("--release needs a confirmed release series; run /split --confirm first", gate=True)
     series = read_json(base / "02_requirements" / "series" / "series_map.json", None)
     return list((series or {}).get("releases") or []) if isinstance(series, dict) else []
 
@@ -165,7 +165,7 @@ def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
         raise ReleaseSplitError(f"{rid} is not a release of the confirmed series")
     brief = main / "02_requirements" / rid / "project-brief.md"
     if not brief.is_file():
-        raise ReleaseSplitError(f"{brief.as_posix()} is missing; the series compiles at /split --confirm")
+        raise ReleaseSplitError(f"{brief.as_posix()} is missing; the series compiles at /split --confirm", gate=True)
     mirror_root = main / WORK_DIR / rid
     mirror = mirror_root / "workspaces" / project_id
     previous_state = read_json(mirror / "state.json", {}) if (mirror / "state.json").exists() else {}

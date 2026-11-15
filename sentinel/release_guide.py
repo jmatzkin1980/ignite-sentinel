@@ -68,7 +68,7 @@ def _series(base: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     series = base.joinpath(*PROPOSAL_DIR)
     partition = read_json(series / PARTITION_FILE, None)
     if not isinstance(partition, dict) or partition.get("status") != "confirmed":
-        raise ReleaseSplitError("this needs a confirmed release series; run /split --confirm first")
+        raise ReleaseSplitError("this needs a confirmed release series; run /split --confirm first", gate=True)
     stored = read_json(series / PROPOSAL_FILE, None)
     payload = stored.get("proposal") if isinstance(stored, dict) else None
     return partition, payload if isinstance(payload, dict) else {}
@@ -119,16 +119,16 @@ def close_release(project_id: str, rid: str, evidence: str, ba: str, tech: str, 
         raise ReleaseSplitError(f"{rid} is not a release of the confirmed series")
     closed = dict(partition.get("closed") or {})
     if rid in closed:
-        raise ReleaseSplitError(f"{rid} is already closed ({closed[rid].get('date')})")
+        raise ReleaseSplitError(f"{rid} is already closed ({closed[rid].get('date')})", gate=True)
     proof = Path(evidence) if evidence else None
     if proof is None or not proof.is_file():
         raise ReleaseSplitError("/split --close needs --evidence PATH: a local file with the result of the release's closing check")
     stories = release_stories(base, project_id, rid)
     if not stories:
-        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, /backlog --release {rid}) and build it before closing")
+        raise ReleaseSplitError(f"{rid} has no stories yet: derive it (/specs, /backlog --release {rid}) and build it before closing", gate=True)
     pending = sorted(sid for sid, status in stories.items() if status != "Done")
     if pending:
-        raise ReleaseSplitError(f"{rid} cannot close: stories not Done: {', '.join(pending)} (/story-status --release {rid})")
+        raise ReleaseSplitError(f"{rid} cannot close: stories not Done: {', '.join(pending)} (/story-status --release {rid})", gate=True)
     closed[rid] = {"date": today or utc_now()[:10], "evidence": proof.as_posix(),
                    "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
                    "closed_by": {"ba": _s(ba), "technical_team": _s(tech)}, "stories": sorted(stories)}

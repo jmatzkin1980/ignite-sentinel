@@ -26,7 +26,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
     prd_path = base / "03_specs" / "prd.md"
     if not prd_path.exists():
-        raise ComposeError("Cannot compose PRD before /specs creates 03_specs/prd.md.")
+        raise ComposeError("Cannot compose PRD before /specs creates 03_specs/prd.md.", gate=True)
     if not source.exists():
         raise ComposeError(f"Composition source not found: {source}")
 

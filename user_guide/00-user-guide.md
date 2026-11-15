@@ -147,7 +147,7 @@ In a Claude Code clone, `/init` can start Claude Code's own built-in project set
 /ingest ACME_PORTAL --source input/acme-request.md
 ```
 
-**What you get:** a redacted copy under `00_raw/`, source row `F-01`, `02_requirements/requirements.md`, seeds and decisions, a multi-lens review, and **`01_discovery/gaps.md`**. If a secret or an injected instruction was found, `secret_alerts.md` or `injection_signals.md` appears in `01_discovery/`. Formats: `.md`, `.txt`, `.html` and `.docx`; other UTF-8 text is stored as Markdown with a warning, and a binary file such as a PDF is refused. If the command ends with a traceback (exit 1), check the `--source` path first: a file that does not exist currently ends this way.
+**What you get:** a redacted copy under `00_raw/`, source row `F-01`, `02_requirements/requirements.md`, seeds and decisions, a multi-lens review, and **`01_discovery/gaps.md`**. If a secret or an injected instruction was found, `secret_alerts.md` or `injection_signals.md` appears in `01_discovery/`. Formats: `.md`, `.txt`, `.html` and `.docx`; other UTF-8 text is stored as Markdown with a warning, and a binary file such as a PDF is refused. If the command stops with exit 3 and `--source file not found`, check the path: it is read relative to the folder you run Sentinel from.
 
 **Next step:** confirm the brief settings, right away.
 
@@ -290,10 +290,10 @@ Every command prints JSON. The fields to look at:
 | Code | Meaning |
 |---|---|
 | 0 | Success |
-| 1 | Unexpected error, a traceback follows. Check the `--source` path first: a file that does not exist currently ends this way. Otherwise it is a bug; report it. |
+| 1 | Unexpected error, a traceback follows. It is a genuine bug; report it. |
 | 2 | Wrong usage: a missing required option or an unknown value |
-| 3 | Invalid input: a bad value, an unsupported file, a refused payload |
-| 4 | Gate refusal: a prerequisite, the health or the phase stops the command |
+| 3 | Invalid input: a bad value, a `--source` file that does not exist, an unsupported file, a refused payload |
+| 4 | Gate refusal: a missing prerequisite or the project's state (health, phase) stops the command |
 | 5 | Unfavourable verdict: `/validate` not `VALID`, `/doctor` not `PASS` |
 | 6 | Workspace busy: another command holds the workspace lock (it waits 10 seconds first) |
 
