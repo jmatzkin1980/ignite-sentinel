@@ -19,6 +19,10 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **The cause:** converting a stored path to or from workspace-relative form resolved the workspace folder each time, a filesystem call on Windows. It runs for every graph node and every memory chunk on every save, so it took a third of a whole flow.
   - **The fix:** the folder is resolved once per workspace root and process. The comparison is a string prefix, case-insensitive on Windows. `is_absolute_path` no longer builds two path objects per call.
   - **The result:** the 12-phase `support-dashboard` flow went from 11.3 s to 5.4 s, faster than before IMP-300 (6.5 s). Paths and artifacts are unchanged.
+- `/trace` and `/maturity` were registered as read-only but write artifacts (IMP-306).
+  - **The risk:** `/maturity` rewrites `02_requirements/project-brief.md`, a governed artifact, but the protocol only refreshes the governed-artifact checksums after a mutating command. A later `/health` could then report a brief that only Sentinel had written as edited by hand.
+  - **The fix:** both are now `MUTATING`. The protocol refreshes the checksums after them and no longer special-cases `/trace` for the traceability refresh.
+  - **The guard:** `tests/test_read_only_commands.py` runs every read-only command on a matured workspace and fails if it writes a file outside the protocol's bookkeeping, the memory cache and the reports it declares. `/health` keeps its report as a declared output and stays read-only: it audits those checksums, so refreshing them after it would hide a hand edit.
 
 ### Changed
 - A leaner test suite (IMP-305). The suite had grown to about 40 minutes on Windows, and most of its cost sat in a few modules that rebuilt the same workspace for every test.

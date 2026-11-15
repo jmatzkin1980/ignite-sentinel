@@ -291,12 +291,14 @@ REGISTRY: tuple[Command, ...] = (
     Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}),
     Command("export", MUTATING, _export),
     Command("backlog", MUTATING, _backlog, release=True),
-    Command("maturity", READ_ONLY, _project),
+    # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.
+    Command("maturity", MUTATING, _project),
     Command("specs", MUTATING, _project, release=True),
     Command("backlog-status", MUTATING, _project_override),
     Command("quality", MUTATING, _project_override, release=True),
     Command("health", READ_ONLY, _project),
-    Command("trace", READ_ONLY, _project, release=True),
+    # IMP-306: /trace rewrites the traceability matrix and graph.
+    Command("trace", MUTATING, _project, release=True),
     Command("validate", READ_ONLY, _project_override, release=True),
     Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}),
     Command("brief", MUTATING, _brief),
