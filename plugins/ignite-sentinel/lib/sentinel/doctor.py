@@ -70,8 +70,31 @@ def is_framework_root(root: Path) -> bool:
     return (root / "sentinel" / "__init__.py").is_file() or (root / ".codex" / "skills").is_dir()
 
 
+# IMP-317: `pip install -e .[extra]` installs the clone's own project. Outside a clone there is
+# none, so the runtime doctor names the packages of each extra (pyproject.toml) instead.
+_RUNTIME_INSTALLS = (
+    ("python -m pip install -e .[memory-semantic]", "python -m pip install model2vec sentence-transformers"),
+    ("python -m pip install -e .[memory]", "python -m pip install lancedb"),
+    ("python -m pip install -e .[mcp]", 'python -m pip install "mcp>=1.2,<3"'),
+)
+
+
+def runtime_hint(check: dict[str, str]) -> dict[str, str]:
+    detail = check.get("detail", "")
+    if "-e ." not in detail:
+        return check
+    for clone_form, package_form in _RUNTIME_INSTALLS:
+        detail = detail.replace(clone_form, package_form)
+    detail += " Install with the same Python that runs Sentinel."
+    return {**check, "detail": detail}
+
+
 def runtime_checks(root: Path) -> list[dict[str, str]]:
     """IMP-314: what /doctor can check outside a clone: the interpreter, the package, this folder."""
+    return [runtime_hint(check) for check in _runtime_checks(root)]
+
+
+def _runtime_checks(root: Path) -> list[dict[str, str]]:
     return [
         python_check(),
         {
@@ -1640,7 +1663,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Claude Code",),
         live_check="After installing, `claude plugin details ignite-sentinel` lists one skill per folder of `.codex/skills` and 1 PreToolUse hook; `/ignite-sentinel:sentinel-views` writes the dashboard into the project, not the plugin; a hand Write to `workspaces/<id>/03_specs/*.md` is denied.",
         observed="2026-11-15",
-        note="Observed with 0.12.0 from the GitHub marketplace in a signed-in Claude desktop session on Windows (Claude Code 2.1.233 CLI reported, Python 3.13.2): the skills autocomplete as `/ignite-sentinel:sentinel-*`; init, ingest, next, brief, specs (refused, exit 4), view and dashboard run through the command router and write into the project; a hand Write to `03_specs/prueba.md` and a hand Edit of `project-brief.md` are both denied by the hook naming the owning commands; `sentinel /doctor` passes in runtime mode. Git Bash rewrote `/init` and `/doctor` into paths until IMP-315. Earlier, with 0.3.0: details showed Skills (24, the count at the time) and Hooks (1) PreToolUse.",
+        note="Observed with 0.12.0 from the GitHub marketplace in a signed-in Claude desktop session on Windows (Claude Code 2.1.233 CLI reported, Python 3.13.2): the skills autocomplete as `/ignite-sentinel:sentinel-*`; init, ingest, next, brief, specs (refused, exit 4), view and dashboard run through the command router and write into the project; a hand Write to `03_specs/prueba.md` and a hand Edit of `project-brief.md` are both denied by the hook naming the owning commands; `sentinel /doctor` passes in runtime mode. Git Bash rewrote `/init` and `/doctor` into paths until IMP-315; with 0.12.1 (`#stable`), `sentinel /doctor` ran through `launcher.py /doctor` without MSYS_NO_PATHCONV and passed. Earlier, with 0.3.0: details showed Skills (24, the count at the time) and Hooks (1) PreToolUse.",
     ),
     "plugins/ignite-sentinel-mcp": SurfaceContract(
         surfaces=("Claude Code",),
