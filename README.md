@@ -6,7 +6,7 @@
 
 Ignite Sentinel turns a raw client request (a note, an email, a prototype, a pile of meeting minutes) into a project brief, a PRD, specs, a backlog and test cases, step by step, on your own machine. It never invents scope: every statement cites its evidence, and everything still unknown stays visible as a question, called a **gap**, until someone answers it.
 
-You drive it from chat in Claude Code, Codex or Kilo Code, or from a plain terminal. Version 0.12.0.
+You drive it from chat in Claude Code, Codex or Kilo Code, or from a plain terminal. Version 0.12.1.
 
 New words (gap, brief, PRD, profile, genesis, lens, spec unit, slice plan...) are defined in the [glossary](user_guide/00-user-guide.md#glossary).
 
