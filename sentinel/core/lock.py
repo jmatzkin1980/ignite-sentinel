@@ -18,8 +18,8 @@ Entering the outermost scope also drops the in-memory read caches, so a command
 never trusts what an earlier command in the same process (the MCP server) read.
 
 Read-only commands take the lock too: every project command records itself in
-``state.json`` (the command log), and ``/health``, ``/maturity`` and ``/view``
-write files, so none of them is read-only on disk.
+``state.json`` (the command log), and ``/health`` and ``/view`` write derived
+reports, so none of them is read-only on disk.
 """
 from __future__ import annotations
 
