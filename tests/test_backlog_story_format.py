@@ -8,15 +8,16 @@ a missing outcome surfaces as [PENDING INPUT] rather than being invented.
 """
 from __future__ import annotations
 
-import os
-import shutil
-import tempfile
+import sys
 import unittest
 from pathlib import Path
 
 from sentinel.cli import main
 from sentinel.compilers.backlog import render_story_narrative
 from sentinel.core.paths import config_path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
 
 
 RAW = """# Operations Risk Dashboard
@@ -74,37 +75,33 @@ class StoryNarrativeUnitTests(unittest.TestCase):
         self.assertEqual(render_story_narrative(story, "nonsense"), render_story_narrative(story, "user"))
 
 
-class BacklogStoryFormatTests(unittest.TestCase):
-    def setUp(self):
-        self.old_cwd = Path.cwd()
-        self.temp = Path(tempfile.mkdtemp())
-        os.chdir(self.temp)
-        self.raw = self.temp / "raw.md"
-        self.raw.write_text(RAW, encoding="utf-8")
+class BacklogStoryFormatTests(SnapshotWorkspaceCase):
+    """IMP-305: the matured workspace (up to specs) is built once; each test gets a copy."""
 
-    def tearDown(self):
-        os.chdir(self.old_cwd)
-        shutil.rmtree(self.temp, ignore_errors=True)
+    PID = "STORYFMT"
 
-    def _resolve_acceptance_with(self, pid: str, statement: str, index: int) -> None:
-        answer = self.temp / f"answers-{index}.md"
-        answer.write_text(
-            "### GAP-ACCEPTANCE\n"
-            f"- Answer: {statement}\n"
-            "- Owner / source: Client workshop\n"
-            f"- Evidence or reference: Synthetic EARS response {index}\n"
-            "- Decision status: confirmed\n",
-            encoding="utf-8",
-        )
-        self.assertEqual(main(["resolve-gaps", pid, "--source", str(answer)]), 0)
+    @classmethod
+    def build_workspace(cls) -> None:
+        root = Path.cwd()
+        (root / "raw.md").write_text(RAW, encoding="utf-8")
+        run_ok(["init", cls.PID, "--brief-version", "1"])
+        run_ok(["ingest", cls.PID, "--source", str(root / "raw.md")])
+        for index, statement in enumerate(EARS_STATEMENTS, start=1):
+            answer = root / f"answers-{index}.md"
+            answer.write_text(
+                "### GAP-ACCEPTANCE\n"
+                f"- Answer: {statement}\n"
+                "- Owner / source: Client workshop\n"
+                f"- Evidence or reference: Synthetic EARS response {index}\n"
+                "- Decision status: confirmed\n",
+                encoding="utf-8",
+            )
+            run_ok(["resolve-gaps", cls.PID, "--source", str(answer)])
+        run_ok(["brief", cls.PID])
+        run_ok(["specs", cls.PID])
 
     def _mature(self, pid: str) -> Path:
-        self.assertEqual(main(["init", pid, "--brief-version", "1"]), 0)
-        self.assertEqual(main(["ingest", pid, "--source", str(self.raw)]), 0)
-        for index, statement in enumerate(EARS_STATEMENTS, start=1):
-            self._resolve_acceptance_with(pid, statement, index)
-        self.assertEqual(main(["brief", pid]), 0)
-        self.assertEqual(main(["specs", pid]), 0)
+        self.assertEqual(pid, self.PID)
         return self.temp / "workspaces" / pid
 
     def _epic(self, workspace: Path) -> str:
@@ -114,7 +111,7 @@ class BacklogStoryFormatTests(unittest.TestCase):
         return (workspace / "04_backlog" / "US-001.md").read_text(encoding="utf-8")
 
     def test_default_is_user_story_and_flag_switches_to_job(self):
-        pid = "STORYFMT"
+        pid = self.PID
         workspace = self._mature(pid)
 
         # Default (no flag): persona-neutral user story, unchanged shape.
@@ -145,7 +142,7 @@ class BacklogStoryFormatTests(unittest.TestCase):
         self.assertIn("SPEC-U-001, REQ-EARS-001, REQ-001, PRD-001, SPEC-001", story_job)
 
     def test_config_field_selects_job_without_flag(self):
-        pid = "STORYFMTCFG"
+        pid = self.PID
         workspace = self._mature(pid)
         cfg = config_path(pid)
         cfg.write_text(cfg.read_text(encoding="utf-8") + "\nstory_format: job\n", encoding="utf-8")
@@ -153,7 +150,7 @@ class BacklogStoryFormatTests(unittest.TestCase):
         self.assertIn("When the target user faces the operational situation", self._epic(workspace))
 
     def test_flag_overrides_config(self):
-        pid = "STORYFMTOVR"
+        pid = self.PID
         workspace = self._mature(pid)
         cfg = config_path(pid)
         cfg.write_text(cfg.read_text(encoding="utf-8") + "\nstory_format: user\n", encoding="utf-8")

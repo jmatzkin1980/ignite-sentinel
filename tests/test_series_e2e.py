@@ -108,12 +108,15 @@ def run_series(work: Path, case: Case = CHAIN) -> dict:
 
 class _SeriesEndToEnd:
     CASE: Case = CHAIN
+    # IMP-305: a second full run only proves determinism; one case pays for it.
+    # CHAIN ingests three sources, where ordering bugs show first.
+    RUN_TWICE = False
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.tmp = [tempfile.TemporaryDirectory(), tempfile.TemporaryDirectory()]
+        cls.tmp = [tempfile.TemporaryDirectory() for _ in range(2 if cls.RUN_TWICE else 1)]
         cls.first = run_series(Path(cls.tmp[0].name), cls.CASE)
-        cls.second = run_series(Path(cls.tmp[1].name), cls.CASE)
+        cls.second = run_series(Path(cls.tmp[1].name), cls.CASE) if cls.RUN_TWICE else None
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -142,14 +145,15 @@ class _SeriesEndToEnd:
             self.assertEqual(self.first["verdicts"][rid], ("VALID", []), rid)
         self.assertEqual(self.first["verdicts"]["project"], "VALID")
 
+
+class SeriesEndToEnd(_SeriesEndToEnd, unittest.TestCase):
+    CASE = CHAIN
+    RUN_TWICE = True
+
     def test_two_runs_are_identical(self) -> None:
         self.assertEqual(sorted(self.first["artifacts"]), sorted(self.second["artifacts"]))
         for rel, text in self.first["artifacts"].items():
             self.assertEqual(text, self.second["artifacts"][rel], rel)
-
-
-class SeriesEndToEnd(_SeriesEndToEnd, unittest.TestCase):
-    CASE = CHAIN
 
 
 class SeriesAllTypesEndToEnd(_SeriesEndToEnd, unittest.TestCase):

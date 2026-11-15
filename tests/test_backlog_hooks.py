@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import tempfile
+import sys
 import unittest
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 
 from sentinel.cli import main
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer  # noqa: E402
 
 
 RAW = """# Operations Risk Dashboard
@@ -26,33 +27,14 @@ When an operations lead selects a queue, the system shall show the queue detail 
 """
 
 
-class BacklogHooksTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.old_cwd = Path.cwd()
-        self.temp = Path(tempfile.mkdtemp())
-        os.chdir(self.temp)
-        raw = self.temp / "raw.md"
-        raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "HOOKS", "--brief-version", "1"]), 0)
-        self.assertEqual(main(["ingest", "HOOKS", "--source", str(raw)]), 0)
-        answers = self.temp / "answers.md"
-        answers.write_text(
-            "### GAP-ACCEPTANCE\n"
-            f"- Answer: {EARS}\n"
-            "- Owner / source: Client workshop\n"
-            "- Evidence or reference: Synthetic EARS response\n"
-            "- Decision status: confirmed\n",
-            encoding="utf-8",
-        )
-        self.assertEqual(main(["resolve-gaps", "HOOKS", "--source", str(answers)]), 0)
-        self.assertEqual(main(["brief", "HOOKS"]), 0)
-        self.assertEqual(main(["specs", "HOOKS"]), 0)
-        self.assertEqual(main(["backlog", "HOOKS"]), 0)
-        self.ws = self.temp / "workspaces" / "HOOKS"
+class BacklogHooksTests(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls) -> None:
+        build_matured_workspace("HOOKS", RAW, gap_acceptance_answer(EARS))
 
-    def tearDown(self) -> None:
-        os.chdir(self.old_cwd)
-        shutil.rmtree(self.temp, ignore_errors=True)
+    def setUp(self) -> None:
+        super().setUp()
+        self.ws = self.temp / "workspaces" / "HOOKS"
 
     def test_sync_spec_unit_marks_only_derived_story_stale(self) -> None:
         readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import tempfile
+import sys
 import unittest
 from hashlib import sha256
 from pathlib import Path
 
 from sentinel.cli import main
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer  # noqa: E402
 
 
 RAW = """# Operations Risk Dashboard
@@ -23,33 +24,14 @@ In scope: read-only risk dashboard for open queues.
 EARS = "When queue metrics are available, the system shall display open risk queues."
 
 
-class StoryStatusTests(unittest.TestCase):
-    def setUp(self):
-        self.old_cwd = Path.cwd()
-        self.temp = Path(tempfile.mkdtemp())
-        os.chdir(self.temp)
-        raw = self.temp / "raw.md"
-        raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "STATUS", "--brief-version", "1"]), 0)
-        self.assertEqual(main(["ingest", "STATUS", "--source", str(raw)]), 0)
-        answers = self.temp / "answers.md"
-        answers.write_text(
-            "### GAP-ACCEPTANCE\n"
-            f"- Answer: {EARS}\n"
-            "- Owner / source: Client workshop\n"
-            "- Evidence or reference: Synthetic EARS response\n"
-            "- Decision status: confirmed\n",
-            encoding="utf-8",
-        )
-        self.assertEqual(main(["resolve-gaps", "STATUS", "--source", str(answers)]), 0)
-        self.assertEqual(main(["brief", "STATUS"]), 0)
-        self.assertEqual(main(["specs", "STATUS"]), 0)
-        self.assertEqual(main(["backlog", "STATUS"]), 0)
-        self.ws = self.temp / "workspaces" / "STATUS"
+class StoryStatusTests(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls) -> None:
+        build_matured_workspace("STATUS", RAW, gap_acceptance_answer(EARS))
 
-    def tearDown(self):
-        os.chdir(self.old_cwd)
-        shutil.rmtree(self.temp, ignore_errors=True)
+    def setUp(self):
+        super().setUp()
+        self.ws = self.temp / "workspaces" / "STATUS"
 
     def add_peer_story(self, story_id: str, source_unit: str, domain: str | None = None) -> None:
         readiness_path = self.ws / "08_context_packs" / "implementation_readiness.json"

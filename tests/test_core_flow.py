@@ -944,29 +944,11 @@ Second section paragraph.
         self.assertEqual(main(["validate", "REGEN"]), 0)
 
     def test_command_adapters_in_sync_with_manifest(self) -> None:
-        from sentinel.adapters import manifest_command_names, out_of_sync, runtime_command_names
+        # IMP-305: the command list itself is pinned by the registry
+        # (test_command_registry); this keeps the parity check and the adapter sync.
+        from sentinel.adapters import out_of_sync
         from sentinel.doctor import command_surface_parity_check
 
-        names = manifest_command_names()
-        self.assertEqual(len(names), 38)  # IMP-262 added harvest, IMP-263 split, IMP-274 prototype
-        self.assertIn("harvest", names)
-        self.assertIn("split", names)
-        self.assertIn("sentinel", names)
-        self.assertIn("stakeholders", names)
-        self.assertIn("sources", names)
-        self.assertIn("dashboard", names)
-        self.assertIn("view", names)
-        self.assertIn("annotate", names)
-        self.assertIn("challenge", names)
-        self.assertIn("scrutinize", names)
-        self.assertIn("self-review", names)
-        self.assertIn("assume", names)
-        self.assertIn("compose", names)
-        self.assertIn("refine-backlog", names)
-        self.assertIn("implementation-feedback", names)
-        self.assertIn("story-status", names)
-        self.assertIn("backlog-status", names)
-        self.assertEqual(set(runtime_command_names()), set(names) - {"sentinel"})
         self.assertEqual(command_surface_parity_check()["status"], "PASS")
         negative = command_surface_parity_check(runtime=["doctor", "missing-runtime"], manifest=["sentinel", "doctor", "manifest-only"])
         self.assertEqual(negative["status"], "FAIL")
@@ -994,66 +976,17 @@ Second section paragraph.
         self.assertIn("/health", by_name["docs command mentions: missing.md"]["detail"])
         self.assertEqual(by_name["docs command mentions: absent.md"]["status"], "WARN")
 
-    def test_doctor_commands_surface_derives_from_runtime(self) -> None:
-        # IMP-213 (H10, F-209-1): the /doctor `commands` surface must derive live
-        # from the runtime, not a hand-maintained list that silently drifts (the
-        # audit found it hardcoded at 29 while the runtime already exposed 32).
-        from sentinel.adapters import runtime_command_names
-
-        report = run_doctor(ROOT.parent)
-        self.assertEqual(report["commands"], runtime_command_names())
-        for command in ("self-review", "implementation-feedback", "stakeholders"):
-            self.assertIn(command, report["commands"])
-
-    def test_kilo_command_allowlist_covers_runtime(self) -> None:
-        # IMP-213 (H10, F-209-2): guard the Kilo permission surface so a newly
-        # added command can no longer silently fall to a prompt.
-        # IMP-235: the pre-authorization lives in `permission.bash` (Kilo's real
-        # schema), not in the `permissions.commands.allow` this used to write.
-        from sentinel.doctor import kilo_command_allowlist_check
-
-        repo_check = kilo_command_allowlist_check(ROOT.parent)
-        self.assertEqual(repo_check["status"], "PASS", repo_check["detail"])
-
-        drifted = self.temp / "kilo-drift"
-        drifted.mkdir()
-        (drifted / "kilo.jsonc").write_text(
-            "{\n"
-            '  "$schema": "https://app.kilo.ai/config.json",\n'
-            "  // narrowed pattern covering only one command\n"
-            '  "permission": { "bash": { "python -m sentinel /doctor *": "allow" } }\n'
-            "}\n",
-            encoding="utf-8",
-        )
-        drifted_check = kilo_command_allowlist_check(drifted)
-        self.assertEqual(drifted_check["status"], "WARN")
-        self.assertIn("/view", drifted_check["detail"])
-
-    def test_skills_materialized_in_standard_directories(self) -> None:
-        from sentinel.adapters import skills_out_of_sync
-
-        self.assertEqual(skills_out_of_sync(ROOT.parent), [])
-        for surface in (".agents/skills", ".claude/skills"):
-            discovery_skill = ROOT.parent / surface / "sentinel-discovery" / "SKILL.md"
-            self.assertTrue(discovery_skill.exists(), f"missing {surface} discovery skill mirror")
-            dashboard_skill = ROOT.parent / surface / "sentinel-views" / "SKILL.md"
-            dashboard_reference = ROOT.parent / surface / "sentinel-views" / "references" / "section-registry.md"
-            self.assertTrue(dashboard_skill.exists(), f"missing {surface} dashboard skill mirror")
-            self.assertTrue(dashboard_reference.exists(), f"missing {surface} dashboard registry reference")
+    # IMP-305 removed three tests covered elsewhere:
+    # - the /doctor `commands` list is runtime_command_names() by construction, and the
+    #   registry pins that list (test_command_registry);
+    # - the Kilo allowlist: test_kilo_surface_guards.KiloPreAuthorizesTheSentinelCLI;
+    # - skill mirrors: test_skill_render.OverlayTests.test_clone_mirrors_stay_byte_identical.
 
     def test_mcp_server_exposes_lifecycle_tools(self) -> None:
+        # IMP-305: the tool list is pinned by the registry (test_command_registry.McpTests).
         from sentinel.mcp import describe_tools, run_cli
 
         names = {tool["name"] for tool in describe_tools()}
-        self.assertEqual(len(names), 38)  # IMP-262 sentinel_harvest, IMP-263 sentinel_split, IMP-274 sentinel_prototype
-        self.assertIn("sentinel_harvest", names)
-        self.assertIn("sentinel_split", names)
-        self.assertIn("sentinel_stakeholders", names)
-        self.assertIn("sentinel_sources", names)
-        for expected in ("sentinel_dashboard", "sentinel_view", "sentinel_init", "sentinel_ingest", "sentinel_maturity", "sentinel_backlog", "sentinel_validate", "sentinel_annotate", "sentinel_challenge", "sentinel_scrutinize", "sentinel_self_review", "sentinel_assume", "sentinel_compose", "sentinel_refine_backlog", "sentinel_implementation_feedback", "sentinel_story_status", "sentinel_backlog_status", "sentinel_export"):
-            self.assertIn(expected, names)
-        self.assertIn("sentinel_gap_elicitation", names)
-
         result = run_cli(["init", "MCPX", "--brief-version", "1"])
         self.assertEqual(result["exit_code"], 0)
         self.assertIn("workspace", result["output"])

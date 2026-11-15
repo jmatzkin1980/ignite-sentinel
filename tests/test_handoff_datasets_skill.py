@@ -4,8 +4,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from sentinel.adapters import skills_out_of_sync
-from sentinel.doctor import REQUIRED_CODEX_SKILLS, skill_metadata_checks
+from sentinel.doctor import REQUIRED_CODEX_SKILLS
 
 REPO = Path(__file__).resolve().parents[1]
 SKILL = "sentinel-handoff-datasets"
@@ -19,13 +18,8 @@ class HandoffDatasetsSkillTests(unittest.TestCase):
     def test_registered_in_doctor_required_skills(self):
         self.assertIn(SKILL, REQUIRED_CODEX_SKILLS)
 
-    def test_metadata_passes(self):
-        checks = {c["name"]: c for c in skill_metadata_checks(REPO)}
-        entry = checks[f"skill metadata: {SKILL}"]
-        self.assertEqual(entry["status"], "PASS", entry.get("detail", ""))
-
-    def test_mirrors_in_sync(self):
-        self.assertEqual(skills_out_of_sync(REPO), [])
+    # IMP-305: metadata and mirror sync are checked for every skill in
+    # test_skill_drift_guards and test_skill_render.
 
     def test_contract_anchors_present(self):
         text = _skill_text()

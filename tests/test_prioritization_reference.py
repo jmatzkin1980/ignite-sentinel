@@ -4,16 +4,14 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from sentinel.adapters import skills_out_of_sync
-
 REPO = Path(__file__).resolve().parents[1]
 SKILL_DIR = REPO / ".codex" / "skills" / "sentinel-backlog"
 REFERENCE = SKILL_DIR / "references" / "prioritization-frameworks.md"
 
 
 class PrioritizationReferenceTests(unittest.TestCase):
-    def test_reference_exists(self):
-        self.assertTrue(REFERENCE.exists(), "prioritization-frameworks.md missing")
+    # IMP-305: reading the reference below fails if it is missing, and mirror sync
+    # is checked for every skill in test_skill_render.
 
     def test_reference_covers_the_named_frameworks(self):
         text = REFERENCE.read_text(encoding="utf-8-sig")
@@ -29,9 +27,6 @@ class PrioritizationReferenceTests(unittest.TestCase):
     def test_skill_links_the_reference(self):
         skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8-sig")
         self.assertIn("references/prioritization-frameworks.md", skill)
-
-    def test_mirrors_in_sync(self):
-        self.assertEqual(skills_out_of_sync(REPO), [])
 
 
 if __name__ == "__main__":

@@ -58,8 +58,8 @@ class GeneratedInvocationTests(unittest.TestCase):
         for text in rendered:
             self.assertNotIn('python "${CLAUDE_PLUGIN_ROOT}', text)
 
-    def test_committed_plugin_is_in_sync(self) -> None:
-        self.assertEqual(pp.plugin_out_of_sync(REPO_ROOT), [])
+    # IMP-305: the committed plugin's sync is checked in
+    # test_claude_plugin.GeneratedPluginTests.test_committed_plugin_matches_the_generator.
 
 
 def _fake(directory: Path, name: str, body: str) -> Path:

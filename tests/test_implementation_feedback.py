@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import tempfile
+import sys
 import unittest
 from pathlib import Path
 
 from sentinel.cli import main
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
 
 
 RAW = """# Operations Risk Dashboard
@@ -22,43 +23,25 @@ In scope: read-only risk dashboard for open queues.
 EARS = "When queue metrics are available, the system shall display open risk queues."
 
 
-class ImplementationFeedbackTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.old_cwd = Path.cwd()
-        self.temp = Path(tempfile.mkdtemp())
-        os.chdir(self.temp)
-        raw = self.temp / "raw.md"
-        raw.write_text(RAW, encoding="utf-8")
-        self.assertEqual(main(["init", "IFB", "--brief-version", "1"]), 0)
-        self.assertEqual(main(["ingest", "IFB", "--source", str(raw)]), 0)
-        answers = self.temp / "answers.md"
-        answers.write_text(
-            "### GAP-ACCEPTANCE\n"
-            f"- Answer: {EARS}\n"
-            "- Owner / source: Client workshop\n"
-            "- Evidence or reference: Synthetic EARS response\n"
-            "- Decision status: confirmed\n",
-            encoding="utf-8",
-        )
-        self.assertEqual(main(["resolve-gaps", "IFB", "--source", str(answers)]), 0)
-        self.assertEqual(main(["brief", "IFB"]), 0)
-        self.assertEqual(main(["specs", "IFB"]), 0)
-        self.ws = self.temp / "workspaces" / "IFB"
-        (self.ws / "00_raw" / "02_technology_context" / "tech.md").write_text(
+class ImplementationFeedbackTests(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls) -> None:
+        ws = build_matured_workspace("IFB", RAW, gap_acceptance_answer(EARS), backlog=False)
+        (ws / "00_raw" / "02_technology_context" / "tech.md").write_text(
             "Execution commands: run pytest. Critical surfaces: risk dashboard module and queue metrics API. "
             "Engineering practices: preserve trace IDs and validate queue failures.",
             encoding="utf-8",
         )
-        (self.ws / "00_raw" / "04_quality_context" / "quality.md").write_text(
+        (ws / "00_raw" / "04_quality_context" / "quality.md").write_text(
             "Quality evidence: fail-to-pass, pass-to-pass and acceptance evidence must cover queue metrics.",
             encoding="utf-8",
         )
-        self.assertEqual(main(["reindex", "IFB"]), 0)
-        self.assertEqual(main(["backlog", "IFB"]), 0)
+        run_ok(["reindex", "IFB"])
+        run_ok(["backlog", "IFB"])
 
-    def tearDown(self) -> None:
-        os.chdir(self.old_cwd)
-        shutil.rmtree(self.temp, ignore_errors=True)
+    def setUp(self) -> None:
+        super().setUp()
+        self.ws = self.temp / "workspaces" / "IFB"
 
     def _source(self, payload: dict) -> Path:
         path = self.temp / "implementation-feedback.json"
