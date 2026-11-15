@@ -6,6 +6,12 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- The Claude Code plugin on Windows, found in a live install from the marketplace (IMP-315).
+  - **Git Bash rewrote the command name.** Claude Code runs the plugin's commands through Git Bash, which turns a leading `/init` into `C:/Program Files/Git/init` before Python starts, so every command failed unless the agent worked around it. The CLI now reads a drive path whose last segment is a command back as that command.
+  - **`/doctor` with the plugin is Claude Code's own.** The plugin has no slash commands, so a bare `/doctor` ran Claude Code's diagnostic, which offers to change Claude Code settings. The README, install, Claude Code, plugin and chat-command pages and the command router now say to type `sentinel /doctor`.
+  - **Observed live:** the plugin page and the surface contracts of the marketplace and the plugin record the walkthrough (install in the Claude desktop app, the skills, the gates, the views and the deny hook).
+
 ## [0.12.0] — 2026-11-15
 
 ### Fixed
