@@ -231,6 +231,8 @@ Each block below uses the same fields: What it does · Type · Use it when · Sy
 
 **What it does.** Checks that the repository is ready to run Sentinel on every surface: Python version, runtime, the canonical skills and their mirrors, the Kilo Code and Codex adapters, command parity with the manifest, installers, write access, optional memory dependencies and the hook and config files.
 
+**Modes.** In a framework clone (a folder with `sentinel/__init__.py` or `.codex/skills`) every check runs (`"mode": "framework"`). Anywhere else (a project folder with the plugin, the wheel or a `.pyz`) it runs in `"mode": "runtime"`: interpreter, command parity, no network import, workspace ids and portability, write access and the optional memory/MCP extras, plus a `doctor mode` check that says the clone checks were skipped. To check a clone from elsewhere, use `--root`.
+
 **Type.** Exempt (no project).
 
 **Use it when.** After installing or updating Sentinel, after changing skills or adapters, or when a surface behaves oddly.

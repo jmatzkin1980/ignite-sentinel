@@ -471,7 +471,7 @@ Exit 6. Only one command runs at a time per workspace. Sentinel waits 10 seconds
 /doctor
 ```
 
-Exit 5. For `/validate`, `INVALID` means a structural problem: read the findings, fix them by regenerating through the owning command, and rerun. The advisory warnings (content maturity, consistency) do not change the structural verdict. If you decide to go ahead despite a finding, `--override PATH` takes a file of cited `DEC-*` decisions and records your rationale in `06_traceability/gate_overrides/`; it does not turn the verdict green. For `/doctor`, fix what it lists (often a missing repository file, or `/doctor` run outside a clone). A missing optional extra is only a `WARN` and keeps `PASS`.
+Exit 5. For `/validate`, `INVALID` means a structural problem: read the findings, fix them by regenerating through the owning command, and rerun. The advisory warnings (content maturity, consistency) do not change the structural verdict. If you decide to go ahead despite a finding, `--override PATH` takes a file of cited `DEC-*` decisions and records your rationale in `06_traceability/gate_overrides/`; it does not turn the verdict green. For `/doctor`, fix what it lists (in a clone, often a missing repository file; outside a clone it runs in runtime mode and only checks the interpreter, the folder and the optional extras). A missing optional extra is only a `WARN` and keeps `PASS`.
 
 ### 4f. A proposal was rejected (exit 3)
 

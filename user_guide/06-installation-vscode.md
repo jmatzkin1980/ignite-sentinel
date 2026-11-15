@@ -82,7 +82,7 @@ Swap `memory.txt` for `memory-semantic.txt` or `mcp.txt` as needed. Details and 
    Or in plain words: "Create a Sentinel project called ACME_PORTAL."
 4. Run `sentinel /next ACME_PORTAL`. It prints the next step alone.
 
-**Check:** `claude plugin list` shows `ignite-sentinel` enabled, and `workspaces/ACME_PORTAL/` appears in your project folder. `/doctor` is built for a clone and fails its file checks inside a plain project folder, so do not use it here.
+**Check:** `claude plugin list` shows `ignite-sentinel` enabled, and `workspaces/ACME_PORTAL/` appears in your project folder. `/doctor` also works here: in a plain project folder it runs in runtime mode (`"mode": "runtime"`), checking the interpreter, the folder and the optional extras, and skips the clone's files.
 
 Channels, pinning and the optional MCP plugin are in the [Claude Code plugin guide](18-claude-plugin.md).
 
@@ -172,7 +172,7 @@ powershell -ExecutionPolicy Bypass -File .\installers\sentinel.ps1 /doctor
 
 On macOS and Linux: `sh installers/sentinel.sh /doctor`.
 
-**Check:** `/doctor` says `PASS` in a clone.
+**Check:** `/doctor` says `PASS` in a clone (`"mode": "framework"`, every check runs).
 
 ## Path F: release archive (no git)
 
@@ -188,17 +188,17 @@ sentinel /init ACME_PORTAL
 sentinel /next ACME_PORTAL
 ```
 
-Run these in the folder that should hold `workspaces/`. `/doctor` checks a framework folder, so inside a plain project folder it reports `FAIL` on missing files; that is expected and not a sign of a broken install.
+Run these in the folder that should hold `workspaces/`. Inside a plain project folder `/doctor` runs in runtime mode: it checks the interpreter, command parity, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. It is a useful check after installing the plugin, the wheel or a `.pyz`.
 
 Verify the download with `gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`.
 
 ### The single-file `.pyz`
 
-A clone can build a one-file copy with `python -m sentinel.build` (output `dist/sentinel.pyz`, ignored by git, not part of releases). It carries the runtime without the vendored diagram library, so `/view` shows diagrams as code. It runs every command, for example `python sentinel.pyz /init ACME_PORTAL`. For `/doctor` it still needs the framework folder: `python sentinel.pyz /doctor --root PATH_TO_FRAMEWORK_FOLDER`. The [portability guide](16-portability.md) explains when to use it.
+A clone can build a one-file copy with `python -m sentinel.build` (output `dist/sentinel.pyz`, ignored by git, not part of releases). It carries the runtime without the vendored diagram library, so `/view` shows diagrams as code. It runs every command, for example `python sentinel.pyz /init ACME_PORTAL`. `python sentinel.pyz /doctor` runs in runtime mode; to check a clone, use `python sentinel.pyz /doctor --root PATH_TO_THE_CLONE`. The [portability guide](16-portability.md) explains when to use it.
 
 ## Reading a `/doctor` result
 
-`/doctor` checks Python, the repository files, the skills, the agent adapters, write access, optional extras and more.
+`/doctor` has two modes, shown as `"mode"` in the result. In a framework clone (a folder with `sentinel/__init__.py` or `.codex/skills`) it is `framework` and checks Python, the repository files, the skills, the agent adapters, write access, optional extras and more. Anywhere else (a project folder with the plugin, the wheel or a `.pyz`) it is `runtime` and checks only the interpreter, command parity, that the package imports no network module, workspace ids and portability, write access and the optional extras; a `doctor mode` check says the clone checks were skipped.
 
 | Result | Meaning | What to do |
 |--------|---------|------------|

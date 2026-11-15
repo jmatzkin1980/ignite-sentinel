@@ -34,7 +34,7 @@ A `.pyz` is Python's single-file program format. A clone builds one with `python
 - It carries the runtime and its schemas, templates, lenses, retrieval plans and slicing model. It leaves out the vendored diagram library (about 3.5 MB), so `/view` shows each diagram as code instead of a picture.
 - It still needs Python 3.10+; it avoids installing the package on the target machine.
 - It runs every command from the folder where it is used, for example `python sentinel.pyz /init ACME_PORTAL`.
-- **`/doctor` needs the framework folder.** The check looks for `AGENTS.md`, `.agents/skills`, `.kilo/` and similar files that the `.pyz` does not contain. Run `python sentinel.pyz /doctor --root PATH_TO_FRAMEWORK_FOLDER`; without a framework folder it reports `FAIL` on those files, which does not mean the `.pyz` is broken.
+- **`/doctor` runs in runtime mode outside a clone.** The `.pyz` does not contain `AGENTS.md`, `.agents/skills`, `.kilo/` and the other clone files, so `python sentinel.pyz /doctor` checks only the interpreter, command parity, the absence of network imports, workspace ids and portability, write access and the optional extras (`"mode": "runtime"`). To check a clone, run `python sentinel.pyz /doctor --root PATH_TO_THE_CLONE`.
 
 If you only need the commands and not the agent files, the [wheel](06-installation-vscode.md#path-g-wheel) from a release is the better single artifact: it is attested.
 
