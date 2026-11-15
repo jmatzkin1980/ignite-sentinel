@@ -288,7 +288,7 @@ def apply_proposal(project_id: str, source: Path) -> dict[str, Any]:
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"
     if not brief_path.is_file():
-        raise SplitProposalError("/split --propose needs a compiled brief v2; run /maturity first")
+        raise SplitProposalError(f"/split --propose needs a compiled brief v2; run /brief {project_id} --profile ... --genesis ... first")
     payload = read_json(Path(source), None)
     if not isinstance(payload, dict):
         raise SplitProposalError("the proposal must be a JSON object")

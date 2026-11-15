@@ -385,6 +385,28 @@ def maturity_metrics(
     return metrics
 
 
+def open_brief_settings_gap(project_id: str) -> bool:
+    """IMP-311: open GAP-BRIEF-PROFILE when the project is on brief v2 with unconfirmed settings.
+
+    Returns True when the gap is (or stays) open. The v2 compiler opens the same gap,
+    but only when it runs; without this, `/maturity` decided READY first and a
+    provisional brief was compiled in the v1 layout.
+    """
+    from .brief_schema import brief_settings, settings_status
+    from .compilers.brief_v2 import _set_profile_gap
+    from .release_scope import active_release
+
+    if active_release() or int(brief_settings(project_id).get("brief_version", 1) or 1) != 2:
+        return False
+    status = settings_status(project_id)
+    if status["confirmed"]:
+        return False
+    state = read_json(state_path(project_id), {})
+    language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
+    _set_profile_gap(project_id, status["gap"], language)
+    return True
+
+
 def evaluate(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
@@ -392,6 +414,9 @@ def evaluate(project_id: str) -> dict[str, object]:
     gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
     req_text = requirements_path.read_text(encoding="utf-8") if requirements_path.exists() else ""
     config = load_config(project_id)
+    if req_text and open_brief_settings_gap(project_id):
+        # IMP-311: decide on the gap the brief v2 opens, not after compiling a provisional brief
+        gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
     blocking = blocking_severities(config)
     blocking_gaps = parse_blocking_gaps(gaps_text, blocking)
     readiness = "READY_FOR_SPECS" if not blocking_gaps and req_text else "BLOCKED"

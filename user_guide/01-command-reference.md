@@ -293,7 +293,7 @@ In a Claude Code clone, if `/init` starts Claude Code's own built-in project set
 
 **You get.** `{"workspace": "<path>"}`.
 
-**Next step.** `/ingest PROJECT_ID --source <file>`. A brief v2 project also needs `/brief PROJECT_ID --profile ... --genesis ...` once, right after the first ingest; `/next` does not prompt for it yet.
+**Next step.** `/ingest PROJECT_ID --source <file>`. A brief v2 project also needs `/brief PROJECT_ID --profile ... --genesis ...` once, right after the first ingest; `/next` asks for it.
 
 **See also.** [User guide: first run](00-user-guide.md) · [`brief`](#brief).
 
@@ -371,7 +371,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 **You get.** The paths created and the source row.
 
-**Next step.** On the first ingest of a brief v2 project, confirm its settings now with `/brief PROJECT_ID --profile ... --genesis ...` (`/next` does not prompt for it yet). Then read `01_discovery/gaps.md`, deepen it with `/annotate`, `/challenge` or `/scrutinize` if useful, and share it with the client.
+**Next step.** On the first ingest of a brief v2 project, confirm its settings now with `/brief PROJECT_ID --profile ... --genesis ...` (`/next` asks for it with suggested values). Then read `01_discovery/gaps.md`, deepen it with `/annotate`, `/challenge` or `/scrutinize` if useful, and share it with the client.
 
 **See also.** [Workflows: new project](03-workflows.md) · skill `sentinel-discovery`.
 
@@ -979,7 +979,7 @@ python -m sentinel /maturity ACME_PORTAL
 | `--validation-direction` | `to-build`, `built` | `to-build` | Whether you validate something to build or something already built. Overrides `validation_direction:` in the config. |
 | `--brief-version` | `1`, `2` | the project's | Switch the project's brief compiler. |
 
-A flag you leave out keeps the previous confirmation. Run it with `--profile` and `--genesis` once, right after the first `/ingest`; `/next` does not prompt for it yet. Until profile and genesis are confirmed, every brief compile on a v2 project (a `/brief` without flags, or a `/maturity`, `/specs` or `/backlog` that finds no blocking gap) opens the critical gap `GAP-BRIEF-PROFILE`, returns a `proposal` from the raw input (never applied) and writes a provisional brief in the older v1 layout. Once that gap is open, `/maturity` is `BLOCKED` and `/specs` refuses; the run that first opens it does not see it yet. See [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings).
+A flag you leave out keeps the previous confirmation. Run it with `--profile` and `--genesis` once, right after the first `/ingest`; `/next` and `/status` ask for it until then, with values proposed from the raw input. Until profile and genesis are confirmed on a v2 project, `/maturity` (and so `/specs` and `/backlog`) opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED` without compiling a brief. A `/brief` without flags opens the same gap, returns a `proposal` (never applied) and writes a provisional brief in the older v1 layout until you confirm. See [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings).
 
 **Reads.** `02_requirements/requirements.md`, `01_discovery/gaps.md`, the source registry.
 

@@ -181,6 +181,10 @@ class GapContractTests(unittest.TestCase):
         try:
             os.chdir(temp)
             workspace = ensure_workspace("HEALTHCFG")
+            # IMP-311: this test is about severities; a v2 project would also open GAP-BRIEF-PROFILE.
+            from sentinel.brief_schema import set_brief_settings
+
+            set_brief_settings("HEALTHCFG", brief_version=1)
             config = workspace / "sentinel.config.yaml"
             config.write_text(
                 config.read_text(encoding="utf-8").replace(

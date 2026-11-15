@@ -33,7 +33,7 @@ Each workflow has the same four parts: **When**, **Steps**, **Check** and **If i
    ```
 
    In a Claude Code clone, if `/init` starts Claude Code's own built-in project setup (it writes a `CLAUDE.md`), send `/sentinel /init ACME_PORTAL` instead. Load each further file (business, technology, design, quality context) with its own `/ingest`.
-2. Right after the first `/ingest`, before any `/maturity` or `/specs`, confirm the brief settings ([profile and genesis](00-user-guide.md#glossary)). `/next` does not prompt for this step yet. If you are unsure of the values, run `/brief` without flags first to see the proposal (this opens `GAP-BRIEF-PROFILE` and writes a provisional v1-layout brief until you confirm), then confirm:
+2. Right after the first `/ingest`, confirm the brief settings ([profile and genesis](00-user-guide.md#glossary)). `/next` asks for this step and suggests values from the request. If you are unsure of the values, run `/brief` without flags first to see the proposal (this opens `GAP-BRIEF-PROFILE` and writes a provisional v1-layout brief until you confirm), then confirm:
 
    ```text
    /brief ACME_PORTAL
@@ -41,10 +41,10 @@ Each workflow has the same four parts: **When**, **Steps**, **Check** and **If i
    ```
 
    Several profiles: `--profile UI,REG`. Mixed genesis: `--genesis brownfield-integration,brownfield-extension` (the most demanding wins). `MIG` requires `--genesis brownfield-replacement`.
-3. Ask for the next step: `/next ACME_PORTAL`. Right after intake it says *Waiting for client answers*: plan the first round with [Thin intake](#thin-intake) and share `gaps.md`.
+3. Ask for the next step: `/next ACME_PORTAL`. Once the settings are confirmed it says *Waiting for client answers*: plan the first round with [Thin intake](#thin-intake) and share `gaps.md`.
 
 > [!WARNING]
-> **If you skip step 2**, nothing reminds you: `/next` and `/status` do not mention it, and while blocking gaps remain no brief is compiled, so answers do not update one. The first `/brief`, or the first `/maturity` or `/specs` that finds no blocking gap left, writes a provisional brief in the older v1 layout and opens the critical gap `GAP-BRIEF-PROFILE`. That run does not see the new gap: `/maturity` still reports `READY_FOR_SPECS`, and `/specs` goes on from the provisional brief. From the next run on, `/maturity` is `BLOCKED` and `/specs` refuses until you confirm the settings; then run `/specs` again if it already ran.
+> **If you skip step 2**, `/next` and `/status` keep asking for it, and `/maturity` opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED`, so `/specs` and `/backlog` refuse (exit 4). Confirm the settings and go on; the brief compiles from everything answered so far.
 
 **Check:** `workspaces/ACME_PORTAL/01_discovery/gaps.md` exists; `/brief` output shows `brief_settings.confirmed: true`; `02_requirements/project-brief.md` has §0–§9 with `⏳ PENDING (GAP-X)` marks where evidence is missing.
 

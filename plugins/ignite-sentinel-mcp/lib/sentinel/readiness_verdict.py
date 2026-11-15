@@ -169,6 +169,11 @@ def _maturity_score(project_id: str) -> float:
 NEXT_STEPS: dict[str, tuple[str, str, str]] = {
     # key: (title, text, command)
     "ingest": ("Load the initial requirement", "Run /ingest PROJECT_ID --source PATH.", "/ingest {pid} --source PATH"),
+    # IMP-311: the brief v2 needs its profile and genesis confirmed once; the values are a proposal.
+    "brief_settings": ("Confirm the brief settings",
+                       "This project compiles the brief v2. Confirm its profile and genesis once with /brief; "
+                       "the suggested values come from the raw input, so check them first.",
+                       "/brief {pid} --profile {profiles} --genesis {genesis}"),
     "resolve_blocking": ("Waiting for client answers", "Share gaps.md with the client and run /resolve-gaps when answers return.", "/resolve-gaps {pid} --source PATH"),
     "fix_brief": ("Fix what stopped the brief", "Resolve what /brief reported (threshold, self-correction or implementability) and run /brief again.", "/brief {pid}"),
     "specs": ("Prepare PRD and specs", "Run /specs PROJECT_ID.", "/specs {pid}"),
@@ -184,8 +189,11 @@ def next_step(project_id: str, state: dict[str, Any], verdict: dict[str, Any], *
     """The one next-step decision, derived from the verdict and the stage."""
     counts = verdict["counts"]
     stage = str(state.get("readiness_stage", "DISCOVERY_RAW"))
+    settings: dict[str, Any] | None = None
     if state.get("phase") == "initialized" or not counts.get("total") and not (workspace_path(project_id) / "01_discovery" / "gaps.md").exists():
         key = "ingest"
+    elif (settings := unconfirmed_brief_settings(project_id)) is not None:
+        key = "brief_settings"
     elif verdict["blocking_open"]:
         key = "resolve_blocking"
     elif stage in BRIEF_BLOCK_STAGES:
@@ -203,4 +211,18 @@ def next_step(project_id: str, state: dict[str, Any], verdict: dict[str, Any], *
     else:
         key = "specs"
     title, text, command = NEXT_STEPS[key]
-    return {"key": key, "title": title, "text": text, "command": command.format(pid=project_id)}
+    proposal = settings or {}
+    return {"key": key, "title": title, "text": text,
+            "command": command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
+                                      genesis=proposal.get("genesis", "greenfield"))}
+
+
+def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:
+    """IMP-311: the proposed settings when the project is on brief v2 and has not confirmed them; else None."""
+    from .brief_schema import brief_settings, settings_status
+    from .discovery.workflow import raw_input_text
+
+    if int(brief_settings(project_id).get("brief_version", 1) or 1) != 2:
+        return None
+    status = settings_status(project_id, raw_input_text(workspace_path(project_id)))
+    return None if status["confirmed"] else status["proposal"]

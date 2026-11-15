@@ -46,7 +46,7 @@ flowchart LR
 ```
 
 1. **Intake.** `/ingest` reads the request and writes `gaps.md`: one question per missing or ambiguous point, with why it matters.
-2. **Brief settings (once).** Right after the first `/ingest`, you confirm what kind of system it is: `/brief ACME_PORTAL --profile UI --genesis greenfield` ([profile and genesis](user_guide/00-user-guide.md#glossary)). `/next` does not prompt for this step yet, so do it yourself; see [what happens if you skip it](user_guide/00-user-guide.md#if-you-skip-the-brief-settings).
+2. **Brief settings (once).** Right after the first `/ingest`, you confirm what kind of system it is: `/brief ACME_PORTAL --profile UI --genesis greenfield` ([profile and genesis](user_guide/00-user-guide.md#glossary)). `/next` asks for this step until you do it, with suggested values; see [what happens if you skip it](user_guide/00-user-guide.md#if-you-skip-the-brief-settings).
 3. **Answers.** The client or a domain owner answers in that document; `/resolve-gaps` closes only what is confirmed, and the project brief recompiles with each answer.
 4. **Maturity.** `/maturity` says `READY_FOR_SPECS` when no blocking gap is left; otherwise you plan another question round.
 5. **Downstream.** `/specs`, `/backlog` and `/quality` derive the [PRD](user_guide/00-user-guide.md#glossary) (product requirements document), stories and test cases, all traced.
@@ -109,7 +109,7 @@ What happens:
 1. `/doctor` checks Python and the repository files. `PASS` means go; a `WARN` about LanceDB is healthy. (Skip it with the plugin: it checks a clone.)
 2. `/init` creates `workspaces/ACME_PORTAL/`. The project starts with health `DIRTY` and stage `DISCOVERY_RAW`. That is normal: nothing is known yet.
 3. `/ingest` copies a redacted version of the request (secrets masked) into the workspace and writes **`workspaces/ACME_PORTAL/01_discovery/gaps.md`**. Open it: each gap has a question, why it matters, what answering it unblocks, and an answer template. If the command fails with a traceback, check the `--source` path first.
-4. `/brief --profile --genesis` confirms, once, what kind of system this is (here a user interface on a new build), and compiles the project brief with a pending mark wherever an answer is missing. Do it right after the first `/ingest`: `/next` does not prompt for it yet.
+4. `/brief --profile --genesis` confirms, once, what kind of system this is (here a user interface on a new build), and compiles the project brief with a pending mark wherever an answer is missing. Do it right after the first `/ingest`; until then `/next` asks for it.
 5. `/next` prints the one next step. Right now it says *Waiting for client answers*: share `gaps.md` with the client.
 
 Plain words work too: *"Create a Sentinel project ACME_PORTAL from input/acme-request.md and tell me what is missing."*
