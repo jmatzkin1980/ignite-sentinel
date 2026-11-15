@@ -6,6 +6,10 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+- The agent closes with a choice when something is waiting on you (IMP-316). The command router, `AGENTS.md` and `CLAUDE.md` ask for one short question with 2 to 4 options, the recommended one first, shown as choices in Claude Code (`AskUserQuestion`) and as a numbered list elsewhere. Picking an option never closes a gap or confirms anything for you. Found in a live walkthrough: the next action got lost in the answer's text.
+- The plugin guide explains how to update the plugin (IMP-316): per channel, the in-session and terminal commands, how to turn on auto-update, how to move from one release tag to another, and that removing the marketplace uninstalls the plugin but never touches your workspaces.
+
 ## [0.12.1] — 2026-11-15
 
 ### Fixed

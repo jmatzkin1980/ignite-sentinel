@@ -70,6 +70,20 @@ The plugin carries the package version (`plugin.json` field `version`). Claude C
 
 A marketplace name can be registered only once, so switch channels with `/plugin marketplace remove ignite-sentinel` and add it again with the new ref. An organization that wants one approved version on every machine pins it with managed settings: see the [admin guide](20-admin-guide.md).
 
+### Updating the plugin
+
+Claude Code does not update a marketplace you added yourself unless you turn auto-update on, and a new version arrives only when a release changes the plugin's `version`.
+
+| You added the marketplace with | To get a newer release |
+|---|---|
+| `#stable` or no ref (`main`) | In a session: `/plugin`, tab **Marketplaces**, select `ignite-sentinel`, **Update marketplace**. In a terminal: `claude plugin update ignite-sentinel@ignite-sentinel`. |
+| `#vX.Y.Z` | The tag does not move, so an update finds nothing. Remove the marketplace and add the new tag: `/plugin marketplace remove ignite-sentinel`, then `/plugin marketplace add jmatzkin1980/ignite-sentinel#vX.Y.Z` and `/plugin install ignite-sentinel@ignite-sentinel`. |
+
+- **Automatic updates:** `/plugin`, tab **Marketplaces**, select `ignite-sentinel`, **Enable auto-update**. Claude Code then checks in the background during a session; the new version loads at the next start or after `/reload-plugins`. It makes sense only on `#stable`.
+- **Removing the marketplace uninstalls the plugin** and its settings. Your workspaces are not touched: they live in your project folder, not in the plugin.
+- **Check the version** you run in `/plugin`, tab **Installed**; **Update now** there updates that plugin alone. What changed in each release is in the [CHANGELOG](../CHANGELOG.md).
+- An organization that pins a version with managed settings moves everyone by changing the `ref` in its policy: see the [admin guide](20-admin-guide.md).
+
 ### Without git: the release archive
 
 Each GitHub release carries one `.zip` per plugin (`ignite-sentinel-vX.Y.Z.zip`, `ignite-sentinel-mcp-vX.Y.Z.zip`) and a `SHA256SUMS` file. Every file has a build provenance attestation:
