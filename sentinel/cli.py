@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -468,12 +469,23 @@ def report_error(exc: BaseException) -> int:
     return code
 
 
+_DRIVE_PATH = re.compile(r"^[A-Za-z]:[\\/]")
+
+
 def normalize_slash_command(argv: list[str]) -> list[str]:
     if not argv:
         return argv
     first = argv[0]
     if first.startswith("/") and first[1:] in COMMANDS:
         return [first[1:], *argv[1:]]
+    # IMP-315: Git Bash (MSYS) rewrites a leading `/init` into its own install
+    # path (`C:/Program Files/Git/init`) before Python starts. Claude Code on
+    # Windows runs the plugin's commands through Git Bash, so read a drive path
+    # whose last segment is a command back as that command.
+    if _DRIVE_PATH.match(first):
+        name = re.split(r"[\\/]", first)[-1]
+        if name in COMMANDS:
+            return [name, *argv[1:]]
     return argv
 
 

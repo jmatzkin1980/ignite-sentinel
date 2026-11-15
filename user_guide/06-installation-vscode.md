@@ -82,7 +82,7 @@ Swap `memory.txt` for `memory-semantic.txt` or `mcp.txt` as needed. Details and 
    Or in plain words: "Create a Sentinel project called ACME_PORTAL."
 4. Run `sentinel /next ACME_PORTAL`. It prints the next step alone.
 
-**Check:** `claude plugin list` shows `ignite-sentinel` enabled, and `workspaces/ACME_PORTAL/` appears in your project folder. `/doctor` also works here: in a plain project folder it runs in runtime mode (`"mode": "runtime"`), checking the interpreter, the folder and the optional extras, and skips the clone's files.
+**Check:** `claude plugin list` shows `ignite-sentinel` enabled, and `workspaces/ACME_PORTAL/` appears in your project folder. To check the runtime, type `sentinel /doctor` (a bare `/doctor` is Claude Code's own diagnostic, not Sentinel's): in a plain project folder it runs in runtime mode (`"mode": "runtime"`), checking the interpreter, the folder and the optional extras, and skips the clone's files.
 
 Channels, pinning and the optional MCP plugin are in the [Claude Code plugin guide](18-claude-plugin.md).
 

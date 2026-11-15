@@ -133,6 +133,7 @@ The CLI applies the Sentinel vNext command protocol automatically: preflight gua
 - Before executing a task that depends on project context, prefer `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW --write-pack` over loading the whole workspace.
 - Do not commit project workspace data unless explicitly approved.
 - If a Codex UI intercepts `/init` or another slash command before it reaches the agent, tell the user to send `sentinel /init PROJECT_ID`.
+- Claude Code has its own `/init` and `/doctor`. With the plugin there are no Sentinel slash commands, so a bare `/doctor` is Claude Code's diagnostic: when the user wants Sentinel's, they send `sentinel /doctor` and you run it here.
 
 ## Memory
 

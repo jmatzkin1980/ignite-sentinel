@@ -41,7 +41,9 @@ The plugin has no slash commands of its own: it ships skills and one hook. A ski
 **Check:** `claude plugin list` shows `ignite-sentinel` enabled and `workspaces/ACME_PORTAL/` appears in your folder.
 
 > [!NOTE]
-> Inside a plain project folder `/doctor` runs in runtime mode (`"mode": "runtime"`): it checks the interpreter, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. To check a clone, run `/doctor --root PATH_TO_THE_CLONE`. Also, running a skill in a signed-in session from the GitHub marketplace has not yet been watched; the bundled runtime and hook are exercised by tests from a copied plugin folder.
+> Type `sentinel /doctor`, or ask "run the Ignite Sentinel doctor". The plugin has no slash commands of its own, so a bare `/doctor` runs Claude Code's built-in diagnostic, which can offer to change your Claude Code settings. Inside a plain project folder Sentinel's doctor runs in runtime mode (`"mode": "runtime"`): it checks the interpreter, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. To check a clone, run `sentinel /doctor --root PATH_TO_THE_CLONE`.
+>
+> On Windows, Claude Code runs the plugin's commands through Git Bash, which rewrites a leading `/init` into a path such as `C:/Program Files/Git/init`; Sentinel reads that path back as the command. Installing from the GitHub marketplace in the Claude desktop app, `/init` and `/ingest` through the skills, and `/next` asking for the brief settings were observed on 2026-11-15.
 
 The rest of the lifecycle is the same on every surface: see [Workflows](03-workflows.md) and the [command reference](01-command-reference.md).
 
