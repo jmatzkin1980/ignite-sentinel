@@ -26,6 +26,26 @@ Each project lives in its own folder, `workspaces/<PROJECT_ID>/` (for example `w
 
 Artifacts cite paths relative to the repository (`workspaces/ACME_PORTAL/...`), and the graph and memory store paths relative to the workspace, so you can move or clone a workspace.
 
+### Organizing folders: one per client, one workspace per project
+
+The folder you open in your agent (or run Sentinel from) is the root, and every `/init` adds one project under its `workspaces/`. A good habit is **one root folder per client** and **one workspace per project** of that client:
+
+```text
+C:\clients\acme\               the folder you open: client ACME
+├── input\                     raw client material before /ingest (optional)
+├── dashboard.html             /dashboard: every ACME project side by side
+└── workspaces\
+    ├── portal\                /init portal
+    ├── mobile-app\            /init mobile-app
+    └── reports\               /init reports
+```
+
+- **The project id names the project, not the client**: the folder already says who the client is. Keep it short (`portal`, not `acme-portal-2026`).
+- **`/dashboard` shows the client's portfolio**: it covers every workspace under the root you run it from, so one client's projects stay together and apart from other clients'.
+- **Each project is independent**: its own gaps, brief, PRD, backlog and traceability. Material that serves two projects is ingested in each.
+- **This works best with the plugin, the wheel or a `.pyz`**, which run in any folder. In a clone of the framework the clone is the root, so every client's workspaces would share one folder and one dashboard; there, keep one clone per client or move to the plugin.
+- **One private repository per client folder** is the natural unit for git: see [Versioning your workspaces](10-repo-and-branching-strategy.md#option-3-one-private-repository-per-client-folder).
+
 ### Governed artifacts
 
 Some files may only change through a Sentinel command, because other files are derived from them:
@@ -326,6 +346,29 @@ workspaces/ACME_PORTAL/
 ```
 
 Every file is described in the [artifact reference](02-artifact-reference.md).
+
+### A project split into releases
+
+When one brief is too big for one delivery, `/split` divides it into releases inside the same workspace. Nothing moves to another folder: each release gets a sub-folder next to the project-wide files.
+
+```text
+workspaces/portal/
+  02_requirements/
+    project-brief.md       the whole project's brief
+    series/                proposal, confirmed partition, index, release guide, scope changes
+    r1/project-brief.md    release 1's brief
+    r2/project-brief.md    release 2's brief
+  03_specs/r1/  03_specs/r2/            /specs portal --release r1
+  04_backlog/r1/  04_backlog/r2/        /backlog portal --release r1
+  05_quality/r1/  06_traceability/r1/  08_context_packs/r1/
+```
+
+1. `/split portal --assess` says whether a split is worth it; `--propose` stores a proposal; `--confirm` (with the BA's and the technical team's names) compiles `r<N>/project-brief.md` for each release.
+2. Downstream commands take `--release rN`: `/specs`, `/backlog`, `/quality`, `/story-status`, `/view`, `/validate`, `/trace`, `/status` and `/next`. Their output goes to that release's sub-folder, and each release keeps its own lifecycle.
+3. Without `--release` a command works on the whole project, as before.
+4. `/split portal --close r1` closes a release once all its stories are Done, and unblocks the releases that wait for it. `/split --move` moves a unit between releases with a dated record.
+
+The full flow is in [Workflows](03-workflows.md); every file of `series/` and `r<N>/` is in the "Release series" section of the [artifact reference](02-artifact-reference.md).
 
 ## Privacy
 
