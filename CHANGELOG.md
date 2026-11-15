@@ -23,6 +23,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - **The risk:** `/maturity` rewrites `02_requirements/project-brief.md`, a governed artifact, but the protocol only refreshes the governed-artifact checksums after a mutating command. A later `/health` could then report a brief that only Sentinel had written as edited by hand.
   - **The fix:** both are now `MUTATING`. The protocol refreshes the checksums after them and no longer special-cases `/trace` for the traceability refresh.
   - **The guard:** `tests/test_read_only_commands.py` runs every read-only command on a matured workspace and fails if it writes a file outside the protocol's bookkeeping, the memory cache and the reports it declares. `/health` keeps its report as a declared output and stays read-only: it audits those checksums, so refreshing them after it would hide a hand edit.
+- The skill metadata check of `/doctor` caught only "codex" in a description (IMP-307). It now uses the same detector as the command descriptions, `surface_leaks()`: a skill description that names Kilo, Claude, Codex, Cursor, Gemini or VS Code gives a WARN that names the surface. A cited repo file such as `CLAUDE.md` is still not a leak. Every current skill is clean.
 
 ### Changed
 - A leaner test suite (IMP-305). The suite had grown to about 40 minutes on Windows, and most of its cost sat in a few modules that rebuilt the same workspace for every test.
