@@ -1,267 +1,265 @@
-﻿# Ignite Sentinel Codex Skills Guide
+﻿# Skills catalog
 
-Ignite Sentinel includes 24 repo-local skills, authored once under:
+Skills are short, written playbooks that tell an AI agent how to do one Sentinel job well: how to read the evidence, which command to run, what the command accepts, and what to report back. This page lists all 27 skills, grouped by the stage of the project where you need them. Read it if you want to know what the agent is doing behind a chat request, or which skill to ask for by name.
 
-```text
-.codex/skills/
-```
+You do not need to memorise skill names. In Claude Code, Codex and Kilo Code the agent loads the right skill from the wording of your request ("the client answered the gaps" loads `sentinel-gap-response`). The names matter when you want to be explicit, and when you read a log.
 
-Skills provide progressive disclosure. The agent sees the skill metadata first and loads the body only when the workflow applies.
+## How skills work
 
-`.codex/skills/` is the **canonical source, not a discovery path**: no agent reads it, including Codex. `python -m sentinel.adapters` mirrors it byte-for-byte into the directories the surfaces actually load — `.agents/skills/` (Codex, which per its documentation discovers `.agents/skills` from the working directory up to the repository root; Kilo Code, which loads that same directory by default; and other Agent Skills standard readers) and `.claude/skills/` (Claude Code). The mirrors are identical on purpose: one SKILL.md, the same behaviour on every surface. Every skill carries validated `name`/`description` frontmatter (checked by `/doctor`), so agents can auto-trigger them from the description alone. One skill, `sentinel-privacy-local-first`, is marked **human-only** (`disable-model-invocation: true`) so it is invoked deliberately rather than auto-loaded; that field is a Claude Code extension to the standard, so it is a no-op in Codex and Kilo, where the skill can still auto-trigger. Nothing is lost either way: its non-negotiable rules are always-on in `AGENTS.md`/`CLAUDE.md`. See the [Skill Authoring Checklist](references/skill-authoring-checklist.md) for the writing conventions (leading words, split-by-sequence, context load) and the human-only invocation policy, all partly enforced by `/doctor`.
+- **One source, three surfaces.** The 27 skills are written once under `.codex/skills/`. That folder is the canonical source, not a place any agent reads. `python -m sentinel.adapters` mirrors it, byte for byte, into the folders each surface actually loads. The skill text is identical everywhere.
+- **Skills never edit governed artifacts.** The gaps, brief, specs and backlog files change only through Sentinel commands. A skill prepares the input (often a small JSON file with verbatim quotes from your evidence), runs the command, and reports what the command accepted and rejected. If the command rejects a citation, the agent shortens it to the exact quote or drops the finding; it never paraphrases to get past the check.
+- **The runtime is the judge.** The agent proposes, the command validates and records, and you decide. Nothing a skill produces closes a gap or approves a decision by itself.
+- **Skills drive the same commands you can type.** Every command a skill runs is documented in the [command reference](01-command-reference.md).
 
-Skills delegate deterministic work to the same local CLI used by Kilo Code and terminal workflows. The normal command is `python -m sentinel ...`; if `python` is unavailable in Codex Desktop or VS Code, use the repo-local launcher `.\installers\sentinel.ps1 ...` from the repository root.
+### Where skills appear on each surface
 
-## Available Skills
+| Surface | Where the skills load from | How you use them |
+| --- | --- | --- |
+| Claude Code, clone | `.claude/skills/` | The agent auto-triggers a skill from your request. Ask for one by name if you like. |
+| Claude Code, plugin | The plugin's skills, prefixed with the plugin name (for example `ignite-sentinel:sentinel-views`) | Same behaviour. Use the plugin or the clone, not both, or skills load twice. |
+| Codex | `.agents/skills/` | Auto-trigger, or name the skill: "Use sentinel-maturity and tell me why the project is blocked." |
+| Kilo Code | `.agents/skills/` | Auto-trigger, or name the skill in chat. |
+| Plain terminal | None | Skills are agent playbooks. In a terminal you run the commands yourself, and you write the JSON inputs by hand or with any agent. |
 
-All 24 canonical skills, grouped by lifecycle activity:
+Setup and daily use per surface: [Kilo Code](07-kilo-code-adapter.md), [Codex](08-codex-adapter.md), [Claude Code](13-claude-adapter.md). The plugin channel is in [Claude plugin](18-claude-plugin.md).
 
-| Skill | Use When |
+### Human-only skill
+
+One skill, `sentinel-privacy-local-first`, is marked human-only (`disable-model-invocation: true`). The agent does not load it on its own; you invoke it deliberately. That marker is a Claude Code feature. In Codex and Kilo Code the skill can still trigger by itself, which is harmless. Either way the privacy rules are always on, because `AGENTS.md` and `CLAUDE.md` carry them. The other 26 skills are model-invocable.
+
+### The proposal pattern
+
+Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentinel-challenge`, `sentinel-scrutiny`, `sentinel-assume`, `sentinel-compose`, `sentinel-backlog-refine` and `sentinel-self-review`. The agent writes a JSON file in which every item carries a verbatim quote from your evidence. The matching command checks every quote against the files, merges what passes with an `origin` tag (so you can see who proposed it), and lists what it rejected and why. You review and decide.
+
+## Catalog at a glance
+
+| Stage | Skills |
 | --- | --- |
-| `sentinel-intake-triage` | Triaging a pile of unstructured intake (mails/RFQs/chats) into candidate projects **before** `/init` |
-| `sentinel-discovery` | Ingesting raw client/stakeholder requirements |
-| `sentinel-brownfield-harvest` | Harvesting cited technical context from an existing local codebase (`[OBSERVED]`/`[INFERRED]`) |
-| `sentinel-annotate` | Contributing semantic gaps the lexical checklist missed (agent proposal) |
-| `sentinel-challenge` | Stress-testing what is not being said with the 7 registry elicitation techniques |
-| `sentinel-scrutiny` | Systematic multi-lens scrutiny; `--mode implementability-probe` pre-flight per `RU-*` |
-| `sentinel-assume` | Registering governed BA-owned assumptions (risk × uncertainty priority signal) |
-| `sentinel-gap-response` | Processing answered discovery gaps and reporting the knowledge metabolism |
-| `sentinel-maturity` | Checking readiness before specs/backlog (metrics + development readiness matrix) |
-| `sentinel-project-brief` | Generating or refreshing the mature project brief (per-section readiness + gates) |
-| `sentinel-domain-request` | Asking domains for deeper context packs |
-| `sentinel-specs` | Generating PRD and AI-friendly specs |
-| `sentinel-compose` | Proposing cited PRD narrative through `/compose` (never hand-edits) |
-| `sentinel-self-review` | Adversarial pass over PRD/specs: cited findings + hard-to-reverse decisions |
-| `sentinel-release-split` | Proposing a release series for a brief v2 over the release split model, for `/split --propose`, and getting the partition green for `/split --confirm` |
-| `sentinel-backlog` | Generating and operating the governed backlog (lifecycle, AC freeze, board) |
-| `sentinel-backlog-refine` | Proposing cited backlog refinements through `/refine-backlog` |
-| `sentinel-implementation-feedback` | Downstream agents reporting blockers as governed feedback |
-| `sentinel-quality` | Generating quality/test coverage |
-| `sentinel-handoff-datasets` | Generating disposable synthetic datasets for the developer handoff (never governed, never cited) |
-| `sentinel-sync` | Processing feedback, meetings, or changes |
-| `sentinel-health` | Auditing health, traceability, and indexing |
-| `sentinel-views` | Generating and interpreting the portfolio dashboard and the per-artifact views (`/view`) |
-| `sentinel-command-router` | Executing `/COMMAND` chat commands and routing to the right skill |
-| `sentinel-privacy-local-first` | Enforcing local-only privacy rules |
+| Before a project exists | `sentinel-intake-triage` |
+| Discovery | `sentinel-discovery`, `sentinel-brownfield-harvest`, `sentinel-annotate`, `sentinel-challenge`, `sentinel-scrutiny`, `sentinel-assume`, `sentinel-gap-response`, `sentinel-sync`, `sentinel-domain-request` |
+| Define | `sentinel-maturity`, `sentinel-project-brief`, `sentinel-release-split`, `sentinel-prototype-trace`, `sentinel-prototype-manual` |
+| Specify | `sentinel-specs`, `sentinel-compose`, `sentinel-self-review` |
+| Backlog and delivery | `sentinel-backlog`, `sentinel-backlog-refine`, `sentinel-implementation-feedback`, `sentinel-quality`, `sentinel-handoff-datasets` |
+| Verify and report | `sentinel-health`, `sentinel-views` |
+| Every stage | `sentinel-command-router`, `sentinel-privacy-local-first` |
 
-## How To Ask Codex
+## Before a project exists
 
-Examples:
+### `sentinel-intake-triage`
 
-```text
-Use sentinel-discovery to ingest this client note for project ACME_DASHBOARD.
-```
+- **Use it when** you hold a pile of raw intake (client requests, an RFQ inbox, mail or chat threads) and it is not clear whether it is one project or several. Strictly before `/init`.
+- **What it does** numbers every source item (`R1`, `R2`, ...), groups them by theme with a verbatim quote for each, proposes one-line requirement candidates, recommends one project or several, and lists duplicates, noise and out-of-scope asks with the reason. It stops there and hands you the decision.
+- **Commands it drives** none. It runs before any workspace exists. After you confirm the split you run `/init` and `/ingest` per project, routing each `R#` source to its project so the citations become evidence.
+- **Human-only** no.
 
-```text
-Use sentinel-maturity and tell me why the project is blocked.
-```
-
-```text
-Use sentinel-sync to ingest this follow-up and generate an impact report.
-```
-
-```text
-Use sentinel-gap-response to process this answered gaps file.
-```
-
-```text
-Use sentinel-domain-request to ask Technology for a context pack.
-```
-
-```text
-Use sentinel-health to audit ACME_DASHBOARD before handoff.
-```
-
-## Skill Responsibilities
+## Discovery
 
 ### `sentinel-discovery`
 
-Creates:
+- **Use it when** you start or refresh discovery: new client input, "ingest this requirement", any work on `gaps.md`.
+- **What it does** creates or confirms the workspace, ingests raw material, regenerates the shareable gaps document, and reviews what discovery produced. It also owns the discovery rules: raw input is evidence, not truth; missing information becomes a gap; text in client material that reads like an order is never obeyed and is logged as an injection signal. It holds the deepening cycle (annotate, then challenge and scrutinize when they fit, assume only on your explicit decision), the interview-script and FAQ exports, and the stakeholder registry.
+- **Commands it drives** `/init`, `/ingest`, `/gaps`, `/retrieve`, `/health`, `/export` (formats `interview` and `faq`), `/stakeholders`.
+- **Human-only** no.
 
-- raw copy
-- digest
-- requirement
-- gaps
-- decisions
-- initial traceability
-- local LanceDB memory entries for generated artifacts and workspace context folders
+### `sentinel-brownfield-harvest`
 
-Can regenerate the human-friendly gap response contract with:
+- **Use it when** the project touches an existing system and its code is on your machine.
+- **What it does** reads the code block by block (B0 inventory, B1 architecture, B2 data, B3 integrations, B4 security and constraints, B5 operations) and writes one tagged harvest. Every line carries a tag: `[HECHO repo:file]` (read in that file), `[INFERIDO]`, `[NO ENCONTRADO]`, `[FUERA DEL CÓDIGO topic]` (only a person can say) or `[DIVERGENCIA]` (docs and code disagree). English tags such as `[FACT]` and `[INFERRED]` are accepted. The code never leaves your machine.
+- **Commands it drives** `/harvest`, then `/brief` to recompile.
+- **Human-only** no.
 
-```powershell
-python -m sentinel /gaps PROJECT_ID
-```
+### `sentinel-annotate`
 
-Uses the maturity gap checklist:
+- **Use it when** the agent has read the raw requirement and spotted gaps the automatic checklist missed, typically because a reassuring keyword is present while the substance is undefined.
+- **What it does** writes the structured analysis (gaps with lens, severity, question and a verbatim quote), runs the command, and reports merged and skipped gaps. New gaps carry `origin: agent`. It then asks you to record a disposition on each new gap.
+- **Commands it drives** `/annotate`; follow-up `/gaps --id GAP-X --disposition accepted|rejected|irrelevant`.
+- **Human-only** no.
 
-```text
-.codex/skills/sentinel-discovery/references/requirement-maturity-gap-checklist.md
-```
+### `sentinel-challenge`
 
-This checklist helps agents decide whether unclear product, design/prototype, technology, frontend, backend, or quality information should be marked as a gap.
+- **Use it when** the requirement looks complete and you want to stress-test what nobody said.
+- **What it does** runs elicitation techniques per lens: four by default (pre-mortem, role-play, assumption inversion, jobs-to-be-done forces) and three opt-in (red/blue team, first principles, stakeholder round-robin). The pre-mortem classifies imagined failures as Tiger, Paper Tiger or Elephant so you spend effort where it matters. Findings merge with `origin: challenge` and a `challenge_report.md` is written.
+- **Commands it drives** `/challenge`.
+- **Human-only** no.
 
-Before deeper analysis, use:
+### `sentinel-scrutiny`
 
-```powershell
-python -m sentinel /retrieve PROJECT_ID --query "discovery topic" --workflow discovery --write-pack
-```
+- **Use it when** you want a systematic pass across the lenses against the raw input plus domain context, or a pre-flight check of what a coding agent would be missing.
+- **What it does** three modes. Default scrutiny finds unstated assumptions, contradictions, mentions without detail and domain conflicts. `--mode implementability-probe` is a per-requirement-unit pass (every finding anchors to an `RU-*`) that says what is missing to implement it. `--mode anchors` reviews a brief v2 line by line, checking that each cited source really supports the sentence (holds, says less, says the opposite) and opens `GAP-ANC-*` gaps.
+- **Commands it drives** `/scrutinize` (optional `--lens`).
+- **Human-only** no.
 
-### `sentinel-maturity`
+### `sentinel-assume`
 
-Reads:
-
-- gaps
-- requirements
-- `sentinel.config.yaml`
-
-Creates:
-
-- maturity report
-- project brief when readiness reaches `READY_FOR_SPECS`
+- **Use it when** you decide to move forward over a gray area on purpose, with an owner and a risk attached. The agent never proposes this on its own initiative.
+- **What it does** registers governed assumptions: each has a lens, a human owner, a risk, an optional uncertainty and a verbatim basis. High risk with high uncertainty shows "test before advancing" (a signal, not a block), and the runtime may suggest the cheapest test. An assumption is never evidence.
+- **Commands it drives** `/assume`.
+- **Human-only** no.
 
 ### `sentinel-gap-response`
 
-Runs:
-
-```powershell
-python -m sentinel /resolve-gaps PROJECT_ID --source PATH
-```
-
-Creates:
-
-- copied client response
-- gap resolution report
-- gap resolution log
-- confirmed seeds and decisions for structurally confirmed answers
-- trace links from `CHG` to `GAP`, `SEED`, and `DEC`
-
-### `sentinel-project-brief`
-
-Runs:
-
-```powershell
-python -m sentinel /brief PROJECT_ID
-```
-
-Creates or refreshes:
-
-- `02_requirements/project-brief.md`
-
-### `sentinel-domain-request`
-
-Runs:
-
-```powershell
-python -m sentinel /context-request PROJECT_ID --domain technology
-```
-
-Creates:
-
-- `08_context_packs/requests/[domain]_context_request.md`
-
-### `sentinel-privacy-local-first`
-
-Use this when handling project data, memory, retrieval, or exports.
-
-Rules:
-
-- no remote MCP for client/project content;
-- no external embedding APIs;
-- no external vector database;
-- LanceDB and JSON fallback stay under the project workspace;
-- source files remain the source of truth.
-
-### `sentinel-specs`
-
-Creates:
-
-- `03_specs/prd.md` for the human/business narrative
-- `03_specs/specs.md` for agent progressive disclosure
-- `REQ/project_brief -> PRD -> SPEC` traceability
-
-### `sentinel-backlog`
-
-Creates:
-
-- one Markdown file per epic as the primary human review artifact
-- `US-00x.md` story mirrors for traceability and quality tooling
-- one value story per confirmed `SPEC-U-*` unit, or a `[PENDING INPUT]` stub when no evidence-backed unit exists
-- user stories with domain context coverage, agent execution contracts, and retrieval plans
-- story-level `Slicing Pattern` and `Slicing Rationale` selected from `sentinel/slicing/backlog_slicing_model.json`
-- acceptance criteria with fail-to-pass, pass-to-pass, and evidence classifications
-- `08_context_packs/backlog_generation.json`
-- `08_context_packs/implementation_readiness.json`
-- `SPEC-U -> EPIC -> US -> AC` traceability, with `SPEC-001` retained as the index contract
-
-Rules:
-
-- prefer vertical, value-oriented stories;
-- derive story scope from confirmed `03_specs/units/SPEC-U-NNN.md` files; do not expand a fixed placeholder story list;
-- preserve the declarative INVEST/SPIDR/Lawrence slicing model and the separate cross-cutting enabler boundary;
-- keep `[PENDING DOMAIN CONTEXT]` visible instead of inventing missing implementation detail;
-- create a cross-cutting enabler epic only for concrete implementation work that must be built in advance to support confirmed project functionality;
-- rerun `/reindex` and use focused retrieval if domain context changes after backlog generation; rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
-
-### `sentinel-quality`
-
-Creates:
-
-- test case set
-- `US -> TC` traceability
-- dynamic `backlog_readiness_audit.md` with INVEST/SPIDR story quality scores and DoR warnings
+- **Use it when** a client or domain owner returns answers to the gaps, or when you want to work gaps live in chat.
+- **What it does** runs the closure and explains the result: only a substantive answer with a confirmed (or not-applicable) decision closes a gap; a vague answer such as "TBD" stays partially closed. It reports what the closure moved (assumptions validated or invalidated, artifacts now stale) and plans question rounds with `/gaps --top N`. Its grill mode asks one gap per turn, drafts the response file, and closes everything with one `/resolve-gaps` at the end. A cited candidate option is never an answer.
+- **Commands it drives** `/resolve-gaps`, `/gaps` (`--top`), `/maturity`, `/status`, `/export` (interview).
+- **Human-only** no.
 
 ### `sentinel-sync`
 
-Creates:
+- **Use it when** new information arrives after discovery (meeting notes, a client mail, a design update, a late blocker, a new version of a document) and must become a traceable change instead of silent scope creep.
+- **What it does** registers the change with an impact report, detects new or modified sources by content hash, and, with `--digest`, extracts proposed answers, decision candidates, new gaps and assumption contradictions from unstructured text. The digest proposes and routes; it applies nothing. It also manages the source registry: when a known file arrives with new content it asks you which version governs, and never assumes the newest one does.
+- **Commands it drives** `/sync` (with `--digest`), `/sources`, `/retrieve`, `/reindex`, `/health`.
+- **Human-only** no.
 
-- change node
-- impact report
-- `CHG -> impacted artifact` traceability
-- local LanceDB memory entries for the change
+### `sentinel-domain-request`
 
-### `sentinel-health`
+- **Use it when** Technology, Design, Quality, Frontend or Backend must deepen the analysis from the brief.
+- **What it does** generates a cited request per domain that tells the domain team what to document. It does not do their analysis. It also manages a request's life (`active`, `answered`, `closed`, `obsolete`), and reminds you that delivered packs should carry `when_to_read:` frontmatter and one owner per fact.
+- **Commands it drives** `/context-request` (`--domain`, or `--id CTX-NNN --status ...`).
+- **Human-only** no.
 
-Creates:
+## Define
 
-- health reports
-- traceability findings
-- memory indexing findings
-- stale domain context findings when backlog was generated from an older domain snapshot
+### `sentinel-maturity`
 
-## Guardrail Hooks
+- **Use it when** you ask "is this ready for specs?" or a downstream command was blocked by maturity.
+- **What it does** runs the check and reads the report: gap closure rate, maturity score and trend, requirement quality, where maturation stalls, and the development readiness matrix (16 areas and a per-unit table of what is confirmed, deferred to a domain pack, or open). It offers the next move as options, not one directive: chase blocking gaps, raise a context request, validate an assumption first, or proceed.
+- **Commands it drives** `/maturity`, with `/resolve-gaps` and `/context-request` as remedies.
+- **Human-only** no.
 
-Optional hooks live in:
+### `sentinel-project-brief`
 
-```text
-.codex/hooks/
-```
+- **Use it when** discovery is stable and you generate or refresh the project brief, or when a pending place or a gate needs explaining.
+- **What it does** confirms the brief settings with you (profile, genesis, validation direction, brief version), runs `/brief`, and reads the result: the per-section readiness, the compile report (which places are waiting on a client gap and which on domain context), and the three gates (brief coverage, unit implementability, specification self-correction). It never applies the settings proposal on its own and never writes the brief body. New projects use brief v2, so until profile and genesis are confirmed the blocking `GAP-BRIEF-PROFILE` stays open and `/specs` refuses.
+- **Commands it drives** `/status`, `/maturity`, `/brief`, `/validate`.
+- **Human-only** no.
 
-They are reminders and guardrails, not the primary enforcement mechanism. The deterministic CLI commands remain the source of validation:
+### `sentinel-release-split`
 
-```powershell
-python -m sentinel /validate PROJECT_ID
-python -m sentinel /health PROJECT_ID
-```
+- **Use it when** a brief v2 may be too big for one release and you want a release series.
+- **What it does** reads the assessment, walks the release split model (criteria written before cutting, core and variations, the shared base, contracts as named nodes, releases with a closing check, sketches, inheritance of open gaps) and writes the proposal JSON. It helps you get the partition green, and then guides derivation per release, moving a unit between releases, and closing a release. Confirming, moving and closing need the names of the BA and the technical team; the agent never supplies them.
+- **Commands it drives** `/split` (`--assess`, `--propose`, `--confirm`, `--move`, `--close`), then `/specs`, `/backlog`, `/status` with `--release rN`.
+- **Human-only** no.
 
-The post-tool hook also attempts to index edited workspace `.md` and `.txt` artifacts into local memory. Run `/reindex PROJECT_ID` if a workflow depends on fresh context.
+### `sentinel-prototype-trace`
 
-### Agentic proposal channels
+- **Use it when** an HTML prototype is ingested and inventoried and you want to know what each screen element stands on.
+- **What it does** walks one screen per pass, in the surface's browser when there is one, and traces each element to its data, contract and rule against the brief. Each element is graded established, inferred, unsupported or demo. It checks the four states (ideal, empty, loading, error) and common prototype defects, and asks at most four questions per pass. If it cannot open the screen it says so (`executed: false`) and traces only what the inventory and the brief state.
+- **Commands it drives** `/prototype --inventory` (first), then `/prototype --trace`.
+- **Human-only** no.
 
-`sentinel-annotate`, `sentinel-challenge`, `sentinel-scrutiny`, `sentinel-assume`, `sentinel-compose`, `sentinel-backlog-refine`, and `sentinel-self-review` share the same shape: the agent authors a JSON payload with verbatim local citations, the matching command validates and merges it with a typed `origin`, and the runtime never lets the agent edit artifacts directly. Each skill documents its exact payload contract (field names, enums, and what the runtime rejects). All seven close with an identical **Agentic Spirit** block: never paraphrase a rejected citation (shorten to the exact verbatim substring or drop the finding), assign severity for the lifecycle (critical/high block maturity), write client-facing text in the workspace's `project_language`, and prefer `/retrieve --write-pack` focus packs over reading all of `00_raw/`.
+### `sentinel-prototype-manual`
+
+- **Use it when** you want the user manual of an ingested prototype.
+- **What it does** writes, screen by screen, what the user does, citing interface elements as placeholders such as `{{S2-E06}}` so the runtime injects the real words. A screen it cannot describe from the inventory stays without a manual and shows as a hole in the view.
+- **Commands it drives** `/prototype --inventory`, `/prototype --manual`, `/view --artifact prototype-manual`.
+- **Human-only** no.
+
+## Specify
+
+### `sentinel-specs`
+
+- **Use it when** a mature brief is ready and you generate or review the PRD and the specification layer.
+- **What it does** runs `/specs` and reads what it produced: the human PRD, the compact `specs.md` index and the bounded `SPEC-U-*` execution units. It explains foundation-drift warnings and summarises the per-unit delta report after a regeneration. PRD content is quoted from raw input; with no signal a section stays pending. A non-goal is added by closing a gap as not applicable, never by editing the PRD.
+- **Commands it drives** `/maturity`, `/specs` (and `--release rN` for a series), `/trace`.
+- **Human-only** no.
+
+### `sentinel-compose`
+
+- **Use it when** the generated PRD is accurate but thin and you want better narrative that is still backed by evidence.
+- **What it does** writes agent-authored paragraphs, each with verbatim citations, and merges them into the PRD as an `Agent Composition` block tagged `origin: agent`. Blocks aimed at a still-pending section, or with citations that are not verbatim, are rejected. On a later `/specs` regeneration only still-valid blocks are reapplied.
+- **Commands it drives** `/compose` (after `/specs`).
+- **Human-only** no.
 
 ### `sentinel-self-review`
 
-Adversarial pass over generated PRD/specs before handoff: cited skeptical gaps (`origin: self-review`) plus hard-to-reverse `DEC-*` decisions with risk and reversibility, registered under `03_specs/self_review/` for BA review. The runtime never rewrites PRD/specs.
+- **Use it when** you want an adversarial pass before handoff. It has three modes.
+- **What it does** the default mode reviews the PRD and specs: cited skeptical gaps (`origin: self-review`) and hard-to-reverse `DEC-*` decisions, registered for your review without rewriting anything. `--sufficiency` runs on a brief v2 alone, from a clean context, and answers "could a builder start tomorrow?" place by place, opening `GAP-SUF-*` gaps; repeat the round after answers arrive. `--crosses` checks that the lenses of the brief agree and opens `GAP-XRV-*` gaps.
+- **Commands it drives** `/self-review` (`--sufficiency`, `--crosses`).
+- **Human-only** no.
+
+## Backlog and delivery
+
+### `sentinel-backlog`
+
+- **Use it when** you turn specs into the backlog and operate it: generate, order, change story status, rebuild the board.
+- **What it does** runs `/backlog` and explains the result: one vertical story per confirmed spec unit, concrete enabler epics only when justified, the slice plan (enablers first, then waves), the readiness pack for downstream agents, and the acceptance-criteria freeze that happens when a story becomes Ready. It governs the story lifecycle and the board, and reminds you that a status change is made only with `/story-status`.
+- **Commands it drives** `/maturity`, `/backlog` (`--with-task-seeds`, `--story-format`, `--release rN`), `/backlog-status`, `/story-status`, `/implementation-feedback`, `/quality`, `/trace`, `/health`.
+- **Human-only** no.
+
+### `sentinel-backlog-refine`
+
+- **Use it when** a story is too big, two should merge, one is missing, or an enabler candidate appeared.
+- **What it does** writes cited refinement proposals (`reslice`, `split-story`, `merge-stories`, `missing-story`, `enabler-candidate`) and merges them as an agent overlay for you to review. Nothing is rewritten automatically.
+- **Commands it drives** `/refine-backlog`.
+- **Human-only** no.
 
 ### `sentinel-implementation-feedback`
 
-Lightweight contract for downstream planners/implementers/testers hitting a blocker in a story: finding types `new-dependency | gap | ac-challenge | surface-not-covered`, mandatory evidence, and what acceptance triggers (`GAP-FEEDBACK-*`, scoped `Stale`, the `implementation_feedback_resolved` DoD gate). Written for agents that do not carry the BA context.
+- **Use it when** a planning, implementation or testing agent hits a blocker in a story: a new dependency, a gap, an acceptance criterion that cannot hold, or a surface no story covers.
+- **What it does** gives that agent a small contract: report the finding with evidence through the command, never patch the story. Accepted findings are traced, a gap-type finding opens `GAP-FEEDBACK-*`, affected stories may be marked Stale, and open findings can block a story's Done.
+- **Commands it drives** `/implementation-feedback`.
+- **Human-only** no.
 
-### `sentinel-command-router`
+### `sentinel-quality`
 
-Maps `/COMMAND PROJECT_ID [OPTIONS]` chat messages (also `sentinel /COMMAND` and `ignite /COMMAND` forms) to CLI executions for every manifest command, then routes to the matching skill for interpretation. A drift guard keeps it complete against the command manifest.
+- **Use it when** the backlog exists and you want test cases and a readiness audit.
+- **What it does** generates test cases traced to stories and the backlog readiness audit (INVEST, slicing, acceptance coverage, dependencies). Findings are Definition-of-Ready warnings by default; strict gates are an opt-in.
+- **Commands it drives** `/quality` (and `--override` with cited decisions when you proceed on purpose), `/trace`, `/health`.
+- **Human-only** no.
+
+### `sentinel-handoff-datasets`
+
+- **Use it when** a developer handoff needs realistic sample data to exercise the specs and stories.
+- **What it does** generates synthetic CSV, JSON or SQL files whose shape comes from the governed specs and whose values are invented. Everything lands under `08_context_packs/synthetic/`, is marked `SYNTHETIC — not evidence`, and is git-ignored and disposable. It is never cited and never traced, and `/validate` flags any citation to it.
+- **Commands it drives** none. It is skill-only.
+- **Human-only** no.
+
+## Verify and report
+
+### `sentinel-health`
+
+- **Use it when** you ask whether the workspace is healthy, a verdict is `DIRTY`, validation warns, or before handoff.
+- **What it does** runs the checks and explains the remedy as a ladder: regenerate through the owning command, add context upstream and reindex, or record a cited override when you proceed on purpose. It detects hand edits of governed files and never "fixes" them by editing back. The non-blocking blocks (semantic quality, cross-artifact consistency, question quality, standards coverage) are maturity lenses, not gates.
+- **Commands it drives** `/health`, `/trace`, `/validate` (`--override`), `/doctor`.
+- **Human-only** no.
 
 ### `sentinel-views`
 
-Generates the local, read-only portfolio dashboard (`/dashboard`) and interprets its sections for status questions that do not name an exact command.
+- **Use it when** you ask for project or portfolio status in plain words, "show me the dashboard", or "open the PRD view".
+- **What it does** generates and explains the read-only HTML pages: the portfolio dashboard and the per-artifact views (gaps, brief, PRD, specs, backlog, readiness, release guide, diagrams, and the prototype views). The readiness view answers "what is missing, and from whom?". Views never change a workspace; corrections go through `/sync` or `/resolve-gaps`. It suggests where to start across workspaces and runs no follow-up command without asking.
+- **Commands it drives** `/dashboard` (`--theme`, `--open`), `/view`.
+- **Human-only** no.
 
+## Every stage
+
+### `sentinel-command-router`
+
+- **Use it when** you type a chat command such as `/init PROJECT_ID`, `sentinel /health PROJECT_ID` or `ignite /status PROJECT_ID` and want it executed from chat.
+- **What it does** parses the command, runs it with `python -m sentinel` (or the repo launcher when `python` is missing), summarises the result, and routes to the skill of that stage to interpret it. It leads `/status` with the verdict and never calls a workspace ready unless the verdict is `READY`. If the chat UI swallows a slash command, send it with the `sentinel` prefix.
+- **Commands it drives** every command in the registry. See [Chat commands](11-chat-commands.md) for the intent map.
+- **Human-only** no.
+
+### `sentinel-privacy-local-first`
+
+- **Use it when** you want the full local-first rule set or an export checklist: source of truth in versionable workspace files, retrieval memory local to the workspace, no remote MCP, vector database or embedding service for client content, and export only through audited commands.
+- **What it does** is a deliberate reference; the non-negotiable rules are always on in `AGENTS.md` and `CLAUDE.md`.
+- **Commands it drives** `/export` as the audited way out.
+- **Human-only** yes. Invoke it on purpose; it does not auto-load.
+
+## Which skill writes the input file
+
+| Command | You or the agent | Skill |
+| --- | --- | --- |
+| `/annotate`, `/challenge`, `/scrutinize`, `/assume`, `/self-review`, `/compose`, `/refine-backlog`, `/implementation-feedback` | The agent writes the JSON from your evidence. You review the result. | the matching skill |
+| `/harvest` | The agent writes the tagged Markdown from the code. | `sentinel-brownfield-harvest` |
+| `/split --propose`, `/prototype --trace`, `/prototype --manual` | The agent writes the JSON. | `sentinel-release-split`, `sentinel-prototype-trace`, `sentinel-prototype-manual` |
+| `/resolve-gaps` | The client answers `gaps.md`, or the agent drafts the answers you confirm. | `sentinel-gap-response` |
+| `/split --confirm`, `--move`, `--close` | You supply the BA and technical-team names and the evidence. | `sentinel-release-split` |
+
+## Next
+
+- Worked examples that use these skills end to end: [Scenarios](12-scenarios.md).
+- Every command and flag: [Command reference](01-command-reference.md).
+- Typing commands in chat, and the intent map: [Chat commands](11-chat-commands.md).
+- Per-surface setup: [Kilo Code](07-kilo-code-adapter.md), [Codex](08-codex-adapter.md), [Claude Code](13-claude-adapter.md).
+- The writing conventions for skills (maintainers): [Skill authoring checklist](references/skill-authoring-checklist.md).

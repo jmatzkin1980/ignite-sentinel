@@ -1,149 +1,90 @@
-﻿# Codex Adapter
+﻿# Using Sentinel on Codex
 
-Ignite Sentinel includes 24 repo-local skills. Their canonical source — the only place they are edited — is:
+This page explains how Ignite Sentinel appears in Codex (Desktop, VS Code or CLI): how you give commands, how skills are found, what the guard script does, and where the limits are. Read it after [installing](06-installation-vscode.md#path-c-codex-clone) if Codex is your surface.
 
-```text
-.codex/skills/
-```
+Sentinel on Codex runs from a **clone** of the repository. The Claude Code plugin is not a supported Codex path.
 
-**Codex does not read that directory.** Per Codex's documentation it discovers skills in `.agents/skills` (searching the working directory, then its parents, up to the repository root), plus `$HOME/.agents/skills` and `/etc/codex/skills`. This repo generates `.agents/skills/` as a byte-identical mirror of the canonical source with `python -m sentinel.adapters`, which is why the skills work in Codex out of the box. If a skill is not showing up in Codex, check `.agents/skills/` (and rerun the adapter) — editing a mirror by hand is never the fix. See [Repo And Branching Strategy](10-repo-and-branching-strategy.md) for the generation contract.
+## What you get
 
-These skills provide progressive disclosure. Each skill is short and delegates deterministic work to:
+| Piece | Where it lives | What it does |
+|-------|----------------|--------------|
+| Operating rules | `AGENTS.md` | Codex reads it at the repository root and learns the rules: sources are data, governed files change only through their command, nothing leaves the machine. |
+| 27 skills | `.agents/skills/` (generated) | Guidance for each stage. Codex discovers this folder, searching from the working directory up to the repository root. |
+| Command router | the `sentinel-command-router` skill | Turns a chat command such as `sentinel /ingest ACME_PORTAL --source ...` into the CLI call. |
+| A guard script | `.codex/hooks/` | A policy script that refuses a hand edit of a governed artifact (see [Limits](#limits-to-know)). |
 
-```powershell
-python -m sentinel ...
-```
+The skills are authored in `.codex/skills/`, but **Codex does not read that folder**. A generator (`python -m sentinel.adapters`) mirrors it into `.agents/skills/`. If a skill is missing in Codex, check `.agents/skills/`; never edit a mirror by hand.
 
-On a fresh clone, first validate the local runtime from Codex chat:
+## First 10 minutes
 
-```text
-sentinel /doctor
-```
+1. Open the repository folder in Codex.
+2. `sentinel /doctor` should end with `PASS`.
+3. Create a project, ingest a source, and ask for the next step:
 
-Codex Desktop or VS Code terminal fallback on Windows:
+   ```text
+   sentinel /init ACME_PORTAL
+   sentinel /ingest ACME_PORTAL --source input/client_requirement/request.md
+   sentinel /next ACME_PORTAL
+   ```
+4. A new project uses brief v2, so confirm its profile and genesis once before specs: `sentinel /brief ACME_PORTAL --profile UI,API --genesis greenfield`. Until you do, `GAP-BRIEF-PROFILE` is open and `/specs` refuses. See [Workflows](03-workflows.md).
 
-```powershell
-.\installers\sentinel.ps1 /doctor
-```
+The `sentinel` prefix is the reliable form. The shorter `/init ACME_PORTAL` may also work, but Codex can take it for one of its own commands; when it does, resend with the prefix.
 
-The launcher tries `SENTINEL_PYTHON`, `.venv`, `python`, `py`, and the Codex Desktop bundled runtime when visible. This keeps the same Sentinel CLI behavior even when the laptop does not expose `python` in `PATH`.
+You can also describe the situation: "I received new client input at input/client_requirement/request.md. Create project ACME_PORTAL, ingest it and explain the open gaps." Codex chooses the commands, runs them and summarizes the result and the next step.
 
-If dependencies are missing:
+When `python` is not on the path, use the launcher in a terminal: `.\installers\sentinel.ps1 /doctor`. It also finds the Python runtime bundled with Codex Desktop.
 
-```powershell
-python -m pip install -e .
-python -m sentinel /doctor
-```
+## Skills you will meet most
 
-## Skills
+The complete list is in the [skills catalog](04-codex-skills-guide.md).
 
-The most used ones; the full catalog of the 24 is in the [Codex Skills Guide](04-codex-skills-guide.md).
-
-| Skill | Purpose |
-| --- | --- |
-| `sentinel-discovery` | Ingest raw input and create requirements/gaps/decisions |
-| `sentinel-maturity` | Evaluate maturity gates |
-| `sentinel-specs` | Generate specs |
-| `sentinel-backlog` | Generate backlog, retrieval plans, and implementation readiness handoff |
-| `sentinel-quality` | Generate quality artifacts |
+| Skill | Use |
+|-------|-----|
+| `sentinel-discovery` | Ingest raw input; requirements, gaps, decisions |
+| `sentinel-gap-response` | Process answered gaps |
+| `sentinel-maturity` | Read the maturity gates |
+| `sentinel-project-brief` | Generate or refresh the brief |
+| `sentinel-specs`, `sentinel-backlog`, `sentinel-quality` | Downstream artifacts |
 | `sentinel-sync` | Process changes |
-| `sentinel-health` | Audit health, validation risks, and stale domain context |
-| `sentinel-command-router` | Translate Ignite chat commands into CLI runs |
-| `sentinel-gap-response` | Process answered discovery gaps |
-| `sentinel-project-brief` | Generate or refresh project brief |
-| `sentinel-domain-request` | Generate domain context requests |
-| `sentinel-privacy-local-first` | Apply local-only privacy rules |
+| `sentinel-health` | Health, validation, traceability |
+| `sentinel-domain-request` | Domain context requests |
+| `sentinel-privacy-local-first` | Local-only privacy rules (only on request; Codex never starts it on its own) |
 
-## Chat Command Router
+Name one explicitly when you want it: "Use sentinel-maturity to evaluate ACME_PORTAL and explain what blocks specs."
 
-Codex uses `AGENTS.md` plus the `sentinel-command-router` skill to interpret Ignite-style chat commands and run the matching CLI command.
+## What is enforced
 
-Codex can also work from plain-language requests. The user may describe the situation, and Codex should choose the right Sentinel command sequence, run it, and summarize the outputs and next step.
+1. **Command gates (all surfaces).** The CLI refuses a command when its prerequisite is missing, and says why in a `next step:` line (exit code 4). Codex cannot skip this.
+2. **Hand edits are detected.** `/health` flags a manual change to a hash-tracked file (`gaps.md`, `requirements.md`, the brief, specs, backlog).
+3. **A guard script** (`.codex/hooks/pre_tool_use_policy.py`) blocks a hand write to `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and points to the owning command.
 
-Recommended Codex chat form:
+## Limits to know
 
-```text
-sentinel /init ACME_DASHBOARD
-sentinel /ingest ACME_DASHBOARD --source input\client_requirement\sync-guide.md
-sentinel /gaps ACME_DASHBOARD
-sentinel /resolve-gaps ACME_DASHBOARD --source input\interactions\answered-gaps.md
-sentinel /maturity ACME_DASHBOARD
-sentinel /brief ACME_DASHBOARD
-sentinel /context-request ACME_DASHBOARD --domain technology
-sentinel /status ACME_DASHBOARD
-sentinel /specs ACME_DASHBOARD
-sentinel /backlog ACME_DASHBOARD
-sentinel /quality ACME_DASHBOARD
-sentinel /trace ACME_DASHBOARD
-sentinel /health ACME_DASHBOARD
-sentinel /validate ACME_DASHBOARD
-```
+- **The guard script has not been watched live in Codex.** The repository ships the script and nothing in it registers the script with Codex. Treat items 1 and 2 above as your protection, and do not rely on the script alone.
+- Slash commands may be intercepted by Codex. The `sentinel` prefix avoids it.
+- The skills reach the runtime from the repository root; run Codex with the clone open.
+- Skills that need the agent to write a JSON proposal (`/annotate`, `/challenge`, `/scrutinize`, `/assume`, `/compose`, `/self-review`) rely on the model; the runtime checks every quote against your sources, so a bad proposal is refused rather than applied.
 
-The shorter form may also work if the Codex surface does not reserve that slash command:
+## Plugin: not supported
 
-```text
-/init ACME_DASHBOARD
-```
+Codex can read this repository's `.claude-plugin/marketplace.json`, and installing the plugin works. What nobody has observed is a plugin skill actually running in Codex, so treat the plugin as unsupported there and use the clone.
 
-If Codex intercepts `/init` or another slash command as a native Codex command, resend it with the `sentinel` prefix.
+## If Codex is unavailable
 
-## Suggested Prompt
+Run the CLI from any terminal (`python -m sentinel /health ACME_PORTAL`) or use [Kilo Code](07-kilo-code-adapter.md) or [Claude Code](13-claude-adapter.md) on the same clone: all surfaces share the same workspace files.
 
-```text
-Use sentinel-maturity to evaluate ACME_DASHBOARD and explain what blocks specs generation.
-```
+## Troubleshooting
 
-More plain-language examples:
+| Symptom | Fix |
+|---------|-----|
+| A skill does not show up | Check `.agents/skills/`. If it is empty or stale, run `python -m sentinel.adapters`. |
+| `/init` does something else | Use `sentinel /init ACME_PORTAL`. |
+| A command is refused (exit code 4) | A gate stopped it. Read the `next step:` line, or run `sentinel /next ACME_PORTAL`. |
+| `python` not found | Use `installers/sentinel.ps1` or `installers/sentinel.sh`, or set `SENTINEL_PYTHON`. |
 
-```text
-I received new client input at input\client_requirement\initial-request.md.
-Create project ACME_DASHBOARD, ingest it, and explain the open gaps.
-```
+## Next
 
-```text
-Technology and Design updated their context files for ACME_DASHBOARD.
-Refresh memory, check health, and tell me whether backlog must be regenerated.
-```
-
-## Hooks
-
-Optional hooks live in:
-
-```text
-.codex/hooks/
-```
-
-They are guardrails and reminders. The primary enforcement layer remains:
-
-```powershell
-python -m sentinel /validate PROJECT_ID
-python -m sentinel /health PROJECT_ID
-```
-
-For backlog handoff, Codex should inspect:
-
-```text
-workspaces/[PROJECT_ID]/04_backlog/EPIC-001.md
-workspaces/[PROJECT_ID]/08_context_packs/backlog_generation.json
-workspaces/[PROJECT_ID]/08_context_packs/implementation_readiness.json
-```
-
-If domain context changed after backlog generation, run `/reindex` and focused `/retrieve` before planning or implementing stories. Rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
-
-## Plugin: not supported yet
-
-Use the clone in Codex. The Claude Code plugin ([guide](18-claude-plugin.md)) is not a supported Codex path yet.
-
-Codex reads this repository's `.claude-plugin/marketplace.json`, so `codex plugin marketplace add jmatzkin1980/ignite-sentinel` lists the plugin, and `codex plugin add ignite-sentinel@ignite-sentinel` installs it. Both were observed with Codex CLI 0.142.4. What has not been observed is a plugin skill actually running in Codex: the skills reach the runtime through `${CLAUDE_PLUGIN_ROOT}`, and Codex documents that variable only for hooks.
-
-Until someone watches it work, treat the plugin in Codex as unsupported.
-
-To settle it: someone with a Codex account installs the plugin, then runs `$sentinel-views` in an empty project.
-
-- **If the dashboard appears in the project**, the plugin works in Codex as it is. Record the observation in the surface-contract registry (`/doctor`).
-- **If the command fails on the launcher path**, Codex needs its own rendering of the skills, with the launcher path relative to the skill folder. That rendering would also need its own marketplace, `.agents/plugins/marketplace.json`, which Codex prefers over the Claude one when both exist (observed with Codex CLI 0.142.4).
-
-## If Codex Is Unavailable
-
-Use Kilo Code agents or run the CLI manually from VS Code terminal. On Windows machines without a valid `python`, run the same commands through `.\installers\sentinel.ps1`.
-
+- [Command reference](01-command-reference.md)
+- [Workflows by situation](03-workflows.md)
+- [Skills catalog](04-codex-skills-guide.md)
+- [Driving Sentinel from chat](11-chat-commands.md)

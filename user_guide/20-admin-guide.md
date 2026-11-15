@@ -2,14 +2,14 @@
 
 This guide is for the administrator who approves Ignite Sentinel for an organization's Claude Code users. It covers a restrictive managed settings policy, pinning the plugin to a release or a commit, how to confirm the policy is in force, what to review before approving a version, retention, and the audit trail.
 
-For what Sentinel protects and how, read the [threat model](19-threat-model.md) first. For installing the plugin as a user, see the [Claude Code plugin guide](18-claude-plugin.md).
+For what Sentinel protects and how, read the [threat model](19-threat-model.md) first. For installing the plugin as a user, see the [Claude Code plugin guide](18-claude-plugin.md) and [Install: choose your path](06-installation-vscode.md). The managed settings in this guide are Claude Code's; Codex and Kilo Code run from a clone and take their policies from their own tools.
 
 The managed settings keys below are Claude Code's, documented in [Manage plugins for your organization](https://code.claude.com/docs/en/plugins/org) and [Deploy managed settings](https://code.claude.com/docs/en/managed-settings). Users cannot override a managed key.
 
 ## What the plugin needs on each machine
 
 - Claude Code with plugin support. The `archive` source (install without git) needs v2.1.224 or later.
-- Python 3.10 or newer. It does not have to be on `PATH`: the plugin's `python.sh` also looks in the usual Windows install folders, and `SENTINEL_PYTHON` can name the interpreter ([plugin guide](18-claude-plugin.md#install)). No package installs: the runtime is standard library only.
+- Python 3.10 or newer. It does not have to be on `PATH`: the plugin's `python.sh` also looks in the usual Windows install folders, and `SENTINEL_PYTHON` can name the interpreter ([plugin guide](18-claude-plugin.md#install)). No package installs: the runtime is standard library only. The optional MCP plugin is the exception: it needs the `mcp` package in a Python that is on `PATH` as `python`, which is why this guide keeps it disabled.
 - Read access to `github.com/jmatzkin1980/ignite-sentinel` over git, or to the release assets over HTTPS for the `archive` source.
 - No other network access. Sentinel makes no network calls (`network_isolation_check`).
 
@@ -69,7 +69,7 @@ The file locations need administrator rights to write. A managed file that is no
 
 Do not use the user-writable `HKCU\SOFTWARE\Policies\ClaudeCode` registry key for this policy. Claude Code reads it as a fallback, but because the user can write it, `true` entries in `enabledPlugins` are ignored there: `/status` says so, and the plugin is not installed. Test the policy from the managed settings file or HKLM, as the rollout will use.
 
-Observed with Claude Code 2.1.305:
+Observed with Claude Code 2.1.305 (the version the release pipeline validates against; check again after a Claude Code upgrade):
 
 | Key | Source | Result |
 |-----|--------|--------|
@@ -204,7 +204,7 @@ For each release you approve:
 
 3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py` through `python.sh`, the script that finds Python. Read the hook script and `python.sh`; `python.sh` only looks for an interpreter and runs it. Any new hook, matcher or command is a reason to stop and ask.
 4. **Surface.** The plugin still has no `bin/`, monitors, LSP servers or MCP servers (those live only in `ignite-sentinel-mcp`).
-5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`.
+5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`. Without a clone, unpack the release zip and read `lib/sentinel/` yourself: it is the same source. (`/doctor` checks a full framework folder, so it does not run on the unpacked plugin.)
 6. **Dependencies.** The SBOM (`ignite-sentinel-vX.Y.Z.cdx.json`) lists only the optional extras; the plugin itself uses none of them.
 
 ## Retention and cleanup
@@ -275,7 +275,7 @@ What happened in a project is recorded in append-only files in its workspace:
 | `01_discovery/gap_resolution_log.md` | Each gap resolution run and its result |
 | `07_changes/metabolism_log.md` | Each change to the sources and the artifacts it impacts |
 
-Version the workspace on a project branch to get a full history of every artifact ([Repo & Branching Strategy](10-repo-and-branching-strategy.md)).
+Version the workspace in a private repository to get a full history of every artifact ([Versioning your workspaces](10-repo-and-branching-strategy.md)).
 
 On the Claude Code side:
 - OpenTelemetry events `claude_code.plugin_installed` and `claude_code.plugin_loaded` record installs and loads per machine (set `OTEL_LOG_TOOL_DETAILS=1` to keep the plugin name).

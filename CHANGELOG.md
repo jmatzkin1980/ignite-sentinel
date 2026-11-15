@@ -6,6 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+- The README and the user guide are rewritten for business analysts, product managers and developers (IMP-310). They had fallen behind releases 0.6–0.11: the first run skipped the brief v2 settings, five commands and the release-split, prototype, brownfield and gate-refusal flows had no page, and several counts and paths were stale.
+  - **README** is a landing page: what Sentinel is, who it is for, the flow as a diagram, a "choose your path" install table, a quick start to a first `gaps.md`, next steps by role, and all 37 commands.
+  - **Start here (`00`)** adds a glossary and a full first run with what you get and the next step after each step. **Workflows (`03`)** has one section per situation, including what to do when a gate refuses, by exit code.
+  - **Command reference (`01`)** uses one template per command (syntax, an options table that matches the registry, what it writes, when it refuses and with which exit code, next step), plus an exit-code table and a gate matrix.
+  - **Artifact reference (`02`)** covers every folder, including release series, prototypes and `.sentinel/`, with an edit rule and the regenerating command for each artifact.
+  - **Install (`06`)** is a single "choose your path" page; the surface pages (`07`, `08`, `13`), secure environments and portability (`09`, `16`) no longer repeat each other; the skills catalog (`04`) covers all 27 skills.
+  - Maintainer material (generated surfaces, cutting a release, the clean-clone check, framework branches, the lens knowledge base) moved from the user guide to `MAINTAINERS.md`.
+  - No file was renamed, so existing links keep working.
+
 ## [0.11.0] — 2026-11-15
 
 H19: closing open topics. `verify.ps1` runs the suite in parallel and takes about 6 minutes; before the IMP-305 cleanup it took about 47. `/trace` and `/maturity` are registered as the writers they are, and a test keeps every read-only command from writing an artifact. The skill metadata check catches any surface named in a description. Generated artifacts cite paths as `workspaces/<id>/...` instead of the absolute folder, so a moved workspace regenerates the same Markdown.

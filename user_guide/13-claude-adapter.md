@@ -1,149 +1,103 @@
-# Claude Adapter
+# Using Sentinel on Claude Code
 
-Ignite Sentinel includes a repo-local adapter for Claude, covering three surfaces:
+This page explains how Ignite Sentinel appears in Claude Code, how the commands and skills work there, what the hook enforces, and the limits. Read it after [installing](06-installation-vscode.md) if Claude Code is your surface.
 
-- **Claude Code in VS Code** (extension): native slash commands from `.claude/commands/`.
-- **Claude Code CLI** (terminal): same slash commands, plus direct CLI usage.
-- **Claude Desktop / Cowork**: no native slash commands, but `CLAUDE.md` provides routing rules so chat-style commands and natural-language requests map to the right Sentinel CLI sequence.
+There are two ways to have Sentinel in Claude Code. Use **one**, not both:
 
-The adapter files are:
+| | Clone | Plugin |
+|---|-------|--------|
+| Install | [Path B](06-installation-vscode.md#path-b-claude-code-clone) | [Path A](06-installation-vscode.md#path-a-claude-code-plugin-from-the-marketplace), details in the [plugin guide](18-claude-plugin.md) |
+| Slash commands | Yes, one per command (`/ingest`, `/gaps`, ...) | No: ask in chat, or use the skills with the `ignite-sentinel:` prefix |
+| Skills | 27, from `.claude/skills/` | The same 27, prefixed `ignite-sentinel:` |
+| Hook that protects governed files | Yes, `.claude/settings.json` | Yes, shipped in the plugin |
+| Needs a copy of the repository | Yes | No |
+| Updates | `git pull` | Marketplace channel or pinned version |
 
-```text
-CLAUDE.md            instructions loaded automatically by Claude sessions
-.claude/commands/    one slash command per Sentinel command, plus /sentinel fallback
-```
+The same Claude Code works in the terminal and in the VS Code extension. A chat-only Claude Desktop session has no shell and so cannot run Sentinel by itself; `CLAUDE.md` carries routing rules for it, but only Claude Code has been checked live.
 
-All commands call the same portable CLI as the Codex and Kilo adapters:
+## First 10 minutes (clone)
 
-```powershell
-python -m sentinel /COMMAND PROJECT_ID [OPTIONS]
-```
+1. Open the repository folder in Claude Code.
+2. `/doctor` should end with `PASS`.
+3. Create a project, ingest a source, and ask for the next step:
 
-> Prefer not to clone? Install the [Claude Code plugin](18-claude-plugin.md) instead; use one or the other, not both.
+   ```text
+   /init ACME_PORTAL
+   /ingest ACME_PORTAL --source input/client_requirement/request.md
+   /next ACME_PORTAL
+   ```
 
-## Setup check
+   Claude Code has a built-in `/init` of its own. If it answers instead of Sentinel, send `/sentinel /init ACME_PORTAL`.
+4. A new project uses brief v2: confirm its profile and genesis once with `/brief ACME_PORTAL --profile UI,API --genesis greenfield`. Until then `GAP-BRIEF-PROFILE` is open and `/specs` refuses. See [Workflows](03-workflows.md).
 
-Before relying on Claude chat commands in a freshly cloned repository, open the repo root in VS Code (or connect the folder in Claude Desktop) and run:
+With the plugin the steps are the same, spelled `sentinel /init ACME_PORTAL`, and `/doctor` is not used (see the [plugin guide](18-claude-plugin.md#first-run)).
 
-```text
-/doctor
-```
+## Commands
 
-If LanceDB or another dependency is missing:
+In a clone, `.claude/commands/` holds one file per Sentinel command plus the `/sentinel /COMMAND ...` fallback. They are generated from one manifest, the same one that generates the Kilo Code commands. The commands, their options and the gates are in the [command reference](01-command-reference.md).
 
-```powershell
-python -m pip install -e .
-python -m sentinel /doctor
-```
+You can also describe the situation and let Claude choose. `CLAUDE.md` and the router skill map intent to commands:
 
-## Slash commands
+| You say | Claude runs |
+|---------|-------------|
+| "New requirement in this file; create the project, ingest it and tell me what is missing." | `/init`, `/ingest`, `/next` |
+| "The client answered the gaps in this document." | `/resolve-gaps`, `/maturity`, `/next` |
+| "Technology updated its architecture notes." | `/sync`, `/reindex`, `/health` |
 
-`.claude/commands/` mirrors `.kilo/commands/` one to one:
+The full map is in [Driving Sentinel from chat](11-chat-commands.md).
 
-```text
-/doctor
-/dashboard
-/init PROJECT_ID
-/ingest PROJECT_ID --source PATH
-/gaps PROJECT_ID
-/annotate PROJECT_ID --source PATH
-/challenge PROJECT_ID --source PATH
-/scrutinize PROJECT_ID --source PATH [--mode implementability-probe]
-/assume PROJECT_ID --source PATH
-/resolve-gaps PROJECT_ID --source PATH
-/maturity PROJECT_ID
-/brief PROJECT_ID
-/context-request PROJECT_ID --domain DOMAIN
-/stakeholders PROJECT_ID [--add --id ID --name NAME --domain DOMAIN]
-/status PROJECT_ID
-/export PROJECT_ID --artifact ARTIFACT --format md
-/export PROJECT_ID --artifact prd --format mdx
-/export PROJECT_ID --artifact ARTIFACT --format interview|faq
-/sync PROJECT_ID [--source PATH --note "NOTE" --digest]
-/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW
-/reindex PROJECT_ID
-/specs PROJECT_ID
-/self-review PROJECT_ID --source PATH
-/compose PROJECT_ID --source PATH
-/view PROJECT_ID --artifact ARTIFACT [--open]
-/backlog PROJECT_ID [--with-task-seeds --story-format user|job]
-/backlog-status PROJECT_ID
-/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME --evidence PATH]
-/refine-backlog PROJECT_ID --source PATH
-/implementation-feedback PROJECT_ID --source PATH
-/quality PROJECT_ID
-/trace PROJECT_ID
-/health PROJECT_ID
-/validate PROJECT_ID
-/sentinel /COMMAND PROJECT_ID [OPTIONS]
-```
+## Skills
 
-If a slash command conflicts with a built-in Claude command on some surface, use the generic fallback:
+The 27 canonical skills are mirrored to `.claude/skills/`. Claude Code registers 26 as model-invocable; the 27th, `sentinel-privacy-local-first`, is human-only and runs only when you ask for it. Every skill has a name and a description, and Claude loads the one that matches the conversation: "the client answered the gaps" loads `sentinel-gap-response`; "this acceptance criterion cannot hold" loads `sentinel-implementation-feedback`. The catalog is in [Skills catalog](04-codex-skills-guide.md).
 
-```text
-/sentinel /init PROJECT_ID
-```
+## What the hook enforces
 
-## Natural language usage
+Governed artifacts are written only by their command. A `PreToolUse` hook denies a hand `Write` or `Edit` of:
 
-Claude sessions load `CLAUDE.md` automatically, so you can also describe the situation in plain language. Examples:
+- `workspaces/<id>/02_requirements/project-brief.md`
+- `workspaces/<id>/03_specs/*.md`
+- `workspaces/<id>/04_backlog/*.md`
 
-- "Tengo un nuevo requerimiento en este archivo, creá el proyecto, ingestalo y decime qué falta" → `/init` + `/ingest` + `/status`.
-- "El cliente respondió los gaps en este documento" → `/resolve-gaps` + `/maturity` + `/status`.
-- "Tecnología actualizó su contexto de arquitectura" → `/sync` + `/reindex` + `/health`.
+When it denies, it names the command that owns the file (`/brief`, `/specs`, `/backlog`). Reads are never blocked, and neither is the CLI, which is how those files are regenerated. If you need a different result in one of them, answer the gap, ingest new evidence or sync a change, then run the command again ([Workflows](03-workflows.md)).
 
-Claude maps the intent to the right lifecycle sequence, runs the CLI, and summarizes generated artifacts, gaps, health, and the next recommended step.
+The hook was watched refusing a write in Claude Code. It covers Claude's editor tools only: a write through some other channel is not seen by the hook, so `/health` also flags a hand edit of any hash-tracked file. Other rules Claude follows are in `CLAUDE.md`: gates are respected, missing information stays a visible `GAP-*`, and nothing is sent to external services.
 
-## Skills (model-invoked)
+> [!NOTE]
+> In a clone the hook command is `python .claude/hooks/deny-governed-artifact-write.py`, so `python` must be on `PATH`. The plugin's hook finds Python by itself. If the clone's hook seems to do nothing on Windows, check that `python` is not the Microsoft Store alias.
 
-The 24 canonical skills under `.codex/skills/` are mirrored byte-for-byte to `.claude/skills/`, so Claude Code registers the 23 model-invocable ones (the human-only `sentinel-privacy-local-first`, marked `disable-model-invocation: true`, is invoked deliberately and never auto-triggered): every skill carries validated `name`/`description` frontmatter (enforced by `/doctor` and the repo test suite), and Claude auto-triggers the right one from the description when the conversation matches — "the client answered the gaps" loads `sentinel-gap-response`, "this AC can't hold" loads `sentinel-implementation-feedback`, and so on, without the user naming the skill.
+### Optional: verify edits with a subagent
 
-Full catalog and per-skill responsibilities: [Codex Skills Guide](04-codex-skills-guide.md) (same skills, same contracts — only the mirror directory differs). The seven agentic proposal skills close with an identical Agentic Spirit block (verbatim-citation discipline, lifecycle-based severity, project language, focus-first retrieval); a drift guard keeps skill content aligned with the runtime (technique registry, command manifest, assumption schema).
-
-## Rules Claude follows in this repo
-
-- Generated artifacts are mutated only through Sentinel CLI commands, never by editing downstream outputs by hand.
-- Lifecycle gates are respected: blocked maturity stops `/specs` and `/backlog`; `DIRTY` health stops `/backlog` and `/quality`. If a command is blocked, Claude explains why and recommends the prior step.
-- Missing information stays visible as `GAP-*`, `[PENDING INPUT]`, or `[PENDING DOMAIN CONTEXT]`; nothing is invented.
-- Local-first privacy applies: no client content, code, or embeddings are sent to external services.
-- Framework changes go through a working branch and PR, never directly to `main`.
+The clone ships a read-only subagent, `ignite-verifier`, and an opt-in hook example. When you copy the example into `.claude/settings.local.json`, a write to a governed artifact starts the verifier in an isolated context with read-only tools. It checks the change against cited evidence and reports `VERIFIED` or `BLOCKED`; it never fixes anything. Setup is in `.claude/hooks/README.md`. Nothing activates by default, and `/self-review` gives the same check through the governed channel.
 
 ## Memory
 
-Claude uses the same local memory layer as the other adapters. `/ingest`, `/sync`, and `/reindex` keep `workspaces/[PROJECT_ID]/memory.lancedb/` populated, while `/retrieve` builds focused context packs for the active workflow. Versionable workspace files remain the source of truth.
+Claude uses the same local memory as the other surfaces: `/ingest`, `/sync` and `/reindex` keep `workspaces/<id>/memory.lancedb/` populated (or the JSON fallback when LanceDB is absent), and `/retrieve` builds focused context packs. The workspace files remain the source of truth. See [Traceability and memory](05-traceability-and-memory.md).
 
-## Local MCP Server (Optional)
+## Local MCP server (optional)
 
-Sentinel can also expose the lifecycle as MCP tools over stdio, so Claude Desktop, Claude Code, or any MCP client can call commands directly (no chat-command parsing). It is 100% local: stdio transport, no network, same gates and command protocol.
+Sentinel can expose its lifecycle as 38 MCP tools over a local stdio channel, so any MCP client can call them without parsing chat. It makes no network calls and applies the same gates. A failed command returns an error result with the exit `code`, an `error` and a `next_step`.
 
-Enable and run:
+In a clone: install the extra (`python -m pip install --require-hashes -r constraints/mcp.txt`, then `python -m pip install --no-deps -e .`), list the tools with `python -m sentinel.mcp --describe`, and start the server with `python -m sentinel.mcp`. In Claude Code, the supported route is the MCP plugin. Both are in the [plugin guide](18-claude-plugin.md#mcp-server-optional).
 
-```powershell
-python -m pip install -e .[mcp]
-python -m sentinel.mcp --describe   # list the 32 tools
-python -m sentinel.mcp              # start the stdio server
-```
+## Limits to know
 
-**Structured gap elicitation (IMP-143).** Among the tools, `sentinel_gap_elicitation` (`project_id`, `gap_id`) returns a structured MCP *elicitation request* for a single `GAP-*` — the cited candidate options (IMP-113) presented as a schema-typed prompt — **only when the connected client declares elicitation capability**. If the client does not support elicitation, the tool degrades gracefully to the exact behavior of `sentinel_gaps` (plain text). It never depends on the capability and stays fully local (no remote MCP).
+- The plugin has no slash commands of its own; a clone has them.
+- The MCP plugin and the clone's MCP setup have not been watched running in a session.
+- Claude Code's own settings, models and data handling are out of Sentinel's control; for organization policy see the [admin guide](20-admin-guide.md).
 
-Claude Desktop / Claude Code configuration:
+## Troubleshooting
 
-```json
-{
-  "mcpServers": {
-    "ignite-sentinel": {
-      "command": "python",
-      "args": ["-m", "sentinel.mcp"],
-      "cwd": "C:/path/to/ignite-sentinel"
-    }
-  }
-}
-```
+| Symptom | Fix |
+|---------|-----|
+| `/init` does something else | Use `/sentinel /init ACME_PORTAL`. |
+| A hand edit was denied | That is the hook working. Use the command it names. |
+| A command is refused (exit code 4) | A gate stopped it. Read the `next step:` line or run `/next ACME_PORTAL`. |
+| Skills appear twice | The clone and the plugin are both installed. Remove one. |
+| The project's commands are missing after adding a folder | Claude Code reads commands when a session starts; restart the session. |
 
-Tools are named `sentinel_init`, `sentinel_ingest`, `sentinel_maturity`, etc. A failed command comes back as an error result (`isError`) whose text is JSON with `code` (the exit codes in `01-command-reference.md`), `error` and `next_step`, so the client can recommend the right prior step. Without the optional `mcp` package, everything else (chat adapters, CLI) keeps working and `/doctor` reports a WARN.
+## Next
 
-## Governed-Artifact Verifier Hook (Optional, IMP-146)
-
-The repo ships a read-only verifier subagent, `.claude/agents/ignite-verifier.md`, plus an **opt-in** `PostToolUse` hook example under `.claude/hooks/`. When enabled (by copying the example block into your local `.claude/settings.local.json`), any `Write`/`Edit` that touches a governed artifact (`project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) spawns the verifier with an isolated context and tools restricted to `Read, Grep, Glob` (explicit denylist of `Write/Edit/Bash/Agent`). It checks the change against local cited evidence — no invention, criterion continuity, governed mutation channel — and reports `VERIFIED` or `BLOCKED` with cited findings; it never auto-corrects, and the BA/main agent decides.
-
-Nothing activates by default: adopters without Claude Code (or without Agent-hook support) are unaffected and can run the same verification through the governed `/self-review` channel. Hooks can be bypassed by writes outside the editor tools, so this is one enforcement layer; the runtime-side complements are the brief phase-close self-correction (IMP-145) and the generated-artifact checksum check (IMP-147). Setup and the manual smoke test live in `.claude/hooks/README.md`.
+- [Claude Code plugin guide](18-claude-plugin.md)
+- [Command reference](01-command-reference.md)
+- [Workflows by situation](03-workflows.md)
+- [Driving Sentinel from chat](11-chat-commands.md)

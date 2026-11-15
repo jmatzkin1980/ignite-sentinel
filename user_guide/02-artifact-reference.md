@@ -1,808 +1,409 @@
-﻿# Ignite Sentinel Artifact Reference
+﻿# Artifact reference
 
-This document explains the artifacts generated inside each project workspace.
+This page lists every file and folder Sentinel creates inside a project workspace: what it is for, who reads it, whether you may edit it, and which command writes it. Read it when you open a workspace and wonder "what is this file, and can I touch it?". Business analysts and product managers need the lifecycle map and the edit rules; developers will also want the [developer appendix](#developer-appendix) at the end.
 
-## Workspace Root
+Terms such as gap, brief, spec unit, governed artifact or release series are defined in the [glossary](00-user-guide.md). Commands are described in the [command reference](01-command-reference.md).
 
-```text
-workspaces/[PROJECT_ID]/
+## Lifecycle map
+
+Every project lives in `workspaces/<PROJECT_ID>/`. The numbered folders follow the order of the work, so the folder you are in tells you the stage.
+
+```mermaid
+flowchart LR
+    init["/init"] --> root["workspace root<br/>state.json, config, .sentinel/"]
+    ingest["/ingest, /sources,<br/>/harvest, /stakeholders"] --> raw["00_raw/"]
+    ingest --> disc["01_discovery/"]
+    deepen["/annotate, /challenge, /scrutinize,<br/>/assume, /self-review, /maturity"] --> disc
+    resolve["/resolve-gaps, /sync"] --> changes["07_changes/"]
+    resolve --> disc
+    brief["/brief"] --> req["02_requirements/"]
+    split["/split, /prototype"] --> req
+    specs["/specs, /compose"] --> specsf["03_specs/"]
+    backlog["/backlog, /story-status,<br/>/refine-backlog"] --> back["04_backlog/"]
+    quality["/quality"] --> qual["05_quality/"]
+    trace["/trace, /health"] --> trc["06_traceability/"]
+    packs["/context-request, /retrieve --write-pack,<br/>/export, /view"] --> ctx["08_context_packs/"]
+    reindex["/reindex"] --> mem["memory.lancedb/"]
 ```
 
-Each project is isolated by ID. Do not mix unrelated client/project work in the same workspace.
+A new project passes through the folders in this order: raw evidence (`00_raw`), discovery (`01_discovery`), the brief (`02_requirements`), specs (`03_specs`), backlog (`04_backlog`), quality (`05_quality`). Traceability (`06_traceability`), changes (`07_changes`) and context packs (`08_context_packs`) are filled all along the way.
 
-## `state.json`
+## Edit rules at a glance
 
-Operational state for the workspace.
+Every artifact falls into one of three groups.
 
-Typical fields:
+| Group | Meaning | What to do instead of editing |
+|---|---|---|
+| **Never edit by hand** | A governed or generated artifact. Sentinel rebuilds it from evidence, and a hand edit is lost or flagged. | Change the evidence and re-run the owning command. |
+| **Edit freely** | You own it: configuration, local themes, and the evidence files you drop into `00_raw/`. | Edit it, then run `/sync` or `/ingest` so Sentinel notices new evidence. |
+| **Disposable and regenerable** | A view, a cache or an index. Safe to delete. | Re-run the command that builds it. |
 
-- `project_id`
-- `phase`
-- `health`
-- `created_at`
-- `updated_at`
-- `artifacts`
-- `project_language`
-- `privacy_mode`
-- `last_gap_resolution_id`
-- `gap_counts`
-- `readiness_stage`
-- `metrics`
-- `story_lifecycle`
-- `story_gates`
-- `story_quality`
-- `story_acceptance_evidence`
-- `artifact_hashes`
-- `derived_source_fingerprints`
+> [!IMPORTANT]
+> Three kinds of file are protected by the editor hook on Claude Code, Codex and Kilo Code: `02_requirements/project-brief.md`, the top-level `03_specs/*.md` and the top-level `04_backlog/*.md`. A hand write to one of them is denied. Files in sub-folders (for example `03_specs/units/`) and in release folders (`<rN>/`) are not covered by the hook but are still generated: do not edit them.
+>
+> `01_discovery/gaps.md` and `02_requirements/requirements.md` are not blocked by the hook, but `/health` records a hash of them and of the brief, specs and backlog, and reports any hand edit. So five paths are watched even though three are blocked.
 
-Use this file to understand where the project is in the workflow. `artifact_hashes` is the deterministic sha256 registry of governed artifacts, refreshed by every mutating command (IMP-147); `/health` compares it against current bytes to flag out-of-CLI edits. `derived_source_fingerprints` records, per derived artifact (`specs`, `backlog`), the sha256 of the source artifacts it was generated from at generation time (IMP-148: specs from the brief + requirements; backlog from specs); `/health` compares against current source bytes to flag downstream artifacts that drifted from their cited source. `story_lifecycle` is the governed ledger for current `US-NNN` status and owner; `story_gates` stores the latest DoR/DoD evaluation per story; `story_quality` stores the latest `/quality` score for the governed INVEST/SPIDR/Lawrence story model; `story_acceptance_evidence` records local evidence artifacts attached for Done; `implementation_feedback` records open downstream findings that may stale stories or block DoD. Mutate lifecycle and evidence only through `/story-status`; submit downstream findings only through `/implementation-feedback`; refresh quality through `/quality`.
+How answers get in without hand-editing: client answers go through `/resolve-gaps`, changes and new meeting notes go through `/sync`, new evidence goes through `/ingest` or `/sources`. See the [workflows](03-workflows.md).
 
-## `sentinel.config.yaml`
+## Workspace root
 
-Project-level configuration.
+```text
+workspaces/<PROJECT_ID>/
+  state.json
+  sentinel.config.yaml
+  .gitignore
+  .sentinel/
+  .series_work/        (only when you use release series)
+  memory.lancedb/
+  00_raw/ ... 08_context_packs/
+```
 
-Default sections:
+| Path | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `state.json` | Where the project is: phase, health, language, story status, gate results, file hashes. | Every command, `/status`, the dashboard | Never edit by hand | Every mutating command (read-only commands still record `last_command`, and `/health` records the health); created by `/init` |
+| `sentinel.config.yaml` | Project settings: language, privacy mode, gate thresholds, theme. | Every command | **Edit freely** | Created by `/init`; edited by you |
+| `.gitignore` | Keeps regenerable paths out of git when you version the workspace. | git | Edit freely | Created by `/init` |
+| `.sentinel/derived/state.json` | Counts and metrics Sentinel recomputes (gap counts, maturity metrics, backlog roll-up). | `/status`, the dashboard | Disposable | Every mutating command |
+| `.sentinel/command_log.jsonl` | One line per command that ran, append-only. | `/health`, admins, audits | Never edit by hand | Every command |
+| `.sentinel/themes/<name>.json` | A look-and-feel theme for this workspace only. | `/view` | Edit freely | You; see [themes](17-themes.md) |
+| `.sentinel/state.json.bak-0.9.0` | One-time backup made when an old workspace is upgraded. | Nobody, unless you roll back | Leave alone | The first command that opens an old workspace |
+| `.sentinel/lock` | The lock that makes a second command wait (exit code 6). | Sentinel | Never touch | Every project command, read-only ones included |
+| `.series_work/<rN>/` | The mirror a command runs in when you pass `--release rN`. | Sentinel | Never edit by hand | Release commands |
+| `memory.lancedb/` | The retrieval index. See [below](#memorylancedb) and [Traceability and memory](05-traceability-and-memory.md). | `/retrieve` | Disposable | `/ingest`, `/sync`, `/reindex` |
+
+### What the workspace `.gitignore` ignores
+
+When you version a workspace in your own repository (see [repository and branching strategy](10-repo-and-branching-strategy.md)), the generated `.gitignore` keeps out what can be rebuilt: `memory.lancedb/`, `08_context_packs/views/*.html`, `08_context_packs/synthetic/` and `.sentinel/`. Everything else, the matured artifacts, stays tracked. `.series_work/` is not in that list. If you use release series and do not want the mirrors in git, add it yourself.
+
+### Configuration keys
+
+`/init` writes this file; the keys below are the ones it creates.
 
 ```yaml
-project_id: PROJECT_ID
+project_id: ACME_PORTAL
 version: 0.1.0
-project_language: auto
+project_language: auto        # auto | es | en
 privacy_mode: local-only
-domains:
-  - product
-  - business
-  - functional
-  - technical
-  - design
-  - quality
-  - delivery
-  - compliance
+domains: [product, business, functional, technical, design, quality, delivery, compliance]
 maturity:
-  blocking_gap_severities:
-    - critical
-    - high
-  required_domains:
-    - product
-    - functional
-    - quality
-memory:
-  provider: lancedb-hybrid
-  lancedb_optional: true
-  fallback: json-hybrid
-  embedding: local-hash
+  blocking_gap_severities: [critical, high]
+  required_domains: [product, functional, quality]
 gap_resolution:
   auto_close_rule: confirmed_structured
 backlog_gate:
   threshold: 1.0
   strict: false
-implementability_gate:
-  strict: false
 privacy_scan:
   mode: warn
+memory:
+  provider: lancedb-hybrid
+  lancedb_optional: true
+  fallback: json-hybrid
+  embedding: local-hash
+  context_folders: [00_raw/00_client_requirement, ..., 00_raw/05_interactions]
 ```
 
-For now, the maturity gate uses `blocking_gap_severities`. `backlog_gate.strict`, `implementability_gate.strict`, `drift_gate.strict`, and `privacy_scan.mode` are opt-in hardening controls: their defaults keep handoff non-blocking while still surfacing warnings. `drift_gate.strict` (IMP-151) blocks `/specs` and `/backlog` when their foundation drifted since generation; by default it only warns via `foundation_warnings`. `implementability_gate.strict` (IMP-118) blocks the advance to `READY_FOR_SPECS` at `/brief` when any Requirement Unit has a non-inferable open gap; by default it only warns.
-
-`project_language` controls the language used for human-facing generated artifacts. Supported values:
-
-- `auto`: detect language from the first ingested client requirement.
-- `es`: force Spanish.
-- `en`: force English.
-
-The detected or configured language is also stored in `state.json` as `project_language`.
-
-## `00_raw/`
-
-Contains raw input copied from the source file used in `ingest`, plus the source manifest used by autonomous sync.
-
-Examples:
-
-- client notes
-- meeting transcripts
-- stakeholder emails converted to Markdown
-- initial requirement briefs
-
-Raw input is evidence. It is not automatically considered mature truth.
-
-### `source_manifest.json`
-
-Tracks files processed by `/ingest` and `/sync`.
-
-Important fields:
-
-- `path`
-- `hash`
-- `status`
-- `event_id`
-- `last_seen_at`
-- `last_processed_at`
-
-`/sync PROJECT_ID` uses this manifest to detect new or modified files.
-
-## `01_discovery/`
-
-Discovery artifacts created from raw input.
-
-### `raw_input_digest.md`
-
-Short summary of the ingested source.
-
-### `source_synthesis.md`
-
-Per-source synthesis regenerated by `/ingest` before cross-source review. Each raw file under `00_raw/` keeps its own source-local unit and verbatim citation, then the cross-source section lists those cited units separately instead of merging divergent sources into one uncited claim. This is a traceability aid only; it does not change the `gaps.md` or `requirement_units.md` contracts.
-
-### `requirement_unit_deltas.md`
-
-Read-only governed delta view written by `/ingest` on a **re-ingest** (IMP-150): how the cited Requirement Units changed between the previous and the latest iteration, as `ADDED` / `MODIFIED` / `REMOVED` sections keyed by the RU label (the named capability, so a renumbered re-ingest still diffs by *what* changed), each with its verbatim evidence. It is a signal only — it never opens, closes, or rewrites gaps or units; the BA reconciles. Absent on the first ingest.
-
-### `requirement_units.md`
-
-Discovery-only index of cited `RU-*` Requirement Units (IMP-115). Each row records a stable RU ID, label, verbatim evidence mention, raw source, and trace ID. RUs are analysis anchors for discovery lenses and implementability review; they do not replace `SPEC-U-*` Spec Units, user stories, enablers, or backlog slicing.
-
-### `gaps.md`
-
-List of missing, ambiguous, risky, or unverified information.
-
-This document is designed to be shared with client or domain stakeholders. It includes:
-
-- project metadata and document version;
-- response instructions;
-- one human-friendly section per gap framed as elicitation (IMP-022): ID, title, lens, severity, description, **why it matters (risk if left open)**, **what answering it unblocks** (the downstream brief/PRD/spec section that consumes the answer), the question, the **expected response format**, an example answer, optional cited candidate options when local evidence supports them (IMP-113), and blank response fields;
-- a framework trace table with lens, severity, status, parent, question, source consulted, detected trigger, `Origin` (`checklist` for deterministic gaps; `agent` for gaps contributed through `/annotate`, IMP-021), and `Unit` — the `RU-*` Requirement Unit the gap is anchored to (IMP-116). Lenses run per unit: each unit's cited evidence is scoped on its own, so a trigger token present in one unit no longer suppresses an inquisitive gap that belongs to another. Document-level gaps and legacy workspaces leave `Unit` as `N/A`.
-
-When the answered document returns, save it under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` and run `/resolve-gaps PROJECT_ID --source PATH`.
-
-Important statuses:
-
-- `OPEN`
-- `ANSWERED`
-- `PARTIALLY_CLOSED`
-- `CLOSED`
-- `SUPERSEDED`
-- `NEW_REQUIREMENT`
-- `NEW_GAP`
-
-Important severities:
-
-- `critical`
-- `high`
-- `medium`
-- `low`
-
-### `agent_annotation_log.md` and `annotations/`
-
-Sanctioned record of agentic discovery analysis contributed through `/annotate` (IMP-021). Each entry lists the merged semantic gaps with their lens, severity, question, and the verbatim evidence quote the agent cited, plus reported ambiguities and implicit assumptions. The raw analysis JSON is archived under `01_discovery/annotations/`. These gaps carry `origin: agent` in `gaps.md` and an `agent_annotation` traceability node linked from the raw input to the gap report. Source files remain the authority: the agent proposes with evidence; the runtime validates and persists.
-
-### `challenge_report.md`
-
-Versionable record of the advanced-elicitation pass contributed through `/challenge` (IMP-023/112/158). Groups the merged findings by lens, showing the registry-backed technique that surfaced each one. The default set includes pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; the catalog lives under `sentinel/techniques/*.json`, where additional available techniques can be added without changing Python command surfaces. The report also records imagined failure modes and inverted assumptions from the agent source JSON. These gaps carry `origin: challenge` in `gaps.md` and a `challenge_report` traceability node linked from the raw input to the gap report. Like `/annotate`, findings are validated against the raw input before merging — the agent proposes with evidence; the runtime is the authority. The raw analysis JSON is archived under `01_discovery/challenges/`.
-
-### `scrutiny_report.md`
-
-Versionable record of the deep scrutiny pass contributed through `/scrutinize` (IMP-066). It groups cited findings by lens and finding type: unstated assumptions, contradictions, mentions without counterpart, and domain conflicts. Findings may cite raw input or local domain context, but unsupported citations are rejected before anything is merged.
-
-These gaps carry `origin: scrutiny` in `gaps.md`, create a `scrutiny_report` traceability node, and refresh `knowledge_state.md/json` so open scrutiny findings stay visible as governed ledger units instead of becoming free-form agent notes. The raw JSON source is archived under `01_discovery/scrutiny/`.
-
-### `implementability_probe_report.md`
-
-Versionable record of the pre-flight implementability probe contributed through `/scrutinize --mode implementability-probe` (IMP-119), the per-Requirement-Unit mirror of `/implementation-feedback`. It groups cited findings by `RU-*`: each finding states what a coding agent is missing to implement that unit, typed as `missing-context`, `non-inferable-gap`, or `ambiguous-for-implementation`. Every finding must anchor to a real Requirement Unit and quote local evidence verbatim; uncited or unanchored findings are rejected before anything is merged.
-
-These gaps carry `origin: implementability-probe` in `gaps.md`, create an `implementability_probe` traceability node (`probed_by` the raw input), and surface in `gap_counts.implementability_probe_origin`. The raw JSON source (schema `implementability_probe.schema.json`) is archived under `01_discovery/implementability_probe/`. The probe only signals — it never auto-resolves a gap.
-
-### `assumptions.md`
-
-Governed assumption register contributed through `/assume` (IMP-067). It records explicit BA-owned assumptions with lens, statement, human owner, risk level, verbatim local justification, optional provisional `GAP-*` link, and lifecycle status.
-
-Assumptions start as `ASSUMED`: the visible middle state between confirmed evidence and open uncertainty. Knowledge metabolism can later move them to `VALIDATED` when `/resolve-gaps` or structured `/sync` closes the linked gap, or to `INVALIDATED` when `/sync` receives explicit local evidence against an `ASM-*`. The ledger maps validated assumptions to `CONFIRMED` units and invalidated assumptions back to `OPEN` units. Downstream artifacts may cite assumptions explicitly, but an assumption never becomes confirmed scope without a governed gap answer.
-
-### `decisions.md`
-
-Pending or captured decisions that affect the requirement.
-
-### `identity_seeds.md`
-
-Atomic project truths and pending truths extracted from evidence. Seeds preserve origin, lens, status, and node type.
-
-### `knowledge_state.md` and `knowledge_state.json`
-
-Canonical discovery knowledge ledger generated by `/ingest`. It consolidates `identity_seeds.md`, `gaps.md`, and `decisions.md` into bounded knowledge units by lens, each with:
-
-- `status`: `CONFIRMED`, `ASSUMED`, `OPEN`, or `INFERRED`;
-- `evidence`: a trace ID plus quote, or `[PENDING INPUT]` when the knowledge is still open;
-- `links`: seed, gap, decision, or artifact references that connect the unit back to the traceability graph;
-- `valid_at` and `invalid_at` (IMP-152): the fact's bitemporal validity window. `valid_at` records when the system recorded the fact as valid (this materialization); `invalid_at` is `None` while the fact is current. Every unit in `units` is current because the ledger is a projection rebuilt from the current source-of-truth tables; the payload also records `materialized_at`.
-
-Invalidate-not-delete (IMP-153): when metabolism invalidates an assumption (reusing the deterministic detection of IMP-125), the pre-change unit is not dropped — it is preserved in the payload's append-only `invalidated_units` history, stamped `invalid_at` and linked by a typed `superseded_by` edge to its current replacement, with `supersession_reason`. This history is carried forward across every ledger rebuild, so the full lineage of what a fact was before it changed stays queryable (the foundation for as-of queries, IMP-155). The live `units` list stays the single source of truth for current facts.
-
-Promotion events (IMP-154): when a governed signal promotes a fact into persistent semantic memory — today, an assumption moving `ASSUMED` → `VALIDATED` because its gap closed with evidence — metabolism appends a typed event to the payload's append-only `promotion_events` history: `{id, node_type: "promotion_event", trigger_type, origin_ref, statement, status, timestamp}`. `trigger_type` is a closed enum (`gap_closed`, `human_decision`, `embedding_threshold`, `associative_metabolism`); an unrecognized trigger fails visibly rather than degrading to a generic event. A deterministic novelty gate (never an LLM judgement) keeps already-promoted content from re-firing. Revoking a promotion appends a `revoked` event with the same `origin_ref`; the original `promoted` event is never overwritten. Like `invalidated_units`, this history is carried forward across every ledger rebuild. It is an additive audit projection, not a second source of truth for the facts themselves.
-
-As-of and lineage (IMP-155): a read-only query layer derived entirely from the windows and history above — it opens no parallel index and mutates nothing. `as_of(project_id, timestamp)` reconstructs the facts that were current at a given moment, scanning both the live `units` and the `invalidated_units` history for those whose validity window covers the timestamp (`valid_at <= timestamp` and `invalid_at` unset or `> timestamp`); a timestamp before an invalidation returns the superseded fact as it stood then, one after it returns the current replacement. `lineage(project_id, unit_or_id)` traces a fact back to its cited origin — its verbatim `evidence` and the origin `links` (seed/gap/decision/assumption/source/artifact/parent) — plus its bitemporal window, any `superseded_by` supersession edge, and the promotion events for its assumption. Timestamps are the ledger's UTC ISO-8601 strings. This is the auditable-trace foundation (as-of state plus provenance) for a future Annex IV-style bundle.
-
-Do not edit this ledger by hand. It is rebuilt by Sentinel from governed artifacts and exists so downstream agents can retrieve the current discovery state without treating memory as authority. `/resolve-gaps` and `/sync` refresh it after confirmations or explicit assumption invalidations.
-
-### `development_readiness.json`
-
-Machine-readable development certainty matrix generated by `/maturity` (IMP-068) under `01_discovery/`.
-
-It turns the mature requirement coverage rubric from `lens_review.md` into 16 evaluable areas by Ignite lens. Every cell has:
-
-- `status`: `CONFIRMED`, `ASSUMED`, or `OPEN`;
-- `evidence`: a trace ID plus quote, governed assumption details, or `[PENDING INPUT]`;
-- `links`: related gaps, assumptions, or area IDs;
-- `score`: contribution to the lens/global certainty score.
-
-The summary exposes status counts, per-lens scores, a global score, high-risk assumption IDs, and a Crystallization Gate verdict. This artifact does not replace `gaps.md`, `assumptions.md`, or `knowledge_state.json`; it is a derived view that makes development uncertainty explicit for `/maturity`, `/status`, and the dashboard.
-
-Since IMP-118 the same artifact also carries `unit_implementability`: maturity read as **agent implementability per Requirement Unit** (RU, IMP-115). Beyond the rubric-area matrix above, it answers, for each cited RU × lens, whether the unit can be implemented from current discovery evidence. Each cell status is driven by the RU's anchored, still-open gaps (the `Unit` column of `gaps.md`, IMP-116):
-
-- `OPEN`: a **non-inferable** gap blocks the lens. The missing information is owned by the client — only they can answer it (e.g. a metric named with no source/definition). The unit is not implementable on that lens yet.
-- `DEFERRED_TO_CONTEXT`: the only remaining gaps are **discoverable** domain dimensions a context pack can still deepen later (technical/design/quality/frontend). They do not count as `OPEN` and do not block a small unit.
-- `CONFIRMED`: no open gap anchored to the unit on that lens.
-
-A gap is non-inferable when its lens check reads the client's own requirement text (`evidence_scope: source`); any domain scope is treated as discoverable. The `summary` lists which units are `implementable`, `deferred_to_context`, or `not_implementable`, plus an `implementability_score` and a soft governing `gate`. The gate **warns by default** which units are not implementable; opt-in `implementability_gate.strict` in `sentinel.config.yaml` blocks the advance to `READY_FOR_SPECS` at `/brief` (mirroring `brief_gate`). The pre-existing `maturity_score` is unchanged — this is an additive maturity dimension.
-
-### `discovery_log.md`
-
-Multi-lens discovery log covering input census, JTBD, technology context, design context, quality/testability, atomic inventory, and refinement hooks.
-
-### `lens_review.md`
-
-Critical discovery review across four reviewer stances:
-
-- Business/Product: outcome, users, scope, metric fidelity, and value intent.
-- Technology: data sources, integrations, ownership, security, performance, and observability.
-- Design: journey, screens, interaction states, accessibility, and UX resilience.
-- Quality: acceptance strategy, testability, risks, negative paths, and evidence.
-
-This artifact is designed to prevent thin discovery before PRD/spec/backlog generation. Critical and high gaps block maturity; medium gaps remain visible as assumptions or follow-up.
-
-It also includes a mature requirement coverage rubric. The rubric checks whether the requirement has enough evidence for identity/value, actors, scope, as-is/to-be delta, business rules, data/integrations, technology deep-dive readiness, frontend/backend implementation surfaces, non-functional constraints, UX journey/states, design prototype readiness, acceptance/quality, quality handoff readiness, and delivery readiness.
-
-### `requirement_maturity_report.md`
-
-Readiness report generated by `maturity`.
-
-Important verdicts:
-
-- `READY_FOR_SPECS`
-- `BLOCKED`
-
-### `gap_resolution_log.md`
-
-Append-only history generated by `/resolve-gaps`.
-
-It records:
-
-- change ID;
-- resolution report ID;
-- number of closed gaps;
-- number of partially closed gaps;
-- number of still-open gaps.
-
-## `02_requirements/`
-
-Contains the requirement register.
-
-### `requirements.md`
-
-Initial requirement artifact extracted from raw input.
-
-This is the first structured step from raw client language toward AI-friendly specs and backlog.
-
-When confirmed gap answers are already written in EARS syntax, Sentinel appends them under `Normalized Requirements (EARS)` as `REQ-EARS-*` rows with pattern, statement, and source. Generated PRD/spec/backlog artifacts cite those IDs; the source of truth remains this file.
-
-`/maturity` and `/validate` also score this file through `requirement_quality` (IMP-111/IMP-130). The linter is non-blocking and never rewrites prose; it cites exact fragments when a statement contains vague or non-measurable terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, or cannot be normalized to a recognized EARS pattern. Ambiguity-like findings include `category` and `why_it_matters` so the warning explains the risk instead of only flagging a word. This signal is about requirement testability, separate from `/quality`, which scores generated stories later.
-
-### `project-brief.md`
-
-Mature discovery brief generated by `maturity` when no critical or high gaps remain open.
-
-It can also be generated explicitly with:
-
-```powershell
-python -m sentinel /brief PROJECT_ID
+You may add these optional keys. All gates only warn by default; `strict: true` turns the warning into a refusal.
+
+| Key | Effect |
+|---|---|
+| `implementability_gate.strict` | Blocks the move to `READY_FOR_SPECS` at `/brief` while a requirement unit has an open gap only the client can answer. |
+| `drift_gate.strict` | Blocks `/specs` and `/backlog` when the artifacts they derive from changed since generation. |
+| `needs_context_gate.strict` | Turns the `/health` hint "use focused retrieval" into a finding. |
+| `specs_gate.threshold`, `specs_gate.strict` | Minimum PRD section readiness (default 0.75); strict blocks `/specs` below it. |
+| `theme` | Default theme for `/view` (see [themes](17-themes.md)). |
+| `pii_report: true` | Also writes `01_discovery/pii_report.md` when personal data is found. |
+
+`project_language` sets the language of generated artifacts: `auto` detects it from the first ingested requirement, `es` or `en` force it. The detected value is copied into `state.json`.
+
+## `00_raw/`: evidence
+
+Everything the client or the domain teams gave you, as received, in five context sub-folders plus the client requirement.
+
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `00_client_requirement/` | The original client requirement. | Add files; do not rewrite processed ones | `/ingest` |
+| `01_business_context/` | Business rules, policies, process documents. | Add files freely | You, `/ingest`, `/sources` |
+| `02_technology_context/` | Architecture notes, API contracts, harvested code summaries (`harvest/`). | Add files freely | You, `/harvest`, `/sources` |
+| `03_design_context/` | Prototypes, design notes. | Add files freely | You, `/sources` |
+| `04_quality_context/` | Test strategy, quality rules. | Add files freely | You |
+| `05_interactions/` | Answered gap documents and meeting notes from the client. | Add files freely | You |
+| `source_manifest.json` | Which files were processed (path, hash, status, event id, timestamps). | Never edit by hand | `/ingest`, `/sync`, `/sources` |
+
+Raw input is evidence, not truth. Sentinel scans each ingested file for secrets and stores a **redacted copy**; the type, line and a hash of each redacted secret go to `01_discovery/secret_alerts.md`. A file you modify later is detected through its hash in `source_manifest.json` the next time you run `/sync PROJECT_ID`.
+
+## `01_discovery/`: what is known and what is missing
+
+This folder holds the understanding Sentinel builds from the evidence. Start with `gaps.md`.
+
+### Start here
+
+| File | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You, then the client and domain owners | Never edit by hand (watched by `/health`); answers go through `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/resolve-gaps`, `/gaps` |
+| `requirement_maturity_report.md` | Verdict: `READY_FOR_SPECS` or `BLOCKED`, and why. | BA, PM | Never edit | `/maturity` |
+| `assumptions.md` | Register of assumptions a BA took on knowingly, with owner, risk and the quote that justifies them. | BA, PM, reviewers | Never edit | `/assume` |
+| `stakeholders.md` | Who answers for which lens. Used to route gaps to people. | BA | Never edit by hand; use `/stakeholders --add` | `/stakeholders` |
+
+`gaps.md` is meant to be shared. Each gap has a lens, a severity (`critical`, `high`, `medium`, `low`) and a status: `OPEN`, `ANSWERED`, `PARTIALLY_CLOSED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT` or `NEW_GAP`. The `Origin` column says who raised it (`checklist`, `agent`, `challenge`, `scrutiny`, `implementability-probe`, `harvest`), and `Unit` names the requirement unit (`RU-*`) it belongs to. Send the answered file back into `00_raw/05_interactions/` or `input/interactions/` and run `/resolve-gaps`.
+
+### Supporting records
+
+| File | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `raw_input_digest.md` | Short summary of each ingested source. | Never edit | `/ingest` |
+| `source_synthesis.md` | Per-source synthesis with verbatim citations, before cross-source review. Not indexed in memory. | Never edit | `/ingest` |
+| `requirement_units.md` | Index of cited requirement units (`RU-*`), the anchors discovery works on. | Never edit | `/ingest` |
+| `requirement_unit_deltas.md` | What was added, modified or removed between two ingests. Only after a re-ingest. A signal, it never changes gaps. | Never edit | `/ingest` |
+| `identity_seeds.md` | Atomic project truths and pending truths with origin and lens. | Never edit | `/ingest` |
+| `decisions.md` | Decisions taken or pending. | Never edit | `/ingest`, `/sync` |
+| `knowledge_state.md` and `.json` | The ledger of what is `CONFIRMED`, `ASSUMED`, `OPEN` or `INFERRED`, by lens. | Never edit | `/ingest`, `/resolve-gaps`, `/sync` |
+| `development_readiness.json` | Development-certainty matrix: 16 areas by lens, plus per-unit implementability. | Never edit | `/maturity` |
+| `discovery_log.md`, `lens_review.md` | Multi-lens review of the evidence and the coverage checklist. | Never edit | `/ingest` |
+| `gap_resolution_log.md` | Append-only history of `/resolve-gaps` runs. | Never edit | `/resolve-gaps` |
+| `glossary.json` | The domain glossary that feeds the brief's glossary section. | Never edit | The brief compiler |
+| `statement_ledger.json`, `contradictions.md` | Claims per source and the contradictions between sources. | Never edit | `/sources`, brief compiler |
+| `harvest.json` | What `/harvest` read from an existing system. | Never edit | `/harvest` |
+| `split_assessment.md` and `.json` | Whether the brief should be split into releases. | Never edit | `/split --assess` |
+| `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync` |
+| `injection_signals.md` | Text in a source that looks like an instruction to an agent, for BA review. | Never edit | `/ingest`, `/sync` |
+
+### Records of the agent passes
+
+Each pass writes one report, plus an archive of the JSON the agent submitted.
+
+| Report | Archive folder | Written by |
+|---|---|---|
+| `agent_annotation_log.md` | `annotations/` | `/annotate` |
+| `challenge_report.md` | `challenges/` | `/challenge` |
+| `scrutiny_report.md` | `scrutiny/` | `/scrutinize` |
+| `implementability_probe_report.md` | `implementability_probe/` | `/scrutinize --mode implementability-probe` |
+| `anchor_review_log.md` | | `/scrutinize --mode anchors` |
+| `sufficiency_log.md` | | `/self-review --sufficiency` |
+| `agent_sweep_log.md`, `agent_dispositions.json` | | `/self-review` |
+
+All of them are append-only records of what the runtime accepted and rejected. Gaps raised this way carry the matching `Origin` in `gaps.md`. Never edit them.
+
+## `02_requirements/`: the brief and what hangs from it
+
+| Path | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `project-brief.md` | The crystallised handoff from discovery to specs. | Everyone: BA, PM, design, tech, quality, the agents | **Never edit by hand** (blocked by the hook) | `/brief`; `/maturity` rewrites it when the verdict allows |
+| `brief_compile_report.json` | What the compiler placed where and what it left pending. | BA, developers | Never edit | `/brief` |
+| `requirements.md` | Requirement statements extracted from raw input, plus normalised `REQ-EARS-*` rows. | Specs, `/validate` | Never edit by hand (watched by `/health`) | `/ingest`, `/resolve-gaps` |
+
+### The brief
+
+New projects get **brief v2**. It needs one confirmation from you after `/init`:
+
+```bash
+/brief ACME_PORTAL --profile UI,API --genesis greenfield
+python -m sentinel /brief ACME_PORTAL --profile UI,API --genesis greenfield
 ```
 
-This is the crystallized handoff from iterative discovery into PRD/spec/backlog work. It uses the project-brief structure validated from mature real-world briefs:
-
-- identity and value;
-- business actors and role-level needs;
-- product as-is/to-be process and journey;
-- design flows and UX resilience;
-- technical data, connectivity, and architecture;
-- governance, constraints, decisions, seeds, inferences, and remaining gaps.
-
-Narrative sections 1–6 are compiled from evidence, not templated (IMP-024). The compiler extracts initiative, objective, metric, actors, as-is/to-be, and scope from the raw client input and from confirmed answers of closed gaps (routed to their section by the IMP-022 gap→section map), citing the source for every claim. A sub-detail with no evidence references the gap that tracks it; a section with no anchor evidence renders an explicit `[PENDING INPUT]` pointing to its gap — never generic TBD or invented text.
-
-Section 3 also carries a governed **`### No-Objetivos (Non-Goals)`** block (IMP-185): scope exclusions projected only from gaps closed out-of-scope/not-applicable (a `/resolve-gaps` closure with decision status `no aplica`/`not applicable`) and scope decisions, each cited by its `GAP-*` id and change source. With no such closures the block shows an explicit "no non-goals recorded" marker — the exclusion is never invented. To add a non-goal, close the relevant gap as not-applicable; do not edit the brief by hand.
-
-The brief should hit the discovery sweet spot: complete enough for Design, Technology, Frontend, Backend, and Quality to start deep analysis, but not so detailed that it becomes their final deliverable. For Technology, this usually means endpoint/event inventory, create/modify/reuse decisions, source-of-truth ownership, constraints, and risks; full request/response contracts, schemas, dictionaries, and diagrams can live in dedicated context packs.
-
-When present, `specs` uses this brief as its mature source instead of the thinner initial `requirements.md`.
-
-## `03_specs/`
-
-Contains the PRD and AI-friendly spec produced from the mature project brief and retrieved domain context.
-
-### `prd.md`
-
-Generated by `specs`.
-
-This is the human/business-facing PRD. It explains what is being built, why it matters, scope, personas, functional requirements with acceptance criteria, NFRs, KPIs, JTBD traceability, dependency map, risks, assumptions, MVP/roadmap, mandatory constraints, team responsibilities, glossary, governance notes, pending inputs, audit trail, and traceability back to the mature requirement.
-
-The first PRD sections are evidence-compiled rather than filled from a static template. `/specs` reads the mature brief, raw/source evidence, confirmed gap answers, EARS-normalized requirements, decisions, and focused local-memory retrieval. Claims are rendered with source IDs or source hints such as `REQ-*`, `REQ-EARS-*`, `CHG-*`, `DEC-*`, or `00_raw/`. If a section has no supporting evidence, Sentinel leaves `[PENDING INPUT]` with the `GAP-*` that must be resolved instead of inventing scope.
-
-Closed gap answers are routed to PRD sections through the discovery gap map. For example, persona answers feed section 3, functional/acceptance answers feed section 4, and KPI/NFR answers feed sections 5 or 6. This keeps the PRD falsable: a reviewer can trace each populated line back to evidence or see the exact pending gap.
-
-The Scope section (§2) carries a **`### Non-Goals`** block (IMP-185) mirroring the brief's: the same governed scope-exclusion list (gaps closed out-of-scope/not-applicable and scope decisions), each cited by `GAP-*` id and change source, or an explicit "no non-goals recorded" marker when none exist. `/validate` anchors the section bilingually (`No-Objetivos`/`Non-Goals`).
-
-Agent-authored PRD enrichment can be merged through `/compose`. Accepted blocks appear under an `Agent Composition` subsection with `Origin: agent` and paragraph-level citations. Sentinel accepts only paragraphs whose citations are found verbatim in local source-of-truth artifacts, and it refuses to enrich PRD sections that still contain pending markers.
-
-### `compositions/`
-
-Generated by `/compose`.
-
-This folder keeps the audit trail for PRD composition:
-
-- the archived JSON source submitted to `/compose`;
-- `accepted_blocks.json`, the machine-readable set of blocks that may be reapplied during `/specs` regeneration;
-- `composition_report.md`, listing accepted and rejected blocks with reasons;
-- `regeneration_report.md`, written when `/specs` reapplies or discards previously accepted blocks.
-
-Composition artifacts are not a second source of truth. They are validated overlays on top of `prd.md`; if the cited evidence disappears or a target section becomes pending, regeneration discards the affected block and reports why.
-
-### `specs.md`
-
-Generated by `specs`.
-
-This is the compact agent-facing specification index. It should be readable by:
-
-- BA/Product
-- Technical Leader
-- Frontend
-- Backend
-- UX/UI
-- Quality
-- Test Automation
-- Delivery
-- AI agents
-
-It includes a spec contract, requirement snapshot, backlog-relevant contract, spec-unit index, progressive disclosure context map, backlog retrieval plan, backlog seeds, decisions, assumptions, and traceability. Agents should use the retrieval plan and the referenced `SPEC-U-*` units instead of loading every workspace document before backlog generation.
-
-### `units/SPEC-U-NNN.md`
-
-Generated by `specs` when confirmed evidence supports a bounded execution unit.
-
-Each unit has parseable frontmatter with stable `SPEC-U-NNN` ID, status, trace IDs, EARS IDs when applicable, and source anchors. The body points back to `requirements.md`, `prd.md`, and the confirmed normalized statement instead of restating a full implementation contract. Sentinel creates one unit per confirmed EARS statement today; fixed placeholders like `CAP-001`, `JTBD-001`, `US-001`, or `ASM-001` are not treated as source-backed spec units.
-
-When `/specs` regenerates existing units, Sentinel writes a unit-level delta under `07_changes/04_regeneration/` named `regen-NNN-spec-units-delta.md`. The report classifies each unit as `ADDED`, `MODIFIED`, `REMOVED`, or `UNCHANGED`, summarizes frontmatter changes, EARS IDs, and source pointer changes, and traces the report to the triggering `CHG-*` when one exists. This lets BA and backlog agents inspect exactly which spec units changed instead of rereading the whole PRD/spec bundle.
-
-### `08_context_packs/specs_generation.json`
-
-Generated by `specs`.
-
-This context pack records the focused local-memory retrieval used to draft PRD sections. It is not the source of truth, but it makes progressive disclosure auditable and lets downstream agents retrieve the same section-oriented context without rereading the entire workspace.
-
-Its section queries come from `sentinel/retrieval_plans/specs_generation.json`. Each section records the active plan metadata (`query`, `filters`, `limit`, `budget_chars`, `lenses`, `source_sections`) plus result-level `read_plan` anchors (`source_path`, `section_path`, `line_start`, `line_end`) so reviewers can jump from summary to source.
-
-## `04_backlog/`
-
-Contains execution-oriented backlog artifacts.
-
-### `EPIC-001.md`
-
-Primary backlog artifact generated from evidence-backed Spec Units and focused local memory retrieval.
-
-Each epic file includes:
-
-- YAML frontmatter for machine routing and Git-friendly review;
-- epic outcome, source and retrieval summary;
-- domain context coverage for Product, Technology, Design, Quality, and Delivery;
-- slicing strategy loaded from `sentinel/slicing/backlog_slicing_model.json`, based on Product Backlog transparency, INVEST, vertical slicing, SPIDR, and Lawrence-style smallest-useful-slice patterns (splitting a whole brief into a series of releases is a different level: its model is `sentinel/templates/release_split_model.json`, which cites this file's enabler boundary);
-- a story map with dependencies, labels, slicing patterns, and trace IDs;
-- embedded user stories with description, narrative, context used, domain coverage, agent execution contract, retrieval plan for execution agents, optional task-seed contract, in/out of scope, Given/When/Then acceptance criteria, Definition of Ready, Definition of Done, and traceability.
-
-Sentinel derives value stories from confirmed `03_specs/units/SPEC-U-NNN.md` files: one Spec Unit becomes one vertical story, and its AC evidence path cites the unit plus applicable `REQ-EARS-*` rows. When no functional Spec Unit exists, Sentinel renders one `[PENDING INPUT]` stub instead of the old fixed five-story scaffold, so missing evidence remains visible.
-
-Each story records both `Slicing Pattern` and `Slicing Rationale`. The pattern is selected from the existing declarative slicing catalog according to the shape of the Spec Unit, without changing the cross-cutting enabler boundary.
-
-Spec Unit frontmatter may optionally declare `expected_evidence` with `kind` and `rationale`, for example `kind: quality` when a downstream decision should be justified by Quality evidence rather than a product inference. `/validate` treats mismatches as non-blocking `cross_artifact_consistency` warnings; it never changes structural validity.
-
-This is the main file a human reviewer should inspect before handing work to planning, implementation, or test agents.
-
-Agent-authored backlog refinement can be merged through `/refine-backlog`. Accepted proposals appear under an `Agent Backlog Refinements` subsection with `Origin: agent`, target stories, source units, recommendations, and verbatim citations. Sentinel accepts only proposals grounded in local source-of-truth artifacts, rejects pending stubs/units, and treats enabler candidates as concrete cross-cutting work only when they satisfy the existing `EPIC-002` boundary.
-
-### `BACKLOG.md`
-
-BA-facing backlog board generated by `/backlog`, `/story-status`, or `/backlog-status`.
-
-This artifact summarizes the current backlog without becoming the source of truth. It is generated from:
-
-- `state.json#story_lifecycle` for story status and owner;
-- `state.json#story_gates` for the latest DoR/DoD evaluation;
-- `04_backlog/US-NNN.md` for story identity, title, and parent epic;
-- `08_context_packs/implementation_readiness.json` for readiness score, pending domain context, dependencies, and execution readiness.
-
-The file contains:
-
-- summary totals for stories, epics, Ready/Done percentages, average readiness, blockers, and owners;
-- rollup by epic, including `EPIC-002` when concrete cross-cutting enabler stories exist;
-- a board grouped by governed story status.
-
-Do not edit `BACKLOG.md` manually. To change the board, update story lifecycle through `/story-status`, regenerate the backlog through `/backlog`, or refresh the view with `/backlog-status`.
-
-### `SLICE-PLAN.md`
-
-Deterministic implementation handoff plan generated by `/backlog`.
-
-This artifact orders the backlog for downstream planning agents without turning Ignite into a tasking tool. It is generated from current story specs, concrete `EPIC-002` enabler links, `implementation_readiness.json`, DoR/DoD gate state, dependencies, retrieval plans, execution contracts and anchors.
-
-The file contains:
-
-- summary counts for stories, enablers, value stories and implementation waves;
-- a Phase 0 table for concrete cross-cutting enablers when `EPIC-002` exists;
-- implementation waves where stories can be planned in parallel once prerequisites are satisfied;
-- checkpoints after enablers and each wave;
-- a pointer to the machine-readable per-story handoff packs in `08_context_packs/slice_plan.json`.
-
-Do not edit `SLICE-PLAN.md` manually. Rerun `/backlog` after upstream evidence, domain context, story dependencies, enabler links, or DoR/DoD signals change.
-
-### `US-001.md`
-
-Story-level mirror used by traceability and quality tooling.
-
-Sentinel keeps individual `US-00x.md` files so downstream quality artifacts can link directly to a story node. The epic file remains the human-facing backlog bundle; story files repeat the critical story contract with source context, functional slice guidance, acceptance criteria, and readiness checklist.
-
-Story mirrors also include an `Agent Execution Contract` and `Retrieval Plan For Execution Agents` when domain context is available. This contract can include:
-
-- expected downstream agent profile;
-- command hints from Technology context;
-- critical files, services, APIs, data stores, or shared surfaces;
-- design match signals from Design context;
-- engineering practice or handbook references;
-- autonomy limits: always, ask first, never;
-- blast-radius boundaries;
-- validation contract split into `fail-to-pass`, `pass-to-pass`, and evidence checks;
-- parallelization or sequencing notes;
-- focused `/retrieve` queries that implementation, planning, frontend/backend, design, and quality agents should run before executing the story.
-
-When domain context is missing, Sentinel leaves `[PENDING DOMAIN CONTEXT]` instead of inventing commands, file paths, design tokens, regression suites, or implementation boundaries.
-
-When `/backlog --with-task-seeds` is used, story mirrors also include a `Task Seed Contract`. It lists optional implementation intentions derived from the story's acceptance criteria and confirmed critical surfaces. This contract is a downstream planning aid only: Ignite does not execute, estimate, assign, schedule, or manage the seeds, and default `/backlog` does not render them.
-
-Story mirrors receive the same `Agent Backlog Refinements` section when a validated proposal targets that story. These sections are review overlays, not rewritten scope.
-
-Story mirrors also carry governed lifecycle frontmatter:
-
-- `status`: one of `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked`, or `Stale`;
-- `owner`: the accountable person, role, or team when assigned.
-
-These fields are synchronized from `state.json` and must be changed with `/story-status`, not by editing Markdown directly. `/backlog` preserves existing lifecycle values on regeneration. When a story reaches `Ready`, Sentinel also stores the current acceptance criteria in `state.json#acceptance_criteria_freezes`; later regenerated criteria are compared against that approved snapshot.
-
-Story mirrors also render evaluated DoR/DoD checklists. Missing items remain visible under `DoR Gate Missing Items` or `DoD Gate Missing Items`; passed items are checked. The same evaluation is machine-readable in `08_context_packs/implementation_readiness.json`.
-
-### `status_log.md`
-
-Generated by `/story-status`.
-
-This append-only review log records story lifecycle transitions with timestamp, story ID, previous status, new status, and owner. The source of truth for current state remains `state.json`; the log exists for human review and traceability.
-
-### `acceptance_criteria_deltas.md`
-
-Generated by `/backlog` when regenerated acceptance criteria diverge from a story snapshot frozen by `/story-status --set Ready`.
-
-The report lists story, AC ID, change type, frozen criterion, and current criterion. It is a review artifact for explicit contract drift; source truth remains governed story files plus `state.json#acceptance_criteria_freezes`.
-
-### `acceptance_evidence/`
-
-Generated by `/story-status --evidence PATH`.
-
-This folder stores local downstream evidence files used to support a `Done` transition. Each copied artifact becomes a `story_acceptance_evidence` trace node linked to the story through `acceptance_evidence_for`. Sentinel registers the evidence; it does not execute tests.
-
-### `refinements/`
-
-Generated by `/refine-backlog`.
-
-This folder keeps the audit trail for agentic backlog refinement:
-
-- the archived JSON source submitted to `/refine-backlog`;
-- `accepted_refinements.json`, the machine-readable set of accepted proposals with `origin: agent`;
-- `refinement_report.md`, listing accepted and rejected proposals with reasons.
-
-Refinement artifacts are not a second source of truth. They are governed proposals over `EPIC-001.md` and `US-NNN.md`; if evidence is missing, pending, non-verbatim, or outside the enabler boundary, Sentinel rejects the proposal instead of inventing backlog scope.
-
-### `07_changes/05_implementation_feedback/`
-
-Generated by `/implementation-feedback`.
-
-This folder keeps the audit trail for downstream implementation findings:
-
-- the archived JSON source submitted to `/implementation-feedback`;
-- `feedback_report.md`, listing accepted and rejected findings with reasons.
-
-Accepted findings are persisted in `state.json#implementation_feedback`, traced as `implementation_feedback` change events, and linked to the target story, optional AC, and optional `GAP-FEEDBACK-*`. They may mark only affected stories `Stale` and feed the DoD item `implementation_feedback_resolved`. They are not a second source of backlog scope and do not rewrite `US-NNN.md` beyond the generated gate checklist.
-
-### `EPIC-002-cross-cutting-enablers.md`
-
-Optional enabler epic.
-
-Sentinel creates this only when source/context evidence mentions concrete cross-cutting implementation work such as frontend/backend foundations, architecture/SAD decisions, prototype-driven shared UI structure, auth, permissions, database/query/persistence, integration contracts, audit, logs, or observability. The work must be built in advance to support confirmed functionality across stories, epics, FRs, or implementation surfaces.
-
-Do not use this epic for loose infrastructure or operational preconditions. Examples that should not become enabler stories by themselves:
-
-- "make an internal tool accessible";
-- "prepare environments";
-- "general backend setup";
-- "harden infrastructure";
-- "create base project structure".
-
-A valid enabler states which capability boundary it supports, why it must be built earlier, what risk or dependency it reduces, and how Quality can verify completion.
-
-### `08_context_packs/backlog_generation.json`
-
-Focused local retrieval pack used by `/backlog`.
-
-It records which local memory chunks were consulted for:
-
-- epic value and MVP;
-- functional slicing and acceptance criteria;
-- technical dependencies;
-- execution commands and critical surfaces;
-- engineering practices;
-- UX states;
-- design match;
-- quality risks;
-- regression contract;
-- open uncertainty.
-
-This pack supports progressive disclosure: agents can inspect why context was retrieved without loading the whole workspace. The top-level `sections` block is the aggregate backlog view; `domain_context_coverage` summarizes that global coverage. When value stories are derived from `SPEC-U-*` files, the `per_story` block stores `US-NNN` mini-contexts built from the story's Spec Unit statement and the same declarative retrieval sections, so `critical_surfaces`, design signals, quality signals, and coverage can differ by story.
-
-Its section queries come from `sentinel/retrieval_plans/backlog_generation.json`, with the same per-result `read_plan` anchors used by `/retrieve` and `/specs`. Those anchors are also propagated into story execution signals under `execution_contract.*.anchor`.
-
-### `08_context_packs/implementation_readiness.json`
-
-Machine-friendly handoff pack for downstream planning, implementation, and test agents.
-
-It records, per story:
-
-- readiness verdict: `ready` or `needs-context`;
-- story type, title, dependencies, enabler links, and trace IDs;
-- required domains such as Product, Technology, Design, Quality, or Delivery;
-- pending execution context that must be resolved before implementation;
-- full `execution_contract` used by the story handoff, including `anchor` pointers for confirmed commands, critical surfaces, design match, and engineering practices when retrieved;
-- retrieval plan with focused queries and workflow labels;
-- validation contract: fail-to-pass, pass-to-pass, and evidence expectations;
-- blast-radius boundaries and parallelization notes.
-- optional `task_seed_contract` when `/backlog --with-task-seeds` was requested; default backlog generation omits it.
-
-The pack also stores a domain context snapshot hash. If Technology, Design, Quality, Delivery, or other context files change after backlog generation, `/health` reports a freshness warning. Refresh retrieval with `/reindex` before implementation handoff, and rerun `/backlog` only when the change materially affects story scope, sequencing, acceptance criteria, dependencies, or execution contracts.
-
-If `/specs` is regenerated after this pack exists, Sentinel adds `stale_spec_units`: changed `SPEC-U-*` units with their delta status and report path. Implementation agents should treat those entries as a review signal before executing stories that cite the affected unit.
-
-### `08_context_packs/assumptions_projection.json`
-
-Machine-readable projection of unresolved governed assumptions.
-
-It is derived from `01_discovery/assumptions.md`; the Markdown register remains the source of truth. The projection contains only rows whose status is `ASSUMED`, with `id`, `statement`, `risk`, `owner`, `closes_gap`, `status`, and `basis_quote`, plus summary counts for downstream agents that need to filter unverified assumptions without reparsing Markdown.
-
-### `08_context_packs/slice_plan.json`
-
-Machine-readable mirror of `04_backlog/SLICE-PLAN.md`.
-
-It contains:
-
-- `phases.enabler_phase`: concrete `EPIC-002` enabler stories that should be accepted or explicitly stubbed before dependent value stories start;
-- `phases.implementation_waves`: ordered waves of stories that can be planned in parallel after their prerequisites;
-- `phases.positions`: per-story phase, wave, order, parallel group and prerequisites;
-- `checkpoints`: review points after enablers and each wave;
-- `handoff_packs.US-NNN`: per-story position, lifecycle state, owner, readiness score, DoR/DoD, dependencies, `execution_contract`, `retrieval_plan`, anchors, validation contract, trace IDs and context-pack pointer.
-
-This JSON is for downstream planners and implementation/test agents. It deliberately avoids task IDs, estimates, or execution instructions beyond the governed handoff context.
+`--profile` takes a comma-separated list of `UI`, `API`, `BAT`, `INT`, `MIG`, `REG`, `MT`. `--genesis` takes `greenfield`, `brownfield-integration`, `brownfield-extension` or `brownfield-replacement` (comma-separated when mixed). `--validation-direction` takes `to-build` or `built`. Until you confirm profile and genesis, `GAP-BRIEF-PROFILE` blocks the brief and `/specs` refuses.
+
+The brief v2 sections:
+
+| Section | Content |
+|---|---|
+| 0. Header | How to read the document; status, validity and sources. |
+| 1. Overview | Identity and value, the core pain, success metrics and scope, starting and end point, release acceptance criteria. |
+| 2. Business lens | Actors and goals by role, critical business rules, main use case, business need, business calendar. |
+| 3. Product lens | As-is, to-be process, sequence and flow, state machine, transition logic, edge cases. |
+| 4. Design lens | Screen flow, UX considerations, prototype and precedents, accessibility, help and training. |
+| 5. Technical lens | Architecture and integrations, stack, data sources and model, API contracts, field mapping, batch and caching, governance and constraints, services, events, observability, security, and other numbered subsections (5.0 to 5.25). |
+| 6. Release agreements | In scope, out of scope, propagation to other documents. |
+| 7. Dependencies and open questions | The open-items table and the items seeded in the body. |
+| 8. Assumptions | The assumption list. |
+| 9. Things to build | Build list or phases. |
+| A. Glossary, A. Provenance | Domain glossary; provenance and reference data. |
+
+Sections that have no evidence show `[PENDING INPUT]` with the `GAP-*` that tracks them. Sentinel never fills a section with invented text. Citations use the structured `[[document § section # ID]]` form.
+
+**Brief v1** (`/init --brief-version 1`, or a workspace created before v2) has eleven sections: identity and value, business lens, product lens (with a Non-Goals block), design lens, technical lens, governance and constraints, decisions and seeds, the uncertainty radar of gaps, readiness for PRD, specs and backlog, PRD coverage readiness, and domain context requests. Its headings follow the project language.
+
+> [!NOTE]
+> To add a non-goal, close the relevant gap as "not applicable" with `/resolve-gaps`. Do not write it into the brief.
+
+### Release series: `series/` and `<rN>/`
+
+Created when you split a large brief into releases with `/split`. See the [release split workflow](03-workflows.md).
+
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `series/proposal.json` | The proposed partition of the brief into releases. | Never edit | `/split --propose` |
+| `series/partition.json` | The confirmed partition, including which releases are closed. | Never edit | `/split --confirm`, `--move`, `--close` |
+| `series/index.md` | Index of the series. | Never edit | `/split` |
+| `series/scope_changes.md` (and `.json`) | Dated record of units moved between releases. | Never edit | `/split --move` |
+| `series/release-guide.md` | Status of each release, its waves and what it waits for. View it with `/view --artifact release-guide`. | Never edit | `/split` |
+| `<rN>/project-brief.md` | The brief of one release. Not covered by the editor hook, but never edit it. | Never edit | `/split --confirm`; recompiled when the project brief changes |
+
+Commands that accept `--release rN` write their outputs into `<rN>/` sub-folders next to the project-wide ones: `03_specs/<rN>/`, `04_backlog/<rN>/`, `05_quality/<rN>/`, `06_traceability/<rN>/` and `08_context_packs/<rN>/`. Each release keeps its own lifecycle; the project `state.json` is not touched by a release run. Without `--release` nothing changes.
+
+### Prototype: `prototype/`
+
+Created when a prototype is among your sources. See the [prototype workflow](03-workflows.md).
+
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `prototype/inventory.md` and `.json` | Visible elements and texts per screen of an ingested HTML prototype. | Never edit | `/prototype --inventory` |
+| `prototype/trace/F-NN-SN.json`, `prototype/trace.md` | Element to data to contract to rule, one screen at a time. | Never edit | `/prototype --trace` |
+| `prototype/manual.md` | The printable user manual of the prototype. | Never edit | `/prototype --manual` |
+
+## `03_specs/`: PRD and specs
+
+| Path | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `prd.md` | The business-facing product requirements document: scope, personas, functional requirements with acceptance criteria, NFRs, KPIs, risks, roadmap, glossary. Every line cites evidence or shows the gap that blocks it. | BA, PM, stakeholders | Never edit (hook) | `/specs` |
+| `specs.md` | The compact agent-facing specification: contract, spec-unit index, context map, retrieval plan, backlog seeds. | Tech lead, design, quality, coding agents | Never edit (hook) | `/specs` |
+| `units/SPEC-U-NNN.md` | One bounded execution unit per confirmed requirement statement, with frontmatter and source anchors. | Backlog generation, coding agents | Never edit | `/specs` |
+| `compositions/` | Audit trail of agent-written PRD paragraphs: the submitted JSON, `accepted_blocks.json`, `composition_report.md`, `regeneration_report.md`. | BA | Never edit | `/compose`, `/specs` |
+| `<rN>/` | The same files derived for one release. | | Never edit | `/specs --release rN` |
+
+Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Composition" with `Origin: agent`; they are re-applied when `/specs` regenerates, or dropped with a reason if their citation disappeared.
+
+## `04_backlog/`: epics and stories
+
+| Path | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `BACKLOG.md` | The board: totals, roll-up by epic, stories grouped by status. | BA, PM | Never edit (hook) | `/backlog`, `/story-status`, `/backlog-status` |
+| `EPIC-001.md` | The main epic with its story map and embedded stories (narrative, Given/When/Then criteria, Definition of Ready and Done, retrieval plan). | BA, reviewers | Never edit (hook) | `/backlog` |
+| `EPIC-002-cross-cutting-enablers.md` | Optional epic for concrete cross-cutting foundations (shared UI structure, authentication, persistence, integration contracts). Only created when evidence names such work. | Tech lead | Never edit (hook) | `/backlog` |
+| `US-NNN.md` | One file per story, with lifecycle `status` and `owner` in the frontmatter. | Coding and test agents | Never edit (hook); change status with `/story-status` | `/backlog`, `/story-status` |
+| `SLICE-PLAN.md` | Implementation order: enabler phase, waves, checkpoints. | Delivery, planning agents | Never edit (hook) | `/backlog` |
+| `status_log.md` | Append-only log of story status changes. | PM | Never edit | `/story-status` |
+| `acceptance_criteria_deltas.md` | Differences between the criteria frozen at `Ready` and the regenerated ones. | BA | Never edit | `/backlog` |
+| `acceptance_evidence/` | Evidence files attached to support a `Done` transition. | QA | Never edit | `/story-status --evidence` |
+| `refinements/` | Audit trail of agent backlog refinements: submitted JSON, `accepted_refinements.json`, `refinement_report.md`. | BA | Never edit | `/refine-backlog` |
+| `<rN>/` | The same files derived for one release. | | Never edit | `/backlog --release rN` |
+
+Valid story statuses are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked` and `Stale`. Only `/story-status` changes them.
 
 ## `05_quality/`
 
-Contains quality and test coverage artifacts.
-
-### `TC-001.md`
-
-Generated test-case set linked to a user story.
-
-### `backlog_readiness_audit.md`
-
-Backlog readiness audit linked to user stories. It now contains a dynamic story census with INVEST/SPIDR score, status, per-check findings, and a non-blocking verdict. The checks preserve the existing slicing model: governed slicing pattern, vertical story or concrete `EPIC-002` enabler boundary, small-but-valuable scope, AC coverage, traceability, and explicit dependencies. In addition, each story now includes a parallel structural INVEST table with one signal per letter (`Independent`, `Negotiable`, `Valuable`, `Estimable`, `Small`, `Testable`) plus the supporting trace/dependency/AC evidence, without changing the existing verdict. The same result is machine-readable in `state.json#story_quality` and feeds the DoR warning item `story_quality_invest` after `/quality` runs.
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `TC-NNN.md` | A generated test-case set linked to a story. | Never edit | `/quality` |
+| `backlog_readiness_audit.md` | Per-story INVEST and SPIDR checks with a non-blocking verdict. | Never edit | `/quality` |
+| `<rN>/` | The same for one release. | Never edit | `/quality --release rN` |
 
 ## `06_traceability/`
 
-Contains graph, matrix, and health outputs.
+| Path | Purpose | Read by | Edit rule | Written by |
+|---|---|---|---|---|
+| `traceability_matrix.md` | Table of source-to-target links. | BA, auditors | Never edit | `/trace`, and after every mutating command |
+| `traceability_graph.md` | The graph as a Mermaid diagram. | BA, auditors | Never edit | `/trace` |
+| `traceability_graph.json` | The graph itself: nodes and edges. | Tools, `/health` | Never edit | Every mutating command |
+| `health_report.md` and `.json` | The health verdict and findings: stale artifacts, hand edits, missing evidence. | Everyone | Never edit | `/health` |
+| `command_protocol_log.md` | The last 25 commands in plain text. | Humans | Never edit | Every command |
+| `retired_ids.json` | Ids that were retired and must not be reused. | Sentinel | Never edit | ID allocation |
+| `<rN>/` | The same for one release. | | Never edit | `/trace --release rN` |
 
-### `traceability_graph.json`
+See [Traceability and memory](05-traceability-and-memory.md) for how the graph is used.
 
-Machine-readable graph of nodes and edges.
+## `07_changes/`: controlled change
 
-### `traceability_matrix.md`
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `[source].md` | The copied source of a change (a meeting note, an email, a domain update). | Never edit | `/sync` |
+| `[source]_impact_report.md` | What the change touches: impacted nodes, reopened gaps, impacted knowledge units, stale downstream artifacts. Read it before regenerating anything. | Never edit | `/sync` |
+| `metabolism_log.md` | Append-only log of sync events and follow-up actions. | Never edit | `/sync` |
+| `00_client_responses/` | Answered gap documents, with one `[source]_gap_resolution_report.md` each (closed, answered, partial, still open). | Never edit | `/resolve-gaps` |
+| `01_meetings/`, `02_mail_slack/`, `03_domain_updates/` | Drop folders for change sources. | Add files freely | You |
+| `04_regeneration/regen-NNN-*.md` | What changed when `/specs` or `/backlog` regenerated an artifact. Each change is marked `ADDED`, `MODIFIED` or `REMOVED`. | Never edit | `/specs`, `/backlog` |
+| `05_implementation_feedback/feedback_report.md` | Accepted and rejected findings from implementation, plus the archived JSON. | Never edit | `/implementation-feedback` |
+| `source_log.md` | The source registry: one `F-NN` row per source with authority, supersession and impact matrix. | Never edit; use `/sources` | `/sources` |
+| `closing_report.md` | The closing report of the source registry. | Never edit | `/sources --close` |
 
-Human-readable table of source-target relationships.
+## `08_context_packs/`: derived packs, requests, exports, views
 
-### `traceability_graph.md`
+Most of this folder is regenerable. Packs are retrieval snapshots for agents and are described in [Traceability and memory](05-traceability-and-memory.md).
 
-Mermaid diagram of the graph.
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `specs_generation.json`, `backlog_generation.json` | The focused retrieval used to draft the PRD and the backlog. | Disposable | `/specs`, `/backlog` |
+| `implementation_readiness.json` | Per-story handoff for coding agents: readiness, required domains, execution contract. | Disposable | `/backlog` |
+| `slice_plan.json` | Machine-readable mirror of `SLICE-PLAN.md`. | Disposable | `/backlog` |
+| `assumptions_projection.json` | The unresolved assumptions as JSON. | Disposable | `/assume` |
+| `discovery_focus.json`, `sync_focus.json` | Pointer-only packs for discovery and sync. | Disposable | `/ingest`, `/sync` |
+| `<workflow>.json` | A pack you asked for with `/retrieve --write-pack`. | Disposable | `/retrieve` |
+| `requests/*_context_request.md` | Requests for technology, design, quality, frontend and backend context, with cited candidate options. | Never edit | `/context-request` |
+| `requests/ctx_lifecycle.json` | State of each request (`active`, `answered`, `closed`, `obsolete`). | Never edit | `/context-request --id --status` |
+| `exports/` | Shareable copies made by `/export`, stamped as draft until `--final`. Formats: `md`, `mdx`, `interview`, `faq`. | Disposable | `/export` |
+| `views/*.html` | The HTML views of `/view`. See [Artifact views](15-artifact-views.md). | Disposable | `/view` |
+| `<rN>/` (including `<rN>/views/`) | Packs and views of one release. | Disposable | Commands with `--release rN` |
+| `synthetic/` | Synthetic datasets for testing. Git-ignored. | Disposable | The handoff-datasets skill |
 
-### `health_report.md`
-
-Human-readable health report.
-
-### `health_report.json`
-
-Machine-readable health verdict and findings.
-
-## `07_changes/`
-
-Contains controlled change events.
-
-### `[source].md`
-
-Copied source of the change.
-
-### `[source]_impact_report.md`
-
-Impact report generated by `sync`.
-
-Use this before patching specs or backlog.
-
-### `metabolism_log.md`
-
-Append-only log of sync events, impacted nodes, new/unresolved gaps, impacted knowledge units, downstream stale artifacts, and required follow-up actions.
-
-### `00_client_responses/`
-
-Controlled storage for client or domain gap answers processed by `/resolve-gaps`.
-
-Generated reports follow this naming pattern:
-
-```text
-[source]_gap_resolution_report.md
-```
-
-Each report includes closed, answered, partial, and still-open gaps. After IMP-069 it also includes `Knowledge Ledger Metabolism`: refreshed ledger/readiness paths, impacted `KLU-*` units, validated assumptions, and downstream artifacts that should be reviewed for staleness.
-
-## `08_context_packs/`
-
-Contains retrieval context packs generated by:
-
-```powershell
-python -m sentinel /retrieve PROJECT_ID --query "..." --workflow sync --write-pack
-```
-
-These packs help Codex load only the context needed for a workflow.
-
-### `requests/`
-
-Domain-specific context requests generated by `/context-request`.
-
-Examples:
-
-- `technology_context_request.md`
-- `design_context_request.md`
-- `quality_context_request.md`
-- `frontend_context_request.md`
-- `backend_context_request.md`
-
-Each request's "Lens Checks To Cover" section frames every lens check as elicitation (IMP-022): besides the check description and its `why`, it states what answering it **unblocks** downstream and the **expected format** of a closing answer — the same three factors surfaced per gap in `gaps.md`.
-
-When open gaps for that domain have detected local evidence triggers, the request can also include cited candidate options. These are not selected by Sentinel; they exist to reduce response friction while preserving owner confirmation through `/resolve-gaps`.
-
-### `exports/`
-
-Shareable artifact copies generated by `/export`.
-
-For Markdown exports, Sentinel copies the selected source artifact into this folder. For the optional PRD MDX export, Sentinel writes a derived local folder:
-
-- `prd-mdx/index.mdx`
-- `prd-mdx/blocks.json`
-- `prd-mdx/README.md`
-
-The MDX export is for teams that already have an offline MDX renderer. It is generated from the Markdown source of truth through the block interlingua, does not enable hosted/remote rendering, and should be regenerated rather than edited as authoritative content.
-
-### `views/`
-
-Read-only artifact views generated by `/view`.
-
-Examples:
-
-- `gaps.html`
-- `brief.html`
-- `prd.html`
-- `specs.html`
-- `backlog.html`
-
-These HTML files are self-contained local snapshots derived from Markdown source artifacts plus workspace state and traceability. They are ignored by git and can be rebuilt at any time. The Markdown files remain the source of truth; review feedback should enter through governed commands such as `/resolve-gaps`, `/sync`, `/annotate`, or `/compose`.
-
-Before rendering, `/view` derives a block model from the Markdown. The catalog is intentionally closed: `section`, `requirement-table`, `persona`, `ears-statement`, `decision`, `traceability`, `pending`, and `assumption`. Blocks preserve exact Markdown slices for round-trip reconstruction, so the model can support richer review behavior without becoming a new artifact contract.
-
-The marker panel is a derived review aid. `GAP-*` markers are enriched from `01_discovery/gaps.md` with lens, severity, status, why the gap matters, what it unblocks, and the expected answer format. `ASM-*` / `ASSUMED` markers are enriched from `01_discovery/assumptions.md` with owner, risk, statement, status, and linked gap. Section badges summarize whether the visible artifact section is populated, still pending, or proceeding under a governed assumption.
-
-The evidence panel is also derived. Backticked trace IDs such as `REQ-001`, `FR-001`, `SPEC-U-001`, `US-001`, `AC-001`, `RAW-001`, `GAP-*`, or `ASM-*` are resolved only when a matching node exists in `06_traceability/traceability_graph.json`. For each matched node the view embeds a bounded local source fragment and a one-hop mini graph made from real trace edges. Missing nodes remain visible as unmatched citations; the view never fabricates evidence or graph relationships.
-
-The guided response panel is local review state. It deduplicates visible markers and classifies them as client, domain, or BA/assumption items. Business and product gaps are client-answerable by default; other domain lenses remain visible under their own filter; governed assumptions are separated from questions. Draft progress is stored only in browser `localStorage`.
-
-The feedback panel is local browser state. It stores anchored comments in `localStorage` and exports Markdown instead of writing to source artifacts. Comments on `GAP-*` markers are shaped as existing `/resolve-gaps` answer blocks; other comments are plain review notes suitable for `/sync --source PATH --note "Artifact review feedback"`.
+> [!NOTE]
+> `/export` copies a source artifact into `exports/`. `--final` refuses while pending marks remain. `--format mdx` writes a local folder (`prd-mdx/index.mdx`, `blocks.json`, `README.md`) for teams that already run an offline MDX renderer; regenerate it, never edit it. See `/export` in the [command reference](01-command-reference.md).
 
 ## `memory.lancedb/`
 
-Local memory area.
+The local retrieval index: `lance/` (table `ba_memory`), `memory.json` (the JSON fallback and audit copy) and `artifact_manifest.json`. It is a search aid and never the source of truth. It is git-ignored; after a clone or a pull, run `/reindex PROJECT_ID`. Details in [Traceability and memory](05-traceability-and-memory.md).
 
-Primary local vector store:
+## Outside the workspace
 
-- `lance/ba_memory.lance`
+| Path | Purpose | Edit rule | Written by |
+|---|---|---|---|
+| `dashboard.html` (the folder you run `/dashboard` from) | The portfolio dashboard across all workspaces. Git-ignored in a clone. | Disposable | `/dashboard`; see [Dashboard](14-dashboard.md) |
+| `input/` | Optional drop folder for evidence and answered gap documents. | Edit freely | You |
 
-JSON fallback and metadata:
+## Next
 
-- `memory.json`
-- `artifact_manifest.json`
+- [Traceability and memory](05-traceability-and-memory.md): how the graph, the index and the packs fit together.
+- [Artifact views](15-artifact-views.md) and [Dashboard](14-dashboard.md): read artifacts in the browser.
+- [Workflows](03-workflows.md): what to do in each situation.
 
-This is a local retrieval index and fallback. It is not the source of truth.
+---
 
-## Context Pack Scoring
+## Developer appendix
 
-`specs_generation.json` exposes `coverage_map` and `coverage_score`: how many PRD retrieval sections found supporting evidence in local memory (`none`/`weak`/`strong` per section). `implementation_readiness.json` exposes a per-story `readiness_score` (1.0 means no pending context or execution fields), DoR/DoD gate results, lifecycle status/owner, and a `summary` block (`stories_ready`, `avg_readiness_score`, `pending_context_by_domain`). Downstream agents can filter or prioritize stories by score instead of parsing prose.
+For people who consume Sentinel output from code or from a coding agent. Nothing here is needed to use Sentinel.
 
-Once `03_specs/prd.md` exists, `/maturity` and `/status` also expose `maturity_metrics.prd_section_readiness` (IMP-041): numbered PRD sections 1-13, per-section status, evidence citation count, `coverage_score`, and feeding gaps for poor sections. `/specs` returns the same block plus `specs_gate`; strict blocking is opt-in through workspace config and reports `SPECS_BELOW_THRESHOLD` instead of silently pushing weak PRD sections downstream.
+### `state.json`
 
-After IMP-111/IMP-129/IMP-130, `/maturity`, `/status`, and `/validate` expose `requirement_quality`: statement-level score, classifications, and cited warning fragments for `REQ-001` and confirmed `REQ-EARS-*` rows, including ambiguous terms, compound statements, unanchored quantifiers, passive voice, missing verification cues, and prose that is not EARS-normalizable. Ambiguous/compound/quantifier warnings include category plus why-it-matters rationale. Use it to see whether the requirement is testable enough before PRD/spec/backlog work; warnings do not change readiness or validation verdicts by themselves.
+`schema_version` is `1`. A `state.json` with a newer schema is refused (exit code 3) and left untouched. A workspace from 0.9.0 (no `schema_version`) is migrated once by the first command that opens it, after a backup to `.sentinel/state.json.bak-0.9.0`; the old in-file command log moves to `.sentinel/command_log.jsonl`.
 
-## Regeneration Diffs
+Durable fields (cannot be rebuilt):
 
-When `/specs` or `/backlog` regenerate an artifact that already existed and its content changed, Sentinel writes a summary under `07_changes/04_regeneration/` (`regen-NNN-<artifact>.md`): triggering change id, lines added/removed, and sections added/removed. The regenerated artifact remains the source of truth; the diff exists so humans can review what a change actually impacted before downstream handoff. These records are traced (`regeneration_diff` nodes, `triggers_regeneration` edges) and excluded from domain-context freshness hashing.
+| Field | Meaning |
+|---|---|
+| `project_id`, `phase`, `health`, `created_at`, `updated_at` | Identity and position. |
+| `artifacts` | Pointers to artifacts, stored relative to the workspace. |
+| `project_language`, `privacy_mode`, `readiness_stage` | Settings and stage. |
+| `brief_settings` | `brief_version`, plus the profile, genesis and validation direction you confirmed with `/brief`. |
+| `story_lifecycle`, `story_gates`, `story_quality`, `story_acceptance_evidence` | Story status and owner, latest DoR/DoD evaluation, latest `/quality` score, attached evidence. |
+| `acceptance_criteria_freezes` | Criteria frozen when a story reached `Ready`. |
+| `implementation_feedback` | Open downstream findings that may stale stories or block DoD. |
+| `artifact_hashes` | sha256 of the governed artifacts, refreshed by every mutating command. `/health` compares it with current bytes to flag hand edits. |
+| `derived_source_fingerprints` | For `specs` and `backlog`, the hash of the sources they were generated from. `/health` uses it to flag drift. |
+| `last_gap_resolution_id`, `last_knowledge_metabolism`, `last_*_source` | Pointers to the latest runs. |
+| `migrated_from` | Set when a 0.9.0 workspace was migrated. |
 
-Since IMP-187 these delta reports carry a **closed vocabulary** so a downstream coding agent can act on each change without diffing whole documents: a marker is always one of `ADDED`, `MODIFIED`, or `REMOVED` (`UNCHANGED` for full snapshots), and nothing outside that set can be emitted (it is validated by construction). The regeneration diff adds a `Section Deltas` table marking each affected heading; the spec-unit delta (`regen-NNN-spec-units-delta.md`) and the requirement-unit delta (`01_discovery/requirement_unit_deltas.md`, IMP-150) already use the same markers; and the acceptance-criteria delta report (`04_backlog/acceptance_criteria_deltas.md`) gains a canonical `Delta` column next to its nuanced `Change` column (so the `added_after_freeze` review signal is preserved while `ADDED`/`MODIFIED`/`REMOVED` stays machine-consumable). Older unmarked reports remain readable — the vocabulary is additive.
+Derived fields live in `.sentinel/derived/state.json` and are merged on read: `gap_counts`, `maturity_metrics`, `prd_section_readiness`, `backlog_rollup`. Deleting that file loses nothing a command does not rebuild.
 
-Change impact reports created by `/sync` also include `Reopened Closed Gaps` when new evidence triggers a gap ID that had previously been closed. This is a review signal, not an automatic state mutation: the BA decides whether to reopen, resolve again, or treat the change as out of scope.
+`.sentinel/command_log.jsonl` has one JSON object per line.
 
-After IMP-069, `/sync` impact reports also include structured gap responses applied by sync, `Knowledge Ledger Metabolism`, and downstream staleness. Use these sections to see which `KLU-*` units moved, which assumptions were validated or invalidated, and whether brief, PRD, specs, backlog, or readiness packs need review before implementation handoff.
+### JSON contracts
 
-## Base de Conocimiento de Lentes (`sentinel/lenses/`)
+| File | Shape, in short |
+|---|---|
+| `knowledge_state.json` | `units[]` with `status`, `evidence`, `links`, `valid_at`, `invalid_at`; append-only `invalidated_units` (with `superseded_by`) and `promotion_events`. The ledger is rebuilt from source tables; `as_of` and `lineage` queries are derived from it. |
+| `development_readiness.json` | `cells` per area and lens (`status`, `evidence`, `links`, `score`), `summary` with scores and the Crystallization Gate verdict, and `unit_implementability` per `RU-*` and lens (`OPEN`, `DEFERRED_TO_CONTEXT`, `CONFIRMED`). |
+| `specs_generation.json` | Per-section retrieval with plan metadata (`query`, `filters`, `limit`, `budget_chars`, `lenses`, `source_sections`), results with `read_plan` anchors, `coverage_map` and `coverage_score`. |
+| `backlog_generation.json` | Aggregate `sections`, `domain_context_coverage`, and `per_story.US-NNN` mini-contexts. |
+| `implementation_readiness.json` | Per story: verdict `ready` or `needs-context`, dependencies, required domains, `execution_contract` with `anchor` pointers, retrieval plan, validation contract (fail-to-pass, pass-to-pass, evidence), blast radius; a domain-context snapshot hash; `stale_spec_units` after a `/specs` regeneration; optional `task_seed_contract`. |
+| `slice_plan.json` | `phases.enabler_phase`, `phases.implementation_waves`, `phases.positions`, `checkpoints`, `handoff_packs.US-NNN`. |
+| `assumptions_projection.json` | Rows with status `ASSUMED`: `id`, `statement`, `risk`, `owner`, `closes_gap`, `basis_quote`, plus counts. |
+| `source_manifest.json` | `sources` keyed by path: `hash`, `status`, `event_id`, `last_seen_at`, `last_processed_at`. |
 
-El conocimiento de los lentes (qué escruta cada lente, con qué severidad, qué tokens lo cierran y qué pregunta dispara) **no vive hardcodeado en Python**: es una fuente declarativa versionable bajo `sentinel/lenses/`, un archivo JSON por lente (`business.json`, `product.json`, `quality.json`, `technical.json`, `compliance.json`, `delivery.json`, `design.json`). El motor de discovery (`detect_gaps`) y los context-requests por dominio leen esa misma fuente, así que nunca divergen. Es 100% local: JSON puro, sin dependencias ni red (IMP-033).
+Every generated file cites paths as `workspaces/<PROJECT_ID>/...` from the repository root; stored graph and memory paths are relative to the workspace. See [Traceability and memory](05-traceability-and-memory.md).
 
-IMP-046 agrega una regla práctica para checks "grado PRD": un token tranquilizador no debe cerrar una pregunta si no trae detalle consumible por PRD/specs. Por ejemplo, `goal/objective` no alcanza para cerrar detalle de personas si faltan dolor, frecuencia o proficiencia; una métrica o target no alcanza para cerrar NFR/KPI si faltan método de medición y ventana; y un plan de ejecución necesita rollout, ambientes o restricciones de release explícitas.
+### Delta vocabulary
 
-Cada lente tiene una lista `checks`; cada check declara:
+Regeneration and delta reports use a closed set of markers: `ADDED`, `MODIFIED`, `REMOVED` (and `UNCHANGED` in full snapshots). The spec-unit delta (`regen-NNN-spec-units-delta.md`), the requirement-unit delta and the acceptance-criteria delta all use it.
 
-- `id`: identificador estable `GAP-*`.
-- `severity`: `critical | high | medium | low`.
-- `description`: qué falta (en inglés, como en los artefactos).
-- `rule`: cómo dispara el check.
-  - `absent_tokens`: dispara cuando **ninguno** de los `tokens` aparece en la evidencia.
-  - `mention_without_counterpart`: tier inquisitivo de superficie — dispara salvo que aparezca una contracara (`counterparts`); el `trigger` es opcional y solo aporta la cita. Pensado para superficies amplias (frontend/backend) donde la pregunta corresponde aunque la palabra exacta no esté.
-  - `mention_requires_counterpart` (IMP-117): fin de la falsa madurez para **conceptos-superficie** (métrica/kpi/indicador, auth/login/permiso/rol). Dispara **solo** cuando el concepto está nombrado (`triggers` presente) y falta su contracara (`counterparts`); si el concepto no se menciona, no pregunta nada. Severidad `medium` (madura sin bloquear); ancla la pregunta a la mención citada.
-  - `metric_without_source`: dispara cuando hay una métrica cuantitativa pero no aparece ninguno de los `suppressors` (palabras de fuente/baseline).
-- `evidence_scope`: qué texto lee la regla — `source | technical | design | quality | frontend | all`.
-- `weak_word_smell`: dispara cuando una frase del catálogo `sentinel/smells/*.json` aparece como wording débil; emite `evidence_mention` y `smell_mechanism`, y funciona como señal de revisión, no como bloqueo automático.
-- `why` (opcional): la experiencia de campo que motiva el check; notas del equipo, se muestran en el context-request.
+### Memory internals
 
-### Cómo agregar conocimiento a un lente (sin tocar Python)
-
-1. Abrí el archivo del lente correspondiente, por ejemplo `sentinel/lenses/technical.json`.
-2. Agregá un objeto nuevo al array `checks` con los campos de arriba. Ejemplo:
-
-   ```json
-   {
-     "id": "GAP-OBSERVABILITY-RUNBOOK",
-     "severity": "medium",
-     "rule": "absent_tokens",
-     "evidence_scope": "technical",
-     "description": "Runbook and on-call ownership for the new surface are not explicit.",
-     "tokens": ["runbook", "on-call", "oncall", "guardia"],
-     "why": "Sin runbook ni owner de guardia, una falla en produccion no tiene dueno."
-   }
-   ```
-
-3. Para smells de wording, agregá o reutilizá categorías en `sentinel/smells/weak_words.json` y referencialas desde el check con `catalog` y `categories`; por ejemplo, `quality` y `business` consumen categorías conservadoras bilingües para frases como calidad/importancia/reglas vagas.
-4. Listo: el check aparece automáticamente en `gaps.md` al correr `/ingest` o `/gaps`, y en el context-request del dominio del lente al correr `/context-request`. No hay que tocar código.
-5. Si cambiás el comportamiento de detección, corré `python tests/evals/run_discovery_evals.py` para confirmar que no introdujiste regresiones en los fixtures, y la suite con `python -m unittest discover -s tests`.
-
-Para checks PRD-grade, actualizá también `tests/fixtures/evals/*/answer_key.json` (`must_fire`/`target_fire` como positivos esperados, `must_not_fire` como negativos etiquetados y `distractors` para candidatos plausibles minados del mismo dominio que no deberían disparar) y, cuando haga falta atravesar gates reales hasta `/specs`, agregá una respuesta sintética en `gap_responses.md` del fixture. La expectativa es cero falsos positivos nuevos y preguntas que expliquen qué sección del PRD desbloquean. El reporte de `python tests/evals/run_discovery_evals.py` incluye `gap_benchmark` con precision/recall/F1, recall por lente, `distractor_false_positive_rate` y varianza opcional entre corridas si definís `SENTINEL_EVAL_REPEAT=N`.
-
-Para cambios de backlog, usá el bloque `backlog` de los mismos answer keys. Ahí se registran historias esperadas, `SPEC-U-*` fuente, comportamiento de no-invención, patrón de slicing esperado y checks opt-in de anchors/contexto. `python tests/evals/run_discovery_evals.py` debe reportar cobertura de derivación, no-invención y slicing sin regresiones antes de abrir PR.
-
-Regla de identidad (invariante #1 de la propuesta de evolución): el modelo de lentes es conocimiento propio del equipo de Ignite. Esta base es el lugar para volcar esa experiencia de forma revisable en PR, no para copiar checklists genéricas de otras fuentes.
+Chunk fields, embedders, ranking and the retrieval eval harness are described in the developer section of [Traceability and memory](05-traceability-and-memory.md#developer-notes-memory-internals).
