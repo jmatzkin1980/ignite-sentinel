@@ -16,7 +16,7 @@ Use this skill to start or refresh discovery for a project.
    - `workspaces/PROJECT_ID/00_raw/03_design_context/`
    - `workspaces/PROJECT_ID/00_raw/04_quality_context/`
    - `workspaces/PROJECT_ID/00_raw/05_interactions/`
-3. Ingest raw material with `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /ingest PROJECT_ID --source PATH`.
+3. Ingest the first raw material with `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /ingest PROJECT_ID --source PATH`. Add every later file with `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused because it would replace the primary requirement and reopen answered gaps (`--replace` does that on purpose; only use it when the BA asks to replace the primary requirement).
 4. Regenerate the shareable gap document when needed: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /gaps PROJECT_ID`.
 5. Use focused retrieval before analysis: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /retrieve PROJECT_ID --query "DISCOVERY_TOPIC" --workflow discovery --write-pack`.
 6. Review generated artifacts in `workspaces/PROJECT_ID/01_discovery/` and `02_requirements/`, especially `requirement_units.md`, `identity_seeds.md`, `discovery_log.md`, `lens_review.md`, `gaps.md`, and `requirements.md`.

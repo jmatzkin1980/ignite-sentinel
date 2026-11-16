@@ -58,6 +58,13 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _ingest(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("project_id")
+    parser.add_argument("--source", required=True)
+    # IMP-320: replace the primary requirement on purpose; without it a second /ingest is refused.
+    parser.add_argument("--replace", action="store_true")
+
+
 def _project_override(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--override")
@@ -263,7 +270,7 @@ REGISTRY: tuple[Command, ...] = (
             mcp_params={"open_browser": ("open",)}, mcp_omits=ROOT_OMIT),
     Command("view", READ_ONLY, _view, release=True, mcp_params={"open_browser": ("open",)}),
     Command("init", EXEMPT, _init, exempt_reason="creates the workspace (state.json) that the protocol log needs"),
-    Command("ingest", MUTATING, _project_source),
+    Command("ingest", MUTATING, _ingest),
     Command("retrieve", READ_ONLY, _retrieve),
     Command("sync", MUTATING, _sync),
     Command("resolve-gaps", MUTATING, _project_source),

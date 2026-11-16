@@ -138,8 +138,8 @@ class IngestRedactionTests(_Workspace):
         config = workspace / "workspace.config.yaml"
         config_path = config if config.exists() else next(workspace.glob("*.yaml"))
         config_path.write_text(config_path.read_text(encoding="utf-8") + "pii_report: true\n", encoding="utf-8")
-        ingest("SECPII", source)
-        report = (workspace / "01_discovery" / "pii_report.md").read_text(encoding="utf-8")
+        ingest("SECPII", source, replace=True)
+        report =(workspace / "01_discovery" / "pii_report.md").read_text(encoding="utf-8")
         self.assertIn("| email |", report)
         self.assertNotIn("ana@example.com", report)
         self.assertIn("ana@example.com", (workspace / "00_raw" / "contacts.md").read_text(encoding="utf-8"))

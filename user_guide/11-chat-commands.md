@@ -120,7 +120,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Give me an interview script for the client" | `/export --artifact gaps --format interview` | Grouped by owner. |
 | "This person owns billing questions" | `/stakeholders --add --name NAME --domain DOMAIN` | List with plain `/stakeholders`. |
 | "Read the existing codebase" | `sentinel-brownfield-harvest` skill → `/harvest --source harvest.md` | Tags `[HECHO repo:file]` / `[FACT ...]`, `[INFERIDO]` / `[INFERRED]`, and others. |
-| "We have an HTML prototype" | `/ingest` → `/prototype --inventory` → `/prototype --trace --source trace.json` | Traces are written with `sentinel-prototype-trace`. |
+| "We have an HTML prototype" | `/sync --source FILE` (or `/ingest` if it is the first material) → `/prototype --inventory` → `/prototype --trace --source trace.json` | Traces are written with `sentinel-prototype-trace`. |
 | "Write a user manual from the prototype" | `/prototype --manual --source manual.json` | Written with `sentinel-prototype-manual`. |
 
 ### Deepen discovery

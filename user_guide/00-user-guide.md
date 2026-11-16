@@ -325,7 +325,7 @@ What to do for each code: [A gate refused](03-workflows.md#a-gate-refused).
 |---|---|
 | `sentinel.config.yaml` (domains, gate thresholds, language, privacy scan) | Any governed artifact (see the table above) |
 | Your own files in `input/` before loading them | `state.json`, `.sentinel/`, the traceability graph |
-| Add evidence or domain context with `/ingest` or `/sync` | Leave files copied into `00_raw/` unprocessed: until `/sync` picks them up they skip redaction, the source registry and contradiction checks |
+| Add the first request with `/ingest`, and every later file (context, prototypes, notes) with `/sync --source` | Leave files copied into `00_raw/` unprocessed: until `/sync` picks them up they skip redaction, the source registry and contradiction checks |
 
 ## Workspace shape
 

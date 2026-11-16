@@ -38,7 +38,9 @@ class ReleaseGuideFlow(unittest.TestCase):
         cls.patch.start()
         cls.base = Path("workspaces") / P
         cls.series = cls.base / "02_requirements" / "series"
-        steps = [["init", P]] + [["ingest", P, "--source", str(FX / n)] for n in ("requirement.md", "approval_notes.md", "payment_notes.md")]
+        # IMP-320: a later /ingest must say --replace (the behavior this flow was built on).
+        steps = [["init", P]] + [["ingest", P, "--source", str(FX / n)] + (["--replace"] if i else [])
+                                 for i, n in enumerate(("requirement.md", "approval_notes.md", "payment_notes.md"))]
         steps += [["gaps", P], ["resolve-gaps", P, "--source", str(FX / "gap_responses.md")], ["maturity", P],
                   ["brief", P, "--profile", "UI", "--genesis", "greenfield"],
                   ["split", P, "--propose", "--source", str(FX / "proposal.json")],

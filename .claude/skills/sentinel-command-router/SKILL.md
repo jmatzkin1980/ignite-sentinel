@@ -12,7 +12,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/doctor`
 - `/dashboard`
 - `/init PROJECT_ID`
-- `/ingest PROJECT_ID --source PATH`
+- `/ingest PROJECT_ID --source PATH [--replace]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose)
 - `/maturity PROJECT_ID`
 - `/gaps PROJECT_ID`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
