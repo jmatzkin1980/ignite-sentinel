@@ -6,6 +6,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Changed
+- The install instructions use the `stable` channel (IMP-319). The README, the install page and the plugin guide said `/plugin marketplace add jmatzkin1980/ignite-sentinel`, which follows `main` (merged but unreleased work); they now say `#stable` and explain the difference. They also show the install by clicks in the Claude desktop app, link to updating the plugin and to organizing folders by client, and the README gains a "Good to know" list (folders per client, updates, the closing choice).
+
 ## [0.12.2] — 2026-11-15
 
 ### Fixed

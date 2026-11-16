@@ -57,7 +57,7 @@ Changes keep flowing in: `/sync` turns a meeting note or an email into a traced 
 
 | You use | Install | Then type |
 |---|---|---|
-| Claude Code, least setup | Plugin from the marketplace `jmatzkin1980/ignite-sentinel` | `sentinel /init ACME_PORTAL` |
+| Claude Code (terminal, VS Code or desktop app), least setup | Plugin from the marketplace `jmatzkin1980/ignite-sentinel#stable` | `sentinel /init ACME_PORTAL` |
 | Claude Code, every command as `/command` | Clone the repository | `/init ACME_PORTAL` |
 | Codex | Clone the repository | `sentinel /init ACME_PORTAL` |
 | Kilo Code | Clone the repository | `/init ACME_PORTAL` |
@@ -66,6 +66,12 @@ Changes keep flowing in: `/sync` turns a meeting note or an email into a traced 
 Step-by-step instructions for every path, including offline and locked-down machines: **[Install: choose your path](user_guide/06-installation-vscode.md)**.
 
 You need Python 3.10 or newer and nothing else. Optional extras: `.[memory]` (local LanceDB retrieval), `.[memory-semantic]` (local embeddings), `.[mcp]` (MCP server).
+
+Good to know before you start:
+
+- **One folder per client, one workspace per project.** The folder you open is the root; each `/init` adds a project under `workspaces/`, and `/dashboard` shows every project of that root. See [organizing folders](user_guide/00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project).
+- **Updates.** With the plugin on `#stable`, a new release arrives through **Update marketplace** in `/plugin`; see [updating the plugin](user_guide/18-claude-plugin.md#updating-the-plugin). What changed is in the [CHANGELOG](CHANGELOG.md).
+- **The agent closes with a choice.** When something waits on you, it closes with one question and a few options, the recommended one first. Pick one or answer in your own words; picking never closes a gap for you.
 
 ## Quick start: your first gaps document
 

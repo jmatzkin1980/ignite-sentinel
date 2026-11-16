@@ -6,19 +6,23 @@ The repository is also the marketplace (the catalog) that lists the plugin.
 
 ## Install
 
-You need Python 3.10 or newer. The plugin has no other dependency. In Claude Code, from any project:
+You need Python 3.10 or newer. The plugin has no other dependency. In Claude Code chat (terminal, VS Code or the desktop app), from any project:
 
 ```text
-/plugin marketplace add jmatzkin1980/ignite-sentinel
+/plugin marketplace add jmatzkin1980/ignite-sentinel#stable
 /plugin install ignite-sentinel@ignite-sentinel
 ```
 
 From a shell, the same two steps are:
 
 ```bash
-claude plugin marketplace add jmatzkin1980/ignite-sentinel
+claude plugin marketplace add jmatzkin1980/ignite-sentinel#stable
 claude plugin install ignite-sentinel@ignite-sentinel
 ```
+
+In the Claude desktop app you can also do it by clicks: plugins screen, tab **Code**, **Add marketplace**, `jmatzkin1980/ignite-sentinel#stable`, **Sync**, then the **+** on **Ignite Sentinel**.
+
+`#stable` follows the latest release; see [Versions and channels](#versions-and-channels) for the other refs and [Updating the plugin](#updating-the-plugin) to move to a newer release.
 
 The plugin does not need `python` on `PATH`. Its hook and skills start Python through `python.sh`, which tries `SENTINEL_PYTHON`, then `python3`, `python` and `py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders. If it finds none it says so and how to fix it. To choose an interpreter yourself, set `SENTINEL_PYTHON` to its full path. `python.sh` is a plain shell script that Claude Code runs with the `sh` it uses for hooks (Git Bash on Windows).
 
@@ -28,7 +32,7 @@ Use the plugin **or** a clone, not both: a clone already provides the skills and
 
 The plugin has no slash commands of its own: it ships skills and one hook. A skill is run with the plugin's name as a prefix, for example `/ignite-sentinel:sentinel-views`. To run Sentinel commands, send them in chat with the `sentinel` prefix, or describe what you want; the `sentinel-command-router` skill turns either into the CLI call.
 
-1. Open the folder where your project data should live. Workspaces, views and the dashboard are written there, never in the plugin folder.
+1. Open the folder where your project data should live, for example one folder per client ([organizing folders](00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project)). Workspaces, views and the dashboard are written there, never in the plugin folder.
 2. Start a project and ask for the next step:
 
    ```text
