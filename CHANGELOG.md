@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-11-16
+
 ### Fixed
 - H21 close (IMP-32z): a sweep of the guide and the skills against the H21 changes. Nine places still loaded a later file with a second `/ingest` or described a harvest as replaced per run: the intake-triage skill, the skills catalog, the prototype scenario (now `/sync --source`), the workflows, the artifact reference, the versioning page and the prototype command page. The versioning page also no longer says the hook denies hand edits of `gaps.md` and `requirements.md` (it covers the brief, the top-level specs and the backlog), and the command router says a brief v2 that is not ready to build makes the verdict `NOT_READY`.
 - `/harvest` accumulates blocks delivered one at a time (IMP-326, H21). The harvest skill said each block could be delivered separately, but `/harvest` refused a file without B0 and overwrote `01_discovery/harvest.json`, so a second run silently replaced the first, which the brief v2 reads. Now a later file may name the repos of an earlier B0, its blocks are added to `harvest.json` (a block delivered again replaces that block only), coverage is counted over all harvests, and the result lists the blocks delivered and registered.

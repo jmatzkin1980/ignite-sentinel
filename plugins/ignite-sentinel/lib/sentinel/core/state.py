@@ -31,9 +31,101 @@ BACKUP_NAME = "state.json.bak-0.9.0"
 COMMAND_LOG_KEY = "command_log"  # 0.9.0 kept the last 25 commands inside state.json
 
 
+STATE_BACKUP_NAME = "state.json.bak"  # IMP-331: the state before the last update
+_ARTIFACT_DIRS = ("01_discovery", "02_requirements", "03_specs", "04_backlog", "05_quality")
+
+
+def state_backup_path(workspace: Path) -> Path:
+    return workspace / ".sentinel" / STATE_BACKUP_NAME
+
+
+def workspace_has_artifacts(workspace: Path) -> bool:
+    """IMP-331: a command has already worked in this workspace (beyond what /init creates)."""
+    sentinel = workspace / ".sentinel"
+    if (sentinel / "command_log.jsonl").is_file() or (sentinel / "derived" / "state.json").is_file():
+        return True
+    return any(
+        (workspace / name).is_dir() and any(item.is_file() for item in (workspace / name).rglob("*"))
+        for name in _ARTIFACT_DIRS
+    )
+
+
+def state_problem(workspace: Path) -> str | None:
+    """IMP-331: why the state of `workspace` cannot be used, or None (also for a new workspace)."""
+    path = workspace / "state.json"
+    if not path.exists():
+        if state_backup_path(workspace).is_file():
+            return "state.json is missing; a backup is at .sentinel/state.json.bak"
+        if workspace_has_artifacts(workspace):
+            return "state.json is missing and there is no backup"
+        return None
+    try:
+        data = read_json(path, None)
+    except ValueError as exc:
+        return f"state.json is not valid JSON ({getattr(exc, 'msg', exc)})"
+    if not isinstance(data, dict):
+        return "state.json is not a JSON object"
+    return None
+
+
+def load_durable_state(project_id: str, root: Path | None = None, *, require: bool = False) -> dict[str, Any] | None:
+    """IMP-331: `state.json` as a dict, or None for a workspace that has none yet.
+
+    A missing state is never rebuilt behind the user's back: with a backup, or on
+    a workspace that already holds artifacts, it is refused (exit 3) with the way
+    to restore it. A file that does not parse is refused the same way. With
+    `require`, a missing state is refused even on an empty workspace.
+    """
+    workspace = workspace_path(project_id, root)
+    path = workspace / "state.json"
+    shown = f"workspaces/{project_id}/state.json"
+    backup = state_backup_path(workspace)
+    backup_shown = f"workspaces/{project_id}/.sentinel/{STATE_BACKUP_NAME}"
+    restore = f"Copy {backup_shown} to {shown} (or restore {shown} from git), then run the command again."
+    if not path.exists():
+        if not workspace.is_dir():
+            return None
+        if backup.is_file():
+            raise InputError(
+                f"{shown} is missing. Sentinel will not rebuild it, because a new state would lose the "
+                f"project's phase, settings and story lifecycle. The state before the last update is in {backup_shown}.",
+                next_step=restore,
+            )
+        if workspace_has_artifacts(workspace):
+            raise InputError(
+                f"{shown} is missing and there is no backup ({backup_shown}). The workspace already has "
+                "artifacts, so Sentinel will not invent a new state.",
+                next_step=f"Restore {shown} from git or your own backup, then run the command again.",
+            )
+        if require:
+            raise InputError(
+                f"{shown} is missing and the workspace has no artifacts yet.",
+                next_step=f"Run /init {project_id} to recreate it.",
+            )
+        return None
+    try:
+        data = read_json(path, None)
+    except ValueError as exc:
+        detail = f"{exc.msg} at line {exc.lineno}, column {exc.colno}" if hasattr(exc, "lineno") else str(exc)
+        problem = f"{shown} is not valid JSON: {detail}."
+    else:
+        if isinstance(data, dict):
+            return data
+        problem = f"{shown} is not a JSON object."
+    if backup.is_file():
+        raise InputError(
+            f"{problem} The state before the last update is in {backup_shown}.",
+            next_step=f"Keep the broken file aside if you want to inspect it, then {restore[0].lower()}{restore[1:]}",
+        )
+    raise InputError(
+        f"{problem} There is no backup ({backup_shown}).",
+        next_step=f"Fix the JSON by hand or restore {shown} from git or your own backup.",
+    )
+
+
 def read_state(project_id: str, default: Any | None = None, root: Path | None = None) -> Any:
-    durable = read_json(state_path(project_id, root), None)
-    if not isinstance(durable, dict):
+    durable = load_durable_state(project_id, root)
+    if durable is None:
         return {} if default is None else default
     derived = read_json(derived_state_path(project_id, root), {})
     return {**durable, **derived} if isinstance(derived, dict) else durable
@@ -63,9 +155,11 @@ def _check_version(state: dict[str, Any], path: Path) -> None:
 
 def write_state(project_id: str, state: dict[str, Any], root: Path | None = None) -> None:
     path = state_path(project_id, root)
-    current = read_json(path, None)
-    if isinstance(current, dict):
+    current = load_durable_state(project_id, root)
+    if current is not None:
         _check_version(current, path)  # never overwrite a newer schema
+        # IMP-331: one rolling copy of the state before this update, to restore from.
+        copy_file(path, state_backup_path(workspace_path(project_id, root)))
     durable = {
         key: _relative_paths(project_id, key, value, root)
         for key, value in state.items()
@@ -137,9 +231,9 @@ def migrate_state(project_id: str, root: Path | None = None) -> dict[str, Any] |
     path = state_path(project_id, root)
     if not path.is_file():
         return None
-    state = read_json(path, None)
-    if not isinstance(state, dict):
-        raise InputError(f"{path.as_posix()} is not a JSON object.")
+    state = load_durable_state(project_id, root)  # IMP-331: a broken file is refused by name
+    if state is None:
+        return None
     _check_version(state, path)
     if state.get("schema_version") == SCHEMA_VERSION:
         return None

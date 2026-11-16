@@ -68,7 +68,9 @@ Every command ends with one of these codes. A failure prints `sentinel error: ..
 | 0 | Success | The command finished. | Read the JSON result. `/status` and `/health` also exit 0 when the verdict is not good: read their `verdict`. |
 | 1 | Unexpected error | A traceback follows the message. It is a genuine bug. | Report the traceback. |
 | 2 | Wrong usage | A missing required option (`--source`), an unknown option or a value outside its choices. Printed by the argument parser with the usage line, without `next step:`. | Fix the command line; `python -m sentinel /command --help` shows the options. |
-| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), a `--source` file that does not exist (on every command; `/prototype --inventory` is the exception, it takes a source id `F-NN`), missing or conflicting options (`--ba`/`--tech` missing, `/split --move` without unit/from/to), an invalid release id, an unknown profile or genesis, a `state.json` with a newer schema. | Fix the input named in the message and run again. For a missing file, check the path: it is read relative to the folder you run Sentinel from. Nothing was stored. |
+| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), a `--source` file that does not exist (on every command; `/prototype --inventory` is the exception, it takes a source id `F-NN`), missing or conflicting options (`--ba`/`--tech` missing, `/split --move` without unit/from/to), an invalid release id, an unknown profile or genesis, a `state.json` with a newer schema, a missing or damaged `state.json`, a workspace JSON file that does not parse (the message names the file). | Fix the input named in the message and run again. For a missing file, check the path: it is read relative to the folder you run Sentinel from. Nothing was stored. |
+
+**A missing or damaged `state.json`.** Sentinel does not rebuild it, because a new state would lose the phase, the settings and the story lifecycle. Every state update first copies the previous `state.json` to `.sentinel/state.json.bak`. To recover, copy `.sentinel/state.json.bak` to `state.json` in the workspace folder (or restore `state.json` from git) and run the command again; you lose at most the last update. Without a backup, restore it from git or your own backup. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists workspaces whose `state.json` is missing or damaged.
 | 4 | Gate refusal | A missing prerequisite or the project's state stops the command: no workspace, `/assume` before `/ingest`, `/specs` before `/ingest`, `/compose` before `/specs`, `/backlog` while health is `DIRTY`, `/split` without the brief, proposal or series it needs, `/view` of an artifact not generated yet, `/export --final` with pending marks. | Run the command the `next step:` line names (often `/init`, `/ingest`, `/maturity` or `/resolve-gaps`). See the [gate matrix](#gate-matrix). |
 | 5 | Unfavourable verdict | `/validate` is not `VALID`, or `/doctor` is not `PASS`. The full result is still printed. | Read the findings in the result and fix them, or record a cited override (`/validate --override`). |
 | 6 | Workspace busy | Another command holds this workspace's lock, or a file changed on disk while the command ran. | Wait for the other command to finish and run again. |
@@ -123,7 +125,8 @@ After a successful command:
 - **Mutating commands** also:
   - refresh `06_traceability/traceability_matrix.md` and `traceability_graph.md`;
   - re-run an existing split assessment and recompile a confirmed release series if the brief changed (except `/split` itself);
-  - snapshot the checksums of the governed artifacts (`01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) so `/health` can flag a hand edit.
+  - snapshot the checksums of the governed artifacts (`01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) that the command wrote, so `/health` can flag a hand edit. A file the command did not write keeps its old checksum, so a hand edit stays flagged; a hand edit the command changed is kept under `.sentinel/hand_edits/` (see [`health`](#health));
+  - if the command set health to `CLEAN` while the last `/health` report was `DIRTY`, re-run the `/health` checks and keep their verdict.
 - `/validate` with `--override` also refreshes the traceability views.
 
 A command that fails runs no postflight and is not logged.
@@ -1302,6 +1305,8 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **You get.** The path, `deliverable` (`working`, `draft` or `final`) and `pending_marks`.
 
+**How marks are counted.** `/export` and `/validate` count the same way. For a brief v2, the count comes from `02_requirements/brief_compile_report.json` when it exists, so it is the brief's own "Ready to build" number. Client marks (`⏳ PENDING`) block. Domain marks (`⏳ PENDING DOMAIN`) can wait: they are reported as `deferred_marks` and do not block `--final`. Without the report, Sentinel reads the brief's body and skips the §0.1 legend and the tables that list the marks. In any other artifact, every `[PENDING …]`, `[POR COMPLETAR]` and `⏳ PENDING` blocks.
+
 **Next step.** Share the file. Bring answers back with `/resolve-gaps` or `/sync`.
 
 **See also.** [Workflows: handoff and export](03-workflows.md).
@@ -1581,6 +1586,12 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **What it does.** Runs deterministic health checks and sets the project's health to `CLEAN` or `DIRTY`. Findings include orphan stories and criteria, open blocking gaps, metrics without a source, artifacts not indexed in memory, broken graph paths and missing discovery artifacts. Warnings include hand edits of governed artifacts, derived artifacts that drifted from their sources, domain context updated after the backlog, privacy findings, and the needs-context signal.
 
+A metric in a raw source (`00_raw/`) stops counting once every `GAP-METRIC-SOURCE` gap is `CLOSED`, because the raw file itself never changes.
+
+A `DIRTY` verdict from `/health` holds until its cause is fixed. When a later command (`/maturity`, `/specs`, `/sync` and others) would set `CLEAN`, Sentinel re-runs these checks first and keeps `DIRTY` if a finding remains.
+
+A hand-edit warning survives the next commands. Before a mutating command runs, Sentinel copies each hand-edited governed file to `.sentinel/hand_edits/<timestamp>-<command>/`. If the command leaves the file alone, the copy is dropped and the warning stays. If the command changes the file, it prints a `sentinel warning:` line naming the copy, and `/health` keeps warning until you delete the copy.
+
 **Type.** Read-only (it writes its own report).
 
 **Use it when.** Before a handoff, after a manual change, or when `/backlog` refuses with `DIRTY`.
@@ -1606,7 +1617,7 @@ python -m sentinel /health ACME_PORTAL
 
 **You get.** `verdict` (`CLEAN` or `DIRTY`), `findings`, `warnings`, the memory backend and `needs_context_gate`.
 
-**Next step.** Fix each finding through its owning command (regenerate, `/reindex`, `/resolve-gaps`). A hand-edit warning means: regenerate the file through its command.
+**Next step.** Fix each finding through its owning command (regenerate, `/reindex`, `/resolve-gaps`). A hand-edit warning means: revert the edit, or carry the change through the owning command or `/sync`. For a kept copy, do that with the text in the copy, then delete the copy.
 
 **See also.** skill `sentinel-health`.
 
@@ -1642,7 +1653,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **Refuses when.** Verdict not `VALID` → exit 5 (the result is still printed). `--override` with nothing to override → exit 3.
 
-**You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks.
+**You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks. In `semantic_quality`, `pending_markers` is the number of blocking marks and `deferred_markers` the number of domain marks. They are counted as `/export --final` counts them (see [`export`](#export)).
 
 **Next step.** Fix the findings, or record a cited override; then `/status`.
 

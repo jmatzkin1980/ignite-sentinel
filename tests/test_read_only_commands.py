@@ -44,6 +44,7 @@ EARS = "When queue metrics are available, the system shall display open risk que
 # Every command inside the protocol writes these.
 BOOKKEEPING = (
     "state.json",
+    ".sentinel/state.json.bak",  # IMP-331: the copy of state.json kept before each state write
     ".sentinel/lock",
     ".sentinel/command_log.jsonl",
     "06_traceability/command_protocol_log.md",

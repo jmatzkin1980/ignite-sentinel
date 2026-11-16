@@ -92,14 +92,28 @@ Example client configuration for a clone:
 }
 ```
 
-The server exposes 38 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it. Parameter differences from the CLI:
+The server exposes 38 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it.
 
-| CLI | MCP |
-|---|---|
-| `--open` | `open_browser` |
-| `/split --assess`, `--propose`, `--confirm`, `--move`, `--close rN` | `mode` (`assess`, `propose`, `confirm`, `move`, `close`), with `release` for `close` |
-| `/prototype --inventory`, `--trace`, `--manual` | `mode` (`inventory`, `trace`, `manual`) |
-| `--root` | Not available: the server runs at its working directory |
+Each tool takes every option of its command and forwards each value you set to the CLI, so the CLI accepts or refuses the combination exactly as it does in a terminal. Nothing you pass is dropped in silence. A parameter is named like its option, without the leading `--` and with hyphens turned into underscores (`--trace-id` is `trace_id`, `--with-task-seeds` is `with_task_seeds`). These parameters have a different name or shape:
+
+| Command | CLI | MCP |
+|---|---|---|
+| `/view`, `/dashboard` | `--open` | `open_browser` |
+| `/story-status` | `--set` | `status` |
+| `/sources` | `--from` | `from_who` |
+| `/split` | `--from`, `--to` | `from_holder`, `to_holder` |
+| `/split` | `--assess`, `--propose`, `--confirm`, `--move`, `--close rN` | `mode` (`assess`, `propose`, `confirm`, `move`, `close`), with `release` for `close` only: `release` with another mode is refused |
+| `/prototype` | `--inventory`, `--trace`, `--manual` | `mode` (`inventory`, `trace`, `manual`) |
+| `/doctor`, `/dashboard` | `--root` | Not available: the server runs at its working directory |
+
+The defaults are the CLI's, with two exceptions:
+
+| Tool | CLI | MCP default |
+|---|---|---|
+| `sentinel_split` | A mode is required | `mode="assess"`, which only reads the brief and writes the split assessment |
+| `sentinel_prototype` | A mode is required | `mode="inventory"`, which only reads the ingested prototypes |
+
+`sentinel_retrieve` follows the CLI: `workflow` is required unless `timeline` is set, and no context pack is written unless `write_pack` is true. The chat command files of Claude Code and Kilo Code add `--write-pack` for you.
 
 A failed call returns an error with `code`, `kind`, `error` and `next_step`.
 

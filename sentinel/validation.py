@@ -161,8 +161,6 @@ def validate_semantic_artifacts(project_id: str, base: Path, graph: dict) -> lis
     return findings
 
 
-PENDING_MARKERS = ("[PENDING INPUT]", "[PENDING DOMAIN CONTEXT]")
-
 EVIDENCE_MARKERS = (
     "| P-E",
     "| FR-E",
@@ -175,15 +173,21 @@ EVIDENCE_MARKERS = (
 )
 
 
-def score_artifact_text(text: str) -> dict[str, object]:
+def score_artifact_text(text: str, report: dict | None = None) -> dict[str, object]:
     """Deterministic semantic-quality score: evidence signals vs pending placeholders.
 
     This is a heuristic for visibility, not a gate. A low score means the
     artifact is mostly scaffolding and needs more discovery evidence.
+    IMP-334: pending marks are counted by `pending_marks.count_pending_marks`, the
+    counter `/export --final` uses (`report` is the brief v2 compile report, if any);
+    `pending_markers` is the blocking count, `deferred_markers` the domain marks.
     """
-    pending = sum(text.count(marker) for marker in PENDING_MARKERS)
+    from .pending_marks import count_pending_marks
+
+    marks = count_pending_marks(text, report)
+    pending = marks.blocking
     evidence = sum(text.count(marker) for marker in EVIDENCE_MARKERS)
-    total = pending + evidence
+    total = marks.total + evidence
     score = round(evidence / total, 3) if total else 0.0
     if evidence and score >= 0.5:
         classification = "evidence-backed"
@@ -193,6 +197,7 @@ def score_artifact_text(text: str) -> dict[str, object]:
         classification = "scaffolding"
     return {
         "pending_markers": pending,
+        "deferred_markers": marks.deferred,
         "evidence_signals": evidence,
         "score": score,
         "classification": classification,
@@ -211,7 +216,9 @@ def semantic_quality_report(base: Path) -> tuple[dict[str, dict[str, object]], l
     for name, path in targets.items():
         if not path.exists():
             continue
-        result = score_artifact_text(path.read_text(encoding="utf-8"))
+        from .pending_marks import compile_report_for
+
+        result = score_artifact_text(path.read_text(encoding="utf-8"), compile_report_for(path))
         report[name] = result
         if result["classification"] == "scaffolding":
             warnings.append(

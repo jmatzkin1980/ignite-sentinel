@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from .errors import GateRefusal, InputError  # IMP-302: typed errors
 
+import sys
 from pathlib import Path
 from typing import Any
 
 from .workspace import load_config, read_json, state_path, update_state, utc_now, workspace_path
-from .core.hashing import file_content_hash
-from .core.io import write_text
+from .core.hashing import file_content_hash, hash_matches
+from .core.io import copy_file, remove, write_text
 
 # IMP-127: default volume above which a project is considered to "need context"
 # (focused retrieval) rather than whole-artifact reading.
@@ -23,6 +24,8 @@ GOVERNED_ARTIFACT_GLOBS = (
     "03_specs/*.md",
     "04_backlog/*.md",
 )
+# IMP-332: where a hand edit is copied before a mutating command may change it.
+HAND_EDITS_DIR = ".sentinel/hand_edits"
 
 
 def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
@@ -34,6 +37,129 @@ def snapshot_governed_artifact_hashes(project_id: str) -> dict[str, str]:
             if path.is_file():
                 hashes[path.relative_to(base).as_posix()] = file_content_hash(path)  # IMP-291
     return hashes
+
+
+def hand_edited_artifacts(project_id: str) -> list[str]:
+    """IMP-147: governed artifacts whose bytes differ from the last command-produced hash."""
+    state = read_json(state_path(project_id), {})
+    registered = state.get("artifact_hashes", {})
+    if not isinstance(registered, dict) or not registered:
+        return []
+    root = workspace_path(project_id)
+    return sorted(
+        rel
+        for rel, digest in registered.items()
+        if (root / rel).is_file() and not hash_matches(digest, (root / rel).read_bytes())  # IMP-291
+    )
+
+
+# IMP-332: governed hashes taken by preflight, so postflight can tell which
+# artifacts the command itself wrote. Keyed by project id; one command per
+# workspace at a time (IMP-299 lock).
+_PRE_COMMAND: dict[str, dict[str, Any]] = {}
+
+
+def keep_hand_edits(project_id: str, command: str) -> Path | None:
+    """IMP-332: copy every hand-edited governed artifact before a mutating command runs.
+
+    The command may regenerate the file; the copy guarantees the BA's text is
+    never lost. Returns the folder holding the copies, or None when nothing was edited.
+    """
+    edited = hand_edited_artifacts(project_id)
+    if not edited:
+        return None
+    base = workspace_path(project_id)
+    stamp = utc_now().replace(":", "").replace("+0000", "Z").replace("+", "_")
+    folder = base / HAND_EDITS_DIR / f"{stamp}-{command}"
+    suffix = 2
+    while folder.exists():
+        folder = base / HAND_EDITS_DIR / f"{stamp}-{command}-{suffix}"
+        suffix += 1
+    for rel in edited:
+        copy_file(base / rel, folder / rel)
+    return folder
+
+
+def kept_hand_edits(project_id: str) -> list[tuple[str, str]]:
+    """IMP-332: (artifact, copy) pairs whose kept text is no longer in the artifact.
+
+    A copy equal to the current file is not listed: the edit is still in place
+    and the out-of-CLI warning already names it.
+    """
+    base = workspace_path(project_id)
+    root = base / HAND_EDITS_DIR
+    if not root.is_dir():
+        return []
+    kept: list[tuple[str, str]] = []
+    for folder in sorted(p for p in root.iterdir() if p.is_dir()):
+        for copy in sorted(p for p in folder.rglob("*") if p.is_file()):
+            rel = copy.relative_to(folder).as_posix()
+            current = base / rel
+            if current.is_file() and current.read_bytes() == copy.read_bytes():
+                continue
+            kept.append((rel, copy.relative_to(base).as_posix()))
+    return kept
+
+
+def settle_governed_hashes(project_id: str, command: str) -> dict[str, str]:
+    """IMP-332: re-snapshot only the governed artifacts this command wrote.
+
+    An artifact the command left untouched keeps its last command-produced hash,
+    so a hand edit stays flagged by /health. A newly created artifact is
+    registered. Copies kept by preflight whose text is still in the file are
+    dropped as redundant.
+    """
+    pre = _PRE_COMMAND.pop(project_id, None)
+    current = snapshot_governed_artifact_hashes(project_id)
+    registered = read_json(state_path(project_id), {}).get("artifact_hashes", {})
+    if pre is None or not isinstance(registered, dict) or not registered:
+        settled = current
+    else:
+        before = pre["hashes"]
+        settled = {
+            rel: digest if rel not in registered or before.get(rel) != digest else registered[rel]
+            for rel, digest in current.items()
+        }
+    folder = pre.get("kept") if pre else None
+    if folder is not None and folder.is_dir():
+        base = workspace_path(project_id)
+        for copy in sorted(p for p in folder.rglob("*") if p.is_file()):
+            target = base / copy.relative_to(folder)
+            if target.is_file() and target.read_bytes() == copy.read_bytes():
+                remove(copy)
+        for directory in sorted((d for d in folder.rglob("*") if d.is_dir()), key=lambda d: len(d.parts), reverse=True):
+            if not any(directory.iterdir()):
+                remove(directory)
+        if not any(folder.iterdir()):
+            remove(folder)
+        else:
+            changed = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+            print(
+                f"sentinel warning: /{command} changed hand-edited "
+                + ", ".join(changed)
+                + f"; the edited text is kept in {folder.relative_to(base).as_posix()}/. "
+                "Carry the change through the owning command or /sync, then delete the copy.",
+                file=sys.stderr,
+            )
+    return settled
+
+
+def reconcile_health(project_id: str) -> None:
+    """IMP-332: a command may not clear a /health DIRTY verdict whose cause remains.
+
+    Commands set `health` on their own criteria. When one leaves it CLEAN while
+    the last /health report was DIRTY, recompute /health from the current
+    findings; its verdict wins.
+    """
+    state = read_json(state_path(project_id), {})
+    if str(state.get("health", "")).upper() != "CLEAN":
+        return
+    report = read_json(workspace_path(project_id) / "06_traceability" / "health_report.json", {})
+    if not isinstance(report, dict) or report.get("verdict") != "DIRTY":
+        return
+    from .health import run_health
+
+    run_health(project_id)
 
 # IMP-244: every command is read-only, mutating or exempt with its reason, exactly once.
 # IMP-303: the sets come from the single command registry (sentinel/commands.py).
@@ -52,7 +178,10 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}. Run /init {project_id} first.")
 
-    state = read_json(state_path(project_id), {})
+    from .core.state import load_durable_state
+
+    # IMP-331: a missing or broken state.json stops every project command before it writes.
+    state = load_durable_state(project_id, require=True) or {}
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
@@ -73,6 +202,14 @@ def preflight_command(command: str, project_id: str | None) -> None:
         if not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
             raise GateRefusal("Cannot generate quality artifacts without backlog user stories.")
 
+    if command in MUTATING_COMMANDS:
+        # IMP-332: remember what the governed artifacts looked like before the
+        # command, and keep a copy of any hand edit it might overwrite.
+        _PRE_COMMAND[project_id] = {
+            "hashes": snapshot_governed_artifact_hashes(project_id),
+            "kept": keep_hand_edits(project_id, command),
+        }
+
 
 def postflight_command(command: str, project_id: str | None, result: Any) -> None:
     if command not in PROJECT_COMMANDS or not project_id:
@@ -86,6 +223,24 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         write_mermaid_graph(project_id)
 
     from .core.state import append_command_log, read_command_log
+
+    if command in MUTATING_COMMANDS and command != "split":
+        # IMP-263 [A45]: a command that changed the brief (a spike or measurer
+        # closed, a gap answered) re-runs an existing split assessment.
+        from .split import refresh_if_stale
+
+        refresh_if_stale(project_id)
+        # IMP-267a: recompiling is the synchronization; a confirmed series follows the brief.
+        from .release_series import refresh_series_if_stale
+
+        refresh_series_if_stale(project_id)
+    if command in MUTATING_COMMANDS:
+        # IMP-147: a mutating command is the only sanctioned writer of governed
+        # artifacts. IMP-332: refresh the checksum of the artifacts it wrote only,
+        # so /health keeps flagging a hand edit the command did not touch.
+        update_state(project_id, artifact_hashes=settle_governed_hashes(project_id, command))
+        # IMP-332: health follows the current findings, not the last writer.
+        reconcile_health(project_id)
 
     state = read_json(state_path(project_id), {})
     entry = {
@@ -101,21 +256,6 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         "last_command": command,
         "last_command_at": entry["timestamp"],
     }
-    if command in MUTATING_COMMANDS and command != "split":
-        # IMP-263 [A45]: a command that changed the brief (a spike or measurer
-        # closed, a gap answered) re-runs an existing split assessment.
-        from .split import refresh_if_stale
-
-        refresh_if_stale(project_id)
-        # IMP-267a: recompiling is the synchronization; a confirmed series follows the brief.
-        from .release_series import refresh_series_if_stale
-
-        refresh_series_if_stale(project_id)
-    if command in MUTATING_COMMANDS:
-        # IMP-147: a mutating command is the only sanctioned writer of governed
-        # artifacts, so refresh their checksum registry here. /health compares
-        # current bytes against this snapshot to flag out-of-CLI edits.
-        state_updates["artifact_hashes"] = snapshot_governed_artifact_hashes(project_id)
     update_state(project_id, **state_updates)
     write_command_protocol_log(project_id, command_log)
 
