@@ -91,6 +91,9 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         validated_gap_ids=set(sync_resolution["closed"]),
         broker=broker,
     )
+    # IMP-337 (337a): say how much of the note was stored without being interpreted,
+    # and hint (never apply) the confirmed items its decision lines talk about.
+    prose = prose_review(project_id, text)
     impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
     write_text(impact_path, render_impact(
             project_id,
@@ -105,6 +108,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             metabolism,
             stale_result,
             suspicious_links,
+            prose,
         ))
     impact_id = add_node(project_id, "DEC", "impact_report", impact_path, "Change impact report", status="pending")
     add_edge(project_id, change_id, impact_id, "produces")
@@ -143,6 +147,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             metabolism=metabolism,
             new_gaps=gap_merge["merged"],
             source_row=source_row(project_id, source_id),
+            hints=prose["hints"],
         )
         digest_path = Path(str(interaction_digest["digest_path"]))
         digest_id = add_node(project_id, "DEC", "interaction_digest", digest_path, "Interaction digest", status="pending")
@@ -214,6 +219,78 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         "suspicious_trace_links": suspicious_links,
         "context_pack": focus_pack.get("path"),
         "interaction_digest": interaction_digest,
+        "prose_review": prose,
+    }
+
+
+def sync_change_with_analysis(
+    project_id: str, source: Path, analysis: Path, note: str = "", digest: bool = False
+) -> dict[str, object]:
+    """IMP-337 (337b): validate the agent's change analysis BEFORE anything is written,
+    then run the normal /sync and open one blocking GAP-CHG per valid candidate."""
+    from .errors import InputError
+    from .sync_analysis import apply_change_analysis, load_change_analysis, validate_change_analysis
+
+    if not workspace_path(project_id).exists():
+        raise GateRefusal(f"Workspace not found: {project_id}")
+    if source.is_dir():
+        raise InputError("--analysis needs --source to be the one note it analyses, not a folder.")
+    data = load_change_analysis(analysis)
+    note_text = read_source(source).text
+    candidates = validate_change_analysis(project_id, data, note_text)
+    result = sync_change(project_id, source, note, digest=digest)
+    result["change_analysis"] = apply_change_analysis(
+        project_id, analysis, data, candidates,
+        change_id=str(result["change_id"]), source_id=str(result["source_id"]), note_text=note_text,
+    )
+    return result
+
+
+PROSE_NOTICE = (
+    "Prose is stored and indexed, not interpreted: {n} line(s) changed nothing. "
+    "Rewrite them as gap answers (### GAP-...) or pass a cited analysis with "
+    "/sync --source NOTE --analysis FILE."
+)
+_GAP_BLOCK_RE = re.compile(r"^#{2,4}\s+GAP-[A-Z0-9-]+")
+
+
+def prose_review(project_id: str, text: str) -> dict[str, object]:
+    """IMP-337 (337a): what /sync interpreted in the change and what it only stored.
+
+    Interpreted lines are the `### GAP-` answer blocks and the `Subject: value`
+    statements the contradiction pass anchors; headings are structure. Every
+    other non-empty line is stored and indexed but moved nothing. Decision lines
+    are counted and, when they share words with a closed gap or a live
+    assumption, listed as hints. Read-only: nothing here opens, closes or
+    rewrites anything.
+    """
+    from .interaction_digest import change_hints, decision_candidates, iter_citable_lines
+    from .source_conflicts import extract_statements
+
+    statement_lines = {int(item["line"]) for item in extract_statements(text)}
+    gap_lines: set[int] = set()
+    in_block = False
+    content = 0
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if line.startswith("#"):
+            in_block = bool(_GAP_BLOCK_RE.match(line))
+            continue
+        if not line:
+            continue
+        content += 1
+        if in_block:
+            gap_lines.add(number)
+    uninterpreted = content - len(gap_lines | statement_lines)
+    decisions = decision_candidates(iter_citable_lines(text))
+    return {
+        "content_lines": content,
+        "gap_response_lines": len(gap_lines),
+        "statement_lines": len(statement_lines - gap_lines),
+        "uninterpreted_lines": uninterpreted,
+        "decision_candidates": len(decisions),
+        "hints": change_hints(project_id, text) if decisions else [],
+        "notice": PROSE_NOTICE.format(n=uninterpreted) if uninterpreted else "",
     }
 
 
@@ -582,7 +659,24 @@ def render_impact(
     knowledge_metabolism: dict[str, object] | None = None,
     story_staleness: dict[str, object] | None = None,
     suspicious_trace_links: list[dict[str, object]] | None = None,
+    prose: dict[str, object] | None = None,
 ) -> str:
+    prose = prose or {}
+    hint_rows = "\n".join(
+        f"- L{hint['line']} \"{hint['quote']}\" -> related: "
+        + ", ".join(f"`{item['id']}`" for item in hint["related_gaps"] + hint["related_assumptions"])
+        for hint in prose.get("hints", [])  # type: ignore[union-attr]
+    ) or "- None."
+    prose_block = (
+        f"- Lines interpreted as gap answers: {prose.get('gap_response_lines', 0)}\n"
+        f"- Lines anchored as statements: {prose.get('statement_lines', 0)}\n"
+        f"- Lines stored but not interpreted: {prose.get('uninterpreted_lines', 0)}\n"
+        f"- Decision lines: {prose.get('decision_candidates', 0)}\n"
+        + (f"\n{prose['notice']}\n" if prose.get("notice") else "")
+        + "\nDecision lines related to something confirmed (hint only; this does not claim a "
+        "contradiction and nothing was applied):\n\n"
+        + hint_rows
+    )
     affected_rows = "\n".join(f"- `{node_id}`" for node_id in affected) or "- No existing downstream nodes found."
     gap_rows = "\n".join(
         f"- `{gap['id']}` ({gap['severity']}): {gap['description']}" for gap in gaps
@@ -633,9 +727,17 @@ def render_impact(
 
 {gap_rows}
 
+## Prose Review (IMP-337)
+
+{prose_block}
+
 ## Reopened Closed Gaps
 
-- Reopened closed gaps: {len(reopened)}
+_Report only (IMP-337): closed gaps whose trigger fired again in this change.
+Nothing is reopened here; a change reopens a gap only through a cited analysis
+(`/sync --analysis`) that the BA accepts (`/gaps --disposition accepted`)._
+
+- Closed gaps detected again (not reopened): {len(reopened)}
 {reopened_rows}
 
 ## Governed Gaps Added To gaps.md
