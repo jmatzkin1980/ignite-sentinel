@@ -24,10 +24,11 @@ python -m sentinel /dashboard
 python -m sentinel /init PROJECT_ID
 python -m sentinel /ingest PROJECT_ID --source input/client_requirement/archivo.md
 python -m sentinel /gaps | /annotate --source ANALYSIS.json | /challenge --source ANALYSIS.json | /scrutinize --source ANALYSIS.json | /assume --source ASSUMPTIONS.json | /resolve-gaps | /maturity | /brief | /compose --source FILE | /context-request | /stakeholders
+python -m sentinel /harvest --source FILE | /sources | /split --assess|--propose|--confirm|--move|--close | /prototype --inventory|--trace|--manual
 python -m sentinel /sync | /reindex | /retrieve
 python -m sentinel /specs | /self-review --source FILE | /backlog | /backlog-status | /story-status --story US-NNN --set STATE [--evidence FILE] | /refine-backlog --source FILE | /implementation-feedback --source FILE | /quality | /trace | /health | /validate
-python -m sentinel /status PROJECT_ID | /export PROJECT_ID --artifact gaps|brief|context-request|prd --format md|mdx|interview|faq
-python -m sentinel /view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]
+python -m sentinel /status PROJECT_ID | /next PROJECT_ID | /export PROJECT_ID --artifact gaps|brief|context-request|prd --format md|mdx|interview|faq
+python -m sentinel /view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open]
 ```
 
 Fallback Windows sin Python en PATH: `.\installers\sentinel.ps1 /COMMAND PROJECT_ID`.

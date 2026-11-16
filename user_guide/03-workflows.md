@@ -156,14 +156,18 @@ Then run `/maturity ACME_PORTAL` to see the effect.
    ```
 
    It is written to `08_context_packs/requests/technology_context_request.md` with an id `CTX-NNN`.
-2. Send it. When the answer comes back, load it as a change that cites the request:
+2. Send it. When the answer comes back, make sure the answer file itself names the request (for example a first line `Answer to CTX-001`), then load it as a change:
 
    ```text
-   /sync ACME_PORTAL --source input/tech-answer.md --note "answer to CTX-001"
+   /sync ACME_PORTAL --source input/tech-answer.md --note "technology answer"
    ```
 
-   A change that cites an active request marks it `answered`.
-3. Close or retire the request:
+   A synced file whose text cites an active request marks it `answered`; the result lists it under `answered_context_requests`. Only the file's text is read for the id: the `--note` is not, so a `CTX-001` that appears only in the note leaves the request `active`. If the answer arrived some other way, mark it yourself:
+
+   ```text
+   /context-request ACME_PORTAL --id CTX-001 --status answered
+   ```
+3. Close or retire the request (an `active` request cannot be closed directly; it must be `answered` first, or retired as `obsolete`):
 
    ```text
    /context-request ACME_PORTAL --id CTX-001 --status closed --reason "contract confirmed"
@@ -198,8 +202,10 @@ Then run `/maturity ACME_PORTAL` to see the effect.
    ```text
    /sources ACME_PORTAL
    /sources ACME_PORTAL --id F-02 --superseded-by F-05
-   /sources ACME_PORTAL --precedence "payment rules" --between F-02,F-05
+   /sources ACME_PORTAL --precedence rule --between F-02,F-05
    ```
+
+   `--precedence` takes one of nine scopes: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule`. Any other value exits 3 and lists them.
 
 3. Rerun the commands that own the affected artifacts (`/maturity`, `/specs`, `/backlog`) only where the change matters, then audit:
 

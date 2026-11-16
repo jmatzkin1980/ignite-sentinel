@@ -68,6 +68,7 @@ workspaces/<PROJECT_ID>/
 | `.sentinel/derived/state.json` | Counts and metrics Sentinel recomputes (gap counts, maturity metrics, backlog roll-up). | `/status`, the dashboard | Disposable | Every mutating command |
 | `.sentinel/command_log.jsonl` | One line per command that ran, append-only. | `/health`, admins, audits | Never edit by hand | Every command |
 | `.sentinel/themes/<name>.json` | A look-and-feel theme for this workspace only. | `/view` | Edit freely | You; see [themes](17-themes.md) |
+| `.sentinel/state.json.bak` | The previous `state.json`, copied before every state update. | You, to recover a deleted or damaged `state.json` | Leave alone; copy it over `state.json` to restore | Every command that updates the state |
 | `.sentinel/state.json.bak-0.9.0` | One-time backup made when an old workspace is upgraded. | Nobody, unless you roll back | Leave alone | The first command that opens an old workspace |
 | `.sentinel/lock` | The lock that makes a second command wait (exit code 6). | Sentinel | Never touch | Every project command, read-only ones included |
 | `.series_work/<rN>/` | The mirror a command runs in when you pass `--release rN`. | Sentinel | Never edit by hand | Release commands |
@@ -124,7 +125,8 @@ Everything the client or the domain teams gave you, as received, in five context
 
 | Path | Purpose | Edit rule | Written by |
 |---|---|---|---|
-| `00_client_requirement/` | The original client requirement. | Add files; do not rewrite processed ones | `/ingest` |
+| `[source].md` (at the top of `00_raw/`) | The redacted copy of the primary client requirement, named after the file you passed to `/ingest` (for example `00_raw/loan-request.md`). | Never edit; replace it only with `/ingest --replace` | `/ingest` |
+| `00_client_requirement/` | Extra client requirement material you add by hand. `/ingest` does not copy into it. | Add files; do not rewrite processed ones | You |
 | `01_business_context/` | Business rules, policies, process documents. | Add files freely | You, `/ingest`, `/sources` |
 | `02_technology_context/` | Architecture notes, API contracts, harvested code summaries (`harvest/`). | Add files freely | You, `/harvest`, `/sources` |
 | `03_design_context/` | Prototypes, design notes. | Add files freely | You, `/sources` |
@@ -182,7 +184,8 @@ Each pass writes one report, plus an archive of the JSON the agent submitted.
 | `implementability_probe_report.md` | `implementability_probe/` | `/scrutinize --mode implementability-probe` |
 | `anchor_review_log.md` | | `/scrutinize --mode anchors` |
 | `sufficiency_log.md` | | `/self-review --sufficiency` |
-| `agent_sweep_log.md`, `agent_dispositions.json` | | `/self-review` |
+| `agent_sweep_log.md` | | Every agent pass: `/annotate`, `/challenge`, `/scrutinize` (all modes), `/self-review` (all modes) |
+| `agent_dispositions.json` | | `/gaps --id GAP-X --disposition` |
 
 All of them are append-only records of what the runtime accepted and rejected. Gaps raised this way carry the matching `Origin` in `gaps.md`. Never edit them.
 
@@ -316,7 +319,7 @@ See [Traceability and memory](05-traceability-and-memory.md) for how the graph i
 | `04_regeneration/regen-NNN-*.md` | What changed when `/specs` or `/backlog` regenerated an artifact. Each change is marked `ADDED`, `MODIFIED` or `REMOVED`. | Never edit | `/specs`, `/backlog` |
 | `05_implementation_feedback/feedback_report.md` | Accepted and rejected findings from implementation, plus the archived JSON. | Never edit | `/implementation-feedback` |
 | `source_log.md` | The source registry: one `F-NN` row per source with authority, supersession and impact matrix. | Never edit; use `/sources` | `/sources` |
-| `closing_report.md` | The closing report of the source registry. | Never edit | `/sources --close` |
+| `closing_report.md` | The closing report of the source registry. | Never edit | `/sources --report` |
 
 ## `08_context_packs/`: derived packs, requests, exports, views
 
@@ -366,6 +369,8 @@ For people who consume Sentinel output from code or from a coding agent. Nothing
 ### `state.json`
 
 `schema_version` is `1`. A `state.json` with a newer schema is refused (exit code 3) and left untouched. A workspace from 0.9.0 (no `schema_version`) is migrated once by the first command that opens it, after a backup to `.sentinel/state.json.bak-0.9.0`; the old in-file command log moves to `.sentinel/command_log.jsonl`.
+
+Before each update the previous `state.json` is copied to `.sentinel/state.json.bak` (one copy, replaced each time). A missing `state.json` is never rebuilt on a workspace that has a backup or artifacts, and a `state.json` that does not parse is never overwritten: both stop the command with exit code 3, naming the file and the restore step.
 
 Durable fields (cannot be rebuilt):
 

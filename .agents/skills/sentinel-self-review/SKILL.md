@@ -54,8 +54,8 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
 }
 ```
 
-- `gaps[]` (optional): identical rules to `/annotate` — `evidence` must be a verbatim quote from the grounding set or the finding is rejected. Merged entries carry `origin: self-review` and flow through the normal gap lifecycle (new findings turn health `DIRTY`).
-- `decisions[]` (optional): `id` must start with `DEC-`; `decision` and `evidence` (verbatim quote) are required; `risk` is `low | med | high`; `reversibility` is `easy | moderate | hard-to-reverse | irreversible`; `title` and `lens` are optional. Registered as `DEC-*` nodes with status `pending_review` — visibility for the BA, never auto-approval.
+- `gaps[]` (required, non-empty): the runtime refuses a payload without at least one gap (exit 3, nothing stored), even when you only want to register decisions. Identical rules to `/annotate` — `evidence` must be a verbatim quote from the grounding set or the finding is rejected. Merged entries carry `origin: self-review` and flow through the normal gap lifecycle (new findings turn health `DIRTY`).
+- `decisions[]` (optional, alongside the gaps): `id` must start with `DEC-`; `decision` and `evidence` (verbatim quote) are required; `risk` is `low | med | high`; `reversibility` is `easy | moderate | hard-to-reverse | irreversible`; `title` and `lens` are optional. Registered as `DEC-*` nodes with status `pending_review` — visibility for the BA, never auto-approval.
 - ADR-grade optional fields (all backwards-compatible — an old payload without them still validates, no migration):
   - `consequences[]` (or legacy singular `consequence`): the trade-offs the decision accepts. **A decision with no stated trade-off is an ADR anti-pattern** — if nothing gets harder, it was not really a decision. Consequences are forward-looking, so they are *not* citation-bound.
   - `considered_options[]`: the alternatives that were on the table, each `{ "option": <label>, "evidence": <verbatim quote> }`. **Every option must be cited** (same verbatim rule as `evidence`) so the choice cannot be relitigated in a later "time-travel" debate; an uncited option is rejected.
@@ -63,14 +63,14 @@ After `/specs` has produced `03_specs/prd.md` or `specs.md` (the command fails b
 
 ## Sweep protocol (IMP-271)
 
-Follow `sentinel/templates/agent_sweep_protocol.md`. The runtime rejects the whole payload when:
+Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:
 
 - an `absent` entry is not `AUSENTE: <what> en <where>`, or what it calls absent is in the source;
 - `untouched` is not a list of sentences;
 - `blocks` is not true or false;
 - the payload carries figures (`counts`, `totals`, `summary`, `figures`, `stats`, `metrics`): the runtime counts and writes them in `01_discovery/agent_sweep_log.md`.
 
-After the merge, ask the BA to record a disposition on each new gap: `/gaps PROJECT_ID --id GAP-X --disposition accepted|rejected|irrelevant [--reason TEXT]`.
+After the merge, ask the BA to record a disposition on each new gap: `/gaps PROJECT_ID --id GAP-X --disposition accepted|rejected|irrelevant --reason TEXT` (`--reason` is required for `rejected` and `irrelevant`).
 
 ## Rules
 
@@ -111,7 +111,7 @@ The runtime rejects a place that does not exist, a quote that is not verbatim, a
 
 ## Crosses Mode (IMP-260b): do the lenses agree?
 
-1. **Read the brief v2** and the rule catalog `sentinel/templates/semantic_crosses.json`.
+1. **Read the brief v2** and the rule catalog, the package's `templates/semantic_crosses.json` (under `sentinel/` in a cloned repository, under `lib/sentinel/` in the Claude Code plugin).
 2. **For each rule**, look for:
    - a **conflict**: two places that cannot both be true. Quote both verbatim, `a` on the rule's `from` side and `b` on its `to` side.
    - a **missing counterpart**: what `a` states needs something the brief never gives. Quote `a` and name `missing_in`.
