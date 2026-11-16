@@ -187,6 +187,11 @@ def run_parallel(modules: list[str], jobs: int) -> MergedResult:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # A failure message with a non-ASCII character (an arrow, an accent) used to crash the
+    # final report on a Windows cp1252 console and hide which test failed.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tier", choices=("fast", "full"), default="fast")
     parser.add_argument("--slowest", type=int, default=0, metavar="N", help="list the N slowest test modules at the end")
