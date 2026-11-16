@@ -286,7 +286,7 @@ integrate with our HR system. Obviously it must be secure and compliant.
    /resolve-gaps ACME_EXPENSES --source input/interactions/round1-answers.md
    ```
 
-   Every closure needs an `Evidence or reference` line. Template gaps ([umbrella gaps](00-user-guide.md#glossary) of the brief v2, such as `GAP-BRIEF-S3`) are answered one line per place (`3.1: ... 3.2: ...`) so each line fills its own place. Read `closure_findings`.
+   Give every closure an `Evidence or reference` line; a closure without one is flagged in the report's `## Findings`. Template gaps ([umbrella gaps](00-user-guide.md#glossary) of the brief v2, such as `GAP-BRIEF-S3`) are answered one line per place (`3.1: ... 3.2: ...`) so each line fills its own place. Read `closure_findings`.
 
 7. When the client cannot answer yet but the team must move, record a governed assumption. In chat:
 

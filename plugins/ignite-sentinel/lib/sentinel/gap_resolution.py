@@ -69,9 +69,12 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = unique_target(target_dir / f"{source.stem}.md")
     copy_file(source, target)
-    text = source.read_text(encoding="utf-8")
+    # IMP-322: utf-8-sig, so a file saved with a BOM keeps its first `### GAP-` answer.
+    text = source.read_text(encoding="utf-8-sig")
     responses = parse_gap_responses(text)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    known_ids = {gap["id"] for gap in existing}
+    unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
 
     change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
@@ -79,6 +82,10 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     # itself not validated never closes a rule; its confirmed answers stay ANSWERED.
     block_note = closing_block_note(source_row(project_id, source_id), text)
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
+    # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
+    resolution_results["findings"].extend(
+        f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
+    )
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -146,6 +153,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         "gap_counts": resolution_results["counts"],
         "knowledge_metabolism": metabolism,
         "closure_findings": resolution_results["findings"],
+        "unknown_gap_ids": unknown_gap_ids,
     }
     if brief_v2:
         result["brief_v2"] = brief_v2
@@ -440,6 +448,9 @@ def render_resolution_report(
     stale_rows = "\n".join(
         f"- `{item}`" for item in knowledge_metabolism.get("downstream_stale_artifacts", [])
     ) or "- None."
+    # IMP-322: the findings (a closure without a citation, an unknown gap id) were only
+    # in the command's JSON; the stored report is what the BA reads later.
+    findings_rows = "\n".join(f"- {item}" for item in result.get("findings", [])) or "- None."
     return f"""# Gap Resolution Report - {project_id}
 
 - Change: `{change_id}`
@@ -460,6 +471,10 @@ def render_resolution_report(
 ## Still Open
 
 {render_resolution_rows(open_gaps)}
+
+## Findings
+
+{findings_rows}
 
 ## Knowledge Ledger Metabolism
 

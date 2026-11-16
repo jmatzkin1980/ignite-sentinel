@@ -116,7 +116,7 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **If it fails:**
 
-- Answers were ignored: they must sit under the `### GAP-...` heading with `Decision status: confirmed` (or `not applicable`) and an `Evidence or reference` line. Unconfirmed answers do not close gaps by design.
+- Answers were ignored: they must sit under the `### GAP-...` heading of an id that is in `gaps.md` (an unknown id is listed in `unknown_gap_ids`) with `Decision status: confirmed` (or `not applicable`). Unconfirmed answers do not close gaps by design. Add an `Evidence or reference` line: without it the gap still closes, but the report's `## Findings` flags it as closed without a citation.
 - Answers came as a meeting note or an email, not as the gaps document: use [Requirement changes](#requirement-changes) (`/sync`) instead.
 - `/gaps --disposition` without `--id` exits 3; `rejected` and `irrelevant` need a `--reason`.
 

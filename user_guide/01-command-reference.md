@@ -675,7 +675,7 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
 
-A gap closes when the answer is non-empty and the decision status is confirmed or not applicable. A pending or unclear status leaves it `PARTIALLY_CLOSED`. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
+A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 
 **Reads.** The response file and `01_discovery/gaps.md`.
 
