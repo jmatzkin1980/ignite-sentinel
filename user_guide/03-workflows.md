@@ -332,7 +332,7 @@ flowchart TD
 
 **Check:** `02_requirements/prototype/inventory.md` lists screens with ids such as `S1-E01`; each trace gets a screen verdict and at most four questions; a screen with no manual entry shows as a hole.
 
-**If it fails:** "no HTML prototype among the ingested sources": `/ingest` the `.html` file first. `--trace` needs a compiled v2 brief, and `--manual` and `--trace` need an inventory first: all of these exit 4. A refused trace or manual exits 3, stores nothing and lists every finding.
+**If it fails:** "no HTML prototype among the ingested sources": bring the `.html` file in first with `/sync --source FILE` (or `/ingest` if it is the project's first material). `--trace` needs a compiled v2 brief, and `--manual` and `--trace` need an inventory first: all of these exit 4. A refused trace or manual exits 3, stores nothing and lists every finding.
 
 ## Existing system
 
@@ -350,7 +350,7 @@ flowchart TD
 
 **Check:** the harvest is stored under `00_raw/02_technology_context/harvest/` as a source row marked `built`; facts feed §5 of the brief and §0.2 shows the coverage per tag; out-of-code topics became non-blocking domain gaps; each README/code divergence opened a high gap.
 
-**If it fails:** exit 3 "Harvest rejected" lists each bad line (for example a fact without `repo:file`, or a repo not declared in B0). You may deliver one block at a time; each `/harvest` registers that harvest.
+**If it fails:** exit 3 "Harvest rejected" lists each bad line (for example a fact without `repo:file`, or a repo not declared in B0). You may deliver one block at a time; each `/harvest` adds its blocks to the earlier ones. The first file needs B0; later files may reuse its repos, and a block delivered again replaces that block only.
 
 ## Backlog refinement and story status
 

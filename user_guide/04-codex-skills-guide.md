@@ -49,7 +49,7 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** you hold a pile of raw intake (client requests, an RFQ inbox, mail or chat threads) and it is not clear whether it is one project or several. Strictly before `/init`.
 - **What it does** numbers every source item (`R1`, `R2`, ...), groups them by theme with a verbatim quote for each, proposes one-line requirement candidates, recommends one project or several, and lists duplicates, noise and out-of-scope asks with the reason. It stops there and hands you the decision.
-- **Commands it drives** none. It runs before any workspace exists. After you confirm the split you run `/init` and `/ingest` per project, routing each `R#` source to its project so the citations become evidence.
+- **Commands it drives** none. It runs before any workspace exists. After you confirm the split you run `/init` and `/ingest` per project for its first source, and `/sync --source` for each further `R#` source assigned to it, so the citations become evidence.
 - **Human-only** no.
 
 ## Discovery

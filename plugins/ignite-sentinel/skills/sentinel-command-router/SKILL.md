@@ -130,7 +130,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/implementation-feedback`: use `sentinel-implementation-feedback`; accepted findings are traced feedback, not direct backlog rewrites.
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
-- `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`.
+- `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`. A brief v2 that says "Ready to build: no" makes the verdict `NOT_READY` (see `ready_to_build`).
 - `/export`: summarize the CLI result and generated artifact path.
 - `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.
 - `/sources`: use `sentinel-sync`; the F-NN registry is CLI-only (never hand-edit `07_changes/source_log.md`). Ask the BA which version governs before `--superseded-by` or `--current`; never pick the newest by default. An `unresolved` precedence goes back to the BA too; `--report` never deletes originals.

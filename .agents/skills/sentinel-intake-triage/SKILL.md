@@ -10,7 +10,7 @@ Use this skill **before `/init`**, when you are handed a pile of unstructured in
 ## When to use / when not
 
 - **Use** before any workspace exists: the input is raw intake and the question is "is this one project or several, and what is even in scope?".
-- **Do not use** once a project exists. After `/init`, new information flows through `/ingest` (fresh evidence) or `/sync` (changes) — see `sentinel-discovery` and `sentinel-sync`. This skill is strictly the pre-project step.
+- **Do not use** once a project exists. After `/init`, the project's first source goes through `/ingest` and every later file through `/sync --source` — see `sentinel-discovery` and `sentinel-sync`. This skill is strictly the pre-project step.
 
 ## Workflow
 
@@ -33,7 +33,7 @@ A **triage proposal** rendered inline (or as a local scratch note), not a govern
 - **Novelty by content, never by date.** Two items with the same content are one source, whatever their file names or dates. When two versions of one document disagree, do not treat the newest as the governing one: list both and ask the BA which governs (once a project exists, `/sources` records it).
 - **Propose, never decide.** The skill groups and recommends; the BA owns the project-boundary decision. Nothing mutates a workspace until the BA confirms and `/init` runs.
 - **No workspace mutation.** This runs before any workspace exists — it does not touch `state.json`, gaps, decisions, or memory.
-- **Preserve traceability from day zero.** Keep the `R#` ids so `/ingest` carries each source citation forward into governed discovery.
+- **Preserve traceability from day zero.** Keep the `R#` ids so `/ingest` (first file) and `/sync --source` (later files) carry each source citation forward into governed discovery.
 - **Privacy, local-first.** The intake pile stays on the machine; nothing is sent to an external service. See `sentinel-privacy-local-first`.
 
 ## Anti-patterns
@@ -43,4 +43,4 @@ Each row is a mistake this skill exists to prevent, with the correction:
 - **Inventing a theme with no source** — proposing a need the pile never states. → Cite-or-silent: a theme exists only if a source item is quoted for it.
 - **Auto-running `/init`** — creating workspaces before the BA decides the split. → The skill proposes the shape; the BA decides, then `/init` runs.
 - **Silently dropping an item** — discarding an ask as "noise" without a trace. → Every out-of-scope/duplicate item is listed with its citation and reason.
-- **Losing the source link** — triaging into projects but forgetting which request fed which. → Keep the `R#` ids and route them through `/ingest` so the citation survives.
+- **Losing the source link** — triaging into projects but forgetting which request fed which. → Keep the `R#` ids and route them through `/ingest` (the first) and `/sync --source` (the rest) so the citation survives.

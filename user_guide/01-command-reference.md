@@ -1082,7 +1082,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 ## `prototype`
 
-**What it does.** Works with an HTML prototype that was ingested with `/ingest`, in three modes:
+**What it does.** Works with an HTML prototype registered as a source (with `/ingest` when it was the first material, or `/sync --source`), in three modes:
 
 - `--inventory`: lists every visible element per screen and the user-facing strings in its scripts, each with a stable id (`S1-E01`, `JS-01`).
 - `--trace`: validates and stores the trace of one screen (element, data, contract, rule), written with the `sentinel-prototype-trace` skill.
