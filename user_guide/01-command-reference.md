@@ -447,11 +447,13 @@ python -m sentinel /harvest ACME_PORTAL --source harvest.md
 
 **Reads.** The harvest file.
 
-**Writes.** A redacted copy as a source row of kind `built` under `00_raw/02_technology_context/harvest/`. An "out of code" claim opens a non-blocking domain gap; a README/code divergence opens a high gap.
+**Writes.** A redacted copy as a source row of kind `built` under `00_raw/02_technology_context/harvest/`, and `01_discovery/harvest.json`, which the brief v2 reads. An "out of code" claim opens a non-blocking domain gap; a README/code divergence opens a high gap.
 
-**Refuses when.** The harvest is invalid (a fact naming a repo not in B0, an unknown "out of code" topic...) → exit 3 with every reason.
+You can deliver the harvest one block at a time: each run adds its blocks to `harvest.json`. The first file needs B0; later files may name the repos listed in an earlier B0. A block delivered again replaces that block only.
 
-**You get.** The source row, the tag coverage and the gaps opened.
+**Refuses when.** The harvest is invalid (a fact naming a repo not in any B0 delivered so far, an unknown "out of code" topic...) → exit 3 with every reason.
+
+**You get.** The source row, the tag coverage over all harvests, the blocks this file delivered and all blocks registered so far, and the gaps opened.
 
 **Next step.** `/brief PROJECT_ID --genesis brownfield-...` to confirm the genesis, then `/maturity`.
 

@@ -53,7 +53,7 @@ One Markdown file, by blocks. Every claim is one line with one tag:
 ## Workflow
 
 1. **Confirm local access and scope.** Nothing leaves the machine.
-2. **Read block by block (B0 → B5).** You may deliver one block at a time; each run of `/harvest` registers that harvest.
+2. **Read block by block (B0 → B5).** You may deliver one block at a time; each run of `/harvest` registers that harvest and adds it to the earlier ones. The first file must carry B0 (the repositories); later files may reuse those repos without repeating B0. Delivering a block again replaces that block only. One invalid line refuses the whole file, so fix it and run again.
 3. **Tag every claim.** An untagged line is dropped. `[HECHO]` needs the file that proves it. A name-based deduction is `[INFERIDO]`.
 4. **Run it:**
 
