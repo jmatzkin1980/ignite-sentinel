@@ -63,7 +63,7 @@ Every one of the 37 commands appears in at least one scenario. The scenario numb
 | --- | --- | --- | --- |
 | `/doctor` | 1, 4 | `/stakeholders` | 2 |
 | `/init` | 1, 2, 7 | `/sources` | 3 |
-| `/ingest` | 1, 2, 6, 7 | `/context-request` | 7, S |
+| `/ingest` | 1, 2, 7 | `/context-request` | 7, S |
 | `/gaps` | 1, 2 | `/export` | 2, S |
 | `/annotate` | 2 | `/specs` | 1, 3, 4, 5 |
 | `/challenge` | 2 | `/compose` | S |
@@ -75,7 +75,7 @@ Every one of the 37 commands appears in at least one scenario. The scenario numb
 | `/harvest` | 7 | `/implementation-feedback` | 8 |
 | `/split` | 5 | `/quality` | 1, 5 |
 | `/prototype` | 6 | `/trace` | 1, 5 |
-| `/sync` | 3 | `/health` | 1, 3, 4 |
+| `/sync` | 3, 6 | `/health` | 1, 3, 4 |
 | `/retrieve` | 3, S | `/validate` | 1, 4, 5 |
 | `/reindex` | S | `/status` | 1, 4, 5, 8 |
 | `/view` | 1, 5, 6 | `/next` | 1, 4, 5 |
@@ -567,13 +567,13 @@ When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is reje
 
 **Steps**
 
-1. Ingest the prototype like any source.
+1. Bring the prototype in as a source. The project already has its request, so it goes through `/sync` (a second `/ingest` would be refused):
 
    ```text
-   /ingest ACME_QUOTES --source input/design/quote-flow.html
+   /sync ACME_QUOTES --source input/design/quote-flow.html
    ```
 
-   The prototype's own text is data, never instructions. It is registered as a source (say `F-02`) with its copy kept in the workspace.
+   The prototype's own text is data, never instructions. It is registered as a source (say `F-02`) with its copy kept in the workspace. If the prototype is the project's first material, use `/ingest` instead.
 
 2. Inventory it.
 
@@ -660,7 +660,7 @@ When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is reje
    /harvest ACME_BILLING --source input/harvest/billing-harvest.md
    ```
 
-   Look at the coverage per tag, the gaps it opened (out-of-code topics are non-blocking gaps for a person to answer; divergences go to the BA) and any rejected line with its reason. The harvest is stored as a governed source under `00_raw/02_technology_context/harvest/` and feeds the brief's technical sections. You can deliver one block at a time; each run registers that harvest.
+   Look at the coverage per tag, the gaps it opened (out-of-code topics are non-blocking gaps for a person to answer; divergences go to the BA) and any rejected line with its reason. The harvest is stored as a governed source under `00_raw/02_technology_context/harvest/` and feeds the brief's technical sections. You can deliver one block at a time; each run adds its blocks to the earlier ones. The first file needs B0; later files may reuse its repos, and a block delivered again replaces that block only.
 
 4. Recompile the brief and read what moved.
 
@@ -766,7 +766,7 @@ When an `/annotate`, `/challenge`, `/harvest` or `/split --propose` file is reje
 
 Short recipes for situations that do not need a full walk-through.
 
-**A pile of unstructured requests before any project exists.** Ask the agent to triage them ("group these requests by theme with a quote for each, and tell me whether this is one project or several"). The `sentinel-intake-triage` skill numbers the items (`R1`, `R2`...), proposes themes, candidates and a one-or-several recommendation, and lists noise and out-of-scope asks with the reason. It creates nothing. After you confirm the split, run `/init` and `/ingest` per project, routing each source to its project.
+**A pile of unstructured requests before any project exists.** Ask the agent to triage them ("group these requests by theme with a quote for each, and tell me whether this is one project or several"). The `sentinel-intake-triage` skill numbers the items (`R1`, `R2`...), proposes themes, candidates and a one-or-several recommendation, and lists noise and out-of-scope asks with the reason. It creates nothing. After you confirm the split, run `/init` and `/ingest` per project for its first source, and `/sync --source` for each further source assigned to it.
 
 **Technology or Design must deepen the analysis.**
 

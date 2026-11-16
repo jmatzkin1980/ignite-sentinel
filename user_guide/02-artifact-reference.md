@@ -35,7 +35,7 @@ Every artifact falls into one of three groups.
 | Group | Meaning | What to do instead of editing |
 |---|---|---|
 | **Never edit by hand** | A governed or generated artifact. Sentinel rebuilds it from evidence, and a hand edit is lost or flagged. | Change the evidence and re-run the owning command. |
-| **Edit freely** | You own it: configuration, local themes, and the evidence files you drop into `00_raw/`. | Edit it, then run `/sync` or `/ingest` so Sentinel notices new evidence. |
+| **Edit freely** | You own it: configuration, local themes, and the evidence files you drop into `00_raw/`. | Edit it, then run `/sync` so Sentinel notices new evidence. |
 | **Disposable and regenerable** | A view, a cache or an index. Safe to delete. | Re-run the command that builds it. |
 
 > [!IMPORTANT]
@@ -43,7 +43,7 @@ Every artifact falls into one of three groups.
 >
 > `01_discovery/gaps.md` and `02_requirements/requirements.md` are not blocked by the hook, but `/health` records a hash of them and of the brief, specs and backlog, and reports any hand edit. So five paths are watched even though three are blocked.
 
-How answers get in without hand-editing: client answers go through `/resolve-gaps`, changes and new meeting notes go through `/sync`, new evidence goes through `/ingest` or `/sources`. See the [workflows](03-workflows.md).
+How answers get in without hand-editing: client answers go through `/resolve-gaps`, changes and new meeting notes go through `/sync`, the first request goes through `/ingest` and every later evidence file through `/sync --source` (the registry through `/sources`). See the [workflows](03-workflows.md).
 
 ## Workspace root
 
