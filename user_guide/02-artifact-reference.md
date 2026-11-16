@@ -42,6 +42,8 @@ Every artifact falls into one of three groups.
 > Three kinds of file are protected by the editor hook on Claude Code, Codex and Kilo Code: `02_requirements/project-brief.md`, the top-level `03_specs/*.md` and the top-level `04_backlog/*.md`. A hand write to one of them is denied. Files in sub-folders (for example `03_specs/units/`) and in release folders (`<rN>/`) are not covered by the hook but are still generated: do not edit them.
 >
 > `01_discovery/gaps.md` and `02_requirements/requirements.md` are not blocked by the hook, but `/health` records a hash of them and of the brief, specs and backlog, and reports any hand edit. So five paths are watched even though three are blocked.
+>
+> A hand edit of a watched file is never absorbed silently. The warning stays until the file is reverted or regenerated, and before a command may overwrite the edit Sentinel copies the file to `.sentinel/hand_edits/<timestamp>-<command>/`. The command prints a `sentinel warning:` line when it changed the file, and `/health` keeps reporting the copy until you carry the change through the owning command or `/sync` and delete the copy.
 
 How answers get in without hand-editing: client answers go through `/resolve-gaps`, changes and new meeting notes go through `/sync`, the first request goes through `/ingest` and every later evidence file through `/sync --source` (the registry through `/sources`). See the [workflows](03-workflows.md).
 
@@ -376,7 +378,7 @@ Durable fields (cannot be rebuilt):
 | `story_lifecycle`, `story_gates`, `story_quality`, `story_acceptance_evidence` | Story status and owner, latest DoR/DoD evaluation, latest `/quality` score, attached evidence. |
 | `acceptance_criteria_freezes` | Criteria frozen when a story reached `Ready`. |
 | `implementation_feedback` | Open downstream findings that may stale stories or block DoD. |
-| `artifact_hashes` | sha256 of the governed artifacts, refreshed by every mutating command. `/health` compares it with current bytes to flag hand edits. |
+| `artifact_hashes` | sha256 of the governed artifacts, refreshed for each artifact a mutating command writes. `/health` compares it with current bytes to flag hand edits. |
 | `derived_source_fingerprints` | For `specs` and `backlog`, the hash of the sources they were generated from. `/health` uses it to flag drift. |
 | `last_gap_resolution_id`, `last_knowledge_metabolism`, `last_*_source` | Pointers to the latest runs. |
 | `migrated_from` | Set when a 0.9.0 workspace was migrated. |
