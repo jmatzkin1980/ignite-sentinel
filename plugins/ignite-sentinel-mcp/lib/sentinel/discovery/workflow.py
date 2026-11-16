@@ -18,7 +18,7 @@ from ..technique_registry import (
 )
 from ..core.graph import add_edge, add_node, load_graph, upsert_node
 from ..core.io import append_text, copy_file, read_json, write_text
-from ..core.markdown import parse_table_rows
+from ..core.markdown import parse_table_rows, table_cell
 from ..deltas import DeltaStatus
 from ..gaps import count_gaps, gap_kind, is_blocking, merge_gaps_by_topic, parse_gap_answers, parse_gap_table
 from .momtest import scan_questions
@@ -2016,7 +2016,9 @@ def gap_trace_row(gap: dict[str, str], req_id: str, language: str) -> str:
         gap_kind(gap),
         gap.get("closure_reason") or "N/A",
     ]
-    return "| " + " | ".join(cells) + " |"
+    # IMP-321: free text (an agent's question, a quote with a newline or a pipe) must not
+    # end the row or open a new cell, or the gap is lost or its columns shift.
+    return "| " + " | ".join(table_cell(cell) for cell in cells) + " |"
 
 
 def lens_text(gap_id: str, key: str, language: str = "en") -> str:

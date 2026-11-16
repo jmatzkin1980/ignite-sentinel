@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -132,8 +133,28 @@ def table_to_dicts_file(
     )
 
 
+_UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
+
+
+def table_cell(value: object) -> str:
+    """IMP-321: the one way to write free text into a Markdown table cell.
+
+    Newlines would end the row and a bare `|` would start a new cell, so a gap or an
+    assumption with either lost or shifted columns. Newlines become spaces and pipes are
+    escaped as `\\|` (an already escaped pipe is kept); split_table_row() undoes it.
+    """
+    text = str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    return _UNESCAPED_PIPE.sub(r"\\|", text)
+
+
 def split_table_row(line: str, *, strip_code_ticks: bool = True) -> list[str]:
-    cells = [cell.strip() for cell in line.strip("|").split("|")]
+    """Split a table row on unescaped pipes; `\\|` inside a cell is read back as `|`."""
+    row = line.strip()
+    if row.startswith("|"):
+        row = row[1:]
+    if row.endswith("|") and not row.endswith("\\|"):
+        row = row[:-1]
+    cells = [cell.strip().replace("\\|", "|") for cell in _UNESCAPED_PIPE.split(row)]
     if strip_code_ticks:
         return [cell.strip("`") for cell in cells]
     return cells

@@ -21,6 +21,8 @@ values or residues: a source may say TBD, and the brief transcribes it.
 from __future__ import annotations
 
 import re
+
+from .core.markdown import split_table_row
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -139,7 +141,7 @@ def value_findings(text: str) -> list[str]:
             header = number < len(lines) and separator.fullmatch(lines[number].strip()) is not None
             if separator.fullmatch(line) or header:
                 continue  # separators and header rows name columns, they hold no values
-            for cell in line.strip("|").split("|"):
+            for cell in split_table_row(line, strip_code_ticks=False):  # IMP-321: respects `\|`
                 if cell.strip().lower() in FORBIDDEN_VALUES:
                     findings.append(f"brief v2 §{place}: a table cell holds a forbidden value ({cell.strip() or 'empty'!r}).")
                     break

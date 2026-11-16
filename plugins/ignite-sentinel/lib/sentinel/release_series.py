@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import json
 import re
+
+from .core.markdown import split_table_row
 from pathlib import Path
 from typing import Any
 
@@ -260,7 +262,7 @@ def compile_release_brief(brief_text: str, payload: dict[str, Any], release_id: 
             else:
                 where = copy["lives"].format(rid=", ".join(sorted(holder, key=release_order)))
             if line.lstrip().startswith("|"):  # a table row keeps its columns
-                cells = line.strip().strip("|").split("|")
+                cells = split_table_row(line, strip_code_ticks=False)  # IMP-321: respects `\|`
                 out.append(f"{indent}| {TOMBSTONE} {where}: {_plain(cells[0])[:60]} |" + " → |" * (len(cells) - 1))
                 tombstones += 1
                 continue
