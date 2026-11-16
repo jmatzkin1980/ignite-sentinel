@@ -34,6 +34,16 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
     story_index = load_story_index(base)
     accepted, rejected = validate_findings(data, story_index)
+    if not accepted:
+        # IMP-323: refuse before touching gaps, stories, the payload archive, state or the graph;
+        # only the report of why each finding was refused is written.
+        from .prd import rejection_summary
+
+        write_feedback_report(project_id, accepted, rejected, source)
+        raise ImplementationFeedbackError(
+            "No implementation feedback findings were accepted: " + rejection_summary(rejected)
+            + " Details in 07_changes/05_implementation_feedback/feedback_report.md."
+        )
 
     feedback_dir = base / "07_changes" / "05_implementation_feedback"
     feedback_dir.mkdir(parents=True, exist_ok=True)
@@ -93,10 +103,6 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         trace_ids=[run_id, *[item["story_id"] for item in accepted]],
     )
 
-    if not accepted:
-        raise ImplementationFeedbackError(
-            "No implementation feedback findings were accepted. See 07_changes/05_implementation_feedback/feedback_report.md."
-        )
     return {
         "feedback_id": run_id,
         "accepted": [item["id"] for item in accepted],

@@ -31,10 +31,20 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
         raise ComposeError(f"Composition source not found: {source}")
 
     data = read_json(source, {})
+    if not isinstance(data, dict):
+        raise ComposeError("Composition source must be a JSON object with a non-empty blocks array.")
     prd_text = prd_path.read_text(encoding="utf-8")
     sections = prd_sections(prd_text)
     evidence_text = composition_evidence_text(base)
     accepted, rejected = validate_composition_blocks(data, sections, evidence_text)
+    if not accepted:
+        # IMP-323: refuse before touching the PRD, the payload archive, state or the graph; only
+        # the report of why each block was refused is written, as the audit of the attempt.
+        write_composition_report(project_id, accepted, rejected, source)
+        raise ComposeError(
+            "No PRD composition blocks were accepted: " + rejection_summary(rejected)
+            + " Details in 03_specs/compositions/composition_report.md."
+        )
 
     comp_dir = base / "03_specs" / "compositions"
     comp_dir.mkdir(parents=True, exist_ok=True)
@@ -70,8 +80,6 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
         last_prd_composition_source=str(archived.as_posix()),
     )
 
-    if not accepted:
-        raise ComposeError("No PRD composition blocks were accepted. See 03_specs/compositions/composition_report.md.")
     return {
         "composition_id": composition_id,
         "accepted": [block["id"] for block in accepted],
@@ -80,6 +88,13 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
         "report": str(report_path.as_posix()),
         "prd": str(prd_path.as_posix()),
     }
+
+
+def rejection_summary(rejected: list[dict[str, str]], limit: int = 5) -> str:
+    """IMP-323: why each item was refused, for the error itself (nothing else is written)."""
+    parts = [f"{item.get('id', '?')}: {item.get('reason', '')}" for item in rejected[:limit]]
+    more = f"; and {len(rejected) - limit} more" if len(rejected) > limit else ""
+    return "; ".join(parts) + more + "." if parts else "nothing to apply."
 
 
 def validate_composition_blocks(
@@ -93,6 +108,9 @@ def validate_composition_blocks(
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, str]] = []
     for index, block in enumerate(blocks, start=1):
+        if not isinstance(block, dict):
+            rejected.append({"id": f"COMP-{index:03d}", "section": "?", "reason": "block must be an object"})
+            continue
         section = str(block.get("section", "")).strip()
         block_id = str(block.get("id") or f"COMP-{index:03d}")
         reason = validate_block_shape(block, section, sections, evidence_text)
