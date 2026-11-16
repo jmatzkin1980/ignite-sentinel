@@ -9,7 +9,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..errors import WorkspaceBusy
+from ..errors import InputError, WorkspaceBusy
 
 
 _READ_SNAPSHOTS: dict[Path, str | None] = {}
@@ -86,6 +86,59 @@ def _refuse_if_changed(path: Path) -> None:
         )
 
 
+def _workspace_location(path: Path) -> tuple[str, str] | None:
+    """(project id, workspace-relative path) for a file under `workspaces/<id>/`, else None."""
+    parts = Path(os.path.abspath(path)).parts
+    for index in range(len(parts) - 3, -1, -1):
+        if parts[index] == "workspaces":
+            return parts[index + 1], Path(*parts[index + 2 :]).as_posix()
+    return None
+
+
+class InvalidJsonFile(InputError, json.JSONDecodeError):
+    """IMP-331: a JSON file that does not parse, named, with a way out (exit 3).
+
+    Still a ``json.JSONDecodeError`` (so a ``ValueError``) for the handlers that
+    catch those around ``read_json``.
+    """
+
+    def __init__(self, path: Path, error: ValueError) -> None:
+        self.path = path
+        self.msg = getattr(error, "msg", str(error))
+        self.doc = getattr(error, "doc", "")
+        self.pos = getattr(error, "pos", 0)
+        self.lineno = getattr(error, "lineno", 1)
+        self.colno = getattr(error, "colno", 1)
+        if isinstance(error, json.JSONDecodeError):
+            detail = f"{error.msg} at line {error.lineno}, column {error.colno}"
+        else:
+            detail = "it is not UTF-8 text"
+        location = _workspace_location(path)
+        if location is None:
+            shown = path.as_posix()
+            next_step = f"Fix or replace {shown}, then run the command again."
+        else:
+            project_id, relative = location
+            shown = f"{relative} in workspace {project_id}"
+            if relative == "state.json":
+                next_step = (
+                    f"Copy .sentinel/state.json.bak over state.json in workspaces/{project_id}/ "
+                    "(or restore state.json from git), then run the command again."
+                )
+            elif relative == ".sentinel/derived/state.json":
+                next_step = "Delete that file; the next command rebuilds it."
+            elif relative.startswith("memory.lancedb/"):
+                next_step = f"Run /reindex {project_id} to rebuild the memory."
+            else:
+                next_step = (
+                    f"Restore {relative} from git or a backup, or regenerate it by running "
+                    "the command that writes it again."
+                )
+        # Not InputError.__init__: its super() call would land on JSONDecodeError.__init__.
+        BaseException.__init__(self, f"{shown} is not valid JSON: {detail}.")
+        self.next_step = next_step
+
+
 def read_json(path: Path, default: Any | None = None) -> Any:
     global _JSON_READ_CACHE_HITS, _JSON_READ_CACHE_MISSES
     normalized = _normalized_path(path)
@@ -102,7 +155,10 @@ def read_json(path: Path, default: Any | None = None) -> Any:
         return deepcopy(default)
     raw = path.read_bytes()
     digest = sha256(raw).hexdigest()
-    data = json.loads(raw.decode("utf-8"))
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except ValueError as exc:  # JSONDecodeError or UnicodeDecodeError
+        raise InvalidJsonFile(path, exc) from None
     _JSON_READ_CACHE[normalized] = (signature[0], signature[1], digest, data)
     _remember_snapshot_hash(path, digest)
     return deepcopy(data)
