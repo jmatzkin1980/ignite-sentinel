@@ -303,6 +303,7 @@ def maturity_metrics(
     include_development_readiness: bool = True,
 ) -> dict[str, object]:
     """Quantified maturity: gap closure by severity plus evidence scores of generated artifacts."""
+    from .pending_marks import compile_report_for
     from .validation import score_artifact_text
 
     base = workspace_path(project_id)
@@ -328,7 +329,8 @@ def maturity_metrics(
     }
     for name, path in targets.items():
         if path.exists():
-            artifact_scores[name] = float(score_artifact_text(path.read_text(encoding="utf-8"))["score"])
+            report = compile_report_for(path)  # IMP-334: the same count /validate and /export use
+            artifact_scores[name] = float(score_artifact_text(path.read_text(encoding="utf-8"), report)["score"])
     evidence_score = round(sum(artifact_scores.values()) / len(artifact_scores), 3) if artifact_scores else None
     requirements_path = base / "02_requirements" / "requirements.md"
     requirement_quality = (

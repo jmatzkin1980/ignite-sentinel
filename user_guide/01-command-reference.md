@@ -1285,6 +1285,8 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **You get.** The path, `deliverable` (`working`, `draft` or `final`) and `pending_marks`.
 
+**How marks are counted.** `/export` and `/validate` count the same way. For a brief v2, the count comes from `02_requirements/brief_compile_report.json` when it exists, so it is the brief's own "Ready to build" number. Client marks (`⏳ PENDING`) block. Domain marks (`⏳ PENDING DOMAIN`) can wait: they are reported as `deferred_marks` and do not block `--final`. Without the report, Sentinel reads the brief's body and skips the §0.1 legend and the tables that list the marks. In any other artifact, every `[PENDING …]`, `[POR COMPLETAR]` and `⏳ PENDING` blocks.
+
 **Next step.** Share the file. Bring answers back with `/resolve-gaps` or `/sync`.
 
 **See also.** [Workflows: handoff and export](03-workflows.md).
@@ -1631,7 +1633,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **Refuses when.** Verdict not `VALID` → exit 5 (the result is still printed). `--override` with nothing to override → exit 3.
 
-**You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks.
+**You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks. In `semantic_quality`, `pending_markers` is the number of blocking marks and `deferred_markers` the number of domain marks. They are counted as `/export --final` counts them (see [`export`](#export)).
 
 **Next step.** Fix the findings, or record a cited override; then `/status`.
 
