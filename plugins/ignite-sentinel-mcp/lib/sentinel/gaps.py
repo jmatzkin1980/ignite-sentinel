@@ -244,10 +244,22 @@ def extract_field(block: str, labels: tuple[str, ...]) -> str:
     for label in labels:
         # IMP-257: horizontal whitespace only, so an empty field stays empty instead of
         # swallowing the next line (an empty citation used to read the decision status).
-        pattern = re.compile(rf"^[ \t]*-[ \t]*{re.escape(label)}[ \t]*:[ \t]*(.*)$", re.I | re.M)
+        pattern = re.compile(rf"^([ \t]*)-[ \t]*{re.escape(label)}[ \t]*:[ \t]*(.*)$", re.I | re.M)
         match = pattern.search(block)
         if match:
-            return match.group(1).strip()
+            value = match.group(2).strip()
+            # IMP-322: an answer written as indented bullets under the field (the format
+            # several gaps ask for) used to read as empty and leave the gap open silently.
+            # Lines indented deeper than the field line continue its value.
+            indent = len(match.group(1).expandtabs(4))
+            extra: list[str] = []
+            for line in block[match.end():].splitlines()[1:]:
+                if not line.strip():
+                    break
+                if len(line) - len(line.lstrip(" \t")) <= indent:
+                    break
+                extra.append(line.strip().lstrip("-*").strip())
+            return "; ".join(part for part in [value, *extra] if part)
     return ""
 
 

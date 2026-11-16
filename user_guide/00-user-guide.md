@@ -227,7 +227,7 @@ The client answers in a copy of `gaps.md`. Keep each `### GAP-...` heading and f
 - Decision status: confirmed
 ```
 
-A gap closes only with `Decision status: confirmed` (or `not applicable`, which records a scope exclusion) and an `Evidence or reference` line; `pending` or a missing status leaves it open. Save the file as `input/acme-answers.md`:
+A gap closes only with `Decision status: confirmed` (or `not applicable`, which records a scope exclusion); `pending` leaves it answered but not closed, and a missing status leaves it partially closed. Always add the `Evidence or reference` line: without it the gap still closes, but the resolution report flags it as closed without a citation. The answer can be one line or indented bullets under `- Answer:`. Save the file as `input/acme-answers.md`:
 
 ```text
 /resolve-gaps ACME_PORTAL --source input/acme-answers.md
