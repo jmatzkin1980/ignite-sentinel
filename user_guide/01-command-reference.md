@@ -651,6 +651,8 @@ python -m sentinel /assume ACME_PORTAL --source assumptions.json
 
 **You get.** The registered assumptions. `risk=high` with `uncertainty=high` is flagged "test before advancing" (non-blocking).
 
+An assumption never unblocks a blocking gap, even with `closes_gap`: `/maturity` stays `BLOCKED` and `/next` says so. To move on without the client, confirm the answer yourself with `/resolve-gaps` (`Decision status: confirmed`, `Owner / source`: your name and role); the assumption is then marked `VALIDATED`.
+
 **Next step.** `/maturity`. Answer the assumption later through `/resolve-gaps` or `/sync` to validate or invalidate it.
 
 **See also.** skill `sentinel-assume`.
@@ -1658,7 +1660,8 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **You get.**
 
-- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, or a strict gate blocks), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`.
+- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, a strict gate blocks, or the brief v2 says "Ready to build: no"), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`.
+- `ready_to_build`: the brief v2's own "Ready to build" line and whether it says yes (`null` for a v1 brief). The verdict never says ready while the brief says no.
 - `gap_counts`, `maturity_score`, the `sources` summary.
 - `next_step` and `next_action` (`key`, `title`, `text`, `command`).
 
@@ -1694,7 +1697,19 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **Refuses when.** Only the common gates.
 
-**You get.** `key`, `title`, `text` and the `command` to run.
+**You get.** `key`, `title`, `text` and the `command` to run. The steps, in the order they are checked:
+
+| Key | When | Command |
+|---|---|---|
+| `ingest` | Nothing ingested yet | `/ingest` |
+| `brief_settings` | Brief v2 settings not confirmed | `/brief --profile ... --genesis ...` |
+| `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself) | `/resolve-gaps` |
+| `fix_brief` | `/brief` stopped the phase close | `/brief` |
+| `brief_missing` | Past `/brief` but the brief file is gone | `/brief` |
+| `specs` / `fix_specs` | Ready for specs / specs below the threshold | `/specs` |
+| `health` | Ready for the backlog but health is `DIRTY` (`/backlog` and `/quality` would refuse) | `/health` |
+| `backlog` / `quality` / `handoff` | No stories yet / stories not checked / quality done | `/backlog` / `/quality` / `/validate`, then `/export` and `/story-status` |
+| `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
 
 **Next step.** Run that command. On a brief v2 project with unconfirmed settings it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 

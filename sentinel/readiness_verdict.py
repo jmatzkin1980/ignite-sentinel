@@ -58,6 +58,12 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         blockers.append(f"/brief stopped the phase close: {stage}.")
     elif not brief_exists:
         partial.append({"check": "brief_gate", "reason": "No project brief yet; the brief gate has not run."})
+    # IMP-325: the brief v2 states its own "Ready to build" line. A PM saw /status say
+    # READY_WITH_WARNINGS while the brief said "Ready to build: no. 15 pending marks block";
+    # both answer the same question, so the brief's "no" now blocks the verdict too.
+    ready_to_build = brief_ready_to_build(base) if brief_exists else None
+    if ready_to_build and ready_to_build["ready"] is False:
+        blockers.append(f"The project brief says: {ready_to_build['line']} Close the gaps its pending marks name.")
 
     impl = compute_unit_implementability(project_id)
     impl_summary = impl.get("summary", {}) if isinstance(impl, dict) else {}
@@ -142,9 +148,29 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         "by_item": {"workspace": {"verdict": verdict, "blocking_open": len(blocking_open)}, **stories},
         "maturity_score": metrics_score,
         "sources": sources,
+        "ready_to_build": ready_to_build,
     }
-    result["next_step"] = next_step(project_id, state, result, has_stories=bool(stories), has_brief=brief_exists)
+    assumed_blocking = sorted(
+        {str(row.get("closes_gap", "")).upper() for row in projection.get("assumptions", [])} & set(blocking_open)
+    )
+    result["next_step"] = next_step(project_id, state, result, has_stories=bool(stories), has_brief=brief_exists,
+                                    assumed_blocking=assumed_blocking)
     return result
+
+
+_READY_LINE_PREFIXES = ("Ready to build:", "Listo para construir:")
+
+
+def brief_ready_to_build(base: Path) -> dict[str, Any] | None:
+    """IMP-325: the brief v2's own "Ready to build" line, or None when the brief has none (v1)."""
+    path = base / "02_requirements" / "project-brief.md"
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip().lstrip(">*- ").strip()
+        for prefix in _READY_LINE_PREFIXES:
+            if line.startswith(prefix):
+                answer = line[len(prefix):].strip().lower()
+                return {"ready": not answer.startswith("no"), "line": line}
+    return None
 
 
 def _story_items(base: Path, state: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -180,15 +206,45 @@ NEXT_STEPS: dict[str, tuple[str, str, str]] = {
     "fix_specs": ("Raise the specs above the threshold", "Close the gaps the specs readiness reported and run /specs again.", "/specs {pid}"),
     "backlog": ("Prepare the backlog", "Run /backlog PROJECT_ID.", "/backlog {pid}"),
     "quality": ("Check the backlog", "Run /quality PROJECT_ID and fix the stories that fail Definition of Ready.", "/quality {pid}"),
-    "resolve_gaps": ("Resolve pending gaps", "Resolve remaining non-blocking/domain gaps or run /brief if acceptable.", "/resolve-gaps {pid} --source PATH"),
+    "resolve_gaps": ("Resolve pending gaps",
+                     "No blocking gap is open. Close the remaining ones if you can, or move on: run /brief, then /specs.",
+                     "/resolve-gaps {pid} --source PATH"),
     "brief": ("Generate the Project Brief", "Run /brief PROJECT_ID.", "/brief {pid}"),
+    # IMP-325: the steps /next never gave.
+    "brief_missing": ("Regenerate the project brief",
+                      "The project brief is missing although the project is past it; regenerate it before going on.",
+                      "/brief {pid}"),
+    "health": ("Fix what makes the project unhealthy",
+               "Health is DIRTY, so /backlog and /quality refuse. Run /health to see why, fix it with the owning "
+               "command (never by hand), then continue.",
+               "/health {pid}"),
+    "handoff": ("Validate and hand off",
+                "The backlog and its quality check are done. Run /validate, export what you hand off with /export, "
+                "and track each story with /story-status.",
+                "/validate {pid}"),
 }
 
+ASSUMED_BLOCKING_NOTE = (
+    " An assumption is registered for {ids}: it keeps the work visible but never unblocks. To move on without "
+    "the client, confirm the answer in your own name with /resolve-gaps (Decision status: confirmed, Owner / "
+    "source: you)."
+)
+POST_BRIEF_STAGES = {"READY_FOR_SPECS", "SPECS_BELOW_THRESHOLD", "READY_FOR_BACKLOG"}
 
-def next_step(project_id: str, state: dict[str, Any], verdict: dict[str, Any], *, has_stories: bool, has_brief: bool) -> dict[str, str]:
+
+def next_step(
+    project_id: str,
+    state: dict[str, Any],
+    verdict: dict[str, Any],
+    *,
+    has_stories: bool,
+    has_brief: bool,
+    assumed_blocking: list[str] | None = None,
+) -> dict[str, str]:
     """The one next-step decision, derived from the verdict and the stage."""
     counts = verdict["counts"]
     stage = str(state.get("readiness_stage", "DISCOVERY_RAW"))
+    dirty = str(state.get("health", "")).upper() == "DIRTY"
     settings: dict[str, Any] | None = None
     if state.get("phase") == "initialized" or not counts.get("total") and not (workspace_path(project_id) / "01_discovery" / "gaps.md").exists():
         key = "ingest"
@@ -198,12 +254,21 @@ def next_step(project_id: str, state: dict[str, Any], verdict: dict[str, Any], *
         key = "resolve_blocking"
     elif stage in BRIEF_BLOCK_STAGES:
         key = "fix_brief"
+    elif stage in POST_BRIEF_STAGES and not has_brief:
+        key = "brief_missing"  # IMP-325: a deleted brief used to be ignored past /brief
     elif stage == "READY_FOR_SPECS":
         key = "specs"
     elif stage == "SPECS_BELOW_THRESHOLD":
         key = "fix_specs"
     elif stage == "READY_FOR_BACKLOG":
-        key = "quality" if has_stories else "backlog"
+        # IMP-325: /quality never moves the stage, so /next repeated /quality forever, and a
+        # DIRTY project was sent to /backlog or /quality, which refuse it.
+        if dirty:
+            key = "health"
+        elif has_stories and state.get("phase") == "quality_completed":
+            key = "handoff"
+        else:
+            key = "quality" if has_stories else "backlog"
     elif counts.get("open") or counts.get("answered") or counts.get("partially_closed"):
         key = "resolve_gaps"
     elif not has_brief:
@@ -211,6 +276,8 @@ def next_step(project_id: str, state: dict[str, Any], verdict: dict[str, Any], *
     else:
         key = "specs"
     title, text, command = NEXT_STEPS[key]
+    if key == "resolve_blocking" and assumed_blocking:
+        text += ASSUMED_BLOCKING_NOTE.format(ids=", ".join(assumed_blocking))
     proposal = settings or {}
     return {"key": key, "title": title, "text": text,
             "command": command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
