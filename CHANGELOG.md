@@ -12,6 +12,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Changed
 - The agent closes with a choice when something is waiting on you (IMP-316). The command router, `AGENTS.md` and `CLAUDE.md` ask for one short question with 2 to 4 options, the recommended one first, shown as choices in Claude Code (`AskUserQuestion`) and as a numbered list elsewhere. Picking an option never closes a gap or confirms anything for you. Found in a live walkthrough: the next action got lost in the answer's text.
+- The guide explains how to organize folders and releases (IMP-318). **Start here** recommends one root folder per client with one workspace per project, shows what `/dashboard` then covers and why a framework clone is a poor fit for several clients, and draws the folders of a project split into releases with the `--release rN` commands. **Versioning** adds one private repository per client folder.
 - The plugin guide explains how to update the plugin (IMP-316): per channel, the in-session and terminal commands, how to turn on auto-update, how to move from one release tag to another, and that removing the marketplace uninstalls the plugin but never touches your workspaces.
 
 ## [0.12.1] — 2026-11-15

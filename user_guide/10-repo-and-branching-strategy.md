@@ -66,6 +66,22 @@ Use this when the team wants one private repository holding the framework and th
 
 Do not delete the blanket `workspaces/*` rule in a copy you push publicly. Do not merge a project branch that holds client artifacts into a public `main`.
 
+## Option 3: one private repository per client folder
+
+With the plugin, the wheel or a `.pyz`, Sentinel runs in any folder, so the framework never sits next to your data. Make the client's folder (see [organizing folders](00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project)) a private repository:
+
+```powershell
+cd C:\clients\acme
+git init
+"dashboard.html" | Out-File -Encoding utf8 .gitignore
+git add .
+git commit -m "ACME: first projects"
+git remote add origin <PRIVATE_REPO_URL>
+git push -u origin main
+```
+
+Each workspace's own `.gitignore` still keeps its rebuildable files out; the root `.gitignore` only adds `dashboard.html`. Leave `input/` out too if raw files must not be versioned before `/ingest`. One repository per client keeps each client's history, access and retention apart.
+
 ## A working rhythm
 
 1. Run a command (`/ingest`, `/resolve-gaps`, `/sync`, `/specs`, ...).
