@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import re
 
+from .core.markdown import split_table_row
+
 _SHALL = r"(?:shall|will|must|should|debe\w*)"
 _REQ_EARS_ID_RE = re.compile(r"^`?(REQ-EARS-\d{3})`?$")
 
@@ -416,7 +418,7 @@ def requirement_statements_from_markdown(markdown_text: str) -> list[dict[str, s
         stripped = line.strip()
         if not stripped.startswith("|") or "REQ-EARS-" not in stripped:
             continue
-        cells = [cell.strip().replace("`", "") for cell in stripped.strip("|").split("|")]
+        cells = [cell.replace("`", "") for cell in split_table_row(stripped, strip_code_ticks=False)]  # IMP-321
         if len(cells) < 4 or not _REQ_EARS_ID_RE.match(cells[0]):
             continue
         statements.append({"id": cells[0], "statement": cells[2], "source": cells[3]})
