@@ -56,12 +56,13 @@ class ArtifactChecksumFlowTests(unittest.TestCase):
         # It only warns; the verdict is not driven DIRTY by an out-of-CLI edit.
         self.assertNotIn("edited outside the CLI", " ".join(report.get("findings", [])))
 
-    def test_cli_regeneration_refreshes_snapshot_and_clears_warning(self):
+    def test_cli_regeneration_does_not_launder_the_hand_edit(self):
         self.gaps.write_text(self.gaps.read_text(encoding="utf-8") + "\n<!-- hand edit -->\n", encoding="utf-8")
         self.assertTrue(any("edited outside the CLI" in w for w in run_health("CHK")["warnings"]))
-        # A mutating command re-snapshots the governed registry.
+        # IMP-332: the next mutating command no longer clears the warning: either
+        # the file is still flagged, or the command changed it and the kept copy is reported.
         self.assertEqual(main(["gaps", "CHK"]), 0)
-        self.assertFalse(any("edited outside the CLI" in w for w in run_health("CHK")["warnings"]))
+        self.assertTrue(any("01_discovery/gaps.md" in w for w in run_health("CHK")["warnings"]))
 
 
 if __name__ == "__main__":

@@ -123,7 +123,8 @@ After a successful command:
 - **Mutating commands** also:
   - refresh `06_traceability/traceability_matrix.md` and `traceability_graph.md`;
   - re-run an existing split assessment and recompile a confirmed release series if the brief changed (except `/split` itself);
-  - snapshot the checksums of the governed artifacts (`01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) so `/health` can flag a hand edit.
+  - snapshot the checksums of the governed artifacts (`01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) that the command wrote, so `/health` can flag a hand edit. A file the command did not write keeps its old checksum, so a hand edit stays flagged; a hand edit the command changed is kept under `.sentinel/hand_edits/` (see [`health`](#health));
+  - if the command set health to `CLEAN` while the last `/health` report was `DIRTY`, re-run the `/health` checks and keep their verdict.
 - `/validate` with `--override` also refreshes the traceability views.
 
 A command that fails runs no postflight and is not logged.
@@ -1563,6 +1564,12 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **What it does.** Runs deterministic health checks and sets the project's health to `CLEAN` or `DIRTY`. Findings include orphan stories and criteria, open blocking gaps, metrics without a source, artifacts not indexed in memory, broken graph paths and missing discovery artifacts. Warnings include hand edits of governed artifacts, derived artifacts that drifted from their sources, domain context updated after the backlog, privacy findings, and the needs-context signal.
 
+A metric in a raw source (`00_raw/`) stops counting once every `GAP-METRIC-SOURCE` gap is `CLOSED`, because the raw file itself never changes.
+
+A `DIRTY` verdict from `/health` holds until its cause is fixed. When a later command (`/maturity`, `/specs`, `/sync` and others) would set `CLEAN`, Sentinel re-runs these checks first and keeps `DIRTY` if a finding remains.
+
+A hand-edit warning survives the next commands. Before a mutating command runs, Sentinel copies each hand-edited governed file to `.sentinel/hand_edits/<timestamp>-<command>/`. If the command leaves the file alone, the copy is dropped and the warning stays. If the command changes the file, it prints a `sentinel warning:` line naming the copy, and `/health` keeps warning until you delete the copy.
+
 **Type.** Read-only (it writes its own report).
 
 **Use it when.** Before a handoff, after a manual change, or when `/backlog` refuses with `DIRTY`.
@@ -1588,7 +1595,7 @@ python -m sentinel /health ACME_PORTAL
 
 **You get.** `verdict` (`CLEAN` or `DIRTY`), `findings`, `warnings`, the memory backend and `needs_context_gate`.
 
-**Next step.** Fix each finding through its owning command (regenerate, `/reindex`, `/resolve-gaps`). A hand-edit warning means: regenerate the file through its command.
+**Next step.** Fix each finding through its owning command (regenerate, `/reindex`, `/resolve-gaps`). A hand-edit warning means: revert the edit, or carry the change through the owning command or `/sync`. For a kept copy, do that with the text in the copy, then delete the copy.
 
 **See also.** skill `sentinel-health`.
 

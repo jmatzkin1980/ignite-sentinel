@@ -10,10 +10,9 @@ from .generation import domain_context_snapshot
 from .memory import ContextBroker
 from .assumptions import assumptions_projection
 from .drift import derived_drift_warnings
-from .protocols import evaluate_needs_context
+from .protocols import HAND_EDITS_DIR, evaluate_needs_context, hand_edited_artifacts, kept_hand_edits
 from .core.graph import children_of, load_graph, parents_of
 from .workspace import load_config, memory_path, read_json, state_path, update_state, workspace_path, write_json
-from .core.hashing import hash_matches
 from .core.io import write_text
 from .core.paths import is_absolute_path, workspace_relative
 
@@ -33,12 +32,17 @@ def run_health(project_id: str) -> dict[str, object]:
             findings.append(f"{node['id']} has no parent user story.")
 
     gaps_path = base / "01_discovery" / "gaps.md"
-    if gaps_path.exists():
-        gaps_text = gaps_path.read_text(encoding="utf-8")
-        if has_blocking_open_gap(gaps_text, blocking_severities(load_config(project_id))):
-            findings.append("Blocking gaps remain open.")
+    gaps_text = gaps_path.read_text(encoding="utf-8") if gaps_path.exists() else ""
+    if gaps_text and has_blocking_open_gap(gaps_text, blocking_severities(load_config(project_id))):
+        findings.append("Blocking gaps remain open.")
 
+    # IMP-332: a raw source is immutable, so its unsourced metric is governed by
+    # GAP-METRIC-SOURCE; once every such gap is closed the finding clears.
+    raw_metrics_governed = metric_source_gaps_closed(gaps_text)
     for path in base.rglob("*.md"):
+        parts = path.relative_to(base).parts
+        if parts[0] == ".sentinel" or (parts[0] == "00_raw" and raw_metrics_governed):
+            continue
         text = path.read_text(encoding="utf-8")
         if METRIC_RE.search(text) and not re.search(r"(source|fuente|baseline|measured|medido)", text, re.I):
             findings.append(f"Metric without explicit source detected in {path.name}.")
@@ -162,24 +166,21 @@ def out_of_cli_edit_warnings(project_id: str, base) -> list[str]:
     snapshot of IMP-144, which only spans a single process. Purely
     deterministic hash comparison; it only warns, never blocks or reverts.
     """
-    state = read_json(state_path(project_id), {})
-    registered = state.get("artifact_hashes", {})
-    if not isinstance(registered, dict) or not registered:
-        return []
-    root = workspace_path(project_id)
-    edited = sorted(
-        rel
-        for rel, digest in registered.items()
-        if (root / rel).is_file() and not hash_matches(digest, (root / rel).read_bytes())  # IMP-291
-    )
-    if not edited:
-        return []
-    return [
+    edited = hand_edited_artifacts(project_id)
+    warnings = [
         f"Governed artifact edited outside the CLI: {rel}. "
-        "Its bytes differ from the last command-produced version; regenerate it "
-        "through the owning Sentinel command instead of hand-editing."
+        "Its bytes differ from the last command-produced version; revert the edit, or carry "
+        "the change through the owning Sentinel command or /sync instead of hand-editing. "
+        f"The next mutating command keeps a copy under {HAND_EDITS_DIR}/ before it may change the file."
         for rel in edited
     ]
+    # IMP-332: a hand edit a later command changed stays reported while its copy exists.
+    warnings.extend(
+        f"Hand edit of {rel} was changed by a later command; the edited text is kept at {copy}. "
+        "Carry the change through the owning Sentinel command or /sync, then delete that copy to clear this warning."
+        for rel, copy in kept_hand_edits(project_id)
+    )
+    return warnings
 
 
 def domain_context_freshness_findings(project_id: str, base) -> list[str]:
@@ -292,6 +293,15 @@ def implementation_feedback_findings(project_id: str) -> list[str]:
         + ", ".join(f"{story} ({len(ids)})" for story, ids in sorted(open_by_story.items()))
         + "."
     ]
+
+
+def metric_source_gaps_closed(gaps_text: str) -> bool:
+    """IMP-332: True when gaps.md tracks GAP-METRIC-SOURCE and every such gap is CLOSED."""
+    metric_gaps = [
+        gap for gap in parse_gap_table(gaps_text, include_legacy=True)
+        if str(gap.get("id", "")).strip("`").startswith("GAP-METRIC-SOURCE")
+    ]
+    return bool(metric_gaps) and all(str(gap.get("status", "")).strip("`").upper() == "CLOSED" for gap in metric_gaps)
 
 
 def has_blocking_open_gap(text: str, severities: set[str] | None = None) -> bool:
