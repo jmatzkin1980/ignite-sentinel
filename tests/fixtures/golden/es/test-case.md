@@ -8,7 +8,7 @@
 
 | Test Step | Acceptance Criterion |
 | --- | --- |
-| TC step AC-001-01 [fail-to-pass] | AC-001-01 [fail-to-pass]: Given `SPEC-U-001` esta confirmado y sus fuentes estan disponibles, When Cuando haya metricas de cola disponibles, el sistema debe mostrar las colas de riesgo abiertas., Then el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia. |
+| TC step AC-001-01 [fail-to-pass] | AC-001-01 [fail-to-pass]: Given `SPEC-U-001` esta confirmado y sus fuentes estan disponibles, When haya metricas de cola disponibles, el sistema debe mostrar las colas de riesgo abiertas., Then el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia. |
 | TC step AC-001-02 [fail-to-pass] | AC-001-02 [fail-to-pass]: Given una precondicion, dato o regla requerida por `SPEC-U-001` no se cumple, When el usuario o sistema intenta completar el slice, Then el avance riesgoso se bloquea o queda recuperable sin registrar exito falso. |
 | TC step AC-001-03 [fail-to-pass] | AC-001-03 [fail-to-pass]: Given una dependencia, dato, permiso o estado externo citado por la unidad no esta disponible, When el sistema intenta completar el slice, Then la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad. |
 | TC step AC-001-04 [pass-to-pass] | AC-001-04 [pass-to-pass]: Given existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia, When se valida el incremento junto con la regresion definida por Quality o el repositorio, Then las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado. |

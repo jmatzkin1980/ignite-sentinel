@@ -257,7 +257,8 @@ def generate_specs(project_id: str) -> dict[str, object]:
     context["non_goals"] = parse_non_goals(decision_text)
     context["raw_text"] = evidence_text
     state = read_json(state_path(project_id), {})
-    language = str(state.get("project_language", "es")).lower()
+    # IMP-324: "es" or "en"; a missing or "auto" language used to default to Spanish here.
+    language = "es" if str(state.get("project_language", "")).lower().startswith("es") else "en"
     prd_path = base / "03_specs" / "prd.md"
     specs_path = base / "03_specs" / "specs.md"
     previous_prd = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""

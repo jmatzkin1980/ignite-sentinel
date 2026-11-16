@@ -203,7 +203,7 @@ def prd_gate_warnings(readiness: dict[str, object], language: str = "en") -> lis
     for poor in readiness.get("poor_sections", []):  # type: ignore[union-attr]
         gaps = ", ".join(f"`{g}`" for g in poor["feeding_gaps"]) or ("contexto de dominio" if language == "es" else "domain context")
         if language == "es":
-            warnings.append(f"SecciÃ³n PRD {poor['section']} ({poor['title']}) bajo umbral; alimentarla vÃ­a {gaps}.")
+            warnings.append(f"Sección PRD {poor['section']} ({poor['title']}) bajo umbral; alimentarla vía {gaps}.")
         else:
             warnings.append(f"PRD section {poor['section']} ({poor['title']}) is below threshold; feed it via {gaps}.")
     return warnings

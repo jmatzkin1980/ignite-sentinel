@@ -84,7 +84,7 @@ BACKLOG_STORY_SEEDS = [
 ENABLER_CANDIDATES = [
     {
         "key": "auth",
-        "tokens": ("auth", "autenticacion", "autenticaciÃ³n", "authorization", "autorizacion", "autorizaciÃ³n", "permission", "permiso", "role", "rol"),
+        "tokens": ("auth", "autenticacion", "autenticación", "authorization", "autorizacion", "autorización", "permission", "permiso", "role", "rol"),
         "title": "Alinear permisos y acceso para los slices del flujo",
         "fr": "NFR-01",
         "jtbd": "JTBD-002",
@@ -108,7 +108,7 @@ ENABLER_CANDIDATES = [
     },
     {
         "key": "backend_foundation",
-        "tokens": ("backend", "service", "servicio", "worker", "job", "orchestration", "orquestacion", "orquestaciÃ³n", "domain layer", "capa de dominio", "use case", "caso de uso"),
+        "tokens": ("backend", "service", "servicio", "worker", "job", "orchestration", "orquestacion", "orquestación", "domain layer", "capa de dominio", "use case", "caso de uso"),
         "title": "Preparar soporte backend transversal de la funcionalidad",
         "fr": "FR-03",
         "jtbd": "JTBD-002",
@@ -120,7 +120,7 @@ ENABLER_CANDIDATES = [
     },
     {
         "key": "frontend_foundation",
-        "tokens": ("frontend", "front", "component", "componente", "design system", "sistema de diseno", "sistema de diseÃ±o", "prototype", "prototipo", "screen shell", "layout", "state management", "estado compartido"),
+        "tokens": ("frontend", "front", "component", "componente", "design system", "sistema de diseno", "sistema de diseño", "prototype", "prototipo", "screen shell", "layout", "state management", "estado compartido"),
         "title": "Preparar soporte frontend transversal de la funcionalidad",
         "fr": "FR-04",
         "jtbd": "JTBD-001",
@@ -132,7 +132,7 @@ ENABLER_CANDIDATES = [
     },
     {
         "key": "integration_contract",
-        "tokens": ("api", "endpoint", "event", "evento", "integration", "integracion", "integraciÃ³n", "webhook", "contract", "contrato"),
+        "tokens": ("api", "endpoint", "event", "evento", "integration", "integracion", "integración", "webhook", "contract", "contrato"),
         "title": "Estabilizar contrato de integracion usado por el flujo",
         "fr": "FR-03",
         "jtbd": "JTBD-002",
@@ -144,7 +144,7 @@ ENABLER_CANDIDATES = [
     },
     {
         "key": "audit_observability",
-        "tokens": ("audit", "auditoria", "auditorÃ­a", "log", "logging", "observability", "observabilidad", "trace", "traza"),
+        "tokens": ("audit", "auditoria", "auditoría", "log", "logging", "observability", "observabilidad", "trace", "traza"),
         "title": "Asegurar evidencia transversal de auditoria y observabilidad",
         "fr": "FR-05",
         "jtbd": "JTBD-003",
@@ -157,14 +157,145 @@ ENABLER_CANDIDATES = [
 ]
 
 
-def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) -> list[dict[str, Any]]:
+# IMP-324: an English project used to get Spanish story text ("so that la capacidad
+# confirmada se puede planificar...") and Spanish acceptance criteria, because this module
+# had no language at all. The Spanish strings below are the ones it always used, so a
+# Spanish project's backlog is unchanged; an English project now gets the English set.
+_EARS_LEAD = re.compile(r"^(When|While|If|Where|Cuando|Mientras|Si|Donde)\s+", re.I)
+
+STORY_TEXT = {
+    "es": {
+        "description": "Entrega el comportamiento confirmado en `{unit}` como un slice vertical trazable.",
+        "benefit": "la capacidad confirmada se puede planificar, implementar y validar sin reinterpretar el PRD o inventar alcance",
+        "goal_fallback": "implementar el comportamiento confirmado en {unit}",
+        "behavior_fallback": "el comportamiento confirmado en {unit}",
+        "pending_goal": "confirmar Spec Units funcionales trazables antes de derivar historias de valor",
+        "pending_benefit": "el backlog no inventa alcance y el BA puede resolver los gaps que desbloquean slicing",
+    },
+    "en": {
+        "description": "Delivers the behavior confirmed in `{unit}` as a traceable vertical slice.",
+        "benefit": "the confirmed capability can be planned, built and validated without reinterpreting the PRD or inventing scope",
+        "goal_fallback": "implement the behavior confirmed in {unit}",
+        "behavior_fallback": "the behavior confirmed in {unit}",
+        "pending_goal": "confirm traceable functional Spec Units before deriving value stories",
+        "pending_benefit": "the backlog invents no scope and the BA can resolve the gaps that unblock slicing",
+    },
+}
+
+# (given, when, then) per criterion; {unit}, {behavior} and {ears} are filled in.
+SPEC_UNIT_AC_TEXT = {
+    "es": [
+        ("`{unit}` esta confirmado y sus fuentes estan disponibles", "{behavior}",
+         "el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia"),
+        ("una precondicion, dato o regla requerida por `{unit}` no se cumple", "el usuario o sistema intenta completar el slice",
+         "el avance riesgoso se bloquea o queda recuperable sin registrar exito falso"),
+        ("una dependencia, dato, permiso o estado externo citado por la unidad no esta disponible", "el sistema intenta completar el slice",
+         "la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad"),
+        ("existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia",
+         "se valida el incremento junto con la regresion definida por Quality o el repositorio",
+         "las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado"),
+        ("Quality revisa la historia para aceptacion o automatizacion", "consulta criterios, alcance, dependencias y trazas",
+         "encuentra {unit}, {ears}, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable"),
+    ],
+    "en": [
+        ("`{unit}` is confirmed and its sources are available", "{behavior}",
+         "the system produces the observable result the unit states and keeps the trace to its evidence"),
+        ("a precondition, data item or rule that `{unit}` requires is not met", "the user or the system tries to complete the slice",
+         "the risky step is blocked or left recoverable, and no false success is recorded"),
+        ("a dependency, data item, permission or external state the unit cites is not available", "the system tries to complete the slice",
+         "the failure is visible, partial information is not shown as final, and auditability is preserved"),
+        ("existing behavior, contracts or related tests are in place before this story is built",
+         "the increment is validated together with the regression defined by Quality or the repository",
+         "existing capabilities keep passing with no side effects outside the declared blast radius"),
+        ("Quality reviews the story for acceptance or automation", "it reads the criteria, scope, dependencies and traces",
+         "it finds {unit}, {ears}, REQ-001, PRD-001, SPEC-001 and the criteria in a verifiable form"),
+    ],
+}
+
+PENDING_AC_TEXT = {
+    "es": ("no existe una Spec Unit funcional confirmada", "Sentinel genera el backlog",
+           "la historia permanece como `[PENDING INPUT]` y apunta a los gaps que desbloquean slicing, sin inventar alcance"),
+    "en": ("no confirmed functional Spec Unit exists", "Sentinel generates the backlog",
+           "the story stays `[PENDING INPUT]` and points to the gaps that unblock slicing, without inventing scope"),
+}
+
+ENABLER_AC_TEXT = {
+    "es": [
+        ("el enabler fue propuesto para el backlog", "Product, Technology y Quality revisan su alcance",
+         "queda ligado a funcionalidad, FR, epica, historia o superficie de implementacion concreta dentro del boundary del proyecto y no a infraestructura generica"),
+        ("las funcionalidades, historias o superficies dependientes estan identificadas", "el enabler se completa",
+         "el scope funcional habilitado puede avanzar con menos incertidumbre, dependencia o riesgo verificable"),
+        ("el enabler no produce valor usuario directo", "Quality valida su resultado",
+         "existe una evidencia objetiva que demuestra que el riesgo o dependencia fue reducido"),
+        ("aparece trabajo de setup, ambiente o infraestructura no especifica", "no habilita una historia, riesgo o contrato trazable",
+         "se rechaza como backlog item y se trata como precondicion operacional o tarea externa al scope"),
+    ],
+    "en": [
+        ("the enabler was proposed for the backlog", "Product, Technology and Quality review its scope",
+         "it is tied to a concrete functionality, FR, epic, story or implementation surface inside the project boundary, not to generic infrastructure"),
+        ("the dependent functionalities, stories or surfaces are identified", "the enabler is completed",
+         "the enabled functional scope can move forward with less uncertainty, dependency or verifiable risk"),
+        ("the enabler produces no direct user value", "Quality validates its result",
+         "objective evidence shows that the risk or dependency was reduced"),
+        ("setup, environment or non-specific infrastructure work appears", "it enables no traceable story, risk or contract",
+         "it is rejected as a backlog item and treated as an operational precondition or a task outside the scope"),
+    ],
+}
+
+ENABLER_TEXT_EN = {
+    "auth": ("Align permissions and access for the flow's slices",
+             "Defines the minimum access control the value stories need to run without exposing capabilities beyond the confirmed role.",
+             "enable verifiable permissions strictly tied to the confirmed functional flow",
+             "the value stories can be built without duplicating or inventing access rules"),
+    "data_foundation": ("Prepare the flow's persistence and internal queries",
+                        "Prepares the minimum persistence or internal query several stories need to deliver the confirmed functional behavior.",
+                        "enable verifiable data for the dependent value stories",
+                        "the functional slices can consume consistent information without turning each story into an infrastructure task"),
+    "backend_foundation": ("Prepare shared backend support for the functionality",
+                           "Builds the backend support several features in scope need to operate consistently.",
+                           "enable shared backend services or logic inside the confirmed functional boundary",
+                           "the value stories can be built on a common technical base without duplicating behavior or depending on unconfirmed decisions"),
+    "frontend_foundation": ("Prepare shared frontend support for the functionality",
+                            "Builds the frontend support several stories in scope need to share structure, states or interaction patterns.",
+                            "enable shared frontend components, states or patterns inside the confirmed functional boundary",
+                            "the value stories can be built with a consistent experience without creating generic visual or technical work"),
+    "integration_contract": ("Stabilize the integration contract the flow uses",
+                             "Aligns the minimum integration contract that unblocks several value stories inside the project boundary.",
+                             "make a verifiable contract available to the slices that depend on external systems",
+                             "frontend, backend and quality can work against a bounded, traceable contract"),
+    "audit_observability": ("Ensure shared audit and observability evidence",
+                            "Defines the minimum shared evidence required to accept and operate the flow's value stories.",
+                            "produce verifiable evidence for the functional stories and their tests",
+                            "quality and operations can validate the increment without adding ad hoc traces at the end"),
+}
+
+
+def story_language(project_id: str) -> str:
+    """The project's language for generated story text: "es" or "en" (the default)."""
+    from ..workspace import read_state
+
+    configured = str(read_state(project_id).get("project_language", "")).lower()
+    return "es" if configured.startswith("es") else "en"
+
+
+def strip_ears_lead(statement: str) -> str:
+    """IMP-324: "When X, the system shall Y" without its leading EARS word, so the story's
+    goal does not read "I want when ..." and a criterion does not read "When When ..."."""
+    return _EARS_LEAD.sub("", statement.strip(), count=1)
+
+
+def build_backlog_story_specs(
+    project_id: str, backlog_context: dict[str, Any], language: str | None = None
+) -> list[dict[str, Any]]:
+    language = language if language in STORY_TEXT else story_language(project_id)
+    text = STORY_TEXT[language]
     specs: list[dict[str, Any]] = []
     global_domain_coverage = build_domain_context_coverage(backlog_context)
     backlog_context["domain_context_coverage"] = global_domain_coverage
     spec_units = read_spec_units(project_id)
     slicing_model = load_slicing_model()
     if not spec_units:
-        story = pending_backlog_story(global_domain_coverage, backlog_context, slicing_model)
+        story = pending_backlog_story(global_domain_coverage, backlog_context, slicing_model, language)
         story["context_pack"] = "08_context_packs/backlog_generation.json"
         story["context_pack_section"] = "sections"
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, global_domain_coverage)
@@ -178,7 +309,7 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
         trace = trace_ids_for_spec_unit(unit)
         statement = str(unit.get("statement", "")).strip()
         title = title_for_spec_unit_story(unit)
-        goal = goal_for_spec_unit(unit)
+        goal = goal_for_spec_unit(unit, language)
         slicing_decision = slicing_decision_for_spec_unit(unit, slicing_model)
         story = {
             "id": story_id,
@@ -189,9 +320,9 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
             "jtbd": ", ".join(str(item) for item in unit.get("ears", [])) or "[PENDING INPUT]",
             "slicing": slicing_decision["slicing"],
             "slicing_rationale": slicing_decision["rationale"],
-            "description": f"Entrega el comportamiento confirmado en `{unit.get('id', 'SPEC-U-PENDING')}` como un slice vertical trazable.",
+            "description": text["description"].format(unit=unit.get("id", "SPEC-U-PENDING")),
             "goal": goal,
-            "benefit": "la capacidad confirmada se puede planificar, implementar y validar sin reinterpretar el PRD o inventar alcance",
+            "benefit": text["benefit"],
             "domain": domain_for_spec_unit(unit),
             "trace": trace,
             "context": source_context,
@@ -200,7 +331,7 @@ def build_backlog_story_specs(project_id: str, backlog_context: dict[str, Any]) 
             "context_pack_section": f"per_story.{story_id}",
             "dependencies": [],
             "enables": [],
-            "acceptance": acceptance_criteria_for_spec_unit_story(story_id, unit, statement),
+            "acceptance": acceptance_criteria_for_spec_unit_story(story_id, unit, statement, language),
             "source_unit": str(unit.get("id", "")),
         }
         story["execution_contract"] = build_agent_execution_contract(story, story_context, domain_coverage)
@@ -311,8 +442,10 @@ def pending_backlog_story(
     domain_coverage: list[dict[str, str]],
     backlog_context: dict[str, Any],
     slicing_model: dict[str, Any] | None = None,
+    language: str = "en",
 ) -> dict[str, Any]:
     decision = slicing_fallback_decision(slicing_model or load_slicing_model())
+    text = STORY_TEXT.get(language, STORY_TEXT["en"])
     return {
         "id": "US-001",
         "type": "pending_input_stub",
@@ -323,8 +456,8 @@ def pending_backlog_story(
         "slicing": decision["slicing"],
         "slicing_rationale": "[PENDING INPUT] No confirmed Spec Unit exists, so the fallback slicing pattern is retained until evidence can select a more specific SPIDR/Lawrence path.",
         "description": "No evidence-backed `SPEC-U-*` unit exists yet, so Sentinel preserves the missing input instead of creating placeholder stories.",
-        "goal": "confirmar Spec Units funcionales trazables antes de derivar historias de valor",
-        "benefit": "el backlog no inventa alcance y el BA puede resolver los gaps que desbloquean slicing",
+        "goal": text["pending_goal"],
+        "benefit": text["pending_benefit"],
         "domain": "functional",
         "trace": ["REQ-001", "PRD-001", "SPEC-001", "GAP-PRD-FR-AC", "GAP-BACKLOG-SLICING-READINESS"],
         "context": {
@@ -336,7 +469,7 @@ def pending_backlog_story(
         "domain_coverage": domain_coverage,
         "dependencies": [],
         "enables": [],
-        "acceptance": acceptance_criteria_for_pending_story("US-001"),
+        "acceptance": acceptance_criteria_for_pending_story("US-001", language),
     }
 
 
@@ -351,11 +484,11 @@ def title_for_spec_unit_story(unit: dict[str, Any]) -> str:
     return f"{unit_id} - {safe_cell(raw_title, 96)}"
 
 
-def goal_for_spec_unit(unit: dict[str, Any]) -> str:
+def goal_for_spec_unit(unit: dict[str, Any], language: str = "en") -> str:
     statement = str(unit.get("statement", "")).strip()
     if statement:
-        return statement
-    return f"implementar el comportamiento confirmado en {unit.get('id', 'SPEC-U-PENDING')}"
+        return strip_ears_lead(statement)
+    return STORY_TEXT.get(language, STORY_TEXT["en"])["goal_fallback"].format(unit=unit.get("id", "SPEC-U-PENDING"))
 
 
 def slicing_decision_for_spec_unit(unit: dict[str, Any], slicing_model: dict[str, Any] | None = None) -> dict[str, str]:
@@ -427,7 +560,9 @@ def build_cross_cutting_enabler_specs(
     project_id: str,
     value_stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
+    language: str | None = None,
 ) -> list[dict[str, Any]]:
+    language = language if language in STORY_TEXT else story_language(project_id)
     enabled_value_stories = [story for story in value_stories if story.get("type") == "value_story"]
     if not enabled_value_stories:
         return []
@@ -443,17 +578,21 @@ def build_cross_cutting_enabler_specs(
             continue
         story_id = f"US-{start + len(specs):03d}"
         trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
+        if language == "es":
+            title, description, goal, benefit = (candidate[key] for key in ("title", "description", "goal", "benefit"))
+        else:
+            title, description, goal, benefit = ENABLER_TEXT_EN[candidate["key"]]
         story = {
             "id": story_id,
             "type": "cross_cutting_enabler",
-            "title": candidate["title"],
+            "title": title,
             "label": candidate["label"],
             "fr": candidate["fr"],
             "jtbd": candidate["jtbd"],
             "slicing": candidate["slicing"],
-            "description": candidate["description"],
-            "goal": candidate["goal"],
-            "benefit": candidate["benefit"],
+            "description": description,
+            "goal": goal,
+            "benefit": benefit,
             "domain": "technical",
             "trace": trace,
             "context": {
@@ -465,7 +604,7 @@ def build_cross_cutting_enabler_specs(
             "domain_coverage": domain_coverage,
             "dependencies": [],
             "enables": [story["id"] for story in enabled_value_stories],
-            "acceptance": acceptance_criteria_for_enabler(story_id, candidate),
+            "acceptance": acceptance_criteria_for_enabler(story_id, candidate, language),
         }
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
         specs.append(story)
@@ -532,69 +671,57 @@ def context_row_for_story(seed: dict[str, str], backlog_context: dict[str, Any])
     }
 
 
+_SPEC_UNIT_AC_META = (
+    ("Spec Unit Happy Path", "fail-to-pass"),
+    ("Spec Unit Validation Path", "fail-to-pass"),
+    ("Failure And Recovery Path", "fail-to-pass"),
+    ("Regression Path", "pass-to-pass"),
+    ("Quality Evidence Path", "evidence"),
+)
+_ENABLER_AC_META = (
+    ("Boundary Fit", "fail-to-pass"),
+    ("Enables Project Functionality", "fail-to-pass"),
+    ("Observable Validation", "evidence"),
+    ("No Loose Infrastructure", "pass-to-pass"),
+)
+
+
 def acceptance_criteria_for_spec_unit_story(
     story_id: str,
     unit: dict[str, Any],
     statement: str,
+    language: str = "en",
 ) -> list[dict[str, str]]:
     base = story_id.replace("US-", "AC-")
     unit_id = str(unit.get("id", "SPEC-U-PENDING"))
     ears_ids = ", ".join(str(item) for item in unit.get("ears", []) if str(item).strip()) or "[PENDING INPUT]"
-    behavior = statement or f"el comportamiento confirmado en {unit_id}"
+    texts = SPEC_UNIT_AC_TEXT.get(language, SPEC_UNIT_AC_TEXT["en"])
+    behavior = strip_ears_lead(statement) if statement else STORY_TEXT.get(language, STORY_TEXT["en"])["behavior_fallback"].format(unit=unit_id)
+    values = {"unit": unit_id, "behavior": behavior, "ears": ears_ids}
     return [
         {
-            "id": f"{base}-01",
-            "name": "Spec Unit Happy Path",
-            "classification": "fail-to-pass",
-            "given": f"`{unit_id}` esta confirmado y sus fuentes estan disponibles",
-            "when": behavior,
-            "then": "el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia",
-        },
-        {
-            "id": f"{base}-02",
-            "name": "Spec Unit Validation Path",
-            "classification": "fail-to-pass",
-            "given": f"una precondicion, dato o regla requerida por `{unit_id}` no se cumple",
-            "when": "el usuario o sistema intenta completar el slice",
-            "then": "el avance riesgoso se bloquea o queda recuperable sin registrar exito falso",
-        },
-        {
-            "id": f"{base}-03",
-            "name": "Failure And Recovery Path",
-            "classification": "fail-to-pass",
-            "given": "una dependencia, dato, permiso o estado externo citado por la unidad no esta disponible",
-            "when": "el sistema intenta completar el slice",
-            "then": "la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad",
-        },
-        {
-            "id": f"{base}-04",
-            "name": "Regression Path",
-            "classification": "pass-to-pass",
-            "given": "existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia",
-            "when": "se valida el incremento junto con la regresion definida por Quality o el repositorio",
-            "then": "las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado",
-        },
-        {
-            "id": f"{base}-05",
-            "name": "Quality Evidence Path",
-            "classification": "evidence",
-            "given": "Quality revisa la historia para aceptacion o automatizacion",
-            "when": "consulta criterios, alcance, dependencias y trazas",
-            "then": f"encuentra {unit_id}, {ears_ids}, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable",
-        },
+            "id": f"{base}-{index:02d}",
+            "name": name,
+            "classification": classification,
+            "given": given.format(**values),
+            "when": when.format(**values),
+            "then": then.format(**values),
+        }
+        for index, ((name, classification), (given, when, then)) in enumerate(zip(_SPEC_UNIT_AC_META, texts), start=1)
     ]
 
 
-def acceptance_criteria_for_pending_story(story_id: str) -> list[dict[str, str]]:
+def acceptance_criteria_for_pending_story(story_id: str, language: str = "en") -> list[dict[str, str]]:
     base = story_id.replace("US-", "AC-")
+    given, when, then = PENDING_AC_TEXT.get(language, PENDING_AC_TEXT["en"])
     return [
         {
             "id": f"{base}-01",
             "name": "Pending Spec Unit Evidence",
             "classification": "evidence",
-            "given": "no existe una Spec Unit funcional confirmada",
-            "when": "Sentinel genera el backlog",
-            "then": "la historia permanece como `[PENDING INPUT]` y apunta a los gaps que desbloquean slicing, sin inventar alcance",
+            "given": given,
+            "when": when,
+            "then": then,
         }
     ]
 
@@ -645,41 +772,13 @@ def acceptance_criteria_for_story(story_id: str, seed: dict[str, str]) -> list[d
     ]
 
 
-def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str]) -> list[dict[str, str]]:
+def acceptance_criteria_for_enabler(story_id: str, seed: dict[str, str], language: str = "es") -> list[dict[str, str]]:
     base = story_id.replace("US-", "AC-")
+    texts = ENABLER_AC_TEXT.get(language, ENABLER_AC_TEXT["en"])
     return [
-        {
-            "id": f"{base}-01",
-            "name": "Boundary Fit",
-            "classification": "fail-to-pass",
-            "given": "el enabler fue propuesto para el backlog",
-            "when": "Product, Technology y Quality revisan su alcance",
-            "then": "queda ligado a funcionalidad, FR, epica, historia o superficie de implementacion concreta dentro del boundary del proyecto y no a infraestructura generica",
-        },
-        {
-            "id": f"{base}-02",
-            "name": "Enables Project Functionality",
-            "classification": "fail-to-pass",
-            "given": "las funcionalidades, historias o superficies dependientes estan identificadas",
-            "when": "el enabler se completa",
-            "then": "el scope funcional habilitado puede avanzar con menos incertidumbre, dependencia o riesgo verificable",
-        },
-        {
-            "id": f"{base}-03",
-            "name": "Observable Validation",
-            "classification": "evidence",
-            "given": "el enabler no produce valor usuario directo",
-            "when": "Quality valida su resultado",
-            "then": "existe una evidencia objetiva que demuestra que el riesgo o dependencia fue reducido",
-        },
-        {
-            "id": f"{base}-04",
-            "name": "No Loose Infrastructure",
-            "classification": "pass-to-pass",
-            "given": "aparece trabajo de setup, ambiente o infraestructura no especifica",
-            "when": "no habilita una historia, riesgo o contrato trazable",
-            "then": "se rechaza como backlog item y se trata como precondicion operacional o tarea externa al scope",
-        },
+        {"id": f"{base}-{index:02d}", "name": name, "classification": classification,
+         "given": given, "when": when, "then": then}
+        for index, ((name, classification), (given, when, then)) in enumerate(zip(_ENABLER_AC_META, texts), start=1)
     ]
 
 

@@ -8,11 +8,11 @@
 
 | Test Step | Acceptance Criterion |
 | --- | --- |
-| TC step AC-001-01 [fail-to-pass] | AC-001-01 [fail-to-pass]: Given `SPEC-U-001` esta confirmado y sus fuentes estan disponibles, When When queue metrics are available, the system shall display open risk queues., Then el sistema produce el resultado observable indicado por la unidad y conserva la traza hacia la evidencia. |
-| TC step AC-001-02 [fail-to-pass] | AC-001-02 [fail-to-pass]: Given una precondicion, dato o regla requerida por `SPEC-U-001` no se cumple, When el usuario o sistema intenta completar el slice, Then el avance riesgoso se bloquea o queda recuperable sin registrar exito falso. |
-| TC step AC-001-03 [fail-to-pass] | AC-001-03 [fail-to-pass]: Given una dependencia, dato, permiso o estado externo citado por la unidad no esta disponible, When el sistema intenta completar el slice, Then la falla queda visible, no se oculta informacion parcial como definitiva y se preserva la auditabilidad. |
-| TC step AC-001-04 [pass-to-pass] | AC-001-04 [pass-to-pass]: Given existen comportamientos vigentes, contratos o pruebas relacionadas antes de implementar esta historia, When se valida el incremento junto con la regresion definida por Quality o el repositorio, Then las capacidades existentes siguen pasando sin cambios colaterales fuera del blast radius declarado. |
-| TC step AC-001-05 [evidence] | AC-001-05 [evidence]: Given Quality revisa la historia para aceptacion o automatizacion, When consulta criterios, alcance, dependencias y trazas, Then encuentra SPEC-U-001, REQ-EARS-001, REQ-001, PRD-001, SPEC-001 y los criterios en formato verificable. |
+| TC step AC-001-01 [fail-to-pass] | AC-001-01 [fail-to-pass]: Given `SPEC-U-001` is confirmed and its sources are available, When queue metrics are available, the system shall display open risk queues., Then the system produces the observable result the unit states and keeps the trace to its evidence. |
+| TC step AC-001-02 [fail-to-pass] | AC-001-02 [fail-to-pass]: Given a precondition, data item or rule that `SPEC-U-001` requires is not met, When the user or the system tries to complete the slice, Then the risky step is blocked or left recoverable, and no false success is recorded. |
+| TC step AC-001-03 [fail-to-pass] | AC-001-03 [fail-to-pass]: Given a dependency, data item, permission or external state the unit cites is not available, When the system tries to complete the slice, Then the failure is visible, partial information is not shown as final, and auditability is preserved. |
+| TC step AC-001-04 [pass-to-pass] | AC-001-04 [pass-to-pass]: Given existing behavior, contracts or related tests are in place before this story is built, When the increment is validated together with the regression defined by Quality or the repository, Then existing capabilities keep passing with no side effects outside the declared blast radius. |
+| TC step AC-001-05 [evidence] | AC-001-05 [evidence]: Given Quality reviews the story for acceptance or automation, When it reads the criteria, scope, dependencies and traces, Then it finds SPEC-U-001, REQ-EARS-001, REQ-001, PRD-001, SPEC-001 and the criteria in a verifiable form. |
 
 ## Automation Notes
 
