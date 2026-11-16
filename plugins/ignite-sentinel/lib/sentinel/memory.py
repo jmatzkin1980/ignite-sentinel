@@ -6,10 +6,11 @@ import json
 import os
 from hashlib import blake2b, sha256
 from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 from .core.paths import workspace_absolute, workspace_citation, workspace_relative
 from .workspace import memory_path, read_json, write_json, workspace_path
@@ -359,6 +360,11 @@ class ContextBroker:
     is a retrieval aid and can be rebuilt from the graph and context folders.
     """
 
+    # IMP-330 class defaults, so a broker built without __init__ (tests) still works.
+    _lance_artifact_ids: set[str] | None = None
+    _defer_saves = 0
+    _save_pending = False
+
     def __init__(self, project_id: str):
         self.project_id = project_id
         self.path = memory_path(project_id)
@@ -377,6 +383,11 @@ class ContextBroker:
         # IMP-124: which path generated the candidate set on the last retrieve()
         # ("lancedb-ann" when the VDB produced candidates, else "json-fullscan").
         self.last_candidate_source = "json-fullscan"
+        # IMP-330: artifact ids present in the LanceDB table, read once on demand.
+        self._lance_artifact_ids: set[str] | None = None
+        # IMP-330: >0 while saves are deferred (see deferred_saves()).
+        self._defer_saves = 0
+        self._save_pending = False
         self.embedder = detect_embedder()
         self.embedder_status = self.embedder.status
         self._connect_lancedb()
@@ -387,9 +398,18 @@ class ContextBroker:
 
             self.lance_dir.mkdir(parents=True, exist_ok=True)
             self._lancedb = lancedb.connect(str(self.lance_dir))
-            if self.table_name in self._lancedb.list_tables():
+            # IMP-330: open the existing table; overwriting it on every broker lost
+            # the rows of every earlier command (lancedb 0.33 list_tables() returns
+            # a response object, so the old `name in list_tables()` was always False).
+            self._table = None
+            if self.table_name in lancedb_table_names(self._lancedb):
                 self._table = self._lancedb.open_table(self.table_name)
             else:
+                try:
+                    self._table = self._lancedb.open_table(self.table_name)
+                except Exception:
+                    self._table = None
+            if self._table is None:
                 self._table = self._lancedb.create_table(
                     self.table_name,
                     data=[
@@ -544,9 +564,28 @@ class ContextBroker:
 
     def _save(self) -> None:
         """IMP-301: persist with paths relative to the workspace (in memory they stay absolute)."""
+        if self._defer_saves:
+            self._save_pending = True
+            return
         stored = with_memory_paths(self.data, self._relative)
         write_json(self.path, stored)
         write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": stored["artifacts"]})
+        self._save_pending = False
+
+    @contextmanager
+    def deferred_saves(self) -> Iterator[None]:
+        """IMP-330: write the JSON index once at the end of a bulk pass, not per artifact.
+
+        The index is rebuildable from the source files (/reindex), so a pass that
+        stops half-way loses nothing a rerun does not restore.
+        """
+        self._defer_saves += 1
+        try:
+            yield
+        finally:
+            self._defer_saves -= 1
+            if not self._defer_saves and self._save_pending:
+                self._save()
 
     def artifact_is_current(self, artifact_id: str, source_hash: str) -> bool:
         for artifact in self.data.get("artifacts", []):
@@ -556,8 +595,24 @@ class ContextBroker:
                 artifact.get("source_hash") == source_hash
                 and artifact.get("embedding_version") == self.embedder_status.version
                 and artifact.get("chunking_version") == CHUNKING_VERSION
+                # IMP-330 (M3): an artifact the LanceDB table lost is not current.
+                and self._lancedb_has_artifact(artifact_id)
             )
         return False
+
+    def _lancedb_has_artifact(self, artifact_id: str) -> bool:
+        """True when the table holds rows for `artifact_id`, or when it cannot be told."""
+        if self._table is None:
+            return True
+        if not any(chunk.get("artifact_id") == artifact_id for chunk in self.data.get("chunks", [])):
+            return True  # nothing to embed, so nothing the table could have lost
+        if self._lance_artifact_ids is None:
+            try:
+                rows = self._table.search().select(["artifact_id"]).limit(None).to_list()
+                self._lance_artifact_ids = {str(row.get("artifact_id", "")) for row in rows}
+            except Exception:
+                return True
+        return artifact_id in self._lance_artifact_ids
 
     def _upsert_lancedb_chunks(self, artifact_id: str) -> None:
         if self._table is None:
@@ -607,13 +662,19 @@ class ContextBroker:
                 f"project_id = '{lancedb_literal(self.project_id)}' "
                 f"AND artifact_id = '{lancedb_literal(artifact_id)}'"
             )
+            if self._lance_artifact_ids is not None:
+                self._lance_artifact_ids.discard(artifact_id)
             if rows:
                 self._table.add(rows)
                 self._ensure_fts_index()
+                if self._lance_artifact_ids is not None:
+                    self._lance_artifact_ids.add(artifact_id)
         except Exception as exc:
             self._degrade_lancedb(exc)
 
     def index_trace_edges(self, edges: list[dict[str, Any]]) -> None:
+        if self.data.get("trace_edges") == edges and self.path.exists():
+            return  # IMP-330: nothing changed, keep the file as it is
         self.data["trace_edges"] = edges
         self._save()
 
@@ -1071,8 +1132,24 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     migrate_paths(project_id)
     graph = load_graph(project_id)
     broker = ContextBroker(project_id)
-    indexed = []
-    skipped = []
+    with broker.deferred_saves():
+        indexed, skipped = _reindex_nodes(broker, project_id, graph, full)
+    return {
+        "project_id": project_id,
+        "indexed": indexed,
+        "skipped": skipped,
+        "count": len(indexed),
+        "embedded_count": len(indexed),
+        "skipped_count": len(skipped),
+        "full": full,
+    }
+
+
+def _reindex_nodes(
+    broker: ContextBroker, project_id: str, graph: dict[str, Any], full: bool
+) -> tuple[list[str], list[str]]:
+    indexed: list[str] = []
+    skipped: list[str] = []
     for node in graph.get("nodes", []):
         path_value = node.get("path")
         if not path_value:
@@ -1103,15 +1180,7 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     indexed.extend(context_result["indexed"])
     skipped.extend(context_result["skipped"])
     broker.index_trace_edges(graph.get("edges", []))
-    return {
-        "project_id": project_id,
-        "indexed": indexed,
-        "skipped": skipped,
-        "count": len(indexed),
-        "embedded_count": len(indexed),
-        "skipped_count": len(skipped),
-        "full": full,
-    }
+    return indexed, skipped
 
 
 def init_lancedb(project_id: str) -> dict[str, str]:
@@ -1174,6 +1243,11 @@ def get_multi_domain_context(query: str, project_id: str, iteration_min: int = 1
 
 def index_context_folders(project_id: str, broker: ContextBroker | None = None, full: bool = False) -> dict[str, list[str]]:
     broker = broker or ContextBroker(project_id)
+    with broker.deferred_saves():
+        return _index_context_folders(project_id, broker, full)
+
+
+def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -> dict[str, list[str]]:
     base = workspace_path(project_id)
     indexed: list[str] = []
     skipped: list[str] = []
@@ -1213,6 +1287,27 @@ def context_artifact_id(project_id: str, path: Path) -> str:
 
 def content_hash(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def lancedb_table_names(db: Any) -> set[str]:
+    """IMP-330: the table names of a LanceDB connection, whatever the lancedb version.
+
+    lancedb >= 0.2x `list_tables()` returns a paginated response object (`.tables`,
+    `.page_token`), so `name in db.list_tables()` is always False; older releases
+    return a list, and the oldest only have `table_names()`.
+    """
+    if not hasattr(db, "list_tables"):
+        return {str(name) for name in db.table_names()}
+    names: set[str] = set()
+    token = None
+    for _ in range(1000):
+        result = db.list_tables(page_token=token) if token else db.list_tables()
+        tables = getattr(result, "tables", result)
+        names.update(str(name) for name in (tables or []))
+        token = getattr(result, "page_token", None)
+        if not token:
+            break
+    return names
 
 
 def lancedb_literal(value: str) -> str:

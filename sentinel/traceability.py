@@ -60,10 +60,12 @@ def add_node(
     # its stable trace ID instead of accumulating duplicate nodes (IMP-009).
     for node in graph["nodes"]:
         if node.get("type") == artifact_type and _same_path(project_id, node.get("path"), path):
-            node["title"] = title
-            node["status"] = status
-            node["domain"] = domain
-            save_graph(project_id, graph)
+            # IMP-330: rewrite the graph only when the node actually changed.
+            if (node.get("title"), node.get("status"), node.get("domain")) != (title, status, domain):
+                node["title"] = title
+                node["status"] = status
+                node["domain"] = domain
+                save_graph(project_id, graph)
             return node["id"]
     node_id = next_id(prefix, existing_ids(graph))
     graph["nodes"].append(
@@ -93,12 +95,19 @@ def upsert_node(
     path_value = str(path.as_posix())
     for node in graph["nodes"]:
         if node.get("id") == node_id:
-            node["type"] = artifact_type
-            node["path"] = path_value
-            node["title"] = title
-            node["status"] = status
-            node["domain"] = domain
-            save_graph(project_id, graph)
+            # IMP-330: rewrite the graph only when the node actually changed.
+            unchanged = (
+                node.get("type") == artifact_type
+                and _same_path(project_id, node.get("path"), path)
+                and (node.get("title"), node.get("status"), node.get("domain")) == (title, status, domain)
+            )
+            if not unchanged:
+                node["type"] = artifact_type
+                node["path"] = path_value
+                node["title"] = title
+                node["status"] = status
+                node["domain"] = domain
+                save_graph(project_id, graph)
             return node_id
     graph["nodes"].append(
         {
@@ -117,8 +126,9 @@ def upsert_node(
 def add_edge(project_id: str, source_id: str, target_id: str, relation: str) -> None:
     graph = load_graph(project_id)
     edge = {"from": source_id, "to": target_id, "relation": relation}
-    if edge not in graph["edges"]:
-        graph["edges"].append(edge)
+    if edge in graph["edges"]:
+        return  # IMP-330: the edge is already there; do not rewrite the graph
+    graph["edges"].append(edge)
     save_graph(project_id, graph)
 
 
