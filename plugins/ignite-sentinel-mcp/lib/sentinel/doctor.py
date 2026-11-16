@@ -1183,7 +1183,7 @@ def workspace_portability_check(root: Path) -> dict[str, str]:
     """
     from .core.io import parse_json
     from .core.paths import is_absolute_path, is_valid_project_id
-    from .core.state import SCHEMA_VERSION
+    from .core.state import SCHEMA_VERSION, state_problem
 
     name = "workspace state schema and portable paths"
     workspaces = root / "workspaces"
@@ -1200,6 +1200,9 @@ def workspace_portability_check(root: Path) -> dict[str, str]:
     for folder in sorted(path for path in workspaces.iterdir() if path.is_dir() and path.name != "_template"):
         if not is_valid_project_id(folder.name):
             continue  # workspace ids check reports it
+        problem = state_problem(folder)  # IMP-331: a missing or unreadable state stops every command
+        if problem:
+            findings.append(f"{folder.name}: {problem}; restore it before running a command")
         state = load(folder / "state.json")
         if isinstance(state, dict):
             version = state.get("schema_version")

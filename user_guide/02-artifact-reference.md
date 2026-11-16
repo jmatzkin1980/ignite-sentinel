@@ -68,6 +68,7 @@ workspaces/<PROJECT_ID>/
 | `.sentinel/derived/state.json` | Counts and metrics Sentinel recomputes (gap counts, maturity metrics, backlog roll-up). | `/status`, the dashboard | Disposable | Every mutating command |
 | `.sentinel/command_log.jsonl` | One line per command that ran, append-only. | `/health`, admins, audits | Never edit by hand | Every command |
 | `.sentinel/themes/<name>.json` | A look-and-feel theme for this workspace only. | `/view` | Edit freely | You; see [themes](17-themes.md) |
+| `.sentinel/state.json.bak` | The previous `state.json`, copied before every state update. | You, to recover a deleted or damaged `state.json` | Leave alone; copy it over `state.json` to restore | Every command that updates the state |
 | `.sentinel/state.json.bak-0.9.0` | One-time backup made when an old workspace is upgraded. | Nobody, unless you roll back | Leave alone | The first command that opens an old workspace |
 | `.sentinel/lock` | The lock that makes a second command wait (exit code 6). | Sentinel | Never touch | Every project command, read-only ones included |
 | `.series_work/<rN>/` | The mirror a command runs in when you pass `--release rN`. | Sentinel | Never edit by hand | Release commands |
@@ -366,6 +367,8 @@ For people who consume Sentinel output from code or from a coding agent. Nothing
 ### `state.json`
 
 `schema_version` is `1`. A `state.json` with a newer schema is refused (exit code 3) and left untouched. A workspace from 0.9.0 (no `schema_version`) is migrated once by the first command that opens it, after a backup to `.sentinel/state.json.bak-0.9.0`; the old in-file command log moves to `.sentinel/command_log.jsonl`.
+
+Before each update the previous `state.json` is copied to `.sentinel/state.json.bak` (one copy, replaced each time). A missing `state.json` is never rebuilt on a workspace that has a backup or artifacts, and a `state.json` that does not parse is never overwritten: both stop the command with exit code 3, naming the file and the restore step.
 
 Durable fields (cannot be rebuilt):
 

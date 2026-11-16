@@ -226,7 +226,7 @@ Each workspace keeps its state in three files:
 
 | File | What | If deleted |
 |------|------|------------|
-| `state.json` | The durable state: phase, health, story lifecycle and gates, language, privacy, artifact checksums. Carries `schema_version`. | Lost: restore it from git or a backup. |
+| `state.json` | The durable state: phase, health, story lifecycle and gates, language, privacy, artifact checksums. Carries `schema_version`. | Lost: commands refuse to run until you restore it, from `.sentinel/state.json.bak` (the state before the last update), git or a backup. |
 | `.sentinel/derived/state.json` | Counts, metrics and roll-ups the runtime recomputes. | Nothing is lost; commands rebuild it. |
 | `.sentinel/command_log.jsonl` | One line per command, append-only. | Only the history is lost. |
 
