@@ -23,6 +23,7 @@ def _language(project_id: str) -> str:
 def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str | None = None,
                     final: bool = False) -> dict[str, str]:
     from .deliverables import gate
+    from .pending_marks import compile_report_for
 
     fmt = fmt.lower()
     base = workspace_path(project_id)
@@ -30,7 +31,9 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     if not source.exists():
         raise InputError(f"Export source not found: {source}")
     # IMP-272: a deliverable has zero pending marks or says it is a draft
-    verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final)
+    # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
+    verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
+                   report=compile_report_for(source))
     result = _export(project_id, artifact, fmt, source, verdict)
     return {**result, **verdict}
 

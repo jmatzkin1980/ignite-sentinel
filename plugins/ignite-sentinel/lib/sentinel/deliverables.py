@@ -7,7 +7,12 @@ a handoff) either has zero pending marks or says plainly that it is a draft:
 
 - `/export` stamps a DRAFT banner (and `draft: true` in MDX metadata) when the
   source still has pending marks, and reports `deliverable: draft` with the count;
-- `/export --final` refuses to export while any pending mark remains.
+- `/export --final` refuses to export while any blocking pending mark remains.
+
+Marks are counted by `pending_marks.count_pending_marks` (IMP-334), the same
+counter `/validate` uses: for a brief v2 the compile report's fill sites when
+available (client marks block, domain marks are deferred), else the body without
+its legend and index tables.
 
 Gap exports (`interview`, `faq`, or `--artifact gaps`) are elicitation instruments
 whose whole content is what is pending, so they are working documents by nature.
@@ -23,7 +28,8 @@ from .errors import GateRefusal  # IMP-302: typed errors
 import re
 from pathlib import Path
 
-PENDING_RE = re.compile(r"⏳\s*(?:PENDING|PENDIENTE)|\[PENDING[^\]]*\]|\[POR COMPLETAR\]")
+from .pending_marks import count_pending_marks
+
 WORKING_ARTIFACTS = {"gaps"}
 WORKING_FORMATS = {"interview", "faq"}
 
@@ -32,8 +38,9 @@ class DeliverableNotReady(GateRefusal):
     pass
 
 
-def pending_count(text: str) -> int:
-    return len(PENDING_RE.findall(text))
+def pending_count(text: str, report: dict | None = None) -> int:
+    """IMP-334: the blocking pending marks, counted as `/validate` counts them."""
+    return count_pending_marks(text, report).blocking
 
 
 def banner(count: int, language: str) -> str:
@@ -44,16 +51,24 @@ def banner(count: int, language: str) -> str:
             "Once none remain, regenerate it with `/export --final`.")
 
 
-def gate(text: str, *, artifact: str, fmt: str, final: bool) -> dict[str, object]:
-    """Decide what an export is. Raises when `final` is asked for and marks remain."""
+def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None = None) -> dict[str, object]:
+    """Decide what an export is. Raises when `final` is asked for and blocking marks remain.
+
+    `report` is the brief v2 compile report, when there is one (IMP-334): the count is
+    then the brief's own "Ready to build" count. Deferred (domain) marks are reported
+    as `deferred_marks` and do not block.
+    """
+    marks = count_pending_marks(text, report)
+    extra = {"deferred_marks": marks.deferred} if marks.deferred else {}
     if artifact in WORKING_ARTIFACTS or fmt in WORKING_FORMATS:
-        return {"deliverable": "working", "pending_marks": pending_count(text)}
-    count = pending_count(text)
+        return {"deliverable": "working", "pending_marks": marks.blocking, **extra}
+    count = marks.blocking
     if final and count:
+        deferred = f" ({marks.deferred} deferred domain marks do not block)" if marks.deferred else ""
         raise DeliverableNotReady(
-            f"/export --final refused: {count} pending marks remain in the {artifact}. "
+            f"/export --final refused: {count} pending marks remain in the {artifact}{deferred}. "
             "Close them (or export without --final to get a marked draft).")
-    return {"deliverable": "draft" if count else "final", "pending_marks": count}
+    return {"deliverable": "draft" if count else "final", "pending_marks": count, **extra}
 
 
 def with_banner(text: str, count: int, language: str) -> str:
