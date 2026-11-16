@@ -380,6 +380,9 @@ def run_command(args, argv: list[str]) -> int:
                     topic=args.topic,
                     notes=args.notes,
                 )
+            elif any((args.stakeholder_id, args.name, args.domain, args.topic, args.profile, args.notes)):
+                # IMP-333: a field without --add used to be ignored in silence
+                raise ValueError("/stakeholders --id/--name/--domain/--topic/--profile/--notes go with --add")
             else:
                 result = list_stakeholders(args.project_id)
             print_json(result)
@@ -403,6 +406,9 @@ def run_command(args, argv: list[str]) -> int:
             if args.precedence or args.between:
                 if not (args.precedence and args.between):
                     raise ValueError("/sources --precedence SCOPE goes with --between F-NN,F-NN")
+                if args.report or args.source_id or any(value for value in changes.values()):
+                    # IMP-333: other options used to be ignored in silence
+                    raise ValueError("/sources --precedence --between takes no other option")
                 ids = [item.strip() for item in args.between.split(",") if item.strip()]
                 result = source_precedence(args.project_id, args.precedence, ids)
             elif args.report:

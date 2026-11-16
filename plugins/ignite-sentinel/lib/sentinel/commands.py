@@ -347,3 +347,13 @@ def cli_destinations(name: str) -> set[str]:
     if command.release:
         dests.add("release")
     return dests
+
+
+def cli_options(name: str) -> dict[str, tuple[str, bool]]:
+    """IMP-333: each optional destination of one command -> (its first option string, whether it is a bare flag)."""
+    parser = argparse.ArgumentParser(add_help=False)
+    command = BY_NAME[name]
+    command.configure(parser)
+    if command.release:
+        parser.add_argument("--release")
+    return {action.dest: (action.option_strings[0], action.nargs == 0) for action in parser._actions if action.option_strings}
