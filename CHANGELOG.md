@@ -6,6 +6,9 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- A second `/ingest` no longer resets a project (IMP-320, H21). It used to rewrite the requirement register, `gaps.md`, the decision log and the identity seeds from the new file, so every answered gap opened again and the verdict fell back, with exit 0 and no warning, and the guide told users to load each further file that way. Now `/ingest` on a project that already has its primary requirement refuses with exit 4, changes nothing, and names `/sync PROJECT_ID --source PATH`, which adds a file and keeps every answer. `--replace` replaces the primary requirement on purpose and reports how many answered gaps open again and which saved answer files to re-apply with `/resolve-gaps`. The guide, the command router, the discovery and the intake-triage skills now send every later file through `/sync`.
+
 ### Changed
 - The install instructions use the `stable` channel (IMP-319). The README, the install page and the plugin guide said `/plugin marketplace add jmatzkin1980/ignite-sentinel`, which follows `main` (merged but unreleased work); they now say `#stable` and explain the difference. They also show the install by clicks in the Claude desktop app, link to updating the plugin and to organizing folders by client, and the README gains a "Good to know" list (folders per client, updates, the closing choice).
 

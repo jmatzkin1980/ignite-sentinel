@@ -348,13 +348,14 @@ python -m sentinel /dashboard --theme my-theme.json
 
 **Type.** Mutating.
 
-**Use it when.** You have the first client material (a request, notes, a document, an HTML prototype), or a major new document. For later changes and meeting notes, prefer `/sync`.
+**Use it when.** You have the project's first client material (a request, notes, a document, an HTML prototype). It runs once per project: every later file (context, a prototype, meeting notes, a new version of a document) goes through `/sync PROJECT_ID --source PATH`, which adds it without resetting anything.
 
 **Syntax.**
 
 ```text
 /ingest ACME_PORTAL --source input/request.md
 python -m sentinel /ingest ACME_PORTAL --source input/request.docx
+/ingest ACME_PORTAL --source input/request-v2.md --replace
 ```
 
 **Options.**
@@ -363,18 +364,20 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a file path | required | The input. `.md`, `.txt`, `.html`, `.htm` are read as UTF-8 text; `.docx` is read with its text, images and comments. |
+| `--replace` | flag | off | Replace the project's primary requirement with this file on purpose. Gaps are rebuilt from the new file, so answered gaps open again; the result says how many and lists the saved answer files to re-apply with `/resolve-gaps`. |
 
 **Reads.** The `--source` file.
 
-**Writes.** A redacted copy under `00_raw/` (a `.docx` becomes `00_raw/NAME.md` plus `00_raw/NAME_media/`), `00_raw/source_manifest.json`, `01_discovery/` (gaps, source synthesis, requirement units, and on a re-ingest the requirement-unit delta view), `02_requirements/requirements.md`, graph nodes and memory chunks. A UTF-8 file with an unknown extension is stored as Markdown with a `source_format.warning`.
+**Writes.** A redacted copy under `00_raw/` (a `.docx` becomes `00_raw/NAME.md` plus `00_raw/NAME_media/`), `00_raw/source_manifest.json`, `01_discovery/` (gaps, source synthesis, requirement units, and with `--replace` the requirement-unit delta view), `02_requirements/requirements.md`, graph nodes and memory chunks. A UTF-8 file with an unknown extension is stored as Markdown with a `source_format.warning`.
 
 **Refuses when.**
 
 - The workspace does not exist → exit 4.
+- The project already has its primary requirement and `--replace` is not given → exit 4, and nothing changes. The next step names `/sync PROJECT_ID --source PATH` to add the file, and `--replace` to replace the primary requirement.
 - The file is not UTF-8 text and not a readable `.docx` (a PDF, a damaged `.docx`) → exit 3, before any source row opens. Convert it to Markdown first.
 - The file does not exist → exit 3 (`--source file not found`) with no traceback; check the path, it is read relative to the folder you run Sentinel from.
 
-**You get.** The paths created and the source row.
+**You get.** The paths created and the source row. With `--replace`, a `replaced` block: the previous primary file, `answered_gaps_reopened`, the `saved_answers` files under `07_changes/00_client_responses/` and how to re-apply them.
 
 **Next step.** On the first ingest of a brief v2 project, confirm its settings now with `/brief PROJECT_ID --profile ... --genesis ...` (`/next` asks for it with suggested values). Then read `01_discovery/gaps.md`, deepen it with `/annotate`, `/challenge` or `/scrutinize` if useful, and share it with the client.
 

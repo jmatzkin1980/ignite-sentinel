@@ -56,7 +56,7 @@ class SourceSynthesisTests(unittest.TestCase):
 
         self.assertEqual(main(["init", "DIVERGE", "--brief-version", "1"]), 0)
         self.assertEqual(main(["ingest", "DIVERGE", "--source", str(first)]), 0)
-        self.assertEqual(main(["ingest", "DIVERGE", "--source", str(second)]), 0)
+        self.assertEqual(main(["ingest", "DIVERGE", "--source", str(second), "--replace"]), 0)
 
         synthesis = (
             self.temp

@@ -20,7 +20,7 @@ Use this skill **before `/init`**, when you are handed a pile of unstructured in
 4. **Propose the project shape.** Recommend whether the pile is **one project or N**, grounded in the themes: cohesive themes → one project; clearly separable value streams with different owners/systems → a split. State the rationale and mark cross-cutting items. This is a recommendation; the **BA decides**.
 5. **Flag noise and out-of-scope — explicitly.** Duplicates, off-topic items, and asks that are clearly out of scope are listed with their citation and a one-line reason. Never drop an item silently.
 6. **Hand the BA a decision.** Present the triage as a proposal table (themes → candidate → source citations → proposed project; plus an out-of-scope list). Stop there. The skill does not run `/init`.
-7. **Only after the BA confirms the split**, execute per chosen project: `/init PROJECT_ID`, then `/ingest PROJECT_ID --source PATH` routing each source item to the project it was assigned, so the `R#` citations become governed discovery evidence.
+7. **Only after the BA confirms the split**, execute per chosen project: `/init PROJECT_ID`, then `/ingest PROJECT_ID --source PATH` for the project's first source item and `/sync PROJECT_ID --source PATH` for each further item assigned to it, so the `R#` citations become governed discovery evidence.
 
 ## Output
 

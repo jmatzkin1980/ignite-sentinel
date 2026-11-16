@@ -32,7 +32,7 @@ Each workflow has the same four parts: **When**, **Steps**, **Check** and **If i
    /ingest ACME_PORTAL --source input/acme-request.md
    ```
 
-   In a Claude Code clone, if `/init` starts Claude Code's own built-in project setup (it writes a `CLAUDE.md`), send `/sentinel /init ACME_PORTAL` instead. Load each further file (business, technology, design, quality context) with its own `/ingest`.
+   In a Claude Code clone, if `/init` starts Claude Code's own built-in project setup (it writes a `CLAUDE.md`), send `/sentinel /init ACME_PORTAL` instead. Load each further file (business, technology, design, quality context, a prototype, meeting notes) with `/sync ACME_PORTAL --source PATH`, not with a second `/ingest`: `/ingest` builds the primary requirement once, and a second one is refused because it would replace that requirement and reopen every answered gap. To replace the primary requirement on purpose, use `/ingest ... --replace`.
 2. Right after the first `/ingest`, confirm the brief settings ([profile and genesis](00-user-guide.md#glossary)). `/next` asks for this step and suggests values from the request. If you are unsure of the values, run `/brief` without flags first to see the proposal (this opens `GAP-BRIEF-PROFILE` and writes a provisional v1-layout brief until you confirm), then confirm:
 
    ```text
@@ -309,7 +309,7 @@ flowchart TD
 
 **Steps:**
 
-1. Load the prototype like any source: `/ingest ACME_PORTAL --source input/acme-prototype.html`.
+1. Load the prototype like any later source: `/sync ACME_PORTAL --source input/acme-prototype.html` (or `/ingest` if it is the project's first material).
 2. Inventory its screens and visible elements:
 
    ```text

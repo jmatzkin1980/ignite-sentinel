@@ -343,8 +343,8 @@ def build_server():
         return run_cli(["init", project_id] + (["--brief-version", str(brief_version)] if brief_version else []))
 
     @tool(name="sentinel_ingest", description=TOOL_DESCRIPTIONS["ingest"])
-    def sentinel_ingest(project_id: str, source: str) -> dict:
-        return run_cli(["ingest", project_id, "--source", source])
+    def sentinel_ingest(project_id: str, source: str, replace: bool = False) -> dict:
+        return run_cli(["ingest", project_id, "--source", source] + (["--replace"] if replace else []))
 
     @tool(name="sentinel_gaps", description=TOOL_DESCRIPTIONS["gaps"])
     def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "", top: int = 0) -> dict:

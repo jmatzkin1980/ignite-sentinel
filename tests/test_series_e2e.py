@@ -74,7 +74,9 @@ def run_series(work: Path, case: Case = CHAIN) -> dict:
     try:
         with patch.object(ContextBroker, "_connect_lancedb", lambda self: None):
             steps = [["init", P]]
-            steps += [["ingest", P, "--source", str(fx / name)] for name in case.sources]
+            # IMP-320: a later /ingest must say --replace (the behavior this flow was built on).
+            steps += [["ingest", P, "--source", str(fx / name)] + (["--replace"] if i else [])
+                      for i, name in enumerate(case.sources)]
             steps += [["gaps", P], ["resolve-gaps", P, "--source", str(fx / "gap_responses.md")], ["maturity", P],
                       ["brief", P, "--profile", "UI", "--genesis", "greenfield"], ["split", P, "--assess"],
                       ["split", P, "--propose", "--source", str(fx / "proposal.json")],

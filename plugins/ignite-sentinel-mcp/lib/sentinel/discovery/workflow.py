@@ -37,9 +37,52 @@ METRIC_RE = re.compile(
 RAW_SYNTHESIS_EXTENSIONS = {".md", ".txt", ".html", ".htm"}
 
 
-def ingest(project_id: str, source: Path) -> dict[str, str]:
+_GAP_STATUS_RE = re.compile(r"^- Status: `([A-Z_]+)`", re.M)
+
+
+def _answered_gap_count(base: Path) -> int:
+    """Gaps in gaps.md that are no longer OPEN (answered, partially or fully closed)."""
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.is_file():
+        return 0
+    statuses = _GAP_STATUS_RE.findall(gaps_path.read_text(encoding="utf-8"))
+    return sum(1 for status in statuses if status != "OPEN")
+
+
+def ingest(project_id: str, source: Path, replace: bool = False) -> dict[str, str]:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
+    # IMP-320: /ingest builds the project's primary requirement. On a workspace that
+    # already has one, a second /ingest used to rewrite requirements, gaps, decisions
+    # and seeds from the new file and reopen every answered gap with exit 0. Adding a
+    # file is /sync's job; replacing the primary requirement must be asked for.
+    existing_raw = read_state(project_id).get("artifacts", {}).get("raw_input")
+    replaced: dict | None = None
+    if existing_raw:
+        if not replace:
+            raise GateRefusal(
+                f"{project_id} already has its primary requirement ({Path(existing_raw).name}); "
+                "a second /ingest would replace it and reopen every answered gap.",
+                next_step=(
+                    f"To add this file, run /sync {project_id} --source {source.as_posix()}. "
+                    f"To replace the primary requirement on purpose, run /ingest {project_id} "
+                    f"--source {source.as_posix()} --replace."
+                ),
+            )
+        from ..gap_resolution import saved_response_files
+
+        saved = saved_response_files(base)
+        replaced = {
+            "previous_raw_input": existing_raw,
+            "answered_gaps_reopened": _answered_gap_count(base),
+            "saved_answers": saved,
+            "next_step": (
+                f"Re-apply the saved answers with /resolve-gaps {project_id} --source FILE, one file at a time: "
+                + ", ".join(saved)
+                if saved
+                else "No saved answers to re-apply; share the new gaps.md with the client."
+            ),
+        }
     raw_target = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
     extracted = read_source(source, media_stem=raw_target.stem)  # IMP-270: typed error before the row opens
     source_id = open_source_row(project_id, source, "initial_ingested")  # IMP-250a
@@ -270,6 +313,7 @@ def ingest(project_id: str, source: Path) -> dict[str, str]:
             str(requirement_unit_delta_path.as_posix()) if requirement_unit_delta_path else None
         ),
         "context_pack": focus_pack.get("path"),
+        "replaced": replaced,
     }
 
 

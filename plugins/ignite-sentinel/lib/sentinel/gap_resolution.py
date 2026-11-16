@@ -48,6 +48,14 @@ def is_ears_eligible_gap(gap_id: str) -> bool:
     return gap_id in EARS_ELIGIBLE_GAP_IDS
 
 
+def saved_response_files(base: Path) -> list[str]:
+    """IMP-320: the answer files /resolve-gaps kept, so a replaced requirement can re-apply them."""
+    folder = base / "07_changes" / "00_client_responses"
+    if not folder.is_dir():
+        return []
+    return sorted(path.as_posix() for path in folder.iterdir() if path.is_file())
+
+
 def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     base = workspace_path(project_id)
     if not base.exists():

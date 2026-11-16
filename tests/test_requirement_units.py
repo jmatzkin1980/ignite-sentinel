@@ -42,7 +42,7 @@ class RequirementUnitsTest(unittest.TestCase):
         )
 
         first = ingest("RUDEMO", source)
-        second = ingest("RUDEMO", source)
+        second = ingest("RUDEMO", source, replace=True)
 
         self.assertEqual(first["requirement_unit_ids"], second["requirement_unit_ids"])
         units_md = self.temp / "workspaces" / "RUDEMO" / "01_discovery" / "requirement_units.md"

@@ -154,7 +154,7 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 | `raw_input_digest.md` | Short summary of each ingested source. | Never edit | `/ingest` |
 | `source_synthesis.md` | Per-source synthesis with verbatim citations, before cross-source review. Not indexed in memory. | Never edit | `/ingest` |
 | `requirement_units.md` | Index of cited requirement units (`RU-*`), the anchors discovery works on. | Never edit | `/ingest` |
-| `requirement_unit_deltas.md` | What was added, modified or removed between two ingests. Only after a re-ingest. A signal, it never changes gaps. | Never edit | `/ingest` |
+| `requirement_unit_deltas.md` | What was added, modified or removed when the primary requirement is replaced. Only after `/ingest --replace`. A signal, it never changes gaps. | Never edit | `/ingest` |
 | `identity_seeds.md` | Atomic project truths and pending truths with origin and lens. | Never edit | `/ingest` |
 | `decisions.md` | Decisions taken or pending. | Never edit | `/ingest`, `/sync` |
 | `knowledge_state.md` and `.json` | The ledger of what is `CONFIRMED`, `ASSUMED`, `OPEN` or `INFERRED`, by lens. | Never edit | `/ingest`, `/resolve-gaps`, `/sync` |
