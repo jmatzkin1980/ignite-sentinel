@@ -155,7 +155,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 |---|---|---|
 | "I received client answers" | `/resolve-gaps --source FILE` → `/maturity` → `/status` | Closes only confirmed answers; the v2 brief recompiles. |
 | "Ask Technology for their input" | `/context-request --domain technology` | Also `design`, `quality`, `frontend`, `backend`. |
-| "Technology answered CTX-001" | `/sync --source FILE --note "answer to CTX-001"` → `/context-request --id CTX-001 --status closed --reason TEXT` | |
+| "Technology answered CTX-001" | `/sync --source FILE` (the file's text names `CTX-001`) → `/context-request --id CTX-001 --status closed --reason TEXT` | `/sync` marks the request `answered` only when the id is in the file; the `--note` is not read for it. Otherwise run `/context-request --id CTX-001 --status answered` first: an `active` request cannot be closed. |
 | "Here are meeting notes / an email with changes" | `/sync --source FILE --note TEXT` → `/health` | Traced change, not silent scope creep. |
 | "Metabolize this raw mail thread" | `/sync --digest --source FILE` | Proposes cited impacts without applying them. |
 | "This note reverses what we confirmed" | `/sync --source NOTE --analysis FILE` → `/gaps --id GAP-CHG-x --disposition accepted\|rejected` | The agent writes the cited analysis (skill `sentinel-sync`); prose alone never reopens anything. |

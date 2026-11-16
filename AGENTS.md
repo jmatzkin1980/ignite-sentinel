@@ -62,15 +62,26 @@ Accepted forms:
 - `/annotate PROJECT_ID --source ANALYSIS.json`
 - `/challenge PROJECT_ID --source ANALYSIS.json`
 - `/scrutinize PROJECT_ID --source ANALYSIS.json`
+- `/harvest PROJECT_ID --source HARVEST.md`
+- `/split PROJECT_ID --assess`
+- `/split PROJECT_ID --propose --source PROPOSAL.json`
+- `/split PROJECT_ID --confirm --ba NAME --tech TEAM`
+- `/split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT --ba NAME --tech TEAM`
+- `/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM`
+- `/prototype PROJECT_ID --inventory [--source F-NN]`
+- `/prototype PROJECT_ID --trace|--manual --source PATH.json`
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
 - `/resolve-gaps PROJECT_ID --source PATH`
 - `/brief PROJECT_ID`
 - `/compose PROJECT_ID --source COMPOSITION.json`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
+- `/context-request PROJECT_ID --id CTX-NNN --status answered|closed|obsolete|active [--reason TEXT]`
 - `/stakeholders PROJECT_ID [--add --name NAME --domain DOMAIN]`
+- `/sources PROJECT_ID [--id F-NN ...] [--precedence SCOPE --between F-NN,F-MM] [--report]`
 - `/status PROJECT_ID`
+- `/next PROJECT_ID`
 - `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md|mdx|interview|faq`
-- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog [--open]`
+- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open]`
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`
@@ -113,9 +124,14 @@ Execution rule:
 - `/story-status PROJECT_ID --story US-NNN --set STATE [--owner NAME] [--evidence PATH]` is the only supported way to mutate story lifecycle fields and attach downstream acceptance evidence for DoD. It updates `state.json`, `US-NNN.md`, DoR/DoD checklists, traceability, and command protocol anchors. Default `backlog_gate` warnings do not block; strict mode is opt-in. Never edit story status/owner/gate evidence by hand.
 - `/refine-backlog PROJECT_ID --source ANALYSIS.json` accepts structured agent proposals only after `/backlog`; every proposal needs verbatim local citations and is merged as an `origin: agent` review overlay, never as automatic story/enabler rewrite.
 - Keep privacy local-only: no remote MCP, external vector databases, or external embeddings for client/project content unless explicitly approved outside this framework.
+- `/harvest PROJECT_ID --source HARVEST.md` merges a tagged brownfield harvest of local code (use `sentinel-brownfield-harvest` to write it).
+- `/split` manages a release series over a brief v2: `--assess` recommends, `--propose` validates a proposal, `--confirm`, `--move` and `--close` need the BA's and the technical team's names, given by them (use `sentinel-release-split`).
+- `/prototype PROJECT_ID --inventory` lists the screens and elements of the ingested HTML prototypes; `--trace` and `--manual` validate a screen trace or a user manual (use `sentinel-prototype-trace` and `sentinel-prototype-manual`).
+- `/next PROJECT_ID` prints only the next recommended step, the same decision as `next_action` in `/status`.
+- `/sources PROJECT_ID` manages the `F-NN` source registry (supersession, retirement, authority, precedence, closing report); never hand-edit `07_changes/source_log.md`, and ask the BA which version governs instead of picking the newest.
 - If a Codex surface intercepts a native slash command before it reaches the agent, ask the user to send the same request as `sentinel /COMMAND PROJECT_ID`.
 
 ## Verification
 
 - Run `python -m unittest discover -s tests` after changing Sentinel runtime code.
-- If `python` is unavailable, use the bundled Codex Py
+- If `python` is unavailable, use the bundled Codex Python runtime when it is visible in the environment, or the repo-local launcher `.\installers\sentinel.ps1` on Windows.

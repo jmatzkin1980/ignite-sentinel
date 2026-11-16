@@ -51,7 +51,7 @@ Nine commands take `--release`: `/specs`, `/backlog`, `/quality`, `/story-status
 - The value is `r<N>` or `r<N>.<M>` (for example `r1`, `r2.1`).
 - The command reads the release brief, `02_requirements/rN/project-brief.md`, and writes under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`.
 - Each release keeps its own phase, stories and gates in `.series_work/rN/`. The project's own `state.json` is not touched.
-- Without a confirmed series (`/split --confirm`), or with a release that is not in it, the command exits with code 3.
+- Without a confirmed series (`/split --confirm`) the command exits with code 4. With a release that is not in the series, or a value that is not a release id, it exits with code 3.
 
 Release series are explained in [Workflows](03-workflows.md).
 
@@ -173,9 +173,9 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/implementation-feedback` | No epic in `04_backlog/` | `Cannot process implementation feedback before /backlog` | 4 | `/backlog` |
 | `/export --final` | The brief, PRD or context request still has pending marks | `/export --final refused: N pending marks remain` | 4 | Close the gaps, or export without `--final` |
 | `/export --format faq` | No resolved gaps yet | `Cannot export a FAQ before gaps are resolved` | 4 | `/resolve-gaps` |
-| `/export --format interview` | Before `/ingest` | `Cannot export an interview script before /ingest` | 4 | `/ingest` |
-| `/split` (prerequisites) | v1 brief or no brief v2, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
-| `/split` (refused input) | Refused proposal, partition not green, missing `--ba`/`--tech` or other bad options | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
+| `/export --format interview` | Before `/ingest` (no `01_discovery/gaps.md`) | `Export source not found` | 3 | `/ingest` |
+| `/split` (prerequisites) | No compiled brief, a v1 brief on `--confirm`, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
+| `/split` (refused input) | `--assess` or `--propose` on a v1 brief, refused proposal, partition not green, missing `--ba`/`--tech` or other bad options | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
 | Release commands with `--release` | No confirmed series | `--release needs a confirmed release series` | 4 | `/split --confirm` |
 | `/prototype --trace`, `--manual` | No brief v2 or no inventory (a refused payload stays exit 3) | `... needs a compiled brief v2` / `... needs an inventory` | 4 | `/brief`, or `/prototype --inventory` |
 | `/prototype --trace`, `--manual` | Payload refused | `the trace/manual was refused (N findings)` | 3 | Fix the findings |
@@ -848,7 +848,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 | `--status` | `active`, `answered`, `closed`, `obsolete` | none | The new state. |
 | `--reason` | text | empty | Why. Required for `closed` and `obsolete`, which are final. |
 
-`/sync` marks an active request `answered` when a synced change cites its id. An answered request can go back to `active`; regenerating a domain's request reopens it.
+`/sync` marks an active request `answered` when the synced file's text cites its id (the `--note` is not read for it). An `active` request moves only to `answered` or `obsolete`, so mark it `answered` before closing it. An answered request can go back to `active`; regenerating a domain's request reopens it.
 
 **Reads.** Open gaps and the domain context.
 
@@ -1092,8 +1092,8 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 **Refuses when.** Nothing is stored in either case.
 
-- A missing prerequisite or the project's state → exit 4: `--assess` or `--propose` without a compiled brief v2, a series on a v1 brief, `--confirm` without a stored proposal or with a brief that changed since the proposal, `--move` without a confirmed series, `--close` on a release already closed, with no stories or with stories not Done, and `--release` on any command without a confirmed series.
-- A refused payload or bad options → exit 3: a refused proposal (every finding with its code), a partition that is not green, `--propose` without `--source`, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without `--evidence`, an invalid release id, a `--source` file that does not exist.
+- A missing prerequisite or the project's state → exit 4: `--assess` or `--propose` without a compiled brief, `--confirm` on a v1 brief, `--confirm` without a stored proposal or with a brief that changed since the proposal, `--move` without a confirmed series, `--close` on a release already closed, with no stories or with stories not Done, and `--release` on any command without a confirmed series.
+- A refused payload or bad options → exit 3: `--assess` or `--propose` on a v1 brief (recompile it with `/brief PROJECT_ID --brief-version 2`), a refused proposal (every finding with its code), a partition that is not green, `--propose` without `--source`, missing `--ba`/`--tech`, `--move` without unit/from/to or with a round trip and no written criterion (opens `GAP-SPLIT-CRITERION`), `--close` without `--evidence`, an invalid release id, a `--source` file that does not exist.
 
 **You get.** `--assess`: the recommendation, its reasons, the lit and undetermined signals. `--propose`: the `partition_preview`. `--confirm`: the waves, coverage and sync findings. `--move`: `releases_changed` and `stale_derivations`. `--close`: the releases it unblocks.
 
@@ -1169,7 +1169,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--source` | a JSON file | required | The findings, written with the `sentinel-self-review` skill. |
+| `--source` | a JSON file | required | The findings, written with the `sentinel-self-review` skill. In the default mode it needs a non-empty `gaps` array; `decisions` are optional and go alongside the gaps, never alone. |
 | `--sufficiency` | flag | off | Sufficiency mode (`{"round": N, "obstacles": [...]}`). |
 | `--crosses` | flag | off | Semantic crosses mode. Wins if both flags are given. |
 
@@ -1300,8 +1300,8 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 **Refuses when.**
 
 - `--final` with pending marks → exit 4.
-- `faq` before any gap is resolved, or `interview` before `/ingest` → exit 4.
-- The source artifact does not exist, a format that does not fit the artifact, `context-request` without `--domain`, or a secret found in the output → exit 3.
+- `faq` before any gap is resolved → exit 4.
+- The source artifact does not exist (for example `interview` before `/ingest`, since `gaps.md` is not there yet), a format that does not fit the artifact, `context-request` without `--domain`, or a secret found in the output → exit 3.
 
 **You get.** The path, `deliverable` (`working`, `draft` or `final`) and `pending_marks`.
 

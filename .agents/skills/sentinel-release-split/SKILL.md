@@ -1,6 +1,6 @@
 ---
 name: sentinel-release-split
-description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (sentinel/templates/release_split_model.json), write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, shared contracts as graph nodes, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table), get the partition green for /split --confirm and read the compiled series. Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases', 'confirm the partition'. Not for slicing a backlog into stories (use sentinel-backlog) or for editing a release brief by hand (the series recompiles from the whole brief)."
+description: "Use when a brief v2 may be too big for one release and the BA wants a release series: read the /split --assess result, walk the release split model (the package's templates/release_split_model.json), write the proposal JSON for /split --propose (core and variations, criteria written before cutting, base with its negative list, shared contracts as graph nodes, the series table, conditionals with their gap, sketches, inheritance and the integrator's consumption table), get the partition green for /split --confirm and read the compiled series. Trigger on 'split this project into releases', 'propose a release series', 'should this be several releases', 'confirm the partition'. Not for slicing a backlog into stories (use sentinel-backlog) or for editing a release brief by hand (the series recompiles from the whole brief)."
 ---
 
 # Sentinel Release Split
@@ -10,7 +10,7 @@ Use this skill to propose how a brief v2 becomes a series of releases. You write
 ## Workflow
 
 1. **Assess first.** Run `/split PROJECT_ID --assess` and read `01_discovery/split_assessment.md`. When it says `no_split`, tell the BA and stop unless they ask to go on. When it says `cannot_decide`, put the signals in conflict to the BA before proposing.
-2. **Read only the brief and the model.** Read `02_requirements/project-brief.md` (v2) and `sentinel/templates/release_split_model.json`. Never use the conversation as a source.
+2. **Read only the brief and the model.** Read `02_requirements/project-brief.md` (v2) and the model, the package's `templates/release_split_model.json` (under `sentinel/` in a cloned repository, under `lib/sentinel/` in the Claude Code plugin). Never use the conversation as a source.
 3. **Step 0.** Answer the model's three questions:
    - Is the brief valuable by itself?
    - Does it already fit the budget? If it fits, stop and do not cut.

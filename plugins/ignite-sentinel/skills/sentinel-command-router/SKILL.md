@@ -78,7 +78,7 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /COMMAN
 
 For `/doctor` and `/dashboard`, omit `PROJECT_ID`. `/dashboard` accepts `--root PATH`, `--open` and `--theme NAME`. `/view` requires `PROJECT_ID` and writes a derived read-only HTML snapshot under `08_context_packs/views/`.
 
-3. If `python` is unavailable, use the configured or bundled Codex Python runtime when visible, or the repo-local launcher:
+3. If `python` is unavailable, use the configured or bundled Python runtime when visible. In a cloned repository on Windows, the repo-local launcher also works (the Claude Code plugin does not ship it; it runs the CLI through its own launcher):
 
 ```powershell
 .\installers\sentinel.ps1 /COMMAND PROJECT_ID [OPTIONS]
@@ -118,7 +118,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.
 - `/brief`: use `sentinel-project-brief`.
-- `/context-request`: use `sentinel-domain-request`. A request is `CTX-NNN`: `active` -> `answered` (also when `/sync` sees a change cite it) -> `closed`, or `obsolete`; closing needs a reason.
+- `/context-request`: use `sentinel-domain-request`. A request is `CTX-NNN`: `active` -> `answered` (also when a file synced with `/sync --source` cites the id in its text; the `--note` is not read for it) -> `closed`, or `obsolete`; an `active` request cannot be closed directly, and closing needs a reason.
 - `/next`: give the step in one line with its command; it is the same decision as `next_action` in `/status`.
 - `/sync`, `/retrieve`, `/reindex`: use `sentinel-sync`.
 - `/dashboard` and `/view`: use `sentinel-views`.
@@ -154,4 +154,4 @@ When a command leaves the user a decision or a next step, end with one short que
 
 ## Intent Mapping
 
-When the user describes a situation instead of a command, use the Intent-To-Command Map in `user_guide/11-chat-commands.md`: new input → init/ingest/status; answered gaps → resolve-gaps/maturity/status; domain updates → sync/reindex/health; downstream handoff → specs/backlog/quality/trace/health/validate when gates allow. Always close with artifacts generated, gap/health state, and next step.
+When the user describes a situation instead of a command, map it to a command sequence (the user guide's chat-commands page, when the project has it, holds the full Intent-To-Command Map): new input → init/ingest/status; answered gaps → resolve-gaps/maturity/status; domain updates → sync/reindex/health; downstream handoff → specs/backlog/quality/trace/health/validate when gates allow. Always close with artifacts generated, gap/health state, and next step.
