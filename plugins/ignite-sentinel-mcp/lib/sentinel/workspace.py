@@ -13,7 +13,7 @@ from .core.paths import (
     state_path,
     workspace_path,
 )
-from .core.state import read_state, update_state, write_state
+from .core.state import load_durable_state, read_state, update_state, write_state
 from .core.time import utc_now
 
 DEFAULT_DOMAINS = [
@@ -78,7 +78,8 @@ def ensure_workspace(project_id: str, root: Path | None = None, brief_version: i
     base = workspace_path(project_id, root)
     for relative in WORKSPACE_DIRS:
         (base / relative).mkdir(parents=True, exist_ok=True)
-    if not state_path(project_id, root).exists():
+    # IMP-331: a used workspace whose state.json is gone is refused, never re-created.
+    if load_durable_state(project_id, root) is None:
         write_state(  # IMP-300: durable state.json with schema_version, derived counts apart
             project_id,
             {

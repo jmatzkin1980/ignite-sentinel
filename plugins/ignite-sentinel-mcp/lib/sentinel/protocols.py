@@ -52,7 +52,10 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}. Run /init {project_id} first.")
 
-    state = read_json(state_path(project_id), {})
+    from .core.state import load_durable_state
+
+    # IMP-331: a missing or broken state.json stops every project command before it writes.
+    state = load_durable_state(project_id, require=True) or {}
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
