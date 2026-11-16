@@ -1,7 +1,7 @@
 """IMP-285: secrets and sensitive data at ingestion.
 
-`/ingest` and `/sync` run every incoming source through `sanitize_text` before
-anything is extracted. The user's original file is never touched; what enters
+`/ingest`, `/sync`, `/resolve-gaps` and `/harvest` (IMP-336) run every incoming
+source through `sanitize_text` before anything is extracted. The user's original file is never touched; what enters
 the workspace (the `00_raw/` copy and every artifact derived from it) carries
 `<SECRETO:type>` instead of the secret, and each redaction opens an alert in
 `01_discovery/secret_alerts.md` that records the type, the line and a SHA-256
@@ -60,11 +60,60 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"|\bglpat-[A-Za-z0-9_-]{20}\b"
             r"|\bxox[abprs]-[A-Za-z0-9-]{10,}\b"
             r"|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{32,}\b"
+            # IMP-336: Stripe secret / restricted keys and webhook secrets, npm, SendGrid
+            r"|\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}\b"
+            r"|\bwhsec_[A-Za-z0-9]{24,}\b"
+            r"|\bnpm_[A-Za-z0-9]{36}\b"
+            r"|\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b"
             r"|(?i:\bbearer\s+)[A-Za-z0-9._~+/-]{24,}=*"
+        ),
+    ),
+    (
+        # IMP-336: `password = …`, `api_key: …`, `"pwd": "…"`. Only the value is
+        # redacted (group `value`), so the line still says what was there; the value
+        # must look like a secret (see `_credential_value_ok`), so prose such as
+        # `Password: required` or a placeholder such as `<your password>` passes.
+        "credential",
+        re.compile(
+            r"(?i)(?<![A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*"
+            r"(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|secret[_-]?key"
+            r"|(?:access|auth|api|refresh)[_-]?token|token)"
+            r"(?![A-Za-z0-9])[\"']?[ \t]*[:=][ \t]*[\"']?"
+            r"(?P<value>[^\s\"'<>`]+)"
         ),
     ),
 )
 SECRET_TYPES = tuple(name for name, _ in SECRET_PATTERNS)
+
+_PLACEHOLDER_PREFIXES = ("your", "my_", "my-", "example", "placeholder", "redacted", "dummy", "sample")
+
+
+def _credential_value_ok(value: str) -> bool:
+    """A key-value credential counts only when its value is plausibly a real secret.
+
+    At least 6 characters with a letter and a digit (``hunter2``-shaped), or at
+    least 20 characters of key-like charset. Placeholders (``***``, ``xxxx``,
+    ``${VAR}``, ``{{VAR}}``, ``%VAR%``, ``<…>``, ``your-password``) and code
+    (``match.group(0)``, ``args.password1``) never count.
+    """
+    value = value.rstrip(".,;)")
+    if value[:1] in {"$", "{", "%", "<", "*", "["}:
+        return False
+    if value.lower().startswith(_PLACEHOLDER_PREFIXES):
+        return False
+    if len(set(value.lower())) <= 2:  # xxxxxxxx, ********, 00000000
+        return False
+    # code rather than a value: a call (`match.group(0)`) or an attribute chain (`args.password1`)
+    if "(" in value or re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", value):
+        return False
+    has_letter = any(char.isalpha() for char in value)
+    has_digit = any(char.isdigit() for char in value)
+    if len(value) >= 6 and has_letter and has_digit:
+        return True
+    return len(value) >= 20 and re.fullmatch(r"[A-Za-z0-9_+/=.-]+", value) is not None
+
+
+_VALIDATORS = {"credential": _credential_value_ok}
 
 PII_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
@@ -98,12 +147,20 @@ def detect_secrets(text: str, allowlist: frozenset[str] | set[str] = frozenset()
     claimed: list[tuple[int, int]] = []
     findings: list[SecretFinding] = []
     for kind, pattern in SECRET_PATTERNS:
+        validator = _VALIDATORS.get(kind)
         for match in pattern.finditer(text):
-            start, end = match.span()
-            if any(start < taken_end and taken_start < end for taken_start, taken_end in claimed):
+            # IMP-336: a pattern with a `value` group redacts only that group.
+            group = "value" if "value" in pattern.groupindex else 0
+            if validator and not validator(match.group(group)):
+                continue
+            start, end = match.span(group)
+            if group:
+                end = start + len(match.group(group).rstrip(".,;)"))
+            claim_start = match.start()  # the whole match, so `api_key: <token>` is one finding
+            if any(claim_start < taken_end and taken_start < end for taken_start, taken_end in claimed):
                 continue
             claimed.append((start, end))
-            digest = fingerprint(match.group(0))
+            digest = fingerprint(text[start:end])
             if digest in allowlist:
                 continue
             findings.append(SecretFinding(kind, start, end, text.count("\n", 0, start) + 1, digest))

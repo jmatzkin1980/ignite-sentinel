@@ -23,6 +23,8 @@ SIGNALS_FILE = "01_discovery/injection_signals.md"
 ORIGIN = "injection_signal"
 
 _W = r"[^.\n]"
+# IMP-336: like _W, but a dot inside a token (`state.json`, `evil.example`) does not end the phrase.
+_WD = r"(?:[^.\n]|\.(?=\S))"
 INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "override",
@@ -58,7 +60,7 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(
             rf"\b(?:send|upload|post|forward|exfiltrate|leak|share)\b{_W}{{0,30}}"
             r"\b(?:this|the|all|your|any)\s+(?:data|content|conversation|context|files?|workspace|secrets?|credentials|keys?|prompt|instructions)\b"
-            rf"{_W}{{0,40}}\b(?:to|at)\b"
+            rf"{_WD}{{0,40}}\b(?:to|at)\b"
             rf"|\b(?:envi|mand|sub|compart)[aáií]\w*\b{_W}{{0,30}}\b(?:los|las|el|la|todo|todos)\s+"
             r"(?:datos|contenido|archivos|secretos|credenciales|claves|instrucciones)\b",
             re.I,
