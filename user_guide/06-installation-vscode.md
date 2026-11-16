@@ -65,15 +65,18 @@ Swap `memory.txt` for `memory-semantic.txt` or `mcp.txt` as needed. Details and 
 ## Path A: Claude Code plugin from the marketplace
 
 1. Install Python 3.10+ (see prerequisites).
-2. In Claude Code, from any project folder:
+2. Add the marketplace on the `stable` channel (the latest release) and install the plugin. Pick one:
+   - **Claude Code chat** (terminal, VS Code or the desktop app), from any project folder:
 
-   ```text
-   /plugin marketplace add jmatzkin1980/ignite-sentinel
-   /plugin install ignite-sentinel@ignite-sentinel
-   ```
+     ```text
+     /plugin marketplace add jmatzkin1980/ignite-sentinel#stable
+     /plugin install ignite-sentinel@ignite-sentinel
+     ```
+   - **Claude desktop app, by clicks:** open the plugins screen, tab **Code**, **Add marketplace**, type `jmatzkin1980/ignite-sentinel#stable`, **Sync**, then the **+** on **Ignite Sentinel**. Leave **Ignite Sentinel MCP** alone unless you need MCP.
+   - **A shell:** `claude plugin marketplace add jmatzkin1980/ignite-sentinel#stable`, then `claude plugin install ignite-sentinel@ignite-sentinel`.
 
-   Or from a shell: `claude plugin marketplace add jmatzkin1980/ignite-sentinel`, then `claude plugin install ignite-sentinel@ignite-sentinel`.
-3. Open the folder where your project data should live and ask Claude to start a project:
+   Without `#stable` you get `main`: everything merged, released or not.
+3. Open the folder where your project data should live (a good habit is one folder per client, one workspace per project: see [organizing folders](00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project)) and ask Claude to start a project:
 
    ```text
    sentinel /init ACME_PORTAL
@@ -84,7 +87,7 @@ Swap `memory.txt` for `memory-semantic.txt` or `mcp.txt` as needed. Details and 
 
 **Check:** `claude plugin list` shows `ignite-sentinel` enabled, and `workspaces/ACME_PORTAL/` appears in your project folder. To check the runtime, type `sentinel /doctor` (a bare `/doctor` is Claude Code's own diagnostic, not Sentinel's): in a plain project folder it runs in runtime mode (`"mode": "runtime"`), checking the interpreter, the folder and the optional extras, and skips the clone's files.
 
-Channels, pinning and the optional MCP plugin are in the [Claude Code plugin guide](18-claude-plugin.md).
+To get a newer release later, see [Updating the plugin](18-claude-plugin.md#updating-the-plugin). Channels, pinning and the optional MCP plugin are in the [Claude Code plugin guide](18-claude-plugin.md).
 
 ## Path B: Claude Code clone
 
