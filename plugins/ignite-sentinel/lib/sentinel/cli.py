@@ -55,18 +55,37 @@ def command_workspace(args) -> Path | None:
     return workspace_path(project_id)
 
 
+_TEXT_SOURCE_SUFFIXES = {".md", ".markdown", ".txt", ".json", ".html", ".htm", ".csv"}
+
+
 def check_source_exists(args) -> None:
     """IMP-312: a `--source` file that does not exist is invalid input (exit 3), not a traceback."""
     source = getattr(args, "source", None)
     if not source or (args.command == "prototype" and getattr(args, "inventory", False)):
         return  # --inventory takes a source id (F-NN), not a path
-    if not Path(source).exists():
-        from .errors import InputError
+    from .errors import InputError
 
+    path = Path(source)
+    if not path.exists():
         raise InputError(
             f"--source file not found: {source}",
             next_step=f"Check the path; it is read relative to the folder you run Sentinel from ({Path.cwd()}).",
         )
+    if args.command == "sync":
+        return  # /sync --source also takes a folder to scan
+    if path.is_dir():
+        # IMP-323: a folder used to end in exit 1 with a PermissionError traceback.
+        raise InputError(f"--source must be a file, not a folder: {source}", next_step="Pass the file itself.")
+    if path.suffix.lower() in _TEXT_SOURCE_SUFFIXES:
+        # IMP-323: a UTF-16 file (what PowerShell 5.1 `>` writes) failed after the command had
+        # already copied it into the workspace; refuse it before anything is written.
+        try:
+            path.read_bytes().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise InputError(
+                f"--source is not UTF-8 text: {source}",
+                next_step="Save the file as UTF-8 (in PowerShell: Out-File -Encoding utf8) and run the command again.",
+            ) from None
 
 
 def run_command(args, argv: list[str]) -> int:

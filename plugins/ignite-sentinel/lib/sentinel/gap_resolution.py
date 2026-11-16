@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .errors import GateRefusal  # IMP-302: typed errors
+from .errors import GateRefusal, InputError  # IMP-302: typed errors
 
 import re
 import shutil
@@ -64,13 +64,17 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     if not gaps_path.exists():
         raise GateRefusal("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
 
+    # IMP-322: utf-8-sig, so a file saved with a BOM keeps its first `### GAP-` answer.
+    # IMP-323: read before anything is written, so an unreadable file leaves no copy behind.
+    try:
+        text = source.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        raise InputError(f"{source.name} is not UTF-8 text.", next_step="Save it as UTF-8 and run /resolve-gaps again.") from None
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = unique_target(target_dir / f"{source.stem}.md")
     copy_file(source, target)
-    # IMP-322: utf-8-sig, so a file saved with a BOM keeps its first `### GAP-` answer.
-    text = source.read_text(encoding="utf-8-sig")
     responses = parse_gap_responses(text)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}

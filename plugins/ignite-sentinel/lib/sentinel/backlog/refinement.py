@@ -36,10 +36,22 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
         raise BacklogRefinementError(f"Backlog refinement source not found: {source}")
 
     data = read_json(source, {})
+    if not isinstance(data, dict):
+        raise BacklogRefinementError("Backlog refinement source must be a JSON object with a non-empty proposals array.")
     evidence_text = backlog_refinement_evidence_text(base)
     story_index = load_story_index(base)
     spec_units = load_spec_unit_index(base)
     accepted, rejected = validate_refinement_proposals(data, evidence_text, story_index, spec_units)
+    if not accepted:
+        # IMP-323: refuse before touching the backlog, the payload archive, state or the graph;
+        # only the report of why each proposal was refused is written.
+        from ..prd import rejection_summary
+
+        write_refinement_report(project_id, accepted, rejected, source)
+        raise BacklogRefinementError(
+            "No backlog refinement proposals were accepted: " + rejection_summary(rejected)
+            + " Details in 04_backlog/refinements/refinement_report.md."
+        )
 
     refinement_dir = base / "04_backlog" / "refinements"
     refinement_dir.mkdir(parents=True, exist_ok=True)
@@ -84,10 +96,6 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
         last_backlog_refinement_source=str(archived.as_posix()),
     )
 
-    if not accepted:
-        raise BacklogRefinementError(
-            "No backlog refinement proposals were accepted. See 04_backlog/refinements/refinement_report.md."
-        )
     return {
         "refinement_id": refinement_id,
         "accepted": [item["id"] for item in accepted],
@@ -110,6 +118,9 @@ def validate_refinement_proposals(
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, str]] = []
     for index, proposal in enumerate(proposals, start=1):
+        if not isinstance(proposal, dict):
+            rejected.append({"id": f"BREF-{index:03d}", "kind": "?", "reason": "proposal must be an object"})
+            continue
         proposal_id = str(proposal.get("id") or f"BREF-{index:03d}")
         reason = validate_proposal_shape(proposal, evidence_text, story_index, spec_units)
         if reason:

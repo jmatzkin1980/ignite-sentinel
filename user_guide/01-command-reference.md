@@ -159,6 +159,8 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/story-status` | The story file does not exist | `Story does not exist ... Run /backlog` | 4 | `/backlog` |
 | `/story-status` | `backlog_gate.strict` and DoR (to `Ready`) or DoD (to `Done`) is incomplete | `DoR gate blocks Ready` / `DoD gate blocks Done` | 4 | Complete the items named; `--evidence` for DoD |
 | `/story-status` | The transition is not legal | `Illegal story transition` | 3 | See the transition table in [`story-status`](#story-status) |
+| `/ingest` | The project already has its primary requirement and `--replace` is not given | `already has its primary requirement` | 4 | `/sync PROJECT_ID --source PATH` to add the file, or `--replace` on purpose |
+| Any command with `--source` | The path is a folder (except `/sync`), or a `.md`/`.txt`/`.json`/`.html` file is not UTF-8 | `--source must be a file` / `--source is not UTF-8 text` | 3 | Pass the file; save it as UTF-8. Nothing was written |
 | `/gaps`, `/resolve-gaps`, `/annotate`, `/challenge`, `/scrutinize`, `/self-review`, `/brief` | Before `/ingest` | `Cannot ... before /ingest creates ...` | 4 | `/ingest` |
 | `/annotate`, `/challenge`, `/scrutinize` | No raw input under `00_raw/` to check quotes against | `No raw input found under 00_raw/` | 4 | `/ingest` |
 | `/self-review` (default mode) | No PRD or specs | `Cannot self-review before /specs` | 4 | `/specs` |
@@ -1222,7 +1224,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **Writes.** `03_specs/prd.md` (an `Agent Composition` subsection), `03_specs/compositions/` (copy, `accepted_blocks.json`, `composition_report.md`). A later `/specs` reapplies still-valid blocks and writes `regeneration_report.md`.
 
-**Refuses when.** No PRD yet (before `/specs`) → exit 4. No block accepted → exit 3.
+**Refuses when.** No PRD yet (before `/specs`) → exit 4. The payload is not a JSON object with a `blocks` array, or no block is accepted → exit 3; the message lists why each block was refused and only `composition_report.md` is written: the PRD, the payload archive, state and the graph are untouched.
 
 **You get.** The accepted and refused blocks.
 
@@ -1437,7 +1439,7 @@ python -m sentinel /refine-backlog ACME_PORTAL --source refinement.json
 
 **Writes.** `04_backlog/EPIC-001.md` and the targeted stories (an `Agent Backlog Refinements` section), `04_backlog/refinements/` (copy, `accepted_refinements.json`, `refinement_report.md`).
 
-**Refuses when.** Health `DIRTY` or privacy scan in `block` mode → exit 4. No `04_backlog/EPIC-001.md` (`/backlog` has not written an epic yet) → exit 4. A refused proposal → exit 3.
+**Refuses when.** Health `DIRTY` or privacy scan in `block` mode → exit 4. No `04_backlog/EPIC-001.md` (`/backlog` has not written an epic yet) → exit 4. A payload that is not a JSON object with `proposals`, or no proposal accepted → exit 3; the message lists why each proposal was refused and only `refinement_report.md` is written: the backlog, the payload archive, state and the graph are untouched. When some are accepted, the refused ones are listed in the same report.
 
 **You get.** The accepted and refused proposals.
 
@@ -1471,7 +1473,7 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories.
 
-**Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload → exit 3.
+**Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload, or no finding accepted → exit 3; the message lists why each finding was refused and only `feedback_report.md` is written: gaps, stories, state and the graph are untouched.
 
 **You get.** The recorded findings and the stories affected.
 

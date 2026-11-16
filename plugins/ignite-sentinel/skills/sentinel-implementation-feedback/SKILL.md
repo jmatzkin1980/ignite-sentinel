@@ -47,7 +47,7 @@ Field contract — the runtime rejects anything outside it, so copy it exactly:
 
 ## What Acceptance Triggers
 
-- A `CHG` trace anchor plus `07_changes/05_implementation_feedback/feedback_report.md`; rejected findings are listed with the rejection reason.
+- A `CHG` trace anchor plus `07_changes/05_implementation_feedback/feedback_report.md`; rejected findings are listed with the rejection reason. If no finding is accepted the command exits 3 and changes nothing but that report; its message lists why each finding was refused.
 - `type: gap` findings open `GAP-FEEDBACK-*` entries in the discovery gap lifecycle for the BA to route.
 - `mark_stale` findings mark the affected stories `Stale`, scoped by `source_units`.
 - Open findings can block a story's DoD through the `implementation_feedback_resolved` gate until they are resolved.

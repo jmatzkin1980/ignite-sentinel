@@ -13,7 +13,7 @@ Use this skill to add agent-authored PRD narrative without editing `prd.md` by h
 2. Read the target PRD section and identify source-of-truth evidence under `00_raw/`, `01_discovery/`, `02_requirements/`, or `07_changes/`.
 3. Create a JSON draft with `blocks[]`; each block has `section` and `paragraphs[]`, and each paragraph has `text` plus verbatim `citations[]`.
 4. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /compose PROJECT_ID --source PATH`.
-5. Report accepted and rejected block IDs, plus `03_specs/compositions/composition_report.md`.
+5. Report accepted and rejected block IDs, plus `03_specs/compositions/composition_report.md`. If no block is accepted the command exits 3, changes nothing but the report, and its message lists why each block was refused: fix them and submit again.
 
 ## Draft Shape
 
