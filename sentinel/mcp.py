@@ -85,6 +85,14 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
 # shift every later `TOOL_SPECS[N][1]` reference).
 TOOL_DESCRIPTIONS: dict[str, str] = {name: description for name, description, _ in TOOL_SPECS}
 MCP_ONLY_TOOLS = frozenset({"gap_elicitation"})  # tools with no CLI command
+# IMP-333: the only defaults that differ from the CLI, on purpose (tests/test_mcp_parity.py
+# checks every other default against the parser; user_guide/11-chat-commands.md lists these).
+MCP_DEFAULTS: dict[tuple[str, str], str] = {
+    ("split", "mode"): "the CLI requires one of --assess/--propose/--confirm/--move/--close; the tool defaults to "
+                       "assess, the step that only reads the brief and writes the split assessment",
+    ("prototype", "mode"): "the CLI requires one of --inventory/--trace/--manual; the tool defaults to inventory, "
+                           "the step that only reads the ingested prototypes",
+}
 PROTOTYPE_MODES = ("inventory", "trace", "manual")  # IMP-274, IMP-275, IMP-276
 SPLIT_MODES = ("assess", "propose", "confirm", "move", "close")  # IMP-263, IMP-265, IMP-266, IMP-268, IMP-269
 
@@ -196,7 +204,7 @@ def gap_elicitation(project_id: str, gap_id: str, client_capabilities: object | 
 
     from .core.paths import InvalidProjectId, validate_project_id
     from .discovery import candidate_options_for_gap, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
-    from .workspace import load_config, workspace_path
+    from .workspace import read_state, workspace_path
 
     try:  # IMP-243: this path does not go through cli.main, so validate here too.
         validate_project_id(project_id)
@@ -207,7 +215,8 @@ def gap_elicitation(project_id: str, gap_id: str, client_capabilities: object | 
     if not gaps_path.exists():
         return {"exit_code": 1, "error": f"Gap artifact not found for project {project_id}; run sentinel_gaps first."}
 
-    language = str(load_config(project_id).get("project_language", "es") or "es").lower()
+    # IMP-333: English unless the project says Spanish, like the rest of the runtime.
+    language = "es" if read_state(project_id).get("project_language") == "es" else "en"
     normalized_gap_id = str(gap_id or "").strip().upper()
     gap = next(
         (item for item in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if item.get("id") == normalized_gap_id),
@@ -256,6 +265,25 @@ def dashboard_arguments(open_browser: bool = False, theme: str = "") -> list[str
         arguments.append("--open")
     if theme:
         arguments += ["--theme", theme]
+    return arguments
+
+
+def option_arguments(command: str, **values: object) -> list[str]:
+    """IMP-333: the CLI options for every set value, keyed by CLI destination.
+
+    Nothing is dropped: an unset value ("", 0, False, None) is left to the CLI default and
+    every other value is forwarded, so the CLI decides what a combination means (and refuses
+    the ones it does not accept) exactly as it does on the command line.
+    """
+    from .commands import cli_options
+
+    options = cli_options(command)
+    arguments: list[str] = []
+    for dest, value in values.items():
+        if value is None or value is False or value == "" or (type(value) is int and value == 0):
+            continue
+        option, flag = options[dest]
+        arguments += [option] if flag else [option, str(value)]
     return arguments
 
 
@@ -400,22 +428,10 @@ def build_server():
         profile: str = "",
         notes: str = "",
     ) -> dict:
-        arguments = ["stakeholders", project_id]
-        if add:
-            arguments.append("--add")
-            if id:
-                arguments += ["--id", id]
-            if name:
-                arguments += ["--name", name]
-            if domain:
-                arguments += ["--domain", domain]
-            if topic:
-                arguments += ["--topic", topic]
-            if profile:
-                arguments += ["--profile", profile]
-            if notes:
-                arguments += ["--notes", notes]
-        return run_cli(arguments)
+        # IMP-333: every field is forwarded; the CLI refuses fields without add.
+        return run_cli(["stakeholders", project_id, *option_arguments(
+            "stakeholders", add=add, stakeholder_id=id, name=name, domain=domain, topic=topic, profile=profile,
+            notes=notes)])
 
     @tool(name="sentinel_sources", description=TOOL_DESCRIPTIONS["sources"])
     def sentinel_sources(
@@ -437,33 +453,12 @@ def build_server():
         between: str = "",
         report: bool = False,
     ) -> dict:
-        arguments = ["sources", project_id]
-        if precedence or between:
-            for flag, value in (("--precedence", precedence), ("--between", between)):
-                if value:
-                    arguments += [flag, value]
-            return run_cli(arguments)
-        if report:
-            return run_cli(arguments + ["--report"])
-        if id:
-            arguments += ["--id", id]
-            for flag, value in (
-                ("--from", from_who),
-                ("--superseded-by", superseded_by),
-                ("--replacement", replacement),
-                ("--expire", expire),
-                ("--topic", topic),
-                ("--reason", reason),
-                ("--authority", authority),
-                ("--cell", cell),
-                ("--mark", mark),
-            ):
-                if value:
-                    arguments += [flag, value]
-            for flag, enabled in (("--retire", retire), ("--current", current), ("--close", close)):
-                if enabled:
-                    arguments.append(flag)
-        return run_cli(arguments)
+        # IMP-333: every option is forwarded; the CLI refuses the combinations it does not take
+        # (a change without id, report or precedence with anything else).
+        return run_cli(["sources", project_id, *option_arguments(
+            "sources", source_id=id, from_who=from_who, superseded_by=superseded_by, retire=retire,
+            replacement=replacement, expire=expire, topic=topic, current=current, close=close, reason=reason,
+            authority=authority, cell=cell, mark=mark, precedence=precedence, between=between, report=report)])
 
     @tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False) -> dict:
@@ -484,7 +479,7 @@ def build_server():
     def sentinel_retrieve(
         project_id: str,
         query: str = "",
-        workflow: str = "discovery",
+        workflow: str = "",
         order: str = "relevance",
         timeline: bool = False,
         write_pack: bool = False,
@@ -500,24 +495,12 @@ def build_server():
         max_chars: int = 0,
         summary_only: bool = False,
     ) -> dict:
-        arguments = ["retrieve", project_id]
-        if query:
-            arguments += ["--query", query]
-        if workflow:
-            arguments += ["--workflow", workflow]
-        if order and order != "relevance":
-            arguments += ["--order", order]
-        for flag, value in (("--limit", str(limit) if limit else ""), ("--artifact-type", artifact_type),
-                            ("--domain", domain), ("--trace-id", trace_id),
-                            ("--iteration-min", str(iteration_min) if iteration_min else ""), ("--status", status),
-                            ("--language", language), ("--sensitivity", sensitivity), ("--section", section),
-                            ("--max-chars", str(max_chars) if max_chars else "")):
-            if value:
-                arguments += [flag, value]
-        for flag, enabled in (("--timeline", timeline), ("--write-pack", write_pack), ("--summary-only", summary_only)):
-            if enabled:
-                arguments.append(flag)
-        return run_cli(arguments)
+        # IMP-333: the CLI defaults hold (no pack unless write_pack; workflow is required unless timeline).
+        return run_cli(["retrieve", project_id, *option_arguments(
+            "retrieve", query=query, workflow=workflow, order="" if order == "relevance" else order,
+            timeline=timeline, write_pack=write_pack, limit=limit, artifact_type=artifact_type, domain=domain,
+            trace_id=trace_id, iteration_min=iteration_min, status=status, language=language,
+            sensitivity=sensitivity, section=section, max_chars=max_chars, summary_only=summary_only)])
 
     @tool(name="sentinel_specs", description=TOOL_DESCRIPTIONS["specs"])
     def sentinel_specs(project_id: str, release: str = "") -> dict:
@@ -578,11 +561,12 @@ def build_server():
             raise ValueError(f"mode must be one of {', '.join(SPLIT_MODES)}")
         if mode == "close" and not release:
             raise ValueError("mode=close needs release (the release to close)")
-        options = (("--source", source), ("--ba", ba), ("--tech", tech), ("--unit", unit), ("--from", from_holder),
-                   ("--to", to_holder), ("--reason", reason), ("--finding", finding), ("--criterion", criterion),
-                   ("--evidence", evidence))
+        if release and mode != "close":  # IMP-333: refused, not dropped
+            raise ValueError("release goes with mode=close only (it names the release to close)")
         head = ["split", project_id, "--close", release] if mode == "close" else ["split", project_id, f"--{mode}"]
-        return run_cli([*head, *[part for flag, value in options if value for part in (flag, value)]])
+        return run_cli([*head, *option_arguments(
+            "split", source=source, ba=ba, tech=tech, unit=unit, from_holder=from_holder, to_holder=to_holder,
+            reason=reason, finding=finding, criterion=criterion, evidence=evidence)])
 
     @tool(name="sentinel_scrutinize", description=TOOL_DESCRIPTIONS["scrutinize"])
     def sentinel_scrutinize(project_id: str, source: str, lens: str = "", mode: str = "") -> dict:
