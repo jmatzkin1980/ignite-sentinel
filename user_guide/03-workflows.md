@@ -193,7 +193,23 @@ Then run `/maturity ACME_PORTAL` to see the effect.
    ```
 
    Raw, unstructured material (a mail thread, a call transcript): add `--digest` so Sentinel proposes cited impacts without applying them. Without `--source`, `/sync` scans the input and context folders for new or modified files.
-2. If the new file is a new version of an existing source, say which one governs. Ask the BA; never assume the newest wins:
+
+   Prose is stored and indexed, not interpreted. `prose_review` in the result says how many lines changed nothing, and lists each decision line next to the closed gaps and live assumptions it shares words with. That is a hint, never an applied change.
+2. **A late change to something confirmed** (a note that reverses scope, a decision that replaces an assumption): the hint does not reopen anything. Have the agent read the note and write a cited analysis (skill `sentinel-sync`, `references/change-analysis.md`), then pass it with the note:
+
+   ```text
+   /sync ACME_PORTAL --source input/board-note.md --analysis change-analysis.json
+   ```
+
+   Each candidate quotes the note and the target verbatim; a quote that is not found refuses the whole file (exit 3) and nothing is written. Each valid candidate opens one blocking `GAP-CHG-<hash>`, and `/next` names it. Then the BA decides:
+
+   ```text
+   /gaps ACME_PORTAL --id GAP-CHG-3F9A1C --disposition accepted
+   /gaps ACME_PORTAL --id GAP-CHG-3F9A1C --disposition rejected --reason "restates the old draft"
+   ```
+
+   `accepted` reopens the target gap (its previous closure stays on record) or invalidates the assumption, and marks the brief and PRD stale; answer the reopened gap with `/resolve-gaps` and regenerate with `/brief`. `rejected` closes the `GAP-CHG` as a false alarm.
+3. If the new file is a new version of an existing source, say which one governs. Ask the BA; never assume the newest wins:
 
    ```text
    /sources ACME_PORTAL
@@ -201,16 +217,16 @@ Then run `/maturity ACME_PORTAL` to see the effect.
    /sources ACME_PORTAL --precedence "payment rules" --between F-02,F-05
    ```
 
-3. Rerun the commands that own the affected artifacts (`/maturity`, `/specs`, `/backlog`) only where the change matters, then audit:
+4. Rerun the commands that own the affected artifacts (`/maturity`, `/specs`, `/backlog`) only where the change matters, then audit:
 
    ```text
    /health ACME_PORTAL
    /validate ACME_PORTAL
    ```
 
-4. After a confirmed release series, move scope between releases with `/split --move` (see [Release split](#release-split)), never by editing.
+5. After a confirmed release series, move scope between releases with `/split --move` (see [Release split](#release-split)), never by editing.
 
-**Check:** the change is under `07_changes/`; a contradiction between sources opened a blocking gap with `origin: contradiction`; an invalidated assumption is marked `INVALIDATED`; `/health` names the stale downstream artifacts. Stories derived from a changed spec unit are marked `Stale`.
+**Check:** the change is under `07_changes/`; a contradiction between sources opened a blocking gap with `origin: contradiction`; an invalidated assumption is marked `INVALIDATED` (by the sync metabolism when the note names it, or by an accepted `GAP-CHG`); a closed gap reopens only through an accepted `GAP-CHG`; `/health` names the stale downstream artifacts. Stories derived from a changed spec unit are marked `Stale`.
 
 **If it fails:** do not patch the brief, specs or backlog by hand: the hook denies it and `/health` flags it. Regenerate with the owning command, or route the content through `/resolve-gaps`, `/compose` or `/refine-backlog`. `/sources` with a change but no `--id` exits 3; `--precedence` needs `--between`.
 

@@ -44,14 +44,14 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("dashboard", "Generate the local read-only HTML portfolio dashboard for all workspaces.", []),
     ("init", "Create a new Sentinel project workspace.", ["project_id"]),
     ("ingest", "Ingest raw client/domain evidence and run inquisitive discovery.", ["project_id", "source"]),
-    ("gaps", "Regenerate the human-friendly discovery gaps document. With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7).", ["project_id"]),
+    ("gaps", "Regenerate the human-friendly discovery gaps document. With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7). On a GAP-CHG (IMP-337) accepted applies the change (reopens the gap or invalidates the assumption) and rejected closes it as a false alarm.", ["project_id"]),
     ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
     ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
     ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog.", ["project_id", "full"]),
-    ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan.", ["project_id"]),
+    ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan. The result's prose_review says how many lines were stored but not interpreted and hints the confirmed items each decision line talks about. With source and analysis (an agent's cited change candidates: reopen_gap, invalidate_assumption, contradiction), each valid candidate opens a blocking GAP-CHG for the BA to accept or reject with sentinel_gaps.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
     ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/.", ["project_id"]),
@@ -466,10 +466,13 @@ def build_server():
         return run_cli(arguments)
 
     @tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
-    def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False) -> dict:
+    def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False,
+                      analysis: str = "") -> dict:
         arguments = ["sync", project_id]
         if source:
             arguments += ["--source", source]
+        if analysis:
+            arguments += ["--analysis", analysis]
         if note:
             arguments += ["--note", note]
         if digest:

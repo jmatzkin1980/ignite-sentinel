@@ -182,9 +182,16 @@ def run_command(args, argv: list[str]) -> int:
                 )
             print_json(result)
         elif args.command == "sync":
-            from .sync import sync_change, sync_pending_sources
+            from .sync import sync_change, sync_change_with_analysis, sync_pending_sources
 
-            if args.source:
+            if args.analysis:
+                if not args.source:
+                    from .errors import InputError
+
+                    raise InputError("/sync --analysis needs --source NOTE: the analysis cites the note it reads.")
+                result = sync_change_with_analysis(args.project_id, Path(args.source), Path(args.analysis),
+                                                   args.note, digest=args.digest)
+            elif args.source:
                 result = sync_change(args.project_id, Path(args.source), args.note, digest=args.digest)
             else:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)

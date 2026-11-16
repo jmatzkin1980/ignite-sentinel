@@ -400,6 +400,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 /sync ACME_PORTAL --source notes/2026-11-10-review.md --note "Steering review"
 /sync ACME_PORTAL --source notes/meeting.md --digest
 /sync ACME_PORTAL --digest
+/sync ACME_PORTAL --source notes/board-note.md --analysis change-analysis.json
 ```
 
 **Options.**
@@ -410,16 +411,23 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 | `--source` | a file path | none | The change to bring in. Without it, `/sync` scans the input and context folders for new or modified files (by content hash, recorded in `00_raw/source_manifest.json`). |
 | `--note` | text | empty | Why the change exists; kept in the change record. |
 | `--digest` | flag | off | Also write a structured digest of an unstructured interaction (transcript, mail, chat): candidate answers, decision candidates, new gaps. It proposes, never applies. Works with or without `--source`. |
+| `--analysis` | a JSON file | none | Needs `--source`. An agent's cited reading of the note: change candidates (`reopen_gap`, `invalidate_assumption`, `contradiction`), each with a verbatim quote from the note and one from the target. Each valid candidate opens one blocking `GAP-CHG-<hash>`. Shape: skill `sentinel-sync`, `references/change-analysis.md`. |
 
-**Reads.** The `--source` file or the scanned folders; the source registry.
+**Prose is stored, not interpreted.** `/sync` interprets `### GAP-*` answer blocks and short `Subject: value` statements. Any other line is stored and indexed but changes nothing: `prose_review` in the result (and the impact report) counts those lines and lists each decision line ("The board decided: ...", "El directorio decidió: ...") next to the closed gaps and live assumptions it shares words with. That list is a hint: it never claims a contradiction and never opens, closes or reopens anything. To act on it, pass `--analysis`.
 
-**Writes.** The change and its impact report under `07_changes/`, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `interaction_digest.md` and a `PROPOSED` gap-response file for the BA to review.
+**Reads.** The `--source` file or the scanned folders; the source registry; with `--analysis`, the analysis file, `gaps.md`, `assumptions.md` and the confirmed answers.
 
-**Refuses when.** The workspace does not exist → exit 4.
+**Writes.** The change and its impact report under `07_changes/`, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `interaction_digest.md` (section (f) lists the decision-line hints) and a `PROPOSED` gap-response file for the BA to review. With `--analysis`, the `GAP-CHG` rows in `gaps.md`, `01_discovery/change_candidates.json`, a copy of the analysis under `01_discovery/change_analyses/` and a line in `agent_sweep_log.md`. Nothing else moves: the target gap stays closed and the assumption keeps its status until the BA accepts.
 
-**You get.** The change id, the impact report path, reopened gaps, answered context requests, duplicate content and the `context_pack` path.
+**Refuses when.**
 
-**Next step.** Review the impact report. If a proposed gap response was written, confirm it and run `/resolve-gaps`. Then `/maturity`.
+- The workspace does not exist → exit 4.
+- `--analysis` without `--source` → exit 3.
+- `--analysis` with a quote not found verbatim in the note or the target, a target that does not exist or is in the wrong state (a gap that is not `CLOSED`/`PARTIALLY_CLOSED`, an assumption that is not `ASSUMED`/`VALIDATED`, an unregistered source), or a note that declares itself not validated → exit 3 listing every reason. The analysis is checked before the note is stored, so nothing is written.
+
+**You get.** The change id, the impact report path, reopened gaps (closed gaps the scan detected again; report only), answered context requests, duplicate content, the `context_pack` path, `prose_review`, and with `--analysis` the `change_analysis` block (`opened`, `skipped_existing`).
+
+**Next step.** Review the impact report. If a proposed gap response was written, confirm it and run `/resolve-gaps`. For each `GAP-CHG`, decide with `/gaps --id GAP-CHG-x --disposition accepted|rejected`. Then `/maturity`.
 
 **See also.** [Workflows: requirement changes](03-workflows.md) · [`sources`](#sources) · skill `sentinel-sync`.
 
@@ -474,6 +482,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 /gaps ACME_PORTAL --top 5
 /gaps ACME_PORTAL --id GAP-TECH-NFR --disposition accepted
 /gaps ACME_PORTAL --id GAP-TECH-NFR --disposition rejected --reason "covered by the SLA clause"
+/gaps ACME_PORTAL --id GAP-CHG-3F9A1C --disposition accepted
 ```
 
 **Options.**
@@ -486,19 +495,28 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 | `--reason` | text | empty | Why. Required for `rejected` and `irrelevant`. |
 | `--top` | an integer | none | Plan a round of at most N open gaps, ordered scope, then security and privacy, then UX, then technical, then by severity. |
 
+**On a `GAP-CHG` the disposition has an effect** (a late change opened by `/sync --analysis`):
+
+- `accepted` applies the change: a `reopen_gap` candidate reopens the target gap and keeps its previous closure on record; an `invalidate_assumption` candidate marks the assumption `INVALIDATED` and reopens the gap it held. The `GAP-CHG` closes, and the knowledge metabolism marks the brief, PRD and backlog stale. A `contradiction` candidate closes with the next step to record which source governs (`/sources --precedence`).
+- `rejected` or `irrelevant` closes the `GAP-CHG` as a false alarm and moves nothing else.
+
+Both count in the per-channel disposition metrics (channel `agent`).
+
 **Reads.** `01_discovery/gaps.md` and its side records.
 
 **Writes.**
 
 - Default: `01_discovery/gaps.md` with `Kind` and `Closure` columns, and `01_discovery/gap_elicitation.json`.
 - `--top`: `01_discovery/gap_round.md`.
-- `--disposition`: `01_discovery/agent_dispositions.json`.
+- `--disposition`: `01_discovery/agent_dispositions.json`. On a `GAP-CHG`, also `gaps.md`, `change_candidates.json`, and with `accepted` `assumptions.md` and the knowledge ledger.
 
 **Refuses when.**
 
 - Before `/ingest` → exit 4.
 - `--disposition` without `--id`, or `--id` without `--disposition` → exit 3.
 - `rejected` or `irrelevant` without `--reason` → exit 3.
+- A `GAP-CHG` that was already disposed → exit 3; a change applies once.
+- `accepted` on a `GAP-CHG` whose target moved since (the gap was reopened, the assumption invalidated) → exit 4.
 
 **You get.** The gap counts, `momtest_warnings` (questions phrased as hypotheticals instead of past events; non-blocking), the round, or the disposition recorded.
 
@@ -1705,7 +1723,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 |---|---|---|
 | `ingest` | Nothing ingested yet | `/ingest` |
 | `brief_settings` | Brief v2 settings not confirmed | `/brief --profile ... --genesis ...` |
-| `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself) | `/resolve-gaps` |
+| `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself). When a `GAP-CHG` is among them, the step is *Confirm a late change* and names it | `/resolve-gaps`, or `/gaps --id GAP-CHG-x --disposition accepted\|rejected` |
 | `fix_brief` | `/brief` stopped the phase close | `/brief` |
 | `brief_missing` | Past `/brief` but the brief file is gone | `/brief` |
 | `specs` / `fix_specs` | Ready for specs / specs below the threshold | `/specs` |
