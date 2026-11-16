@@ -122,7 +122,8 @@ Everything the client or the domain teams gave you, as received, in five context
 
 | Path | Purpose | Edit rule | Written by |
 |---|---|---|---|
-| `00_client_requirement/` | The original client requirement. | Add files; do not rewrite processed ones | `/ingest` |
+| `[source].md` (at the top of `00_raw/`) | The redacted copy of the primary client requirement, named after the file you passed to `/ingest` (for example `00_raw/loan-request.md`). | Never edit; replace it only with `/ingest --replace` | `/ingest` |
+| `00_client_requirement/` | Extra client requirement material you add by hand. `/ingest` does not copy into it. | Add files; do not rewrite processed ones | You |
 | `01_business_context/` | Business rules, policies, process documents. | Add files freely | You, `/ingest`, `/sources` |
 | `02_technology_context/` | Architecture notes, API contracts, harvested code summaries (`harvest/`). | Add files freely | You, `/harvest`, `/sources` |
 | `03_design_context/` | Prototypes, design notes. | Add files freely | You, `/sources` |
@@ -180,7 +181,8 @@ Each pass writes one report, plus an archive of the JSON the agent submitted.
 | `implementability_probe_report.md` | `implementability_probe/` | `/scrutinize --mode implementability-probe` |
 | `anchor_review_log.md` | | `/scrutinize --mode anchors` |
 | `sufficiency_log.md` | | `/self-review --sufficiency` |
-| `agent_sweep_log.md`, `agent_dispositions.json` | | `/self-review` |
+| `agent_sweep_log.md` | | Every agent pass: `/annotate`, `/challenge`, `/scrutinize` (all modes), `/self-review` (all modes) |
+| `agent_dispositions.json` | | `/gaps --id GAP-X --disposition` |
 
 All of them are append-only records of what the runtime accepted and rejected. Gaps raised this way carry the matching `Origin` in `gaps.md`. Never edit them.
 
@@ -314,7 +316,7 @@ See [Traceability and memory](05-traceability-and-memory.md) for how the graph i
 | `04_regeneration/regen-NNN-*.md` | What changed when `/specs` or `/backlog` regenerated an artifact. Each change is marked `ADDED`, `MODIFIED` or `REMOVED`. | Never edit | `/specs`, `/backlog` |
 | `05_implementation_feedback/feedback_report.md` | Accepted and rejected findings from implementation, plus the archived JSON. | Never edit | `/implementation-feedback` |
 | `source_log.md` | The source registry: one `F-NN` row per source with authority, supersession and impact matrix. | Never edit; use `/sources` | `/sources` |
-| `closing_report.md` | The closing report of the source registry. | Never edit | `/sources --close` |
+| `closing_report.md` | The closing report of the source registry. | Never edit | `/sources --report` |
 
 ## `08_context_packs/`: derived packs, requests, exports, views
 

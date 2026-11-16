@@ -376,7 +376,7 @@ Client content stays in local files. Sentinel uses no remote MCP server, no exte
 
 ## Where to go next
 
-**Everyone:** [workflows by situation](03-workflows.md), [scenarios](12-scenarios.md), [chat commands](11-chat-commands.md).
+**Everyone:** [workflows by situation](03-workflows.md), [scenarios](12-scenarios.md), [chat commands](11-chat-commands.md), [when something went wrong](21-recovery.md).
 
 **Business analyst:** [artifact reference](02-artifact-reference.md), [skills catalog](04-codex-skills-guide.md).
 

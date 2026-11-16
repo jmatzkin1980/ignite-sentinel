@@ -125,7 +125,7 @@ Plain words work too: *"Create a Sentinel project ACME_PORTAL from input/acme-re
 
 ## Next steps by role
 
-- **Business analyst:** [concepts and first run](user_guide/00-user-guide.md), then [workflows](user_guide/03-workflows.md) (client answers, thin intake, changes) and [scenarios](user_guide/12-scenarios.md).
+- **Business analyst:** [concepts and first run](user_guide/00-user-guide.md), then [workflows](user_guide/03-workflows.md) (client answers, thin intake, changes), [scenarios](user_guide/12-scenarios.md), and [when something went wrong](user_guide/21-recovery.md).
 - **Product manager:** [concepts](user_guide/00-user-guide.md), [artifact views](user_guide/15-artifact-views.md), the [dashboard](user_guide/14-dashboard.md), and [release split](user_guide/03-workflows.md#release-split).
 - **Developer:** [command reference](user_guide/01-command-reference.md), [artifact reference](user_guide/02-artifact-reference.md), [backlog workflow](user_guide/03-workflows.md#backlog-refinement-and-story-status), [traceability and memory](user_guide/05-traceability-and-memory.md), and the MCP server in [chat and MCP](user_guide/11-chat-commands.md).
 
