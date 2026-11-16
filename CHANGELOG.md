@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-11-15
+
 ### Fixed
 - `/doctor` outside a framework clone no longer suggests `pip install -e .[memory]` (IMP-317). That command installs the clone's own project, so it fails in a plugin, wheel or `.pyz` project folder. In runtime mode the hints now name the packages (`lancedb`; `model2vec sentence-transformers`; `"mcp>=1.2,<3"`) and say to use the Python that runs Sentinel. The MCP server's missing-package message gives both forms. Found in the live walkthrough of 0.12.1.
 - The plugin guide explains how the Claude desktop app removes a marketplace (IMP-317): `/plugin marketplace remove` only opens the plugins screen, the marketplace is removed from the **⋯** menu of its label, and uninstalling the plugin alone leaves the marketplace registered. It also records the Git Bash fix as observed in 0.12.1.
