@@ -1,6 +1,6 @@
 ---
 name: sentinel-privacy-local-first
-description: "Use when you want the full Ignite Sentinel local-first privacy rule set or an export checklist (a deliberate, human-invoked reference): source of truth in versionable workspace files, no remote MCP / external vector databases / external embedding services for client content, and export only through audited commands. Not needed for routine work: the non-negotiable rules are always on in AGENTS.md and CLAUDE.md."
+description: "Use when you want the full Ignite Sentinel local-first privacy rule set or an export checklist (a deliberate, human-invoked reference): source of truth in versionable workspace files, no remote MCP / external vector databases / external embedding services for client content, and export only through audited commands. Not needed for routine work: the runtime enforces the core rules itself (local memory, audited export, backlog privacy scan)."
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ Invoke this skill deliberately whenever project data, client documents, code, me
 
 ## Invocation
 
-This skill is **human-only** (`disable-model-invocation: true`): the model does not auto-load it. That is intentional — the privacy non-negotiables are always-on in `AGENTS.md` and `CLAUDE.md`, so enforcement never depends on a skill firing. This deeper reference is invoked deliberately (by a human, or on explicit request) when the full rule set or an export checklist is needed. See `user_guide/references/skill-authoring-checklist.md` for the human-only convention.
+This skill is **human-only** (`disable-model-invocation: true`): the model does not auto-load it. That is intentional: enforcement never depends on a skill firing. The runtime keeps retrieval memory local, `/export` refuses output that carries a secret, and the backlog commands run a privacy scan. A cloned repository also carries the non-negotiable rules in its `AGENTS.md` and `CLAUDE.md`; the Claude Code plugin does not ship those files, so the rules below are the full statement on every surface. This deeper reference is invoked deliberately (by a human, or on explicit request) when the full rule set or an export checklist is needed.
 
 ## Rules
 

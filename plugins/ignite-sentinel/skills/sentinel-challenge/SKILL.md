@@ -79,7 +79,7 @@ Technique prompts calibrate their wording to the declared profile of whoever wil
 
 ## Sweep protocol (IMP-271)
 
-Follow `sentinel/templates/agent_sweep_protocol.md`. The runtime rejects the whole payload when:
+Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:
 
 - an `absent` entry is not `AUSENTE: <what> en <where>`, or what it calls absent is in the source;
 - `untouched` is not a list of sentences;
