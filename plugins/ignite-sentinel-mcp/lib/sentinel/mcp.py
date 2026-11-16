@@ -304,7 +304,8 @@ def server_class():
     except ImportError as exc:
         raise RuntimeError(
             "The MCP server requires the optional `mcp` dependency (1.2 or later, below 3). "
-            "Install it with: python -m pip install -e .[mcp]"
+            'Install it with: python -m pip install "mcp>=1.2,<3" '
+            "(in a framework clone: python -m pip install -e .[mcp])"
         ) from exc
 
 

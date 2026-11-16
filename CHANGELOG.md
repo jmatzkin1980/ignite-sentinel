@@ -6,6 +6,10 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- `/doctor` outside a framework clone no longer suggests `pip install -e .[memory]` (IMP-317). That command installs the clone's own project, so it fails in a plugin, wheel or `.pyz` project folder. In runtime mode the hints now name the packages (`lancedb`; `model2vec sentence-transformers`; `"mcp>=1.2,<3"`) and say to use the Python that runs Sentinel. The MCP server's missing-package message gives both forms. Found in the live walkthrough of 0.12.1.
+- The plugin guide explains how the Claude desktop app removes a marketplace (IMP-317): `/plugin marketplace remove` only opens the plugins screen, the marketplace is removed from the **⋯** menu of its label, and uninstalling the plugin alone leaves the marketplace registered. It also records the Git Bash fix as observed in 0.12.1.
+
 ### Changed
 - The agent closes with a choice when something is waiting on you (IMP-316). The command router, `AGENTS.md` and `CLAUDE.md` ask for one short question with 2 to 4 options, the recommended one first, shown as choices in Claude Code (`AskUserQuestion`) and as a numbered list elsewhere. Picking an option never closes a gap or confirms anything for you. Found in a live walkthrough: the next action got lost in the answer's text.
 - The plugin guide explains how to update the plugin (IMP-316): per channel, the in-session and terminal commands, how to turn on auto-update, how to move from one release tag to another, and that removing the marketplace uninstalls the plugin but never touches your workspaces.
