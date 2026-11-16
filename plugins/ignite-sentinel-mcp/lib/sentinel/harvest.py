@@ -61,8 +61,12 @@ class HarvestError(InputError):
     pass
 
 
-def parse_harvest(text: str) -> dict[str, Any]:
-    """Repos of B0, tagged entries with their block, and the errors found. Pure."""
+def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
+    """Repos of B0, tagged entries with their block, and the errors found. Pure.
+
+    IMP-326: `known_repos` are the repos an earlier harvest of the project already listed, so
+    a later file may deliver B1-B5 without repeating B0.
+    """
     repos: list[str] = []
     entries: list[dict[str, str]] = []
     errors: list[str] = []
@@ -94,13 +98,13 @@ def parse_harvest(text: str) -> dict[str, Any]:
             repo, _, path = ref.partition(":")
             if not repo or not path:
                 errors.append(f"{where}: [{kind}] needs `repo:file`")
-            elif repo not in repos:
+            elif repo not in repos and repo not in known_repos:
                 errors.append(f"{where}: repo {repo!r} is not in the B0 inventory")
         elif kind == "not_found" and not ref:
             errors.append(f"{where}: [not found] says where it should be")
         elif kind == "out_of_code" and ref.lower() not in OUT_OF_CODE_TOPICS:
             errors.append(f"{where}: out-of-code topic must be one of {', '.join(sorted(OUT_OF_CODE_TOPICS))}")
-    if not repos:
+    if not repos and not known_repos:
         errors.append("B0 lists no repository (`- repo: name — path`)")
     coverage = {kind: sum(1 for e in entries if e["kind"] == kind) for kind in ("fact", "inferred", "not_found", "out_of_code", "divergence")}
     return {"repos": repos, "entries": entries, "errors": errors, "coverage": coverage}
@@ -134,7 +138,9 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     if not base.exists():
         raise HarvestError(f"Workspace not found: {project_id}")
     raw = source.read_text(encoding="utf-8")
-    parsed = parse_harvest(raw)
+    previous = load_harvest(base)
+    previous_repos = [str(repo) for repo in previous.get("repos", [])]
+    parsed = parse_harvest(raw, previous_repos)
     if parsed["errors"]:
         raise HarvestError("Harvest rejected:\n- " + "\n- ".join(parsed["errors"]))
     source_id = open_source_row(project_id, source, "harvested")
@@ -145,8 +151,20 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
     state = read_state(project_id, {})
     language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    record = {"artifact": "harvest", "source_id": source_id, "direction": "built", "repos": parsed["repos"],
-              "coverage": parsed["coverage"], "entries": parsed["entries"], "secrets_redacted": len(sanitized.findings)}
+    # IMP-326: a harvest delivered block by block accumulates. The blocks this file brings
+    # replace the same blocks of earlier harvests (a re-delivery corrects them); the other
+    # blocks are kept. It used to overwrite harvest.json, so a second run lost the first.
+    delivered = {entry["block"] for entry in parsed["entries"]}
+    for entry in parsed["entries"]:
+        entry["source_id"] = source_id
+    kept = [entry for entry in previous.get("entries", []) if entry.get("block") not in delivered]
+    entries = sorted([*kept, *parsed["entries"]], key=lambda entry: (entry.get("block", ""), int(entry.get("line", 0) or 0)))
+    repos = list(dict.fromkeys([*previous_repos, *parsed["repos"]]))
+    coverage = {kind: sum(1 for e in entries if e["kind"] == kind) for kind in parsed["coverage"]}
+    sources = list(dict.fromkeys([*previous.get("source_ids", [previous.get("source_id")] if previous.get("source_id") else []), source_id]))
+    record = {"artifact": "harvest", "source_id": source_id, "source_ids": sources, "direction": "built", "repos": repos,
+              "coverage": coverage, "entries": entries,
+              "secrets_redacted": int(previous.get("secrets_redacted", 0) or 0) + len(sanitized.findings)}
     write_json(base / "01_discovery" / "harvest.json", record)
     gaps = [g for g in (_gap(e, language) for e in parsed["entries"]) if g]
     gaps_path = base / "01_discovery" / "gaps.md"
@@ -159,7 +177,8 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
         write_text(gaps_path, render_gaps(project_id, merged["gaps"], req_id, language))
         counts = count_gaps(merged["gaps"])
         update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
-    return {"project_id": project_id, "source_id": source_id, "repos": parsed["repos"], "coverage": parsed["coverage"],
+    return {"project_id": project_id, "source_id": source_id, "repos": repos, "coverage": coverage,
+            "blocks_delivered": sorted(delivered), "blocks_total": sorted({e["block"] for e in entries}),
             "gaps_opened": opened, "secrets_redacted": len(sanitized.findings), "path": str(target.as_posix())}
 
 
