@@ -164,7 +164,8 @@ class FlowTests(unittest.TestCase):
         for skill in ("sentinel-annotate", "sentinel-challenge", "sentinel-scrutiny", "sentinel-self-review"):
             for root in (".codex", ".claude", ".agents"):
                 body = (ROOT / root / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-                self.assertIn("sentinel/templates/agent_sweep_protocol.md", body, f"{root}/{skill}")
+                # The skills name the package-relative path: `sentinel/` in a clone, `lib/sentinel/` in the plugin.
+                self.assertIn("templates/agent_sweep_protocol.md", body, f"{root}/{skill}")
 
 
 if __name__ == "__main__":
