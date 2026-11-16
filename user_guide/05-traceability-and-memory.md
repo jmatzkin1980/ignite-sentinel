@@ -114,7 +114,7 @@ Each result has `why_retrieved` and a **`read_plan`**: `source_path`, `section_p
 /reindex ACME_PORTAL --full
 ```
 
-`/reindex` is mutating. By default it is incremental: an artifact with the same hash and chunking version is skipped. `--full` rebuilds every chunk. Run it after a clone, after adding files to the context folders, and when `/health` reports a freshness warning.
+`/reindex` is mutating. By default it is incremental: an artifact with the same hash and chunking version is skipped, unless the LanceDB table has lost its rows, in which case it is embedded again. `--full` rebuilds every chunk. Run it after a clone, after adding files to the context folders, and when `/health` reports a freshness warning.
 
 `/health` warns when context changed after the backlog was generated, names stories marked `Stale` because a spec unit changed, reports knowledge staleness after `/sync` or `/resolve-gaps`, and names stories whose Definition of Done is blocked by open implementation feedback. Re-index and retrieve before handing work to implementation; regenerate artifacts only for a material change to scope, acceptance criteria, dependencies or execution contracts.
 
