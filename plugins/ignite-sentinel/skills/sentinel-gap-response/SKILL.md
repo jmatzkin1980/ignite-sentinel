@@ -1,11 +1,11 @@
 ---
 name: sentinel-gap-response
-description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered gaps.md, or gap closure questions. Not for new information that does not answer an open gap (use sentinel-sync)."
+description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered interview script or gaps.md, or gap closure questions. Not for new information that does not answer an open gap (use sentinel-sync)."
 ---
 
 # Sentinel Gap Response
 
-Use this skill after a client or domain owner returns an answered `gaps.md` or equivalent Markdown file.
+Use this skill after a client or domain owner returns an answered interview script (`/export PROJECT_ID --artifact gaps --format interview`, the file the BA sends out), an answered copy of `gaps.md`, or an equivalent Markdown file.
 
 ## Workflow
 
@@ -55,7 +55,7 @@ The same contract holds for assumptions (IMP-182). A **test before advancing** a
 
 ## Grill Mode: Guided Live Gap Closure (IMP-184)
 
-Use grill mode when the BA wants to work the open gaps **live in chat** — one decision at a time — instead of sending the async `gaps.md` out and waiting. It is a conversational pattern with **no runtime of its own**: it only drafts the `/resolve-gaps` response file, and closure still happens through `/resolve-gaps`.
+Use grill mode when the BA wants to work the open gaps **live in chat** — one decision at a time — instead of sending the interview script out and waiting. It is a conversational pattern with **no runtime of its own**: it only drafts the `/resolve-gaps` response file, and closure still happens through `/resolve-gaps`.
 
 The name is from Rob Fitzgerald / Pocock "grilling": ask one question, wait for the answer, then follow the thread — because a wall of questions overwhelms and produces shallow answers.
 

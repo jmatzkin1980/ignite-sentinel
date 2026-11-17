@@ -479,7 +479,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 
 ## `gaps`
 
-**What it does.** Three jobs, chosen by the options: regenerate the shareable gap document; plan the next round of at most N questions; or record the BA's disposition on a gap an agent raised.
+**What it does.** Three jobs, chosen by the options: regenerate `gaps.md`, the gap ledger (the client gets the interview export, not this file); plan the next round of at most N questions; or record the BA's disposition on a gap an agent raised.
 
 **Type.** Mutating.
 
@@ -1040,7 +1040,7 @@ A flag you leave out keeps the previous confirmation. Run it with `--profile` an
 
 **You get.** The brief path, `brief_settings` (with `proposal` while unconfirmed), `brief_section_readiness`, warnings, `brief_gate`, `implementability_gate` and `self_correction`.
 
-**Next step.** Share `gaps.md` and process answers with `/resolve-gaps`; then `/maturity` and `/specs`. On a large brief, `/split --assess`.
+**Next step.** Send the client the interview script (`/export --artifact gaps --format interview`) and process answers with `/resolve-gaps`; then `/maturity` and `/specs`. On a large brief, `/split --assess`.
 
 **See also.** [User guide: brief v1 and v2](00-user-guide.md) · [Artifact reference](02-artifact-reference.md) · skill `sentinel-project-brief`.
 

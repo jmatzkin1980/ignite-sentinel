@@ -131,7 +131,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Set up the brief for a new screen-based system" | `/brief` → `/brief --profile UI --genesis greenfield` | Required once on a new project, right after the first `/ingest`. If skipped, see [what happens](00-user-guide.md#if-you-skip-the-brief-settings). |
 | "What is still missing?" | `/status` or `/gaps` | `/status` gives the verdict and counts. |
 | "Which questions should I ask first?" | `/gaps --top 5` | Writes `gap_round.md`. |
-| "Give me an interview script for the client" | `/export --artifact gaps --format interview` | Grouped by owner. |
+| "Give me an interview script for the client" | `/export --artifact gaps --format interview` | Plain questions for the client, grouped by owner (by topic until stakeholders are registered). Send this, not `gaps.md`. |
 | "This person owns billing questions" | `/stakeholders --add --name NAME --domain DOMAIN` | List with plain `/stakeholders`. |
 | "Read the existing codebase" | `sentinel-brownfield-harvest` skill → `/harvest --source harvest.md` | Tags `[HECHO repo:file]` / `[FACT ...]`, `[INFERIDO]` / `[INFERRED]`, and others. |
 | "We have an HTML prototype" | `/sync --source FILE` (or `/ingest` if it is the first material) → `/prototype --inventory` → `/prototype --trace --source trace.json` | Traces are written with `sentinel-prototype-trace`. |

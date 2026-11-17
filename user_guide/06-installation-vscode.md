@@ -186,7 +186,7 @@ Each GitHub release carries the plugin as a `.zip` and a `SHA256SUMS` file, inst
 The release also carries a Python wheel (`ignite_sentinel-X.Y.Z-py3-none-any.whl`) that installs the `sentinel` command and nothing else: no skills, no slash commands, no hook.
 
 ```powershell
-python -m pip install .\ignite_sentinel-0.14.0-py3-none-any.whl
+python -m pip install .\ignite_sentinel-0.15.0-py3-none-any.whl
 sentinel /init ACME_PORTAL
 sentinel /next ACME_PORTAL
 ```

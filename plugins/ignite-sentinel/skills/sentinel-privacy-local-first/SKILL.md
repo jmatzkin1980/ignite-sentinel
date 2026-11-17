@@ -22,8 +22,10 @@ This skill is **human-only** (`disable-model-invocation: true`): the model does 
 - Export only through audited commands such as:
 
 ```powershell
-sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format md
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format interview
 sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact brief --format md
 ```
+
+- Send the client the interview script (the first command), not `01_discovery/gaps.md`, which is the BA's working ledger.
 
 - Do not store sensitive client input outside `workspaces/PROJECT_ID/` or repo `input/`.

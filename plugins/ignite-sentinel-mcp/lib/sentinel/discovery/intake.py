@@ -67,7 +67,7 @@ def ingest(project_id: str, source: Path, replace: bool = False) -> dict[str, st
                 f"Re-apply the saved answers with /resolve-gaps {project_id} --source FILE, one file at a time: "
                 + ", ".join(saved)
                 if saved
-                else "No saved answers to re-apply; share the new gaps.md with the client."
+                else "No saved answers to re-apply; send the client a new interview script (/export --artifact gaps --format interview)."
             ),
         }
     raw_target = base / "00_raw" / f"{source.stem}{target_suffix(source)}"

@@ -432,7 +432,7 @@ This is exit 4. The cause is an open blocking gap. On a brief v2 project where t
 /specs ACME_PORTAL
 ```
 
-`/status` lists what blocks the verdict in `verdict.blockers`; if `GAP-BRIEF-PROFILE` is there, `/brief` with settings closes it and compiles the v2 brief; `/status` then shows the new verdict. If blocking client gaps remain, `/next` says to share `gaps.md` and run `/resolve-gaps` (scenarios 1 and 2).
+`/status` lists what blocks the verdict in `verdict.blockers`; if `GAP-BRIEF-PROFILE` is there, `/brief` with settings closes it and compiles the v2 brief; `/status` then shows the new verdict. If blocking client gaps remain, `/next` says *Waiting for client answers*: send the interview script (`/export --artifact gaps --format interview`) and run `/resolve-gaps` on the answers (scenarios 1 and 2).
 
 ### 4b. `/backlog` refuses because health is `DIRTY`
 
