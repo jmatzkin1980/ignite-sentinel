@@ -120,6 +120,29 @@ def record_sweep(base: Path, channel: str, data: dict, accepted_gap_ids: list[st
     return path
 
 
+def log_payload_findings(base: Path, source: Path) -> None:
+    """IMP-347: log a payload's secrets and flagged lines when the channel keeps no copy of it.
+
+    `/scrutinize --mode anchors`, `/self-review --crosses` and `/self-review --sufficiency`
+    do not archive their payload, so nothing else would tell the BA it carried a secret
+    (`secret_alerts.md`, fingerprint only) or an injection-shaped line (`injection_signals.md`).
+    """
+    from .injection import detect_injection, record_signals
+    from .secrets_scan import sanitize_text
+
+    sanitized = sanitize_text(base, source.name, source.read_bytes().decode("utf-8-sig"))
+    record_signals(base, source.name, detect_injection(sanitized.text))
+
+
+def payload_cleaner(base: Path) -> Callable[[str], str]:
+    """IMP-347: redact and neutralize one string, with the workspace allowlist (IMP-342 rules)."""
+    from .payload_hygiene import clean_text
+    from .secrets_scan import load_allowlist
+
+    allowlist = load_allowlist(base)
+    return lambda text: clean_text(text, allowlist)
+
+
 # --- F7: BA disposition --------------------------------------------------------
 
 
