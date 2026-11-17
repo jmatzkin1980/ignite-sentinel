@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from ..core.graph import add_edge, add_node, load_graph
-from ..core.io import append_text, copy_file, read_json, write_text
+from ..core.io import append_text, read_json, write_text
 from ..core.markdown import parse_table_rows
 from ..domain_context import respondent_profile_from_domain_context
 from ..errors import GateRefusal, InputError
@@ -14,6 +14,7 @@ from ..gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_st
 from ..knowledge.ledger import materialize_knowledge_ledger
 from ..lens_registry import known_lenses
 from ..memory import ContextBroker
+from ..payload_hygiene import archive_payload, sanitize_payload
 from ..sources import mark_source_processed
 from ..technique_registry import default_challenge_technique_ids, default_technique_summary, technique_label, technique_prompt, technique_risk_taxonomy
 from ..workspace import load_config, update_state, workspace_path
@@ -201,6 +202,28 @@ def _record_sweep(base: Path, channel: str, data: dict, gaps: list[dict[str, str
     record_sweep(base, channel, data, [gap["id"] for gap in gaps])
 
 
+def _clean_agent_payload(base: Path, data: dict, gaps: list[dict[str, str]]) -> tuple[dict, list[dict[str, str]]]:
+    """IMP-347: the payload and its validated gaps as they may be stored and rendered.
+
+    Validation has already run on the payload as written. Every string is redacted and
+    every injection-shaped line becomes `<NEUTRALIZADO:type>` (IMP-342). The evidence
+    shown in `gaps.md` is cleaned from the full quote and only then cut to 160
+    characters, so a cut cannot leave half a secret the scanner no longer recognizes.
+    No field here is checked verbatim again later, so none is kept verbatim.
+    """
+    clean_data = sanitize_payload(base, data)
+    evidence: dict[str, str] = {}
+    for item in clean_data.get("gaps") or []:
+        if isinstance(item, dict):
+            evidence[str(item.get("id", "")).strip().upper()] = str(item.get("evidence", "")).strip()
+    clean_gaps = sanitize_payload(base, gaps)
+    for gap in clean_gaps:
+        quote = evidence.get(gap["id"])
+        if quote:
+            gap["evidence_mention"] = quote if len(quote) <= 160 else quote[:157] + "..."
+    return clean_data, clean_gaps
+
+
 def _trace_refs_from_graph(project_id: str) -> dict[str, str]:
     refs: dict[str, str] = {}
     for node in load_graph(project_id).get("nodes", []):
@@ -360,6 +383,8 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 
     data = load_agent_annotation(source)
     agent_gaps = validate_agent_gaps(data, raw_text)
+    # IMP-347: validated as written; stored and rendered redacted and neutralized
+    data, agent_gaps = _clean_agent_payload(base, data, agent_gaps)
     _record_sweep(base, "annotate", data, agent_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
@@ -376,7 +401,7 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
     annotations_dir = base / "01_discovery" / "annotations"
     annotations_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(annotations_dir / f"{source.stem}.json")
-    copy_file(source, stored)
+    archive_payload(base, source, stored)
 
     log_path = base / "01_discovery" / "agent_annotation_log.md"
     write_annotation_log(log_path, project_id, source.stem, merged_new, skipped, data)
@@ -554,6 +579,8 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
 
     data = load_agent_annotation(source)
     challenge_gaps = validate_agent_gaps(data, raw_text, origin="challenge")
+    # IMP-347: validated as written; stored and rendered redacted and neutralized
+    data, challenge_gaps = _clean_agent_payload(base, data, challenge_gaps)
     _record_sweep(base, "challenge", data, challenge_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
@@ -570,7 +597,7 @@ def apply_challenge(project_id: str, source: Path) -> dict[str, object]:
     challenges_dir = base / "01_discovery" / "challenges"
     challenges_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(challenges_dir / f"{source.stem}.json")
-    copy_file(source, stored)
+    archive_payload(base, source, stored)
 
     report_path = base / "01_discovery" / "challenge_report.md"
     write_text(report_path, render_challenge_report(project_id, source.stem, merged_new, skipped, data, language, respondent_profile))
@@ -880,6 +907,8 @@ def apply_scrutiny(
     data = load_agent_annotation(source)
     known_units = known_requirement_unit_ids(base) if spec["require_unit"] else None
     scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter, mode=mode, known_units=known_units)
+    # IMP-347: validated as written; stored and rendered redacted and neutralized
+    data, scrutiny_gaps = _clean_agent_payload(base, data, scrutiny_gaps)
     _record_sweep(base, str(spec["origin"]), data, scrutiny_gaps)
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
@@ -896,7 +925,7 @@ def apply_scrutiny(
     store_dir = base / "01_discovery" / str(spec["store_dir"])
     store_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(store_dir / f"{source.stem}.json")
-    copy_file(source, stored)
+    archive_payload(base, source, stored)
 
     report_path = base / "01_discovery" / str(spec["report_name"])
     if is_probe:

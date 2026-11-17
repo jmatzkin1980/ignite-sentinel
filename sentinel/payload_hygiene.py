@@ -1,10 +1,11 @@
-"""IMP-342: secret and injection hygiene for agent and BA payloads.
+"""IMP-342 / IMP-347: secret and injection hygiene for agent and BA payloads.
 
 `/self-review`, the gate overrides (`/quality`, `/validate`, `/backlog` with an
-override source), `/compose`, `/implementation-feedback`, `/assume` and
-`/refine-backlog` take a JSON payload, archive it in the workspace and write its
-text into artifacts. They get the same treatment as client sources (IMP-285,
-IMP-286, IMP-336):
+override source), `/compose`, `/implementation-feedback`, `/assume`,
+`/refine-backlog` (IMP-342) and the agentic channels `/annotate`, `/challenge` and
+`/scrutinize` with its implementability probe (IMP-347) take a JSON payload, archive
+it in the workspace and write its text into artifacts. They get the same treatment
+as client sources (IMP-285, IMP-286, IMP-336):
 
 - **Archived copy** (`archive_payload`): secrets are redacted with the `/ingest`
   sanitizer and each one is logged in `01_discovery/secret_alerts.md`; injection-shaped
@@ -20,6 +21,11 @@ citations, re-validated each time the PRD is regenerated) is passed in
 `verbatim_keys`: it is redacted but not neutralized where it is stored, and the
 renderer neutralizes it when it prints it. Rejection reasons are runtime prose and
 are passed the same way; the payload quote inside one goes through `shield_quote`.
+
+`/scrutinize --mode anchors`, `/self-review --crosses` and `/self-review --sufficiency`
+(IMP-347) keep no copy of their payload: they log its secrets and flagged lines
+(`agent_sweep.log_payload_findings`), clean each text before it is cut into a gap
+(`clean_text`), and sanitize their rejections and the sweep log the same way.
 """
 
 from __future__ import annotations

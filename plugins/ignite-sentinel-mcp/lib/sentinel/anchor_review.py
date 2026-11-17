@@ -21,6 +21,9 @@ so an agent reviews each anchor and the runtime validates its review:
 
 Accepted findings open `GAP-ANC-*` gaps (`origin: anchor-review`); the brief is
 never edited. Each review is appended to `01_discovery/anchor_review_log.md`.
+
+IMP-347: quotes are checked on the payload as written. What is stored (the gap, the
+log, the sweep log) is redacted and neutralized, each text cleaned before it is cut.
 """
 from __future__ import annotations
 
@@ -28,10 +31,11 @@ from .errors import InputError  # IMP-302: typed errors
 
 import hashlib
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .brief_model import lenses_for_v2_id, parse_brief
+from .payload_hygiene import sanitize_payload, shield_quote
 
 VERDICTS = ("holds", "says_less", "says_opposite")
 SEVERITY = {"says_less": "medium", "says_opposite": "high"}
@@ -54,8 +58,13 @@ def _place_lines(brief_text: str, place: str) -> list[str] | None:
     return brief_text.splitlines()[section.start:section.end]
 
 
-def validate_reviews(brief_text: str, sources: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
-    """Accepted gaps, rejected reviews (with reasons) and counts per verdict. Pure."""
+def validate_reviews(
+    brief_text: str, sources: dict[str, str], payload: dict[str, Any], clean: Callable[[str], str] = str,
+) -> dict[str, Any]:
+    """Accepted gaps, rejected reviews (with reasons) and counts per verdict. Pure.
+
+    `clean` is applied to the agent's text before it goes into a gap (IMP-347).
+    """
     if parse_brief(brief_text).version != 2:
         raise AnchorReviewError("Anchor review reads a brief v2; compile one with /brief first.", gate=True)
     reviews = payload.get("anchors")
@@ -84,15 +93,15 @@ def validate_reviews(brief_text: str, sources: dict[str, str], payload: dict[str
         claim = str(item.get("claim", "")).strip()
         cited = [line for line in lines if f"# {source} " in line or f"# {source}—" in line]
         if not claim or not any(_norm(claim) in _norm(line) for line in cited):
-            reject(f"the claim is not verbatim at §{place} on a line that cites {source}")
+            reject(f"the claim is not verbatim at §{shield_quote(place)} on a line that cites {shield_quote(source)}")
             continue
         text = sources.get(source)
         if text is None:
-            reject(f"{source} is not a readable source")
+            reject(f"{shield_quote(source)} is not a readable source")
             continue
         quote = str(item.get("source_quote", "")).strip()
         if not quote or _norm(quote) not in _norm(text):
-            reject(f"the source quote is not verbatim in {source}")
+            reject(f"the source quote is not verbatim in {shield_quote(source)}")
             continue
         adversarial = item.get("adversarial") or {}
         if verdict == "holds" and isinstance(adversarial, dict) and adversarial.get("refuted"):
@@ -120,9 +129,9 @@ def validate_reviews(brief_text: str, sources: dict[str, str], payload: dict[str
             "lens": LENS_NAMES.get(lenses[0], "product") if lenses else "product",
             "severity": SEVERITY[verdict],
             "status": "OPEN",
-            "description": f"Anchor {verdict.replace('_', ' ')} at §{place} ({source}): \"{claim[:120]}\"; the source supports: {inverted[:160]}",
-            "question": question,
-            "evidence_mention": quote[:160],
+            "description": f"Anchor {verdict.replace('_', ' ')} at §{place} ({source}): \"{clean(claim)[:120]}\"; the source supports: {clean(inverted)[:160]}",
+            "question": clean(question),
+            "evidence_mention": clean(quote)[:160],
             "origin": "anchor-review",
             "resolution_note": "",
         })
@@ -150,7 +159,7 @@ def workspace_sources(base: Path) -> dict[str, str]:
 
 
 def apply_anchor_review(project_id: str, source_path: Path) -> dict[str, Any]:
-    from .agent_sweep import record_sweep
+    from .agent_sweep import log_payload_findings, payload_cleaner, record_sweep
     from .core.io import append_text, read_json, write_text
     from .workspace import read_state, update_state, workspace_path
 
@@ -161,7 +170,12 @@ def apply_anchor_review(project_id: str, source_path: Path) -> dict[str, Any]:
     payload = read_json(source_path, None)
     if not isinstance(payload, dict):
         raise AnchorReviewError("The anchor review payload must be a JSON object.")
-    result = validate_reviews(brief_path.read_text(encoding="utf-8"), workspace_sources(base), payload)
+    result = validate_reviews(brief_path.read_text(encoding="utf-8"), workspace_sources(base), payload,
+                              clean=payload_cleaner(base))
+    # IMP-347: checked as written; stored redacted and neutralized (the reason is runtime prose)
+    log_payload_findings(base, source_path)
+    result["rejected"] = sanitize_payload(base, result["rejected"], verbatim_keys=("reason",))
+    payload = sanitize_payload(base, payload)
     gaps_path = base / "01_discovery" / "gaps.md"
     existing = [g for g in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if gaps_path.exists() else []
     merged = merge_gaps_by_topic(existing, result["accepted"])

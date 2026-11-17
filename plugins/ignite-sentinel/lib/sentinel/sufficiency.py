@@ -21,6 +21,9 @@ Accepted obstacles open gaps with `origin: sufficiency` (topic dedup, IMP-257);
 rejected ones are counted with their reason. Each round is appended to
 `01_discovery/sufficiency_log.md`; the brief is sufficient when a round reports
 only "covered" and nothing was rejected.
+
+IMP-347: quotes are checked on the payload as written. What is stored (the gap, the
+log, the sweep log) is redacted and neutralized, each text cleaned before it is cut.
 """
 from __future__ import annotations
 
@@ -29,10 +32,11 @@ from .errors import InputError  # IMP-302: typed errors
 import hashlib
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .brief_model import lenses_for_v2_id, parse_brief
+from .payload_hygiene import sanitize_payload
 
 STATUSES = ("covered", "missing", "ambiguous", "contradictory")
 SEVERITIES = ("critical", "high", "medium", "low")
@@ -66,8 +70,11 @@ def _lens_for(place: str) -> str:
     return LENS_NAMES.get(lenses[0], "product") if lenses else "product"
 
 
-def validate_obstacles(brief_text: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """Accepted gaps, rejected obstacles (with reasons) and counts per status. Pure."""
+def validate_obstacles(brief_text: str, payload: dict[str, Any], clean: Callable[[str], str] = str) -> dict[str, Any]:
+    """Accepted gaps, rejected obstacles (with reasons) and counts per status. Pure.
+
+    `clean` is applied to the agent's text before it goes into a gap (IMP-347).
+    """
     if parse_brief(brief_text).version != 2:
         raise SufficiencyError("Sufficiency reads a brief v2; compile one with /brief first.", gate=True)
     obstacles = payload.get("obstacles")
@@ -135,8 +142,8 @@ def validate_obstacles(brief_text: str, payload: dict[str, Any]) -> dict[str, An
             "lens": _lens_for(place),
             "severity": severity,
             "status": "OPEN",
-            "description": f"Sufficiency ({status}) at §{place}: {evidence[:200]}",
-            "question": question,
+            "description": f"Sufficiency ({status}) at §{place}: {clean(evidence)[:200]}",
+            "question": clean(question),
             "evidence_mention": f"§{place}",
             "origin": "sufficiency",
             "resolution_note": "",
@@ -146,7 +153,7 @@ def validate_obstacles(brief_text: str, payload: dict[str, Any]) -> dict[str, An
 
 
 def apply_sufficiency(project_id: str, source: Path) -> dict[str, Any]:
-    from .agent_sweep import record_sweep
+    from .agent_sweep import log_payload_findings, payload_cleaner, record_sweep
     from .core.io import append_text, write_text
     from .workspace import read_state, update_state, workspace_path
 
@@ -159,7 +166,11 @@ def apply_sufficiency(project_id: str, source: Path) -> dict[str, Any]:
     payload = read_json(source, None)
     if not isinstance(payload, dict):
         raise SufficiencyError("The sufficiency payload must be a JSON object.")
-    result = validate_obstacles(brief_path.read_text(encoding="utf-8"), payload)
+    result = validate_obstacles(brief_path.read_text(encoding="utf-8"), payload, clean=payload_cleaner(base))
+    # IMP-347: checked as written; stored redacted and neutralized (the reason is runtime prose)
+    log_payload_findings(base, source)
+    result["rejected"] = sanitize_payload(base, result["rejected"], verbatim_keys=("reason",))
+    payload = sanitize_payload(base, payload)
     gaps_path = base / "01_discovery" / "gaps.md"
     existing = [g for g in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if gaps_path.exists() else []
     merged = merge_gaps_by_topic(existing, result["accepted"])
