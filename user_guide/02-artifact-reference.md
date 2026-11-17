@@ -145,12 +145,12 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 
 | File | Purpose | Read by | Edit rule | Written by |
 |---|---|---|---|---|
-| `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You, then the client and domain owners | Never edit by hand (blocked by the hook, watched by `/health`); write answers in a separate response file for `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/resolve-gaps`, `/gaps` |
+| `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You; the client and domain owners get the interview export | Never edit by hand (blocked by the hook, watched by `/health`); write answers in a separate response file for `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/sync`, `/self-review`, `/resolve-gaps`, `/gaps` |
 | `requirement_maturity_report.md` | Verdict: `READY_FOR_SPECS` or `BLOCKED`, and why. | BA, PM | Never edit | `/maturity` |
 | `assumptions.md` | Register of assumptions a BA took on knowingly, with owner, risk and the quote that justifies them. | BA, PM, reviewers | Never edit | `/assume` |
 | `stakeholders.md` | Who answers for which lens. Used to route gaps to people. | BA | Never edit by hand; use `/stakeholders --add` | `/stakeholders` |
 
-`gaps.md` is meant to be shared. Each gap has a lens, a severity (`critical`, `high`, `medium`, `low`) and a status: `OPEN`, `ANSWERED`, `PARTIALLY_CLOSED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT` or `NEW_GAP`. The `Origin` column says who raised it (`checklist`, `agent`, `challenge`, `scrutiny`, `implementability-probe`, `harvest`), and `Unit` names the requirement unit (`RU-*`) it belongs to. Send the answered file back into `00_raw/05_interactions/` or `input/interactions/` and run `/resolve-gaps`.
+`gaps.md` is your working ledger, not a client document: send the client the interview script (`/export --artifact gaps --format interview`), which shows plain questions without lens, severity or internal labels and keeps each `### GAP-…` reference. Each gap has a lens, a severity (`critical`, `high`, `medium`, `low`) and a status: `OPEN`, `ANSWERED`, `PARTIALLY_CLOSED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT` or `NEW_GAP`. The `Origin` column says who raised it (`checklist`, `agent`, `challenge`, `scrutiny`, `implementability-probe`, `harvest`), and `Unit` names the requirement unit (`RU-*`) it belongs to. Save the answered script into `00_raw/05_interactions/` or `input/interactions/` and run `/resolve-gaps`.
 
 ### Supporting records
 

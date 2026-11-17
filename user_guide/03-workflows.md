@@ -41,7 +41,7 @@ Each workflow has the same four parts: **When**, **Steps**, **Check** and **If i
    ```
 
    Several profiles: `--profile UI,REG`. Mixed genesis: `--genesis brownfield-integration,brownfield-extension` (the most demanding wins). `MIG` requires `--genesis brownfield-replacement`.
-3. Ask for the next step: `/next ACME_PORTAL`. Once the settings are confirmed it says *Waiting for client answers*: plan the first round with [Thin intake](#thin-intake) and share `gaps.md`.
+3. Ask for the next step: `/next ACME_PORTAL`. Once the settings are confirmed it says *Waiting for client answers*: plan the first round with [Thin intake](#thin-intake) and send the client the interview script (`/export --artifact gaps --format interview`), not `gaps.md`, which is the working ledger.
 
 > [!WARNING]
 > **If you skip step 2**, `/next` and `/status` keep asking for it, and `/maturity` opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED`, so `/specs` and `/backlog` refuse (exit 4). Confirm the settings and go on; the brief compiles from everything answered so far.
@@ -91,7 +91,7 @@ If you received many unrelated requests at once and are not sure how many projec
 
 ## Client answers arrive
 
-**When:** the client or a domain owner returned the answered gaps document.
+**When:** the client or a domain owner returned the answered interview script.
 
 **Steps:**
 
@@ -119,7 +119,7 @@ If you received many unrelated requests at once and are not sure how many projec
 **If it fails:**
 
 - Answers were ignored: they must sit under the `### GAP-...` heading of an id that is in `gaps.md` (an unknown id is listed in `unknown_gap_ids`) with `Decision status: confirmed` (or `not applicable`). Unconfirmed answers do not close gaps by design. Add an `Evidence or reference` line: without it the gap still closes, but the report's `## Findings` flags it as closed without a citation.
-- Answers came as a meeting note or an email, not as the gaps document: use [Requirement changes](#requirement-changes) (`/sync`) instead.
+- Answers came as a meeting note or an email, not as the answered script: use [Requirement changes](#requirement-changes) (`/sync`) instead.
 - `/gaps --disposition` without `--id` exits 3; `rejected` and `irrelevant` need a `--reason`.
 
 ## Deepen discovery with the agent
@@ -188,7 +188,7 @@ Then run `/maturity ACME_PORTAL` to see the effect.
 
 ## Requirement changes
 
-**When:** new information arrives that is not an answered gaps document: meeting notes, an email, a chat thread, a late blocker, a new version of a source.
+**When:** new information arrives that is not an answered interview script: meeting notes, an email, a chat thread, a late blocker, a new version of a source.
 
 **Steps:**
 

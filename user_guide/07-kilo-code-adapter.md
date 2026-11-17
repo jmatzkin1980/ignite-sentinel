@@ -65,11 +65,11 @@ To make the skills available outside this repository, add the clone's `.agents/s
 
 | Rule | Effect |
 |------|--------|
-| `permission.edit` | Editing is allowed, except for the governed artifacts (`project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`), `.git/`, secrets, env files and build output. A hand edit of a governed artifact is stopped. |
+| `permission.edit` | Editing is allowed, except for the governed artifacts (`gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`), `.git/`, secrets, env files and build output. A hand edit of a governed artifact is stopped. The `gaps.md` and `requirements.md` rules were added later and have not been checked in Kilo yet. |
 | `permission.read` | Reads stay open; local secrets ask first. |
 | `permission.bash` | The Sentinel CLI (`python -m sentinel *`) and the clone launchers are pre-approved. Anything else follows Kilo's defaults. |
 
-The point of the first rule is that governed artifacts are written only by their command (`/brief`, `/specs`, `/backlog`). When you need a change in one of them, edit its inputs or answer the gap, then regenerate: see [Workflows](03-workflows.md). `/health` also flags a hand edit of a hash-tracked file.
+The point of the first rule is that governed artifacts are written only by their command (`/ingest`, `/gaps`, `/resolve-gaps`, `/brief`, `/specs`, `/backlog`). When you need a change in one of them, edit its inputs or answer the gap, then regenerate: see [Workflows](03-workflows.md). `/doctor` checks that `kilo.jsonc` denies the same files as the Claude Code and Codex hook, and `/health` also flags a hand edit of a hash-tracked file.
 
 > [!NOTE]
 > These are Kilo settings, not code Sentinel runs. `/doctor` verifies that the file is well formed and declares the rules, which is not proof that Kilo honours them. To confirm, try to edit a `04_backlog/*.md` with auto-approve off: Kilo should stop you.
