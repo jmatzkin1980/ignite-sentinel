@@ -39,7 +39,7 @@ Many VDIs cannot install native packages such as LanceDB. This is a supported mo
 
 - The whole lifecycle, from `/init` to `/validate`, works.
 - Retrieval runs in `json-hybrid` mode: lexical search over a local JSON index with a deterministic hash embedding.
-- `/doctor` reports `memory dependency: lancedb (optional)` and `memory backend mode` as `WARN`, marks them as a healthy state, and the verdict stays `PASS`.
+- `/doctor` reports `memory dependency: lancedb (optional)`, `LanceDB local open/create` and `memory backend mode` as `WARN`, marks them as a healthy state, and the verdict stays `PASS`. The other optional pieces you did not install (the semantic embedder, `sentence_transformers`, `mcp`) are `WARN` too.
 - `/health` records `memory_backend` and the reason in `health_report.json`; this alone does not make a project `DIRTY`.
 - You lose vector-similarity ranking in `/retrieve`. Traceability is untouched.
 
@@ -47,19 +47,35 @@ To enable the vector layer later: install the `memory` extra, then run `/reindex
 
 ## Offline extras
 
-Each optional extra has a lock file with pinned versions and hashes in `constraints/` (`memory.txt`, `memory-semantic.txt`, `mcp.txt`). On a machine that has internet, download and verify; on the target machine, install from the copied files:
+Each optional extra has a lock file with pinned versions and hashes in `constraints/` (`memory.txt`, `memory-semantic.txt`, `embeddings.txt`, `mcp.txt`; `embeddings` installs the same packages as `memory-semantic`). The usual install commands (on the [install page](06-installation-vscode.md#optional-extras)) download from PyPI, so on a machine without internet they fail. Download the files on a connected machine instead, and install from them on the target.
+
+**1. On a machine with internet**, with the same operating system and the same Python version as the target (the lock picks different files per platform and Python version), from the clone:
 
 ```powershell
-python -m pip install --require-hashes -r constraints/memory.txt
-python -m pip install --no-deps -e .
+python -m pip download --require-hashes -r constraints/memory.txt -d offline-wheels
+python -m pip download "setuptools>=68" wheel -d offline-wheels
 ```
+
+The first command downloads every pinned package and checks each file against its hash. The second downloads the build tool that `pip install -e .` needs to install the clone itself (`pyproject.toml` declares `setuptools>=68`). It is not in the lock, so it is not hash-checked.
+
+**2. Copy** the `offline-wheels` folder to the target machine through the approved channel, next to the clone.
+
+**3. On the target machine**, from the clone, install with no index, only from the copied folder:
+
+```powershell
+python -m pip install --no-index --find-links offline-wheels --require-hashes -r constraints/memory.txt
+python -m pip install --no-index --find-links offline-wheels --no-deps -e .
+```
+
+pip builds the clone in an isolated environment and fetches `setuptools` for it from the same folder. If `setuptools` 68 or newer is already installed in that Python, you can skip it in step 1 and add `--no-build-isolation` to the last command instead.
+
+Swap `memory.txt` for the lock of the extra you need.
 
 ### Semantic embeddings
 
-Semantic embeddings (better paraphrase and Spanish/English retrieval) are optional and local. Sentinel **never downloads a model**. It tries, in order: `model2vec` with a local multilingual model, `sentence-transformers` with a local model, then the deterministic hash fallback. Prepare the model on an approved machine, move it in, and point Sentinel at it:
+Semantic embeddings (better paraphrase and Spanish/English retrieval) are optional and local. Sentinel **never downloads a model**. It tries, in order: `model2vec` with a local multilingual model, `sentence-transformers` with a local model, then the deterministic hash fallback. Install the `memory-semantic` extra as in [offline extras](#offline-extras), with `constraints/memory-semantic.txt`. Prepare the model on an approved machine, move it in, and point Sentinel at it:
 
 ```powershell
-python -m pip install --require-hashes -r constraints/memory-semantic.txt
 $env:SENTINEL_MODEL2VEC_MODEL="C:\approved-models\model2vec-multilingual"
 $env:SENTINEL_SENTENCE_TRANSFORMERS_MODEL="C:\approved-models\multilingual-e5-small"
 python -m sentinel /doctor

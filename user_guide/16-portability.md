@@ -20,7 +20,7 @@ Sentinel does not ask for more permissions. It reduces its footprint:
 | VDI without `pip` or admin rights | Python 3.10+ | `python -m sentinel /doctor` | `PASS` in `json-hybrid` memory mode; LanceDB shows as an optional `WARN` |
 | Restricted PowerShell | Python 3.10+ | `python -m sentinel /doctor` | Call Python directly; the launcher script is not needed |
 | Claude Code approved, git blocked | Claude Code 2.1.224+ and Python 3.10+ | install the [release archive](18-claude-plugin.md#without-git-the-release-archive) | The plugin installs over HTTPS with a pinned digest |
-| Prefer to move one file | Python 3.10+ and a `.pyz` built earlier | [see below](#the-single-file-pyz) | `PASS` on a machine that also has the framework folder |
+| Prefer to move one file | Python 3.10+ and a `.pyz` built earlier | [see below](#the-single-file-pyz) | `PASS` in runtime mode (`"mode": "runtime"`); no framework folder needed |
 | An agent surface already approved | VS Code, Codex, Kilo Code or Claude Code | `/doctor` or `sentinel /doctor` in chat | The agent routes to the local CLI; the tool's own policies still apply |
 | No approved Python | Approval for Python 3.10+ or an equivalent runtime | not applicable yet | Asking for Python is usually easier to approve than an unsigned binary |
 
@@ -65,7 +65,7 @@ python -m sentinel /doctor
 
 To give IT more to review, add the [threat model](19-threat-model.md) (what is protected and how to check each control), the [admin guide](20-admin-guide.md) (a managed settings policy for Claude Code, pinning a version, retention) and [SECURITY.md](../SECURITY.md). If you will install the plugin, say that it comes from GitHub (git, or HTTPS for the release archive).
 
-The same text in Spanish is in [PORTABILITY.md](../PORTABILITY.md) at the repository root.
+[PORTABILITY.md](../PORTABILITY.md) at the repository root is a separate, older letter in Spanish, not a translation of this note. It does not mention the plugin, the release archive, the threat model or the admin guide, and it installs the `memory` extra without the hash lock (`python -m pip install -e .[memory]`). When you need the reproducible install, use the steps in [Secure environments](09-secure-environments.md#offline-extras) instead.
 
 ## What not to promise
 

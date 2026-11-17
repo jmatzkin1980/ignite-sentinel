@@ -13,7 +13,7 @@ Only the interface is translated. Project ids, file names, gap text and your doc
 
 ## Build it
 
-Run it from the repository root, where the `workspaces/` folder lives.
+Run it from the folder where the `workspaces/` folder lives: the repository root in a clone, your project folder with the plugin or the wheel.
 
 ```bash
 /dashboard
@@ -23,8 +23,8 @@ python -m sentinel /dashboard --open
 | Option | Effect |
 |---|---|
 | `--open` | Open the page in your default browser when it is built. |
-| `--theme NAME_OR_PATH` | A built-in theme name, or the path to a theme JSON. Default `neutral`. See [Themes](17-themes.md). |
-| `--root PATH` | The repository root to read (default: the current folder). |
+| `--theme NAME_OR_PATH` | A built-in theme name, the name of a personal theme in `~/.ignite/themes` (or the folder `IGNITE_THEMES_DIR` names), or the path to a theme JSON. Default `neutral`. See [Themes](17-themes.md). |
+| `--root PATH` | The folder to read, the one that holds `workspaces/` (default: the current folder). |
 
 The command writes `dashboard.html` at `--root` (by default the folder you run it from). It is self-contained and opens offline. In a clone it is git-ignored because it can embed local workspace Markdown; with the plugin or the wheel it lands in your project folder, where nothing ignores it, so keep it out of commits yourself. Treat it as a rebuildable snapshot, not as a source of truth: it is not refreshed by other commands, so rerun `/dashboard` whenever workspace state changes.
 
@@ -46,7 +46,7 @@ Each section appears only when there is data for it.
 | Documents / Documentos | The workspace documents, opened inside the dashboard. The canonical files stay in each workspace. |
 | Backlog, Story gates (DoR / DoD), Warnings | Backlog totals, the latest Definition of Ready and Done evaluation per story, and warnings. |
 
-The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
+The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. That command never carries `--root`: if you built the page with `--root PATH`, run it from that folder or add `--root PATH` yourself. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
 
 The dashboard has no feedback panel by design; capture and comments exist only in the artifact views.
 

@@ -53,14 +53,16 @@ Install an extra only if your environment allows it. Without them Sentinel works
 | `.[memory-semantic]` | Local multilingual embeddings (needs a model you place on disk; Sentinel never downloads one) | A deterministic hash embedding. |
 | `.[mcp]` | The `mcp` package, to run Sentinel as an MCP server | Everything else keeps working. |
 
-Each extra has a lock file with pinned versions and hashes in `constraints/`. In a clone, install reproducibly with:
+A fourth extra, `.[embeddings]`, installs the same two packages as `.[memory-semantic]` and has its own lock file. Use either one; you do not need both.
+
+Each extra has a lock file with pinned versions and hashes in `constraints/`. In a clone with internet access, install reproducibly with:
 
 ```powershell
 python -m pip install --require-hashes -r constraints/memory.txt
 python -m pip install --no-deps -e .
 ```
 
-Swap `memory.txt` for `memory-semantic.txt` or `mcp.txt` as needed. Details and air-gapped use are in the [secure environments guide](09-secure-environments.md).
+Swap `memory.txt` for `memory-semantic.txt`, `embeddings.txt` or `mcp.txt` as needed. Both commands download from PyPI. For a machine without internet, follow the offline steps in the [secure environments guide](09-secure-environments.md#offline-extras).
 
 ## Path A: Claude Code plugin from the marketplace
 
@@ -104,6 +106,8 @@ To get a newer release later, see [Updating the plugin](18-claude-plugin.md#upda
    ```text
    /doctor
    ```
+
+   Claude Code also has a built-in `/doctor`. If the answer is Claude Code's own diagnostic rather than a Sentinel verdict, send `/sentinel /doctor` instead.
 4. Start a project and run your first command:
 
    ```text
@@ -161,7 +165,7 @@ python -m sentinel /next ACME_PORTAL
 
 Run these from the folder that should hold `workspaces/`: Sentinel anchors its files to the current folder.
 
-On Windows without a working `python`, the launcher in a clone finds one for you:
+On Windows without a working `python`, the launcher in a clone finds one for you. The launcher always runs from the clone's root folder, so through it your workspaces land in the clone's `workspaces/`, whatever folder you call it from:
 
 ```powershell
 .\installers\sentinel.ps1 /doctor
@@ -216,9 +220,11 @@ A clone can build a one-file copy with `python -m sentinel.build` (output `dist/
 | Plugin (`python.sh`) | `SENTINEL_PYTHON`, then `python3`, `python`, `py -3` on `PATH` (skipping the Microsoft Store alias), then the usual Windows install folders. |
 | Clone launcher (`installers/sentinel.ps1`) | `SENTINEL_PYTHON`, a `.venv` in the folder, `python`, `py`, the Codex Desktop bundled runtime. |
 | Clone launcher (`installers/sentinel.sh`) | `SENTINEL_PYTHON`, `.venv/bin/python`, `python3`, `python`. |
-| MCP plugin and the clone's Claude hook | The command `python` on `PATH`. |
+| The clone's Claude Code hook (`.claude/hooks/python.sh`) | The same order as the plugin's `python.sh`. |
+| MCP plugin | The command `python` on `PATH`. |
+| The clone's slash commands (Claude Code and Kilo Code) | The command `python` on `PATH` (they run `python -m sentinel ...`). Without it the hook still works but the slash commands fail; use the clone launcher or `py -m sentinel` instead. |
 
-Set `SENTINEL_PYTHON` to the full path of an approved interpreter to pin one.
+Set `SENTINEL_PYTHON` to the full path of an approved interpreter to pin one. The MCP plugin and the slash commands do not read it.
 
 ## Troubleshooting
 

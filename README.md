@@ -65,7 +65,7 @@ Changes keep flowing in: `/sync` turns a meeting note or an email into a traced 
 
 Step-by-step instructions for every path, including offline and locked-down machines: **[Install: choose your path](user_guide/06-installation-vscode.md)**.
 
-You need Python 3.10 or newer and nothing else. Optional extras: `.[memory]` (local LanceDB retrieval), `.[memory-semantic]` (local embeddings), `.[mcp]` (MCP server).
+You need Python 3.10 or newer and nothing else. Optional extras: `.[memory]` (local LanceDB retrieval), `.[memory-semantic]` (local embeddings; `.[embeddings]` installs the same packages), `.[mcp]` (MCP server).
 
 Good to know before you start:
 
@@ -98,7 +98,7 @@ Go-live is wanted before the end of the quarter.
 ```
 
 > [!NOTE]
-> In a Claude Code clone, `/init` can start Claude Code's own built-in project setup (it writes a `CLAUDE.md`) instead of Sentinel's. If that happens, send `/sentinel /init ACME_PORTAL`.
+> In a Claude Code clone, `/init` can start Claude Code's own built-in project setup (it writes a `CLAUDE.md`) instead of Sentinel's. If that happens, send `/sentinel /init ACME_PORTAL`. Claude Code also has a built-in `/doctor`; if it answers instead of Sentinel, send `/sentinel /doctor`.
 
 **In a terminal:**
 
@@ -245,7 +245,7 @@ The full troubleshooting flow is in [workflows](user_guide/03-workflows.md#a-gat
 - [Security policy](SECURITY.md): how to report a vulnerability and supported versions.
 - [Threat model](user_guide/19-threat-model.md): assets, threats, controls and how to verify each.
 - [Admin guide](user_guide/20-admin-guide.md): managed settings, pinning, retention, audit trail.
-- [IT portability note](PORTABILITY.md): a short note for an IT or security review.
+- [IT portability note](PORTABILITY.md): an older note in Spanish for an IT or security review. The current English note is in [Portability](user_guide/16-portability.md#a-note-for-it).
 
 Contributing to the framework itself? See [MAINTAINERS.md](MAINTAINERS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
