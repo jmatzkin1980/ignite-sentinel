@@ -200,8 +200,10 @@ def register_acceptance_evidence(project_id: str, story_id: str, source: Path) -
 
 
 def story_node_id(project_id: str, story_id: str) -> str:
-    graph = read_json(workspace_path(project_id) / "06_traceability" / "traceability_graph.json", {})
-    for node in graph.get("nodes", []):
+    from ..traceability import load_graph
+
+    # IMP-345: through load_graph, so a graph change not yet written in this command is seen.
+    for node in load_graph(project_id).get("nodes", []):
         if str(node.get("type")) != "user_story":
             continue
         if str(node.get("path", "")).endswith(f"04_backlog/{story_id}.md"):
