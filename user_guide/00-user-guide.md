@@ -133,7 +133,7 @@ The project state is `state.json` (durable). Counts and metrics that can be reco
 | **Slice plan** | `04_backlog/SLICE-PLAN.md`, written by `/backlog`: the order in which stories can be built as thin end-to-end (vertical) slices. |
 | **Spec unit (`SPEC-U-`)** | A bounded piece of the spec with its source anchors, written by `/specs` under `03_specs/units/`. `/backlog` derives one value story per spec unit. |
 | **Trace** | A link in the traceability graph between two artifacts. `/trace` rewrites the matrix. |
-| **Umbrella gap** | A brief v2 gap such as `GAP-BRIEF-S3` that covers several places of one section; answer it one line per place (`3.1: ... 3.2: ...`). |
+| **Umbrella gap** | A brief v2 gap such as `GAP-BRIEF-S3` that covers the places of one section that no other gap fills. Its question names each place with its title. Answer it one line per place (`3.1: ... 3.3: ...`). Answering another gap does not add places to it. |
 | **Validation direction** | `to-build` (the brief describes what will be built, the default) or `built` (it documents something that exists; divergences get `⚠`). Set with `/brief --validation-direction`. |
 | **Verdict** | The `/status` answer to "can we build?": `READY`, `READY_WITH_WARNINGS` or `NOT_READY`. |
 

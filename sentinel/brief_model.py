@@ -283,16 +283,6 @@ V2_GAP_COMPLEMENTS = {
     "GAP-CTP-NORM": "5.11",
     "GAP-CTP-DESIGN-EXCLUSION": "4.2",
 }
-# The gap a pending mark points to when no gap is routed to that subsection.
-LENS_DEFAULT_GAP = {
-    "1": "GAP-OBJECTIVE",
-    "2": "GAP-USERS",
-    "3": "GAP-PRODUCT-ASIS-TOBE",
-    "4": "GAP-DESIGN-FLOW",
-    "5": "GAP-TECH-DEEP-DIVE-INPUT",
-    "6": "GAP-GOVERNANCE-CONSTRAINTS",
-}
-NO_LENS_DEFAULT_GAP = "GAP-DELIVERY-READINESS"
 
 
 def v2_sections_for_gap(gap_id: str) -> list[str]:
@@ -304,14 +294,6 @@ def v2_sections_for_gap(gap_id: str) -> list[str]:
 
     lens = brief_section_for_gap(gap_id)
     return v2_sections_for_lens(lens) if lens else []
-
-
-def default_gap_for(sid: str) -> str:
-    routed = sorted(gap for gap, target in V2_GAP_ROUTES.items() if target == sid)
-    if routed:
-        return routed[0]
-    lenses = lenses_for_v2_id(sid)
-    return LENS_DEFAULT_GAP[lenses[0]] if lenses else NO_LENS_DEFAULT_GAP
 
 
 def excerpt(text: str, wanted: str) -> str:
