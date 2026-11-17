@@ -794,11 +794,11 @@ A gap closes when the answer is substantive and the decision status is confirmed
 | `--id` | `F-NN` | none | The row to change. Required for every row change. |
 | `--from` | text | none | Who delivered the source. |
 | `--superseded-by` | `F-NN` | none | This row is corrected by another (cycles are refused). |
-| `--retire` | flag | off | The source is dead. Needs `--reason`. |
+| `--retire` | flag | off | The source is dead. Needs `--reason`. Its files leave the local memory (see below). |
 | `--replacement` | `F-NN` | none | With `--retire`: the row that replaces it (must exist). |
 | `--expire` | `YYYY-MM-DD` | none | The source stops governing from this date. |
 | `--topic` | text | none | With `--expire`: only for this topic. |
-| `--current` | flag | off | Confirm a candidate version as the governing one. |
+| `--current` | flag | off | Confirm a candidate version as the governing one, or bring a retired source back. |
 | `--close` | flag | off | Close a row left open by a cross that never finished. |
 | `--reason` | text | none | Why (retire, close, `--mark reviewed`). |
 | `--authority` | an authority from `sentinel/templates/source_routing.json` (`client_document`, `minutes`, `prototype`, `example`...) | from the bucket | What kind of source it is when sources clash. |
@@ -810,9 +810,11 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 Pass one validity change at a time. The newest source never wins by default: an unsettled precedence answers `unresolved`.
 
+`--retire` removes the source's files from the local memory: the original path, any other path with the same content, and Sentinel's copy under `00_raw/` or `07_changes/`. `/retrieve` and context packs stop returning them, and `/reindex` skips them. The files stay on disk, and so do their graph nodes and Sentinel's own reports about the source (the impact report, for example). After `--current` (or any other validity change), the source is indexed again on the next `/reindex`.
+
 **Reads.** `00_raw/source_manifest.json`.
 
-**Writes.** The registry rows in `00_raw/source_manifest.json`, `07_changes/source_log.md`, and with `--report` `07_changes/closing_report.md` (it never deletes a file).
+**Writes.** The registry rows in `00_raw/source_manifest.json`, `07_changes/source_log.md`, and with `--report` `07_changes/closing_report.md` (it never deletes a file). With `--retire`, also `memory.lancedb/`.
 
 **Refuses when.**
 
@@ -821,7 +823,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
 
-**You get.** The rows, the precedence answer or the report path.
+**You get.** The rows, the precedence answer or the report path. With `--retire`, `memory_removed` lists the memory ids it took out.
 
 **Next step.** `/status PROJECT_ID` to see the `sources` gate clear.
 
@@ -909,7 +911,9 @@ Pass one validity change at a time. The newest source never wins by default: an 
 | `--order` | `relevance`, `recency` | `relevance` | Rank by relevance, or reorder the same shortlist newest first. |
 | `--timeline` | flag | off | Return the change timeline instead (honours `--limit`, `--artifact-type`, `--trace-id`; ignores `--write-pack`). |
 
-**Reads.** `memory.lancedb/` and the indexed artifacts.
+An excerpt from a retired source (`/sources --retire`) is never returned, in results, packs or the timeline.
+
+**Reads.** `memory.lancedb/`, the indexed artifacts and the source rows in `00_raw/source_manifest.json`.
 
 **Writes.** Nothing, except `08_context_packs/<workflow>.json` with `--write-pack`.
 
@@ -943,13 +947,15 @@ Pass one validity change at a time. The newest source never wins by default: an 
 | `PROJECT_ID` | id | required | The workspace. |
 | `--full` | flag | off | Re-chunk and re-embed everything. By default unchanged artifacts are skipped (same hash, embedder and chunking version); an artifact whose rows are missing from the LanceDB table is indexed again. |
 
-**Reads.** The graph, the artifacts and the context folders.
+Both modes skip the files of a retired source (`/sources --retire`) and remove any memory rows still left from them. A source brought back with `/sources --current` is indexed again.
+
+**Reads.** The graph, the artifacts, the context folders and the source rows in `00_raw/source_manifest.json`.
 
 **Writes.** `memory.lancedb/`.
 
 **Refuses when.** Only the common gates.
 
-**You get.** Counts of indexed and skipped artifacts.
+**You get.** Counts of indexed and skipped artifacts; `retired_skipped` lists the memory ids not indexed because their source is retired, and `retired_removed` the ones it took out.
 
 **Next step.** `/retrieve` for focused context.
 

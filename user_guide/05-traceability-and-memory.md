@@ -85,6 +85,17 @@ When a change note carries scope cues such as "no longer", "replace", "out of sc
 
 These context folders are inputs owned by the relevant domains. Sentinel retrieves and cites them; it does not replace them with generated technical or design specs.
 
+### Retired sources leave memory
+
+When you retire a source with `/sources PROJECT_ID --id F-NN --retire`, its files leave the index: the path it came in under and Sentinel's copy under `00_raw/` or `07_changes/`. A file belongs to the source row its latest record in `00_raw/source_manifest.json` points at, so a file whose content later changed belongs to the newer row and stays indexed.
+
+- Retiring removes those memory rows at once.
+- `/reindex`, with or without `--full`, skips those files and removes any rows still left from them.
+- `/retrieve`, context packs and the timeline also filter them out when they answer.
+- Nothing is deleted: the files, their graph nodes and Sentinel's own reports about the source (the impact report, for example) stay.
+
+A source brought back with `/sources PROJECT_ID --id F-NN --current` is indexed again on the next `/reindex`.
+
 ### `/retrieve`
 
 `/retrieve` is read-only. It returns ranked chunks with the reason each was returned and where to read more.

@@ -248,9 +248,17 @@ def update_source(
     if cell is not None:
         mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
+    extra: dict[str, Any] = {}
+    if changes.get("retire"):
+        # IMP-341: a retired source stops feeding memory. Its files stay on disk for
+        # audit; `--current` brings them back on the next /reindex.
+        from .memory import forget_retired_sources
+
+        extra["memory_removed"] = forget_retired_sources(project_id)
     return {
         "project_id": project_id,
         "row": row,
+        **extra,
         "summary": registry_summary(manifest),
         "source_log": source_log_path(project_id).as_posix(),
     }
