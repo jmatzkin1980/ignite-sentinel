@@ -77,7 +77,7 @@ workspaces/<PROJECT_ID>/
 
 ### What the workspace `.gitignore` ignores
 
-When you version a workspace in your own repository (see [repository and branching strategy](10-repo-and-branching-strategy.md)), the generated `.gitignore` keeps out what can be rebuilt: `memory.lancedb/`, `08_context_packs/views/*.html`, `08_context_packs/synthetic/` and `.sentinel/`. Everything else, the matured artifacts, stays tracked. `.series_work/` is not in that list. If you use release series and do not want the mirrors in git, add it yourself.
+When you version a workspace in your own repository (see [repository and branching strategy](10-repo-and-branching-strategy.md)), the generated `.gitignore` keeps out what can be rebuilt: `memory.lancedb/`, `08_context_packs/views/*.html`, `08_context_packs/synthetic/`, `.sentinel/`, the release mirrors `.series_work/` (a full copy of the workspace per release, raw sources included) and the release views `08_context_packs/r*/views/*.html`. Everything else, the matured artifacts, stays tracked. A workspace whose `.gitignore` predates the release rules gets them appended on its next `/init`, `/ingest` or release command.
 
 ### Configuration keys
 

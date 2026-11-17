@@ -105,6 +105,22 @@ class FaqExportLifecycleTests(unittest.TestCase):
         faq_path = self.ws / "08_context_packs" / "exports" / "gaps-faq.md"
         self.assertEqual(build_faq("DEMO"), faq_path.read_text(encoding="utf-8"))
 
+    def test_faq_gate_is_before_ingest_only(self):
+        # IMP-361: the documented gates. Before /ingest there is no gaps.md → exit 3 (like
+        # `interview`); right after /ingest, with nothing resolved, the FAQ is written
+        # (exit 0); exit 4 only when gaps.md exists without decisions.md and identity_seeds.md.
+        self.assertEqual(main(["init", "FRESH"]), 0)
+        self.assertEqual(main(["export", "FRESH", "--artifact", "gaps", "--format", "faq"]), 3)
+        discovery = self.ws / "01_discovery"
+        self.assertTrue((discovery / "decisions.md").exists())
+        self.assertTrue((discovery / "identity_seeds.md").exists())
+        self.assertEqual(main(["export", "DEMO", "--artifact", "gaps", "--format", "faq"]), 0)
+        faq = (self.ws / "08_context_packs" / "exports" / "gaps-faq.md").read_text(encoding="utf-8")
+        self.assertIn("Resolved Questions (FAQ) - DEMO", faq)
+        (discovery / "decisions.md").unlink()
+        (discovery / "identity_seeds.md").unlink()
+        self.assertEqual(main(["export", "DEMO", "--artifact", "gaps", "--format", "faq"]), 4)
+
     def test_faq_format_rejected_for_non_gaps_artifact(self):
         with self.assertRaises(RuntimeError) as ctx:
             export_faq("DEMO", "prd")

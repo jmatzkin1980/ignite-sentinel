@@ -28,9 +28,12 @@ Every workspace is created with its own `.gitignore`. It keeps the evidence and 
 | Tracked | Left out (rebuildable) |
 |---------|------------------------|
 | `00_raw/`, discovery files, requirements, brief, specs, backlog, quality, traceability | `memory.lancedb/` (rebuild with `/reindex PROJECT_ID`) |
-| `state.json` (the durable state) | `08_context_packs/views/*.html` (rebuild with `/view` or `/dashboard`) |
+| `state.json` (the durable state) | `08_context_packs/views/*.html` and the release views `08_context_packs/rN/views/*.html` (rebuild with `/view`) |
 | `07_changes/` (the change history) | `08_context_packs/synthetic/` |
+| Release outputs (`03_specs/rN/`, `04_backlog/rN/`, ...) | `.series_work/` (the release mirrors: a full copy of the workspace per release, raw sources included; the release commands rebuild them) |
 | | `.sentinel/` (the derived state, the command log, local themes, the lock) |
+
+A workspace created before these rules existed gets the missing lines appended to its `.gitignore` the next time `/init` or `/ingest` runs on it, or before a release command writes its mirror. Lines you added yourself are kept.
 
 Artifact paths are stored relative to the workspace, so a workspace can be moved or cloned to another machine and gives the same results.
 
