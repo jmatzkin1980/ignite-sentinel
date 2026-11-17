@@ -9,7 +9,7 @@ from ..core.markdown import table_cell
 from ..core.graph import add_edge, add_node
 from ..core.markdown import frontmatter_list, parse_frontmatter, parse_table_rows
 from ..deltas import DeltaStatus, delta_marker
-from ..memory import ContextBroker
+from ..memory import shared_broker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
 from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table, render_prd_section_context
 from ..core.io import remove, write_text
@@ -215,7 +215,7 @@ Use this report to decide which backlog stories or implementation readiness entr
     delta_id = add_node(project_id, "DEC", "regeneration_diff", path, "Spec unit regeneration delta", domain="product")
     if change_id != "N/A":
         add_edge(project_id, change_id, delta_id, "triggers_regeneration")
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         delta_id,
         "regeneration_diff",
         path,
