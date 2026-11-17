@@ -1,6 +1,6 @@
 ---
 name: sentinel-discovery
-description: "Use when starting or refreshing Ignite Sentinel discovery for a project: ingest raw client requirements, regenerate the shareable gaps document, review discovery artifacts, or decide whether missing information becomes a gap. Covers /init, /ingest, /gaps, focused retrieval, RU-* requirement units, gap statuses and the evidence-or-silence rules. Trigger on new client input, 'run discovery', 'ingest this requirement', or any gaps.md work. Not for client answers that close gaps (use sentinel-gap-response) or new information after discovery (use sentinel-sync)."
+description: "Use when starting or refreshing Ignite Sentinel discovery for a project: ingest raw client requirements, regenerate gaps.md and the client interview script, review discovery artifacts, or decide whether missing information becomes a gap. Covers /init, /ingest, /gaps, focused retrieval, RU-* requirement units, gap statuses and the evidence-or-silence rules. Trigger on new client input, 'run discovery', 'ingest this requirement', or any gaps.md work. Not for client answers that close gaps (use sentinel-gap-response) or new information after discovery (use sentinel-sync)."
 ---
 
 # Sentinel Discovery
@@ -17,10 +17,10 @@ Use this skill to start or refresh discovery for a project.
    - `workspaces/PROJECT_ID/00_raw/04_quality_context/`
    - `workspaces/PROJECT_ID/00_raw/05_interactions/`
 3. Ingest the first raw material with `python -m sentinel /ingest PROJECT_ID --source PATH`. Add every later file with `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused because it would replace the primary requirement and reopen answered gaps (`--replace` does that on purpose; only use it when the BA asks to replace the primary requirement).
-4. Regenerate the shareable gap document when needed: `python -m sentinel /gaps PROJECT_ID`.
+4. Regenerate the gap ledger when needed: `python -m sentinel /gaps PROJECT_ID`.
 5. Use focused retrieval before analysis: `python -m sentinel /retrieve PROJECT_ID --query "DISCOVERY_TOPIC" --workflow discovery --write-pack`.
 6. Review generated artifacts in `workspaces/PROJECT_ID/01_discovery/` and `02_requirements/`, especially `requirement_units.md`, `identity_seeds.md`, `discovery_log.md`, `lens_review.md`, `gaps.md`, and `requirements.md`.
-7. Share `01_discovery/gaps.md` with the client or domain owner when maturity is blocked.
+7. When maturity is blocked, send the client or domain owner the interview script (`/export PROJECT_ID --artifact gaps --format interview`, below), not `01_discovery/gaps.md`: `gaps.md` is the BA's working ledger, with lens, severity, candidate options and the trace table.
 8. Run `python -m sentinel /health PROJECT_ID` before downstream specs or backlog work.
 
 ## Deepening Cycle After `/gaps`
@@ -36,7 +36,7 @@ Run 1 always; 2 and 3 when their trigger fits; 4 never on your own initiative. A
 
 ## Interview Script Export (IMP-183)
 
-When the BA needs to work the open gaps live in a meeting instead of an async `gaps.md`, generate a read-only interview script:
+Whenever the client or a domain owner has to answer open gaps, in a meeting or by mail, generate the read-only interview script:
 
 ```powershell
 python -m sentinel /export PROJECT_ID --artifact gaps --format interview

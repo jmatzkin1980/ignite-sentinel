@@ -200,7 +200,7 @@ NEXT_STEPS: dict[str, tuple[str, str, str]] = {
                        "This project compiles the brief v2. Confirm its profile and genesis once with /brief; "
                        "the suggested values come from the raw input, so check them first.",
                        "/brief {pid} --profile {profiles} --genesis {genesis}"),
-    "resolve_blocking": ("Waiting for client answers", "Share gaps.md with the client and run /resolve-gaps when answers return.", "/resolve-gaps {pid} --source PATH"),
+    "resolve_blocking": ("Waiting for client answers", "Send the client the interview script (/export --artifact gaps --format interview) and run /resolve-gaps when answers return.", "/resolve-gaps {pid} --source PATH"),
     "fix_brief": ("Fix what stopped the brief", "Resolve what /brief reported (threshold, self-correction or implementability) and run /brief again.", "/brief {pid}"),
     "specs": ("Prepare PRD and specs", "Run /specs PROJECT_ID.", "/specs {pid}"),
     "fix_specs": ("Raise the specs above the threshold", "Close the gaps the specs readiness reported and run /specs again.", "/specs {pid}"),

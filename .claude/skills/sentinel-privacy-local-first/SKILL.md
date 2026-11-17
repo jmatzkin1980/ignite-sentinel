@@ -22,8 +22,10 @@ This skill is **human-only** (`disable-model-invocation: true`): the model does 
 - Export only through audited commands such as:
 
 ```powershell
-python -m sentinel /export PROJECT_ID --artifact gaps --format md
+python -m sentinel /export PROJECT_ID --artifact gaps --format interview
 python -m sentinel /export PROJECT_ID --artifact brief --format md
 ```
+
+- Send the client the interview script (the first command), not `01_discovery/gaps.md`, which is the BA's working ledger.
 
 - Do not store sensitive client input outside `workspaces/PROJECT_ID/` or repo `input/`.
