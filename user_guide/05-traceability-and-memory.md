@@ -77,13 +77,15 @@ When a change note carries scope cues such as "no longer", "replace", "out of sc
 
 ## Memory and retrieval
 
-`/ingest`, `/sync` and `/reindex` fill the index. It holds:
+`/ingest`, `/sync`, `/resolve-gaps`, `/self-review` and `/reindex` refresh the whole index. Most other commands that write an artifact (`/maturity`, `/specs`, `/backlog`, `/quality`, `/annotate`, `/challenge`, `/scrutinize`, `/assume`, `/compose`, `/context-request`, `/refine-backlog`, `/implementation-feedback` among them) index that artifact as they write it. The index holds:
 
 - every artifact that has a path in the graph (except `source_synthesis.md`, which only repeats already-indexed citations);
 - the context folders: `00_raw/00_client_requirement`, `00_raw/01_business_context`, `00_raw/02_technology_context`, `00_raw/03_design_context`, `00_raw/04_quality_context`, `00_raw/05_interactions` and `07_changes`;
 - the trace edges.
 
 These context folders are inputs owned by the relevant domains. Sentinel retrieves and cites them; it does not replace them with generated technical or design specs.
+
+Memory tags each chunk with the domain of its folder: `01_business_context` is `business`, `02_technology_context` `technical`, `03_design_context` `design`, `04_quality_context` `quality`, and `07_changes` `product`. A file brought in with `/sync --source PATH` is stored under `07_changes/`, so it is indexed as `product`, and gap detection does not read it as domain context. To have a file count as technology, design or quality context, put it in the matching `00_raw/` folder and run `/sync PROJECT_ID` without `--source`.
 
 ### Retired sources leave memory
 
@@ -110,6 +112,7 @@ python -m sentinel /retrieve ACME_PORTAL --query "SLA risk" --workflow sync
 | `--query`, `--workflow` | What to look for and for which workflow. |
 | `--limit N` | Number of results (default 5). |
 | `--domain`, `--trace-id`, `--artifact-type` | Filter by domain, trace id or artifact type. |
+| `--iteration-min N` | Only chunks from iteration N on (default 1). |
 | `--status`, `--language`, `--sensitivity`, `--section` | Progressive-disclosure filters. |
 | `--max-chars N`, `--summary-only` | Keep the answer short. |
 | `--order relevance` (default) or `recency` | Rank by relevance, or reorder newest-first. |
@@ -125,7 +128,7 @@ Each result has `why_retrieved` and a **`read_plan`**: `source_path`, `section_p
 /reindex ACME_PORTAL --full
 ```
 
-`/reindex` is mutating. By default it is incremental: an artifact with the same hash and chunking version is skipped, unless the LanceDB table has lost its rows, in which case it is embedded again. `--full` rebuilds every chunk. Run it after a clone, after adding files to the context folders, and when `/health` reports a freshness warning.
+`/reindex` is mutating. By default it is incremental: an artifact with the same hash, chunking version and embedding version is skipped, unless the LanceDB table has lost its rows, in which case it is embedded again. Switching embedders (for example after enabling a semantic one) changes the embedding version, so the next `/reindex` embeds everything again. `--full` rebuilds every chunk. Run it after a clone, after adding files to the context folders, and when `/health` reports a freshness warning.
 
 `/health` warns when context changed after the backlog was generated, names stories marked `Stale` because a spec unit changed, reports knowledge staleness after `/sync` or `/resolve-gaps`, and names stories whose Definition of Done is blocked by open implementation feedback. Re-index and retrieve before handing work to implementation; regenerate artifacts only for a material change to scope, acceptance criteria, dependencies or execution contracts.
 

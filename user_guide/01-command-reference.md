@@ -129,7 +129,7 @@ After a successful command:
   - if the command set health to `CLEAN` while the last `/health` report was `DIRTY`, re-run the `/health` checks and keep their verdict.
 - `/validate` with `--override` also refreshes the traceability views.
 
-A command that fails runs no postflight and is not logged.
+A command that fails runs no postflight and is not logged. `/validate` is the exception: an `INVALID` verdict (exit 5) is logged before the command exits.
 
 ### Command types
 
@@ -137,7 +137,7 @@ A command that fails runs no postflight and is not logged.
 |---|---|---|
 | Read-only | `/next`, `/health`, `/validate`, `/status`, `/view`, `/retrieve` | Changes no governed artifact. Still takes the lock and is logged. Some write a report or a view (`/health`, `/view`, `/retrieve --write-pack`, `/validate --override`), listed under **Writes**. |
 | Mutating | the other 28 project commands, including `/trace` and `/maturity` | Writes workspace artifacts. Gets the full postflight. |
-| Exempt | `/doctor`, `/dashboard`, `/init` | Outside the protocol: `/doctor` and `/dashboard` have no project, and `/init` creates the workspace the protocol needs. `/init` still takes the workspace lock. |
+| Exempt | `/doctor`, `/dashboard`, `/init` | Outside the protocol: `/doctor` and `/dashboard` have no project, and `/init` creates the workspace the protocol needs. `/init` takes the workspace lock when the workspace folder already exists; a first `/init` runs without it. |
 
 > [!IMPORTANT]
 > Governed artifacts change only through commands. A hand Write or Edit of `01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md` or `04_backlog/*.md` is denied by the editor hook, and `/health` flags a hand edit of any of these checksummed files made another way. Client answers go through `/resolve-gaps` or `/sync`; new evidence through `/ingest` or `/sources`.
@@ -182,7 +182,8 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/split` (prerequisites) | No compiled brief, a v1 brief on `--confirm`, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
 | `/split` (refused input) | `--assess` or `--propose` on a v1 brief, refused proposal, partition not green, missing `--ba`/`--tech` or other bad options | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
 | Release commands with `--release` | No confirmed series | `--release needs a confirmed release series` | 4 | `/split --confirm` |
-| `/prototype --trace`, `--manual` | No brief v2 or no inventory (a refused payload stays exit 3) | `... needs a compiled brief v2` / `... needs an inventory` | 4 | `/brief`, or `/prototype --inventory` |
+| `/prototype --trace` | No compiled brief v2, or no inventory (a refused payload stays exit 3) | `/prototype --trace needs the compiled brief v2` / `there is no prototype inventory yet` | 4 | `/brief`, or `/prototype --inventory` |
+| `/prototype --manual` | No inventory (a refused payload stays exit 3) | `there is no prototype inventory yet` | 4 | `/prototype --inventory` |
 | `/prototype --trace`, `--manual` | Payload refused | `the trace/manual was refused (N findings)` | 3 | Fix the findings |
 | `/self-review --sufficiency`, `--crosses`; `/scrutinize --mode anchors` | No compiled brief v2 | `... reads a brief v2; compile one with /brief first` | 4 | `/brief` |
 | `/validate`, `/backlog-status`, `/quality` with `--override` | Nothing fails or warns, so there is nothing to override | `has no failing or warning gate state to override` | 3 | Run without `--override` |
@@ -257,6 +258,8 @@ python -m sentinel /doctor
 python -m sentinel /doctor --root path/to/repo
 ```
 
+Claude Code has its own `/doctor`. In a Claude Code clone, if `/doctor` runs Claude Code's own diagnostics instead of Sentinel's, send `/sentinel /doctor`. With the Claude Code plugin, type `sentinel /doctor`.
+
 **Options.**
 
 | Flag | Values | Default | Meaning |
@@ -279,7 +282,7 @@ python -m sentinel /doctor --root path/to/repo
 
 **What it does.** Creates the workspace `workspaces/PROJECT_ID/` with its folders, `state.json`, `sentinel.config.yaml`, an empty traceability graph and the memory metadata.
 
-**Type.** Exempt (it creates the workspace the protocol needs). It still takes the workspace lock.
+**Type.** Exempt (it creates the workspace the protocol needs). On an existing workspace it still takes the workspace lock; a first `/init` has no workspace to lock yet.
 
 **Use it when.** Starting a new project.
 
@@ -304,7 +307,11 @@ In a Claude Code clone, if `/init` starts Claude Code's own built-in project set
 
 **Writes.** `workspaces/PROJECT_ID/` with `state.json` (phase `initialized`, health `DIRTY`), `sentinel.config.yaml`, `00_raw/`, the empty graph and `memory.lancedb/` metadata. Running `/init` again on an existing workspace keeps its `state.json` and config, so `--brief-version` does nothing there; switch with `/brief PROJECT_ID --brief-version N`.
 
-**Refuses when.** `PROJECT_ID` is invalid → exit 3.
+**Refuses when.**
+
+- `PROJECT_ID` is invalid → exit 3.
+- The workspace exists but its `state.json` is missing while there is a backup (`.sentinel/state.json.bak`) or the workspace already holds artifacts → exit 3. `/init` does not recreate it; restore it as described under [exit codes](#exit-codes).
+- The workspace's `state.json` does not parse → exit 3.
 
 **You get.** `{"workspace": "<path>"}`.
 
@@ -380,7 +387,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 **Reads.** The `--source` file.
 
-**Writes.** A redacted copy under `00_raw/` (a `.docx` becomes `00_raw/NAME.md` plus `00_raw/NAME_media/`), `00_raw/source_manifest.json`, `01_discovery/` (gaps, source synthesis, requirement units, and with `--replace` the requirement-unit delta view), `02_requirements/requirements.md`, graph nodes and memory chunks. A UTF-8 file with an unknown extension is stored as Markdown with a `source_format.warning`.
+**Writes.** A redacted copy under `00_raw/` (a `.docx` becomes `00_raw/NAME.md` plus `00_raw/NAME_media/`), `00_raw/source_manifest.json`, `01_discovery/` (gaps, source synthesis, requirement units, `decisions.md`, `raw_input_digest.md`, `identity_seeds.md`, `discovery_log.md`, `lens_review.md`, `knowledge_state.md` and `.json`, `statement_ledger.json` and `contradictions.md`, and with `--replace` the requirement-unit delta view), `02_requirements/requirements.md`, the discovery focus pack under `08_context_packs/`, graph nodes and memory chunks. It sets phase `discovery_completed`, and health `DIRTY` when gaps are open (`CLEAN` when none are). A `.md`, `.txt`, `.html` or `.htm` copy keeps its extension; a UTF-8 file with an unknown extension is stored as Markdown with a `source_format.warning`.
 
 **Refuses when.**
 
@@ -427,7 +434,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 **Reads.** The `--source` file or the scanned folders; the source registry; with `--analysis`, the analysis file, `gaps.md`, `assumptions.md` and the confirmed answers.
 
-**Writes.** The change and its impact report under `07_changes/`, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `interaction_digest.md` (section (f) lists the decision-line hints) and a `PROPOSED` gap-response file for the BA to review. With `--analysis`, the `GAP-CHG` rows in `gaps.md`, `01_discovery/change_candidates.json`, a copy of the analysis under `01_discovery/change_analyses/` and a line in `agent_sweep_log.md`. Nothing else moves: the target gap stays closed and the assumption keeps its status until the BA accepts.
+**Writes.** A redacted copy of the change and its `<name>_impact_report.md` in a `07_changes/` sub-folder chosen from the source path: `01_meetings/` when the path contains `meeting` or `minuta`, `02_mail_slack/` for `mail` or `slack`, `00_client_responses/` for `interaction`, `client` or `response`, and `03_domain_updates/` otherwise (also for a path under a technology, design or quality context folder). Also `07_changes/metabolism_log.md`, `01_discovery/gaps.md` when the change raises new gaps (`origin: sync`), seeds and decisions for any `### GAP-*` answer it closes, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `<name>_interaction_digest.md` (section (f) lists the decision-line hints) and, when it finds candidate answers, a `<name>_gap_response_proposed.md` file with every entry `PROPOSED`, for the BA to review; both land in the same `07_changes/` sub-folder as the copy. With `--analysis`, the `GAP-CHG` rows in `gaps.md`, `01_discovery/change_candidates.json`, a copy of the analysis under `01_discovery/change_analyses/` and a line in `agent_sweep_log.md`. Nothing else moves: the target gap stays closed and the assumption keeps its status until the BA accepts.
 
 **Refuses when.**
 
@@ -435,9 +442,9 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 - `--analysis` without `--source` → exit 3.
 - `--analysis` with a quote not found verbatim in the note or the target, a target that does not exist or is in the wrong state (a gap that is not `CLOSED`/`PARTIALLY_CLOSED`, an assumption that is not `ASSUMED`/`VALIDATED`, an unregistered source), or a note that declares itself not validated → exit 3 listing every reason. The analysis is checked before the note is stored, so nothing is written.
 
-**You get.** The change id, the impact report path, reopened gaps (closed gaps the scan detected again; report only), answered context requests, duplicate content, the `context_pack` path, `prose_review`, and with `--analysis` the `change_analysis` block (`opened`, `skipped_existing`).
+**You get.** With `--source`: the change id, the copy `path`, reopened gaps (closed gaps the scan detected again; report only), answered context requests, the `context_pack` path, `prose_review`, `interaction_digest` (with `--digest`), and with `--analysis` the `change_analysis` block (`opened`, `skipped_existing`). Without `--source`: `{"mode": "autonomous", "detected", "processed", "duplicate_content", "changes": [...]}`, where each item of `changes` is the result above for one file and `duplicate_content` lists new paths whose content was already registered. There is no top-level change id in that mode, and the default note is `autonomous sync`.
 
-**Next step.** Review the impact report. If a proposed gap response was written, confirm it and run `/resolve-gaps`. For each `GAP-CHG`, decide with `/gaps --id GAP-CHG-x --disposition accepted|rejected`. Then `/maturity`.
+**Next step.** Review the impact report. If a proposed gap response was written, confirm it and run `/resolve-gaps`. For each `GAP-CHG`, decide with `/gaps --id GAP-CHG-x --disposition accepted`, or `--disposition rejected --reason TEXT`. Then `/maturity`.
 
 **See also.** [Workflows: requirement changes](03-workflows.md) · [`sources`](#sources) · skill `sentinel-sync`.
 
@@ -490,8 +497,8 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 ```text
 /gaps ACME_PORTAL
 /gaps ACME_PORTAL --top 5
-/gaps ACME_PORTAL --id GAP-TECH-NFR --disposition accepted
-/gaps ACME_PORTAL --id GAP-TECH-NFR --disposition rejected --reason "covered by the SLA clause"
+/gaps ACME_PORTAL --id GAP-DATA-RETENTION --disposition accepted
+/gaps ACME_PORTAL --id GAP-DATA-RETENTION --disposition rejected --reason "covered by the SLA clause"
 /gaps ACME_PORTAL --id GAP-CHG-3F9A1C --disposition accepted
 ```
 
@@ -501,9 +508,11 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--id` | a `GAP-*` id | none | The gap to dispose. Goes with `--disposition`. |
-| `--disposition` | `accepted`, `rejected`, `irrelevant` | none | The BA's verdict on a gap raised by an agentic channel (`agent`, `challenge`, `scrutiny`, `implementability-probe`, `self-review`). |
+| `--disposition` | `accepted`, `rejected`, `irrelevant` | none | The BA's verdict on a gap raised by an agentic channel, that is a gap whose origin is `agent`, `challenge`, `scrutiny`, `implementability-probe`, `self-review`, `sufficiency` (`GAP-SUF-*`), `anchor-review` (`GAP-ANC-*`) or `cross-review` (`GAP-XRV-*`). |
 | `--reason` | text | empty | Why. Required for `rejected` and `irrelevant`. |
 | `--top` | an integer | none | Plan a round of at most N open gaps, ordered scope, then security and privacy, then UX, then technical, then by severity. |
+
+**On any other gap the disposition only records your call.** It goes to `01_discovery/agent_dispositions.json` and feeds the per-channel false-alarm metrics that `/maturity` reports. The gap row in `gaps.md` does not change: a critical or high gap marked `irrelevant` stays open and keeps `/maturity` `BLOCKED`. To take it out of the way, close it through `/resolve-gaps` (for example with `Decision status: not applicable` and the reason).
 
 **On a `GAP-CHG` the disposition has an effect** (a late change opened by `/sync --analysis`):
 
@@ -524,6 +533,7 @@ Both count in the per-channel disposition metrics (channel `agent`).
 
 - Before `/ingest` → exit 4.
 - `--disposition` without `--id`, or `--id` without `--disposition` → exit 3.
+- A gap id that is not in `gaps.md`, or a gap whose origin is not an agentic channel (a `checklist` gap such as `GAP-TECH-NFR`, a `harvest` or `sync` gap) → exit 3.
 - `rejected` or `irrelevant` without `--reason` → exit 3.
 - A `GAP-CHG` that was already disposed → exit 3; a change applies once.
 - `accepted` on a `GAP-CHG` whose target moved since (the gap was reopened, the assumption invalidated) → exit 4.
@@ -567,7 +577,7 @@ python -m sentinel /annotate ACME_PORTAL --source analysis.json
 
 **You get.** The accepted gaps and the counts.
 
-**Next step.** `/gaps PROJECT_ID --id GAP-X --disposition ...` for each agent gap, then `/maturity`.
+**Next step.** `/gaps PROJECT_ID --id GAP-X --disposition ...` to record your call on each agent gap (it does not close the gap), answer or close the ones that matter with `/resolve-gaps`, then `/maturity`.
 
 **See also.** [Workflows: deepen discovery](03-workflows.md) · skill `sentinel-annotate`.
 
@@ -641,7 +651,7 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 
 - `scrutiny`: `01_discovery/gaps.md`, `01_discovery/scrutiny_report.md`, a copy under `01_discovery/scrutiny/`, `knowledge_state.*`.
 - `implementability-probe`: `01_discovery/implementability_probe_report.md` and a copy under `01_discovery/implementability_probe/`; gaps with `origin: implementability-probe`.
-- `anchors`: `GAP-ANC-*` gaps. The brief is never edited.
+- `anchors`: `GAP-ANC-*` gaps and a line in `01_discovery/anchor_review_log.md`. The brief is never edited.
 
 **Refuses when.** Before `/ingest`, or no evidence under `00_raw/` → exit 4. `anchors` without a brief v2 → exit 4. Payload refused → exit 3.
 
@@ -717,7 +727,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 **Refuses when.** Before `/ingest` → exit 4.
 
-**You get.** The gaps closed, partial and reopened, `closure_findings`, validated assumptions and, for v2, `brief_v2.rewritten_places`.
+**You get.** The gap ids `closed`, `answered`, `partially_closed` and `open` (a gap reopened with the closure `reopened_false_premise` is listed under `open`), `gap_counts`, `knowledge_metabolism` (the validated assumptions are in it), `closure_findings`, `unknown_gap_ids` and, for v2, `brief_v2` with `rewritten_places`.
 
 **Next step.** `/maturity`.
 
@@ -1029,6 +1039,8 @@ python -m sentinel /maturity ACME_PORTAL
 
 A flag you leave out keeps the previous confirmation. Run it with `--profile` and `--genesis` once, right after the first `/ingest`; `/next` and `/status` ask for it until then, with values proposed from the raw input. Until profile and genesis are confirmed on a v2 project, `/maturity` (and so `/specs` and `/backlog`) opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED` without compiling a brief. A `/brief` without flags opens the same gap, returns a `proposal` (never applied) and writes a provisional brief in the older v1 layout until you confirm. See [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings).
 
+Three checks can stop the brief phase from closing when no blocking gap is open. The command still exits 0, with `"blocked": true`, and `/next` gives *Fix what stopped the brief*: a confirmed answer the compiled brief does not carry (`self_correction`, always on); brief section readiness below `brief_gate.threshold` (default 0.5) with `brief_gate.strict: true` (stage `BRIEF_BELOW_THRESHOLD`); a requirement unit that is not implementable with `implementability_gate.strict: true`. Without `strict`, the last two only warn.
+
 **Reads.** `02_requirements/requirements.md`, `01_discovery/gaps.md`, the source registry.
 
 **Writes.** `02_requirements/project-brief.md`, `02_requirements/brief_compile_report.json` (v2), the settings in `state.json`.
@@ -1188,13 +1200,13 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 **Reads.** The JSON; the PRD and specs (default) or the brief v2 (other modes).
 
-**Writes.** Default: `03_specs/self_review/` (copy, `self_review_report.md`, `decision_register.md`) and `01_discovery/gaps.md` when gaps are accepted. `--sufficiency`: gaps and `01_discovery/sufficiency_log.md`. `--crosses`: gaps.
+**Writes.** Default: `03_specs/self_review/` (copy, `self_review_report.md`, `decision_register.md`) and `01_discovery/gaps.md` when gaps are accepted. `--sufficiency`: gaps and `01_discovery/sufficiency_log.md`. `--crosses`: gaps and `01_discovery/cross_review_log.md`.
 
 **Refuses when.** Default mode before `/specs` or before `/ingest` → exit 4. `--sufficiency` or `--crosses` without a compiled brief → exit 4. A refused payload → exit 3.
 
 **You get.** The accepted gaps and decisions, or the obstacles with their reasons.
 
-**Next step.** Dispose the new gaps (`/gaps --disposition`), answer them, then `/maturity` and regenerate.
+**Next step.** Record your call on the new gaps (`/gaps --disposition`), answer or close them with `/resolve-gaps`, then `/maturity` and regenerate.
 
 **See also.** skill `sentinel-self-review`.
 
@@ -1224,9 +1236,11 @@ The modes are mutually exclusive; giving none or two is exit 2.
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | Generate for one release of a confirmed series. |
 
+**Re-runs `/maturity` first.** `/specs` evaluates maturity again before it generates anything, so the `BLOCKED` refusal reflects the gaps as they are now, not the last `/maturity` you ran. That run rewrites `01_discovery/requirement_maturity_report.md` and `development_readiness.json`, may recompile `02_requirements/project-brief.md` (or open `GAP-BRIEF-PROFILE` on a brief v2 with unconfirmed settings), and sets phase and health as `/maturity` does.
+
 **Reads.** The brief, `02_requirements/requirements.md`, confirmed answers, decisions, local memory.
 
-**Writes.** `03_specs/prd.md`, `03_specs/specs.md`, `03_specs/units/SPEC-U-NNN.md`, `08_context_packs/specs_generation.json`. With `--release`, under `03_specs/rN/`.
+**Writes.** `03_specs/prd.md`, `03_specs/specs.md`, `03_specs/units/SPEC-U-NNN.md`, `08_context_packs/specs_generation.json`, plus what the `/maturity` run writes. With `--release`, under `03_specs/rN/`.
 
 **Refuses when.** Phase `initialized` → exit 4. Maturity `BLOCKED` → exit 4. `drift_gate.strict` with a stale foundation → exit 4. `specs_gate.strict` below the threshold → exit 4.
 
@@ -1353,6 +1367,8 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 | `--with-task-seeds` | flag | off | Add a task-seed contract to each story, only when a downstream consumer asks for it. Sentinel does not estimate or assign them. |
 | `--story-format` | `user`, `job` | `story_format` in the config, else `user` | `user`: "As a ..., I want ..., so that ...". `job`: "When ..., I want ..., so I can ...". Changes only the wording. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | Generate for one release of a confirmed series. |
+
+**Re-runs `/maturity` first**, like `/specs`: the `BLOCKED` refusal is computed fresh, and the maturity report, the readiness matrix and the brief may be rewritten.
 
 **Reads.** `03_specs/units/`, the spec, the slicing model, domain context.
 
@@ -1507,17 +1523,19 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--source` | a JSON file | required | `findings[]` with `type` (`new-dependency`, `gap`, `ac-challenge`, `surface-not-covered`), `story`, `summary`, `evidence`, `blocks_dod`, `mark_stale`, and optional `acceptance_criteria`, `source_units`, `gap_id`. Written with the `sentinel-implementation-feedback` skill. |
+| `--source` | a JSON file | required | `findings[]` with `type` (`new-dependency`, `gap`, `ac-challenge`, `surface-not-covered`), `story`, `summary`, `evidence`, `blocks_dod` (default true), `mark_stale` (needs `source_units`), and optional `id` (default `IFB-NNN` by position), `status` (`open` or `resolved`, default `open`), `acceptance_criteria`, `source_units`, `gap_id` (a `gap` finding without one gets `GAP-FEEDBACK-NNN` by position). Written with the `sentinel-implementation-feedback` skill. |
 
 **Reads.** The JSON and the stories.
 
-**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories.
+**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for the `gap` findings of this run, `implementation_feedback` in `state.json`, the DoD item of affected stories. While any finding that blocks DoD is `open`, it sets health `DIRTY`, so `/backlog`, `/quality` and `/refine-backlog` refuse until it is resolved, and `/health` reports "Open implementation feedback blocks DoD".
+
+**Feedback gaps live apart.** A `GAP-FEEDBACK-*` gap is listed in `01_discovery/implementation_feedback_gaps.md` and in the graph, never in `gaps.md`. `/resolve-gaps` does not apply an answer to it (the id comes back in `unknown_gap_ids`), and the gap counts of `/status` do not include it. To close one, send a new feedback file with the same finding `id` (and its `gap_id`) and `"status": "resolved"`: the finding stops blocking DoD and stops making health `DIRTY`. The health stays `DIRTY` until something recomputes it: run `/health`, which sets `CLEAN` when no other finding remains.
 
 **Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload, or no finding accepted → exit 3; the message lists why each finding was refused and only `feedback_report.md` is written: gaps, stories, state and the graph are untouched.
 
 **You get.** The recorded findings and the stories affected.
 
-**Next step.** Review with the product owner; answer the feedback gaps and regenerate.
+**Next step.** Review with the product owner; act on each finding upstream, mark it `resolved` with a new feedback file, and regenerate.
 
 **See also.** skill `sentinel-implementation-feedback`.
 
@@ -1749,13 +1767,14 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 |---|---|---|
 | `ingest` | Nothing ingested yet | `/ingest` |
 | `brief_settings` | Brief v2 settings not confirmed | `/brief --profile ... --genesis ...` |
-| `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself). When a `GAP-CHG` is among them, the step is *Confirm a late change* and names it | `/resolve-gaps`, or `/gaps --id GAP-CHG-x --disposition accepted\|rejected` |
+| `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself). When a `GAP-CHG` is among them, the step is *Confirm a late change* and names it | `/resolve-gaps`, or `/gaps --id GAP-CHG-x --disposition accepted\|rejected` (`rejected` also needs `--reason`) |
 | `fix_brief` | `/brief` stopped the phase close | `/brief` |
 | `brief_missing` | Past `/brief` but the brief file is gone | `/brief` |
 | `specs` / `fix_specs` | Ready for specs / specs below the threshold | `/specs` |
 | `health` | Ready for the backlog but health is `DIRTY` (`/backlog` and `/quality` would refuse) | `/health` |
 | `backlog` / `quality` / `handoff` | No stories yet / stories not checked / quality done | `/backlog` / `/quality` / `/validate`, then `/export` and `/story-status` |
 | `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
+| `brief` | No gap left open and no brief yet | `/brief` |
 
 **Next step.** Run that command. On a brief v2 project with unconfirmed settings it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 
