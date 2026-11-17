@@ -1,6 +1,6 @@
 # Guion de entrevista - [PROJECT_ID]
 
-Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion salen de las opciones candidatas citadas (IMP-113); nunca se inventan. Este guion NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.
+Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion salen de las opciones candidatas citadas; nunca se inventan. Este guion NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.
 
 
 ## Preguntas de seguimiento
@@ -37,7 +37,7 @@ Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (g
 
 5. Detalle de personas para PRD (`GAP-PRD-PERSONA-DETAIL`, severidad `medium`, lente `business`)
 
-- Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
+- Preguntar: Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?
 
 ### compliance
 
@@ -61,7 +61,7 @@ Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (g
 
 10. Dependencias y roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severidad `medium`, lente `delivery`)
 
-- Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
+- Preguntar: ¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?
 
 11. Rollout y ambientes (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severidad `medium`, lente `delivery`)
 
@@ -89,7 +89,7 @@ Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (g
 
 16. Requerimientos funcionales y criterios de aceptacion (`GAP-PRD-FR-AC`, severidad `medium`, lente `product`)
 
-- Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
+- Preguntar: ¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?
 
 17. Proceso actual y objetivo (`GAP-PRODUCT-ASIS-TOBE`, severidad `medium`, lente `product`)
 
@@ -99,7 +99,7 @@ Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (g
 
 18. NFRs, KPIs y medicion (`GAP-PRD-NFR-KPI`, severidad `medium`, lente `quality`)
 
-- Preguntar: ¿Qué información confirmada resuelve esta incertidumbre?
+- Preguntar: ¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?
 
 19. Expectativas de calidad (`GAP-QUALITY`, severidad `medium`, lente `quality`)
 

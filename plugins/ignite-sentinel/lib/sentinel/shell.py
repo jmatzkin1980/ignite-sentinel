@@ -57,6 +57,84 @@ def theme_argument_for_display(theme_arg: str) -> str:
     return '"' + name.replace('"', "") + '"'
 
 
+PROVENANCE_LABELS = {
+    "es": {
+        "heading": "Procedencia",
+        "source": "Fuente",
+        "sources": "Fuentes",
+        "cutoff": "fecha de corte",
+        "cutoff_title": "Fecha de corte",
+        "note_one": "la fecha de modificación del archivo fuente, no la hora de generación",
+        "note_many": "la modificación más reciente de las fuentes leídas, no la hora de generación",
+        "regenerate": "Regenerar",
+        "empty": "Sin fuentes.",
+    },
+    "en": {
+        "heading": "Provenance",
+        "source": "Source",
+        "sources": "Sources",
+        "cutoff": "cut-off",
+        "cutoff_title": "Cut-off",
+        "note_one": "the source file's modification time, not the build time",
+        "note_many": "the newest source modification time, not the build time",
+        "regenerate": "Regenerate",
+        "empty": "No sources.",
+    },
+}
+
+
+def page_language(value: object) -> str:
+    """``es`` for any Spanish tag (``es``, ``es-AR``, ``ES``), else ``en``."""
+    return "es" if str(value or "").strip().lower().startswith("es") else "en"
+
+
+def provenance_section(
+    *,
+    language: object,
+    command: str,
+    cutoff: str,
+    sources: list[dict[str, str]],
+    digest: str | None = None,
+    section_class: str = "view-section",
+    remark: str = "",
+) -> str:
+    """IMP-346: the one "Provenance" section of the dashboard and every /view page.
+
+    ``sources`` are ``{"path", "sha256"?}``; ``command`` is the regen command, not yet
+    escaped. With ``digest`` (the 12-hex fingerprint of what the page read) the sources
+    are listed inline next to it; without one, each source is a table row with its own
+    fingerprint. The text follows the page language (``page_language``); the cut-off
+    note names "the source file" only for a page read from exactly one file. ``remark``
+    (plain text, e.g. which diagram renderer was inlined) is a paragraph of its own
+    before the regen command.
+    """
+    labels = PROVENANCE_LABELS[page_language(language)]
+    stamp = html.escape(cutoff or "-")
+    time = f'<time datetime="{stamp}">{stamp}</time>'
+    regenerate = f"<p>{labels['regenerate']}: <code>{html.escape(command)}</code></p>"
+    opening = (
+        f'<section class="{html.escape(section_class, quote=True)}" id="provenance" aria-labelledby="provenance-h">'
+        f'<h2 id="provenance-h">{labels["heading"]}</h2>'
+    )
+    if digest is not None:
+        note = labels["note_one"] if len(sources) == 1 else labels["note_many"]
+        listed = ", ".join(f"<code>{html.escape(source['path'])}</code>" for source in sources)
+        label = labels["source"] if len(sources) == 1 else labels["sources"]
+        body = f"<p>{label}: {listed} · sha256 <code>{html.escape(digest)}</code> · {labels['cutoff']} {time} ({note}).</p>"
+    else:
+        rows = "".join(
+            f"<tr><td><code>{html.escape(source['path'])}</code></td><td><code>{html.escape(source.get('sha256', ''))}</code></td></tr>"
+            for source in sources
+        )
+        table = (
+            f'<table class="prov"><thead><tr><th>{labels["source"]}</th><th>sha256 (12)</th></tr></thead><tbody>{rows}</tbody></table>'
+            if rows else f"<p>{labels['empty']}</p>"
+        )
+        body = f'<p>{labels["cutoff_title"]}: {time} <span id="provAge"></span> ({labels["note_many"]}).</p>{table}'
+    extra = f"<p>{html.escape(remark)}</p>" if remark else ""
+    return opening + body + extra + regenerate + "</section>"
+
+
 def template_text(name: str) -> str:
     return package_resource(*TEMPLATES, name).read_text(encoding="utf-8")
 

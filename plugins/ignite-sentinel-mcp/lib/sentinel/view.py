@@ -13,7 +13,9 @@ from .assumptions import load_assumptions
 from .core.local_browser import open_local_file
 from .blocks import markdown_to_blocks, sections_from_blocks
 from .core.graph import load_graph
-from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import (
+    content_fingerprint, fill, json_for_script, provenance_section, render_shell, template_text, theme_argument_for_display,
+)
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs
 from .workspace import load_config, read_json, workspace_path
 from .core.io import write_text
@@ -562,8 +564,20 @@ def source_fragment_for_node(project_id: str, node: dict[str, Any], *, max_lines
         "line_start": 1 if lines else 0,
         "line_end": end,
         "truncated": len(lines) > end,
-        "text": "\n".join(lines[:end]),
+        "text": _shield_fragment("\n".join(lines[:end])),
     }
+
+
+def _shield_fragment(text: str) -> str:
+    """IMP-351: a fragment can be the `00_raw/` copy, which keeps flagged lines verbatim for the BA.
+
+    The view is read by agents too, so each flagged line is shown as `<NEUTRALIZADO:type>`,
+    as in every other artifact written from untrusted text. Markup needs nothing here:
+    the page escapes the fragment and `json_for_script` keeps it inside its data block.
+    """
+    from .injection import detect_injection, neutralize_marked
+
+    return neutralize_marked(text, detect_injection(text))
 
 
 def mini_graph_for_node(trace_id: str, graph: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
@@ -700,16 +714,12 @@ def _legend_section(theme: dict[str, Any], language: str) -> str:
 
 def _provenance_section(model: dict[str, Any], theme_arg: str) -> str:
     provenance = model["provenance"]
-    command = html.escape(
-        f"python -m sentinel /view {model['project_id']} --artifact {model['artifact']} --theme {theme_argument_for_display(theme_arg)}"
-    )
-    heading = "Procedencia" if str(model.get("language", "")).lower().startswith("es") else "Provenance"
-    return (
-        f'<section class="view-section" id="provenance"><h2>{heading}</h2>'
-        f"<p>Source: <code>{html.escape(model['source_path'])}</code> · sha256 <code>{html.escape(provenance['source_sha256'])}</code> · "
-        f'cut-off <time datetime="{html.escape(provenance["cutoff"])}">{html.escape(provenance["cutoff"])}</time> '
-        "(the source file's modification time, not the build time).</p>"
-        f"<p>Regenerate: <code>{command}</code></p></section>"
+    return provenance_section(
+        language=model.get("language"),
+        command=f"python -m sentinel /view {model['project_id']} --artifact {model['artifact']} --theme {theme_argument_for_display(theme_arg)}",
+        cutoff=provenance["cutoff"],
+        sources=[{"path": model["source_path"]}],
+        digest=provenance["source_sha256"],
     )
 
 

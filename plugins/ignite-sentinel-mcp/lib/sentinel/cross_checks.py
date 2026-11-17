@@ -59,6 +59,12 @@ class _Brief:
         return [(m.group("id"), m.group("text")) for line in self.body("9.1").splitlines() if (m := C_ITEM_RE.match(line))]
 
 
+def build_items(text: str) -> list[tuple[str, str]]:
+    """The `C-NN` build items of §9.1 as (id, text); empty for a v1 brief."""
+    brief = _Brief(text)
+    return brief.build_items() if brief.model.version == 2 else []
+
+
 def _ids(pattern: str, text: str) -> list[str]:
     return sorted(set(re.findall(pattern, text)))
 

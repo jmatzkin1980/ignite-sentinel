@@ -7,7 +7,8 @@ from .assumptions import load_assumptions
 from .core.markdown import parse_table_rows
 from .discovery import mature_requirement_rubric
 from .gaps import parse_gap_table
-from .lens_registry import LENS_ORDER, load_lens_checks
+from .knowledge.ledger import compact_links
+from .lens_registry import LENS_ORDER, load_lens_checks, normalize_lens
 from .workspace import read_json, workspace_path, write_json
 
 READINESS_STATUSES = ("CONFIRMED", "ASSUMED", "OPEN")
@@ -250,22 +251,6 @@ def lenses_for(text: str) -> list[str]:
     return sorted(set(mapped)) or ["product"]
 
 
-def normalize_lens(value: str) -> str:
-    lens = value.strip().lower()
-    aliases = {
-        "technology": "technical",
-        "frontend": "technical",
-        "backend": "technical",
-        "business": "business",
-        "product": "product",
-        "quality": "quality",
-        "design": "design",
-        "compliance": "compliance",
-        "delivery": "delivery",
-    }
-    return aliases.get(lens, lens or "product")
-
-
 def unit_has_any_gap(unit: dict[str, Any], gap_ids: list[str]) -> bool:
     links = unit.get("links", [])
     for link in links if isinstance(links, list) else []:
@@ -296,22 +281,6 @@ def aggregate_status(statuses: list[str]) -> str:
     if any(status == "ASSUMED" for status in statuses):
         return "ASSUMED"
     return "CONFIRMED"
-
-
-def compact_links(links: list[dict[str, Any]]) -> list[dict[str, str]]:
-    compacted: list[dict[str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    for link in links:
-        link_type = str(link.get("type", "")).strip()
-        target = str(link.get("target", "")).strip()
-        if not link_type or not target or target in {"-", "N/A"}:
-            continue
-        key = (link_type, target)
-        if key in seen:
-            continue
-        seen.add(key)
-        compacted.append({"type": link_type, "target": target})
-    return compacted
 
 
 # --- IMP-118: per Requirement Unit implementability matrix + soft gate --------

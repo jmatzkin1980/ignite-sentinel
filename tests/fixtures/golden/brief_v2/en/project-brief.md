@@ -145,15 +145,15 @@ N/A — nothing installed to respect: everything is created in this project. If 
 
 ### 3.3 Sequence Diagram / To-Be Flow
 
-⏳ PENDING DOMAIN (GAP-PRODUCT-ASIS-TOBE)
+⏳ PENDING DOMAIN (GAP-BRIEF-S3)
 
 ### 3.4 State Machine and Lifecycle
 
-⏳ PENDING DOMAIN (GAP-PRODUCT-ASIS-TOBE)
+⏳ PENDING DOMAIN (GAP-BRIEF-S3)
 
 ### 3.5 Transition Logic
 
-⏳ PENDING DOMAIN (GAP-PRODUCT-ASIS-TOBE)
+⏳ PENDING DOMAIN (GAP-BRIEF-S3)
 
 ### 3.6 Error Handling / Edge Cases
 
@@ -210,11 +210,11 @@ N/A — nothing installed to respect: everything is created in this project. If 
 
 #### UX decisions and uncommitted ideas
 
-⏳ PENDING DOMAIN (GAP-DESIGN-FLOW)
+⏳ PENDING DOMAIN (GAP-BRIEF-S4)
 
 #### Messages to the user
 
-⏳ PENDING (GAP-DESIGN-FLOW)
+⏳ PENDING (GAP-BRIEF-S4)
 
 ### 4.3 Prototype and Design Precedents
 
@@ -222,17 +222,17 @@ N/A — nothing installed to respect: everything is created in this project. If 
 
 ### 4.4 Accessibility
 
-⏳ PENDING (GAP-DESIGN-FLOW)
+⏳ PENDING (GAP-BRIEF-S4)
 
 ### 4.5 Help and Training
 
-⏳ PENDING DOMAIN (GAP-DESIGN-FLOW)
+⏳ PENDING DOMAIN (GAP-BRIEF-S4)
 
 ## 5. Technical Lens
 
 ### 5.0 Opening
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.1 Architecture and Integrations
 
@@ -276,11 +276,11 @@ N/A — see 3.2/cutover.
 
 #### Data model
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Personal data: classification, purpose and retention
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.5 Inherited Query / Pattern
 
@@ -290,35 +290,35 @@ N/A — see 3.2/cutover.
 
 #### Integration map
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Integration resilience
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.7 API Contracts
 
 #### Global API conventions
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Idempotency and concurrency
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Versioning and compatibility
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Per-endpoint contracts
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.8 Field Mapping (DB → API → UI)
 
 #### Field mapping
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Impact on what is installed
 
@@ -328,15 +328,15 @@ N/A — see 3.2/cutover.
 
 #### File interfaces
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 #### Restart, re-run and reconciliation
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.10 Caching and High Availability Strategy
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.11 Governance and Constraints
 
@@ -390,15 +390,15 @@ N/A — see 3.2/cutover.
 
 #### Data migration
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.14 Events / Messaging
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.15 Error Handling and Status Codes
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.16 Observability
 
@@ -424,27 +424,27 @@ N/A — it replaces no system whose outputs must be matched. If one appears, 5.1
 
 ### 5.18 Usage Limits
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.19 Browsers and Devices
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.20 Routing and Route Protection
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.21 Technical Internationalization
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.22 Client Security
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.23 Analytics Events
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ### 5.24 Tenant Isolation
 
@@ -452,7 +452,7 @@ N/A — a single customer or tenant. If a second one is added, 5.24 and the tena
 
 ### 5.25 Abuse and Anti-automation
 
-⏳ PENDING DOMAIN (GAP-TECH-DEEP-DIVE-INPUT)
+⏳ PENDING DOMAIN (GAP-BRIEF-S5)
 
 ## 6. Release Agreements
 
@@ -474,7 +474,7 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 
 #### Open items table
 
-28 open gaps in `gaps.md`.
+31 open gaps in `gaps.md`.
 
 | Gap | Severity | Origin |
 |---|---|---|
@@ -483,6 +483,9 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | `GAP-BACKLOG-SLICING-READINESS` | medium | checklist |
 | `GAP-BRIEF-S1` | medium | checklist |
 | `GAP-BRIEF-S2` | medium | checklist |
+| `GAP-BRIEF-S3` | medium | checklist |
+| `GAP-BRIEF-S4` | medium | checklist |
+| `GAP-BRIEF-S5` | medium | checklist |
 | `GAP-BUSINESS-RULES` | medium | checklist |
 | `GAP-CTP-EXCLUSION` | medium | checklist |
 | `GAP-DELIVERY-READINESS` | medium | checklist |
@@ -528,21 +531,21 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | 3.2/process | client | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.2/validations | client | `GAP-PRODUCT-ASIS-TOBE` |
 | 3.2/manual_ops | domain | `GAP-PRODUCT-ASIS-TOBE` |
-| 3.3 | domain | `GAP-PRODUCT-ASIS-TOBE` |
-| 3.4 | domain | `GAP-PRODUCT-ASIS-TOBE` |
-| 3.5 | domain | `GAP-PRODUCT-ASIS-TOBE` |
+| 3.3 | domain | `GAP-BRIEF-S3` |
+| 3.4 | domain | `GAP-BRIEF-S3` |
+| 3.5 | domain | `GAP-BRIEF-S3` |
 | 3.6/edge_cases | client | `GAP-QUALITY-HANDOFF` |
 | 4.1/screens | client | `GAP-DESIGN-FLOW` |
 | 4.1/design_system | client | `GAP-DESIGN-FLOW` |
 | 4.1/screen_map | client | `GAP-DESIGN-FLOW` |
 | 4.1/screen_states | client | `GAP-DESIGN-FLOW` |
 | 4.1/locale | client | `GAP-DESIGN-FLOW` |
-| 4.2/ux_decisions | domain | `GAP-DESIGN-FLOW` |
-| 4.2/messages | client | `GAP-DESIGN-FLOW` |
+| 4.2/ux_decisions | domain | `GAP-BRIEF-S4` |
+| 4.2/messages | client | `GAP-BRIEF-S4` |
 | 4.3 | client | `GAP-DESIGN-PROTOTYPE-INPUT` |
-| 4.4 | client | `GAP-DESIGN-FLOW` |
-| 4.5 | domain | `GAP-DESIGN-FLOW` |
-| 5.0 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
+| 4.4 | client | `GAP-BRIEF-S4` |
+| 4.5 | domain | `GAP-BRIEF-S4` |
+| 5.0 | domain | `GAP-BRIEF-S5` |
 | 5.1/components | domain | `GAP-FRONTEND-SURFACE` |
 | 5.1/decisions | domain | `GAP-FRONTEND-SURFACE` |
 | 5.2/stack | domain | `GAP-PRD-ROLLOUT-ENVIRONMENTS` |
@@ -550,18 +553,18 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | 5.3/data_sources | domain | `GAP-TECH-DATA-SOURCE` |
 | 5.3/repos | domain | `GAP-TECH-DATA-SOURCE` |
 | 5.3/parameters | domain | `GAP-TECH-DATA-SOURCE` |
-| 5.4/model | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.4/personal_data | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.6/map | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.6/resilience | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.7/conventions | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.7/idempotency | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.7/versioning | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.7/endpoints | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.8/mapping | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.9/file_interfaces | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.9/restart | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.10 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
+| 5.4/model | domain | `GAP-BRIEF-S5` |
+| 5.4/personal_data | domain | `GAP-BRIEF-S5` |
+| 5.6/map | domain | `GAP-BRIEF-S5` |
+| 5.6/resilience | domain | `GAP-BRIEF-S5` |
+| 5.7/conventions | domain | `GAP-BRIEF-S5` |
+| 5.7/idempotency | domain | `GAP-BRIEF-S5` |
+| 5.7/versioning | domain | `GAP-BRIEF-S5` |
+| 5.7/endpoints | domain | `GAP-BRIEF-S5` |
+| 5.8/mapping | domain | `GAP-BRIEF-S5` |
+| 5.9/file_interfaces | domain | `GAP-BRIEF-S5` |
+| 5.9/restart | domain | `GAP-BRIEF-S5` |
+| 5.10 | domain | `GAP-BRIEF-S5` |
 | 5.11/constraints | domain | `GAP-GOVERNANCE-CONSTRAINTS` |
 | 5.11/authn | domain | `GAP-GOVERNANCE-CONSTRAINTS` |
 | 5.11/authz | domain | `GAP-GOVERNANCE-CONSTRAINTS` |
@@ -572,20 +575,20 @@ First v2 compilation: every section is `ADDED`. PRD, specs and backlog regenerat
 | 5.12/services | domain | `GAP-BACKEND-SURFACE` |
 | 5.12/client_state | domain | `GAP-BACKEND-SURFACE` |
 | 5.12/jobs | domain | `GAP-BACKEND-SURFACE` |
-| 5.13/data_migration | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.14 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.15 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
+| 5.13/data_migration | domain | `GAP-BRIEF-S5` |
+| 5.14 | domain | `GAP-BRIEF-S5` |
+| 5.15 | domain | `GAP-BRIEF-S5` |
 | 5.16/quality_attributes | domain | `GAP-PRD-NFR-KPI` |
 | 5.16/sli_slo | domain | `GAP-PRD-NFR-KPI` |
 | 5.16/observability | domain | `GAP-PRD-NFR-KPI` |
 | 5.16/alerts | domain | `GAP-PRD-NFR-KPI` |
-| 5.18 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.19 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.20 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.21 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.22 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.23 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
-| 5.25 | domain | `GAP-TECH-DEEP-DIVE-INPUT` |
+| 5.18 | domain | `GAP-BRIEF-S5` |
+| 5.19 | domain | `GAP-BRIEF-S5` |
+| 5.20 | domain | `GAP-BRIEF-S5` |
+| 5.21 | domain | `GAP-BRIEF-S5` |
+| 5.22 | domain | `GAP-BRIEF-S5` |
+| 5.23 | domain | `GAP-BRIEF-S5` |
+| 5.25 | domain | `GAP-BRIEF-S5` |
 | A.glossary | client | `GAP-PRD-GLOSSARY-GOVERNANCE` |
 | 9.1/non_software | domain | `GAP-BACKLOG-ENABLERS` |
 | 7.1/risks | domain | `GAP-PRD-DEPENDENCIES-ROADMAP` |

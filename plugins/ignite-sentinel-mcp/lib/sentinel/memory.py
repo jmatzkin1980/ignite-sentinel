@@ -407,14 +407,12 @@ class ContextBroker:
     _lance_artifact_ids: set[str] | None = None
     _defer_saves = 0
     _save_pending = False
+    _disk_state: tuple[int, int] | None = None
 
     def __init__(self, project_id: str):
         self.project_id = project_id
         self.path = memory_path(project_id)
-        self.data = with_memory_paths(
-            read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []}),
-            lambda value: workspace_absolute(project_id, value),
-        )
+        self._load_data()
         self.lance_dir = self.path.parent / "lance"
         self.manifest_path = self.path.parent / "artifact_manifest.json"
         self.table_name = "ba_memory"
@@ -434,6 +432,36 @@ class ContextBroker:
         self.embedder = detect_embedder()
         self.embedder_status = self.embedder.status
         self._connect_lancedb()
+
+    def _load_data(self) -> None:
+        self.data = with_memory_paths(
+            read_json(self.path, {"chunks": [], "artifacts": [], "trace_edges": []}),
+            lambda value: workspace_absolute(self.project_id, value),
+        )
+        self._disk_state = self._file_state()
+
+    def _file_state(self) -> tuple[int, int] | None:
+        try:
+            stat = self.path.stat()
+        except OSError:
+            return None
+        return (stat.st_mtime_ns, stat.st_size)
+
+    def refresh_if_changed(self) -> None:
+        """IMP-345: reread the JSON index when another broker wrote it since this one last did.
+
+        A shared broker (see shared_brokers()) must not save over rows another
+        broker added in the meantime. Never drops this broker's deferred changes.
+        """
+        if self._defer_saves or self._file_state() == self._disk_state:
+            return
+        self._load_data()
+        self._lance_artifact_ids = None
+        if self._table is not None:
+            try:
+                self._table.checkout_latest()
+            except Exception:
+                pass  # a lancedb without checkout_latest: keep the open handle
 
     def _connect_lancedb(self) -> None:
         try:
@@ -620,6 +648,7 @@ class ContextBroker:
         write_json(self.path, stored)
         write_json(self.manifest_path, {"project_id": self.project_id, "artifacts": stored["artifacts"]})
         self._save_pending = False
+        self._disk_state = self._file_state()
 
     @contextmanager
     def deferred_saves(self) -> Iterator[None]:
@@ -1271,6 +1300,42 @@ def _reindex_nodes(
     return indexed, skipped, retired_skipped
 
 
+# IMP-345: brokers shared inside shared_brokers(), one per memory index.
+_SHARED_BROKERS: dict[str, ContextBroker] = {}
+_SHARED_DEPTH = 0
+
+
+@contextmanager
+def shared_brokers() -> Iterator[None]:
+    """IMP-345: inside this block, shared_broker() hands out one broker per project.
+
+    Building a broker loads the embedder and opens LanceDB; /specs and /backlog
+    used to build one per artifact or story. The shared broker rereads the
+    JSON index when another broker wrote it meanwhile (refresh_if_changed()).
+    """
+    global _SHARED_DEPTH
+    _SHARED_DEPTH += 1
+    try:
+        yield
+    finally:
+        _SHARED_DEPTH -= 1
+        if not _SHARED_DEPTH:
+            _SHARED_BROKERS.clear()
+
+
+def shared_broker(project_id: str) -> ContextBroker:
+    """IMP-345: the broker of the open shared_brokers() block, or a new one outside it."""
+    if not _SHARED_DEPTH:
+        return ContextBroker(project_id)
+    key = str(memory_path(project_id).resolve())
+    broker = _SHARED_BROKERS.get(key)
+    if broker is None:
+        broker = _SHARED_BROKERS[key] = ContextBroker(project_id)
+    else:
+        broker.refresh_if_changed()
+    return broker
+
+
 def init_lancedb(project_id: str) -> dict[str, str]:
     broker = ContextBroker(project_id)
     return {"project_id": project_id, "backend": broker.backend, "table": broker.table_name}
@@ -1312,12 +1377,13 @@ def hybrid_search(
 
 def get_multi_domain_context(query: str, project_id: str, iteration_min: int = 1) -> dict[str, Any]:
     domains = ["business", "technical", "design", "quality", "product"]
+    broker = shared_broker(project_id)  # IMP-345: one broker for the five lookups
     return {
         "project_id": project_id,
         "query": query,
         "iteration_min": iteration_min,
         "domains": {
-            domain: ContextBroker(project_id).retrieve(
+            domain: broker.retrieve(
                 query,
                 "multi_domain_context",
                 limit=4,

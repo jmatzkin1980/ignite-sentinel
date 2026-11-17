@@ -133,7 +133,7 @@ The project state is `state.json` (durable). Counts and metrics that can be reco
 | **Slice plan** | `04_backlog/SLICE-PLAN.md`, written by `/backlog`: the order in which stories can be built as thin end-to-end (vertical) slices. |
 | **Spec unit (`SPEC-U-`)** | A bounded piece of the spec with its source anchors, written by `/specs` under `03_specs/units/`. `/backlog` derives one value story per spec unit. |
 | **Trace** | A link in the traceability graph between two artifacts. `/trace` rewrites the matrix. |
-| **Umbrella gap** | A brief v2 gap such as `GAP-BRIEF-S3` that covers several places of one section; answer it one line per place (`3.1: ... 3.2: ...`). |
+| **Umbrella gap** | A brief v2 gap such as `GAP-BRIEF-S3` that covers the places of one section that no other gap fills. Its question names each place with its title. Answer it one line per place (`3.1: ... 3.3: ...`). Answering another gap does not add places to it. |
 | **Validation direction** | `to-build` (the brief describes what will be built, the default) or `built` (it documents something that exists; divergences get `⚠`). Set with `/brief --validation-direction`. |
 | **Verdict** | The `/status` answer to "can we build?": `READY`, `READY_WITH_WARNINGS` or `NOT_READY`. |
 
@@ -210,7 +210,7 @@ Combine profiles with commas (`--profile UI,REG`). `MIG` requires `--genesis bro
 /export ACME_PORTAL --artifact gaps --format interview
 ```
 
-**What you get:** `01_discovery/gap_round.md` with the five most useful questions to ask now, and `08_context_packs/exports/gaps-interview.md`, a script grouped by owner for a meeting. You can also send `gaps.md` itself: it is written for clients. Register who owns which topic with `/stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business` so gaps route to a person.
+**What you get:** `01_discovery/gap_round.md` with the five most useful questions to ask now, and `08_context_packs/exports/gaps-interview.md`, a script grouped by owner for a meeting. Send the script to the client, not `gaps.md`: `gaps.md` is your working file, with a traceability table and closed gaps, and the script leaves out the brief settings gap that only you answer. Some questions come from keyword checks, so read the script and drop any question that does not fit the request before you send it. Register who owns which topic with `/stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business` so gaps route to a person.
 
 Optional: let an agent find more gaps before you ask (`/annotate`, `/challenge`, `/scrutinize`). See [deepen discovery](03-workflows.md#deepen-discovery-with-the-agent).
 

@@ -5,6 +5,7 @@ from typing import Any
 
 from ..core.markdown import parse_table_rows
 from ..core.time import utc_now
+from ..lens_registry import normalize_lens
 from ..workspace import read_json, write_json, workspace_path
 from ..core.io import write_text
 
@@ -611,17 +612,6 @@ def normalize_assumption_status(status: str) -> str:
     return "OPEN"
 
 
-def normalize_lens(lens: str) -> str:
-    value = lens.strip().lower()
-    if value in {"", "n/a", "-"}:
-        return "product"
-    if value == "technology":
-        return "technical"
-    if "/" in value:
-        return value.split("/", 1)[0]
-    return value
-
-
 def evidence_for_seed(seed: dict[str, str], trace_refs: dict[str, str]) -> dict[str, str]:
     status = normalize_knowledge_status(seed.get("status", ""))
     if status == "OPEN":
@@ -648,7 +638,13 @@ def links_for_seed(seed: dict[str, str], trace_refs: dict[str, str]) -> list[dic
     )
 
 
-def compact_links(links: list[dict[str, str | None]]) -> list[dict[str, str]]:
+def compact_links(links: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """IMP-346: the one link compactor (ledger units and the readiness matrix).
+
+    Keeps each ``(type, target)`` once, stripped, in order. A link whose type or
+    target is missing, empty, ``None``, ``-`` or ``N/A`` is dropped: an absent
+    value never becomes the text ``"None"``.
+    """
     compacted: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
     for link in links:

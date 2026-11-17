@@ -68,14 +68,12 @@ class SeededCaseTests(unittest.TestCase):
         self.assertIn(needle, findings[0])
 
     def test_mark_to_a_gap_that_does_not_exist(self):
-        def mutate(text, report, gaps, ledger):
-            del gaps["GAP-OBJECTIVE"]
-            return text, report, gaps, ledger
         text, report, gaps, ledger = clean()
-        del gaps["GAP-OBJECTIVE"]
+        missing = sorted(report["umbrella_gaps"])[0]  # IMP-344: a place with no routed gap marks its umbrella
+        del gaps[missing]
         findings = mark_findings(text, gaps)
         self.assertTrue(findings)
-        self.assertTrue(all("GAP-OBJECTIVE, which is not in gaps.md" in f for f in findings))
+        self.assertTrue(all(f"{missing}, which is not in gaps.md" in f for f in findings))
 
     def test_closed_gap_leaves_a_live_mark(self):
         text, report, gaps, ledger = clean()
