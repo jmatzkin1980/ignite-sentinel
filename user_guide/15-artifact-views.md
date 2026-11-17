@@ -50,7 +50,7 @@ Nine of the views are built from one Markdown file: `gaps`, `brief`, `prd`, `spe
 ### Reader edition and provenance
 
 - Inline provenance (`_(GAP-… / CHG-…)_`, `[Source: …]`) is hidden by default so the body reads cleanly. **Show provenance** reveals it and remembers the choice; the Markdown keeps every anchor.
-- The **Provenance** section lists the source path, its 12-character sha256, the cut-off (the source file's modification time, not the build time) and the command that regenerates the page.
+- The **Provenance** section lists the source path, its 12-character sha256, the cut-off (the source file's modification time, not the build time) and the command that regenerates the page. It is written in the page language: a Spanish workspace gets **Procedencia** with *Fuente*, *fecha de corte* and *Regenerar*, like the dashboard.
 - Two runs over the same workspace produce identical HTML, and the page contains no absolute paths.
 
 ### Review, answer and feedback
