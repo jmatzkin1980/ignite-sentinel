@@ -34,7 +34,7 @@ Every artifact falls into one of three groups.
 
 | Group | Meaning | What to do instead of editing |
 |---|---|---|
-| **Never edit by hand** | A governed or generated artifact. Sentinel rebuilds it from evidence, and a hand edit is lost or flagged. | Change the evidence and re-run the owning command. |
+| **Never edit by hand** | A governed or generated artifact. Sentinel rebuilds it from evidence; a hand edit is flagged, and copied to `.sentinel/hand_edits/` before a command overwrites it. | Change the evidence and re-run the owning command. |
 | **Edit freely** | You own it: configuration, local themes, and the evidence files you drop into `00_raw/`. | Edit it, then run `/sync` so Sentinel notices new evidence. |
 | **Disposable and regenerable** | A view, a cache or an index. Safe to delete. | Re-run the command that builds it. |
 
@@ -69,6 +69,7 @@ workspaces/<PROJECT_ID>/
 | `.sentinel/command_log.jsonl` | One line per command that ran, append-only. | `/health`, admins, audits | Never edit by hand | Every command |
 | `.sentinel/themes/<name>.json` | A look-and-feel theme for this workspace only. | `/view` | Edit freely | You; see [themes](17-themes.md) |
 | `.sentinel/state.json.bak` | The previous `state.json`, copied before every state update. | You, to recover a deleted or damaged `state.json` | Leave alone; copy it over `state.json` to restore | Every command that updates the state |
+| `.sentinel/hand_edits/<timestamp>-<command>/` | A copy of each hand-edited governed file, made before a mutating command may change it. | You, to carry the edit through the owning command | Delete the copy once the change is carried through; `/health` warns until then | Every mutating command that finds a hand edit |
 | `.sentinel/state.json.bak-0.9.0` | One-time backup made when an old workspace is upgraded. | Nobody, unless you roll back | Leave alone | The first command that opens an old workspace |
 | `.sentinel/lock` | The lock that makes a second command wait (exit code 6). | Sentinel | Never touch | Every project command, read-only ones included |
 | `.series_work/<rN>/` | The mirror a command runs in when you pass `--release rN`. | Sentinel | Never edit by hand | Release commands |
@@ -169,7 +170,7 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 | `statement_ledger.json`, `contradictions.md` | Claims per source and the contradictions between sources. | Never edit | `/sources`, brief compiler |
 | `harvest.json` | What `/harvest` read from an existing system. | Never edit | `/harvest` |
 | `split_assessment.md` and `.json` | Whether the brief should be split into releases. | Never edit | `/split --assess` |
-| `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync` |
+| `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync`; secret alerts also `/resolve-gaps`, `/harvest` |
 | `injection_signals.md` | Text in a source that looks like an instruction to an agent, for BA review. | Never edit | `/ingest`, `/sync` |
 
 ### Records of the agent passes

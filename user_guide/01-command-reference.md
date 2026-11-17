@@ -27,8 +27,8 @@ How each chat surface maps a message to a command is explained in [Driving Senti
 **MCP parameter names.** An MCP tool takes the same options as the command, with `_` instead of `-` (`artifact_type`, `max_chars`). A few differ:
 
 - `--open` is `open_browser`.
-- `/split` takes `mode` (`assess`, `propose`, `confirm`, `move`, `close`) instead of the mode flags, and `release` for the release to close.
-- `/prototype` takes `mode` (`inventory`, `trace`, `manual`).
+- `/split` takes `mode` (`assess`, `propose`, `confirm`, `move`, `close`) instead of the mode flags, and `release` for the release to close. The CLI requires a mode; the tool defaults to `assess`.
+- `/prototype` takes `mode` (`inventory`, `trace`, `manual`). The CLI requires a mode; the tool defaults to `inventory`.
 - `--id` is `id` on `/gaps`, `/context-request`, `/stakeholders` and `/sources`.
 - `/doctor` and `/dashboard` have no `root`: the MCP server always runs at the repository root.
 - The MCP server also offers one tool with no command, `sentinel_gap_elicitation`.
@@ -68,12 +68,12 @@ Every command ends with one of these codes. A failure prints `sentinel error: ..
 | 0 | Success | The command finished. | Read the JSON result. `/status` and `/health` also exit 0 when the verdict is not good: read their `verdict`. |
 | 1 | Unexpected error | A traceback follows the message. It is a genuine bug. | Report the traceback. |
 | 2 | Wrong usage | A missing required option (`--source`), an unknown option or a value outside its choices. Printed by the argument parser with the usage line, without `next step:`. | Fix the command line; `python -m sentinel /command --help` shows the options. |
-| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), a `--source` file that does not exist (on every command; `/prototype --inventory` is the exception, it takes a source id `F-NN`), missing or conflicting options (`--ba`/`--tech` missing, `/split --move` without unit/from/to), an invalid release id, an unknown profile or genesis, a `state.json` with a newer schema, a missing or damaged `state.json`, a workspace JSON file that does not parse (the message names the file). | Fix the input named in the message and run again. For a missing file, check the path: it is read relative to the folder you run Sentinel from. Nothing was stored. |
-
-**A missing or damaged `state.json`.** Sentinel does not rebuild it, because a new state would lose the phase, the settings and the story lifecycle. Every state update first copies the previous `state.json` to `.sentinel/state.json.bak`. To recover, copy `.sentinel/state.json.bak` to `state.json` in the workspace folder (or restore `state.json` from git) and run the command again; you lose at most the last update. Without a backup, restore it from git or your own backup. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists workspaces whose `state.json` is missing or damaged.
-| 4 | Gate refusal | A missing prerequisite or the project's state stops the command: no workspace, `/assume` before `/ingest`, `/specs` before `/ingest`, `/compose` before `/specs`, `/backlog` while health is `DIRTY`, `/split` without the brief, proposal or series it needs, `/view` of an artifact not generated yet, `/export --final` with pending marks. | Run the command the `next step:` line names (often `/init`, `/ingest`, `/maturity` or `/resolve-gaps`). See the [gate matrix](#gate-matrix). |
+| 3 | Invalid input | An invalid `PROJECT_ID`, a payload the runtime refused (each reason is listed), a `--source` file that does not exist (on every command; `/prototype --inventory` is the exception, it takes a source id `F-NN`), missing or conflicting options (`--ba`/`--tech` missing, `/split --move` without unit/from/to), an invalid release id, an unknown profile or genesis, a `state.json` with a newer schema, a missing or damaged `state.json`, a workspace JSON file that does not parse (the message names the file), a `/sync --analysis` with a quote or target that does not check out, `/stakeholders` fields without `--add`, `/sources --precedence --between` with another option, a file name that already has 998 numbered copies (`NAME-2` to `NAME-999`). | Fix the input named in the message and run again. For a missing file, check the path: it is read relative to the folder you run Sentinel from. Nothing was stored. |
+| 4 | Gate refusal | A missing prerequisite or the project's state stops the command: no workspace, `/assume` before `/ingest`, `/specs` before `/ingest`, `/compose` before `/specs`, `/backlog` while health is `DIRTY`, `/split` without the brief, proposal or series it needs, `/view` of an artifact not generated yet, `/export --final` with blocking pending marks. | Run the command the `next step:` line names (often `/init`, `/ingest`, `/maturity` or `/resolve-gaps`). See the [gate matrix](#gate-matrix). |
 | 5 | Unfavourable verdict | `/validate` is not `VALID`, or `/doctor` is not `PASS`. The full result is still printed. | Read the findings in the result and fix them, or record a cited override (`/validate --override`). |
 | 6 | Workspace busy | Another command holds this workspace's lock, or a file changed on disk while the command ran. | Wait for the other command to finish and run again. |
+
+**A missing or damaged `state.json`.** Sentinel does not rebuild it, because a new state would lose the phase, the settings and the story lifecycle. Every state update first copies the previous `state.json` to `.sentinel/state.json.bak`. To recover, copy `.sentinel/state.json.bak` to `state.json` in the workspace folder (or restore `state.json` from git) and run the command again; you lose at most the last update. Without a backup, restore it from git or your own backup. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists workspaces whose `state.json` is missing or damaged. See [Recovery](21-recovery.md).
 
 To print only the next step at any time, run `/next PROJECT_ID`.
 
@@ -109,7 +109,7 @@ Only one command runs at a time on a workspace, read-only commands included.
 
 Before running, Sentinel checks the workspace:
 
-1. The workspace exists; otherwise exit 4 with `Run /init PROJECT_ID first`.
+1. The workspace exists; otherwise exit 4 with `Run /init PROJECT_ID first`. Its `state.json` exists and parses; otherwise exit 3 naming the file and the fix (see [exit codes](#exit-codes)).
 2. `/specs` and `/backlog` need discovery: in phase `initialized` (nothing ingested) they exit 4.
 3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict.
 4. `/backlog`, `/backlog-status`, `/quality`, `/refine-backlog`, `/implementation-feedback` and `/story-status` run the backlog privacy scan. It warns by default; with `privacy_scan.mode: block` in `sentinel.config.yaml` a finding stops the command (exit 4).
@@ -151,6 +151,8 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | Every project command | The workspace does not exist | `Workspace not found ... Run /init` | 4 | `/init PROJECT_ID` |
 | Every command with a project | `PROJECT_ID` is invalid | `invalid PROJECT_ID` | 3 | Fix the id |
 | Every project command | Another command holds the workspace | `Workspace ... is busy` | 6 | Wait, run again |
+| Every project command | `state.json` is missing or does not parse | `state.json ... is missing` / `... is not valid JSON` | 3 | Copy `.sentinel/state.json.bak` to `state.json`, or restore it from git ([Recovery](21-recovery.md)) |
+| Any command | A workspace JSON file does not parse | `<file> in workspace ... is not valid JSON` | 3 | Restore or regenerate the file named |
 | `/specs`, `/backlog` | Phase `initialized` | `Cannot generate downstream artifacts before /ingest` | 4 | `/ingest` |
 | `/specs`, `/backlog` | Requirement maturity is `BLOCKED` (an open blocking gap, including `GAP-BRIEF-PROFILE`) | `Cannot generate specs/backlog while requirement maturity is BLOCKED` | 4 | `/resolve-gaps`, `/brief --profile --genesis`, then `/maturity` |
 | `/specs`, `/backlog` | `drift_gate.strict` is on and the foundation changed since the last generation | `foundation is stale (drift_gate.strict)` | 4 | Regenerate upstream, or turn strict off |
@@ -164,6 +166,9 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/story-status` | The transition is not legal | `Illegal story transition` | 3 | See the transition table in [`story-status`](#story-status) |
 | `/ingest` | The project already has its primary requirement and `--replace` is not given | `already has its primary requirement` | 4 | `/sync PROJECT_ID --source PATH` to add the file, or `--replace` on purpose |
 | Any command with `--source` | The path is a folder (except `/sync`), or a `.md`/`.txt`/`.json`/`.html` file is not UTF-8 | `--source must be a file` / `--source is not UTF-8 text` | 3 | Pass the file; save it as UTF-8. Nothing was written |
+| `/sync --analysis` | No `--source`, a quote not found verbatim, a missing or wrong-state target, a note that declares itself not validated | every reason | 3 | Fix the analysis; nothing was written |
+| `/stakeholders` | `--id`, `--name`, `--domain`, `--topic`, `--profile` or `--notes` without `--add` | `... go with --add` | 3 | Add `--add`, or drop the fields to list |
+| `/sources` | `--precedence --between` with another option | `/sources --precedence --between takes no other option` | 3 | Run the precedence question on its own |
 | `/gaps`, `/resolve-gaps`, `/annotate`, `/challenge`, `/scrutinize`, `/self-review`, `/brief` | Before `/ingest` | `Cannot ... before /ingest creates ...` | 4 | `/ingest` |
 | `/annotate`, `/challenge`, `/scrutinize` | No raw input under `00_raw/` to check quotes against | `No raw input found under 00_raw/` | 4 | `/ingest` |
 | `/self-review` (default mode) | No PRD or specs | `Cannot self-review before /specs` | 4 | `/specs` |
@@ -171,7 +176,7 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/compose` | No `03_specs/prd.md` | `Cannot compose PRD before /specs` | 4 | `/specs` |
 | `/refine-backlog` | No `04_backlog/EPIC-001.md` | `Cannot refine backlog before /backlog` | 4 | `/backlog` |
 | `/implementation-feedback` | No epic in `04_backlog/` | `Cannot process implementation feedback before /backlog` | 4 | `/backlog` |
-| `/export --final` | The brief, PRD or context request still has pending marks | `/export --final refused: N pending marks remain` | 4 | Close the gaps, or export without `--final` |
+| `/export --final` | The brief, PRD or context request still has blocking pending marks (domain marks in a brief v2 do not block) | `/export --final refused: N pending marks remain` | 4 | Close the gaps, or export without `--final` |
 | `/export --format faq` | No resolved gaps yet | `Cannot export a FAQ before gaps are resolved` | 4 | `/resolve-gaps` |
 | `/export --format interview` | Before `/ingest` (no `01_discovery/gaps.md`) | `Export source not found` | 3 | `/ingest` |
 | `/split` (prerequisites) | No compiled brief, a v1 brief on `--confirm`, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
@@ -706,7 +711,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 **Reads.** The response file and `01_discovery/gaps.md`.
 
-**Writes.** `01_discovery/gaps.md`, a copy and a resolution report under `07_changes/00_client_responses/`, `01_discovery/gap_resolution_log.md`, `knowledge_state.*`, `development_readiness.json`, seeds and decisions, EARS rows in `02_requirements/requirements.md`. In a v2 project it recompiles the brief.
+**Writes.** `01_discovery/gaps.md`, a copy (secrets redacted, as in `/ingest`) and a resolution report under `07_changes/00_client_responses/`, `01_discovery/gap_resolution_log.md`, `knowledge_state.*`, `development_readiness.json`, seeds and decisions, EARS rows in `02_requirements/requirements.md`. In a v2 project it recompiles the brief.
 
 **Refuses when.** Before `/ingest` → exit 4.
 
@@ -748,7 +753,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 **Writes.** `01_discovery/stakeholders.md`.
 
-**Refuses when.** `--add` without `--name` or `--domain`, or a duplicate `--id` → exit 3.
+**Refuses when.** `--add` without `--name` or `--domain`, a duplicate `--id`, or an owner field (`--id`, `--name`, `--domain`, `--topic`, `--profile`, `--notes`) without `--add` → exit 3.
 
 **You get.** The registry rows.
 
@@ -812,7 +817,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 **Refuses when.**
 
 - A row change without `--id` → exit 3.
-- `--precedence` without `--between`, or the reverse → exit 3.
+- `--precedence` without `--between`, or the reverse, or `--precedence --between` with another option → exit 3.
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
 
@@ -936,7 +941,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--full` | flag | off | Re-chunk and re-embed everything. By default unchanged artifacts are skipped (same hash, embedder and chunking version). |
+| `--full` | flag | off | Re-chunk and re-embed everything. By default unchanged artifacts are skipped (same hash, embedder and chunking version); an artifact whose rows are missing from the LanceDB table is indexed again. |
 
 **Reads.** The graph, the artifacts and the context folders.
 
@@ -1299,11 +1304,11 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **Refuses when.**
 
-- `--final` with pending marks → exit 4.
+- `--final` with blocking pending marks → exit 4. Domain marks in a brief v2 do not block (see below).
 - `faq` before any gap is resolved → exit 4.
 - The source artifact does not exist (for example `interview` before `/ingest`, since `gaps.md` is not there yet), a format that does not fit the artifact, `context-request` without `--domain`, or a secret found in the output → exit 3.
 
-**You get.** The path, `deliverable` (`working`, `draft` or `final`) and `pending_marks`.
+**You get.** The path, `deliverable` (`working`, `draft` or `final`), `pending_marks` (the blocking count) and, when there are any, `deferred_marks`.
 
 **How marks are counted.** `/export` and `/validate` count the same way. For a brief v2, the count comes from `02_requirements/brief_compile_report.json` when it exists, so it is the brief's own "Ready to build" number. Client marks (`⏳ PENDING`) block. Domain marks (`⏳ PENDING DOMAIN`) can wait: they are reported as `deferred_marks` and do not block `--final`. Without the report, Sentinel reads the brief's body and skips the §0.1 legend and the tables that list the marks. In any other artifact, every `[PENDING …]`, `[POR COMPLETAR]` and `⏳ PENDING` blocks.
 
