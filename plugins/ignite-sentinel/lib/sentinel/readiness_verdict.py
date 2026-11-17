@@ -229,6 +229,12 @@ ASSUMED_BLOCKING_NOTE = (
     "the client, confirm the answer in your own name with /resolve-gaps (Decision status: confirmed, Owner / "
     "source: you)."
 )
+CHANGE_CONFIRMATION_STEP = (
+    "Confirm a late change",
+    "A late change waits for your decision: {ids}. Read each one in gaps.md (the note and the item it "
+    "changes are both quoted), then accept it to apply the change or reject it as a false alarm.",
+    "/gaps {pid} --id {gap} --disposition accepted|rejected",
+)
 POST_BRIEF_STAGES = {"READY_FOR_SPECS", "SPECS_BELOW_THRESHOLD", "READY_FOR_BACKLOG"}
 
 
@@ -276,6 +282,12 @@ def next_step(
     else:
         key = "specs"
     title, text, command = NEXT_STEPS[key]
+    changes = [gap_id for gap_id in verdict.get("blocking_open", []) if str(gap_id).startswith("GAP-CHG-")]
+    if key == "resolve_blocking" and changes:
+        # IMP-337: a late change waits for the BA, not for the client.
+        title, text, command = CHANGE_CONFIRMATION_STEP
+        text = text.format(ids=", ".join(changes))
+        command = command.replace("{gap}", changes[0])
     if key == "resolve_blocking" and assumed_blocking:
         text += ASSUMED_BLOCKING_NOTE.format(ids=", ".join(assumed_blocking))
     proposal = settings or {}

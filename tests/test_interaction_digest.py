@@ -92,7 +92,8 @@ class ExtractorUnitTests(unittest.TestCase):
         )
         self.assertIn("proposes and routes; it never applies", digest)
         # gap/decision/new-gaps/invalidated/associative + the IMP-250b impact matrix
-        self.assertEqual(digest.count("- None."), 6)
+        # + the IMP-337 (f) hints over confirmed items
+        self.assertEqual(digest.count("- None."), 7)
         self.assertIn("Source row: not registered.", digest)
         self.assertIn("no response file written", digest)
 

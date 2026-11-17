@@ -118,6 +118,8 @@ def _sync(p: argparse.ArgumentParser) -> None:
     p.add_argument("--source")
     p.add_argument("--note", default="")
     p.add_argument("--digest", action="store_true")
+    p.add_argument("--analysis", help="IMP-337: an agent's cited change analysis of the --source note (JSON); "
+                                      "each valid candidate opens a blocking GAP-CHG")
 
 
 def _scrutinize(p: argparse.ArgumentParser) -> None:
