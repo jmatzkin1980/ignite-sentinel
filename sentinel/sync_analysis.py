@@ -35,6 +35,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import table_cell
 from .core.io import copy_file, read_json, write_json, write_text
 from .errors import GateRefusal, InputError
 from .workspace import read_state, update_state, workspace_path
@@ -228,7 +229,7 @@ def _note_line(note_text: str, quote: str) -> int:
 
 
 def _cell(text: str) -> str:
-    return text.replace("|", "/").replace("\n", " ").strip()
+    return table_cell(text).strip()
 
 
 def _change_gap(candidate: dict[str, Any], change_id: str, source_id: str, note_line: int) -> dict[str, str]:

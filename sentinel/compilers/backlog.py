@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..core.markdown import table_cell
 from ..brief_model import load_brief_model
 from ..core.markdown import frontmatter_list
 from ..slicing_model import load_slicing_model
@@ -505,7 +506,7 @@ def render_story_section(story: dict[str, Any], story_format: str = "user") -> s
 **Context Used:**
 | Need | Artifact | Signal |
 | --- | --- | --- |
-| {story['context']['need']} | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) | {safe_cell(story['context']['summary'], 220)} |
+| {story['context']['need']} | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) | {table_cell(story['context']['summary'], 220)} |
 
 **Domain Context Coverage:**
 
@@ -581,7 +582,7 @@ def render_domain_context_coverage(coverage: list[dict[str, str]]) -> str:
     if not coverage:
         return "| Domain | Evidence Used | Status | Impact |\n| --- | --- | --- | --- |\n| All | [PENDING DOMAIN CONTEXT] | Pending | No domain coverage was available at generation time. |"
     rows = "\n".join(
-        f"| {row.get('domain', 'Unknown')} | {row.get('evidence', '[PENDING DOMAIN CONTEXT]')} | {row.get('status', 'Pending')} | {safe_cell(row.get('impact', ''), 180)} |"
+        f"| {row.get('domain', 'Unknown')} | {row.get('evidence', '[PENDING DOMAIN CONTEXT]')} | {row.get('status', 'Pending')} | {table_cell(row.get('impact', ''), 180)} |"
         for row in coverage
     )
     return f"""| Domain | Evidence Used | Status | Impact |
@@ -610,7 +611,7 @@ def render_agent_execution_contract(contract: dict[str, Any]) -> str:
 | Fail-to-Pass | {validation.get('fail_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Pass-to-Pass | {validation.get('pass_to_pass', '[PENDING QUALITY CONTEXT]')} |
 | Evidence | {validation.get('evidence', '[PENDING QUALITY CONTEXT]')} |
-| Parallelization | {safe_cell(contract.get('parallelization', ''), 220)} |
+| Parallelization | {table_cell(contract.get('parallelization', ''), 220)} |
 
 **Autonomy Limits**
 
@@ -628,7 +629,7 @@ def render_execution_retrieval_plan(plan: list[dict[str, str]]) -> str:
     if not plan:
         return "| Agent | Domain | Query | Expected Evidence | Required Before |\n| --- | --- | --- | --- | --- |\n| Planner | any | [PENDING CONTEXT QUERY] | [PENDING CONTEXT] | implementation |"
     rows = "\n".join(
-        f"| {item.get('agent', 'Execution agent')} | {item.get('domain', 'any')} | `{safe_cell(item.get('query', ''), 220)}` | {safe_cell(item.get('expected_evidence', ''), 180)} | {item.get('required_before', 'implementation')} |"
+        f"| {item.get('agent', 'Execution agent')} | {item.get('domain', 'any')} | `{table_cell(item.get('query', ''), 220)}` | {table_cell(item.get('expected_evidence', ''), 180)} | {item.get('required_before', 'implementation')} |"
         for item in plan
     )
     return f"""| Agent | Domain | Query | Expected Evidence | Required Before |
@@ -660,14 +661,14 @@ def render_task_seed_row(seed: dict[str, Any]) -> str:
     parallelizable = "yes" if seed.get("parallelizable") else "no"
     return (
         f"| `{seed.get('id', 'TSEED-UNKNOWN')}` | {seed.get('kind', 'intent')} | "
-        f"{safe_cell(seed.get('intention', ''), 220)} | {ac_refs} | {safe_cell(surfaces, 220)} | {parallelizable} |"
+        f"{table_cell(seed.get('intention', ''), 220)} | {ac_refs} | {table_cell(surfaces, 220)} | {parallelizable} |"
     )
 
 
 def render_context_signal_inline(signal: dict[str, Any]) -> str:
     status = signal.get("status", "Pending")
     source = signal.get("source", "[PENDING DOMAIN CONTEXT]")
-    summary = safe_cell(signal.get("summary", ""), 220)
+    summary = table_cell(signal.get("summary", ""), 220)
     anchor = render_anchor_inline(signal.get("anchor", {}))
     if anchor:
         return f"{status}: {source} - {summary} ({anchor})"
@@ -683,11 +684,11 @@ def render_anchor_inline(anchor: object) -> str:
     section_path = str(anchor.get("section_path", "")).strip()
     section_id = str(anchor.get("section_id", "")).strip()
     if source_path and section_id:
-        return f"Anchor: {source_path} § {section_id}; section: {safe_cell(section_path or 'N/A', 120)}"
+        return f"Anchor: {source_path} § {section_id}; section: {table_cell(section_path or 'N/A', 120)}"
     if not source_path or line_start <= 0 or line_end < line_start:
         return ""
     location = f"{source_path}:{line_start}-{line_end}"
-    return f"Anchor: {location}; section: {safe_cell(section_path or 'N/A', 120)}"
+    return f"Anchor: {location}; section: {table_cell(section_path or 'N/A', 120)}"
 
 
 def render_bullet_list(items: list[str]) -> str:
@@ -806,11 +807,6 @@ def render_backlog_context_summary(context: dict[str, object]) -> str:
         trace_ids = top.get("trace_ids", [])
         trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
         rows.append(
-            f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
+            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
         )
     return "| Backlog Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

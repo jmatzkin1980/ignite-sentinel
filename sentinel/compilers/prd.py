@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..core.markdown import table_cell
 from ..discovery import (
     extract_functional_signals,
     extract_metric_signals,
@@ -485,9 +486,9 @@ def render_ears_requirements_table(
         req_id = str(row.get("id", ""))
         if not EARS_REQUIREMENT_ID_RE.match(req_id):
             continue
-        pattern = safe_cell(str(row.get("pattern", "")), 80)
-        statement = safe_cell(str(row.get("statement", "")), 260)
-        source = safe_cell(str(row.get("source", "")), 120)
+        pattern = table_cell(str(row.get("pattern", "")), 80)
+        statement = table_cell(str(row.get("statement", "")), 260)
+        source = table_cell(str(row.get("source", "")), 120)
         rendered_rows.append(f"| `{req_id}` | {pattern} | {statement} | {source} |")
     if not rendered_rows:
         return empty_text
@@ -523,7 +524,7 @@ def render_context_summary(context: dict[str, object]) -> str:
         if not isinstance(top, dict):
             continue
         rows.append(
-            f"| {domain} | {safe_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
+            f"| {domain} | {table_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
         )
     return "| Domain | Retrieved Signal | Artifact |\n| --- | --- | --- |\n" + "\n".join(rows)
 
@@ -546,11 +547,6 @@ def render_prd_section_context(context: dict[str, object]) -> str:
         trace_ids = top.get("trace_ids", [])
         trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
         rows.append(
-            f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
+            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
         )
     return "| PRD / Specs Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

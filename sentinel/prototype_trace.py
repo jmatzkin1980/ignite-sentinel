@@ -28,6 +28,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import table_cell
 from .prototype import INVENTORY_DIR, PrototypeError, load_inventory
 
 TRACE_DIR = "trace"
@@ -177,7 +178,7 @@ def _render_trace_md(project_id: str, traces: list[dict[str, Any]], inventory: d
                 support = f"(inferred) {item['basis']}"
             cells = [item.get("element", ""), texts.get(item.get("element", ""), ""), item.get("level", ""),
                      _s(item.get("data")), _s(item.get("contract")), _s(item.get("rule")), support]
-            out.append("| " + " | ".join(str(c).replace("|", "/") for c in cells) + " |")
+            out.append("| " + " | ".join(table_cell(c) for c in cells) + " |")
         checks = [c for c in p.get("checks") or [] if isinstance(c, dict)]
         if checks:
             out += ["", "Checks:", ""] + [f"- {c.get('check')}: {c.get('finding')} (fix: {c.get('fix_side')})" for c in checks]

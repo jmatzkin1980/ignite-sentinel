@@ -27,6 +27,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import table_cell
 from .release_split import PARTITION_FILE, ReleaseSplitError, _dicts, _s, open_split_gap, validate_partition
 from .split_proposal import PROPOSAL_DIR, PROPOSAL_FILE, _norm, _summary
 
@@ -97,8 +98,8 @@ def _render_changes(project_id: str, history: list[dict[str, Any]]) -> str:
     for change in history:
         who = change.get("confirmed_by") or {}
         lines.append("| {date} | {unit} | {src} | {dst} | {reason} | {finding} | {criterion} | {who} |".format(
-            date=change.get("date", ""), unit=str(change.get("unit", "")).replace("|", "/"), src=change.get("from", ""),
-            dst=change.get("to", ""), reason=str(change.get("reason", "")).replace("|", "/"),
+            date=change.get("date", ""), unit=table_cell(change.get("unit", "")), src=change.get("from", ""),
+            dst=change.get("to", ""), reason=table_cell(change.get("reason", "")),
             finding=change.get("finding") or "→", criterion=change.get("criterion") or "→",
             who=f"BA {who.get('ba', '')}; technical team {who.get('technical_team', '')}"))
     return "\n".join(lines) + "\n"

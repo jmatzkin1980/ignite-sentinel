@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from ..core.markdown import table_cell
 from ..core.graph import add_edge, add_node, nodes_by_type
 from ..core.io import copy_file, read_json, write_json, write_text
 from ..core.text import unique_path
@@ -352,19 +353,19 @@ def append_refinement_section(text: str, refinements: list[dict[str, Any]], scop
 def render_refinement_row(item: dict[str, Any]) -> str:
     target = ", ".join(item.get("target_stories", [])) or "N/A"
     units = ", ".join(item.get("source_units", [])) or "N/A"
-    citations = "; ".join(f"`{safe_cell(quote, 80)}`" for quote in item.get("citations", []))
-    recommendation_parts = [safe_cell(item.get("recommendation", ""), 180)]
+    citations = "; ".join(f"`{table_cell(quote, 80)}`" for quote in item.get("citations", []))
+    recommendation_parts = [table_cell(item.get("recommendation", ""), 180)]
     if item.get("kind") == "enabler-candidate":
-        enabled_capability = safe_cell(item.get("enabled_capability", ""), 120)
-        verification_method = safe_cell(item.get("verification_method", ""), 120)
+        enabled_capability = table_cell(item.get("enabled_capability", ""), 120)
+        verification_method = table_cell(item.get("verification_method", ""), 120)
         if enabled_capability:
             recommendation_parts.append(f"Enabled capability / Capacidad habilitada: {enabled_capability}")
         if verification_method:
             recommendation_parts.append(f"Verification / Verificacion: {verification_method}")
     discarded = item.get("discarded_alternative")
     if isinstance(discarded, dict):
-        option = safe_cell(discarded.get("option", ""), 100)
-        reason = safe_cell(discarded.get("reason", ""), 120)
+        option = table_cell(discarded.get("option", ""), 100)
+        reason = table_cell(discarded.get("reason", ""), 120)
         if option and reason:
             recommendation_parts.append(f"Discarded alternative / Alternativa descartada: {option} - {reason}")
     recommendation = "<br>".join(recommendation_parts)
@@ -375,8 +376,8 @@ def discarded_alternative_note(item: dict[str, Any]) -> str:
     discarded = item.get("discarded_alternative")
     if not isinstance(discarded, dict):
         return "N/A"
-    option = safe_cell(discarded.get("option", ""), 80)
-    reason = safe_cell(discarded.get("reason", ""), 120)
+    option = table_cell(discarded.get("option", ""), 80)
+    reason = table_cell(discarded.get("reason", ""), 120)
     if not option or not reason:
         return "N/A"
     return f"Discarded alternative: {option} - {reason}"
@@ -413,8 +414,3 @@ Source: `{source.as_posix()}`
 {rejected_rows}
 """)
     return path
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

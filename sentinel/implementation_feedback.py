@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import table_cell
 from .core.graph import add_edge, add_node, upsert_node
 from .core.markdown import parse_table_rows
 from .memory import ContextBroker
@@ -301,7 +302,7 @@ def write_feedback_report(
             ac=item.get("acceptance_criteria") or "N/A",
             status=item["status"],
             stale="yes" if item.get("mark_stale") else "no",
-            summary=safe_cell(item["summary"], 160),
+            summary=table_cell(item["summary"], 160),
         )
         for item in accepted
     ) or "| N/A | N/A | N/A | N/A | N/A | N/A | N/A |"
@@ -333,7 +334,7 @@ def write_feedback_gaps(project_id: str, findings: list[dict[str, Any]]) -> Path
         return None
     path = workspace_path(project_id) / "01_discovery" / "implementation_feedback_gaps.md"
     rows = "\n".join(
-        f"| `{item['gap_id']}` | `{item['story_id']}` | {item['type']} | {item['status'].upper()} | {safe_cell(item['summary'], 180)} |"
+        f"| `{item['gap_id']}` | `{item['story_id']}` | {item['type']} | {item['status'].upper()} | {table_cell(item['summary'], 180)} |"
         for item in gap_findings
     )
     write_text(path, f"""# Implementation Feedback Gaps - {project_id}
@@ -364,7 +365,3 @@ def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
         if len(cells) >= 2:
             items.append({"id": cells[0], "classification": cells[1]})
     return items
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    return str(value).replace("\n", " ").replace("|", "/").strip()[:limit]

@@ -34,6 +34,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from .core.markdown import table_cell
 from .core.io import write_text
 from .source_routing import SCOPES, resolve_precedence, routing_data, row_authority
 from .workspace import load_config, read_json, update_state, workspace_path, write_json
@@ -81,7 +82,7 @@ def _short_hash(text: str) -> str:
 
 
 def _cell(text: str) -> str:
-    return text.replace("|", "/").replace("\n", " ").strip()
+    return table_cell(text).strip()
 
 
 def _citable_lines(text: str) -> list[tuple[int, str]]:

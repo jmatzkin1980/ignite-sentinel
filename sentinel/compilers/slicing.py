@@ -5,6 +5,7 @@ from hashlib import sha256
 import re
 from typing import Any
 
+from ..core.markdown import table_cell
 from ..memory import ContextBroker
 from ..retrieval_plans import compose_plan_query, load_retrieval_plan
 from ..slicing_model import load_slicing_model
@@ -478,9 +479,9 @@ def title_for_spec_unit_story(unit: dict[str, Any]) -> str:
     if statement:
         cleaned = re.sub(r"^(When|While|If|Where|The system shall|Cuando|Mientras|Si|Donde)\s+", "", statement, flags=re.I)
         cleaned = cleaned.rstrip(".")
-        return f"{unit_id} - {safe_cell(cleaned, 96)}"
+        return f"{unit_id} - {table_cell(cleaned, 96)}"
     raw_title = str(unit.get("title", unit_id)).strip()
-    return f"{unit_id} - {safe_cell(raw_title, 96)}"
+    return f"{unit_id} - {table_cell(raw_title, 96)}"
 
 
 def goal_for_spec_unit(unit: dict[str, Any], language: str = "en") -> str:
@@ -538,7 +539,7 @@ def context_row_for_spec_unit(unit: dict[str, Any]) -> dict[str, str]:
         "need": "spec_unit",
         "artifact_id": str(unit.get("id", "SPEC-U-PENDING")),
         "artifact_type": "spec_unit",
-        "summary": safe_cell(str(unit.get("statement") or unit.get("title") or "[PENDING INPUT]"), 260),
+        "summary": table_cell(str(unit.get("statement") or unit.get("title") or "[PENDING INPUT]"), 260),
     }
 
 
@@ -807,8 +808,3 @@ def domain_context_snapshot(project_id: str) -> dict[str, Any]:
         all_hash.update(domain.encode("utf-8"))
         all_hash.update(aggregate.encode("utf-8"))
     return {"aggregate_hash": all_hash.hexdigest(), "domains": domains}
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

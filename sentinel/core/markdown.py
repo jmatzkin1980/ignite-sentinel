@@ -136,14 +136,18 @@ def table_to_dicts_file(
 _UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 
 
-def table_cell(value: object) -> str:
+def table_cell(value: object, limit: int | None = None) -> str:
     """IMP-321: the one way to write free text into a Markdown table cell.
 
     Newlines would end the row and a bare `|` would start a new cell, so a gap or an
     assumption with either lost or shifted columns. Newlines become spaces and pipes are
     escaped as `\\|` (an already escaped pipe is kept); split_table_row() undoes it.
+    IMP-338: with `limit`, the text is stripped and cut to `limit` characters before
+    escaping, so a cut never splits an escape.
     """
     text = str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    if limit is not None:
+        text = text.strip()[:limit]
     return _UNESCAPED_PIPE.sub(r"\\|", text)
 
 

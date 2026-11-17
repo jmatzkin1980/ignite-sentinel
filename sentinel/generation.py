@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 from typing import Any
 
+from .core.markdown import table_cell
 from .memory import ContextBroker, apply_pack_disclosure_budget, get_multi_domain_context
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
@@ -814,7 +815,7 @@ def task_seed_surfaces(story: dict[str, Any]) -> list[str]:
     summary = str(signal.get("summary", "")).strip()
     source = str(signal.get("source", "")).strip()
     if status == "Confirmed" and summary:
-        return [safe_cell(f"{source}: {summary}" if source else summary, 220)]
+        return [table_cell(f"{source}: {summary}" if source else summary, 220)]
     return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
 
 
@@ -943,8 +944,3 @@ def build_specs_generation_context(
     }
     write_json(workspace_path(project_id) / "08_context_packs" / "specs_generation.json", pack)
     return pack
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]
