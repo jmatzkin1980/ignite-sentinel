@@ -19,8 +19,7 @@ from typing import Any
 
 from .core.io import write_text
 from .core.local_browser import open_local_file
-from .discovery import lens_for_gap
-from .gaps import BLOCKING_GAP_STATUSES, parse_gap_table
+from .gaps import BLOCKING_GAP_STATUSES, lens_for_gap, parse_gap_table
 from .readiness_verdict import VERDICTS, build_readiness_verdict
 from .secrets_scan import assert_no_leaks
 from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display

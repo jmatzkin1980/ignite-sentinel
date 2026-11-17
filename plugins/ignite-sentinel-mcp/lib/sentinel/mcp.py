@@ -35,6 +35,7 @@ import json
 import re
 import sys
 import threading
+from .gaps import candidate_options_for_gap, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
 
 
 # IMP-303: one tool per command of the single command registry (sentinel/commands.py) plus
@@ -203,7 +204,6 @@ def gap_elicitation(project_id: str, gap_id: str, client_capabilities: object | 
         return run_cli(["gaps", project_id])
 
     from .core.paths import InvalidProjectId, validate_project_id
-    from .discovery import candidate_options_for_gap, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
     from .workspace import read_state, workspace_path
 
     try:  # IMP-243: this path does not go through cli.main, so validate here too.

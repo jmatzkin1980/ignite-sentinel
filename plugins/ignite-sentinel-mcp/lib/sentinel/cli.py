@@ -204,7 +204,7 @@ def run_command(args, argv: list[str]) -> int:
 
                 print_json(record_gap_disposition(args.project_id, args.gap_id, args.disposition, args.reason))
             elif args.top is not None:
-                from .discovery.workflow import gap_round
+                from .discovery.elicitation import gap_round
 
                 print_json(gap_round(args.project_id, args.top))
             else:

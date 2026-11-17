@@ -35,6 +35,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+from .gaps import parse_gap_rows
 from .brief_model import BriefModel, parse_brief
 from .core.io import read_json, write_text
 from .core.paths import workspace_path
@@ -286,7 +287,6 @@ def render_assessment(project_id: str, data: dict[str, Any], language: str) -> s
 
 
 def _inputs(project_id: str) -> tuple[Path, str, dict[str, Any], dict[str, Any], list[dict[str, Any]], str]:
-    from .discovery import parse_gap_rows
 
     base = workspace_path(project_id)
     brief_path = base / "02_requirements" / "project-brief.md"

@@ -230,10 +230,3 @@ def coverage_report(requirements_markdown: str = "", iso_dir: Path | str | None 
         "summary": {**summary, "total": len(rows)},
         "verifiability_findings": findings,
     }
-
-
-def clear_cache() -> None:
-    _load_characteristics_package.cache_clear()
-    _load_characteristics_path.cache_clear()
-    _load_catalog_package.cache_clear()
-    _load_catalog_path.cache_clear()

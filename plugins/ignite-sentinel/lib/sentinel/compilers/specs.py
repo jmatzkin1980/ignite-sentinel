@@ -5,16 +5,14 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..core.markdown import table_cell
 from ..core.graph import add_edge, add_node
 from ..core.markdown import frontmatter_list, parse_frontmatter, parse_table_rows
 from ..deltas import DeltaStatus, delta_marker
 from ..memory import ContextBroker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
-from .prd import render_ears_requirements_table, render_prd_section_context
+from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table, render_prd_section_context
 from ..core.io import remove, write_text
-
-
-EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
 
 def spec_unit_snapshot(base: Path) -> dict[str, dict[str, Any]]:
@@ -312,7 +310,7 @@ def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
     ears_ids = [str(item) for item in unit.get("ears", []) if str(item).strip()]
     sources = [str(item) for item in unit.get("sources", []) if str(item).strip()]
     source_rows = "\n".join(f"| `{source}` | Pointer |" for source in sources)
-    ears_rows = "\n".join(f"| `{ears_id}` | {safe_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
+    ears_rows = "\n".join(f"| `{ears_id}` | {table_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
     return f"""---
 id: {unit['id']}
 status: {unit['status']}
@@ -357,7 +355,7 @@ def render_spec_units_index(spec_units: list[dict[str, object]] | None) -> str:
         path = Path(str(unit.get("path", ""))).as_posix()
         if "03_specs/" in path:
             path = path[path.index("03_specs/") :]
-        rows.append(f"| `{unit['id']}` | {safe_cell(str(unit.get('statement', '')), 180)} | {ears} | `{path}` |")
+        rows.append(f"| `{unit['id']}` | {table_cell(str(unit.get('statement', '')), 180)} | {ears} | `{path}` |")
     return "| Unit ID | Execution Slice | EARS Trace | File |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
 
 
@@ -461,24 +459,8 @@ Backlog seeds are derived from evidence-backed spec units. If no unit exists, ba
 """
 
 
-def ears_trace_ids(context: dict[str, object]) -> list[str]:
-    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
-    ids: list[str] = []
-    if isinstance(rows, list):
-        for row in rows:
-            ears_id = row.get("id") if isinstance(row, dict) else None
-            if isinstance(ears_id, str) and EARS_REQUIREMENT_ID_RE.match(ears_id):
-                ids.append(ears_id)
-    return ids
-
-
 def bounded_text(text: str, limit: int) -> str:
     cleaned = text.strip()
     if len(cleaned) <= limit:
         return cleaned
     return cleaned[:limit].rstrip() + "\n\n[TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]"
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

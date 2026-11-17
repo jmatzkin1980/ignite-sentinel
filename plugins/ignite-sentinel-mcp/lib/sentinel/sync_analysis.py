@@ -35,6 +35,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
+from .core.markdown import table_cell
 from .core.io import copy_file, read_json, write_json, write_text
 from .errors import GateRefusal, InputError
 from .workspace import read_state, update_state, workspace_path
@@ -53,7 +55,7 @@ class ChangeAnalysisError(InputError):
 
 
 def _normalize(text: str) -> str:
-    from .discovery.workflow import _normalize_for_match  # the /annotate matcher
+    from .discovery.channels import _normalize_for_match  # the /annotate matcher
 
     return _normalize_for_match(text)
 
@@ -74,7 +76,6 @@ def load_change_analysis(path: Path) -> dict[str, Any]:
 
 
 def _gaps(base: Path) -> list[dict[str, str]]:
-    from .discovery import parse_gap_rows
 
     path = base / "01_discovery" / "gaps.md"
     if not path.exists():
@@ -228,7 +229,7 @@ def _note_line(note_text: str, quote: str) -> int:
 
 
 def _cell(text: str) -> str:
-    return text.replace("|", "/").replace("\n", " ").strip()
+    return table_cell(text).strip()
 
 
 def _change_gap(candidate: dict[str, Any], change_id: str, source_id: str, note_line: int) -> dict[str, str]:
@@ -260,7 +261,6 @@ def _change_gap(candidate: dict[str, Any], change_id: str, source_id: str, note_
 
 
 def _write_gaps(project_id: str, gaps: list[dict[str, str]]) -> dict[str, int]:
-    from .discovery import count_gaps, readiness_stage_after_gap_change, render_gaps
 
     base = workspace_path(project_id)
     state = read_state(project_id, {})

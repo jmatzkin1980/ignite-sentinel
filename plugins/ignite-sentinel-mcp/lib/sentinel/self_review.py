@@ -6,13 +6,15 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .core.graph import add_edge, add_node, load_graph
-from .decisions import load_decision_source, render_decision_register, unique_path, validate_cited_decisions
-from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps, validate_agent_gaps
+from .decisions import load_decision_source, render_decision_register, validate_cited_decisions
+from .discovery import validate_agent_gaps
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
 from .workspace import read_json, update_state, workspace_path
 from .core.io import copy_file, write_text
+from .core.text import project_language, unique_path
 
 
 def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
@@ -37,7 +39,6 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
     req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    from .gaps import merge_gaps_by_topic
 
     topic_merge = merge_gaps_by_topic(real_existing, gaps)  # IMP-257: id, then topic
     merged_new: list[dict[str, str]] = topic_merge["added"]
@@ -200,9 +201,3 @@ Skipped duplicate gaps: {skipped_block}
 | --- | --- | --- | --- | --- |
 {decision_rows}{supersession_block}
 """
-
-
-def project_language(project_id: str) -> str:
-    state = read_json(workspace_path(project_id) / "state.json", {})
-    language = str(state.get("project_language") or "en")
-    return language if language in {"es", "en"} else "en"

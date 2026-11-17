@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .backlog.hooks import evaluate_backlog_privacy
 from .gaps import blocking_severities, is_blocking, parse_gap_table
-from .generation import domain_context_snapshot
+from .compilers.slicing import domain_context_snapshot
 from .memory import ContextBroker
 from .assumptions import assumptions_projection
 from .drift import derived_drift_warnings

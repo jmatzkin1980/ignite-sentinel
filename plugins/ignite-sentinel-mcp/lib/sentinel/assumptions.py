@@ -7,12 +7,14 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .gaps import brief_section_for_gap, count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .lens_registry import known_lenses
 from .risk_category_registry import known_risk_categories
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import copy_file, read_json as core_read_json, write_text
 from .core.markdown import parse_table_rows
+from .core.text import unique_path
 from .workspace import read_json, read_state, state_path, update_state, workspace_path, write_json
 
 
@@ -424,7 +426,6 @@ def update_assumption_statuses(
 
 def reopen_gaps_for_invalidated(project_id: str, rows: list[dict[str, str]], invalidated: set[str]) -> list[str]:
     """IMP-257: a gap an invalidated assumption held up opens again, keeping its previous closure on record."""
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from .core.io import write_text
 
     gaps_path = workspace_path(project_id) / "01_discovery" / "gaps.md"
@@ -561,7 +562,6 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
 
 
 def assumptions_by_brief_section(project_id: str) -> dict[str, list[dict[str, str]]]:
-    from .discovery import brief_section_for_gap
 
     by_section: dict[str, list[dict[str, str]]] = {}
     for row in load_assumptions(project_id):
@@ -667,17 +667,6 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
         "skipped_duplicates": skipped,
         "assumption_summary": summary,
     }
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    counter = 2
-    while True:
-        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1
 
 
 def escape_table(value: str) -> str:
