@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 from .core.markdown import table_cell
-from .memory import ContextBroker, apply_pack_disclosure_budget, get_multi_domain_context
+from .memory import apply_pack_disclosure_budget, get_multi_domain_context, shared_broker, shared_brokers
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
@@ -193,7 +193,7 @@ Review this artifact against the triggering change before downstream handoff. Th
     diff_id = add_node(project_id, "DEC", "regeneration_diff", out_path, f"Regeneration diff for {artifact_label}", domain="product")
     if change_id != "N/A":
         add_edge(project_id, change_id, diff_id, "triggers_regeneration")
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         diff_id,
         "regeneration_diff",
         out_path,
@@ -222,6 +222,12 @@ def enforce_foundation_drift_gate(project_id: str, phase: str, config: dict) -> 
 
 
 def generate_specs(project_id: str) -> dict[str, object]:
+    # IMP-345: one broker (embedder + LanceDB) for the whole command, not one per artifact.
+    with shared_brokers():
+        return _generate_specs(project_id)
+
+
+def _generate_specs(project_id: str) -> dict[str, object]:
     maturity = evaluate(project_id)
     if maturity["readiness"] == "BLOCKED":
         raise GateRefusal("Cannot generate specs while requirement maturity is BLOCKED.")
@@ -292,7 +298,7 @@ def generate_specs(project_id: str) -> dict[str, object]:
         parent_trace_ids.append(brief["id"])
     add_edge(project_id, prd_id, spec_id, "agentizes")
     trace_ids = [*parent_trace_ids, prd_id, spec_id]
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     broker.index_artifact(
         prd_id, "prd", prd_path, prd_path.read_text(encoding="utf-8"), trace_ids=trace_ids
     )
@@ -369,6 +375,14 @@ def read_artifact_text(path: Path) -> str:
 
 
 def generate_backlog(
+    project_id: str, with_task_seeds: bool = False, story_format: str | None = None
+) -> dict[str, str]:
+    # IMP-345: one broker (embedder + LanceDB) for the whole command, not one per story.
+    with shared_brokers():
+        return _generate_backlog(project_id, with_task_seeds, story_format)
+
+
+def _generate_backlog(
     project_id: str, with_task_seeds: bool = False, story_format: str | None = None
 ) -> dict[str, str]:
     maturity = evaluate(project_id)
@@ -466,7 +480,7 @@ def generate_backlog(
             ac_id = add_node(project_id, "AC", "acceptance_criteria", story_path, f"Acceptance criteria for {story_id}", domain="quality")
             acceptance_ids.append(ac_id)
             add_edge(project_id, story_id, ac_id, "validated_by")
-        ContextBroker(project_id).index_artifact(
+        shared_broker(project_id).index_artifact(
             enabler_epic_id,
             "epic",
             enabler_epic_path,
@@ -481,7 +495,7 @@ def generate_backlog(
 
     assert_backlog_privacy_clean(project_id)
 
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])
     for story_id, ac_id, story_spec in zip(story_ids, acceptance_ids, all_story_specs):
         story_path = base / "04_backlog" / f"{story_id}.md"
@@ -528,7 +542,7 @@ def build_backlog_generation_context(
     retrieval_plans_dir: Path | str | None = None,
     plan_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     plan = load_retrieval_plan("backlog_generation", retrieval_plans_dir, plan_override)
     source_documents = {"specs.md": spec_text, "prd.md": prd_text}
     sections: dict[str, Any] = {}
@@ -647,7 +661,7 @@ def build_implementation_readiness_pack(
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"
     write_json(path, pack)
     persist_assumptions_projection(project_id)
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         "IMPL-READINESS",
         "implementation_readiness",
         path,
@@ -877,7 +891,7 @@ def build_specs_generation_context(
     retrieval_plans_dir: Path | str | None = None,
     plan_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     plan = load_retrieval_plan("specs_generation", retrieval_plans_dir, plan_override)
     source_documents = {"requirements-context": req_text}
     sections: dict[str, Any] = {}

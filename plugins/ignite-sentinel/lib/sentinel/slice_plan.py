@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Any
 
 from .backlog.hooks import enforce_pre_handoff_gate
-from .memory import ContextBroker
+from .memory import shared_broker
 from .workspace import workspace_path, write_json
 from .core.io import write_text
 
@@ -46,7 +46,7 @@ def generate_slice_plan(
     json_path = base / "08_context_packs" / "slice_plan.json"
     write_text(md_path, render_slice_plan(project_id, plan))
     write_json(json_path, plan)
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         "SLICE-PLAN",
         "slice_plan",
         md_path,
@@ -54,7 +54,7 @@ def generate_slice_plan(
         domain="delivery",
         trace_ids=[item["story_id"] for item in story_rows] or ["SLICE-PLAN"],
     )
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         "SLICE-PLAN-JSON",
         "slice_plan",
         json_path,

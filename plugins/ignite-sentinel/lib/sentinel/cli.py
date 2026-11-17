@@ -98,6 +98,14 @@ def run_command(args, argv: list[str]) -> int:
             return run_release_command(scoped_argv(argv)[1], args.project_id, args.release)
         except Exception as exc:
             return report_error(exc)
+    from .traceability import deferred_graph_saves
+
+    # IMP-345: the graph is written once per command (after its artifacts), not per node or edge.
+    with deferred_graph_saves():
+        return _run_project_command(args)
+
+
+def _run_project_command(args) -> int:
     try:
         project_id = getattr(args, "project_id", None)
         if project_id is not None:

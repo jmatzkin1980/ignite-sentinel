@@ -261,6 +261,9 @@ def migrate_paths(project_id: str, root: Path | None = None) -> list[str]:
     or cloned from, become relative. Paths outside it stay as they are; /health
     reports them. Returns the files rewritten.
     """
+    from ..traceability import flush_graph_saves
+
+    flush_graph_saves()  # IMP-345: this rewrites the graph file directly; no deferred copy may hide it
     workspace = workspace_path(project_id, root)
     memory_dir = workspace / "memory.lancedb"
     targets = (

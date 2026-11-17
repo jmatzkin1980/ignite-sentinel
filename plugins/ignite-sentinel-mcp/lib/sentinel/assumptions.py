@@ -10,7 +10,7 @@ from typing import Any
 from .gaps import brief_section_for_gap, count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .lens_registry import known_lenses
 from .risk_category_registry import known_risk_categories
-from .memory import ContextBroker
+from .memory import shared_broker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import read_json as core_read_json, write_text
 from .payload_hygiene import archive_payload, sanitize_payload
@@ -635,7 +635,7 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
     for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
         add_edge(project_id, raw_node["id"], assumption_id, "basis_for_assumption")
 
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     broker.index_artifact(
         assumption_id,
         "assumption_register",
