@@ -199,10 +199,12 @@ class GapElicitationLanguage(unittest.TestCase):
 
     def test_a_project_without_a_language_gets_english(self) -> None:
         from sentinel.discovery import render_gaps, unblocks_for_gap
-        from sentinel.workspace import workspace_path
+        from sentinel.workspace import state_path, workspace_path, write_json
 
         gaps_dir = workspace_path("LANG") / "01_discovery"
         gaps_dir.mkdir(parents=True)
+        # IMP-331: a workspace with artifacts needs its state.json; it carries no language yet.
+        write_json(state_path("LANG"), {})
         gaps_dir.joinpath("gaps.md").write_text(render_gaps("LANG", [{
             "id": "GAP-METRIC-SOURCE", "lens": "business", "severity": "high", "status": "OPEN",
             "description": "Metric source is not confirmed.", "question": "Which source owns uptime?",
@@ -213,8 +215,6 @@ class GapElicitationLanguage(unittest.TestCase):
         with patch("sentinel.workspace.load_config", return_value={}):  # a config with no language at all
             result = sentinel_mcp.gap_elicitation("LANG", "GAP-METRIC-SOURCE", {"elicitation": {}})
         self.assertEqual(result["output"]["unblocks"], unblocks_for_gap("GAP-METRIC-SOURCE", "en"))
-
-        from sentinel.workspace import state_path, write_json
 
         write_json(state_path("LANG"), {"project_language": "es"})
         result = sentinel_mcp.gap_elicitation("LANG", "GAP-METRIC-SOURCE", {"elicitation": {}})

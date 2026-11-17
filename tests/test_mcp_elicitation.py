@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sentinel.discovery import render_gaps
 from sentinel.mcp import client_supports_elicitation, gap_elicitation
-from sentinel.workspace import workspace_path
+from sentinel.workspace import state_path, workspace_path, write_json
 
 
 class McpGapElicitationTests(unittest.TestCase):
@@ -46,6 +46,8 @@ class McpGapElicitationTests(unittest.TestCase):
         base = workspace_path("ELICIT")
         gaps_dir = base / "01_discovery"
         gaps_dir.mkdir(parents=True)
+        # IMP-331: a workspace with artifacts needs its state.json.
+        write_json(state_path("ELICIT"), {})
         gaps_dir.joinpath("gaps.md").write_text(
             render_gaps(
                 "ELICIT",
