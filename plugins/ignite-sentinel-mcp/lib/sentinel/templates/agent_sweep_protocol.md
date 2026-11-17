@@ -1,6 +1,6 @@
 # Agent sweep protocol (IMP-271)
 
-Every agentic channel follows this protocol: `/annotate`, `/challenge`, `/scrutinize`, the implementability probe and `/self-review`. The channels for release split and prototype trace will follow it when they exist. Skills cite it by path: `sentinel/templates/agent_sweep_protocol.md`.
+Every agentic channel follows this protocol: `/annotate`, `/challenge`, `/scrutinize`, the implementability probe and `/self-review`. The channels for release split and prototype trace will follow it when they exist. Skills cite it by its path in the package: `templates/agent_sweep_protocol.md`, under `sentinel/` in a clone and under `lib/sentinel/` in the plugin.
 
 The runtime enforces the rules marked **(runtime)**. A payload that breaks one of them is rejected whole, and nothing is merged.
 

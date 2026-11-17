@@ -6,6 +6,10 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+- The sweep protocol is named where it exists on every install (IMP-340, H23). A refused agent payload and the header of `01_discovery/agent_sweep_log.md` pointed to `sentinel/templates/agent_sweep_protocol.md`, a path that exists only in a framework clone; a plugin or wheel user had no such file. They now name the package's `templates/agent_sweep_protocol.md` (under `lib/sentinel/` in the plugin), like the skills, and a test checks the file is there.
+- The health skill describes the IMP-332 behaviour (IMP-340, H23). It said a hand edit is detected and nothing else; it now says the edit is copied to `.sentinel/hand_edits/` before a command overwrites it, the warning stays until the file is regenerated on purpose, a `DIRTY` verdict is recomputed instead of cleared, and a raw metric finding clears once its `GAP-METRIC-SOURCE*` gaps are closed.
+
 ## [0.14.0] — 2026-11-17
 
 H22: robustness, from an independent review whose findings were each reproduced before the fix. Memory keeps what it indexes, a lost or broken state file is refused with a way back, a hand edit is never lost without a word, MCP tools behave like the CLI, secrets and injected instructions stay out of memory, and a late change written in prose can be turned into a gap the BA decides on.
