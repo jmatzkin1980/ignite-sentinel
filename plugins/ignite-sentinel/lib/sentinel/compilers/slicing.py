@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ..core.markdown import table_cell
-from ..memory import ContextBroker
+from ..memory import shared_broker
 from ..retrieval_plans import compose_plan_query, load_retrieval_plan
 from ..slicing_model import load_slicing_model
 from ..workspace import workspace_path
@@ -345,7 +345,7 @@ def build_story_backlog_context(
     unit: dict[str, Any],
     backlog_context: dict[str, Any],
 ) -> dict[str, Any]:
-    broker = ContextBroker(project_id)
+    broker = shared_broker(project_id)
     plan = load_retrieval_plan("backlog_generation")
     unit_context = spec_unit_query_context(story_id, unit)
     sections: dict[str, Any] = {}
