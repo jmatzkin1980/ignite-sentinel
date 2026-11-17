@@ -170,12 +170,12 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 | `statement_ledger.json`, `contradictions.md` | Claims per source and the contradictions between sources. | Never edit | `/sources`, brief compiler |
 | `harvest.json` | What `/harvest` read from an existing system. | Never edit | `/harvest` |
 | `split_assessment.md` and `.json` | Whether the brief should be split into releases. | Never edit | `/split --assess` |
-| `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync`; secret alerts also `/resolve-gaps`, `/harvest` and the payload commands (`/self-review`, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, `--override`) |
+| `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync`; secret alerts also `/resolve-gaps`, `/harvest` and the payload commands (`/annotate`, `/challenge`, `/scrutinize`, `/self-review`, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, `--override`) |
 | `injection_signals.md` | Text in a source or a payload that looks like an instruction to an agent, for BA review. | Never edit | `/ingest`, `/sync`, and the payload commands listed above |
 
 ### Records of the agent passes
 
-Each pass writes one report, plus an archive of the JSON the agent submitted.
+Each pass writes one report, plus an archive of the JSON the agent submitted. The archive has secrets redacted and keeps injection-shaped lines as written, for your review; the report, `gaps.md` and the sweep log show those lines neutralized.
 
 | Report | Archive folder | Written by |
 |---|---|---|
