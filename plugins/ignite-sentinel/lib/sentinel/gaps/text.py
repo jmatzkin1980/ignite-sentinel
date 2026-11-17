@@ -565,6 +565,11 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-QUALITY-HANDOFF": "¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?",
             "GAP-METRIC-DEFINITION": "¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?",
             "GAP-AUTH-MODEL": "¿Qué método de autenticación, modelo de permisos y catálogo de roles aplican para esta capacidad?",
+            # IMP-344: a specific question instead of the generic fallback
+            "GAP-PRD-PERSONA-DETAIL": "Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?",
+            "GAP-PRD-FR-AC": "¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?",
+            "GAP-PRD-NFR-KPI": "¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?",
+            "GAP-PRD-DEPENDENCIES-ROADMAP": "¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?",
         }
         return questions.get(gap_id, "¿Qué información confirmada resuelve esta incertidumbre?")
     questions = {
@@ -592,5 +597,10 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-QUALITY-HANDOFF": "Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?",
         "GAP-METRIC-DEFINITION": "How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?",
         "GAP-AUTH-MODEL": "Which authentication method, permission model, and role catalog apply to this capability?",
+        # IMP-344: a specific question instead of the generic fallback
+        "GAP-PRD-PERSONA-DETAIL": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
+        "GAP-PRD-FR-AC": "Which functions must the solution provide, and for each one, what observable result shows it works?",
+        "GAP-PRD-NFR-KPI": "Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?",
+        "GAP-PRD-DEPENDENCIES-ROADMAP": "What does the first version need, what can wait, what does it depend on, and who owns each dependency?",
     }
     return questions.get(gap_id, "What confirmed information resolves this uncertainty?")
