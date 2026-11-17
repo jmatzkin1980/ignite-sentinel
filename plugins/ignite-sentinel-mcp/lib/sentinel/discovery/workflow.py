@@ -915,11 +915,29 @@ def record_gap_disposition(project_id: str, gap_id: str, disposition: str, reaso
     gap = next((item for item in gaps if item["id"] == gap_id.strip().upper()), None)
     if gap is None:
         raise InputError(f"{gap_id} is not in 01_discovery/gaps.md.")
+    applied = None
+    if gap["id"].startswith("GAP-CHG-"):
+        # IMP-337 (337c): on a GAP-CHG the disposition has an effect. accepted applies the
+        # change (reopen the gap / invalidate the assumption); rejected closes it as a
+        # false alarm. Checked first, so a refused disposition writes nothing.
+        from ..agent_sweep import DISPOSITIONS, FALSE_ALARM
+        from ..sync_analysis import apply_change_disposition
+
+        if disposition not in DISPOSITIONS:
+            raise ValueError(f"--disposition must be one of {', '.join(DISPOSITIONS)}.")
+        if disposition in FALSE_ALARM and not reason.strip():
+            raise ValueError(f"--disposition {disposition} needs --reason: say why it was a false alarm.")
+        applied = apply_change_disposition(project_id, gap, disposition, reason)
     try:
         record = set_disposition(base, gap, disposition, reason)
     except SweepProtocolError as exc:
         raise ValueError(str(exc)) from exc
-    return {"gap_id": gap["id"], **record, "channels": channel_dispositions(base, gaps)}
+    if applied is not None:
+        gaps = [item for item in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if item.get("id") != "NONE"]
+    result: dict[str, object] = {"gap_id": gap["id"], **record, "channels": channel_dispositions(base, gaps)}
+    if applied is not None:
+        result["applied"] = applied
+    return result
 
 
 def regenerate_gaps(project_id: str) -> dict[str, object]:

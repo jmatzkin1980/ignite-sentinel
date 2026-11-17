@@ -45,6 +45,7 @@ def metabolize_knowledge(
     source_text: str = "",
     validated_gap_ids: set[str] | None = None,
     broker: Any = None,
+    invalidated_assumption_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Refresh governed knowledge after a confirmed or invalidating change.
 
@@ -56,6 +57,9 @@ def metabolize_knowledge(
     before_units = read_ledger_units(base)
     validated_gap_ids = {gap_id.upper() for gap_id in (validated_gap_ids or set())}
     invalidated_assumptions = detect_invalidated_assumptions(project_id, source_text)
+    # IMP-337: an invalidation the BA confirmed (an accepted GAP-CHG) enters here,
+    # so it gets the same ledger supersession and downstream staleness.
+    invalidated_assumptions |= {item.upper() for item in (invalidated_assumption_ids or set())}
     associative_findings = associative_impact_candidates(
         broker,
         source_text,

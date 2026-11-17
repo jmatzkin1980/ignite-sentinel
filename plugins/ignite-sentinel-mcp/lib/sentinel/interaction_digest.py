@@ -13,6 +13,11 @@ classes of signal —
       metabolism (`invalidated_assumptions` + associative candidates, IMP-125),
       never re-detected here.
 
+IMP-337 adds (f): decision lines that share significant tokens with a closed gap
+or a live assumption, listed as a hint (`related_confirmed_items`). It never
+claims a contradiction; a change to confirmed knowledge goes through
+`/sync --analysis` and the BA's disposition (`sentinel/sync_analysis.py`).
+
 Hard rule (seed §4 #7): **the digest proposes and routes; it never applies.**
 Every impact still enters through its owning command with BA confirmation. The
 extraction is deterministic (no LLM): each candidate is a line quoted verbatim,
@@ -40,7 +45,18 @@ DECISION_CUE_RE = re.compile(
     r"decided to|agreed to|we'?ll go with|"
     r"decidimos|acordamos|definimos que|optamos por|vamos a usar|"
     r"se decidi[oó]|queda decidido|la decisi[oó]n es|resolvimos"
-    r")\b",
+    r")\b"
+    # IMP-337: a decision reported in the third person ("The board decided:",
+    # "Finance approved:", "the committee has decided that", "El directorio
+    # decidió:", "se resolvió", "aprobaron"). Still only a candidate.
+    r"|\b(?:decided|agreed|approved|resolved|confirmed)(?=\s*:|\s+that\b)"
+    r"|\b(?:board|committee|steering committee|sponsor|client|management|leadership|"
+    r"product owner|stakeholders?|finance|legal) (?:has |have )?(?:decided|agreed|approved|resolved)\b"
+    r"|\b(?:decidi[oó]|resolvi[oó]|aprob[oó]|acord[oó]|confirm[oó])(?=\s*:|\s+que\b)"
+    r"|\bse (?:resolvi[oó]|aprob[oó]|acord[oó])\b"
+    r"|\b(?:decidieron|resolvieron|aprobaron|acordaron)\b"
+    r"|\b(?:directorio|comit[eé]|cliente|gerencia|sponsor|finanzas|legal|equipo) "
+    r"(?:decidi[oó]|resolvi[oó]|aprob[oó]|acord[oó])",
     re.I,
 )
 
@@ -127,6 +143,106 @@ def decision_candidates(lines: list[tuple[int, str]]) -> list[dict[str, Any]]:
         if match:
             found.append({"quote": quote, "line": line_no, "cue": match.group(0).lower()})
     return found
+
+
+RELATED_MIN_OVERLAP = 3
+LIVE_ASSUMPTION_STATUSES = {"ASSUMED", "VALIDATED"}
+RELATED_HINT_NOTICE = (
+    "This does not claim a contradiction; nothing was applied. To propose a change, "
+    "pass a cited analysis with /sync --source NOTE --analysis FILE."
+)
+
+
+def related_confirmed_items(
+    decisions: list[dict[str, Any]],
+    closed_gaps: list[dict[str, Any]],
+    assumptions: list[dict[str, Any]],
+    *,
+    min_overlap: int = RELATED_MIN_OVERLAP,
+) -> list[dict[str, Any]]:
+    """IMP-337 (337a): for each decision line, the closed gaps and live assumptions
+    that share ``min_overlap`` significant tokens with it.
+
+    A non-applying hint: it names ids and says how many tokens they share. It
+    never claims the line reverses them (polarity needs a reader) and never moves
+    anything. ``closed_gaps`` items carry ``text`` (description, question and the
+    confirmed answers); ``assumptions`` items carry statement and justification.
+    """
+    hints: list[dict[str, Any]] = []
+    for decision in decisions:
+        tokens = significant_tokens(decision["quote"])
+        related_gaps = _related(tokens, closed_gaps, min_overlap)
+        related_assumptions = _related(tokens, assumptions, min_overlap)
+        if not related_gaps and not related_assumptions:
+            continue
+        hints.append({
+            "quote": decision["quote"],
+            "line": decision["line"],
+            "cue": decision.get("cue", ""),
+            "related_gaps": related_gaps,
+            "related_assumptions": related_assumptions,
+            "notice": RELATED_HINT_NOTICE,
+        })
+    return hints
+
+
+def _related(tokens: set[str], items: list[dict[str, Any]], min_overlap: int) -> list[dict[str, Any]]:
+    found = []
+    for item in items:
+        shared = tokens & significant_tokens(str(item.get("text", "")))
+        if len(shared) >= min_overlap:
+            found.append({"id": item["id"], "overlap": len(shared), "shared": sorted(shared)})
+    return sorted(found, key=lambda entry: (-entry["overlap"], entry["id"]))
+
+
+def closed_gap_answers(base: Path) -> dict[str, list[str]]:
+    """Every confirmed answer per gap, from the gap-resolution seed and decision tables."""
+    from .core.markdown import parse_table_rows
+
+    answers: dict[str, list[str]] = {}
+    for name in ("identity_seeds.md", "decisions.md"):
+        path = base / "01_discovery" / name
+        if not path.exists():
+            continue
+        for row in parse_table_rows(path.read_text(encoding="utf-8"), skip_separator_rows=True):
+            if len(row) >= 5 and row[1].strip("`").startswith("GAP-") and row[2].upper() == "CONFIRMED":
+                statements = answers.setdefault(row[1].strip("`"), [])
+                if row[3] not in statements:
+                    statements.append(row[3])
+    return answers
+
+
+def load_closed_gaps(base: Path) -> list[dict[str, Any]]:
+    gaps_path = base / "01_discovery" / "gaps.md"
+    if not gaps_path.exists():
+        return []
+    answers = closed_gap_answers(base)
+    closed = []
+    for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")):
+        if str(gap.get("status", "")).upper() != "CLOSED":
+            continue
+        text = " ".join([gap.get("description", ""), gap.get("question", ""), *answers.get(gap["id"], [])])
+        closed.append({"id": gap["id"], "text": text})
+    return closed
+
+
+def load_live_assumptions(project_id: str) -> list[dict[str, Any]]:
+    from .assumptions import load_assumptions
+
+    return [
+        {"id": row["id"], "text": f"{row.get('statement', '')} {row.get('justification', '')}"}
+        for row in load_assumptions(project_id)
+        if str(row.get("status", "")).upper() in LIVE_ASSUMPTION_STATUSES
+    ]
+
+
+def change_hints(project_id: str, source_text: str) -> list[dict[str, Any]]:
+    """The 337a hints for a change text, over the current governed state."""
+    decisions = decision_candidates(iter_citable_lines(source_text))
+    if not decisions:
+        return []
+    base = workspace_path(project_id)
+    return related_confirmed_items(decisions, load_closed_gaps(base), load_live_assumptions(project_id))
 
 
 def asm_contradiction_signals(metabolism: dict[str, Any] | None) -> dict[str, Any]:
@@ -220,6 +336,7 @@ def render_interaction_digest(
     asm_signals: dict[str, Any],
     proposed_response_ref: str | None,
     source_row: dict[str, Any] | None = None,
+    hints: list[dict[str, Any]] | None = None,
 ) -> str:
     """Human-readable digest. Explicit empty markers when a section has no signal
     (acceptance: artifacts with no signal produce an explicit empty digest, never
@@ -272,6 +389,16 @@ def render_interaction_digest(
             f"- `{cell['document']} / {cell['section']}`: {cell['state']} — {cell.get('reason') or cell.get('look_for')}"
             for cell in cells
         )
+
+    def hint_rows() -> str:
+        if not hints:
+            return "- None."
+        rows = []
+        for hint in hints:
+            related = [f"`{item['id']}` ({item['overlap']} shared tokens)"
+                       for item in hint["related_gaps"] + hint["related_assumptions"]]
+            rows.append(f"- \"{hint['quote']}\" (`{source_ref}` L{hint['line']}) -> related: {', '.join(related)}")
+        return "\n".join(rows)
 
     row_line = (
         f"Source row: `{source_row['id']}` (authority `{source_row.get('authority') or 'unclassified'}`)."
@@ -341,6 +468,14 @@ _Close each cell with `/sources --id <F-NN> --cell DOCUMENT/SECTION --mark updat
 or `--mark reviewed --reason "..."` when nothing changed. A retired source
 cascades to every document._
 
+## (f) Possible Changes To What Was Confirmed (review, IMP-337)
+
+{hint_rows()}
+
+_A decision line that shares words with a closed gap or a live assumption. This
+does not claim a contradiction; nothing was applied. If the line changes what was
+confirmed, write a cited analysis and run `/sync --source NOTE --analysis FILE`._
+
 ## Routing Summary
 
 Nothing above has mutated governed state. Confirm and route each signal through
@@ -360,6 +495,7 @@ def build_interaction_digest(
     metabolism: dict[str, Any] | None = None,
     new_gaps: list[str] | None = None,
     source_row: dict[str, Any] | None = None,
+    hints: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Orchestrate the digest pass (IO): write the digest and, when there are
     gap-answer candidates, the pre-filled `PROPOSED` response file.
@@ -392,6 +528,7 @@ def build_interaction_digest(
             asm_signals,
             proposed_response_path.as_posix() if proposed_response_path else None,
             source_row,
+            hints,
         ))
     return {
         "digest_path": digest_path.as_posix(),
@@ -402,6 +539,7 @@ def build_interaction_digest(
         "invalidated_assumptions": asm_signals["invalidated"],
         "associative_candidates": [f.get("target") for f in asm_signals["associative"]],
         "impact_cells": len((source_row or {}).get("impact") or []),
+        "change_hints": len(hints or []),
         "has_signal": bool(
             gap_candidates or decisions or new_gaps or asm_signals["invalidated"] or asm_signals["associative"]
         ),
