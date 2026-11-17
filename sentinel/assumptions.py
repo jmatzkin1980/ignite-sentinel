@@ -13,6 +13,7 @@ from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
 from .core.io import copy_file, read_json as core_read_json, write_text
 from .core.markdown import parse_table_rows
+from .core.text import unique_path
 from .workspace import read_json, read_state, state_path, update_state, workspace_path, write_json
 
 
@@ -667,17 +668,6 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
         "skipped_duplicates": skipped,
         "assumption_summary": summary,
     }
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    counter = 2
-    while True:
-        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1
 
 
 def escape_table(value: str) -> str:

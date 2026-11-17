@@ -33,6 +33,7 @@ from .source_conflicts import closing_block_note, scan_source_conflicts
 from .sources import discover_source_novelty, mark_source_processed, open_source_row, record_duplicate_source, source_row
 from .core.graph import add_edge, add_node, children_of, count_by_type, load_graph, save_graph
 from .core.io import append_text, write_text
+from .core.text import project_language, unique_path
 from .workspace import load_config, read_json, update_state, utc_now, workspace_path
 
 
@@ -42,7 +43,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         raise GateRefusal(f"Workspace not found: {project_id}")
 
     target_dir = change_target_dir(base, source)
-    target = unique_target(target_dir / f"{source.stem}{target_suffix(source)}")
+    target = unique_path(target_dir / f"{source.stem}{target_suffix(source)}")
     # IMP-270: read (and reject an unreadable format) before the F-NN row opens.
     extracted = read_source(source, media_stem=target.stem)
     # IMP-250a: the F-NN row opens before the cross and closes when it finishes.
@@ -94,7 +95,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     # IMP-337 (337a): say how much of the note was stored without being interpreted,
     # and hint (never apply) the confirmed items its decision lines talk about.
     prose = prose_review(project_id, text)
-    impact_path = unique_target(target_dir / f"{source.stem}_impact_report.md")
+    impact_path = unique_path(target_dir / f"{source.stem}_impact_report.md")
     write_text(impact_path, render_impact(
             project_id,
             change_id,
@@ -553,23 +554,6 @@ def change_target_dir(base: Path, source: Path) -> Path:
         target = base / "07_changes" / "03_domain_updates"
     target.mkdir(parents=True, exist_ok=True)
     return target
-
-
-def project_language(project_id: str) -> str:
-    state = read_json(workspace_path(project_id) / "state.json", {})
-    language = state.get("project_language", "en")
-    return str(language if language in {"es", "en"} else "en")
-
-
-def unique_target(path: Path) -> Path:
-    if not path.exists():
-        return path
-    counter = 2
-    while True:
-        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1
 
 
 def append_metabolism_log(

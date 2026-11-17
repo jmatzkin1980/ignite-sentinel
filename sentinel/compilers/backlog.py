@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from ..brief_model import load_brief_model
 from ..core.markdown import frontmatter_list
 from ..slicing_model import load_slicing_model
-from .prd import render_ears_requirements_table
-
-
-EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
+from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table
 
 TASK_SEED_BOUNDARY_NOTE = (
     "Task seeds are optional implementation intentions for downstream agents. "
@@ -813,19 +809,6 @@ def render_backlog_context_summary(context: dict[str, object]) -> str:
             f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
         )
     return "| Backlog Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-
-
-def ears_trace_ids(context: dict[str, object]) -> list[str]:
-    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
-    if not isinstance(rows, list):
-        return []
-    ids: list[str] = []
-    for row in rows:
-        if isinstance(row, dict):
-            req_id = str(row.get("id", ""))
-            if EARS_REQUIREMENT_ID_RE.match(req_id):
-                ids.append(req_id)
-    return ids
 
 
 def safe_cell(value: Any, limit: int) -> str:

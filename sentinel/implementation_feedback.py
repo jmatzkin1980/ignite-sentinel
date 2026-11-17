@@ -11,6 +11,7 @@ from .core.markdown import parse_table_rows
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 from .core.io import copy_file, write_text
+from .core.text import unique_path
 
 
 class ImplementationFeedbackError(InputError):
@@ -363,16 +364,6 @@ def acceptance_from_story_markdown(text: str) -> list[dict[str, str]]:
         if len(cells) >= 2:
             items.append({"id": cells[0], "classification": cells[1]})
     return items
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    for index in range(2, 1000):
-        candidate = path.with_name(f"{path.stem}-{index}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-    raise ImplementationFeedbackError(f"Could not allocate unique path for {path}")
 
 
 def safe_cell(value: Any, limit: int) -> str:

@@ -498,6 +498,20 @@ def render_ears_requirements_table(
     )
 
 
+def ears_trace_ids(context: dict[str, object]) -> list[str]:
+    """The valid `REQ-EARS-NNN` ids of the context's normalized EARS rows."""
+    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
+    if not isinstance(rows, list):
+        return []
+    ids: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            req_id = str(row.get("id", ""))
+            if EARS_REQUIREMENT_ID_RE.match(req_id):
+                ids.append(req_id)
+    return ids
+
+
 def render_context_summary(context: dict[str, object]) -> str:
     domains = context.get("domains", {}) if isinstance(context, dict) else {}
     rows: list[str] = []

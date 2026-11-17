@@ -8,6 +8,7 @@ from typing import Any
 
 from ..core.graph import add_edge, add_node, nodes_by_type
 from ..core.io import copy_file, read_json, write_json, write_text
+from ..core.text import unique_path
 from ..memory import ContextBroker
 from ..workspace import update_state, workspace_path
 
@@ -412,16 +413,6 @@ Source: `{source.as_posix()}`
 {rejected_rows}
 """)
     return path
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    for index in range(2, 1000):
-        candidate = path.with_name(f"{path.stem}-{index}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-    raise BacklogRefinementError(f"Could not allocate unique path for {path}")
 
 
 def safe_cell(value: Any, limit: int) -> str:

@@ -10,11 +10,8 @@ from ..core.markdown import frontmatter_list, parse_frontmatter, parse_table_row
 from ..deltas import DeltaStatus, delta_marker
 from ..memory import ContextBroker
 from ..workspace import read_json, state_path, update_state, workspace_path, write_json
-from .prd import render_ears_requirements_table, render_prd_section_context
+from .prd import EARS_REQUIREMENT_ID_RE, ears_trace_ids, render_ears_requirements_table, render_prd_section_context
 from ..core.io import remove, write_text
-
-
-EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
 
 def spec_unit_snapshot(base: Path) -> dict[str, dict[str, Any]]:
@@ -459,17 +456,6 @@ Backlog seeds are derived from evidence-backed spec units. If no unit exists, ba
 - Context pack: `08_context_packs/specs_generation.json`
 - Downstream artifacts: epics, user stories, acceptance criteria, tests, and traceability matrix.
 """
-
-
-def ears_trace_ids(context: dict[str, object]) -> list[str]:
-    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
-    ids: list[str] = []
-    if isinstance(rows, list):
-        for row in rows:
-            ears_id = row.get("id") if isinstance(row, dict) else None
-            if isinstance(ears_id, str) and EARS_REQUIREMENT_ID_RE.match(ears_id):
-                ids.append(ears_id)
-    return ids
 
 
 def bounded_text(text: str, limit: int) -> str:

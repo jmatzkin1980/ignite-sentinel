@@ -111,7 +111,7 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
     from .core.paths import workspace_path
     from .core.time import utc_now
     from .discovery import parse_gap_rows
-    from .gap_resolution import project_language
+    from .core.text import project_language
     from .release_split import confirm_partition
     from .split import brief_hash
 

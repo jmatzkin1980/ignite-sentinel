@@ -10,6 +10,7 @@ from ..retrieval_plans import compose_plan_query, load_retrieval_plan
 from ..slicing_model import load_slicing_model
 from ..workspace import workspace_path
 from .backlog import build_agent_execution_contract, build_domain_context_coverage, read_plan_for_row
+from .prd import ears_trace_ids
 from .specs import read_spec_units
 
 
@@ -20,8 +21,6 @@ DOMAIN_CONTEXT_FOLDERS = {
     "Quality": ("00_raw/04_quality_context",),
     "Delivery": ("07_changes",),
 }
-
-EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
 BACKLOG_STORY_SEEDS = [
     {
@@ -808,19 +807,6 @@ def domain_context_snapshot(project_id: str) -> dict[str, Any]:
         all_hash.update(domain.encode("utf-8"))
         all_hash.update(aggregate.encode("utf-8"))
     return {"aggregate_hash": all_hash.hexdigest(), "domains": domains}
-
-
-def ears_trace_ids(context: dict[str, object]) -> list[str]:
-    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
-    if not isinstance(rows, list):
-        return []
-    ids: list[str] = []
-    for row in rows:
-        if isinstance(row, dict):
-            req_id = str(row.get("id", ""))
-            if EARS_REQUIREMENT_ID_RE.match(req_id):
-                ids.append(req_id)
-    return ids
 
 
 def safe_cell(value: Any, limit: int) -> str:

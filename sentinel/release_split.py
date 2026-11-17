@@ -419,7 +419,7 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
     from .discovery import parse_gap_rows
-    from .gap_resolution import project_language
+    from .core.text import project_language
     from .split import brief_hash
 
     if not _s(ba) or not _s(tech):
