@@ -140,7 +140,7 @@ A command that fails runs no postflight and is not logged.
 | Exempt | `/doctor`, `/dashboard`, `/init` | Outside the protocol: `/doctor` and `/dashboard` have no project, and `/init` creates the workspace the protocol needs. `/init` still takes the workspace lock. |
 
 > [!IMPORTANT]
-> Governed artifacts change only through commands. A hand Write or Edit of `02_requirements/project-brief.md`, `03_specs/*.md` or `04_backlog/*.md` is denied by the editor hook, and `/health` flags a hand edit of any checksummed file. Client answers go through `/resolve-gaps` or `/sync`; new evidence through `/ingest` or `/sources`.
+> Governed artifacts change only through commands. A hand Write or Edit of `01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md` or `04_backlog/*.md` is denied by the editor hook, and `/health` flags a hand edit of any of these checksummed files made another way. Client answers go through `/resolve-gaps` or `/sync`; new evidence through `/ingest` or `/sources`.
 
 ## Gate matrix
 

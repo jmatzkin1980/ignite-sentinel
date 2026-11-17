@@ -1,7 +1,8 @@
 """IMP-179: deterministic governed-artifact deny, enforced on every surface.
 
-A governed artifact (project-brief.md, 03_specs/*.md, 04_backlog/*.md) may be
-mutated only through its owning command (invariant #1). This denies a hand
+A governed artifact (gaps.md, requirements.md, project-brief.md, 03_specs/*.md,
+04_backlog/*.md — sentinel.governed_artifacts, IMP-343) may be mutated only
+through its owning command (invariant #1). This denies a hand
 Write/Edit at the tool boundary. The decision logic lives once in
 sentinel.hooks_logic and is enforced by the Codex hook (block), the Claude
 PreToolUse command hook (deny), and the Kilo `permission.edit` deny rules — these
@@ -35,9 +36,27 @@ GOVERNED_SAMPLES = [
     "workspaces/DEMO/04_backlog/BACKLOG.md",
     "workspaces/DEMO/04_backlog/US-001.md",
     r"C:\dev\repo\workspaces\DEMO\03_specs\prd.md",  # windows separators
-]
-NOT_GOVERNED_SAMPLES = [
+    # IMP-343: the gap list and the requirement register are command-owned too.
     "workspaces/DEMO/01_discovery/gaps.md",
+    "workspaces/DEMO/02_requirements/requirements.md",
+    r"C:\dev\repo\workspaces\DEMO\01_discovery\gaps.md",
+]
+# IMP-343: what the BA or the agent must still be able to write: raw drops,
+# answer files and the JSON payloads that commands read with --source/--analysis.
+BA_INPUT_SAMPLES = [
+    "workspaces/DEMO/00_raw/client_answers.md",
+    "workspaces/DEMO/07_changes/00_client_responses/answers.md",
+    "workspaces/DEMO/01_discovery/gap_responses.md",
+    "workspaces/DEMO/01_discovery/analysis.json",
+    "workspaces/DEMO/00_raw/05_interactions/gap-answers.md",
+    "input/interactions/gap-answers.md",
+    "input/client_requirement/gap_responses.md",
+    "input/composition.json",
+    "input/change-analysis.json",
+    "input/self-review.json",
+]
+NOT_GOVERNED_SAMPLES = BA_INPUT_SAMPLES + [
+    "workspaces/DEMO/01_discovery/gaps_old.md",
     "workspaces/DEMO/02_requirements/other.md",
     "workspaces/DEMO/03_specs/units/SPEC-U-001.md",  # nested, not top-level 03_specs/*.md
     "sentinel/cli.py",
@@ -107,12 +126,66 @@ class ClaudePreToolUseHookScript(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), "")
 
+    def test_denies_gaps_write_naming_the_gap_commands(self):
+        # IMP-343: an agent editing gaps.md by hand bypasses the gap gates.
+        result = self._run({"tool_name": "Write", "tool_input": {"file_path": "workspaces/DEMO/01_discovery/gaps.md"}})
+        decision = json.loads(result.stdout)["hookSpecificOutput"]
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertIn("/resolve-gaps", decision["permissionDecisionReason"])
+        self.assertIn("/gaps", decision["permissionDecisionReason"])
+
+    def test_denies_requirement_register_edit(self):
+        result = self._run(
+            {"tool_name": "Edit", "tool_input": {"file_path": "workspaces/DEMO/02_requirements/requirements.md"}}
+        )
+        decision = json.loads(result.stdout)["hookSpecificOutput"]
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertIn("/ingest", decision["permissionDecisionReason"])
+
+    def test_allows_answer_and_payload_files(self):
+        for path in BA_INPUT_SAMPLES:
+            result = self._run({"tool_name": "Write", "tool_input": {"file_path": path}})
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout.strip(), "", f"hook must allow BA input: {path}")
+
     def test_malformed_stdin_fails_open(self):
         result = subprocess.run(
             [sys.executable, str(CLAUDE_HOOK)], input="not json", capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), "")
+
+
+class OneGovernedList(unittest.TestCase):
+    """IMP-343: the deny hook and /health's hand-edit detection use one list."""
+
+    def test_hook_globs_are_the_hand_edit_globs(self):
+        from sentinel.protocols import GOVERNED_ARTIFACT_GLOBS as HAND_EDIT_GLOBS
+
+        self.assertEqual(
+            GOVERNED_ARTIFACT_GLOBS,
+            tuple(f"workspaces/*/{glob}" for glob in HAND_EDIT_GLOBS),
+        )
+
+    def test_every_hand_edit_glob_is_denied(self):
+        from sentinel.protocols import GOVERNED_ARTIFACT_GLOBS as HAND_EDIT_GLOBS
+
+        for glob in HAND_EDIT_GLOBS:
+            concrete = "workspaces/DEMO/" + glob.replace("*", "sample")
+            self.assertIsNotNone(governed_artifact_deny_reason("Write", concrete), concrete)
+
+    def test_reason_names_the_owning_command(self):
+        expected = {
+            "workspaces/DEMO/01_discovery/gaps.md": "`/resolve-gaps`",
+            "workspaces/DEMO/02_requirements/requirements.md": "`/ingest`",
+            "workspaces/DEMO/02_requirements/project-brief.md": "`/brief`",
+            "workspaces/DEMO/03_specs/prd.md": "`/specs`",
+            "workspaces/DEMO/04_backlog/US-001.md": "`/backlog`",
+        }
+        for path, command in expected.items():
+            reason = governed_artifact_deny_reason("Edit", path)
+            self.assertIn(command, reason, path)
+            self.assertIn("owning command", reason, path)
 
 
 class CrossSurfaceConsistency(unittest.TestCase):

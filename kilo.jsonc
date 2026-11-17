@@ -18,12 +18,15 @@
   "$schema": "https://app.kilo.ai/config.json",
   "permission": {
     // Governed artifacts are regenerated only through their owning command
-    // (/brief, /specs, /backlog), never hand-edited. Kilo's editor must not
-    // write them; the CLI still regenerates them (see `bash` below). The
-    // catch-all comes first and the exceptions after, which is the ordering
-    // Kilo's own built-in presets use.
+    // (/ingest, /gaps, /resolve-gaps, /brief, /specs, /backlog), never
+    // hand-edited. Kilo's editor must not write them; the CLI still regenerates
+    // them (see `bash` below). The list matches sentinel/governed_artifacts.py
+    // (IMP-343). The catch-all comes first and the exceptions after, which is
+    // the ordering Kilo's own built-in presets use.
     "edit": {
       "*": "allow",
+      "workspaces/*/01_discovery/gaps.md": "deny",
+      "workspaces/*/02_requirements/requirements.md": "deny",
       "workspaces/*/02_requirements/project-brief.md": "deny",
       "workspaces/*/03_specs/*.md": "deny",
       "workspaces/*/04_backlog/*.md": "deny",

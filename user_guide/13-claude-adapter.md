@@ -54,13 +54,17 @@ The 27 canonical skills are mirrored to `.claude/skills/`. Claude Code registers
 
 Governed artifacts are written only by their command. A `PreToolUse` hook denies a hand `Write` or `Edit` of:
 
-- `workspaces/<id>/02_requirements/project-brief.md`
-- `workspaces/<id>/03_specs/*.md`
-- `workspaces/<id>/04_backlog/*.md`
+| File | Owned by |
+|---|---|
+| `workspaces/<id>/01_discovery/gaps.md` | `/ingest`, `/gaps`, `/resolve-gaps` (and the commands that add gaps, such as `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/sync`, `/self-review`) |
+| `workspaces/<id>/02_requirements/requirements.md` | `/ingest`, `/resolve-gaps` |
+| `workspaces/<id>/02_requirements/project-brief.md` | `/brief` |
+| `workspaces/<id>/03_specs/*.md` | `/specs` (`/compose` for the PRD) |
+| `workspaces/<id>/04_backlog/*.md` | `/backlog`, `/refine-backlog`, `/story-status` |
 
-When it denies, it names the command that owns the file (`/brief`, `/specs`, `/backlog`). Reads are never blocked, and neither is the CLI, which is how those files are regenerated. If you need a different result in one of them, answer the gap, ingest new evidence or sync a change, then run the command again ([Workflows](03-workflows.md)).
+These are the same files whose hand edits `/health` reports: one list in the runtime (`sentinel/governed_artifacts.py`) feeds both. When the hook denies, it names the command that owns the file. Reads are never blocked, and neither is the CLI, which is how those files are regenerated. Files you or the agent write as input stay allowed: raw drops under `00_raw/`, answer files, and the JSON files a command reads with `--source` or `--analysis`. If you need a different result in a governed file, answer the gap, ingest new evidence or sync a change, then run the command again ([Workflows](03-workflows.md)).
 
-The hook was watched refusing a write in Claude Code. It covers Claude's editor tools only: a write through some other channel is not seen by the hook, so `/health` also flags a hand edit of any hash-tracked file. Other rules Claude follows are in `CLAUDE.md`: gates are respected, missing information stays a visible `GAP-*`, and nothing is sent to external services.
+The hook was watched refusing a write to the brief and the specs in Claude Code; the refusal for `gaps.md` and `requirements.md` has not been watched yet. It covers Claude's editor tools only: a write through some other channel is not seen by the hook, so `/health` also flags a hand edit of any hash-tracked file. Other rules Claude follows are in `CLAUDE.md`: gates are respected, missing information stays a visible `GAP-*`, and nothing is sent to external services.
 
 > [!NOTE]
 > In a clone and in the plugin alike, the hook finds Python by itself through `python.sh` (`.claude/hooks/python.sh` in a clone): `SENTINEL_PYTHON` first, then `python3`, `python` or `py -3` on `PATH` (the Microsoft Store alias is skipped), then the usual Windows install folders. If the hook seems to do nothing, set `SENTINEL_PYTHON` to the full path of `python.exe`.

@@ -1,8 +1,11 @@
 # Ignite Sentinel governed-artifact hooks
 
-Governed artifacts — `workspaces/*/02_requirements/project-brief.md`,
-`workspaces/*/03_specs/*.md`, `workspaces/*/04_backlog/*.md` — are regenerated
-only through their owning command (`/brief`, `/specs`, `/backlog`). Invariant #1:
+Governed artifacts — `workspaces/*/01_discovery/gaps.md`,
+`workspaces/*/02_requirements/requirements.md`,
+`workspaces/*/02_requirements/project-brief.md`, `workspaces/*/03_specs/*.md`,
+`workspaces/*/04_backlog/*.md` — are regenerated only through their owning
+command (the list and the owners live in `sentinel/governed_artifacts.py`, which
+`/health`'s hand-edit check reads too). Invariant #1:
 mutate only via the CLI. Two complementary layers enforce this in the editor,
 plus deterministic runtime backstops.
 

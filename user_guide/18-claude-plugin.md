@@ -47,7 +47,7 @@ The plugin has no slash commands of its own: it ships skills and one hook. A ski
 > [!NOTE]
 > Type `sentinel /doctor`, or ask "run the Ignite Sentinel doctor". The plugin has no slash commands of its own, so a bare `/doctor` runs Claude Code's built-in diagnostic, which can offer to change your Claude Code settings. Inside a plain project folder Sentinel's doctor runs in runtime mode (`"mode": "runtime"`): it checks the interpreter, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. To check a clone, run `sentinel /doctor --root PATH_TO_THE_CLONE`.
 >
-> On Windows, Claude Code runs the plugin's commands through Git Bash, which rewrites a leading `/init` into a path such as `C:/Program Files/Git/init`; Sentinel reads that path back as the command (since 0.12.1; observed with `sentinel /doctor` on 2026-11-15). Observed on 2026-11-15 with 0.12.0, installed from the GitHub marketplace in the Claude desktop app on Windows: the skills autocomplete as `/ignite-sentinel:...`; `init`, `ingest`, `next` (it asks for the brief settings), `brief`, `view` and `dashboard` run from plain requests; `specs` is refused until the brief settings are confirmed; `sentinel /doctor` passes in runtime mode; and a hand write to `03_specs/` or a hand edit of `project-brief.md` is denied by the hook, which names the owning command.
+> On Windows, Claude Code runs the plugin's commands through Git Bash, which rewrites a leading `/init` into a path such as `C:/Program Files/Git/init`; Sentinel reads that path back as the command (since 0.12.1; observed with `sentinel /doctor` on 2026-11-15). Observed on 2026-11-15 with 0.12.0, installed from the GitHub marketplace in the Claude desktop app on Windows: the skills autocomplete as `/ignite-sentinel:...`; `init`, `ingest`, `next` (it asks for the brief settings), `brief`, `view` and `dashboard` run from plain requests; `specs` is refused until the brief settings are confirmed; `sentinel /doctor` passes in runtime mode; and a hand write to `03_specs/` or a hand edit of `project-brief.md` is denied by the hook, which names the owning command. The hook covers `gaps.md` and `requirements.md` too since IMP-343; that refusal has not been watched in the app yet.
 
 The rest of the lifecycle is the same on every surface: see [Workflows](03-workflows.md) and the [command reference](01-command-reference.md).
 
@@ -56,7 +56,7 @@ The rest of the lifecycle is the same on every surface: see [Workflows](03-workf
 | Component | What it does |
 |-----------|--------------|
 | 27 skills | The same `sentinel-*` skills as the clone, prefixed with the plugin name: `/ignite-sentinel:sentinel-views`, `/ignite-sentinel:sentinel-discovery`, and so on. |
-| 1 hook | A read-only `PreToolUse` guard: a hand `Write` or `Edit` of a governed artifact (`workspaces/<id>/02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) is denied with the command that owns it. Nothing outside `workspaces/<id>/` is affected. |
+| 1 hook | A read-only `PreToolUse` guard: a hand `Write` or `Edit` of a governed artifact (`workspaces/<id>/01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) is denied with the command that owns it. Nothing outside `workspaces/<id>/` is affected. |
 | `launcher.py` and `lib/sentinel/` | The runtime in source form, so it can be audited. |
 | `python.sh` | Finds Python 3.10+ for the hook and the skills. |
 

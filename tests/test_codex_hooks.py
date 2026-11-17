@@ -30,8 +30,9 @@ def _load_hook(filename):
 class HooksLogicDecisions(unittest.TestCase):
     def test_pre_allows_and_is_silent_for_workspace_path(self):
         # A non-governed workspace path: no misplacement warning, and no deny.
+        # (gaps.md is governed since IMP-343, so an answer file stands in.)
         result = hooks_logic.pre_tool_use_decision(
-            "Write", {"path": "workspaces/DEMO/01_discovery/gaps.md"}
+            "Write", {"path": "workspaces/DEMO/00_raw/05_interactions/gap-answers.md"}
         )
         self.assertEqual(result["decision"], "allow")
         self.assertNotIn("Warning", result["reason"])
@@ -67,7 +68,7 @@ class HooksLogicDecisions(unittest.TestCase):
     def test_decisions_allow_for_non_governed_paths(self):
         # Non-governed paths are never blocked. (Governed-artifact writes DO block
         # in pre — IMP-179 — covered by tests/test_governed_artifact_deny.py.)
-        for path in ("", "workspaces/DEMO/01_discovery/gaps.md", "/etc/passwd", "somewhere/07_changes/x.md"):
+        for path in ("", "workspaces/DEMO/01_discovery/gap_responses.md", "/etc/passwd", "somewhere/07_changes/x.md"):
             self.assertEqual(hooks_logic.pre_tool_use_decision("Write", {"path": path})["decision"], "allow")
             self.assertEqual(hooks_logic.post_tool_use_decision("Write", {"path": path})["decision"], "allow")
 

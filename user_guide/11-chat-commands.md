@@ -34,7 +34,7 @@ All surfaces run the same 37 commands. The full list with flags is in the [comma
 
 ## Claude Code
 
-**Clone.** Open the repository folder and type commands as `/command`. If `/init` starts Claude Code's own built-in project setup instead of Sentinel's, send `/sentinel /init ACME_PORTAL`: the `/sentinel` command runs any Sentinel command from one entry point. The hook in `.claude/settings.json` denies a hand edit of `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and names the owning command.
+**Clone.** Open the repository folder and type commands as `/command`. If `/init` starts Claude Code's own built-in project setup instead of Sentinel's, send `/sentinel /init ACME_PORTAL`: the `/sentinel` command runs any Sentinel command from one entry point. The hook in `.claude/settings.json` denies a hand edit of `gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and names the owning command.
 
 **Plugin.** The plugin ships skills and the hook, not slash commands. Type `sentinel /gaps ACME_PORTAL`, or ask in plain words ("show me the gaps for ACME_PORTAL"); the `sentinel-command-router` skill runs the command. To call a skill explicitly, use the plugin prefix:
 

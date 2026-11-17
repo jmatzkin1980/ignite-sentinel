@@ -56,7 +56,7 @@ Name one explicitly when you want it: "Use sentinel-maturity to evaluate ACME_PO
 
 1. **Command gates (all surfaces).** The CLI refuses a command when its prerequisite is missing, and says why in a `next step:` line (exit code 4). Codex cannot skip this.
 2. **Hand edits are detected.** `/health` flags a manual change to a hash-tracked file (`gaps.md`, `requirements.md`, the brief, specs, backlog).
-3. **A guard script** (`.codex/hooks/pre_tool_use_policy.py`) blocks a hand write to `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and points to the owning command.
+3. **A guard script** (`.codex/hooks/pre_tool_use_policy.py`) blocks a hand write to the same files (`gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`) and names the owning command.
 
 ## Limits to know
 
