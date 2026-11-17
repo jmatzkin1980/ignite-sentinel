@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .gaps import brief_section_for_gap, count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .lens_registry import known_lenses
 from .risk_category_registry import known_risk_categories
 from .memory import ContextBroker
@@ -425,7 +426,6 @@ def update_assumption_statuses(
 
 def reopen_gaps_for_invalidated(project_id: str, rows: list[dict[str, str]], invalidated: set[str]) -> list[str]:
     """IMP-257: a gap an invalidated assumption held up opens again, keeping its previous closure on record."""
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from .core.io import write_text
 
     gaps_path = workspace_path(project_id) / "01_discovery" / "gaps.md"
@@ -562,7 +562,6 @@ def summarize_assumptions(rows: list[dict[str, str]]) -> dict[str, Any]:
 
 
 def assumptions_by_brief_section(project_id: str) -> dict[str, list[dict[str, str]]]:
-    from .discovery import brief_section_for_gap
 
     by_section: dict[str, list[dict[str, str]]] = {}
     for row in load_assumptions(project_id):

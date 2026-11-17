@@ -8,7 +8,8 @@ from pathlib import Path
 
 from sentinel.brief_model import parse_brief
 from sentinel.compilers.brief_v2 import cross_cutting_data, render_brief_v2
-from sentinel.discovery.workflow import counterpart_present, detect_gaps, human_title_for_gap, question_for_gap
+from sentinel.discovery.detection import counterpart_present, detect_gaps
+from sentinel.gaps import human_title_for_gap, question_for_gap
 from sentinel.lens_registry import load_lens_checks
 
 ROOT = Path(__file__).resolve().parent

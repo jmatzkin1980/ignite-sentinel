@@ -39,6 +39,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .split_proposal import (
     PROPOSAL_DIR, PROPOSAL_FILE, SplitProposalError, _Checker, _norm, release_order,
     validate_proposal,
@@ -383,7 +384,6 @@ def validate_partition(brief_text: str, payload: dict[str, Any], open_gaps: set[
 def open_split_gap(project_id: str, row: dict[str, str], language: str) -> None:
     """Open a gap of the series in gaps.md once; reopen it if it was closed. A workspace without gaps.md is left alone."""
     from .core.io import write_text
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from .workspace import update_state, workspace_path
 
     path = workspace_path(project_id) / "01_discovery" / "gaps.md"
@@ -418,7 +418,6 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
     """Confirm the stored proposal: the validation must be green; the BA and the technical team sign."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
-    from .discovery import parse_gap_rows
     from .core.text import project_language
     from .split import brief_hash
 

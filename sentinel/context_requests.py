@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .discovery import candidate_options_markdown, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
+from .gaps import candidate_options_markdown, expected_format_for_gap, parse_gap_rows, unblocks_for_gap
 from .lens_registry import lens_checks_for_lens
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph, nodes_by_type, save_graph

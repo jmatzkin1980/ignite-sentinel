@@ -6,15 +6,9 @@ import re
 import shutil
 from pathlib import Path
 
+from .gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .backlog.hooks import mark_stale_stories_for_spec_units, stale_spec_units_from_change
-from .discovery import (
-    count_gaps,
-    detect_gaps,
-    load_domain_context,
-    parse_gap_rows,
-    readiness_stage_after_gap_change,
-    render_gaps,
-)
+from .discovery import detect_gaps, load_domain_context
 from .gap_resolution import (
     annotate_resolution_source_types,
     apply_gap_responses,

@@ -5,8 +5,7 @@ from ..errors import InputError  # IMP-302: typed errors
 from pathlib import Path
 from typing import Any
 
-from ..discovery import parse_gap_rows
-from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, is_blocking
+from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, is_blocking, parse_gap_rows
 from ..implementation_feedback import open_feedback_for_story
 from ..core.graph import add_edge, add_node
 from ..workspace import load_config, read_json, state_path, update_state, workspace_path

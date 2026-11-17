@@ -115,7 +115,7 @@ SCENARIOS = {
             "Si el servicio de metricas no esta disponible, entonces el sistema debe mostrar estado de riesgo desconocido.",
             "Donde el registro de auditoria este habilitado, el sistema debe registrar el acceso al tablero.",
         ],
-        # Field labels the runtime parses in Spanish (see sentinel/gaps.py).
+        # Field labels the runtime parses in Spanish (see sentinel/gaps/model.py).
         "answer": (
             "### GAP-ACCEPTANCE\n- Respuesta: {s}\n- Owner / fuente: Taller con cliente\n"
             "- Evidencia o referencia: EARS {i}\n- Estado de decisión: confirmado\n"

@@ -9,14 +9,8 @@ import re
 from typing import Any
 
 from ..core.markdown import table_cell
-from ..discovery import (
-    extract_functional_signals,
-    extract_metric_signals,
-    extract_personas,
-    prd_section_for_gap,
-    split_evidence_sentences,
-)
-from ..gaps import render_non_goals_block
+from ..discovery import extract_functional_signals, extract_metric_signals, extract_personas, split_evidence_sentences
+from ..gaps import prd_section_for_gap, render_non_goals_block
 
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")

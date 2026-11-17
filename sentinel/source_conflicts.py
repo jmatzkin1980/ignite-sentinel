@@ -34,6 +34,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .core.markdown import table_cell
 from .core.io import write_text
 from .source_routing import SCOPES, resolve_precedence, routing_data, row_authority
@@ -287,12 +288,10 @@ def _citation_gap(item: dict[str, Any]) -> dict[str, str]:
 
 
 def _merge_gaps(project_id: str, new_gaps: list[dict[str, str]], language: str | None = None) -> list[dict[str, str]]:
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 
     gaps_path = workspace_path(project_id) / "01_discovery" / "gaps.md"
     if not new_gaps or not gaps_path.exists():
         return []
-    from .gaps import merge_gaps_by_topic
 
     existing = [gap for gap in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gap.get("id") != "NONE"]
     topic_merge = merge_gaps_by_topic(existing, new_gaps)  # IMP-257: id, then topic

@@ -299,7 +299,7 @@ def next_step(
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:
     """IMP-311: the proposed settings when the project is on brief v2 and has not confirmed them; else None."""
     from .brief_schema import brief_settings, settings_status
-    from .discovery.workflow import raw_input_text
+    from .discovery.channels import raw_input_text
 
     if int(brief_settings(project_id).get("brief_version", 1) or 1) != 2:
         return None

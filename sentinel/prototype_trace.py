@@ -28,6 +28,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .gaps import parse_gap_rows
 from .core.markdown import table_cell
 from .prototype import INVENTORY_DIR, PrototypeError, load_inventory
 
@@ -193,7 +194,6 @@ def apply_trace(project_id: str, source: Path) -> dict[str, Any]:
     """Validate one screen trace and store it; every finding is reported and nothing is stored on a finding."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
-    from .discovery import parse_gap_rows
 
     base = workspace_path(project_id)
     inventory = load_inventory(project_id)

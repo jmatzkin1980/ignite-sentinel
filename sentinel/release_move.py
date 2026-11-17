@@ -27,6 +27,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .gaps import parse_gap_rows
 from .core.markdown import table_cell
 from .release_split import PARTITION_FILE, ReleaseSplitError, _dicts, _s, open_split_gap, validate_partition
 from .split_proposal import PROPOSAL_DIR, PROPOSAL_FILE, _norm, _summary
@@ -111,7 +112,6 @@ def move_unit(project_id: str, spec: str, source: str, target: str, reason: str,
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
     from .core.time import utc_now
-    from .discovery import parse_gap_rows
     from .core.text import project_language
     from .release_split import confirm_partition
     from .split import brief_hash

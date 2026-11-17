@@ -35,6 +35,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .gaps import parse_gap_rows
 from .brief_model import parse_brief
 from .release_split_model import load_release_split_model
 
@@ -282,7 +283,6 @@ def apply_proposal(project_id: str, source: Path) -> dict[str, Any]:
     """Validate and store a proposal. Every finding is reported; nothing is stored on a finding."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
-    from .discovery import parse_gap_rows
     from .split import ASSESSMENT_JSON, brief_hash, refresh_if_stale, run_assess
 
     base = workspace_path(project_id)

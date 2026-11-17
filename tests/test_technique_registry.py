@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from sentinel import technique_registry
-from sentinel.discovery.workflow import CHALLENGE_TECHNIQUES, render_challenge_report
+from sentinel.discovery.channels import CHALLENGE_TECHNIQUES, render_challenge_report
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REAL_TECHNIQUES = REPO_ROOT / "sentinel" / "techniques"

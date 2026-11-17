@@ -32,8 +32,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .discovery import parse_gap_rows
-from .gaps import BLOCKING_GAP_STATUSES
+from .gaps import BLOCKING_GAP_STATUSES, parse_gap_rows
 from .workspace import read_json, workspace_path
 from .core.io import write_text
 from .core.text import project_language, unique_path

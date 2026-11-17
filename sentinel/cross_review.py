@@ -26,6 +26,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .brief_model import lenses_for_v2_id, parse_brief
 from .resources import read_package_json
 
@@ -137,8 +138,6 @@ def validate_crosses(brief_text: str, payload: dict[str, Any]) -> dict[str, Any]
 def apply_cross_review(project_id: str, source: Path) -> dict[str, Any]:
     from .agent_sweep import record_sweep
     from .core.io import append_text, read_json, write_text
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
-    from .gaps import merge_gaps_by_topic
     from .workspace import read_state, update_state, workspace_path
 
     base = workspace_path(project_id)

@@ -6,9 +6,8 @@ import re
 import shutil
 from pathlib import Path
 
-from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .ears import classify_ears
-from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
+from .gaps import CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -178,7 +177,6 @@ _EXAMPLE_EVIDENCE = re.compile(r"\b(example|ejemplo|sample data|datos de ejemplo
 
 def closure_for(gap_id: str, response: dict[str, str], decision: str) -> tuple[str, list[str]]:
     """IMP-257: the closure reason of a confirmed answer and the findings about its citation."""
-    from .gaps import CLOSURE_CITES, CLOSURE_REASONS, REOPEN_FALSE_PREMISE
 
     raw = str(response.get("closure", "")).strip().strip("`").lower().replace(" ", "_")
     findings: list[str] = []

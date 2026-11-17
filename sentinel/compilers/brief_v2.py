@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from ..brief_model import (
     V2_GAP_COMPLEMENTS,
     V2_GAP_ROUTES,
@@ -797,7 +798,6 @@ def confirmed_answers(text: str, registry: list[dict[str, Any]]) -> list[dict[st
 def collect_inputs(project_id: str, settings: dict[str, Any], language: str) -> BriefInputs:
     from ..harvest import load_harvest
     from ..assumptions import assumption_rows
-    from ..discovery import parse_gap_rows
     from ..workspace import workspace_path
 
     base = workspace_path(project_id)
@@ -895,7 +895,6 @@ def _set_profile_gap(project_id: str, gap: dict[str, Any] | None, language: str)
     """Open GAP-BRIEF-PROFILE (gap given) or close it (gap None) in gaps.md."""
     from ..brief_schema import SETTINGS_GAP_ID
     from ..core.io import write_text
-    from ..discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from ..workspace import update_state, workspace_path
 
     path = workspace_path(project_id) / "01_discovery" / "gaps.md"
@@ -1038,7 +1037,6 @@ def umbrella_gap_id(section: str) -> str:
 def sync_umbrella_gaps(project_id: str, umbrellas: dict[str, list[str]], language: str) -> bool:
     """Open one non-blocking gap per section whose pending places have no open gap; close the rest."""
     from ..core.io import write_text
-    from ..discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
     from ..workspace import update_state, workspace_path
 
     path = workspace_path(project_id) / "01_discovery" / "gaps.md"
