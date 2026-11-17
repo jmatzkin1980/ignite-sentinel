@@ -42,9 +42,9 @@ When the BA needs to work the open gaps live in a meeting instead of an async `g
 sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /export PROJECT_ID --artifact gaps --format interview
 ```
 
-It writes `08_context_packs/exports/gaps-interview.md`: the **open** gaps ordered as a meeting script — **blocking gaps first**, grouped by lens — each with its cited context, the question to ask, and 1-2 **probing questions**. The probing questions are DERIVED from the IMP-113 candidate options, so they are always cited to local evidence; a gap without a local `evidence_mention` gets no probing questions (silence, never invented).
+It writes `08_context_packs/exports/gaps-interview.md`, the file the BA sends the client: the **open** gaps as plain questions — **blocking gaps first**, grouped by topic — with no lens, severity or other internal label (IMP-349). Each question sits under its `### GAP-...` heading with empty answer fields (Answer, Owner / source, Evidence or reference, Decision status), and the header asks the client to keep that reference with the answer, so the answered copy goes straight to `/resolve-gaps`. When the lens check matched specific text (a screen, a figure, a sentence), one follow-up question quotes it; matched text that cannot be phrased as an honest question (a path, an id, a bare keyword with no template) gets no follow-up. The BA's candidate options stay in `gaps.md`.
 
-This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note. When a stakeholder registry exists (below), the script groups gaps **by owner** instead of by lens.
+This export is a **derived view, not a source of truth**: it never replaces `01_discovery/gaps.md`, it closes no gap, and it is regenerated (not hand-edited). Gaps still close only through `/resolve-gaps` (skill `sentinel-gap-response`). With no open gaps the script is an explicit empty note. When a stakeholder registry exists (below), the script groups gaps **by owner** instead of by topic.
 
 ## Stakeholder Registry + Elicitation Routing (IMP-192)
 
@@ -57,7 +57,7 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /stakeh
 
 It writes `01_discovery/stakeholders.md`, a **GENERATED artifact — mutate it only through `/stakeholders`, never by hand.** Each owner governs a `--domain` (a lens: product, technical, business, design, quality) and optionally a `--topic`; `--profile` reuses IMP-142 (`business` | `technical`) and an unrecognized value is dropped rather than invented. Ids auto-assign as `STK-NNN` when `--id` is omitted.
 
-Routing is deterministic: a gap is matched to an owner by its lens/domain. With a non-empty registry the interview export groups blocking/follow-up gaps under each owner; a gap whose lens has **no** registered owner is listed under an explicit **"unassigned"** heading — never a fabricated owner. Power×Interest scoring and communication plans stay out of scope (delivery, not discovery).
+Routing is deterministic: a gap is matched to an owner by its lens/domain. With a non-empty registry the interview export groups blocking/follow-up gaps under each owner; a gap whose lens has **no** registered owner is listed under an explicit **"Questions with no contact named yet"** heading — never a fabricated owner. Power×Interest scoring and communication plans stay out of scope (delivery, not discovery).
 
 ## Resolved-Questions FAQ Export (IMP-186)
 
