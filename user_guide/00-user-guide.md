@@ -210,7 +210,7 @@ Combine profiles with commas (`--profile UI,REG`). `MIG` requires `--genesis bro
 /export ACME_PORTAL --artifact gaps --format interview
 ```
 
-**What you get:** `01_discovery/gap_round.md` with the five most useful questions to ask now, and `08_context_packs/exports/gaps-interview.md`, a script grouped by owner for a meeting. Send the script to the client, not `gaps.md`: `gaps.md` is your working file, with a traceability table and closed gaps, and the script leaves out the brief settings gap that only you answer. Some questions come from keyword checks, so read the script and drop any question that does not fit the request before you send it. Register who owns which topic with `/stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business` so gaps route to a person.
+**What you get:** `01_discovery/gap_round.md` with the five most useful questions to ask now, and `08_context_packs/exports/gaps-interview.md`, a script grouped by owner for a meeting. Send the script to the client, not `gaps.md`: `gaps.md` is your working file, with a traceability table and closed gaps, and the script leaves out the brief settings gap that only you answer. The script shows no lens or severity labels; each question keeps its gap id so the answered copy goes straight to `/resolve-gaps`. Some questions come from keyword checks, so read the script and drop any question that does not fit the request before you send it. Register who owns which topic with `/stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business` so gaps route to a person.
 
 Optional: let an agent find more gaps before you ask (`/annotate`, `/challenge`, `/scrutinize`). See [deepen discovery](03-workflows.md#deepen-discovery-with-the-agent).
 

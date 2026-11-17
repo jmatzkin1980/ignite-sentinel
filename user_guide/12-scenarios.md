@@ -147,7 +147,7 @@ system and be secure and compliant. Details to be defined later.
    /export ACME_PORTAL --artifact gaps --format interview
    ```
 
-   Open `workspaces/ACME_PORTAL/01_discovery/gaps.md`. Each gap is one `### GAP-...` section with a question, cited context and answer fields. For this request expect gaps about the second-approval threshold, the policy-system integration, access roles, the compliance rules and claim states. `gaps.md` is your working file: it also holds a traceability table, closed gaps and the brief settings gap. Send `08_context_packs/exports/gaps-interview.md` instead: open gaps only, blocking first, each with its question and its gap id. Read it first and drop any question that does not fit the request. Put the answers under `### GAP-...` headings in a file for step 5.
+   Open `workspaces/ACME_PORTAL/01_discovery/gaps.md`. Each gap is one `### GAP-...` section with a question, cited context and answer fields. For this request expect gaps about the second-approval threshold, the policy-system integration, access roles, the compliance rules and claim states. `gaps.md` is your working file: it also holds a traceability table, closed gaps and the brief settings gap. Send `08_context_packs/exports/gaps-interview.md` instead: open gaps only, blocking first, as plain questions with no lens or severity labels. Each question sits under its gap id and has empty answer fields; the file asks the client to keep the id with the answer. Read it first and drop any question that does not fit the request. The answered file goes to step 5 as it is.
 
 5. Process the answers when they return.
 
@@ -265,7 +265,7 @@ integrate with our HR system. Obviously it must be secure and compliant.
    /stakeholders ACME_EXPENSES
    ```
 
-   `--add` needs `--name` and `--domain`. The registry is changed only through this command. A gap whose area has no owner shows under an explicit "unassigned" heading in the interview script; Sentinel never invents an owner.
+   `--add` needs `--name` and `--domain`. The registry is changed only through this command. A gap whose area has no owner shows under "Questions with no contact named yet" in the interview script; Sentinel never invents an owner.
 
 5. Plan round 1: ask the few questions that matter most.
 
@@ -279,7 +279,7 @@ integrate with our HR system. Obviously it must be secure and compliant.
    /export ACME_EXPENSES --artifact gaps --format interview
    ```
 
-   The script is written to `08_context_packs/exports/gaps-interview.md`, blocking gaps first, grouped by owner when a registry exists.
+   The script is written to `08_context_packs/exports/gaps-interview.md`, blocking gaps first, grouped by owner when a registry exists ("Questions for HR Systems Lead") and by topic otherwise.
 
 6. Process the answers.
 
