@@ -1354,7 +1354,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **You get.** The paths, the story count, foundation warnings and the pre-handoff gate.
 
-**Next step.** Review `04_backlog/BACKLOG.md`; `/quality`; move stories with `/story-status`.
+**Next step.** Review `04_backlog/BACKLOG.md`; `/quality`; move stories with `/story-status`. On a brief v2, `/validate` warns about build items of §9.1 that no story covers.
 
 **See also.** [Workflows: backlog refinement](03-workflows.md) · skill `sentinel-backlog`.
 
@@ -1659,6 +1659,8 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 **Refuses when.** Verdict not `VALID` → exit 5 (the result is still printed). `--override` with nothing to override → exit 3.
 
 **You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks. In `semantic_quality`, `pending_markers` is the number of blocking marks and `deferred_markers` the number of domain marks. They are counted as `/export --final` counts them (see [`export`](#export)).
+
+On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each build item `C-NN` of §9.1 that no story covers (check `build_items_to_stories`). A story covers an item when its statement shares at least two key words with it (one, when the item has only one). Only confirmed answers written in EARS become stories, so give a confirmed EARS answer for that item, then run `/specs` and `/backlog` again. The warning never changes the verdict.
 
 **Next step.** Fix the findings, or record a cited override; then `/status`.
 
