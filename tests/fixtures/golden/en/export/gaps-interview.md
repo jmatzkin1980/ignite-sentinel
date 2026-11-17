@@ -1,6 +1,6 @@
 # Interview Script - [PROJECT_ID]
 
-READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking gaps first, grouped by lens). Probing questions come from the cited candidate options (IMP-113); they are never invented. This script does NOT replace `01_discovery/gaps.md` (the source of truth) and closes no gap.
+READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking gaps first, grouped by lens). Probing questions come from the cited candidate options; they are never invented. This script does NOT replace `01_discovery/gaps.md` (the source of truth) and closes no gap.
 
 
 ## Follow-up questions
@@ -37,7 +37,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 5. PRD Persona Detail (`GAP-PRD-PERSONA-DETAIL`, severity `medium`, lens `business`)
 
-- Ask: What confirmed information resolves this uncertainty?
+- Ask: For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?
 
 ### compliance
 
@@ -61,7 +61,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 10. Dependencies And Roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severity `medium`, lens `delivery`)
 
-- Ask: What confirmed information resolves this uncertainty?
+- Ask: What does the first version need, what can wait, what does it depend on, and who owns each dependency?
 
 11. Rollout And Environments (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severity `medium`, lens `delivery`)
 
@@ -101,7 +101,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 16. Functional Requirements And ACs (`GAP-PRD-FR-AC`, severity `medium`, lens `product`)
 
-- Ask: What confirmed information resolves this uncertainty?
+- Ask: Which functions must the solution provide, and for each one, what observable result shows it works?
 
 17. Current And Target Process (`GAP-PRODUCT-ASIS-TOBE`, severity `medium`, lens `product`)
 
@@ -111,7 +111,7 @@ READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking g
 
 18. NFRs, KPIs, And Measurement (`GAP-PRD-NFR-KPI`, severity `medium`, lens `quality`)
 
-- Ask: What confirmed information resolves this uncertainty?
+- Ask: Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?
 
 19. Quality Expectations (`GAP-QUALITY`, severity `medium`, lens `quality`)
 
