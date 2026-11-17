@@ -88,10 +88,11 @@ Nota de entorno: `lancedb` es opcional (IMP-013). Sin él, el framework opera en
 
 ```text
 sentinel/          runtime Python (cli, discovery, generation, memory, sync, health, validation, protocols...)
-sentinel/core/     primitivas compartidas: markdown, IO JSON/texto, rutas de workspace, state.json, grafo y tiempo UTC
+sentinel/core/     primitivas compartidas: markdown, IO JSON/texto, rutas de workspace, state.json, grafo, tiempo UTC y helpers de texto (core/text.py: unique_path, idioma del proyecto)
+sentinel/gaps/     persistencia de gaps (modelo, render, etapa)
 tests/             unittest suite
 .codex/ .kilo/     adapters Codex y Kilo Code (skills canónicas en .codex/skills/, espejos en .agents/ y .claude/)
-user_guide/        documentación de usuario (00-20)
+user_guide/        documentación de usuario (00-21)
 input/             staging local de inputs (no versionado)
 workspaces/        workspaces por proyecto (solo _template versionado)
 docs/evolution/    memoria operativa local (baseline, roadmap, backlog) — git-ignored, NO se publica

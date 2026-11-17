@@ -331,7 +331,7 @@ integrate with our HR system. Obviously it must be secure and compliant.
    /sync ACME_PORTAL --source input/interactions/change-sso.md --note "client adds SSO"
    ```
 
-   `/sync` records a change event and writes an impact report in `07_changes/`. Look at three things: the artifacts it lists as affected, any new gaps (tagged `origin: sync`), and a section named `Reopened Closed Gaps` if the change contradicts something already closed. You decide whether to reopen a gap, answer it again, or reject the change as out of scope. Assumptions the change contradicts are invalidated and reported as `invalidated_assumptions`; nothing is deleted.
+   `/sync` records a change event and writes an impact report in `07_changes/`. Look at three things: the artifacts it lists as affected, any new gaps (tagged `origin: sync`), and a section named `Reopened Closed Gaps` if the change touches something already closed. That section is a report: `/sync` never reopens a closed gap from prose. You decide. To reopen a gap, have the agent write a cited analysis and run `/sync --source FILE --analysis ANALYSIS.json`, then accept the `GAP-CHG` it opens with `/gaps --id GAP-CHG-x --disposition accepted` (see [Workflows](03-workflows.md)). Or reject the change as out of scope. Assumptions the change contradicts are invalidated and reported as `invalidated_assumptions`; nothing is deleted.
 
 2. If the source is a meeting transcript or a long mail, digest it first.
 

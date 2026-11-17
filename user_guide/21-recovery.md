@@ -53,18 +53,21 @@ The gap goes back to `OPEN`, and the earlier closure stays on record in its reso
 
 ## Someone edited a generated file by hand
 
-Generated files (the gaps, the requirements, the brief, specs, backlog) change only through commands. A hand edit is not kept safely: the next regeneration overwrites it, and nothing traces it.
+Generated files (the gaps, the requirements, the brief, specs, backlog) change only through commands. A hand edit is never absorbed in silence:
+
+- Before a mutating command runs, Sentinel copies every hand-edited file to `.sentinel/hand_edits/<timestamp>-<command>/`.
+- If the command then changes that file, it prints a `sentinel warning:` on stderr naming the file and the copy. A command that does not touch the file leaves it flagged.
 
 ```text
 /health ACME_PORTAL
 ```
 
-`/health` warns about a hand edit of any checksummed file. Then pick one:
+`/health` warns about a hand edit of any checksummed file, and about every kept copy whose text is no longer in the file. Then pick one:
 
 - **Revert it**: undo the edit (from git, or your editor's history) and run `/health` again.
-- **Carry it through the owning command**: if the edit held real new information, put that information where it belongs and let the command rewrite the file. A client answer goes through `/resolve-gaps`; new evidence through `/sync --source`; a PRD addition through `/compose`; a backlog change through `/refine-backlog`. The [artifact reference](02-artifact-reference.md) says which command writes each file.
+- **Carry it through the owning command**: if the edit held real new information, take it from the file or from its copy under `.sentinel/hand_edits/`, put it where it belongs and let the command rewrite the file. A client answer goes through `/resolve-gaps`; new evidence through `/sync --source`; a PRD addition through `/compose`; a backlog change through `/refine-backlog`. The [artifact reference](02-artifact-reference.md) says which command writes each file. Then delete the copy.
 
-**Check:** `/health` no longer reports the hand edit.
+**Check:** `/health` no longer reports the hand edit or a kept copy.
 
 ## A file was deleted or is corrupted
 
@@ -73,7 +76,9 @@ Regenerate it with the command that owns it. The [artifact reference](02-artifac
 Two kinds of file cannot be regenerated, because they are the input, not the output:
 
 - **Raw evidence** under `00_raw/` and the copies under `07_changes/`: restore them from git or your backup, or bring the original in again with `/sync --source`.
-- **`state.json`** (the project's state): restore it from git or your backup.
+- **`state.json`** (the project's state): every command refuses with exit 3 while it is missing or does not parse, and names the fix. Every state update first copies the previous file to `.sentinel/state.json.bak`: copy that file back to `state.json` in the workspace folder (you lose at most the last update), or restore it from git or your backup. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists the workspaces whose `state.json` is missing or damaged.
+
+Any other workspace JSON file that does not parse stops the command with exit 3 and its name. Restore it from git, or regenerate it with the command that writes it; for a file under `memory.lancedb/`, run `/reindex ACME_PORTAL`. The `next step:` line says which.
 
 Then run `/health ACME_PORTAL` and `/validate ACME_PORTAL`.
 
@@ -82,7 +87,7 @@ Then run `/health ACME_PORTAL` and `/validate ACME_PORTAL`.
 A refusal is not a failure of the tool: the command checked something and stopped before writing. Read the two lines it printed, `sentinel error: ...` and `next step: ...`, then the exit code:
 
 - **2**: the command line is wrong (a missing option, an unknown value).
-- **3**: the input is wrong (a file that does not exist, a refused payload, a bad id). Nothing was stored.
+- **3**: the input is wrong (a file that does not exist, a refused payload, a bad id, a missing or damaged `state.json`). Nothing was stored.
 - **4**: a prerequisite is missing (no workspace, nothing ingested yet, health `DIRTY`, maturity `BLOCKED`). Run the step it names.
 - **5**: `/validate` or `/doctor` gave an unfavourable verdict; the findings are printed.
 - **6**: another command is using the workspace; wait and run again.

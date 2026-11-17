@@ -6,7 +6,7 @@
 
 Ignite Sentinel turns a raw client request (a note, an email, a prototype, a pile of meeting minutes) into a project brief, a PRD, specs, a backlog and test cases, step by step, on your own machine. It never invents scope: every statement cites its evidence, and everything still unknown stays visible as a question, called a **gap**, until someone answers it.
 
-You drive it from chat in Claude Code, Codex or Kilo Code, or from a plain terminal. Version 0.13.0.
+You drive it from chat in Claude Code, Codex or Kilo Code, or from a plain terminal. Version 0.14.0.
 
 New words (gap, brief, PRD, profile, genesis, lens, spec unit, slice plan...) are defined in the [glossary](user_guide/00-user-guide.md#glossary).
 
@@ -176,7 +176,7 @@ Every command takes the project id first (except `/doctor` and `/dashboard`). Fl
 |---|---|
 | `/specs` | Generate the PRD, the spec index and bounded spec units. |
 | `/compose` | Merge agent-written PRD prose, each paragraph cited. |
-| `/export` | Export gaps, brief, PRD or a context request; drafts are stamped, `--final` refuses while marks remain. |
+| `/export` | Export gaps, brief, PRD or a context request; drafts are stamped, `--final` refuses while blocking marks remain. |
 
 **Backlog**
 
@@ -210,7 +210,7 @@ Every failure prints the reason, and a `next step:` line when the runtime knows 
 |---|---|---|
 | 0 | Success | Go on. |
 | 2 | Wrong usage | Fix the syntax (missing `--source`, unknown option). |
-| 3 | Invalid input | Fix the payload or the value the message names. A `--source` file that does not exist ends here too: check the path, it is read relative to the folder you run Sentinel from. |
+| 3 | Invalid input | Fix the payload or the value the message names. A `--source` file that does not exist ends here too: check the path, it is read relative to the folder you run Sentinel from. So does a missing or damaged `state.json`: see [recovery](user_guide/21-recovery.md). |
 | 4 | Gate refusal | A missing prerequisite or the project's state stops the command: run the step the message names, or `/next`. |
 | 5 | Unfavourable verdict | `/validate` is not `VALID` or `/doctor` is not `PASS`: read the findings. |
 | 6 | Workspace busy | Another command holds the workspace; wait and retry. |
@@ -238,6 +238,7 @@ The full troubleshooting flow is in [workflows](user_guide/03-workflows.md#a-gat
 | [16 Portability](user_guide/16-portability.md) | No-install mode, `.pyz`, environment matrix |
 | [18 Claude Code plugin](user_guide/18-claude-plugin.md) | Plugin install, channels, archive |
 | [19 Threat model](user_guide/19-threat-model.md) · [20 Admin guide](user_guide/20-admin-guide.md) | Security review and managed settings |
+| [21 When something went wrong](user_guide/21-recovery.md) | Wrong file or answer, hand edits, lost or damaged files, refusals |
 
 ## Security
 
