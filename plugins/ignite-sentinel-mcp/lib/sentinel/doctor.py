@@ -1635,7 +1635,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Claude Code",),
         live_check="Attempt a Write/Edit on a governed artifact; the deny hook blocks it with an actionable message naming the owning command.",
         observed="",
-        note="The IMP-178 smoke observed it on 2026-07-07 with a bare `python` command. IMP-313 starts the hook through `.claude/hooks/python.sh`; that command has not been watched yet. Same observation covers `.claude/settings.json`, which registers the hook.",
+        note="The IMP-178 smoke observed it on 2026-07-07 with a bare `python` command. IMP-313 starts the hook through `.claude/hooks/python.sh`; that command has not been watched yet. Same observation covers `.claude/settings.json`, which registers the hook. IMP-343 added `gaps.md` and `requirements.md` to the denied files (the list in `sentinel/governed_artifacts.py`); a refusal for those two has not been watched yet.",
     ),
     ".claude/settings.json": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1666,7 +1666,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Claude Code",),
         live_check="After installing, `claude plugin details ignite-sentinel` lists one skill per folder of `.codex/skills` and 1 PreToolUse hook; `/ignite-sentinel:sentinel-views` writes the dashboard into the project, not the plugin; a hand Write to `workspaces/<id>/03_specs/*.md` is denied.",
         observed="2026-11-15",
-        note="Observed with 0.12.0 from the GitHub marketplace in a signed-in Claude desktop session on Windows (Claude Code 2.1.233 CLI reported, Python 3.13.2): the skills autocomplete as `/ignite-sentinel:sentinel-*`; init, ingest, next, brief, specs (refused, exit 4), view and dashboard run through the command router and write into the project; a hand Write to `03_specs/prueba.md` and a hand Edit of `project-brief.md` are both denied by the hook naming the owning commands; `sentinel /doctor` passes in runtime mode. Git Bash rewrote `/init` and `/doctor` into paths until IMP-315; with 0.12.1 (`#stable`), `sentinel /doctor` ran through `launcher.py /doctor` without MSYS_NO_PATHCONV and passed. Earlier, with 0.3.0: details showed Skills (24, the count at the time) and Hooks (1) PreToolUse.",
+        note="Observed with 0.12.0 from the GitHub marketplace in a signed-in Claude desktop session on Windows (Claude Code 2.1.233 CLI reported, Python 3.13.2): the skills autocomplete as `/ignite-sentinel:sentinel-*`; init, ingest, next, brief, specs (refused, exit 4), view and dashboard run through the command router and write into the project; a hand Write to `03_specs/prueba.md` and a hand Edit of `project-brief.md` are both denied by the hook naming the owning commands; `sentinel /doctor` passes in runtime mode. Git Bash rewrote `/init` and `/doctor` into paths until IMP-315; with 0.12.1 (`#stable`), `sentinel /doctor` ran through `launcher.py /doctor` without MSYS_NO_PATHCONV and passed. Earlier, with 0.3.0: details showed Skills (24, the count at the time) and Hooks (1) PreToolUse. IMP-343 added `gaps.md` and `requirements.md` to the files the hook denies; that refusal has not been watched in the plugin yet.",
     ),
     "plugins/ignite-sentinel-mcp": SurfaceContract(
         surfaces=("Claude Code",),
@@ -1678,6 +1678,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Codex",),
         live_check="Attempt a write to a governed artifact in Codex; `pre_tool_use_policy.py` must refuse it.",
         observed="",
+        note="Since IMP-343 the governed files include `gaps.md` and `requirements.md` (the list in `sentinel/governed_artifacts.py`).",
     ),
     ".kilo/agents": SurfaceContract(
         surfaces=("Kilo Code",),
@@ -1698,7 +1699,7 @@ SURFACE_CONTRACTS: dict[str, SurfaceContract] = {
         surfaces=("Kilo Code",),
         live_check="Open the repo in Kilo Code with auto-approve off: no `Configuration is invalid at kilo.jsonc` warning at startup, an edit to a governed artifact is stopped, an unlisted command asks and a listed one does not.",
         observed="2026-07-26",
-        note="Enforcement confirmed by behaviour on 2026-07-26 with auto-approve off: no startup warning, the edit to a governed artifact stopped, an unlisted command asked and the pre-authorized CLI did not. Before that the block had been inert for seven weeks with /doctor green, which is why this registry exists.",
+        note="Enforcement confirmed by behaviour on 2026-07-26 with auto-approve off: no startup warning, the edit to a governed artifact stopped, an unlisted command asked and the pre-authorized CLI did not. Before that the block had been inert for seven weeks with /doctor green, which is why this registry exists. IMP-343 added deny globs for `gaps.md` and `requirements.md`; those two have not been watched in Kilo yet.",
     ),
 }
 

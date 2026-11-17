@@ -9,6 +9,7 @@ from typing import Any
 from .workspace import load_config, read_json, state_path, update_state, utc_now, workspace_path
 from .core.hashing import file_content_hash, hash_matches
 from .core.io import copy_file, remove, write_text
+from .governed_artifacts import WORKSPACE_GLOBS
 
 # IMP-127: default volume above which a project is considered to "need context"
 # (focused retrieval) rather than whole-artifact reading.
@@ -16,14 +17,9 @@ NEEDS_CONTEXT_MIN_CHUNKS = 12
 
 # IMP-147: governed artifacts whose bytes may only change through a Sentinel
 # command. Their checksum is snapshotted after every mutating command, so a
-# later mismatch means the file was edited outside the CLI.
-GOVERNED_ARTIFACT_GLOBS = (
-    "01_discovery/gaps.md",
-    "02_requirements/requirements.md",
-    "02_requirements/project-brief.md",
-    "03_specs/*.md",
-    "04_backlog/*.md",
-)
+# later mismatch means the file was edited outside the CLI. IMP-343: the list
+# lives in sentinel.governed_artifacts, shared with the deny hook.
+GOVERNED_ARTIFACT_GLOBS = WORKSPACE_GLOBS
 # IMP-332: where a hand edit is copied before a mutating command may change it.
 HAND_EDITS_DIR = ".sentinel/hand_edits"
 

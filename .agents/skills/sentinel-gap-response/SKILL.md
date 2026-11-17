@@ -9,7 +9,7 @@ Use this skill after a client or domain owner returns an answered `gaps.md` or e
 
 ## Workflow
 
-1. Keep the response file under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` when possible.
+1. Keep the response file under `input/interactions/` or `workspaces/PROJECT_ID/00_raw/05_interactions/` when possible. Never write answers into `01_discovery/gaps.md` itself: it is owned by the commands, the editor hook refuses a hand write, and `/health` flags one made another way.
 2. Run:
 
 ```powershell
