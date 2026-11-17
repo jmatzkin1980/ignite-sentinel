@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from sentinel.cli import main
-from sentinel.discovery.workflow import (
+from sentinel.discovery.intake import (
     ingest,
     render_requirement_unit_delta,
     requirement_unit_delta_entries,

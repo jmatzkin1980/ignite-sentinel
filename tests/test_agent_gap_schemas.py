@@ -17,7 +17,8 @@ import json
 import unittest
 from pathlib import Path
 
-from sentinel.discovery import AnnotationError, GAP_ID_RE, known_lenses, validate_agent_gaps
+from sentinel.discovery import AnnotationError, GAP_ID_RE, validate_agent_gaps
+from sentinel.lens_registry import known_lenses
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "sentinel" / "schemas"
 
@@ -29,7 +30,7 @@ AGENT_GAP_SCHEMAS = (
     "implementability_probe.schema.json",
 )
 
-# The contract validate_agent_gaps enforces field-for-field (workflow.py).
+# The contract validate_agent_gaps enforces field-for-field (discovery/channels.py).
 CORE_REQUIRED = {"id", "lens", "severity", "question", "evidence"}
 RUNTIME_SEVERITIES = {"critical", "high", "medium", "low"}
 

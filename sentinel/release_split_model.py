@@ -65,10 +65,6 @@ def load_release_split_model(override: dict[str, Any] | None = None) -> dict[str
     return model
 
 
-def clear_cache() -> None:
-    _load_package.cache_clear()
-
-
 def enabler_boundary() -> dict[str, Any]:
     """The enabler boundary the model cites, read from the backlog slicing model."""
     from .slicing_model import load_slicing_model

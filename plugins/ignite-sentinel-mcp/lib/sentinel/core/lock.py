@@ -101,11 +101,9 @@ def _read_holder(path: Path) -> str:
 
 def clear_read_caches() -> None:
     from .io import forget_read_snapshots, clear_read_json_cache
-    from .markdown import clear_markdown_parse_cache
 
     clear_read_json_cache()
     forget_read_snapshots()
-    clear_markdown_parse_cache()
 
 
 def holds_lock() -> bool:

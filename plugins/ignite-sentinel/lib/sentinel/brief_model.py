@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
+from .gaps import brief_section_for_gap
 from .brief_schema import load_brief_schema, schema_ids
 from .citations import Citation, is_v2_artifact, parse_citations, section_text
 
@@ -300,7 +301,6 @@ def v2_sections_for_gap(gap_id: str) -> list[str]:
         return [V2_GAP_ROUTES[gap_id]]
     if gap_id in V2_GAP_COMPLEMENTS:
         return [V2_GAP_COMPLEMENTS[gap_id]]
-    from .discovery import brief_section_for_gap
 
     lens = brief_section_for_gap(gap_id)
     return v2_sections_for_lens(lens) if lens else []

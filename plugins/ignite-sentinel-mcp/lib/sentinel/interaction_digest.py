@@ -32,10 +32,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .discovery import parse_gap_rows
-from .gaps import BLOCKING_GAP_STATUSES
+from .gaps import BLOCKING_GAP_STATUSES, parse_gap_rows
 from .workspace import read_json, workspace_path
 from .core.io import write_text
+from .core.text import project_language, unique_path
 
 # Deterministic decision cues (bilingual). A line matching one of these is a
 # *candidate* decision to route to the decision channel — never an applied DEC-*.
@@ -272,12 +272,6 @@ def load_open_gaps(base: Path) -> list[dict[str, str]]:
     ]
 
 
-def _project_language(project_id: str) -> str:
-    state = read_json(workspace_path(project_id) / "state.json", {})
-    language = state.get("project_language", "en")
-    return str(language if language in {"es", "en"} else "en")
-
-
 def render_proposed_gap_response(
     source_ref: str,
     candidates: list[dict[str, Any]],
@@ -511,13 +505,13 @@ def build_interaction_digest(
     asm_signals = asm_contradiction_signals(metabolism)
     new_gaps = new_gaps or []
 
-    language = _project_language(project_id)
+    language = project_language(project_id)
     proposed_response_path: Path | None = None
     if gap_candidates:
-        proposed_response_path = _unique(target_dir / f"{stem}_gap_response_proposed.md")
+        proposed_response_path = unique_path(target_dir / f"{stem}_gap_response_proposed.md")
         write_text(proposed_response_path, render_proposed_gap_response(source_ref, gap_candidates, language))
 
-    digest_path = _unique(target_dir / f"{stem}_interaction_digest.md")
+    digest_path = unique_path(target_dir / f"{stem}_interaction_digest.md")
     write_text(digest_path, render_interaction_digest(
             project_id,
             change_id,
@@ -544,14 +538,3 @@ def build_interaction_digest(
             gap_candidates or decisions or new_gaps or asm_signals["invalidated"] or asm_signals["associative"]
         ),
     }
-
-
-def _unique(path: Path) -> Path:
-    if not path.exists():
-        return path
-    counter = 2
-    while True:
-        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1

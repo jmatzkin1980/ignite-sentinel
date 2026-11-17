@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .gaps import parse_gap_rows
 from .core.paths import is_valid_project_id
 from .core.local_browser import open_local_file
-from .discovery import parse_gap_rows
 from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme, user_theme_dirs

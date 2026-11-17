@@ -45,6 +45,11 @@ class TableCellUnitTests(unittest.TestCase):
             ["plain", "with | pipe", "with newline", "`code | tick`"],
         )
 
+    def test_limit_strips_and_cuts_before_escaping(self):
+        # IMP-338: the former safe_cell writers; the cut never splits an escape.
+        self.assertEqual(table_cell("  a | b c  ", limit=3), "a \\|")
+        self.assertEqual(split_table_row("| " + table_cell("x|y|z", limit=4) + " | end |"), ["x|y|", "end"])
+
 
 class GapRowIntegrityTests(unittest.TestCase):
     def setUp(self):

@@ -202,12 +202,12 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 | PRD / Specs Need | Retrieved Signal | Artifact | Trace |
 | --- | --- | --- | --- |
 | strategic_foundation | ## 1. Identidad y Valor  Iniciativa: Tablero de riesgo operativo _(fuente: `00_raw/`)_  Dolor principal: - Domains: product, functional, quality  Resultado y métricas: - Resultado | `REQ-003` | REQ-003 |
-| personas | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| personas | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
 | functional_requirements | - `GAP-BUSINESS-RULES` (business, medium): Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. - `GAP-PRD-PERSONA-D | `REQ-003` | REQ-003 |
 | nfr_kpi | ## 5. Lente Tecnico: Datos, Conectividad y Arquitectura  - [PENDING INPUT]: sin evidencia en el input; se rastrea en `GAP-TECH-DATA-SOURCE`. Aportar en el context pack del dominio. | `REQ-003` | REQ-003 |
-| jtbd_traceability | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| jtbd_traceability | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
 | execution_plan | - `GAP-BUSINESS-RULES` (business, medium): Las reglas de negocio, exclusiones o reglas de decisión no están suficientemente explícitas para slicing downstream. - `GAP-PRD-PERSONA-D | `REQ-003` | REQ-003 |
-| governance | / PRD Section / Required Discovery Signal / Evidence Source / If Missing / / --- / --- / --- / --- / / Personas / Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
+| governance | \| PRD Section \| Required Discovery Signal \| Evidence Source \| If Missing \| \| --- \| --- \| --- \| --- \| \| Personas \| Primary/secondary personas, goals, pains, proficiency, usage frequ | `REQ-003` | REQ-003 |
 | backlog_handoff | - PRD can expand this brief only from confirmed seeds, decisions, context folders, and traceable source material. - Specs must preserve system boundaries, data ownership, UX states | `REQ-003` | REQ-003 |
 
 ### Proposed Next Meeting Agenda

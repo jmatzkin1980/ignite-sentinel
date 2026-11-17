@@ -35,6 +35,7 @@ import hashlib
 import re
 from pathlib import Path
 from typing import Any
+from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 
 TAGS = {
     "HECHO": "fact", "FACT": "fact",
@@ -128,8 +129,6 @@ def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
 
 def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     from .core.io import write_json, write_text
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
-    from .gaps import merge_gaps_by_topic
     from .secrets_scan import sanitize_text
     from .sources import mark_source_processed, open_source_row
     from .workspace import read_state, update_state, workspace_path

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .core.markdown import parse_table_rows
+from ..core.markdown import parse_table_rows
 
 
 GAP_ROW_FIELDS = (

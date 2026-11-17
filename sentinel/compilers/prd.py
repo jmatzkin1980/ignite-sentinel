@@ -8,14 +8,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..discovery import (
-    extract_functional_signals,
-    extract_metric_signals,
-    extract_personas,
-    prd_section_for_gap,
-    split_evidence_sentences,
-)
-from ..gaps import render_non_goals_block
+from ..core.markdown import table_cell
+from ..discovery import extract_functional_signals, extract_metric_signals, extract_personas, split_evidence_sentences
+from ..gaps import prd_section_for_gap, render_non_goals_block
 
 
 EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
@@ -485,9 +480,9 @@ def render_ears_requirements_table(
         req_id = str(row.get("id", ""))
         if not EARS_REQUIREMENT_ID_RE.match(req_id):
             continue
-        pattern = safe_cell(str(row.get("pattern", "")), 80)
-        statement = safe_cell(str(row.get("statement", "")), 260)
-        source = safe_cell(str(row.get("source", "")), 120)
+        pattern = table_cell(str(row.get("pattern", "")), 80)
+        statement = table_cell(str(row.get("statement", "")), 260)
+        source = table_cell(str(row.get("source", "")), 120)
         rendered_rows.append(f"| `{req_id}` | {pattern} | {statement} | {source} |")
     if not rendered_rows:
         return empty_text
@@ -496,6 +491,20 @@ def render_ears_requirements_table(
         "| --- | --- | --- | --- |\n"
         + "\n".join(rendered_rows)
     )
+
+
+def ears_trace_ids(context: dict[str, object]) -> list[str]:
+    """The valid `REQ-EARS-NNN` ids of the context's normalized EARS rows."""
+    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
+    if not isinstance(rows, list):
+        return []
+    ids: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            req_id = str(row.get("id", ""))
+            if EARS_REQUIREMENT_ID_RE.match(req_id):
+                ids.append(req_id)
+    return ids
 
 
 def render_context_summary(context: dict[str, object]) -> str:
@@ -509,7 +518,7 @@ def render_context_summary(context: dict[str, object]) -> str:
         if not isinstance(top, dict):
             continue
         rows.append(
-            f"| {domain} | {safe_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
+            f"| {domain} | {table_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
         )
     return "| Domain | Retrieved Signal | Artifact |\n| --- | --- | --- |\n" + "\n".join(rows)
 
@@ -532,11 +541,6 @@ def render_prd_section_context(context: dict[str, object]) -> str:
         trace_ids = top.get("trace_ids", [])
         trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
         rows.append(
-            f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
+            f"| {section} | {table_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {table_cell(trace or 'N/A', 80)} |"
         )
     return "| PRD / Specs Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

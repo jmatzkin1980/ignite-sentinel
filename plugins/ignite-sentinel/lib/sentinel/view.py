@@ -8,10 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .gaps import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .assumptions import load_assumptions
 from .core.local_browser import open_local_file
 from .blocks import markdown_to_blocks, sections_from_blocks
-from .discovery import expected_format_for_gap, parse_gap_rows, unblocks_for_gap, why_gap_matters
 from .core.graph import load_graph
 from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
 from .themes import DEFAULT_THEME, ThemeError, legend_html, load_theme, user_theme_dirs

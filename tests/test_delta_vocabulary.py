@@ -16,7 +16,7 @@ from pathlib import Path
 from sentinel.cli import main
 from sentinel.deltas import DeltaStatus, delta_marker, delta_status
 from sentinel.generation import section_delta_entries, sections_by_heading
-from sentinel.discovery.workflow import requirement_unit_delta_entries
+from sentinel.discovery.intake import requirement_unit_delta_entries
 
 
 class DeltaEnumTests(unittest.TestCase):

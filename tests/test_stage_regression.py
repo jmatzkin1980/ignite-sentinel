@@ -137,8 +137,8 @@ class StageGuards(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             written.update(re.findall(r"readiness_stage[\"']?\s*[:=]\s*\"([A-Z_]+)\"", text))
             written.update(re.findall(r"readiness_stage\s*=\s*\"([A-Z_]+)\"\s+if", text))
-        workflow = (SENTINEL / "discovery" / "workflow.py").read_text(encoding="utf-8")
-        body = workflow.split("def readiness_stage_for_counts", 1)[1].split("\ndef ", 1)[0]
+        stage_module = (SENTINEL / "gaps" / "stage.py").read_text(encoding="utf-8")
+        body = stage_module.split("def readiness_stage_for_counts", 1)[1].split("\ndef ", 1)[0]
         written.update(re.findall(r"return \"([A-Z_]+)\"", body))
         self.assertIn("UNITS_NOT_IMPLEMENTABLE", written)  # the scan really sees /brief's writes
         self.assertEqual(sorted(written - set(LIFECYCLE_STAGES)), [])

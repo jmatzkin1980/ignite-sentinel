@@ -10,6 +10,7 @@ from typing import Any
 
 from .core.graph import add_edge, add_node
 from .core.io import copy_file, read_json as core_read_json, write_text
+from .core.text import unique_path
 from .discovery import AnnotationError
 from .memory import ContextBroker, reindex_workspace
 from .sources import mark_source_processed
@@ -408,14 +409,3 @@ This register records cited human rationales used to proceed despite a gate verd
 
 {body}
 """
-
-
-def unique_path(path: Path) -> Path:
-    if not path.exists():
-        return path
-    stem, suffix = path.stem, path.suffix
-    for index in range(2, 1000):
-        candidate = path.with_name(f"{stem}-{index}{suffix}")
-        if not candidate.exists():
-            return candidate
-    raise RuntimeError(f"Cannot create unique path for {path}")

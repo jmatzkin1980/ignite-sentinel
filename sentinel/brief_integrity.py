@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 
+from .gaps import parse_gap_rows
 from .core.markdown import split_table_row
 from collections import Counter
 from pathlib import Path
@@ -46,7 +47,6 @@ RESIDUE_PATTERNS = [
 
 
 def _gap_rows(base: Path) -> dict[str, dict[str, str]]:
-    from .discovery import parse_gap_rows
 
     path = base / "01_discovery" / "gaps.md"
     if not path.exists():

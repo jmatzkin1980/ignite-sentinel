@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from .errors import GateRefusal  # IMP-302: typed errors
 
-from hashlib import sha256
 from pathlib import Path
 import re
 from typing import Any
 
+from .core.markdown import table_cell
 from .memory import ContextBroker, apply_pack_disclosure_budget, get_multi_domain_context
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
@@ -21,12 +21,14 @@ from .compilers.backlog import (
     render_backlog_context_summary,
     render_enabler_boundary,
     normalize_story_format,
+    read_plan_for_row,
     render_enabler_epic,
     render_epic,
     render_slicing_strategy_table,
     render_story,
 )
 from .compilers.prd import (
+    EARS_REQUIREMENT_ID_RE,
     compile_prd_sections,
     first_sentence_with,
     project_title,
@@ -66,6 +68,7 @@ from .compilers.slicing import (
     context_row_for_spec_unit,
     context_row_for_story,
     cross_cutting_enabler_evidence,
+    domain_context_snapshot,
     domain_for_spec_unit,
     goal_for_spec_unit,
     pending_backlog_story,
@@ -87,16 +90,6 @@ from .drift import foundation_drift_warnings, record_derived_source_fingerprint
 from .workspace import load_config, read_json, state_path, update_state, workspace_path, write_json
 from .core.io import remove, write_text
 
-
-DOMAIN_CONTEXT_FOLDERS = {
-    "Product": ("00_raw/00_client_requirement", "00_raw/01_business_context", "00_raw/05_interactions", "07_changes"),
-    "Technology": ("00_raw/02_technology_context",),
-    "Design": ("00_raw/03_design_context",),
-    "Quality": ("00_raw/04_quality_context",),
-    "Delivery": ("07_changes",),
-}
-
-EARS_REQUIREMENT_ID_RE = re.compile(r"^REQ-EARS-\d{3}$")
 
 def sections_by_heading(text: str) -> dict[str, str]:
     """Map each `#`-heading line to the body text until the next heading."""
@@ -665,15 +658,6 @@ def build_implementation_readiness_pack(
     return pack
 
 
-def read_plan_for_row(row: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "source_path": row.get("source_path", row.get("file_path", "")),
-        "section_path": row.get("section_path", ""),
-        "line_start": int(row.get("line_start", 0) or 0),
-        "line_end": int(row.get("line_end", 0) or 0),
-    }
-
-
 def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
     execution = story.get("execution_contract", {})
     coverage = story.get("domain_coverage", [])
@@ -831,7 +815,7 @@ def task_seed_surfaces(story: dict[str, Any]) -> list[str]:
     summary = str(signal.get("summary", "")).strip()
     source = str(signal.get("source", "")).strip()
     if status == "Confirmed" and summary:
-        return [safe_cell(f"{source}: {summary}" if source else summary, 220)]
+        return [table_cell(f"{source}: {summary}" if source else summary, 220)]
     return ["[PENDING DOMAIN CONTEXT] Critical surfaces are not confirmed."]
 
 
@@ -854,34 +838,6 @@ def pending_execution_fields(execution: dict[str, Any]) -> list[str]:
     if isinstance(design_signal, dict) and design_signal.get("status") == "Pending":
         pending.append("design_match")
     return pending
-
-
-def domain_context_snapshot(project_id: str) -> dict[str, Any]:
-    base = workspace_path(project_id)
-    domains: dict[str, Any] = {}
-    all_hash = sha256()
-    for domain, folders in DOMAIN_CONTEXT_FOLDERS.items():
-        files: list[dict[str, str]] = []
-        domain_hash = sha256()
-        for folder in folders:
-            path = base / folder
-            if not path.exists():
-                continue
-            for item in sorted(path.rglob("*")):
-                if "04_regeneration" in item.parts:
-                    continue
-                if item.is_file() and item.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml"}:
-                    text = item.read_text(encoding="utf-8")
-                    digest = sha256(text.encode("utf-8")).hexdigest()
-                    relative = item.relative_to(base).as_posix()
-                    files.append({"path": relative, "hash": digest})
-                    domain_hash.update(relative.encode("utf-8"))
-                    domain_hash.update(digest.encode("utf-8"))
-        aggregate = domain_hash.hexdigest() if files else "empty"
-        domains[domain] = {"aggregate_hash": aggregate, "file_count": len(files), "files": files}
-        all_hash.update(domain.encode("utf-8"))
-        all_hash.update(aggregate.encode("utf-8"))
-    return {"aggregate_hash": all_hash.hexdigest(), "domains": domains}
 
 
 def load_ears_requirements(project_id: str) -> list[dict[str, str]]:
@@ -913,19 +869,6 @@ def parse_ears_requirements(requirements_text: str) -> list[dict[str, str]]:
             }
         )
     return rows
-
-
-def ears_trace_ids(context: dict[str, object]) -> list[str]:
-    rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
-    if not isinstance(rows, list):
-        return []
-    ids: list[str] = []
-    for row in rows:
-        if isinstance(row, dict):
-            req_id = str(row.get("id", ""))
-            if EARS_REQUIREMENT_ID_RE.match(req_id):
-                ids.append(req_id)
-    return ids
 
 
 def build_specs_generation_context(
@@ -1001,52 +944,3 @@ def build_specs_generation_context(
     }
     write_json(workspace_path(project_id) / "08_context_packs" / "specs_generation.json", pack)
     return pack
-
-
-def render_context_summary(context: dict[str, object]) -> str:
-    domains = context.get("domains", {}) if isinstance(context, dict) else {}
-    rows: list[str] = []
-    for domain, results in domains.items():
-        if not results:
-            rows.append(f"| {domain} | No focused context retrieved. | N/A |")
-            continue
-        top = results[0]
-        rows.append(
-            f"| {domain} | {safe_cell(top.get('summary', 'Context retrieved'), 160)} | `{top.get('artifact_id', 'N/A')}` |"
-        )
-    return "| Domain | Retrieved Signal | Artifact |\n| --- | --- | --- |\n" + "\n".join(rows)
-
-
-def render_prd_section_context(context: dict[str, object]) -> str:
-    sections = context.get("prd_sections", {}) if isinstance(context, dict) else {}
-    if not isinstance(sections, dict) or not sections:
-        return render_context_summary(context)
-    rows: list[str] = []
-    for section, payload in sections.items():
-        if not isinstance(payload, dict):
-            continue
-        results = payload.get("results", [])
-        if not results:
-            rows.append(f"| {section} | No focused context retrieved. | N/A | N/A |")
-            continue
-        top = results[0]
-        if not isinstance(top, dict):
-            continue
-        trace_ids = top.get("trace_ids", [])
-        trace = ", ".join(trace_ids) if isinstance(trace_ids, list) else str(trace_ids)
-        rows.append(
-            f"| {section} | {safe_cell(top.get('summary', 'Context retrieved'), 180)} | `{top.get('artifact_id', 'N/A')}` | {safe_cell(trace or 'N/A', 80)} |"
-        )
-    return "| PRD / Specs Need | Retrieved Signal | Artifact | Trace |\n| --- | --- | --- | --- |\n" + "\n".join(rows)
-
-
-def bounded_text(text: str, limit: int) -> str:
-    cleaned = text.strip()
-    if len(cleaned) <= limit:
-        return cleaned
-    return cleaned[:limit].rstrip() + "\n\n[TRUNCATED IN GENERATED ARTIFACT - retrieve focused source context if needed]"
-
-
-def safe_cell(value: Any, limit: int) -> str:
-    text = str(value).replace("\n", " ").replace("|", "/").strip()
-    return text[:limit]

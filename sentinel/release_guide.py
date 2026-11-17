@@ -206,7 +206,7 @@ def write_release_guide(project_id: str) -> Path:
     from .brief_model import parse_brief
     from .core.io import write_text
     from .core.paths import workspace_path
-    from .gap_resolution import project_language
+    from .core.text import project_language
     from .release_series import _plain, assign_owners
 
     base = workspace_path(project_id)

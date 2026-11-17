@@ -134,3 +134,5 @@ def known_lenses(lenses_dir: Path | str | None = None) -> set[str]:
 def clear_cache() -> None:
     _load_path_cached.cache_clear()
     _load_package_cached.cache_clear()
+    _load_smell_path_cached.cache_clear()
+    _load_smell_package_cached.cache_clear()

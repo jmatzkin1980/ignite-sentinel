@@ -5,24 +5,12 @@ from .errors import GateRefusal  # IMP-302: typed errors
 import re
 from pathlib import Path
 
-from .discovery import (
-    BRIEF_SECTION_FOR_GAP,
-    PRD_SECTION_FOR_GAP,
-    brief_section_for_gap,
-    count_gaps,
-    extract_functional_signals,
-    extract_metric_signals,
-    extract_personas,
-    parse_gap_rows,
-    raw_input_text,
-    readiness_stage_for_counts,
-    split_evidence_sentences,
-)
+from .discovery import extract_functional_signals, extract_metric_signals, extract_personas, raw_input_text, split_evidence_sentences
 from .brief_model import LENS_TITLES, LENSES, load_brief_model, parse_brief
 from .core.markdown import parse_table_rows
 from .agent_sweep import channel_dispositions
 from .ears import requirements_quality_report
-from .gaps import blocking_severities, is_blocking, parse_gap_answers, parse_gap_table, parse_non_goals, render_non_goals_block
+from .gaps import BRIEF_SECTION_FOR_GAP, PRD_SECTION_FOR_GAP, blocking_severities, brief_section_for_gap, count_gaps, is_blocking, parse_gap_answers, parse_gap_rows, parse_gap_table, parse_non_goals, readiness_stage_for_counts, render_non_goals_block
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
@@ -553,7 +541,6 @@ def spec_self_correction_findings(brief_text: str, gap_answers: dict[str, dict[s
     discrepancy is a hard faithfulness failure: the brief silently dropped
     confirmed scope, so the phase close must abort instead of self-adjusting.
     """
-    from .discovery.workflow import brief_section_for_gap
 
     if parse_brief(brief_text).version == 2:  # IMP-253b: in-place rewrite, checked per place
         from .compilers.brief_v2 import v2_self_correction_findings

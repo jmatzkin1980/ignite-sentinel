@@ -361,7 +361,7 @@ def compile_series(project_id: str) -> dict[str, Any]:
     from .brief_integrity import _gap_rows
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
-    from .gap_resolution import project_language
+    from .core.text import project_language
     from .split import brief_hash
 
     base = workspace_path(project_id)

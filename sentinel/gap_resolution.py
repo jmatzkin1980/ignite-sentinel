@@ -6,9 +6,8 @@ import re
 import shutil
 from pathlib import Path
 
-from .discovery import brief_section_for_gap, count_gaps, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .ears import classify_ears
-from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
+from .gaps import CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -16,6 +15,7 @@ from .source_conflicts import closing_block_note
 from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
+from .core.text import project_language, unique_path
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
 # IMP-250b: the note on a confirmed answer that came from an example file.
@@ -74,7 +74,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = unique_target(target_dir / f"{source.stem}.md")
+    target = unique_path(target_dir / f"{source.stem}.md")
     # IMP-336: the same redaction as /ingest and /sync before the answers are stored or parsed.
     sanitized = sanitize_text(base, source.name, text)
     if sanitized.redactions:
@@ -101,7 +101,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
 
-    report_path = unique_target(target_dir / f"{source.stem}_gap_resolution_report.md")
+    report_path = unique_path(target_dir / f"{source.stem}_gap_resolution_report.md")
     write_text(report_path, render_resolution_report(project_id, change_id, resolution_results))
     report_id = add_node(project_id, "DEC", "gap_resolution_report", report_path, "Gap resolution report", status="active")
     add_edge(project_id, change_id, report_id, "produces")
@@ -177,7 +177,6 @@ _EXAMPLE_EVIDENCE = re.compile(r"\b(example|ejemplo|sample data|datos de ejemplo
 
 def closure_for(gap_id: str, response: dict[str, str], decision: str) -> tuple[str, list[str]]:
     """IMP-257: the closure reason of a confirmed answer and the findings about its citation."""
-    from .gaps import CLOSURE_CITES, CLOSURE_REASONS, REOPEN_FALSE_PREMISE
 
     raw = str(response.get("closure", "")).strip().strip("`").lower().replace(" ", "_")
     findings: list[str] = []
@@ -531,20 +530,3 @@ def append_gap_resolution_log(project_id: str, change_id: str, report_id: str, r
         f"| {utc_now()} | `{change_id}` | `{report_id}` | {len(result['closed'])} | {len(result['partially_closed'])} | {len(result['open'])} | {source_counts['client']} | {source_counts['domain']} | {source_counts['inference']} |\n",
     )
     return path
-
-
-def project_language(project_id: str) -> str:
-    state = read_json(state_path(project_id), {})
-    return state.get("project_language", "en") if state.get("project_language") in {"es", "en"} else "en"
-
-
-def unique_target(path: Path) -> Path:
-    if not path.exists():
-        return path
-    counter = 2
-    while True:
-        candidate = path.with_name(f"{path.stem}-{counter}{path.suffix}")
-        if not candidate.exists():
-            return candidate
-        counter += 1
-

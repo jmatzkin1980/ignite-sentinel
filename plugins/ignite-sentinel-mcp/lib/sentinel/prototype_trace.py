@@ -28,6 +28,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .gaps import parse_gap_rows
+from .core.markdown import table_cell
 from .prototype import INVENTORY_DIR, PrototypeError, load_inventory
 
 TRACE_DIR = "trace"
@@ -177,7 +179,7 @@ def _render_trace_md(project_id: str, traces: list[dict[str, Any]], inventory: d
                 support = f"(inferred) {item['basis']}"
             cells = [item.get("element", ""), texts.get(item.get("element", ""), ""), item.get("level", ""),
                      _s(item.get("data")), _s(item.get("contract")), _s(item.get("rule")), support]
-            out.append("| " + " | ".join(str(c).replace("|", "/") for c in cells) + " |")
+            out.append("| " + " | ".join(table_cell(c) for c in cells) + " |")
         checks = [c for c in p.get("checks") or [] if isinstance(c, dict)]
         if checks:
             out += ["", "Checks:", ""] + [f"- {c.get('check')}: {c.get('finding')} (fix: {c.get('fix_side')})" for c in checks]
@@ -192,7 +194,6 @@ def apply_trace(project_id: str, source: Path) -> dict[str, Any]:
     """Validate one screen trace and store it; every finding is reported and nothing is stored on a finding."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
-    from .discovery import parse_gap_rows
 
     base = workspace_path(project_id)
     inventory = load_inventory(project_id)

@@ -13,7 +13,8 @@ from unittest.mock import patch
 
 from sentinel.brief_model import V2_GAP_ROUTES, parse_brief
 from sentinel.compilers.brief_v2 import render_brief_v2
-from sentinel.discovery.workflow import PRD_SECTION_FOR_GAP, detect_gaps, question_for_gap
+from sentinel.discovery.detection import detect_gaps
+from sentinel.gaps import PRD_SECTION_FOR_GAP, question_for_gap
 from sentinel.glossary import build_glossary, terms_from_answer
 
 ROOT = Path(__file__).resolve().parent

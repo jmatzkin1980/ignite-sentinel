@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .brief_model import lenses_for_v2_id, parse_brief
 
 STATUSES = ("covered", "missing", "ambiguous", "contradictory")
@@ -147,8 +148,6 @@ def validate_obstacles(brief_text: str, payload: dict[str, Any]) -> dict[str, An
 def apply_sufficiency(project_id: str, source: Path) -> dict[str, Any]:
     from .agent_sweep import record_sweep
     from .core.io import append_text, write_text
-    from .discovery import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
-    from .gaps import merge_gaps_by_topic
     from .workspace import read_state, update_state, workspace_path
 
     base = workspace_path(project_id)
