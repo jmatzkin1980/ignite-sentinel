@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import re
 
+from .governed_artifacts import GOVERNED_ARTIFACTS, WORKSPACE_GLOBS
+
 # Workspace layout folders are named ``NN_something`` (``01_discovery``,
 # ``02_requirements``, ``07_changes``, ...). A file carrying such a segment but
 # living outside ``workspaces/`` is workspace content in the wrong place. This
@@ -26,23 +28,22 @@ _LANGUAGE_SENSITIVE_SEGMENTS = ("/01_discovery/", "/02_requirements/", "/07_chan
 
 # Governed artifacts: regenerated ONLY through their owning Sentinel command
 # (invariant #1). A hand Write/Edit to one of these is denied at the tool boundary
-# (IMP-179). This is the single source of truth for the protected set, shared by
-# every surface's guard — the Codex hook (block), the Claude PreToolUse hook
-# (deny), and the Kilo `permission.edit` deny rules in kilo.jsonc. The two hooks
-# are deterministic code we run; Kilo's side is vendor config, so it is declared
-# here and confirmed by observing the editor (IMP-235).
-GOVERNED_ARTIFACT_GLOBS = (
-    "workspaces/*/02_requirements/project-brief.md",
-    "workspaces/*/03_specs/*.md",
-    "workspaces/*/04_backlog/*.md",
-)
-_GOVERNED_ARTIFACT = re.compile(
-    r"(?:^|/)workspaces/[^/]+/(?:"
-    r"02_requirements/project-brief\.md"
-    r"|03_specs/[^/]+\.md"
-    r"|04_backlog/[^/]+\.md"
-    r")$"
-)
+# (IMP-179). IMP-343: the list comes from sentinel.governed_artifacts, the same
+# list `/health` uses to flag hand edits, so the hook and the hand-edit check
+# cover the same files. Every surface's guard reads it — the Codex hook (block),
+# the Claude PreToolUse hook (deny), and the Kilo `permission.edit` deny rules in
+# kilo.jsonc. The two hooks are deterministic code we run; Kilo's side is vendor
+# config, so it is declared there and confirmed by observing the editor (IMP-235).
+GOVERNED_ARTIFACT_GLOBS = tuple(f"workspaces/*/{glob}" for glob in WORKSPACE_GLOBS)
+
+
+def _glob_regex(glob: str) -> "re.Pattern[str]":
+    # `*` matches within one path segment; everything else is literal.
+    body = "[^/]+".join(re.escape(part) for part in glob.split("*"))
+    return re.compile(r"(?:^|/)workspaces/[^/]+/" + body + "$")
+
+
+_GOVERNED_OWNERS = tuple((_glob_regex(glob), owners) for glob, owners in GOVERNED_ARTIFACTS)
 # Tools that write files, across surfaces (Claude, Codex, Kilo editors). Read-type
 # tools must never be denied, so the deny only fires for a known mutating tool;
 # an unknown tool fails open (allow) — deterministic runtime guards (IMP-147) and
@@ -65,10 +66,10 @@ _MUTATING_TOOLS = {
     "search_and_replace",
 }
 _GOVERNED_DENY_REASON = (
-    "This is a governed Ignite Sentinel artifact; it is regenerated only through "
-    "its owning command (/brief, /specs, /backlog) and never hand-edited. Edit the "
-    "upstream evidence and re-run the command instead (invariant #1: mutate only "
-    "via the CLI)."
+    "`{name}` is a governed Ignite Sentinel artifact owned by {owners}. It changes "
+    "only through its owning command and is never hand-edited. Edit the upstream "
+    "evidence (or write the answer or input file the command reads) and re-run the "
+    "command instead (invariant #1: mutate only via the CLI)."
 )
 
 
@@ -133,9 +134,17 @@ def audit_warnings(path: str) -> list[str]:
     return warnings
 
 
+def _governed_owners(path: str) -> str | None:
+    normalized = _normalize(path)
+    for pattern, owners in _GOVERNED_OWNERS:
+        if pattern.search(normalized):
+            return owners
+    return None
+
+
 def is_governed_artifact(path: str) -> bool:
-    """True when the path is a governed artifact (brief/PRD-specs/backlog markdown)."""
-    return bool(_GOVERNED_ARTIFACT.search(_normalize(path)))
+    """True when the path is a governed artifact (see sentinel.governed_artifacts)."""
+    return _governed_owners(path) is not None
 
 
 def _is_mutating_tool(tool_name: str) -> bool:
@@ -150,9 +159,11 @@ def governed_artifact_deny_reason(tool_name: str, path: str) -> str | None:
     """
     if not _is_mutating_tool(tool_name):
         return None
-    if not is_governed_artifact(path):
+    owners = _governed_owners(path)
+    if owners is None:
         return None
-    return _GOVERNED_DENY_REASON
+    name = _normalize(path).rsplit("/", 1)[-1]
+    return _GOVERNED_DENY_REASON.format(name=name, owners=owners)
 
 
 def pre_tool_use_decision(tool_name: str, args, context=None) -> dict:

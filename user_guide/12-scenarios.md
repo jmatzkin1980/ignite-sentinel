@@ -28,7 +28,7 @@ Several commands take a small JSON or Markdown file (`/annotate`, `/challenge`, 
 
 ### Two rules that hold in every scenario
 
-1. **Governed files are changed only by commands.** The gaps document, requirements, project brief, specs and backlog files are produced and updated by Sentinel. A hand edit of the brief, specs or backlog files is denied by the editor hook; a hand edit of any governed file, including `gaps.md` and `requirements.md`, is flagged by `/health`. To change content, give Sentinel new evidence: answers go through `/resolve-gaps`, new material through `/ingest`, `/sync` or `/sources`.
+1. **Governed files are changed only by commands.** The gaps document, requirements, project brief, specs and backlog files are produced and updated by Sentinel. A hand edit of any of these files is denied by the editor hook, and one made another way is flagged by `/health`. To change content, give Sentinel new evidence: answers go through `/resolve-gaps`, new material through `/ingest`, `/sync` or `/sources`.
 2. **A refusal is information, not a failure.** A command that stops tells you why, usually with a `next step:` line. The command `/next PROJECT_ID` prints the next step alone, at any time. Scenario 4 covers every kind of refusal.
 
 ### Which scenario is yours?

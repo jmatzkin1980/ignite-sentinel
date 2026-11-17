@@ -55,10 +55,10 @@ Some files may only change through a Sentinel command, because other files are d
 | `01_discovery/gaps.md` | `/ingest`, `/gaps`, `/resolve-gaps` |
 | `02_requirements/requirements.md` | `/ingest`, `/resolve-gaps` |
 | `02_requirements/project-brief.md` | `/brief` |
-| `03_specs/*.md` | `/specs` |
-| `04_backlog/*.md` | `/backlog`, `/story-status` |
+| `03_specs/*.md` (top level) | `/specs` |
+| `04_backlog/*.md` (top level) | `/backlog`, `/story-status` |
 
-In Claude Code a hook denies an agent's hand edit of the brief, specs and backlog files (Codex and Kilo Code carry their own guards). `/health` flags a hand edit of any file in the table. Client answers go through `/resolve-gaps` or `/sync`; new evidence goes through `/ingest`, `/sync`, `/harvest` or `/sources`.
+In Claude Code a hook denies an agent's hand edit of any file in the table and names the command that owns it (Codex and Kilo Code carry their own guards for the same files). `/health` flags a hand edit of any file in the table made another way. Client answers go through `/resolve-gaps` or `/sync`; new evidence goes through `/ingest`, `/sync`, `/harvest` or `/sources`.
 
 > [!IMPORTANT]
 > Never hand-edit a governed artifact. If something in it is wrong, fix the evidence or the answer and rerun the command that owns the file.

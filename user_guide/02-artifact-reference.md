@@ -39,9 +39,9 @@ Every artifact falls into one of three groups.
 | **Disposable and regenerable** | A view, a cache or an index. Safe to delete. | Re-run the command that builds it. |
 
 > [!IMPORTANT]
-> Three kinds of file are protected by the editor hook on Claude Code, Codex and Kilo Code: `02_requirements/project-brief.md`, the top-level `03_specs/*.md` and the top-level `04_backlog/*.md`. A hand write to one of them is denied. Files in sub-folders (for example `03_specs/units/`) and in release folders (`<rN>/`) are not covered by the hook but are still generated: do not edit them.
+> Five kinds of file are protected by the editor hook on Claude Code, Codex and Kilo Code: `01_discovery/gaps.md`, `02_requirements/requirements.md`, `02_requirements/project-brief.md`, the top-level `03_specs/*.md` and the top-level `04_backlog/*.md`. A hand write to one of them is denied, and the refusal names the command that owns the file. Files in sub-folders (for example `03_specs/units/`) and in release folders (`<rN>/`) are not covered by the hook but are still generated: do not edit them.
 >
-> `01_discovery/gaps.md` and `02_requirements/requirements.md` are not blocked by the hook, but `/health` records a hash of them and of the brief, specs and backlog, and reports any hand edit. So five paths are watched even though three are blocked.
+> `/health` records a hash of the same five and reports any hand edit made some other way. The hook and `/health` read one list in the runtime, so they always cover the same files.
 >
 > A hand edit of a watched file is never absorbed silently. The warning stays until the file is reverted or regenerated, and before a command may overwrite the edit Sentinel copies the file to `.sentinel/hand_edits/<timestamp>-<command>/`. The command prints a `sentinel warning:` line when it changed the file, and `/health` keeps reporting the copy until you carry the change through the owning command or `/sync` and delete the copy.
 
@@ -145,7 +145,7 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 
 | File | Purpose | Read by | Edit rule | Written by |
 |---|---|---|---|---|
-| `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You, then the client and domain owners | Never edit by hand (watched by `/health`); answers go through `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/resolve-gaps`, `/gaps` |
+| `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You, then the client and domain owners | Never edit by hand (blocked by the hook, watched by `/health`); write answers in a separate response file for `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/resolve-gaps`, `/gaps` |
 | `requirement_maturity_report.md` | Verdict: `READY_FOR_SPECS` or `BLOCKED`, and why. | BA, PM | Never edit | `/maturity` |
 | `assumptions.md` | Register of assumptions a BA took on knowingly, with owner, risk and the quote that justifies them. | BA, PM, reviewers | Never edit | `/assume` |
 | `stakeholders.md` | Who answers for which lens. Used to route gaps to people. | BA | Never edit by hand; use `/stakeholders --add` | `/stakeholders` |
@@ -196,7 +196,7 @@ All of them are append-only records of what the runtime accepted and rejected. G
 |---|---|---|---|---|
 | `project-brief.md` | The crystallised handoff from discovery to specs. | Everyone: BA, PM, design, tech, quality, the agents | **Never edit by hand** (blocked by the hook) | `/brief`; `/maturity` rewrites it when the verdict allows |
 | `brief_compile_report.json` | What the compiler placed where and what it left pending. | BA, developers | Never edit | `/brief` |
-| `requirements.md` | Requirement statements extracted from raw input, plus normalised `REQ-EARS-*` rows. | Specs, `/validate` | Never edit by hand (watched by `/health`) | `/ingest`, `/resolve-gaps` |
+| `requirements.md` | Requirement statements extracted from raw input, plus normalised `REQ-EARS-*` rows. | Specs, `/validate` | Never edit by hand (blocked by the hook, watched by `/health`) | `/ingest`, `/resolve-gaps` |
 
 ### The brief
 

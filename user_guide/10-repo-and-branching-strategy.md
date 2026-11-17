@@ -91,7 +91,7 @@ Each workspace's own `.gitignore` still keeps its rebuildable files out; the roo
 
 **One writer at a time.** Two people running commands on the same workspace will produce conflicting `state.json` and artifacts, and Sentinel's workspace lock does not protect files on network drives or synced folders such as OneDrive or Dropbox. Share through git instead.
 
-**Do not hand-edit** the brief, specs, backlog, `gaps.md` or `requirements.md`: `/health` flags the edit, and in an agent the hook denies a hand edit of the brief, the top-level specs and the backlog. Resolve a gap through `/resolve-gaps` or `/sync`; add evidence through `/sync --source` (the first request through `/ingest`) ([Workflows](03-workflows.md)). If a merge conflict lands in one of those files, take one side, then run the owning command again to regenerate it.
+**Do not hand-edit** the brief, specs, backlog, `gaps.md` or `requirements.md`: in an agent the hook denies the edit, and `/health` flags one made another way. Resolve a gap through `/resolve-gaps` or `/sync`; add evidence through `/sync --source` (the first request through `/ingest`) ([Workflows](03-workflows.md)). If a merge conflict lands in one of those files, take one side, then run the owning command again to regenerate it.
 
 ## Audit trail
 
