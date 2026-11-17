@@ -41,6 +41,9 @@ CONTEXT_FOLDERS = {
     "07_changes": ("change_context", "product"),
 }
 INDEXABLE_SUFFIXES = {".md", ".txt", ".html", ".htm"}
+# IMP-336: graph nodes whose file is a copy of client material (the /ingest raw copy,
+# a /sync or /resolve-gaps change copy); memory indexes them behind the injection shield.
+CLIENT_SOURCE_NODE_TYPES = {"raw_input", "change"}
 # IMP-126: artifact types that make up the episodic/temporal timeline — changes,
 # their impact/metabolism trail, and client/domain interactions. The timeline is
 # derived read-only from indexed chunks; it never duplicates the graph.
@@ -169,6 +172,13 @@ def redact_for_memory(project_id: str, text: str) -> str:
 
     findings = detect_secrets(text, load_allowlist(workspace_path(project_id)))
     return redact(text, findings) if findings else text
+
+
+def shield_for_memory(text: str) -> str:
+    """IMP-336: blank the injection-flagged lines of client text, as `shield_source` does at ingest."""
+    from .injection import detect_injection, neutralize
+
+    return neutralize(text, detect_injection(text))
 
 
 # IMP-284: the embedding extras run offline only. These flags make the Hugging
@@ -486,6 +496,7 @@ class ContextBroker:
         iteration: int = 1,
         metadata: dict[str, Any] | None = None,
         skip_unchanged: bool = False,
+        client_source: bool = False,
     ) -> bool:
         trace_ids = trace_ids or [artifact_id]
         metadata = metadata or {}
@@ -494,6 +505,11 @@ class ContextBroker:
         sensitivity = metadata.get("sensitivity", "internal")
         # IMP-285: memory never stores a secret, whatever path the text came from.
         text = redact_for_memory(self.project_id, text)
+        if client_source:
+            # IMP-336: client text read back from the workspace (a raw or change copy)
+            # gets the same injection shield /ingest and /sync apply, so a flagged
+            # line is never served by /retrieve. Idempotent on already-shielded text.
+            text = shield_for_memory(text)
         source_hash = content_hash(text)
         if skip_unchanged and self.artifact_is_current(artifact_id, source_hash):
             return False
@@ -1171,6 +1187,7 @@ def _reindex_nodes(
             domain=node.get("domain", "product"),
             trace_ids=[node["id"]],
             skip_unchanged=not full,
+            client_source=node.get("type") in CLIENT_SOURCE_NODE_TYPES,
         )
         if changed:
             indexed.append(node["id"])
@@ -1247,10 +1264,29 @@ def index_context_folders(project_id: str, broker: ContextBroker | None = None, 
         return _index_context_folders(project_id, broker, full)
 
 
+def _sentinel_output_paths(project_id: str) -> set[str]:
+    """IMP-336: files in the context folders that Sentinel wrote itself (impact reports, digests…).
+
+    Every other file there is client material (a raw or change copy, or a file the
+    BA dropped in) and is indexed behind the injection shield.
+    """
+    from .core.graph import load_graph
+
+    paths: set[str] = set()
+    for node in load_graph(project_id).get("nodes", []):
+        if node.get("path") and node.get("type") not in CLIENT_SOURCE_NODE_TYPES:
+            try:
+                paths.add(str(Path(node["path"]).resolve()))
+            except OSError:
+                continue
+    return paths
+
+
 def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -> dict[str, list[str]]:
     base = workspace_path(project_id)
     indexed: list[str] = []
     skipped: list[str] = []
+    own_outputs = _sentinel_output_paths(project_id)
     for relative, (artifact_type, domain) in CONTEXT_FOLDERS.items():
         folder = base / relative
         if not folder.exists():
@@ -1267,6 +1303,7 @@ def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -
                 domain=domain,
                 trace_ids=[artifact_id],
                 skip_unchanged=not full,
+                client_source=str(path.resolve()) not in own_outputs,
             )
             if changed:
                 indexed.append(artifact_id)

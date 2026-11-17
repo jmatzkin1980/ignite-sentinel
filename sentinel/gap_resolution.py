@@ -11,6 +11,7 @@ from .ears import classify_ears
 from .gaps import DECISION_KIND, NON_GOAL_KIND, parse_gap_responses
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
+from .secrets_scan import sanitize_text
 from .source_conflicts import closing_block_note
 from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
@@ -74,7 +75,13 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = unique_target(target_dir / f"{source.stem}.md")
-    copy_file(source, target)
+    # IMP-336: the same redaction as /ingest and /sync before the answers are stored or parsed.
+    sanitized = sanitize_text(base, source.name, text)
+    if sanitized.redactions:
+        text = sanitized.text
+        write_text(target, text)
+    else:
+        copy_file(source, target)
     responses = parse_gap_responses(text)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
@@ -125,7 +132,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         broker=broker,
     )
     write_text(report_path, render_resolution_report(project_id, change_id, resolution_results, metabolism))
-    broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id])
+    broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id], client_source=True)
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[change_id, report_id])
     reindex_workspace(project_id)
     mark_source_processed(project_id, source, "gap_resolved", change_id, source_id=source_id)

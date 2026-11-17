@@ -33,7 +33,7 @@ SEEDED = {
     "jwt": "eyJ" + "hbGciOiJIUzI1NiJ9" + ".eyJ" + "zdWIiOiIxMjM0NTY3ODkwIn0" + ".dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
     "token": "ghp" + "_" + "1234567890abcdefghijABCDEFGHIJ123456",
     "url_credentials": "postgres://admin:" + "s3cr3tPass@db.internal:5432/app",
-    "connection_string": "Server=tcp:db.example.local;Database=app;User ID=sa;" + "Password=Sup3rS3cret!;",
+    "connection_string": "Server=tcp:db.example.local;Database=app;User ID=sa;" + "Password=" + "Sup3rS3cret!;",
 }
 REQUIREMENT = (
     "We need a dashboard with metric cards. Login must support roles and permissions.\n\n"
@@ -45,7 +45,8 @@ REQUIREMENT = (
 
 class DetectorTests(unittest.TestCase):
     def test_each_type_is_detected_once(self) -> None:
-        self.assertEqual(set(SECRET_TYPES), set(SEEDED))
+        # IMP-336: `credential` (key-value) is covered in tests/test_privacy_imp336.py
+        self.assertEqual(set(SECRET_TYPES), set(SEEDED) | {"credential"})
         for kind, value in SEEDED.items():
             with self.subTest(kind=kind):
                 findings = detect_secrets(f"before {value} after")

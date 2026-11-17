@@ -140,7 +140,11 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     raw = source.read_text(encoding="utf-8")
     previous = load_harvest(base)
     previous_repos = [str(repo) for repo in previous.get("repos", [])]
-    parsed = parse_harvest(raw, previous_repos)
+    # IMP-336: parse the redacted text, so harvest.json entries never carry a secret
+    # (alerts are recorded below, once the harvest is accepted).
+    from .secrets_scan import detect_secrets, load_allowlist, redact
+
+    parsed = parse_harvest(redact(raw, detect_secrets(raw, load_allowlist(base))), previous_repos)
     if parsed["errors"]:
         raise HarvestError("Harvest rejected:\n- " + "\n- ".join(parsed["errors"]))
     source_id = open_source_row(project_id, source, "harvested")
