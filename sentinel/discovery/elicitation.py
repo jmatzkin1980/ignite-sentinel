@@ -1,9 +1,11 @@
 """Elicitation text built from open gaps: interview script, FAQ and gap rounds."""
 from __future__ import annotations
 
+import re
+
 from ..core.io import read_json, write_text
 from ..errors import GateRefusal
-from ..gaps import candidate_options_for_gap, evidence_note_for_gap, gap_kind, gap_meanwhile_map, human_title_for_gap, is_blocking, lens_for_gap, parse_gap_answers, parse_gap_rows, question_for_gap
+from ..gaps import candidate_options_for_gap, gap_kind, gap_meanwhile_map, human_title_for_gap, is_blocking, lens_for_gap, parse_gap_answers, parse_gap_rows, question_for_gap
 from ..workspace import load_config, read_state, workspace_path
 
 
@@ -12,85 +14,127 @@ from ..workspace import load_config, read_state, workspace_path
 _INTERVIEW_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 
-def interview_probing_for_gap(gap: dict[str, str], language: str = "en") -> list[dict[str, str]]:
-    """1-2 cited probing follow-ups DERIVED from the IMP-113 candidate options.
+# IMP-349: the interview goes to the client, so it names no lens, severity or other
+# internal label. Each question keeps its `### GAP-...` heading: /resolve-gaps reads the
+# answers back by that id. Questions are grouped under plain topic names instead.
+_INTERVIEW_TOPICS = {
+    "en": {"business": "Business goals and rules", "product": "Product scope", "design": "Design and user experience",
+           "technical": "Systems and data", "quality": "Quality and testing",
+           "compliance": "Security, privacy and compliance", "delivery": "Delivery and rollout"},
+    "es": {"business": "Objetivos y reglas de negocio", "product": "Alcance del producto", "design": "Diseño y experiencia de usuario",
+           "technical": "Sistemas y datos", "quality": "Calidad y pruebas",
+           "compliance": "Seguridad, privacidad y cumplimiento", "delivery": "Entrega y puesta en marcha"},
+}
+_INTERVIEW_OTHER_TOPIC = {"en": "Other questions", "es": "Otras preguntas"}
+_INTERVIEW_ANSWER_FIELDS = {
+    "en": ("- Answer:", "- Owner / source:", "- Evidence or reference:", "- Decision status:"),
+    "es": ("- Respuesta:", "- Owner / fuente:", "- Evidencia o referencia:", "- Estado de decisión:"),
+}
+_GENERIC_QUESTIONS = ("What confirmed information resolves this uncertainty?", "¿Qué información confirmada resuelve esta incertidumbre?")
+# IMP-349: a follow-up built from the text the lens check matched, per gap. A gap that is
+# not listed gets no follow-up: its matched text cannot be turned into an honest question.
+_INTERVIEW_FOLLOW_UPS = {
+    "en": {
+        "GAP-METRIC-SOURCE": 'You mention "{m}": where does that figure come from, what is the value today, and how will it be measured?',
+        "GAP-METRIC-DEFINITION": 'You mention "{m}": which measures do you mean exactly, and how is each one calculated?',
+        "GAP-CTP-EXCLUSION": 'You mention "{m}": what exactly is left out, and who decided it?',
+        "GAP-DESIGN-FLOW": 'You mention "{m}": how do people get there, and what do they do there step by step?',
+        "GAP-DESIGN-STATES": 'For "{m}": what should people see while it loads, when there is nothing to show, and when something fails?',
+        "GAP-DESIGN-PROTOTYPE-INPUT": 'What about "{m}" should a prototype help you decide or test with users?',
+        "GAP-FRONTEND-SURFACE": 'For "{m}": who uses it, and what can each kind of user see or do there?',
+        "GAP-BACKEND-SURFACE": 'For "{m}": where does its data come from, and what should happen if that source is not available?',
+        "GAP-TECH-DEEP-DIVE-INPUT": 'Which systems or components are behind "{m}"?',
+        "GAP-AUTH-MODEL": 'You mention "{m}": how will people sign in, and which roles or permissions exist?',
+        "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": 'You wrote: "{m}". What does that mean in practice: which condition, value or limit applies?',
+        "GAP-QUALITY-WEAK-WORD-SMELL": 'You wrote: "{m}". How would you check it: which value or result counts as good enough?',
+        "GAP-HYPOTHETICAL-ANCHOR": 'You wrote: "{m}". Has this already happened? If so, when, and what happened?',
+    },
+    "es": {
+        "GAP-METRIC-SOURCE": 'El texto menciona "{m}": ¿de dónde sale ese valor, cuál es el valor hoy y cómo se va a medir?',
+        "GAP-METRIC-DEFINITION": 'El texto menciona "{m}": ¿qué medidas son exactamente y cómo se calcula cada una?',
+        "GAP-CTP-EXCLUSION": 'El texto menciona "{m}": ¿qué queda afuera exactamente y quién lo decidió?',
+        "GAP-DESIGN-FLOW": 'El texto menciona "{m}": ¿cómo llegan las personas ahí y qué hacen paso a paso?',
+        "GAP-DESIGN-STATES": 'Para "{m}": ¿qué deberían ver las personas mientras carga, cuando no hay nada para mostrar y cuando algo falla?',
+        "GAP-DESIGN-PROTOTYPE-INPUT": '¿Qué aspecto de "{m}" debería ayudar a decidir o probar con usuarios un prototipo?',
+        "GAP-FRONTEND-SURFACE": 'Para "{m}": ¿quién lo usa y qué puede ver o hacer cada tipo de usuario?',
+        "GAP-BACKEND-SURFACE": 'Para "{m}": ¿de dónde salen sus datos y qué debe pasar si esa fuente no está disponible?',
+        "GAP-TECH-DEEP-DIVE-INPUT": '¿Qué sistemas o componentes están detrás de "{m}"?',
+        "GAP-AUTH-MODEL": 'El texto menciona "{m}": ¿cómo van a ingresar las personas y qué roles o permisos existen?',
+        "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": 'El texto dice: "{m}". ¿Qué significa en la práctica: qué condición, valor o límite aplica?',
+        "GAP-QUALITY-WEAK-WORD-SMELL": 'El texto dice: "{m}". ¿Cómo se verificaría: qué valor o resultado alcanza?',
+        "GAP-HYPOTHETICAL-ANCHOR": 'El texto dice: "{m}". ¿Esto ya pasó? Si es así, ¿cuándo y qué pasó?',
+    },
+}
+# A matched text that is a path, a gap id, a source id or a section mark is not something
+# the client wrote, so it never goes into a client question.
+_INTERNAL_MENTION = re.compile(r"GAP-|[A-Z]{2,}-\d|/|\\|§|\bharvest\b")
 
-    Never invents questions: it reuses ``candidate_options_for_gap`` verbatim, so a gap
-    without local evidence (no ``evidence_mention``) yields no probing questions (silence).
+
+def interview_probing_for_gap(gap: dict[str, str], language: str = "en") -> list[dict[str, str]]:
+    """At most one follow-up question built from the text the lens check matched.
+
+    IMP-349: it used to repeat the BA's candidate options ("Confirm `x` is in scope ...").
+    Now it is a plain question to the client that quotes the matched text, or nothing
+    when that text cannot be phrased honestly. A gap without local evidence gets nothing.
     """
-    return [
-        {"text": option["text"], "citation": option["citation"]}
-        for option in candidate_options_for_gap(gap, language)
-    ]
+    if str(gap.get("status", "OPEN")).strip("`").upper() == "CLOSED":
+        return []
+    mention = str(gap.get("evidence_mention", "")).strip()
+    if not mention or mention.upper() == "N/A" or _INTERNAL_MENTION.search(mention):
+        return []
+    template = _INTERVIEW_FOLLOW_UPS["es" if language == "es" else "en"].get(str(gap.get("id", "")).strip("`"))
+    if not template:
+        return []
+    return [{"text": template.format(m=mention.rstrip(".")), "citation": mention}]
+
+
+def _interview_question(gap: dict[str, str], language: str) -> str:
+    question = str(gap.get("question") or "").strip()
+    if not question or question in _GENERIC_QUESTIONS:
+        question = question_for_gap(gap["id"], language)
+    return question
 
 
 def _interview_gap_entry(number: int, gap: dict[str, str], language: str = "en") -> str:
-    gap_id = gap["id"]
-    lens = gap.get("lens") or lens_for_gap(gap_id)
-    severity = str(gap.get("severity", "")).strip("`").lower()
-    title = human_title_for_gap(gap_id, language)
-    question = str(gap.get("question") or question_for_gap(gap_id, language)).strip()
-    context = evidence_note_for_gap(gap, language)
-    probing = interview_probing_for_gap(gap, language)
-    if language == "es":
-        lines = [f"{number}. {title} (`{gap_id}`, severidad `{severity}`, lente `{lens}`)", ""]
-        if context:
-            lines.append(f"- Contexto citado: {context}")
-        lines.append(f"- Preguntar: {question}")
-        if probing:
-            lines.append("- Preguntas de profundizacion:")
-            for probe in probing:
-                lines.append(f"  - {probe['text']} Cita local: `{probe['citation']}`.")
-        return "\n".join(lines)
-    lines = [f"{number}. {title} (`{gap_id}`, severity `{severity}`, lens `{lens}`)", ""]
-    if context:
-        lines.append(f"- Cited context: {context}")
-    lines.append(f"- Ask: {question}")
-    if probing:
-        lines.append("- Probing questions:")
-        for probe in probing:
-            lines.append(f"  - {probe['text']} Local citation: `{probe['citation']}`.")
+    lang = "es" if language == "es" else "en"
+    lines = [f"### {gap['id']}", "", f"**{number}.** {_interview_question(gap, language)}", ""]
+    for probe in interview_probing_for_gap(gap, language):
+        lines += [probe["text"], ""]
+    lines += list(_INTERVIEW_ANSWER_FIELDS[lang])
     return "\n".join(lines)
+
+
+def _by_severity(gaps: list[dict[str, str]]) -> list[dict[str, str]]:
+    return sorted(gaps, key=lambda g: (_INTERVIEW_SEVERITY_ORDER.get(str(g.get("severity", "")).strip("`").lower(), 4), g["id"]))
 
 
 def _interview_grouped_sections(
     gaps: list[dict[str, str]], counter_start: int, language: str
 ) -> tuple[list[str], int]:
-    """Render gaps grouped by lens (alphabetical, stable), continuously numbered."""
+    """Render gaps grouped by topic (stable order), continuously numbered."""
+    lang = "es" if language == "es" else "en"
+    topics = _INTERVIEW_TOPICS[lang]
     by_lens: dict[str, list[dict[str, str]]] = {}
     for gap in gaps:
         lens = gap.get("lens") or lens_for_gap(gap["id"])
-        by_lens.setdefault(lens, []).append(gap)
+        by_lens.setdefault(lens if lens in topics else "", []).append(gap)
     sections: list[str] = []
     number = counter_start
-    for lens in sorted(by_lens):
-        lens_gaps = sorted(
-            by_lens[lens],
-            key=lambda g: (_INTERVIEW_SEVERITY_ORDER.get(str(g.get("severity", "")).strip("`").lower(), 4), g["id"]),
-        )
+    for lens in sorted(by_lens, key=lambda key: (key == "", key)):
         entries = []
-        for gap in lens_gaps:
+        for gap in _by_severity(by_lens[lens]):
             entries.append(_interview_gap_entry(number, gap, language))
             number += 1
-        sections.append(f"### {lens}\n\n" + "\n\n".join(entries))
+        sections.append(f"**{topics.get(lens, _INTERVIEW_OTHER_TOPIC[lang])}**\n\n" + "\n\n".join(entries))
     return sections, number
 
 
 def _owner_heading(owner: dict[str, str] | None, language: str) -> str:
     es = language == "es"
     if owner is None:
-        return (
-            "Sin dueño asignado (asignar vía `/stakeholders`)"
-            if es
-            else "Unassigned (no stakeholder owner — assign via `/stakeholders`)"
-        )
-    label = "Dueño" if es else "Owner"
-    domain_label = "dominio" if es else "domain"
-    heading = f"{label}: {owner.get('name', '').strip() or owner.get('id', '')} ({domain_label} `{owner.get('domain', '')}`"
-    profile = owner.get("respondent_profile", "").strip()
-    if profile:
-        heading += f", respondent_profile `{profile}`"
-    return heading + ")"
+        return "Preguntas sin contacto asignado todavía" if es else "Questions with no contact named yet"
+    name = owner.get("name", "").strip() or owner.get("id", "")
+    return f"Preguntas para {name}" if es else f"Questions for {name}"
 
 
 def _interview_owner_sections(
@@ -119,15 +163,11 @@ def _interview_owner_sections(
     number = counter_start
     for key in ordered_keys:
         owner, owner_gaps = buckets[key]
-        owner_gaps = sorted(
-            owner_gaps,
-            key=lambda g: (_INTERVIEW_SEVERITY_ORDER.get(str(g.get("severity", "")).strip("`").lower(), 4), g["id"]),
-        )
         entries = []
-        for gap in owner_gaps:
+        for gap in _by_severity(owner_gaps):
             entries.append(_interview_gap_entry(number, gap, language))
             number += 1
-        sections.append(f"### {_owner_heading(owner, language)}\n\n" + "\n\n".join(entries))
+        sections.append(f"**{_owner_heading(owner, language)}**\n\n" + "\n\n".join(entries))
     return sections, number
 
 
@@ -150,28 +190,37 @@ def render_interview_script(
         if route_by_owner:
             return _interview_owner_sections(section_gaps, stakeholders or [], counter, language)
         return _interview_grouped_sections(section_gaps, counter, language)
+    # IMP-349: written for the client. No word here may match the "unvalidated source"
+    # pattern of source_routing.json (it reads the first lines of an answer file), or an
+    # answered copy fed to /resolve-gaps could not close anything.
     if language == "es":
         header = (
             f"# Guion de entrevista - {project_id}\n\n"
-            "Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion "
-            "(gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion "
-            "salen de las opciones candidatas citadas; nunca se inventan. Este guion "
-            "NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.\n"
+            "Estas son las preguntas que necesitamos responder para completar el requerimiento, "
+            "las más urgentes primero. Escribir cada respuesta debajo de su pregunta: en "
+            "\"Respuesta\" la respuesta, en \"Owner / fuente\" quién la da, en \"Evidencia o "
+            "referencia\" el documento, reunión o mensaje que la respalda, y en \"Estado de "
+            "decisión\" confirmado, pendiente o no aplica.\n\n"
+            "Cada pregunta empieza con un código de referencia (por ejemplo `GAP-SCOPE`); "
+            "mantenerlo junto a la respuesta, porque con él asociamos cada respuesta a su pregunta.\n"
         )
         blocking_heading = "## Preguntas bloqueantes"
         followup_heading = "## Preguntas de seguimiento"
-        empty = "_No hay gaps abiertos: no hay preguntas para la entrevista._"
+        empty = "_No hay preguntas abiertas para la entrevista._"
     else:
         header = (
             f"# Interview Script - {project_id}\n\n"
-            "READ-ONLY derived view of the open gaps, ordered as a meeting script "
-            "(blocking gaps first, grouped by lens). Probing questions come from the cited "
-            "candidate options; they are never invented. This script does NOT replace "
-            "`01_discovery/gaps.md` (the source of truth) and closes no gap.\n"
+            "These are the questions we need answered to complete the requirement, the most "
+            "urgent first. Please write each answer under its question: under \"Answer\" the "
+            "answer, under \"Owner / source\" who gives it, under \"Evidence or reference\" the "
+            "document, meeting or message that supports it, and under \"Decision status\" "
+            "confirmed, pending or not applicable.\n\n"
+            "Each question starts with a reference code (for example `GAP-SCOPE`); please keep "
+            "it with your answer, because we use it to match each answer to its question.\n"
         )
         blocking_heading = "## Blocking questions"
         followup_heading = "## Follow-up questions"
-        empty = "_No open gaps: there are no interview questions._"
+        empty = "_No open questions: there are no interview questions._"
     if not open_gaps:
         return header + "\n" + empty + "\n"
     parts = [header]

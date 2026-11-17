@@ -1,152 +1,270 @@
 # Interview Script - [PROJECT_ID]
 
-READ-ONLY derived view of the open gaps, ordered as a meeting script (blocking gaps first, grouped by lens). Probing questions come from the cited candidate options; they are never invented. This script does NOT replace `01_discovery/gaps.md` (the source of truth) and closes no gap.
+These are the questions we need answered to complete the requirement, the most urgent first. Please write each answer under its question: under "Answer" the answer, under "Owner / source" who gives it, under "Evidence or reference" the document, meeting or message that supports it, and under "Decision status" confirmed, pending or not applicable.
+
+Each question starts with a reference code (for example `GAP-SCOPE`); please keep it with your answer, because we use it to match each answer to its question.
 
 
 ## Follow-up questions
 
-### business
+**Business goals and rules**
 
-1. Business Rules (`GAP-BUSINESS-RULES`, severity `medium`, lens `business`)
+### GAP-BUSINESS-RULES
 
-- Ask: Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?
+**1.** Which rules, exceptions, validations, fallbacks, or exclusions govern the behavior?
 
-2. Exclusion Counterpart (`GAP-CTP-EXCLUSION`, severity `medium`, lens `business`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Cited context: The input mentions "out of scope" but does not describe the missing information for this gap.
-- Ask: For each exclusion: which decision made it, and where does it come back (or why never)?
-- Probing questions:
-  - Confirm `out of scope` is in scope and answer the missing `Exclusion Counterpart` detail. Local citation: `out of scope`.
-  - Confirm `out of scope` is context-only, out of scope, or pending, and state the boundary. Local citation: `out of scope`.
+### GAP-CTP-EXCLUSION
 
-3. Metric Definition (`GAP-METRIC-DEFINITION`, severity `medium`, lens `business`)
+**2.** For each exclusion: which decision made it, and where does it come back (or why never)?
 
-- Cited context: The input mentions "metric" but does not define the metric: missing formula/unit, source, or threshold.
-- Ask: How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?
-- Probing questions:
-  - Confirm `metric` is in scope and answer the missing `Metric Definition` detail. Local citation: `metric`.
-  - Confirm `metric` is context-only, out of scope, or pending, and state the boundary. Local citation: `metric`.
+You mention "out of scope": what exactly is left out, and who decided it?
 
-4. Metric Source (`GAP-METRIC-SOURCE`, severity `medium`, lens `business`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Cited context: The metric "30 percent" appears without a source, baseline, or measurement method.
-- Ask: What is the source or baseline for the quantitative metric?
-- Probing questions:
-  - Confirm `30 percent` is the success target and provide source, baseline, owner, and measurement method. Local citation: `30 percent`.
-  - Treat `30 percent` as a directional target until source/baseline are confirmed, naming the missing evidence. Local citation: `30 percent`.
+### GAP-METRIC-DEFINITION
 
-5. PRD Persona Detail (`GAP-PRD-PERSONA-DETAIL`, severity `medium`, lens `business`)
+**3.** How is each metric/KPI defined (formula, unit), what source does it come from, and what is its baseline and target threshold?
 
-- Ask: For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?
+You mention "metric": which measures do you mean exactly, and how is each one calculated?
 
-### compliance
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-6. Governance Constraints (`GAP-GOVERNANCE-CONSTRAINTS`, severity `medium`, lens `compliance`)
+### GAP-METRIC-SOURCE
 
-- Ask: Which security, privacy, compliance, audit, or operational restrictions must be respected?
+**4.** What is the source or baseline for the quantitative metric?
 
-7. Domain Glossary (`GAP-PRD-GLOSSARY-GOVERNANCE`, severity `medium`, lens `compliance`)
+You mention "30 percent": where does that figure come from, what is the value today, and how will it be measured?
 
-- Ask: Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-8. PRD Governance (`GAP-PRD-GOVERNANCE`, severity `medium`, lens `compliance`)
+### GAP-PRD-PERSONA-DETAIL
 
-- Ask: Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?
+**5.** For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?
 
-### delivery
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-9. Delivery Readiness (`GAP-DELIVERY-READINESS`, severity `medium`, lens `delivery`)
+**Security, privacy and compliance**
 
-- Ask: Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?
+### GAP-GOVERNANCE-CONSTRAINTS
 
-10. Dependencies And Roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severity `medium`, lens `delivery`)
+**6.** Which security, privacy, compliance, audit, or operational restrictions must be respected?
 
-- Ask: What does the first version need, what can wait, what does it depend on, and who owns each dependency?
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-11. Rollout And Environments (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severity `medium`, lens `delivery`)
+### GAP-PRD-GLOSSARY-GOVERNANCE
 
-- Ask: Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?
+**7.** Which domain terms does the project use, and for each: its definition, its canonical name in code, API or data, and what it must not be confused with?
 
-### design
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-12. User Journey And Screens (`GAP-DESIGN-FLOW`, severity `medium`, lens `design`)
+### GAP-PRD-GOVERNANCE
 
-- Cited context: The input mentions "dashboard" but does not describe the journey, navigation, or interaction flow around it.
-- Ask: Which user journey, screens, flows, copy, or interaction changes are in scope?
-- Probing questions:
-  - Confirm `dashboard` is in scope and answer the missing `User Journey And Screens` detail. Local citation: `dashboard`.
-  - Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
+**8.** Which mandatory constraints, governance rules and audit requirements apply, and who owns each pending input?
 
-13. Prototype Focus (`GAP-DESIGN-PROTOTYPE-INPUT`, severity `medium`, lens `design`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Cited context: The input mentions "dashboard" but does not state what Design must prototype or validate.
-- Ask: What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?
-- Probing questions:
-  - Confirm `dashboard` is in scope and answer the missing `Prototype Focus` detail. Local citation: `dashboard`.
-  - Confirm `dashboard` is context-only, out of scope, or pending, and state the boundary. Local citation: `dashboard`.
+**Delivery and rollout**
 
-14. UX States (`GAP-DESIGN-STATES`, severity `medium`, lens `design`)
+### GAP-DELIVERY-READINESS
 
-- Cited context: The input mentions "dashboard" but does not describe loading, empty, error, and recovery states.
-- Ask: What loading, empty, error, recovery, and accessibility states must be handled?
-- Probing questions:
-  - Apply the missing `UX States` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
-  - Declare `dashboard` out of MVP scope and name the alternative or deferral. Local citation: `dashboard`.
+**9.** Which dependencies, environments, approvals, owners, dates, or rollout constraints remain pending?
 
-### product
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-15. Backlog Slicing Readiness (`GAP-BACKLOG-SLICING-READINESS`, severity `medium`, lens `product`)
+### GAP-PRD-DEPENDENCIES-ROADMAP
 
-- Ask: What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?
+**10.** What does the first version need, what can wait, what does it depend on, and who owns each dependency?
 
-16. Functional Requirements And ACs (`GAP-PRD-FR-AC`, severity `medium`, lens `product`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Ask: Which functions must the solution provide, and for each one, what observable result shows it works?
+### GAP-PRD-ROLLOUT-ENVIRONMENTS
 
-17. Current And Target Process (`GAP-PRODUCT-ASIS-TOBE`, severity `medium`, lens `product`)
+**11.** Which environments, rollout strategy, release constraints, and rollback criterion must be confirmed in the PRD?
 
-- Ask: What is the current process, target process, and exact delta between them?
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-### quality
+**Design and user experience**
 
-18. NFRs, KPIs, And Measurement (`GAP-PRD-NFR-KPI`, severity `medium`, lens `quality`)
+### GAP-DESIGN-FLOW
 
-- Ask: Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?
+**12.** Which user journey, screens, flows, copy, or interaction changes are in scope?
 
-19. Quality Expectations (`GAP-QUALITY`, severity `medium`, lens `quality`)
+You mention "dashboard": how do people get there, and what do they do there step by step?
 
-- Ask: What quality, testability, risk, or compliance expectations apply?
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-20. Quality Handoff (`GAP-QUALITY-HANDOFF`, severity `medium`, lens `quality`)
+### GAP-DESIGN-PROTOTYPE-INPUT
 
-- Ask: Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?
+**13.** What should Design prototype or validate, and which users, journey moments, states, and visual references should guide it?
 
-### technical
+What about "dashboard" should a prototype help you decide or test with users?
 
-21. Backend Surface (`GAP-BACKEND-SURFACE`, severity `medium`, lens `technical`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Ask: Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?
+### GAP-DESIGN-STATES
 
-22. Valid Cross-Cutting Enablers (`GAP-BACKLOG-ENABLERS`, severity `medium`, lens `technical`)
+**14.** What loading, empty, error, recovery, and accessibility states must be handled?
 
-- Ask: Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?
+For "dashboard": what should people see while it loads, when there is nothing to show, and when something fails?
 
-23. Frontend Surface (`GAP-FRONTEND-SURFACE`, severity `medium`, lens `technical`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Cited context: The input mentions "dashboard" but does not detail validations, roles, copy, or data binding for that surface.
-- Ask: Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?
-- Probing questions:
-  - Apply the missing `Frontend Surface` detail to the mentioned surface `dashboard`. Local citation: `dashboard`.
-  - Declare `dashboard` out of MVP scope and name the alternative or deferral. Local citation: `dashboard`.
+**Product scope**
 
-24. Systems And Data Ownership (`GAP-TECH-DATA-SOURCE`, severity `medium`, lens `technical`)
+### GAP-BACKLOG-SLICING-READINESS
 
-- Ask: Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?
+**15.** What is the first observable value slice, which variants or rules can be deferred, and where would a smaller split stop producing value?
 
-25. Technology Deep Dive (`GAP-TECH-DEEP-DIVE-INPUT`, severity `medium`, lens `technical`)
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
 
-- Ask: Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?
+### GAP-PRD-FR-AC
 
-26. Operational Constraints (`GAP-TECH-NFR`, severity `medium`, lens `technical`)
+**16.** Which functions must the solution provide, and for each one, what observable result shows it works?
 
-- Ask: What security, performance, observability, availability, or operational constraints apply?
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-PRODUCT-ASIS-TOBE
+
+**17.** What is the current process, target process, and exact delta between them?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+**Quality and testing**
+
+### GAP-PRD-NFR-KPI
+
+**18.** Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-QUALITY
+
+**19.** What quality, testability, risk, or compliance expectations apply?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-QUALITY-HANDOFF
+
+**20.** Which critical flows, edge cases, test data, regression risks, and evidence expectations should Quality use for deeper coverage?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+**Systems and data**
+
+### GAP-BACKEND-SURFACE
+
+**21.** Which backend capabilities, integrations, rules, persistence/source-of-truth needs, contracts, and failure behaviors are affected?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-BACKLOG-ENABLERS
+
+**22.** Which frontend/backend or architecture implementation enablers must be built in advance to support this functionality, what scope do they enable, and how are they different from a generic operational precondition?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-FRONTEND-SURFACE
+
+**23.** Which frontend surfaces, roles, states, validations, copy, analytics, and API binding needs are affected?
+
+For "dashboard": who uses it, and what can each kind of user see or do there?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-TECH-DATA-SOURCE
+
+**24.** Which systems, endpoints, events, create/modify/reuse decisions, owners, source-of-truth data, and critical fields are involved?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-TECH-DEEP-DIVE-INPUT
+
+**25.** Which repositories/components, architecture questions, endpoint/event inventory, dependencies, and technical risks should Technology inspect?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:
+
+### GAP-TECH-NFR
+
+**26.** What security, performance, observability, availability, or operational constraints apply?
+
+- Answer:
+- Owner / source:
+- Evidence or reference:
+- Decision status:

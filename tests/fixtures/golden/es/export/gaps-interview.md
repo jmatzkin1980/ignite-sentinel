@@ -1,136 +1,262 @@
 # Guion de entrevista - [PROJECT_ID]
 
-Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion (gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion salen de las opciones candidatas citadas; nunca se inventan. Este guion NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.
+Estas son las preguntas que necesitamos responder para completar el requerimiento, las más urgentes primero. Escribir cada respuesta debajo de su pregunta: en "Respuesta" la respuesta, en "Owner / fuente" quién la da, en "Evidencia o referencia" el documento, reunión o mensaje que la respalda, y en "Estado de decisión" confirmado, pendiente o no aplica.
+
+Cada pregunta empieza con un código de referencia (por ejemplo `GAP-SCOPE`); mantenerlo junto a la respuesta, porque con él asociamos cada respuesta a su pregunta.
 
 
 ## Preguntas de seguimiento
 
-### business
+**Objetivos y reglas de negocio**
 
-1. Reglas de negocio (`GAP-BUSINESS-RULES`, severidad `medium`, lente `business`)
+### GAP-BUSINESS-RULES
 
-- Preguntar: ¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?
+**1.** ¿Qué reglas, excepciones, validaciones, fallbacks o exclusiones gobiernan el comportamiento?
 
-2. Contracara de exclusión (`GAP-CTP-EXCLUSION`, severidad `medium`, lente `business`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Contexto citado: El input menciona "fuera de alcance" pero no describe la información faltante de este gap.
-- Preguntar: Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?
-- Preguntas de profundizacion:
-  - Confirmar que `fuera de alcance` esta dentro del alcance y responder el detalle faltante de `Contracara de exclusión`. Cita local: `fuera de alcance`.
-  - Confirmar que `fuera de alcance` es solo contexto, fuera de alcance o pendiente, y explicitar el limite. Cita local: `fuera de alcance`.
+### GAP-CTP-EXCLUSION
 
-3. Definición de métrica (`GAP-METRIC-DEFINITION`, severidad `medium`, lente `business`)
+**2.** Para cada exclusión: ¿qué decisión la tomó y dónde vuelve (o por qué nunca)?
 
-- Contexto citado: El input menciona "metrica" pero no define la métrica: falta fórmula/unidad, fuente o umbral.
-- Preguntar: ¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?
-- Preguntas de profundizacion:
-  - Confirmar que `metrica` esta dentro del alcance y responder el detalle faltante de `Definición de métrica`. Cita local: `metrica`.
-  - Confirmar que `metrica` es solo contexto, fuera de alcance o pendiente, y explicitar el limite. Cita local: `metrica`.
+El texto menciona "fuera de alcance": ¿qué queda afuera exactamente y quién lo decidió?
 
-4. Fuente de métrica (`GAP-METRIC-SOURCE`, severidad `medium`, lente `business`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Contexto citado: La métrica "30 por ciento" aparece sin fuente, baseline ni método de medición.
-- Preguntar: ¿Cuál es la fuente o baseline de la métrica cuantitativa?
-- Preguntas de profundizacion:
-  - Confirmar que `30 por ciento` es la meta de exito y aportar fuente, baseline, owner y metodo de medicion. Cita local: `30 por ciento`.
-  - Tratar `30 por ciento` como objetivo direccional hasta confirmar fuente/baseline, indicando que evidencia falta. Cita local: `30 por ciento`.
+### GAP-METRIC-DEFINITION
 
-5. Detalle de personas para PRD (`GAP-PRD-PERSONA-DETAIL`, severidad `medium`, lente `business`)
+**3.** ¿Cómo se define cada métrica/KPI (fórmula, unidad), de qué fuente sale y cuál es su baseline y umbral objetivo?
 
-- Preguntar: Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?
+El texto menciona "metrica": ¿qué medidas son exactamente y cómo se calcula cada una?
 
-### compliance
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-6. Restricciones de gobernanza (`GAP-GOVERNANCE-CONSTRAINTS`, severidad `medium`, lente `compliance`)
+### GAP-METRIC-SOURCE
 
-- Preguntar: ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?
+**4.** ¿Cuál es la fuente o baseline de la métrica cuantitativa?
 
-7. Glosario del dominio (`GAP-PRD-GLOSSARY-GOVERNANCE`, severidad `medium`, lente `compliance`)
+El texto menciona "30 por ciento": ¿de dónde sale ese valor, cuál es el valor hoy y cómo se va a medir?
 
-- Preguntar: ¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-8. Gobernanza del PRD (`GAP-PRD-GOVERNANCE`, severidad `medium`, lente `compliance`)
+### GAP-PRD-PERSONA-DETAIL
 
-- Preguntar: ¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?
+**5.** Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?
 
-### delivery
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-9. Preparación de delivery (`GAP-DELIVERY-READINESS`, severidad `medium`, lente `delivery`)
+**Seguridad, privacidad y cumplimiento**
 
-- Preguntar: ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?
+### GAP-GOVERNANCE-CONSTRAINTS
 
-10. Dependencias y roadmap (`GAP-PRD-DEPENDENCIES-ROADMAP`, severidad `medium`, lente `delivery`)
+**6.** ¿Qué restricciones de seguridad, privacidad, compliance, auditoría u operación deben respetarse?
 
-- Preguntar: ¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-11. Rollout y ambientes (`GAP-PRD-ROLLOUT-ENVIRONMENTS`, severidad `medium`, lente `delivery`)
+### GAP-PRD-GLOSSARY-GOVERNANCE
 
-- Preguntar: ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?
+**7.** ¿Qué términos del dominio usa el proyecto, y para cada uno: su definición, su nombre canónico en código, API o datos, y con qué no debe confundirse?
 
-### design
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-12. Journey y pantallas (`GAP-DESIGN-FLOW`, severidad `medium`, lente `design`)
+### GAP-PRD-GOVERNANCE
 
-- Preguntar: ¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?
+**8.** ¿Qué restricciones obligatorias, reglas de gobernanza y requisitos de auditoría aplican, y quién es dueño de cada pending input?
 
-13. Foco del prototipo (`GAP-DESIGN-PROTOTYPE-INPUT`, severidad `medium`, lente `design`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Preguntar: ¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?
+**Entrega y puesta en marcha**
 
-14. Estados de UX (`GAP-DESIGN-STATES`, severidad `medium`, lente `design`)
+### GAP-DELIVERY-READINESS
 
-- Preguntar: ¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?
+**9.** ¿Qué dependencias, ambientes, aprobaciones, owners, fechas o restricciones de rollout quedan pendientes?
 
-### product
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-15. Preparacion de slicing de backlog (`GAP-BACKLOG-SLICING-READINESS`, severidad `medium`, lente `product`)
+### GAP-PRD-DEPENDENCIES-ROADMAP
 
-- Preguntar: ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?
+**10.** ¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?
 
-16. Requerimientos funcionales y criterios de aceptacion (`GAP-PRD-FR-AC`, severidad `medium`, lente `product`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Preguntar: ¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?
+### GAP-PRD-ROLLOUT-ENVIRONMENTS
 
-17. Proceso actual y objetivo (`GAP-PRODUCT-ASIS-TOBE`, severidad `medium`, lente `product`)
+**11.** ¿Qué ambientes, estrategia de rollout, restricciones de release y criterio de rollback deben quedar confirmados en el PRD?
 
-- Preguntar: ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-### quality
+**Diseño y experiencia de usuario**
 
-18. NFRs, KPIs y medicion (`GAP-PRD-NFR-KPI`, severidad `medium`, lente `quality`)
+### GAP-DESIGN-FLOW
 
-- Preguntar: ¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?
+**12.** ¿Qué journey, pantallas, flujos, copy o cambios de interacción están dentro del alcance?
 
-19. Expectativas de calidad (`GAP-QUALITY`, severidad `medium`, lente `quality`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Preguntar: ¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?
+### GAP-DESIGN-PROTOTYPE-INPUT
 
-20. Handoff de calidad (`GAP-QUALITY-HANDOFF`, severidad `medium`, lente `quality`)
+**13.** ¿Qué debería prototipar o validar Diseño, y qué usuarios, momentos del journey, estados y referencias visuales deberían guiarlo?
 
-- Preguntar: ¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-### technical
+### GAP-DESIGN-STATES
 
-21. Superficie backend (`GAP-BACKEND-SURFACE`, severidad `medium`, lente `technical`)
+**14.** ¿Qué estados de loading, empty, error, recuperación y accesibilidad deben contemplarse?
 
-- Preguntar: ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-22. Enablers transversales validos (`GAP-BACKLOG-ENABLERS`, severidad `medium`, lente `technical`)
+**Alcance del producto**
 
-- Preguntar: ¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?
+### GAP-BACKLOG-SLICING-READINESS
 
-23. Superficie frontend (`GAP-FRONTEND-SURFACE`, severidad `medium`, lente `technical`)
+**15.** ¿Cuál es el primer slice de valor observable, qué variantes o reglas pueden diferirse y dónde cortar más pequeño dejaría de aportar valor?
 
-- Preguntar: ¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-24. Sistemas y ownership de datos (`GAP-TECH-DATA-SOURCE`, severidad `medium`, lente `technical`)
+### GAP-PRD-FR-AC
 
-- Preguntar: ¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?
+**16.** ¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?
 
-25. Profundización técnica (`GAP-TECH-DEEP-DIVE-INPUT`, severidad `medium`, lente `technical`)
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
 
-- Preguntar: ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?
+### GAP-PRODUCT-ASIS-TOBE
 
-26. Restricciones operativas (`GAP-TECH-NFR`, severidad `medium`, lente `technical`)
+**17.** ¿Cuál es el proceso actual, el proceso objetivo y el delta exacto entre ambos?
 
-- Preguntar: ¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+**Calidad y pruebas**
+
+### GAP-PRD-NFR-KPI
+
+**18.** ¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-QUALITY
+
+**19.** ¿Qué expectativas de calidad, testeabilidad, riesgo o compliance aplican?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-QUALITY-HANDOFF
+
+**20.** ¿Qué flujos críticos, casos borde, datos de prueba, riesgos de regresión y evidencia esperada debería usar Calidad para profundizar cobertura?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+**Sistemas y datos**
+
+### GAP-BACKEND-SURFACE
+
+**21.** ¿Qué capacidades backend, integraciones, reglas, persistencia/source of truth, contratos y comportamiento ante fallas se ven afectados?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-BACKLOG-ENABLERS
+
+**22.** ¿Qué enablers transversales de implementación frontend/backend o arquitectura deben construirse antes para soportar esta funcionalidad, qué scope habilitan y cómo se distinguen de una precondición operacional genérica?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-FRONTEND-SURFACE
+
+**23.** ¿Qué superficies frontend, roles, estados, validaciones, copy, analytics y bindings de API se ven afectados?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-TECH-DATA-SOURCE
+
+**24.** ¿Qué sistemas, endpoints, eventos, decisiones de crear/modificar/reutilizar, owners, fuente de verdad y campos críticos están involucrados?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-TECH-DEEP-DIVE-INPUT
+
+**25.** ¿Qué repositorios/componentes, preguntas de arquitectura, inventario de endpoints/eventos, dependencias y riesgos debería inspeccionar Tecnología?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
+
+### GAP-TECH-NFR
+
+**26.** ¿Qué restricciones de seguridad, performance, observabilidad, disponibilidad u operación aplican?
+
+- Respuesta:
+- Owner / fuente:
+- Evidencia o referencia:
+- Estado de decisión:
