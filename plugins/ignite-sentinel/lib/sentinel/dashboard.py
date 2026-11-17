@@ -11,7 +11,9 @@ from typing import Any, Callable
 from .gaps import parse_gap_rows
 from .core.paths import is_valid_project_id
 from .core.local_browser import open_local_file
-from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import (
+    content_fingerprint, fill, json_for_script, provenance_section, render_shell, template_text, theme_argument_for_display,
+)
 from .status import project_status
 from .themes import DEFAULT_THEME, legend_html, load_theme, user_theme_dirs
 from .workspace import read_json
@@ -211,17 +213,12 @@ def _legend_section(theme: dict[str, Any]) -> str:
 
 
 def _provenance_section(provenance: dict[str, Any], theme_arg: str) -> str:
-    cutoff = html.escape(provenance.get("cutoff") or "-")
-    rows = "".join(
-        f"<tr><td><code>{html.escape(item['path'])}</code></td><td><code>{html.escape(item['sha256'])}</code></td></tr>"
-        for item in provenance.get("sources") or []
-    )
-    table = f'<table class="prov"><thead><tr><th>Fuente</th><th>sha256 (12)</th></tr></thead><tbody>{rows}</tbody></table>' if rows else "<p>Sin workspaces.</p>"
-    command = html.escape(f"python -m sentinel /dashboard --theme {theme_argument_for_display(theme_arg)}")
-    return (
-        '<section class="dash-section" id="provenance" aria-labelledby="provenance-h"><h2 id="provenance-h">Procedencia</h2>'
-        f'<p>Fecha de corte: <time datetime="{cutoff}">{cutoff}</time> <span id="provAge"></span>. Es el mtime mas reciente de las fuentes leidas, no la hora de generacion.</p>'
-        f"{table}<p>Regenerar: <code>{command}</code></p></section>"
+    return provenance_section(
+        language="es",
+        command=f"python -m sentinel /dashboard --theme {theme_argument_for_display(theme_arg)}",
+        cutoff=str(provenance.get("cutoff") or ""),
+        sources=list(provenance.get("sources") or []),
+        section_class="dash-section",
     )
 
 

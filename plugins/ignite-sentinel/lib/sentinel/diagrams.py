@@ -36,7 +36,7 @@ from .core.local_browser import open_local_file
 from .core.markdown import parse_table_rows
 from .resources import package_resource
 from .secrets_scan import assert_no_leaks
-from .shell import content_fingerprint, render_shell, template_text, theme_argument_for_display
+from .shell import content_fingerprint, provenance_section, render_shell, template_text, theme_argument_for_display
 from .themes import DEFAULT_THEME, legend_html
 from .workspace import read_json, workspace_path
 
@@ -704,14 +704,14 @@ def _legend_html(theme: dict[str, Any], copy: dict[str, Any], language: str) -> 
 
 def _provenance_html(model: dict[str, Any], theme_arg: str, copy: dict[str, Any], renderer: str) -> str:
     provenance = model["provenance"]
-    heading = "Procedencia" if model["language"] == "es" else "Provenance"
-    command = html.escape(f"python -m sentinel /view {model['project_id']} --artifact diagrams --theme {theme_argument_for_display(theme_arg)}")
-    sources = ", ".join(f"<code>{html.escape(s['path'])}</code>" for s in provenance["sources"])
-    return (f'<section class="view-section" id="provenance"><h2>{heading}</h2>'
-            f"<p>Sources: {sources} · sha256 <code>{html.escape(provenance['source_sha256'])}</code> · "
-            f'cut-off <time datetime="{html.escape(provenance["cutoff"])}">{html.escape(provenance["cutoff"])}</time> '
-            "(the newest source modification time, not the build time).</p>"
-            f"<p>{html.escape(renderer)}</p><p>Regenerate: <code>{command}</code></p></section>")
+    return provenance_section(
+        language=model["language"],
+        command=f"python -m sentinel /view {model['project_id']} --artifact diagrams --theme {theme_argument_for_display(theme_arg)}",
+        cutoff=provenance["cutoff"],
+        sources=list(provenance["sources"]),
+        digest=provenance["source_sha256"],
+        remark=renderer,
+    )
 
 
 LIB_PLACEHOLDER = "/*__SENTINEL_MERMAID__*/"
