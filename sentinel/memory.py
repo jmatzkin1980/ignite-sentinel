@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from .core.paths import workspace_absolute, workspace_citation, workspace_relative
+from .core.paths import source_manifest_path, workspace_absolute, workspace_citation, workspace_relative
 from .workspace import memory_path, read_json, write_json, workspace_path
 
 
@@ -58,6 +58,39 @@ EPISODIC_ARTIFACT_TYPES = {
 RETRIEVE_ORDERS = ("relevance", "recency")
 # IMP-301: stored relative to the workspace, resolved against its current folder on load.
 MEMORY_PATH_KEYS = ("source_path", "file_path")
+
+
+def memory_key(project_id: str, value: object) -> str:
+    """IMP-341: one spelling for a file, whether a manifest key or a memory path names it."""
+    key = workspace_relative(project_id, value)
+    return key.casefold() if os.name == "nt" else key
+
+
+def retired_source_keys(project_id: str) -> set[str]:
+    """IMP-341: the files whose source row is retired, as `memory_key`s.
+
+    A file belongs to the row its latest manifest record points at: the original
+    path, every alias and Sentinel's raw or change copy. A path whose content
+    changed later belongs to the newer row, so a retired old version never hides
+    the current file. The files stay on disk; memory just stops serving them.
+    """
+    manifest = read_json(source_manifest_path(project_id), {})
+    if not isinstance(manifest, dict):
+        return set()
+    retired = {str(row.get("id")) for row in manifest.get("registry") or [] if row.get("validity") == "retired"}
+    if not retired:
+        return set()
+    return {
+        memory_key(project_id, key)
+        for key, record in (manifest.get("sources") or {}).items()
+        if isinstance(record, dict) and str(record.get("source_id")) in retired
+    }
+
+
+def forget_retired_sources(project_id: str) -> list[str]:
+    """IMP-341: drop from memory every artifact read from a retired source's files."""
+    keys = retired_source_keys(project_id)
+    return ContextBroker(project_id).forget_sources(keys) if keys else []
 
 
 def tokenize(text: str) -> list[str]:
@@ -694,6 +727,28 @@ class ContextBroker:
         self.data["trace_edges"] = edges
         self._save()
 
+    def _from_retired(self, item: dict[str, Any], retired: set[str]) -> bool:
+        return bool(retired) and memory_key(self.project_id, item.get("source_path") or item.get("file_path")) in retired
+
+    def forget_sources(self, keys: set[str]) -> list[str]:
+        """IMP-341: remove every artifact whose file is one of `keys`, from JSON and LanceDB.
+
+        Only memory rows go: the file, its graph node and its source row stay.
+        """
+        removed = sorted(
+            {str(artifact["artifact_id"]) for artifact in self.data.get("artifacts", []) if self._from_retired(artifact, keys)}
+            | {str(chunk["artifact_id"]) for chunk in self.data.get("chunks", []) if self._from_retired(chunk, keys)}
+        )
+        if not removed:
+            return []
+        gone = set(removed)
+        self.data["artifacts"] = [item for item in self.data.get("artifacts", []) if item.get("artifact_id") not in gone]
+        self.data["chunks"] = [item for item in self.data.get("chunks", []) if item.get("artifact_id") not in gone]
+        self._save()
+        for artifact_id in removed:
+            self._upsert_lancedb_chunks(artifact_id)  # no chunks left: deletes its rows
+        return removed
+
     def retrieve(
         self,
         query: str,
@@ -742,8 +797,12 @@ class ContextBroker:
             if ann_chunks:
                 candidate_chunks = ann_chunks
                 self.last_candidate_source = "lancedb-ann"
+        # IMP-341: a retired source never reaches an answer, even if old rows remain.
+        retired = retired_source_keys(self.project_id)
         scored = []
         for chunk in candidate_chunks:
+            if self._from_retired(chunk, retired):
+                continue
             if artifact_type and chunk.get("artifact_type") != artifact_type:
                 continue
             if domain and chunk.get("domain") != domain:
@@ -965,8 +1024,9 @@ class ContextBroker:
         """
         episodic = {artifact_type} if artifact_type else EPISODIC_ARTIFACT_TYPES
         events_by_artifact: dict[str, dict[str, Any]] = {}
+        retired = retired_source_keys(self.project_id)  # IMP-341
         for chunk in self.data.get("chunks", []):
-            if chunk.get("artifact_type") not in episodic:
+            if chunk.get("artifact_type") not in episodic or self._from_retired(chunk, retired):
                 continue
             if trace_id and trace_id not in chunk.get("trace_ids", []):
                 continue
@@ -1148,8 +1208,11 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     migrate_paths(project_id)
     graph = load_graph(project_id)
     broker = ContextBroker(project_id)
+    # IMP-341: files of a retired source are not indexed, and rows left from before go.
+    retired = retired_source_keys(project_id)
     with broker.deferred_saves():
-        indexed, skipped = _reindex_nodes(broker, project_id, graph, full)
+        forgotten = broker.forget_sources(retired) if retired else []
+        indexed, skipped, retired_skipped = _reindex_nodes(broker, project_id, graph, full, retired)
     return {
         "project_id": project_id,
         "indexed": indexed,
@@ -1157,15 +1220,19 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
         "count": len(indexed),
         "embedded_count": len(indexed),
         "skipped_count": len(skipped),
+        "retired_skipped": retired_skipped,
+        "retired_removed": forgotten,
         "full": full,
     }
 
 
 def _reindex_nodes(
-    broker: ContextBroker, project_id: str, graph: dict[str, Any], full: bool
-) -> tuple[list[str], list[str]]:
+    broker: ContextBroker, project_id: str, graph: dict[str, Any], full: bool, retired: set[str] | None = None
+) -> tuple[list[str], list[str], list[str]]:
     indexed: list[str] = []
     skipped: list[str] = []
+    retired = retired or set()
+    retired_skipped: list[str] = []
     for node in graph.get("nodes", []):
         path_value = node.get("path")
         if not path_value:
@@ -1178,6 +1245,9 @@ def _reindex_nodes(
             continue
         path = Path(path_value)
         if not path.exists() or path.suffix.lower() not in INDEXABLE_SUFFIXES:
+            continue
+        if retired and memory_key(project_id, path) in retired:
+            retired_skipped.append(node["id"])
             continue
         changed = broker.index_artifact(
             node["id"],
@@ -1193,11 +1263,12 @@ def _reindex_nodes(
             indexed.append(node["id"])
         else:
             skipped.append(node["id"])
-    context_result = index_context_folders(project_id, broker, full=full)
+    context_result = index_context_folders(project_id, broker, full=full, retired=retired)
     indexed.extend(context_result["indexed"])
     skipped.extend(context_result["skipped"])
+    retired_skipped.extend(context_result["retired"])
     broker.index_trace_edges(graph.get("edges", []))
-    return indexed, skipped
+    return indexed, skipped, retired_skipped
 
 
 def init_lancedb(project_id: str) -> dict[str, str]:
@@ -1258,10 +1329,14 @@ def get_multi_domain_context(query: str, project_id: str, iteration_min: int = 1
     }
 
 
-def index_context_folders(project_id: str, broker: ContextBroker | None = None, full: bool = False) -> dict[str, list[str]]:
+def index_context_folders(
+    project_id: str, broker: ContextBroker | None = None, full: bool = False, retired: set[str] | None = None
+) -> dict[str, list[str]]:
     broker = broker or ContextBroker(project_id)
+    if retired is None:
+        retired = retired_source_keys(project_id)  # IMP-341
     with broker.deferred_saves():
-        return _index_context_folders(project_id, broker, full)
+        return _index_context_folders(project_id, broker, full, retired)
 
 
 def _sentinel_output_paths(project_id: str) -> set[str]:
@@ -1282,10 +1357,13 @@ def _sentinel_output_paths(project_id: str) -> set[str]:
     return paths
 
 
-def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -> dict[str, list[str]]:
+def _index_context_folders(
+    project_id: str, broker: ContextBroker, full: bool, retired: set[str] | None = None
+) -> dict[str, list[str]]:
     base = workspace_path(project_id)
     indexed: list[str] = []
     skipped: list[str] = []
+    retired_skipped: list[str] = []
     own_outputs = _sentinel_output_paths(project_id)
     for relative, (artifact_type, domain) in CONTEXT_FOLDERS.items():
         folder = base / relative
@@ -1295,6 +1373,9 @@ def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -
             if path.suffix.lower() not in INDEXABLE_SUFFIXES or not path.is_file():
                 continue
             artifact_id = context_artifact_id(project_id, path)
+            if retired and memory_key(project_id, path) in retired:
+                retired_skipped.append(artifact_id)  # IMP-341: kept on disk, not served
+                continue
             changed = broker.index_artifact(
                 artifact_id,
                 artifact_type,
@@ -1309,7 +1390,7 @@ def _index_context_folders(project_id: str, broker: ContextBroker, full: bool) -
                 indexed.append(artifact_id)
             else:
                 skipped.append(artifact_id)
-    return {"indexed": indexed, "skipped": skipped}
+    return {"indexed": indexed, "skipped": skipped, "retired": retired_skipped}
 
 
 def context_artifact_id(project_id: str, path: Path) -> str:
