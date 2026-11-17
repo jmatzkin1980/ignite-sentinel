@@ -164,7 +164,7 @@ class DashboardShellTests(DashboardFixtureMixin, unittest.TestCase):
 
     def test_legend_comes_from_theme_semantics(self) -> None:
         self.assertIn('id="legend"', self.html)
-        self.assertIn(themes.legend_html(self.theme, "es"), self.html)
+        self.assertIn(themes.legend_html(self.theme, self.model["language"]), self.html)  # IMP-350: page language
 
     def test_provenance_section(self) -> None:
         provenance = self.model["provenance"]
