@@ -11,9 +11,10 @@ from .core.graph import add_edge, add_node, load_graph
 from .decisions import load_decision_source, render_decision_register, validate_cited_decisions
 from .discovery import validate_agent_gaps
 from .memory import ContextBroker, reindex_workspace
+from .payload_hygiene import archive_payload, sanitize_payload
 from .sources import mark_source_processed
 from .workspace import read_json, update_state, workspace_path
-from .core.io import copy_file, write_text
+from .core.io import write_text
 from .core.text import project_language, unique_path
 
 
@@ -29,8 +30,11 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     gaps = validate_agent_gaps(data, grounding_text, origin="self-review")
     from .agent_sweep import record_sweep
 
-    record_sweep(base, "self-review", data, [gap["id"] for gap in gaps])  # IMP-271
+    record_sweep(base, "self-review", sanitize_payload(base, data), [gap["id"] for gap in gaps])  # IMP-271
     decisions = validate_self_review_decisions(data, grounding_text)
+    # IMP-342: validated as written; stored and rendered redacted and neutralized
+    gaps = sanitize_payload(base, gaps)
+    decisions = sanitize_payload(base, decisions)
 
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
@@ -50,7 +54,7 @@ def apply_self_review(project_id: str, source: Path) -> dict[str, object]:
     review_dir = base / "03_specs" / "self_review"
     review_dir.mkdir(parents=True, exist_ok=True)
     stored_source = unique_path(review_dir / f"{source.stem}.json")
-    copy_file(source, stored_source)
+    archive_payload(base, source, stored_source)
     report_path = review_dir / "self_review_report.md"
     register_path = review_dir / "decision_register.md"
     write_text(report_path, render_self_review_report(project_id, source.stem, merged_new, skipped, decisions))

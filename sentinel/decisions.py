@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from .core.graph import add_edge, add_node
-from .core.io import copy_file, read_json as core_read_json, write_text
+from .core.io import read_json as core_read_json, write_text
 from .core.text import unique_path
 from .discovery import AnnotationError
 from .memory import ContextBroker, reindex_workspace
+from .payload_hygiene import archive_payload, sanitize_payload
 from .sources import mark_source_processed
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
 
@@ -256,11 +257,13 @@ def register_gate_override(
     decisions = validate_cited_decisions(data, workspace_grounding_text(base), label=f"{gate} override")
     if not decisions:
         raise AnnotationError(f"{gate} override source must declare at least one decision.")
+    # IMP-342: validated as written; stored and rendered redacted and neutralized
+    decisions = sanitize_payload(base, decisions)
 
     override_dir = base / "06_traceability" / "gate_overrides"
     override_dir.mkdir(parents=True, exist_ok=True)
     stored_source = unique_path(override_dir / f"{gate}-{source.stem}.json")
-    copy_file(source, stored_source)
+    archive_payload(base, source, stored_source)
     report_path = unique_path(override_dir / f"{gate}-override-report.md")
     timestamp = utc_now()
 
