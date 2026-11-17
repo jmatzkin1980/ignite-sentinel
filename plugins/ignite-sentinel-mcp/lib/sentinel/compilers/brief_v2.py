@@ -33,7 +33,6 @@ from ..gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change,
 from ..brief_model import (
     V2_GAP_COMPLEMENTS,
     V2_GAP_ROUTES,
-    default_gap_for,
     lenses_for_v2_id,
     parse_brief,
 )
@@ -412,8 +411,11 @@ class _Writer:
         return lines, settled, pending
 
     def open_gap_for(self, sid: str) -> str:
-        """IMP-255: a mark points to an open gap: the routed one, the lens default, else the section umbrella."""
-        candidates = sorted(g for g, target in V2_GAP_ROUTES.items() if target == sid) + [default_gap_for(sid)]
+        """IMP-255: a mark points to an open gap: the routed one, else the section umbrella.
+
+        IMP-344: never a gap routed to another place (the old lens default). Its answer fills that
+        other place, so the mark fell to the umbrella only after the answer and the round grew."""
+        candidates = sorted(g for g, target in V2_GAP_ROUTES.items() if target == sid)
         for candidate in candidates:
             if candidate in self.open_gaps:
                 return candidate
@@ -574,7 +576,12 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         lines = [f"## {section['id']}. {section['title'][lang]}", ""]
         if section.get("opening"):
             opening = section["opening"]
-            lines += [f"### {opening['id']} {opening['title'][lang]}", "", w.pending(opening["id"], opening["id"], opening["contract"].get("missing", "domain")), ""]
+            lines += [f"### {opening['id']} {opening['title'][lang]}", ""]
+            # IMP-344: an answer to the opening (an umbrella line `5.0: …`) lands like any place;
+            # before, it was dropped and the umbrella reopened on the next compile
+            facts, settled, marked = w.place_body(opening["id"], opening["title"][lang])
+            lines += facts + ([w.pending(opening["id"], opening["id"], opening["contract"].get("missing", "domain"))]
+                              if not settled and not marked else []) + [""]
         for item in section["subsections"]:
             lines += w.entry(item, w.app["entries"].get(item["id"]))
         body[section["id"]] = lines
@@ -712,6 +719,18 @@ def _block_title(w: _Writer, sid: str, key: str) -> str:
                     if block["key"] == key:
                         return block["title"][w.lang]
     return key
+
+
+def _place_title(schema: dict[str, Any], sid: str, lang: str) -> str:
+    """The title of a numbered place or annex of the brief v2, '' when unknown."""
+    for section in schema["sections"]:
+        for item in list(section["subsections"]) + ([section["opening"]] if section.get("opening") else []):
+            if item["id"] == sid:
+                return str((item.get("title") or {}).get(lang, ""))
+    for annex in schema.get("annexes", []):
+        if annex["id"] == sid:
+            return str((annex.get("title") or {}).get(lang, ""))
+    return ""
 
 
 def _produces(schema: dict[str, Any], place: str) -> str:
@@ -1045,10 +1064,14 @@ def sync_umbrella_gaps(project_id: str, umbrellas: dict[str, list[str]], languag
     rows = [row for row in parse_gap_rows(path.read_text(encoding="utf-8")) if row.get("id") != "NONE"]
     by_id = {row.get("id", "").strip("`"): row for row in rows}
     changed = False
+    schema = load_brief_schema()
+    lang = "es" if language == "es" else "en"
     for gap_id, places in umbrellas.items():
-        # IMP-26u: the answer fills the places one by one, so the question says how
-        question = ("Completar en el brief v2, una línea por lugar (`1.2: …`): " if language == "es"
-                    else "Fill in the brief v2, one line per place (`1.2: …`): ") + ", ".join(places)
+        # IMP-26u: the answer fills the places one by one, so the question says how;
+        # IMP-344: each place carries its title, so the reader knows what 1.2 is
+        named = "; ".join(f"{place} {_place_title(schema, place, lang)}".strip() for place in places)
+        question = ("Responder una línea por punto, empezando por su número (`1.2: …`): " if language == "es"
+                    else "Answer one line per item, starting with its number (`1.2: …`): ") + named
         row = by_id.get(gap_id)
         if row is None:
             rows.append({"id": gap_id, "lens": "product", "severity": "medium", "status": "OPEN",

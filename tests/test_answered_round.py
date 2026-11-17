@@ -1,7 +1,7 @@
 """IMP-26u (H16c close): the round → answer → fewer `⏳` circuit, on a SYNTHETIC answered round.
 
 The answers in `fixtures/synthetic_answered_round/answers.md` are invented. They answer the first
-`/gaps --top 5` round of the support-dashboard eval fixture so the test proves the mechanism: every
+`/gaps --top 8` round of the support-dashboard eval fixture so the test proves the mechanism: every
 answered gap lands in its brief v2 place (routed, umbrella place by place, counterpart as a
 complement, delivery under §9.1) and the marks it held go away. The real drop is measured on the
 first real project.
@@ -61,7 +61,7 @@ class AnsweredRoundTest(unittest.TestCase):
                 base = tmp / "workspaces" / pid
                 report = base / "02_requirements" / "brief_compile_report.json"
                 before = json.loads(report.read_text(encoding="utf-8"))
-                round_ = run(["gaps", pid, "--top", "5"])
+                round_ = run(["gaps", pid, "--top", "8"])  # IMP-344: every umbrella is open from the first compile
                 resolved = run(["resolve-gaps", pid, "--source", str(ANSWERS)])
             after = json.loads(report.read_text(encoding="utf-8"))
             answered = re.findall(r"^### (GAP-[A-Z0-9-]+)", ANSWERS.read_text(encoding="utf-8"), re.M)
@@ -76,7 +76,7 @@ class AnsweredRoundTest(unittest.TestCase):
             self.assertGreater(a["covered"], b["covered"])
             # every answered place is settled: no mark points to an answered gap any more
             still = {site["gap"] for site in after["fill_sites"]}
-            self.assertFalse(still & set(answered), still & set(answered))
+            self.assertFalse(still & set(answered), [s["id"] for s in after["fill_sites"] if s["gap"] in answered])
             brief = (base / "02_requirements" / "project-brief.md").read_text(encoding="utf-8")
             for text in ("Team leads assemble the weekly review by hand", "Weeks run Monday to Sunday",
                          "more than 10 percent of its open tickets", "the ticketing tool remains the system of record",
@@ -85,7 +85,8 @@ class AnsweredRoundTest(unittest.TestCase):
             self.assertIn("Out of scope: editing tickets", brief)  # the counterpart completes, it does not replace
             rows = {g["id"]: g for g in parse_gap_table((base / "01_discovery" / "gaps.md").read_text(encoding="utf-8"))}
             self.assertEqual(rows["GAP-BRIEF-S1"]["status"], "CLOSED")
-            self.assertEqual(rows["GAP-BRIEF-S2"]["status"], "CLOSED")
+            for umbrella in ("GAP-BRIEF-S2", "GAP-BRIEF-S3", "GAP-BRIEF-S4", "GAP-BRIEF-S5"):
+                self.assertEqual(rows[umbrella]["status"], "CLOSED", umbrella)
             # the recompiled brief has a §6.3 cascade table and stays clean (no em dash cells)
             self.assertIn("| Place | Change | Propagate to |", brief)
             self.assertEqual(brief_v2_integrity_findings(base), [])

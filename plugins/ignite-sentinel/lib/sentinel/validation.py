@@ -494,6 +494,7 @@ def cross_artifact_consistency(project_id: str, base: Path | None = None) -> dic
     check_spec_unit_pointers(project_id, base, checks, warnings)
     check_expected_evidence_contract(project_id, base, checks, warnings)
     check_spec_unit_story_handoff_fidelity(project_id, base, checks, warnings)
+    check_build_item_story_coverage(project_id, base, checks, warnings)
     check_handoff_contracts(project_id, base, checks, warnings)
     check_no_synthetic_citation(project_id, base, checks, warnings)
     check_brief_v2_cross_checks(project_id, base, checks, warnings)
@@ -842,6 +843,80 @@ def check_spec_unit_story_handoff_fidelity(
             "issues": issues,
         }
     )
+
+
+# IMP-344: words that say nothing about which capability a line is about
+_COVERAGE_STOPWORDS = {
+    "scope", "alcance", "shall", "system", "sistema", "debe", "debera", "when", "cuando", "while", "mientras",
+    "where", "donde", "that", "this", "with", "from", "into", "will", "must", "should", "each", "every", "cada",
+    "todo", "todos", "toda", "todas", "para", "desde", "hasta", "sobre", "entre", "como", "they", "their", "there",
+    "only", "solo", "also", "tambien", "available", "disponible", "disponibles", "user", "users", "usuario", "usuarios",
+}
+
+
+def _coverage_words(text: str) -> set[str]:
+    import unicodedata
+
+    folded = "".join(ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch))
+    words = set()
+    for word in re.findall(r"[a-z0-9]{4,}", folded):
+        word = word[:-1] if len(word) > 4 and word.endswith("s") else word
+        if word not in _COVERAGE_STOPWORDS:
+            words.add(word)
+    return words
+
+
+def uncovered_build_items(items: list[tuple[str, str]], statements: list[str]) -> list[tuple[str, str]]:
+    """IMP-344: the build items no story statement shares at least two content words with
+    (all of them when the item has fewer than two). An item with no content word is not judged."""
+    story_words = [_coverage_words(statement) for statement in statements]
+    uncovered = []
+    for item_id, text in items:
+        words = _coverage_words(text)
+        if not words:
+            continue
+        needed = min(2, len(words))
+        if not any(len(words & found) >= needed for found in story_words):
+            uncovered.append((item_id, text))
+    return uncovered
+
+
+def check_build_item_story_coverage(
+    project_id: str,
+    base: Path,
+    checks: list[dict[str, object]],
+    warnings: list[dict[str, str]],
+) -> None:
+    """IMP-344: every `C-NN` build item of the brief v2 §9.1 has a value story that names it."""
+    from .cross_checks import build_items
+
+    brief_path = base / "02_requirements" / "project-brief.md"
+    readiness = read_json(base / "08_context_packs" / "implementation_readiness.json", {})
+    stories = readiness.get("stories", []) if isinstance(readiness, dict) else []
+    items = build_items(brief_path.read_text(encoding="utf-8")) if brief_path.exists() else []
+    if not items or not isinstance(stories, list) or not stories:
+        checks.append({"id": "build_items_to_stories", "status": "SKIP", "layer": "brief->stories", "artifact": "04_backlog/"})
+        return
+    units = {
+        str(unit_id).strip(): spec_unit_statement(str(data.get("text", "")))
+        for unit_id, data in spec_unit_snapshot(base).items()
+        if isinstance(data, dict)
+    }
+    statements = [units[unit] for unit in (str(s.get("source_unit", "")).strip() for s in stories if isinstance(s, dict))
+                  if unit in units and units[unit]]
+    uncovered = uncovered_build_items(items, statements)
+    for item_id, text in uncovered:
+        snippet = text if len(text) <= 96 else text[:93] + "..."
+        add_consistency_warning(
+            warnings,
+            "build_items_to_stories",
+            "brief->stories",
+            "04_backlog/",
+            f"Build item {item_id} of brief 9.1 has no story: {snippet} Only confirmed answers written in EARS become stories.",
+            f"python -m sentinel /resolve-gaps {project_id} --source <answers.md>",
+        )
+    checks.append({"id": "build_items_to_stories", "status": "WARN" if uncovered else "PASS", "layer": "brief->stories",
+                   "artifact": "04_backlog/", "build_items": len(items), "stories": len(statements), "issues": len(uncovered)})
 
 
 def check_handoff_contracts(

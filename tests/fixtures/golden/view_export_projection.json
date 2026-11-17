@@ -156,7 +156,7 @@
     "audience": "client",
     "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
     "response_needed": true,
     "statement": ""
    },
@@ -180,7 +180,7 @@
     "audience": "client",
     "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
     "id": "GAP-PRD-FR-AC",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which functions must the solution provide, and for each one, what observable result shows it works?",
     "response_needed": true,
     "statement": ""
    },
@@ -252,7 +252,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?",
     "response_needed": true,
     "statement": ""
    },
@@ -292,7 +292,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencies with owner, and roadmap phases.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "What does the first version need, what can wait, what does it depend on, and who owns each dependency?",
     "response_needed": true,
     "statement": ""
    },
@@ -768,7 +768,7 @@
     "audience": "client",
     "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
     "response_needed": true,
     "statement": ""
    },
@@ -816,7 +816,7 @@
     "audience": "client",
     "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
     "id": "GAP-PRD-FR-AC",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which functions must the solution provide, and for each one, what observable result shows it works?",
     "response_needed": true,
     "statement": ""
    },
@@ -848,7 +848,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?",
     "response_needed": true,
     "statement": ""
    },
@@ -936,7 +936,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencies with owner, and roadmap phases.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "What does the first version need, what can wait, what does it depend on, and who owns each dependency?",
     "response_needed": true,
     "statement": ""
    },
@@ -1481,7 +1481,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI with target, measurement method, and timeframe.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?",
     "response_needed": true,
     "statement": ""
    },
@@ -1505,7 +1505,7 @@
     "audience": "client",
     "expected_format": "FR-NN with a traceable EARS statement (When/If/While/Where/The system shall...) plus acceptance criterion and priority.",
     "id": "GAP-PRD-FR-AC",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "Which functions must the solution provide, and for each one, what observable result shows it works?",
     "response_needed": true,
     "statement": ""
    },
@@ -1513,7 +1513,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencies with owner, and roadmap phases.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "What does the first version need, what can wait, what does it depend on, and who owns each dependency?",
     "response_needed": true,
     "statement": ""
    },
@@ -1585,7 +1585,7 @@
     "audience": "client",
     "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
     "response_needed": true,
     "statement": ""
    },
@@ -2176,7 +2176,7 @@
     "audience": "client",
     "expected_format": "Per persona: goal, pains, usage frequency, and proficiency.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "What confirmed information resolves this uncertainty?",
+    "question": "For each type of user: what are their goals and pain points, how familiar are they with this kind of tool, and how often will they use it?",
     "response_needed": true,
     "statement": ""
    }
@@ -2544,7 +2544,7 @@
     "audience": "client",
     "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?",
     "response_needed": true,
     "statement": ""
    },
@@ -2568,7 +2568,7 @@
     "audience": "client",
     "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
     "id": "GAP-PRD-FR-AC",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?",
     "response_needed": true,
     "statement": ""
    },
@@ -2640,7 +2640,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?",
     "response_needed": true,
     "statement": ""
    },
@@ -2680,7 +2680,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencias con owner y fases del roadmap.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?",
     "response_needed": true,
     "statement": ""
    },
@@ -3156,7 +3156,7 @@
     "audience": "client",
     "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?",
     "response_needed": true,
     "statement": ""
    },
@@ -3204,7 +3204,7 @@
     "audience": "client",
     "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
     "id": "GAP-PRD-FR-AC",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?",
     "response_needed": true,
     "statement": ""
    },
@@ -3236,7 +3236,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?",
     "response_needed": true,
     "statement": ""
    },
@@ -3324,7 +3324,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencias con owner y fases del roadmap.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?",
     "response_needed": true,
     "statement": ""
    },
@@ -3869,7 +3869,7 @@
     "audience": "domain",
     "expected_format": "NFR/KPI con target, método de medición y ventana temporal.",
     "id": "GAP-PRD-NFR-KPI",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?",
     "response_needed": true,
     "statement": ""
    },
@@ -3893,7 +3893,7 @@
     "audience": "client",
     "expected_format": "FR-NN con statement EARS trazable (Cuando/Si/Mientras/Donde/El sistema debe...) más criterio de aceptación y prioridad.",
     "id": "GAP-PRD-FR-AC",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?",
     "response_needed": true,
     "statement": ""
    },
@@ -3901,7 +3901,7 @@
     "audience": "domain",
     "expected_format": "MVP, dependencias con owner y fases del roadmap.",
     "id": "GAP-PRD-DEPENDENCIES-ROADMAP",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?",
     "response_needed": true,
     "statement": ""
    },
@@ -3973,7 +3973,7 @@
     "audience": "client",
     "expected_format": "Por persona: objetivo, dolores, frecuencia y habilidad.",
     "id": "GAP-PRD-PERSONA-DETAIL",
-    "question": "¿Qué información confirmada resuelve esta incertidumbre?",
+    "question": "Para cada tipo de usuario: ¿qué objetivos y problemas tiene, qué tan familiarizado está con este tipo de herramienta y con qué frecuencia la va a usar?",
     "response_needed": true,
     "statement": ""
    },

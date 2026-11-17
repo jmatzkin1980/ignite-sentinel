@@ -140,13 +140,14 @@ system and be secure and compliant. Details to be defined later.
 
    Confirming closes `GAP-BRIEF-PROFILE` and compiles the v2 brief; from now on each `/resolve-gaps` recompiles it. While that gap is open, `/maturity` is `BLOCKED` and `/specs` refuses (scenario 4 shows how that looks). To keep the older brief format on a project, `/init --brief-version 1` does that, but v2 is recommended.
 
-4. Read the gaps document and send it to the client.
+4. Read the gaps document, then send the client the interview script.
 
    ```text
    /gaps ACME_PORTAL
+   /export ACME_PORTAL --artifact gaps --format interview
    ```
 
-   Open `workspaces/ACME_PORTAL/01_discovery/gaps.md`. Each gap is one `### GAP-...` section with a question, cited context and answer fields. For this request expect gaps about the second-approval threshold, the policy-system integration, access roles, the compliance rules and claim states. Send the file as it is. The client answers under each gap.
+   Open `workspaces/ACME_PORTAL/01_discovery/gaps.md`. Each gap is one `### GAP-...` section with a question, cited context and answer fields. For this request expect gaps about the second-approval threshold, the policy-system integration, access roles, the compliance rules and claim states. `gaps.md` is your working file: it also holds a traceability table, closed gaps and the brief settings gap. Send `08_context_packs/exports/gaps-interview.md` instead: open gaps only, blocking first, each with its question and its gap id. Read it first and drop any question that does not fit the request. Put the answers under `### GAP-...` headings in a file for step 5.
 
 5. Process the answers when they return.
 

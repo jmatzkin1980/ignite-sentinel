@@ -137,7 +137,11 @@ def render_interview_script(
     language: str = "en",
     stakeholders: list[dict[str, str]] | None = None,
 ) -> str:
-    open_gaps = [gap for gap in gaps if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
+    from ..brief_schema import SETTINGS_GAP_ID
+
+    # IMP-344: the brief settings gap is the BA's own decision (a CLI command), not a client question
+    open_gaps = [gap for gap in gaps if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED"
+                 and str(gap.get("id", "")).strip("`") != SETTINGS_GAP_ID]
     blocking = [gap for gap in open_gaps if is_blocking(gap)]
     followup = [gap for gap in open_gaps if not is_blocking(gap)]
     route_by_owner = bool(stakeholders)
@@ -151,7 +155,7 @@ def render_interview_script(
             f"# Guion de entrevista - {project_id}\n\n"
             "Vista derivada READ-ONLY de los gaps abiertos, ordenada como guion de reunion "
             "(gaps bloqueantes primero, agrupados por lente). Las preguntas de profundizacion "
-            "salen de las opciones candidatas citadas (IMP-113); nunca se inventan. Este guion "
+            "salen de las opciones candidatas citadas; nunca se inventan. Este guion "
             "NO reemplaza a `01_discovery/gaps.md` (la fuente de verdad) y no cierra ningun gap.\n"
         )
         blocking_heading = "## Preguntas bloqueantes"
@@ -162,7 +166,7 @@ def render_interview_script(
             f"# Interview Script - {project_id}\n\n"
             "READ-ONLY derived view of the open gaps, ordered as a meeting script "
             "(blocking gaps first, grouped by lens). Probing questions come from the cited "
-            "candidate options (IMP-113); they are never invented. This script does NOT replace "
+            "candidate options; they are never invented. This script does NOT replace "
             "`01_discovery/gaps.md` (the source of truth) and closes no gap.\n"
         )
         blocking_heading = "## Blocking questions"

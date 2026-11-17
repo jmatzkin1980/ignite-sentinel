@@ -106,7 +106,8 @@ class PendingAndNotationTests(unittest.TestCase):
                 self.assertEqual(cards[key]["status"], "pending")
                 self.assertIn(DASHED, cards[key]["mermaid"])
                 self.assertTrue(cards[key]["gaps"])
-        self.assertIn("GAP-PRODUCT-ASIS-TOBE", cards["state"]["mermaid"])
+        # IMP-344: 3.4 points at its section umbrella, not at the gap routed to 3.2.
+        self.assertIn("GAP-BRIEF-S3", cards["state"]["mermaid"])
         self.assertNotIn("architecture-asis", cards)
 
     def test_prose_is_not_diagrammed(self) -> None:
