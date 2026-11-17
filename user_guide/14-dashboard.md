@@ -2,8 +2,14 @@
 
 `/dashboard` builds one local HTML page that shows every Sentinel workspace side by side: phase, health, gaps, documents, backlog readiness and the recommended next step. Use it in review meetings, or whenever you manage several projects and want the picture without opening many Markdown files. For a single artifact use [Artifact views](15-artifact-views.md).
 
-> [!NOTE]
-> The dashboard interface is written in Spanish ("Indicadores", "Próximo paso", "Leyenda de colores", "Procedencia"), whatever the project language. Your project documents are not translated or changed. The per-artifact [views](15-artifact-views.md) do follow the project language.
+## Language
+
+The dashboard follows the project language (`project_language` in each workspace's `state.json`), like the [views](15-artifact-views.md). Spanish (`es`, or any `es-*` tag) gives a Spanish page; anything else, including `auto`, gives English.
+
+- **Each workspace speaks its own language.** Its card, side panel, suggested prompts and gap copy use that workspace's language, so a Spanish and an English project can sit on the same page.
+- **The page frame uses the majority.** The header, indicators, filters, side menu and colour legend use the language most workspaces use. A tie, or a folder with no workspace, gives English.
+
+Only the interface is translated. Project ids, file names, gap text and your documents stay as they are.
 
 ## Build it
 
@@ -28,19 +34,19 @@ The dashboard lists every folder under `workspaces/` that has a `state.json` and
 
 Each section appears only when there is data for it.
 
-| Section (as labelled) | What it tells you |
+| Section (English / Spanish label) | What it tells you |
 |---|---|
-| Indicadores | Portfolio totals and attention signals across all workspaces. |
+| Indicators / Indicadores | Portfolio totals and attention signals across all workspaces. |
 | Workspaces | One card per workspace: phase, health, language, privacy mode, maturity, development certainty, open gaps, backlog roll-up, warnings. |
-| Próximo paso | The recommended next step for that workspace (see `/next`). |
-| Acciones según la situación | Five ready-made prompts with the command chain for common situations: client answered gaps, new context arrived, a requirement changed, a meeting or email brought new definitions, prepare the handoff to development. |
-| Lifecycle de maduración | Whether the workspace is still in discovery, moving through specs, or ready for backlog and implementation review. |
-| Resumen | The `/status` summary, including the development-certainty score and the Crystallization Gate state, so confirmed, assumed and open uncertainty stays visible at portfolio level. |
-| Gaps pendientes | Open gaps, which you can copy for client or domain follow-up. |
-| Documentos | The workspace documents, opened inside the dashboard. The canonical files stay in each workspace. |
+| Next step / Proximo paso | The recommended next step for that workspace (see `/next`). |
+| Actions by situation / Acciones segun la situacion | Five ready-made prompts with the command chain for common situations: client answered gaps, new context arrived, a requirement changed, a meeting or email brought new definitions, prepare the handoff to development. |
+| Maturity lifecycle / Lifecycle de maduracion | Whether the workspace is still in discovery, moving through specs, or ready for backlog and implementation review. |
+| Summary / Resumen | The `/status` summary, including the development-certainty score and the Crystallization Gate state, so confirmed, assumed and open uncertainty stays visible at portfolio level. |
+| Pending gaps / Gaps pendientes | Open gaps, which you can copy for client or domain follow-up. |
+| Documents / Documentos | The workspace documents, opened inside the dashboard. The canonical files stay in each workspace. |
 | Backlog, Story gates (DoR / DoD), Warnings | Backlog totals, the latest Definition of Ready and Done evaluation per story, and warnings. |
 
-The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance (**Procedencia**) shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
+The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
 
 The dashboard has no feedback panel by design; capture and comments exist only in the artifact views.
 

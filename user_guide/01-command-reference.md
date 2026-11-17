@@ -340,9 +340,11 @@ python -m sentinel /dashboard --theme my-theme.json
 
 **Writes.** `dashboard.html` at `--root` (git-ignored in a clone; with the plugin or the wheel it lands in your project folder, where it is not): a rebuildable local snapshot that embeds workspace content, not a source of truth.
 
+**Language.** Each workspace's card and panel use its `project_language` (`es*` is Spanish, anything else English). The page frame uses the language most workspaces use; a tie or no workspace gives English.
+
 **Refuses when.** The theme is unknown or invalid → exit 3.
 
-**You get.** The path of the page and a summary per workspace.
+**You get.** The path of the page, the page `language` and a summary per workspace.
 
 **Next step.** `/status PROJECT_ID` on the project you want to work on.
 

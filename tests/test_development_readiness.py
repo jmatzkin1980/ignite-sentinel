@@ -103,8 +103,9 @@ class DevelopmentReadinessTests(unittest.TestCase):
         dashboard = collect_dashboard_model(self.temp)
         workspace = dashboard["workspaces"][0]
         self.assertIn("development_readiness", workspace)
-        self.assertIn("Certeza desarrollo", workspace["summary"])
-        self.assertIn("NOT_READY_OPEN_UNCERTAINTY", workspace["summary"]["Certeza desarrollo"])
+        # IMP-350: an English project gets English dashboard labels.
+        self.assertIn("Development certainty", workspace["summary"])
+        self.assertIn("NOT_READY_OPEN_UNCERTAINTY", workspace["summary"]["Development certainty"])
 
 
 if __name__ == "__main__":
