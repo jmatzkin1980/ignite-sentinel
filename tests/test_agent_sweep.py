@@ -167,6 +167,16 @@ class FlowTests(unittest.TestCase):
                 # The skills name the package-relative path: `sentinel/` in a clone, `lib/sentinel/` in the plugin.
                 self.assertIn("templates/agent_sweep_protocol.md", body, f"{root}/{skill}")
 
+    def test_runtime_names_the_protocol_relative_to_the_package(self) -> None:
+        # IMP-340: `sentinel/templates/...` exists only in a clone; the plugin ships `lib/sentinel/templates/...`.
+        import sentinel.agent_sweep as agent_sweep
+
+        self.assertFalse(agent_sweep.PROTOCOL_PATH.startswith("sentinel/"))
+        self.assertTrue((Path(agent_sweep.__file__).parent / agent_sweep.PROTOCOL_PATH).is_file())
+        with self.assertRaises(agent_sweep.SweepProtocolError) as raised:
+            agent_sweep.validate_sweep_extras({"counts": {}}, "", str.lower)
+        self.assertIn("the package's `templates/agent_sweep_protocol.md`", str(raised.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
