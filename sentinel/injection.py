@@ -8,6 +8,9 @@ runtime never acts on it — compilers are deterministic over the text — and
 `01_discovery/injection_signals.md`, for the BA to review with the client. A
 finding is a signal, not a verdict: the source is not altered and nothing is
 blocked. Agent and BA payloads are scanned too (`payload_hygiene`, IMP-342).
+IMP-351: the same patterns are also looked for where a reader does not see them:
+inside HTML comments, in encoded runs (base64, hex, percent-encoding) and behind
+zero-width or look-alike characters (`HIDDEN_TYPES`).
 """
 
 from __future__ import annotations
@@ -79,6 +82,14 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 SIGNAL_TYPES = tuple(name for name, _ in INJECTION_PATTERNS)
+# IMP-351: the same patterns, found where a reader does not see them.
+#   html_comment: inside `<!-- ... -->` (hidden when the Markdown or HTML is rendered),
+#     also when the phrase is split across lines or the comment opens with `system:`;
+#   encoded: a base64, hex or percent-encoded run that decodes to an instruction;
+#   obfuscated: the line only matches once zero-width characters are removed and
+#     look-alike forms (fullwidth letters) are folded (NFKC).
+HIDDEN_TYPES = ("html_comment", "encoded", "obfuscated")
+_ORDER = SIGNAL_TYPES + HIDDEN_TYPES
 
 
 @dataclass(frozen=True)
@@ -86,6 +97,11 @@ class InjectionSignal:
     type: str
     line: int
     excerpt: str
+    end_line: int | None = None  # IMP-351: a multi-line HTML comment flags every line it spans
+
+    @property
+    def lines(self) -> range:
+        return range(self.line, max(self.line, self.end_line or self.line) + 1)
 
 
 def _excerpt(line: str, start: int, end: int, width: int = 90) -> str:
@@ -112,7 +128,127 @@ def detect_injection(text: str) -> list[InjectionSignal]:
             line = lines[number - 1] if number - 1 < len(lines) else ""
             offset = starts[number - 1]
             signals.append(InjectionSignal(kind, number, _excerpt(line, match.start() - offset, match.end() - offset)))
-    return sorted(signals, key=lambda item: (item.line, SIGNAL_TYPES.index(item.type)))
+    signals.extend(_hidden_signals(text, {line for line, _ in seen}))
+    return sorted(signals, key=lambda item: (item.line, _ORDER.index(item.type)))
+
+
+# --- IMP-351: hidden instructions -------------------------------------------------
+
+_HTML_COMMENT = re.compile(r"<!--(.*?)-->", re.S)  # an unclosed `<!--` is left to the line patterns
+_BASE64_RUN = re.compile(r"(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{24,}={0,2}")
+_HEX_RUN = re.compile(r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){12,}(?![0-9A-Fa-f])")
+_PERCENT_RUN = re.compile(r"(?:%[0-9A-Fa-f]{2}|[A-Za-z0-9._~+-]){12,}")
+_PERCENT_BYTE = re.compile(rb"%([0-9A-Fa-f]{2})")
+_MAX_ENCODED = 8192  # characters decoded per run: an instruction is short, an image is not worth decoding whole
+# zero-width space / non-joiner / joiner, word joiner, BOM, soft hyphen, Mongolian vowel separator
+_INVISIBLE = dict.fromkeys((0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF, 0x00AD, 0x180E))
+
+
+def _first_match(text: str) -> re.Match[str] | None:
+    for _, pattern in INJECTION_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match
+    return None
+
+
+def _flat_excerpt(prefix: str, text: str, match: re.Match[str]) -> str:
+    """Excerpt of decoded or comment text: one line, and secrets redacted (the decoded text never went through /ingest's sanitizer)."""
+    from .secrets_scan import detect_secrets, redact
+
+    flat = re.sub(r"\s", " ", text)
+    findings = detect_secrets(flat)
+    snippet = _excerpt(redact(flat, findings) if findings else flat, match.start(), match.end())
+    return f"{prefix} {snippet}"
+
+
+def _printable(text: str) -> bool:
+    return bool(text) and sum(ch.isprintable() or ch in "\n\r\t" for ch in text) >= 0.9 * len(text)
+
+
+def _decode_base64(run: str) -> str | None:
+    import base64
+    import binascii
+
+    body = run.rstrip("=")[:_MAX_ENCODED].replace("-", "+").replace("_", "/")
+    body = body[: len(body) - len(body) % 4] if len(body) % 4 == 1 else body
+    try:
+        raw = base64.b64decode(body + "=" * (-len(body) % 4), validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    return _as_text(raw)
+
+
+def _decode_hex(run: str) -> str | None:
+    return _as_text(bytes.fromhex(run[: _MAX_ENCODED - _MAX_ENCODED % 2]))
+
+
+def _decode_percent(run: str) -> str | None:
+    if run.count("%") < 4:
+        return None
+    raw = _PERCENT_BYTE.sub(lambda m: bytes([int(m.group(1), 16)]), run[:_MAX_ENCODED].encode("ascii"))
+    return _as_text(raw.replace(b"+", b" "))
+
+
+def _as_text(raw: bytes) -> str | None:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return text if _printable(text) else None
+
+
+_DECODERS = (("base64", _BASE64_RUN, _decode_base64), ("hex", _HEX_RUN, _decode_hex), ("percent", _PERCENT_RUN, _decode_percent))
+
+
+def _encoded_signal(number: int, line: str) -> InjectionSignal | None:
+    for scheme, pattern, decode in _DECODERS:
+        for run in pattern.finditer(line):
+            decoded = decode(run.group(0))
+            match = _first_match(decoded) if decoded else None
+            if match:
+                return InjectionSignal("encoded", number, _flat_excerpt(f"{scheme}:", decoded, match))
+    return None
+
+
+def _obfuscated_signal(number: int, line: str) -> InjectionSignal | None:
+    if line.isascii():
+        return None
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKC", line.translate(_INVISIBLE))
+    match = _first_match(folded) if folded != line else None
+    return InjectionSignal("obfuscated", number, _flat_excerpt("folded:", folded, match)) if match else None
+
+
+def _comment_signals(text: str) -> list[InjectionSignal]:
+    signals: list[InjectionSignal] = []
+    for comment in _HTML_COMMENT.finditer(text):
+        inner = comment.group(1)
+        stripped = "\n".join(part.strip() for part in inner.split("\n"))  # `<!-- system: ...` starts a line here
+        collapsed = " ".join(inner.split())  # a phrase split across the comment's lines
+        source, match = stripped, _first_match(stripped)
+        if not match:
+            source, match = collapsed, _first_match(collapsed)
+        if not match:
+            continue
+        start = text.count("\n", 0, comment.start()) + 1
+        end = start + comment.group(0).count("\n")
+        signals.append(InjectionSignal("html_comment", start, _flat_excerpt("comment:", source, match), end if end > start else None))
+    return signals
+
+
+def _hidden_signals(text: str, flagged: set[int]) -> list[InjectionSignal]:
+    signals = _comment_signals(text)
+    for number, line in enumerate(text.split("\n"), start=1):
+        found = _encoded_signal(number, line)
+        if found:
+            signals.append(found)
+        if number not in flagged:
+            found = _obfuscated_signal(number, line)
+            if found:
+                signals.append(found)
+    return signals
 
 
 _ROW = re.compile(r"^\| INJ-(\d+) \|", re.M)
@@ -141,7 +277,8 @@ def record_signals(workspace: Path, source_name: str, signals: list[InjectionSig
     for offset, signal in enumerate(signals):
         identifier = f"INJ-{next_id + offset:03d}"
         ids.append(identifier)
-        rows.append(f"| {identifier} | {ORIGIN} | {now} | `{source_name}` | {signal.line} | {signal.type} | `{signal.excerpt}` |\n")
+        line = f"{signal.line}-{signal.end_line}" if signal.end_line else str(signal.line)
+        rows.append(f"| {identifier} | {ORIGIN} | {now} | `{source_name}` | {line} | {signal.type} | `{signal.excerpt}` |\n")
     append_text(path, "".join(rows))
     return ids
 
@@ -159,7 +296,7 @@ def neutralize(text: str, signals: list[InjectionSignal]) -> str:
     """
     if not signals:
         return text
-    flagged = {signal.line for signal in signals}
+    flagged = {number for signal in signals for number in signal.lines}
     lines = text.split("\n")
     return "\n".join("" if number in flagged else line for number, line in enumerate(lines, start=1))
 
@@ -178,7 +315,8 @@ def neutralize_marked(text: str, signals: list[InjectionSignal]) -> str:
         return text
     kinds: dict[int, str] = {}
     for signal in signals:
-        kinds.setdefault(signal.line, signal.type)
+        for number in signal.lines:
+            kinds.setdefault(number, signal.type)
     lines = text.split("\n")
     return "\n".join(
         neutralized_marker(kinds[number]) if number in kinds else line for number, line in enumerate(lines, start=1)

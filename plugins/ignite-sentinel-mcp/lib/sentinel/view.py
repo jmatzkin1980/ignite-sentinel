@@ -562,8 +562,20 @@ def source_fragment_for_node(project_id: str, node: dict[str, Any], *, max_lines
         "line_start": 1 if lines else 0,
         "line_end": end,
         "truncated": len(lines) > end,
-        "text": "\n".join(lines[:end]),
+        "text": _shield_fragment("\n".join(lines[:end])),
     }
+
+
+def _shield_fragment(text: str) -> str:
+    """IMP-351: a fragment can be the `00_raw/` copy, which keeps flagged lines verbatim for the BA.
+
+    The view is read by agents too, so each flagged line is shown as `<NEUTRALIZADO:type>`,
+    as in every other artifact written from untrusted text. Markup needs nothing here:
+    the page escapes the fragment and `json_for_script` keeps it inside its data block.
+    """
+    from .injection import detect_injection, neutralize_marked
+
+    return neutralize_marked(text, detect_injection(text))
 
 
 def mini_graph_for_node(trace_id: str, graph: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
