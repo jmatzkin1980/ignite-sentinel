@@ -52,6 +52,28 @@ VALID_RULES = {
 }
 VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
 
+# IMP-346: the one lens normalizer (it had diverged between the knowledge ledger
+# and the development-readiness matrix). Synonyms that are not lenses of their
+# own map to the lens that owns them; "no lens" markers mean the product lens.
+LENS_ALIASES = {"technology": "technical", "frontend": "technical", "backend": "technical"}
+_NO_LENS = {"", "n/a", "-"}
+
+
+def normalize_lens(value: object) -> str:
+    """The canonical lens name for a free-text lens cell.
+
+    Case and surrounding spaces are ignored; ``a/b`` keeps the first lens (callers
+    that want every lens split the text first); ``""``, ``n/a`` and ``-`` mean
+    ``product``; ``technology``, ``frontend`` and ``backend`` mean ``technical``.
+    Any other name is returned lower-cased, so a new lens file still works.
+    """
+    text = str(value or "").strip().lower()
+    if "/" in text and text not in _NO_LENS:
+        text = text.split("/", 1)[0].strip()
+    if text in _NO_LENS:
+        return "product"
+    return LENS_ALIASES.get(text, text)
+
 
 def load_lens_checks(lenses_dir: Path | str | None = None) -> list[dict]:
     """Return the flat, ordered list of lens checks (each tagged with ``lens``)."""

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .blocks import markdown_to_blocks
 from .core.io import copy_file, write_json, write_text
-from .core.paths import workspace_citation
+from .core.paths import workspace_citation, workspace_relative  # IMP-300: `last_export` is workspace-relative
 from .secrets_scan import assert_no_leaks
 from .workspace import update_state, workspace_path
 
@@ -36,11 +36,6 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
                    report=compile_report_for(source))
     result = _export(project_id, artifact, fmt, source, verdict)
     return {**result, **verdict}
-
-
-def workspace_relative(project_id: str, path: Path) -> str:
-    """IMP-300: `last_export` is stored relative to the workspace, so a moved workspace keeps it."""
-    return path.relative_to(workspace_path(project_id)).as_posix()
 
 
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict) -> dict[str, str]:

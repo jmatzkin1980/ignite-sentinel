@@ -67,7 +67,7 @@ class EnglishDashboardTests(_LanguageFixture, unittest.TestCase):
         self.model, self.html = self.render()
 
     def test_no_spanish_ui_string_is_left(self) -> None:
-        page = without_provenance(self.html)
+        page = self.html  # the provenance section follows the page language too
         left = [label for label in SPANISH_LABELS if label in page]
         self.assertEqual(left, [], "Spanish UI strings in an English dashboard")
 

@@ -11,7 +11,7 @@ from .core.markdown import parse_table_rows
 from .agent_sweep import channel_dispositions
 from .ears import requirements_quality_report
 from .gaps import BRIEF_SECTION_FOR_GAP, PRD_SECTION_FOR_GAP, blocking_severities, brief_section_for_gap, count_gaps, is_blocking, parse_gap_answers, parse_gap_rows, parse_gap_table, parse_non_goals, readiness_stage_for_counts, render_non_goals_block
-from .memory import ContextBroker
+from .memory import shared_broker
 from .core.graph import add_edge, add_node, nodes_by_type
 from .workspace import load_config, read_json, state_path, update_state, workspace_path
 from .core.io import write_text
@@ -415,7 +415,7 @@ def evaluate(project_id: str) -> dict[str, object]:
         project_brief = materialize_project_brief(project_id, req_text, gaps_text)
     report_path = base / "01_discovery" / "requirement_maturity_report.md"
     write_text(report_path, render_report(project_id, readiness, blocking_gaps, project_brief))
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         "MATURITY-001",
         "maturity_report",
         report_path,
@@ -611,7 +611,7 @@ def materialize_project_brief(project_id: str, req_text: str, gaps_text: str) ->
         for review in nodes_by_type(project_id, "lens_review"):
             add_edge(project_id, review["id"], brief_id, "informs")
 
-    ContextBroker(project_id).index_artifact(
+    shared_broker(project_id).index_artifact(
         brief_id,
         "project_brief",
         brief_path,

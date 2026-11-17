@@ -10,7 +10,6 @@ local marks live in the reader's browser (localStorage), never in the workspace.
 """
 from __future__ import annotations
 
-import html
 import json
 import sys
 from datetime import datetime, timezone
@@ -22,7 +21,9 @@ from .core.local_browser import open_local_file
 from .gaps import BLOCKING_GAP_STATUSES, lens_for_gap, parse_gap_table
 from .readiness_verdict import VERDICTS, build_readiness_verdict
 from .secrets_scan import assert_no_leaks
-from .shell import content_fingerprint, fill, json_for_script, render_shell, template_text, theme_argument_for_display
+from .shell import (
+    content_fingerprint, fill, json_for_script, provenance_section, render_shell, template_text, theme_argument_for_display,
+)
 from .stakeholders import load_stakeholders, owner_for_lens, registry_path
 from .themes import DEFAULT_THEME, legend_html
 from .workspace import read_json, workspace_path
@@ -287,15 +288,12 @@ def render_readiness_view(model: dict[str, Any], theme: dict[str, Any], *, theme
 
 def _provenance_section(model: dict[str, Any], theme_arg: str) -> str:
     provenance = model["provenance"]
-    heading = "Procedencia" if model.get("language") == "es" else "Provenance"
-    command = html.escape(f"python -m sentinel /view {model['project_id']} --artifact readiness --theme {theme_argument_for_display(theme_arg)}")
-    sources = ", ".join(f"<code>{html.escape(s['path'])}</code>" for s in provenance.get("sources", []))
-    return (
-        f'<section class="view-section" id="provenance"><h2>{heading}</h2>'
-        f"<p>Sources: {sources} · sha256 <code>{html.escape(provenance['source_sha256'])}</code> · "
-        f'cut-off <time datetime="{html.escape(provenance["cutoff"])}">{html.escape(provenance["cutoff"])}</time> '
-        "(the newest source modification time, not the build time).</p>"
-        f"<p>Regenerate: <code>{command}</code></p></section>"
+    return provenance_section(
+        language=model.get("language"),
+        command=f"python -m sentinel /view {model['project_id']} --artifact readiness --theme {theme_argument_for_display(theme_arg)}",
+        cutoff=provenance["cutoff"],
+        sources=list(provenance.get("sources", [])),
+        digest=provenance["source_sha256"],
     )
 
 

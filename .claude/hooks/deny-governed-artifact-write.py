@@ -2,9 +2,10 @@
 """Claude Code PreToolUse hook (IMP-179): deny hand Write/Edit of governed artifacts.
 
 Deterministic, stdlib-only, <100ms. Reads the PreToolUse JSON on stdin, and if a
-mutating tool targets a governed Ignite Sentinel artifact (project-brief.md,
-03_specs/*.md, 04_backlog/*.md) it denies the tool call and points at the owning
-command. This is tier 1 of the defense stack: it works in any Claude Code version
+mutating tool targets a governed Ignite Sentinel artifact (gaps.md,
+requirements.md, project-brief.md, 03_specs/*.md, 04_backlog/*.md: the list in
+sentinel.governed_artifacts, IMP-343) it denies the tool call and names the
+owning command. This is tier 1 of the defense stack: it works in any Claude Code version
 (command hook, no Agent-hook support required), complementing the deep, opt-in
 `ignite-verifier` (tier 3, PostToolUse). The decision logic is shared with the
 Codex hook and the Kilo `permission.edit` deny rules via sentinel.hooks_logic.

@@ -1,12 +1,68 @@
 from __future__ import annotations
 
+import copy
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .ids import next_id
 from .workspace import graph_path, read_json, write_json
 from .core.io import write_text
 from .core.paths import workspace_absolute, workspace_citation, workspace_relative
+
+
+# IMP-345: while > 0, save_graph() keeps the graph in memory and the outermost
+# deferred_graph_saves() writes it once on exit. Keyed by the graph file's path.
+_DEFER_DEPTH = 0
+_DEFERRED: dict[str, dict[str, Any]] = {}  # stored form (relative paths) of each graph read or saved
+_DIRTY: set[str] = set()
+
+
+def _graph_key(project_id: str) -> str:
+    return str(graph_path(project_id).resolve())
+
+
+@contextmanager
+def deferred_graph_saves() -> Iterator[None]:
+    """IMP-345: write each changed graph once at the end of a command, not per node or edge.
+
+    Reads inside the block see every change made in it. The graph is written on
+    exit even when the block raises: artifacts written before the error keep
+    their nodes, exactly as when every change was saved at once. Only a process
+    killed mid-command leaves the graph behind its artifacts; rerunning the
+    command restores the nodes (they are upserted by path).
+    """
+    global _DEFER_DEPTH
+    _DEFER_DEPTH += 1
+    try:
+        yield
+    finally:
+        _DEFER_DEPTH -= 1
+        if not _DEFER_DEPTH:
+            flush_graph_saves()
+
+
+def flush_graph_saves() -> None:
+    """IMP-345: write every graph changed in a deferred block now and forget the cached copies.
+
+    Called on exit of the outermost block, and by code that reads or rewrites the
+    graph file directly while a block may be open.
+    """
+    try:
+        for key in sorted(_DIRTY):
+            write_json(Path(key), _DEFERRED[key])
+    finally:
+        _DIRTY.clear()
+        _DEFERRED.clear()
+
+
+def _read_stored_graph(project_id: str) -> dict[str, Any]:
+    if not _DEFER_DEPTH:
+        return read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    key = _graph_key(project_id)
+    if key not in _DEFERRED:
+        _DEFERRED[key] = read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    return copy.deepcopy(_DEFERRED[key])
 
 
 def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
@@ -15,7 +71,7 @@ def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
     IMP-301: the file stores paths relative to the workspace, so a moved or cloned
     workspace still finds its artifacts; callers keep seeing absolute paths.
     """
-    graph = read_json(graph_path(project_id), {"nodes": [], "edges": []})
+    graph = _read_stored_graph(project_id)
     nodes = []
     for node in graph.get("nodes", []):
         if node.get("path"):
@@ -25,7 +81,13 @@ def load_graph(project_id: str) -> dict[str, list[dict[str, Any]]]:
 
 
 def save_graph(project_id: str, graph: dict[str, list[dict[str, Any]]]) -> None:
-    write_json(graph_path(project_id), relative_graph(project_id, graph))
+    stored = relative_graph(project_id, graph)
+    if _DEFER_DEPTH:
+        key = _graph_key(project_id)
+        _DEFERRED[key] = copy.deepcopy(stored)
+        _DIRTY.add(key)
+        return
+    write_json(graph_path(project_id), stored)
 
 
 def relative_graph(project_id: str, graph: dict[str, Any]) -> dict[str, Any]:
