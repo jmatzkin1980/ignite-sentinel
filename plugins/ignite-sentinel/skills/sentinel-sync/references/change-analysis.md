@@ -36,7 +36,7 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sync P
 | `note_quote` | yes | Verbatim from the note passed with `--source` (case and whitespace are ignored, nothing else). |
 | `target_quote` | yes | Verbatim from the target: the closed gap's confirmed answer (the `Gap Resolution Seeds` / `Gap Resolution Decisions` rows) or its evidence and resolution note; the assumption's statement or justification; the other source's text or its anchored statements. |
 | `question` | no | The question the BA answers. Default: "Does the change replace what TARGET says?" |
-| `untouched`, `absent` | no | The sweep protocol (`sentinel/templates/agent_sweep_protocol.md`). No `counts`, `totals`, `summary`, `figures`, `stats` or `metrics`: figures are the runtime's. |
+| `untouched`, `absent` | no | The sweep protocol (the package's `templates/agent_sweep_protocol.md`). No `counts`, `totals`, `summary`, `figures`, `stats` or `metrics`: figures are the runtime's. |
 
 ## Rules
 
