@@ -7,7 +7,7 @@ runtime never acts on it — compilers are deterministic over the text — and
 `/ingest` and `/sync` surface it as findings with `origin: injection_signal` in
 `01_discovery/injection_signals.md`, for the BA to review with the client. A
 finding is a signal, not a verdict: the source is not altered and nothing is
-blocked.
+blocked. Agent and BA payloads are scanned too (`payload_hygiene`, IMP-342).
 """
 
 from __future__ import annotations
@@ -162,6 +162,27 @@ def neutralize(text: str, signals: list[InjectionSignal]) -> str:
     flagged = {signal.line for signal in signals}
     lines = text.split("\n")
     return "\n".join("" if number in flagged else line for number, line in enumerate(lines, start=1))
+
+
+def neutralized_marker(kind: str) -> str:
+    return f"<NEUTRALIZADO:{kind}>"
+
+
+def neutralize_marked(text: str, signals: list[InjectionSignal]) -> str:
+    """IMP-342: like `neutralize`, but each flagged line becomes a visible `<NEUTRALIZADO:type>`.
+
+    Used on the text of agent and BA payloads before it lands in an artifact: a blank
+    would leave an empty decision or table cell with no sign that something was there.
+    """
+    if not signals:
+        return text
+    kinds: dict[int, str] = {}
+    for signal in signals:
+        kinds.setdefault(signal.line, signal.type)
+    lines = text.split("\n")
+    return "\n".join(
+        neutralized_marker(kinds[number]) if number in kinds else line for number, line in enumerate(lines, start=1)
+    )
 
 
 def shield_source(workspace: Path, source_name: str, text: str) -> tuple[str, list[str]]:

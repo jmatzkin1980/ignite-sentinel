@@ -6,7 +6,8 @@ the workspace (the `00_raw/` copy and every artifact derived from it) carries
 `<SECRETO:type>` instead of the secret, and each redaction opens an alert in
 `01_discovery/secret_alerts.md` that records the type, the line and a SHA-256
 fingerprint — never the value. A confirmed false positive is allowlisted by that
-fingerprint in `secrets_allowlist.txt` at the workspace root.
+fingerprint in `secrets_allowlist.txt` at the workspace root. The commands that
+take an agent or BA payload apply the same redaction through `payload_hygiene` (IMP-342).
 
 Personal data (emails, phone numbers, card numbers) is reported only, and only
 when the workspace opts in with `pii_report: true`: it is never redacted.

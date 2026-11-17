@@ -8,9 +8,10 @@ from typing import Any
 
 from ..core.markdown import table_cell
 from ..core.graph import add_edge, add_node, nodes_by_type
-from ..core.io import copy_file, read_json, write_json, write_text
+from ..core.io import read_json, write_json, write_text
 from ..core.text import unique_path
 from ..memory import ContextBroker
+from ..payload_hygiene import archive_payload, sanitize_payload, shield_quote
 from ..workspace import update_state, workspace_path
 
 
@@ -44,6 +45,9 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     story_index = load_story_index(base)
     spec_units = load_spec_unit_index(base)
     accepted, rejected = validate_refinement_proposals(data, evidence_text, story_index, spec_units)
+    # IMP-342: validated as written; stored and rendered redacted and neutralized
+    accepted = sanitize_payload(base, accepted)
+    rejected = sanitize_payload(base, rejected, verbatim_keys=("reason",))  # runtime prose: redacted only
     if not accepted:
         # IMP-323: refuse before touching the backlog, the payload archive, state or the graph;
         # only the report of why each proposal was refused is written.
@@ -58,7 +62,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     refinement_dir = base / "04_backlog" / "refinements"
     refinement_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(refinement_dir / source.name)
-    copy_file(source, archived)
+    archive_payload(base, source, archived)
 
     accepted_path = refinement_dir / "accepted_refinements.json"
     existing = read_json(accepted_path, [])
@@ -155,7 +159,7 @@ def validate_proposal_shape(
         if not quote:
             return "empty citation"
         if quote not in evidence_text:
-            return f"citation not found verbatim in source of truth: {quote}"
+            return f"citation not found verbatim in source of truth: {shield_quote(quote)}"
     discarded_reason = validate_discarded_alternative(proposal.get("discarded_alternative"))
     if discarded_reason:
         return discarded_reason

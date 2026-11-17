@@ -12,7 +12,8 @@ from .lens_registry import known_lenses
 from .risk_category_registry import known_risk_categories
 from .memory import ContextBroker
 from .core.graph import add_edge, add_node, load_graph
-from .core.io import copy_file, read_json as core_read_json, write_text
+from .core.io import read_json as core_read_json, write_text
+from .payload_hygiene import archive_payload, sanitize_payload
 from .core.markdown import parse_table_rows
 from .core.text import unique_path
 from .workspace import read_json, read_state, state_path, update_state, workspace_path, write_json
@@ -605,7 +606,8 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
     if not gaps_path.exists():
         raise AssumptionError("Cannot register assumptions before /ingest creates 01_discovery/gaps.md.", gate=True)
     data = load_assumption_source(source)
-    rows = validate_assumptions(data, assumption_grounding_text(base))
+    # IMP-342: validated as written; stored and rendered redacted and neutralized
+    rows = sanitize_payload(base, validate_assumptions(data, assumption_grounding_text(base)))
     assumption_path = base / "01_discovery" / "assumptions.md"
     existing = load_assumptions(project_id)
     existing_ids = {row["id"] for row in existing}
@@ -617,7 +619,7 @@ def apply_assumptions(project_id: str, source: Path) -> dict[str, Any]:
     source_dir = base / "01_discovery" / "assumptions"
     source_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(source_dir / f"{source.stem}.json")
-    copy_file(source, archived)
+    archive_payload(base, source, archived)
 
     assumption_id = add_node(
         project_id,
