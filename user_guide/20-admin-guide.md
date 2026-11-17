@@ -11,7 +11,7 @@ The managed settings keys below are Claude Code's, documented in [Manage plugins
 - Claude Code with plugin support. The `archive` source (install without git) needs v2.1.224 or later.
 - Python 3.10 or newer. It does not have to be on `PATH`: the plugin's `python.sh` also looks in the usual Windows install folders, and `SENTINEL_PYTHON` can name the interpreter ([plugin guide](18-claude-plugin.md#install)). No package installs: the runtime is standard library only. The optional MCP plugin is the exception: it needs the `mcp` package in a Python that is on `PATH` as `python`, which is why this guide keeps it disabled.
 - Read access to `github.com/jmatzkin1980/ignite-sentinel` over git, or to the release assets over HTTPS for the `archive` source.
-- No other network access. Sentinel makes no network calls (`network_isolation_check`).
+- No other network access. Sentinel makes no network calls (the `/doctor` check "package imports no network module").
 
 ## 1. A restrictive policy
 
@@ -204,7 +204,7 @@ For each release you approve:
 
 3. **Hooks.** `plugins/ignite-sentinel/hooks/hooks.json` declares one `PreToolUse` hook on `Write|Edit` that runs `deny-governed-artifact-write.py` through `python.sh`, the script that finds Python. Read the hook script and `python.sh`; `python.sh` only looks for an interpreter and runs it. Any new hook, matcher or command is a reason to stop and ask.
 4. **Surface.** The plugin still has no `bin/`, monitors, LSP servers or MCP servers (those live only in `ignite-sentinel-mcp`).
-5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes `network_isolation_check`, `stdlib_purity_check` and `claude_plugin_check`. Without a clone, unpack the release zip and read `lib/sentinel/` yourself: it is the same source. (`/doctor` does run on the unpacked plugin folder, but in runtime mode it only checks the runtime; `stdlib_purity_check` and `claude_plugin_check` still need a clone.)
+5. **No network.** In a clone at the tag, `python -m sentinel /doctor` passes the checks "package imports no network module", "stdlib purity" and "Claude Code plugin and marketplace". Without a clone, unpack the release zip and read `ignite-sentinel/lib/sentinel/` yourself (the zip holds the plugin inside an `ignite-sentinel/` folder): it is the same source. (`/doctor` does run on the unpacked plugin folder, but in runtime mode it only checks the runtime, including "package imports no network module"; "stdlib purity" and "Claude Code plugin and marketplace" still need a clone.)
 6. **Dependencies.** The SBOM (`ignite-sentinel-vX.Y.Z.cdx.json`) lists only the optional extras; the plugin itself uses none of them.
 
 ## Retention and cleanup
@@ -213,8 +213,8 @@ Sentinel keeps client content in four places. None of them is in the plugin fold
 
 | Where | What | How to clean it |
 |-------|------|-----------------|
-| `workspaces/<PROJECT_ID>/` in the user's project | Source copies, artifacts, views, the memory index | Delete the workspace folder when the engagement ends. `workspaces/` is git-ignored by default (`workspaces_ignored_check`). |
-| Browser `localStorage` for local files | Feedback comments and guided answers typed in views | **Clear Comments** in each view, or clear the browser's site data for local files. |
+| `workspaces/<PROJECT_ID>/` in the user's project | Source copies, artifacts, views, the memory index | Delete the workspace folder when the engagement ends. `workspaces/` is git-ignored in a clone (a clone's `/doctor` checks it: "workspaces/ is ignored by git"). |
+| Browser `localStorage` for local files | Feedback comments and guided answers typed in views, and the sent/answered marks of the readiness view | **Clear Comments** in a view empties its comments only, and **Clear** in the readiness view empties its marks. Guided answers have no clear button: empty each field by hand, or clear the browser's site data for local files, which removes everything. Exporting as Markdown does not remove anything. |
 | Claude Code transcripts | Whatever the agent read or wrote in a session | Claude Code deletes them after `cleanupPeriodDays` (default 30). Set a lower value in managed settings. |
 | A maintainer's clone | Caches, build output, old eval reports, leftover test folders | `python tools/clean_local.py` lists them (dry run); `python tools/clean_local.py --apply` deletes them. It never touches tracked files; workspaces only with `--include-workspaces` and a typed confirmation per workspace. |
 
@@ -226,7 +226,7 @@ Each workspace keeps its state in three files:
 
 | File | What | If deleted |
 |------|------|------------|
-| `state.json` | The durable state: phase, health, story lifecycle and gates, language, privacy, artifact checksums. Carries `schema_version`. | Lost: commands refuse to run until you restore it, from `.sentinel/state.json.bak` (the state before the last update), git or a backup. |
+| `state.json` | The durable state: phase, health, story lifecycle and gates, language, privacy, artifact checksums. Carries `schema_version`. | Lost: once the workspace has artifacts (or a backup exists), commands refuse to run until you restore it, from `.sentinel/state.json.bak` (the state before the last update), git or a backup. `.sentinel/` is git-ignored, so `state.json.bak` exists only on the machine that ran the last command. |
 | `.sentinel/derived/state.json` | Counts, metrics and roll-ups the runtime recomputes. | Nothing is lost; commands rebuild it. |
 | `.sentinel/command_log.jsonl` | One line per command, append-only. | Only the history is lost. |
 

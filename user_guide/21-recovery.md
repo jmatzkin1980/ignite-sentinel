@@ -72,12 +72,12 @@ Generated files (the gaps, the requirements, the brief, specs, backlog) change o
 
 ## A file was deleted or is corrupted
 
-Regenerate it with the command that owns it. The [artifact reference](02-artifact-reference.md) has a "Written by" column for every file. For example, a missing `02_requirements/project-brief.md` makes `/validate` fail with a finding like "points to a path that does not exist"; `/brief ACME_PORTAL` writes it again.
+Regenerate it with the command that owns it. The [artifact reference](02-artifact-reference.md) has a "Written by" column for every file. For example, a missing `02_requirements/project-brief.md` makes `/validate` fail with a finding like "`<node>` points to missing artifact: `<path>`" (`/health` reports it as "points to a path that does not exist"); `/brief ACME_PORTAL` writes it again.
 
 Two kinds of file cannot be regenerated, because they are the input, not the output:
 
 - **Raw evidence** under `00_raw/` and the copies under `07_changes/`: restore them from git or your backup, or bring the original in again with `/sync --source`.
-- **`state.json`** (the project's state): every command refuses with exit 3 while it is missing or does not parse, and names the fix. Every state update first copies the previous file to `.sentinel/state.json.bak`: copy that file back to `state.json` in the workspace folder (you lose at most the last update), or restore it from git or your backup. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists the workspaces whose `state.json` is missing or damaged.
+- **`state.json`** (the project's state): while it does not parse, every command refuses with exit 3 and names the fix. While it is missing, commands refuse the same way once the workspace has artifacts or a backup exists. Every state update first copies the previous file to `.sentinel/state.json.bak`: copy that file back to `state.json` in the workspace folder (you lose at most the last update), or restore it from git or your backup. `.sentinel/` is git-ignored, so that backup, like the hand-edit copies under `.sentinel/hand_edits/`, exists only on the machine that ran the last command: after a clone or a pull on another machine, restore from git. A workspace with no artifacts yet can be recreated with `/init`. `/doctor` lists the workspaces whose `state.json` is missing or damaged.
 
 Any other workspace JSON file that does not parse stops the command with exit 3 and its name. Restore it from git, or regenerate it with the command that writes it; for a file under `memory.lancedb/`, run `/reindex ACME_PORTAL`. The `next step:` line says which.
 

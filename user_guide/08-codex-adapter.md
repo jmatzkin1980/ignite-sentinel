@@ -48,7 +48,7 @@ The complete list is in the [skills catalog](04-codex-skills-guide.md).
 | `sentinel-sync` | Process changes |
 | `sentinel-health` | Health, validation, traceability |
 | `sentinel-domain-request` | Domain context requests |
-| `sentinel-privacy-local-first` | Local-only privacy rules (only on request; Codex never starts it on its own) |
+| `sentinel-privacy-local-first` | Local-only privacy rules. Meant to be asked for by name. Its human-only marker is a Claude Code feature, so Codex can still start it on its own, which is harmless. The rules are always on through `AGENTS.md` anyway. |
 
 Name one explicitly when you want it: "Use sentinel-maturity to evaluate ACME_PORTAL and explain what blocks specs."
 

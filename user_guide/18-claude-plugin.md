@@ -47,7 +47,7 @@ The plugin has no slash commands of its own: it ships skills and one hook. A ski
 > [!NOTE]
 > Type `sentinel /doctor`, or ask "run the Ignite Sentinel doctor". The plugin has no slash commands of its own, so a bare `/doctor` runs Claude Code's built-in diagnostic, which can offer to change your Claude Code settings. Inside a plain project folder Sentinel's doctor runs in runtime mode (`"mode": "runtime"`): it checks the interpreter, the folder and the optional extras, and a `doctor mode` check says the clone's files were skipped. To check a clone, run `sentinel /doctor --root PATH_TO_THE_CLONE`.
 >
-> On Windows, Claude Code runs the plugin's commands through Git Bash, which rewrites a leading `/init` into a path such as `C:/Program Files/Git/init`; Sentinel reads that path back as the command (since 0.12.1; observed with `sentinel /doctor` on 2026-11-15). Observed on 2026-11-15 with 0.12.0, installed from the GitHub marketplace in the Claude desktop app on Windows: the skills autocomplete as `/ignite-sentinel:...`; `init`, `ingest`, `next` (it asks for the brief settings), `brief`, `view` and `dashboard` run from plain requests; `specs` is refused until the brief settings are confirmed; `sentinel /doctor` passes in runtime mode; and a hand write to `03_specs/` or a hand edit of `project-brief.md` is denied by the hook, which names the owning command. The hook covers `gaps.md` and `requirements.md` too since IMP-343; that refusal has not been watched in the app yet.
+> On Windows, Claude Code runs the plugin's commands through Git Bash, which rewrites a leading `/init` into a path such as `C:/Program Files/Git/init`; Sentinel reads that path back as the command (since 0.12.1; observed with `sentinel /doctor` on 2026-11-15). Observed on 2026-11-15 with 0.12.0, installed from the GitHub marketplace in the Claude desktop app on Windows: the skills autocomplete as `/ignite-sentinel:...`; `init`, `ingest`, `next` (it asks for the brief settings), `brief`, `view` and `dashboard` run from plain requests; `specs` is refused until the brief settings are confirmed; `sentinel /doctor` passes in runtime mode; and a hand write to `03_specs/` or a hand edit of `project-brief.md` is denied by the hook, which names the owning command. The hook covers `gaps.md` and `requirements.md` too since IMP-343; that refusal has not been watched in the app yet. None of these observations has been repeated on the current release.
 
 The rest of the lifecycle is the same on every surface: see [Workflows](03-workflows.md) and the [command reference](01-command-reference.md).
 
@@ -60,7 +60,7 @@ The rest of the lifecycle is the same on every surface: see [Workflows](03-workf
 | `launcher.py` and `lib/sentinel/` | The runtime in source form, so it can be audited. |
 | `python.sh` | Finds Python 3.10+ for the hook and the skills. |
 
-The plugin has no `bin/` folder, monitors, LSP servers or telemetry, and makes no network call (`/doctor` runs `network_isolation_check` for that).
+The plugin has no `bin/` folder, monitors, LSP servers or telemetry, and makes no network call (`/doctor` checks that with "package imports no network module").
 
 ## Versions and channels
 
@@ -91,7 +91,7 @@ Claude Code does not update a marketplace you added yourself unless you turn aut
 
 ### Without git: the release archive
 
-Each GitHub release carries one `.zip` per plugin (`ignite-sentinel-vX.Y.Z.zip`, `ignite-sentinel-mcp-vX.Y.Z.zip`) and a `SHA256SUMS` file. Every file has a build provenance attestation:
+Each GitHub release carries one `.zip` per plugin (`ignite-sentinel-vX.Y.Z.zip`, `ignite-sentinel-mcp-vX.Y.Z.zip`) and a `SHA256SUMS` file. Each zip (like the wheel and the SBOM) has a build provenance attestation; `SHA256SUMS` itself is not attested:
 
 ```bash
 gh attestation verify ignite-sentinel-vX.Y.Z.zip --repo jmatzkin1980/ignite-sentinel
@@ -124,7 +124,7 @@ claude plugin install ignite-sentinel-mcp@ignite-sentinel
 claude plugin enable ignite-sentinel-mcp@ignite-sentinel
 ```
 
-For a reproducible install with pinned versions and hashes, take `constraints/mcp.txt` from the release you use and run `python -m pip install --require-hashes -r mcp.txt` instead of the first line.
+For a reproducible install with pinned versions and hashes, take `constraints/mcp.txt` from the repository at the tag of the release you use (`vX.Y.Z`; it is not one of the release downloads) and run `python -m pip install --require-hashes -r mcp.txt` instead of the first line.
 
 The server starts in your project folder. In Claude Code, `/mcp` should list `ignite-sentinel`. A failed command returns an error result whose text carries the exit `code`, the `error` and the `next_step`. This plugin has not yet been watched enabled in a session.
 
@@ -146,7 +146,7 @@ The plugin targets Claude Code. In Codex and Kilo Code use the clone: see [Codex
 
 ## Do not edit the plugin by hand
 
-`plugins/` and `.claude-plugin/marketplace.json` are generated from the repository's sources. Do not edit them; a check in `/doctor` (`claude_plugin_check`) fails on any difference.
+`plugins/` and `.claude-plugin/marketplace.json` are generated from the repository's sources. Do not edit them; in a clone, the `/doctor` check "Claude Code plugin and marketplace" fails on any difference.
 
 ## Next
 

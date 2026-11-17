@@ -14,9 +14,9 @@ python -m sentinel /view ACME_PORTAL --artifact prd --open
 | `--artifact NAME` | Required. One of the 11 names below. |
 | `--open` | Open the page in your default browser when it is built. |
 | `--theme NAME_OR_PATH` | A built-in theme name, a local theme name, or the path to a theme JSON. Without it: `theme:` in `sentinel.config.yaml`, then `neutral`. See [Themes](17-themes.md). |
-| `--release rN` | Build the view for one release of a confirmed series. |
+| `--release rN` | Build the view for one release of a confirmed series (`rN`, or `rN.M` for a sub-release). |
 
-`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first.
+`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first. The `diagrams` view is the exception: without a brief it stops with exit 3 and a message that names `/brief`, but prints no `next step:` line (see [Diagrams](#diagrams)).
 
 **Output path.** The file is `workspaces/<PROJECT_ID>/08_context_packs/views/<artifact>.html`. With `--release rN` it is `workspaces/<PROJECT_ID>/08_context_packs/rN/views/<artifact>.html`. Views are ignored by git and safe to delete: rebuild them any time. The Markdown stays the source of truth; do not edit the HTML.
 
@@ -83,7 +83,7 @@ This view answers "what is missing, and from whom?". It is not built from one Ma
 /view ACME_PORTAL --artifact diagrams
 ```
 
-The diagrams view reads the **v2** brief. It fails with an error if the brief does not exist or if the workspace compiles brief v1.
+The diagrams view reads the **v2** brief. It fails with exit 3 if the brief does not exist (the message says to run `/brief`) or if the workspace compiles brief v1.
 
 | Card | From | Mermaid type |
 |---|---|---|
@@ -96,7 +96,7 @@ The diagrams view reads the **v2** brief. It fails with an error if the brief do
 - **Nothing is inferred.** A diagram is drawn only from structured lines: `STATE → STATE: event`, `Actor → Actor: message`, `A → B: contract`, `Component (new|extends|unchanged|retired)` (Spanish forms accepted), or a Markdown table whose header names its columns (`State | Event | Next state`, `From | To | Message`, `Component | Status`).
 - **Dashed means pending, conditional or optional.** A pending section is a dashed placeholder with its GAP. A component that only appears in the integration map is drawn as external and listed under "what is still to define".
 - A populated section with none of that notation becomes a card "without diagrammable notation" that says how to write it. A diagram over 24 edges is split into parts.
-- **Rendering is offline.** The page inlines a vendored Mermaid whose hash `/doctor` checks. Without the library (the minimal `.pyz` leaves it out) or on a hash mismatch, each card shows its Mermaid code marked "not rendered". The code is always available under **Mermaid code**.
+- **Rendering is offline.** The page inlines a vendored Mermaid. The view checks its hash every time it renders, and a clone's `/doctor` checks it too (the `vendored mermaid` check; runtime mode skips it). Without the library (the minimal `.pyz` leaves it out) or on a hash mismatch, each card shows its Mermaid code marked "not rendered". The code is always available under **Mermaid code**.
 
 ## Shared page shell
 
