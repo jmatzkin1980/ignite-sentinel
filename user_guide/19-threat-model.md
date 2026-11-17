@@ -55,9 +55,13 @@ A source contains text written as an instruction ("ignore the previous rules", "
 
 Not detected: instructions hidden in HTML comments or markup, encoded or obfuscated text, other languages, and paraphrases that avoid these phrasings.
 
-The flagged lines are blanked from the text the compilers analyze, so an embedded order cannot change gaps, units or downstream artifacts. Memory applies the same shield: whenever it indexes a client copy (the `/ingest` raw copy, a `/sync` or `/resolve-gaps` change copy, any file in the `00_raw/` context folders or `07_changes/` that Sentinel did not write itself), flagged lines are blanked, also on `/sync` and on `/reindex`, so `/retrieve` and the context packs never serve them. The raw copy keeps them verbatim for the BA to review. Every agentic surface (AGENTS.md, CLAUDE.md, the MCP server instructions, the Kilo agents, the source-reading skills) declares that sources are data. Agent contributions only land after the runtime finds their verbatim citation in the sources.
+The flagged lines are blanked from the text the compilers analyze, so an embedded order cannot change gaps, units or downstream artifacts. Memory applies the same shield: whenever it indexes a client copy (the `/ingest` raw copy, a `/sync` or `/resolve-gaps` change copy, any file in the `00_raw/` context folders or `07_changes/` that Sentinel did not write itself), flagged lines are blanked, also on `/sync` and on `/reindex`, so `/retrieve` and the context packs never serve them. The raw copy keeps them verbatim for the BA to review.
 
-**Evidence:** `tests/test_injection_signals.py`: seeded patterns produce one finding each, and a compiler's output is identical with and without an embedded instruction. `tests/test_privacy_imp336.py`: flagged lines stay out of memory and `/retrieve` after `/ingest`, `/sync` and `/reindex --full`.
+Agent and BA payloads get the same check: `/self-review`, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, and `--override` on `/validate`, `/quality` and `/backlog-status`. Flagged lines are listed in `injection_signals.md` and stay verbatim only in the payload copy the command keeps. In everything else the command writes from the payload (artifacts, reports, registers, `state.json`), each flagged line becomes `<NEUTRALIZADO:type>`; in a rejection report, only the quoted payload text is neutralized, not Sentinel's own message. Citations are checked against the sources first, on the text as the agent wrote it. `/compose` checks its citations again each time the PRD is regenerated, so it keeps them as written in `accepted_blocks.json` and neutralizes them only in `prd.md`.
+
+Every agentic surface (AGENTS.md, CLAUDE.md, the MCP server instructions, the Kilo agents, the source-reading skills) declares that sources are data. Agent contributions only land after the runtime finds their verbatim citation in the sources.
+
+**Evidence:** `tests/test_injection_signals.py`: seeded patterns produce one finding each, and a compiler's output is identical with and without an embedded instruction. `tests/test_privacy_imp336.py`: flagged lines stay out of memory and `/retrieve` after `/ingest`, `/sync` and `/reindex --full`. `tests/test_payload_hygiene_imp342.py`: for each payload command, a flagged line stays only in the payload copy, and a `/compose` citation of a flagged source line still passes when the PRD is regenerated.
 
 **Residual risk:** detection is pattern-based. A novel phrasing can pass unflagged; the citation rule still keeps an agent from inventing content, but an agent that reads the raw source directly is protected only by its own harness and by the BA's review.
 
@@ -75,7 +79,7 @@ A crafted project id, artifact name or source path (`..`, an absolute path, a sy
 
 A source contains a private key, cloud key, token, JWT, URL with credentials, connection string or a plain credential, and it reaches an artifact, a view, an export, the memory index or the repository.
 
-**Control:** `/ingest`, `/sync --source`, `/resolve-gaps` and `/harvest` run every incoming file through the same sanitizer. Detected:
+**Control:** `/ingest`, `/sync --source`, `/resolve-gaps` and `/harvest` run every incoming file through the same sanitizer. So do the commands that take an agent or BA payload (`/self-review`, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, and `--override` on `/validate`, `/quality` and `/backlog-status`): the payload copy they keep and everything they write from it carry `<SECRETO:type>`. Detected:
 
 - `private_key`: PEM private key blocks;
 - `connection_string`: `Server=…;…Password=…`, `AccountKey=`, `SharedAccessKey=`;
@@ -87,7 +91,7 @@ A source contains a private key, cloud key, token, JWT, URL with credentials, co
 
 Not detected: a credential with no key in front of it, a value that is a single plain word (`changeme`), a credential in a table cell or prose ("the password is …"), and provider formats not listed above. The BA's original file is only read; the workspace copy and everything extracted from it carry `<SECRETO:type>` instead. Each redaction is logged in `01_discovery/secret_alerts.md` with type, line and a SHA-256 fingerprint, never the value. False positives are allowlisted by fingerprint. Memory redacts everything it indexes. `/view` and the exports refuse to write an output that carries a secret or a reference to another workspace. Personal data is reported only, opt-in, in `01_discovery/pii_report.md`. In the repository, `/doctor` runs `tracked_secrets_check` over `git ls-files` and `workspaces_ignored_check`, which fails when a new workspace would be committable.
 
-**Evidence:** `tests/test_secrets_ingest.py`: six seeded secrets, six redactions, none in any output. `tests/test_privacy_imp336.py`: each credential and provider kind is redacted, placeholders are not, and nothing reaches the workspace, memory or `/retrieve` after `/ingest`, `/sync --source`, `/resolve-gaps` or `/harvest`.
+**Evidence:** `tests/test_secrets_ingest.py`: six seeded secrets, six redactions, none in any output. `tests/test_privacy_imp336.py`: each credential and provider kind is redacted, placeholders are not, and nothing reaches the workspace, memory or `/retrieve` after `/ingest`, `/sync --source`, `/resolve-gaps` or `/harvest`. `tests/test_payload_hygiene_imp342.py`: no secret from a payload reaches any workspace file, and each one is logged in `secret_alerts.md`, for each payload command.
 
 **Residual risk:** a secret in a format the detector does not know passes through (see "Not detected" above). Personal data is not redacted, only reported.
 

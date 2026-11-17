@@ -10,8 +10,9 @@ from .core.markdown import table_cell
 from .core.graph import add_edge, add_node, upsert_node
 from .core.markdown import parse_table_rows
 from .memory import ContextBroker
+from .payload_hygiene import archive_payload, sanitize_payload
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
-from .core.io import copy_file, write_text
+from .core.io import write_text
 from .core.text import unique_path
 
 
@@ -36,6 +37,9 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
     story_index = load_story_index(base)
     accepted, rejected = validate_findings(data, story_index)
+    # IMP-342: validated as written; stored and rendered redacted and neutralized
+    accepted = sanitize_payload(base, accepted)
+    rejected = sanitize_payload(base, rejected, verbatim_keys=("reason",))  # runtime prose: redacted only
     if not accepted:
         # IMP-323: refuse before touching gaps, stories, the payload archive, state or the graph;
         # only the report of why each finding was refused is written.
@@ -50,7 +54,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     feedback_dir = base / "07_changes" / "05_implementation_feedback"
     feedback_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(feedback_dir / source.name)
-    copy_file(source, archived)
+    archive_payload(base, source, archived)
     report_path = write_feedback_report(project_id, accepted, rejected, archived)
     write_feedback_gaps(project_id, accepted)
 

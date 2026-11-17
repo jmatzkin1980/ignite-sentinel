@@ -69,7 +69,7 @@ With no model available, `/doctor` shows the embedder as `WARN`, the verdict sta
 
 ## Handling client data
 
-- Never put credentials or secrets in a workspace. `/ingest`, `/sync`, `/resolve-gaps` and `/harvest` replace detected secrets with `<SECRETO:type>` and log each one in `01_discovery/secret_alerts.md` (type, line, fingerprint, never the value). What it detects and what it cannot is in the [threat model](19-threat-model.md#t3--secret-leakage).
+- Never put credentials or secrets in a workspace. `/ingest`, `/sync`, `/resolve-gaps` and `/harvest` replace detected secrets with `<SECRETO:type>`, and so do the commands that take an agent or BA payload (`/self-review`, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, and `--override` on `/validate`, `/quality` and `/backlog-status`). Each one is logged in `01_discovery/secret_alerts.md` (type, line, fingerprint, never the value). What it detects and what it cannot is in the [threat model](19-threat-model.md#t3--secret-leakage).
 - In the framework repository `workspaces/` is ignored by git, so a project never ends up in a public copy by accident. If you version your own project, see [Versioning your workspaces](10-repo-and-branching-strategy.md).
 - Keep the framework's `main` branch free of client data; work on your own copy.
 - **Backlog privacy scan.** Commands that hand off, validate or change `04_backlog/` scan existing backlog artifacts for credential assignments, authorization headers, non-example HTTP endpoints, email addresses and private account or client identifiers. The setting is `privacy_scan.mode` in `workspaces/<PROJECT_ID>/sentinel.config.yaml`:

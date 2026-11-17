@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from .core.graph import add_edge, add_node, nodes_by_type
-from .core.io import copy_file, write_json, write_text
+from .core.io import write_json, write_text
 from .core.text import unique_path
 from .memory import ContextBroker
+from .payload_hygiene import archive_payload, sanitize_payload, shield_quote
 from .workspace import read_json, state_path, update_state, workspace_path
 
 
@@ -21,6 +22,8 @@ class ComposeError(InputError):
 
 PRD_SECTION_RE = re.compile(r"^## (\d+)\.", re.MULTILINE)
 PENDING_MARKERS = ("[PENDING INPUT]", "GAP-PRD-", "GAP-METRIC-SOURCE")
+COMPOSITION_VERBATIM_KEYS = ("citations",)
+REASON_KEYS = ("reason",)  # IMP-342: runtime prose, redacted only (see payload_hygiene.shield_quote)
 
 
 def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
@@ -38,6 +41,11 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     sections = prd_sections(prd_text)
     evidence_text = composition_evidence_text(base)
     accepted, rejected = validate_composition_blocks(data, sections, evidence_text)
+    # IMP-342: validated as written, stored redacted and neutralized. Citations are
+    # re-checked verbatim on every PRD regeneration, so they are only redacted here and
+    # neutralized when `render_prd_compositions` prints them.
+    accepted = sanitize_payload(base, accepted, verbatim_keys=COMPOSITION_VERBATIM_KEYS)
+    rejected = sanitize_payload(base, rejected, verbatim_keys=REASON_KEYS)
     if not accepted:
         # IMP-323: refuse before touching the PRD, the payload archive, state or the graph; only
         # the report of why each block was refused is written, as the audit of the attempt.
@@ -50,7 +58,7 @@ def apply_prd_composition(project_id: str, source: Path) -> dict[str, object]:
     comp_dir = base / "03_specs" / "compositions"
     comp_dir.mkdir(parents=True, exist_ok=True)
     archived = unique_path(comp_dir / source.name)
-    copy_file(source, archived)
+    archive_payload(base, source, archived)
 
     accepted_path = comp_dir / "accepted_blocks.json"
     existing = read_json(accepted_path, [])
@@ -156,7 +164,7 @@ def validate_block_shape(block: Any, section: str, sections: dict[str, str], evi
             if not quote:
                 return "empty citation"
             if quote not in evidence_text:
-                return f"citation not found verbatim in source of truth: {quote}"
+                return f"citation not found verbatim in source of truth: {shield_quote(quote)}"
     return ""
 
 
@@ -179,11 +187,11 @@ def render_prd_compositions(project_id: str, prd_text: str) -> str:
             discarded.append({"id": str(block.get("id", "?")), "section": section or "?", "reason": reason})
         else:
             valid.append(block)
-    write_composition_regeneration_report(project_id, valid, discarded)
+    write_composition_regeneration_report(project_id, valid, sanitize_payload(base, discarded, verbatim_keys=REASON_KEYS))
     if not valid:
         return prd_text
     by_section: dict[str, list[dict[str, Any]]] = {}
-    for block in valid:
+    for block in sanitize_payload(base, valid):  # IMP-342: what is printed is fully sanitized
         by_section.setdefault(str(block["section"]), []).append(block)
     return insert_composition_blocks(prd_text, by_section)
 
