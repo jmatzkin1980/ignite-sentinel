@@ -97,6 +97,9 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-QUALITY-HANDOFF": "Handoff de calidad",
             "GAP-METRIC-DEFINITION": "Definición de métrica",
             "GAP-AUTH-MODEL": "Modelo de auth y permisos",
+            "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": "Reglas de negocio vagas",
+            "GAP-QUALITY-WEAK-WORD-SMELL": "Criterios de calidad vagos",
+            "GAP-HYPOTHETICAL-ANCHOR": "Caso real detrás de la necesidad",
         }
         return titles.get(gap_id, "Información necesaria")
     titles = {
@@ -123,6 +126,9 @@ def human_title_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-QUALITY-HANDOFF": "Quality Handoff",
         "GAP-METRIC-DEFINITION": "Metric Definition",
         "GAP-AUTH-MODEL": "Auth And Permission Model",
+        "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": "Vague Business Rules",
+        "GAP-QUALITY-WEAK-WORD-SMELL": "Vague Quality Criteria",
+        "GAP-HYPOTHETICAL-ANCHOR": "Real Case Behind The Need",
     }
     return titles.get(gap_id, "Information Needed")
 
@@ -570,6 +576,10 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
             "GAP-PRD-FR-AC": "¿Qué funciones debe ofrecer la solución y, para cada una, qué resultado observable demuestra que funciona?",
             "GAP-PRD-NFR-KPI": "¿Qué objetivos de calidad y KPIs aplican, con su valor objetivo, cómo se mide cada uno y para cuándo?",
             "GAP-PRD-DEPENDENCIES-ROADMAP": "¿Qué necesita la primera versión, qué puede esperar, de qué depende y quién es responsable de cada dependencia?",
+            # IMP-349: every lens check has its own question
+            "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": "Para cada regla de negocio: ¿qué condición o valor exacto la dispara, qué excepciones tiene y qué debe pasar en cada caso?",
+            "GAP-QUALITY-WEAK-WORD-SMELL": "¿Cómo se va a comprobar que la solución funciona bien: qué resultados o valores concretos se esperan?",
+            "GAP-HYPOTHETICAL-ANCHOR": "¿Esta necesidad viene de algo que ya pasó? Describir un caso real reciente: cuándo ocurrió, quiénes participaron y qué pasó.",
         }
         return questions.get(gap_id, "¿Qué información confirmada resuelve esta incertidumbre?")
     questions = {
@@ -602,5 +612,9 @@ def question_for_gap(gap_id: str, language: str = "en") -> str:
         "GAP-PRD-FR-AC": "Which functions must the solution provide, and for each one, what observable result shows it works?",
         "GAP-PRD-NFR-KPI": "Which quality targets and KPIs apply, with their target value, how each one is measured, and by when?",
         "GAP-PRD-DEPENDENCIES-ROADMAP": "What does the first version need, what can wait, what does it depend on, and who owns each dependency?",
+        # IMP-349: every lens check has its own question
+        "GAP-BUSINESS-RULE-WEAK-WORD-SMELL": "For each business rule: what exact condition or value triggers it, what are the exceptions, and what should happen in each case?",
+        "GAP-QUALITY-WEAK-WORD-SMELL": "How will you check that the solution works well: which concrete results or values do you expect?",
+        "GAP-HYPOTHETICAL-ANCHOR": "Does this need come from something that has already happened? Please describe a recent real case: when it happened, who was involved, and what happened.",
     }
     return questions.get(gap_id, "What confirmed information resolves this uncertainty?")

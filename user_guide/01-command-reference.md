@@ -528,7 +528,7 @@ Both count in the per-channel disposition metrics (channel `agent`).
 
 **You get.** The gap counts, `momtest_warnings` (questions phrased as hypotheticals instead of past events; non-blocking), the round, or the disposition recorded.
 
-**Next step.** Send the client the interview script (`/export --artifact gaps --format interview`), not `gaps.md`, then `/resolve-gaps` when answers arrive.
+**Next step.** Send the client the interview script (`/export --artifact gaps --format interview`), not `gaps.md`. When the answered copy comes back, pass it to `/resolve-gaps` as it is.
 
 **See also.** [Artifact reference](02-artifact-reference.md) · [Workflows: client answers arrive](03-workflows.md).
 
@@ -687,7 +687,7 @@ An assumption never unblocks a blocking gap, even with `closes_gap`: `/maturity`
 
 ## `resolve-gaps`
 
-**What it does.** Reads an answered gap file (`### GAP-ID` blocks with answer, owner or source, evidence or reference, decision status and an optional closure reason) and closes, partially closes or reopens gaps by fixed rules.
+**What it does.** Reads an answered gap file (`### GAP-ID` blocks with answer, owner or source, evidence or reference, decision status and an optional closure reason) and closes, partially closes or reopens gaps by fixed rules. An answered copy of the interview export already has this shape.
 
 **Type.** Mutating.
 
@@ -1301,7 +1301,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 |---|---|---|
 | `md` | `08_context_packs/exports/<file>.md` | A copy; with pending marks, a draft banner under the title. |
 | `mdx` | `08_context_packs/exports/prd-mdx/` (`index.mdx`, `blocks.json`, `README.md`) | For an offline renderer you already control. |
-| `interview` | `08_context_packs/exports/gaps-interview.md` | Open gaps as a meeting script, blocking first, grouped by lens or by owner. This is the file to send the client. Leaves out `GAP-BRIEF-PROFILE`, which only the BA answers. Never gated. |
+| `interview` | `08_context_packs/exports/gaps-interview.md` | Open gaps as plain questions, blocking first, grouped by topic or by owner. This is the file to send the client. It shows no lens or severity. Each question sits under its gap id (`### GAP-...`) with empty answer fields, so the client's answered copy goes straight to `/resolve-gaps`. When the source names something specific (a screen, a figure, a sentence), one extra question quotes it. Leaves out `GAP-BRIEF-PROFILE`, which only the BA answers. Never gated. |
 | `faq` | `08_context_packs/exports/gaps-faq.md` | Confirmed closures as questions and answers. Never gated by `--final`. |
 
 **Reads.** The artifact.

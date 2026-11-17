@@ -79,7 +79,9 @@ Each workflow has the same four parts: **When**, **Steps**, **Check** and **If i
    /export ACME_PORTAL --artifact gaps --format interview
    ```
 
-4. Hold the conversation, then go to [Client answers arrive](#client-answers-arrive). Repeat the round with `/gaps --top 5`.
+   The script is written for the client: plain questions, no lens or severity labels. Each question keeps its gap id as a reference; ask the client to keep it with the answer.
+
+4. Hold the conversation or send the file, then go to [Client answers arrive](#client-answers-arrive). The answered script can go to `/resolve-gaps` as it is. Repeat the round with `/gaps --top 5`.
 
 If you received many unrelated requests at once and are not sure how many projects they are, ask the agent to use the `sentinel-intake-triage` skill before `/init`: it groups the requests by theme with a citation per source.
 
@@ -93,7 +95,7 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **Steps:**
 
-1. Save the answered copy of `gaps.md` as an input file. Under each `### GAP-...` heading the client fills `Answer`, `Owner / source`, `Evidence or reference` and `Decision status` (`confirmed`, `pending` or `not applicable`). The `sentinel-gap-response` skill can help shape answers that arrived in another form.
+1. Save the answered interview script (or an answered copy of `gaps.md`) as an input file. Under each `### GAP-...` heading the client fills `Answer`, `Owner / source`, `Evidence or reference` and `Decision status` (`confirmed`, `pending` or `not applicable`). The `sentinel-gap-response` skill can help shape answers that arrived in another form.
 2. Process it, then check maturity:
 
    ```text

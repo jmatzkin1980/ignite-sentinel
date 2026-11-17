@@ -110,19 +110,21 @@ class RoutingTests(unittest.TestCase):
         ]
         stk = [{"id": "STK-001", "name": "Ops", "domain": "product", "respondent_profile": "business", "topic": "", "notes": ""}]
         script = render_interview_script("D", gaps, "en", stk)
-        self.assertIn("Owner: Ops (domain `product`", script)
-        self.assertIn("respondent_profile `business`", script)
-        self.assertIn("Unassigned (no stakeholder owner", script)
+        # IMP-349: the client sees the contact's name, not domain or respondent profile labels
+        self.assertIn("**Questions for Ops**", script)
+        self.assertNotIn("respondent_profile", script)
+        self.assertIn("**Questions with no contact named yet**", script)
         # GAP-A routed under its owner; GAP-B (no owner) under the unassigned bucket.
-        self.assertLess(script.index("Owner: Ops"), script.index("GAP-A"))
-        self.assertLess(script.index("Unassigned"), script.index("GAP-B"))
+        self.assertLess(script.index("Questions for Ops"), script.index("GAP-A"))
+        self.assertLess(script.index("no contact named yet"), script.index("GAP-B"))
 
-    def test_no_registry_keeps_lens_grouping_backward_compatible(self):
+    def test_no_registry_groups_by_topic(self):
         gaps = [_gap(id="GAP-A", lens="product", severity="critical")]
         script = render_interview_script("D", gaps, "en")  # stakeholders=None
-        self.assertNotIn("Owner:", script)
-        self.assertNotIn("Unassigned", script)
-        self.assertIn("### product", script)
+        self.assertNotIn("Questions for", script)
+        self.assertNotIn("no contact named", script)
+        self.assertIn("**Product scope**", script)
+        self.assertNotIn("### product", script)
 
 
 if __name__ == "__main__":

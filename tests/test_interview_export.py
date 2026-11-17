@@ -57,25 +57,26 @@ class InterviewScriptRenderTests(unittest.TestCase):
         with_evidence = _gap(id="GAP-METRIC-SOURCE", lens="business", severity="high", evidence_mention="signups")
         without_evidence = _gap(id="GAP-QUALITY", lens="quality", severity="medium")
         script = render_interview_script("DEMO", [with_evidence, without_evidence])
-        # Cited gap gets probing questions citing its local mention.
-        self.assertIn("Probing questions:", script)
-        self.assertIn("Local citation: `signups`", script)
-        # The un-cited gap gets no probing block (silence, never invents).
-        quality_slice = script[script.index("GAP-QUALITY"):]
-        self.assertNotIn("Probing questions:", quality_slice)
+        # IMP-349: the cited gap gets one follow-up quoting its local mention.
+        self.assertIn('"signups"', script)
+        # The un-cited gap gets no follow-up (silence, never invents).
+        quality_slice = script[script.index("### GAP-QUALITY"):]
+        self.assertNotIn('"', quality_slice)
 
     def test_empty_when_no_open_gaps(self):
-        self.assertIn("No open gaps", render_interview_script("DEMO", []))
+        self.assertIn("No open questions", render_interview_script("DEMO", []))
         all_closed = [_gap(status="CLOSED")]
-        self.assertIn("No open gaps", render_interview_script("DEMO", all_closed))
+        self.assertIn("No open questions", render_interview_script("DEMO", all_closed))
 
-    def test_probing_is_derived_from_candidate_options_not_invented(self):
+    def test_probing_cites_the_same_mention_as_the_candidate_options(self):
         gap = _gap(id="GAP-METRIC-SOURCE", lens="business", severity="high", evidence_mention="signups")
         probing = interview_probing_for_gap(gap)
         options = candidate_options_for_gap(gap)
-        self.assertTrue(probing)
-        self.assertEqual([p["text"] for p in probing], [o["text"] for o in options])
-        self.assertEqual([p["citation"] for p in probing], [o["citation"] for o in options])
+        self.assertEqual(len(probing), 1)
+        # IMP-349: a plain question to the client, not the BA's candidate option text
+        self.assertNotIn(probing[0]["text"], [o["text"] for o in options])
+        self.assertIn('"signups"', probing[0]["text"])
+        self.assertEqual({p["citation"] for p in probing}, {o["citation"] for o in options})
         # No local evidence => no probing (silence).
         self.assertEqual(interview_probing_for_gap(_gap(id="GAP-QUALITY")), [])
 
@@ -104,7 +105,7 @@ class InterviewExportLifecycleTests(unittest.TestCase):
         script = script_path.read_text(encoding="utf-8")
         self.assertIn("Interview Script - DEMO", script)
         self.assertLess(script.index("## Blocking questions"), script.index("## Follow-up questions"))
-        self.assertIn("does NOT replace", script)
+        self.assertIn("reference code", script)  # IMP-349: written for the client
         # The canonical source of truth is untouched by the derived export.
         self.assertEqual(gaps_path.read_text(encoding="utf-8"), before)
 
