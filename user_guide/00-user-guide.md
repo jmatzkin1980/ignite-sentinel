@@ -6,15 +6,8 @@ This page explains the ideas behind Ignite Sentinel and then walks one synthetic
 
 A client rarely brings a complete requirement. Sentinel treats what they bring as **evidence**, finds what is missing, asks for it, and only builds downstream documents on what has been confirmed.
 
-```mermaid
-flowchart LR
-    E["Evidence<br/>request, notes, prototypes, code"] --> G["Gaps<br/>questions with owners"]
-    G --> A["Answers and decisions"]
-    A --> B["Project brief"]
-    B --> S["PRD and specs"]
-    S --> K["Backlog and tests"]
-    A -. "still missing" .-> G
-```
+<!-- Diagram source: user_guide/images/guide-idea.mmd (re-render with tools/render_doc_diagrams.py) -->
+![Evidence becomes gaps, gaps get answers and decisions, and the answers build the project brief, then the PRD and specs, then the backlog and tests; whatever is still missing goes back to the gaps.](images/guide-idea.svg)
 
 Sentinel does not replace product, design, technology or quality judgment. It makes sure that judgment is written down, cited and traceable before someone builds on it.
 
@@ -141,13 +134,8 @@ The project state is `state.json` (durable). Counts and metrics that can be reco
 
 The project is synthetic: **ACME_PORTAL**, a customer portal where account holders check open invoices. Create a folder `input/` in the folder you run Sentinel from (the repository root in a clone; `workspaces/` will appear next to it), save a short description as `input/acme-request.md` (the [README](../README.md#quick-start-your-first-gaps-document) has a ready sample) and follow the steps. Each step shows the chat form; in a terminal, put `python -m sentinel` in front (`python -m sentinel /init ACME_PORTAL`). In Codex and with the Claude Code plugin, prefix chat commands with `sentinel ` (see [chat commands](11-chat-commands.md)).
 
-```mermaid
-flowchart TD
-    S1["1 /init"] --> S2["2 /ingest"] --> S3["3 /brief --profile --genesis"] --> S4["4 /next"]
-    S4 --> S5["5 /gaps --top 5 and export"] --> S6["6 /resolve-gaps"] --> S7{"7 /maturity"}
-    S7 -- BLOCKED --> S5
-    S7 -- READY_FOR_SPECS --> S8["8 /specs"] --> S9["9 /backlog"] --> S10["10 /quality"] --> S11["11 /trace /health /validate /status"]
-```
+<!-- Diagram source: user_guide/images/guide-first-run.mmd (re-render with tools/render_doc_diagrams.py) -->
+![The eleven steps of the first run, from creating the project with /init to the final audit, where step 7 sends you back to step 5 while maturity is BLOCKED.](images/guide-first-run.svg)
 
 ### 1. Create the project
 

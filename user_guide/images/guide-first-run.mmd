@@ -1,0 +1,12 @@
+flowchart TD
+    S1["1. Create the project<br/>/init"] --> S2["2. Load the request<br/>/ingest"]
+    S2 --> S3["3. Confirm the brief settings<br/>/brief --profile --genesis"]
+    S3 --> S4["4. Ask for the next step<br/>/next"]
+    S4 --> S5["5. Plan a question round and share it<br/>/gaps --top 5, /export"]
+    S5 --> S6["6. Process the answers<br/>/resolve-gaps"]
+    S6 --> S7{{"7. Check maturity<br/>/maturity"}}
+    S7 -- "BLOCKED" --> S5
+    S7 -- "READY_FOR_SPECS" --> S8["8. Generate the PRD and specs<br/>/specs"]
+    S8 --> S9["9. Generate the backlog<br/>/backlog"]
+    S9 --> S10["10. Check quality<br/>/quality"]
+    S10 --> S11["11. Audit and hand off<br/>/trace, /health, /validate, /status"]

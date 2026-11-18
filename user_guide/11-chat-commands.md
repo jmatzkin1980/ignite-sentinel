@@ -10,14 +10,8 @@ You can type the command, or describe the situation in plain words and let the a
 
 When something is waiting on you, the agent closes with one question and a few options, the recommended one first: for example "run `/brief` with the proposed settings", "export the gaps as an interview" or "stop here". In Claude Code they can show as choices to click; elsewhere as a numbered list. You can pick one or answer in your own words. Picking an option never closes a gap or confirms anything for you.
 
-```mermaid
-flowchart LR
-    U["You: /gaps ACME_PORTAL<br/>or 'what is still missing?'"] --> A["Agent and skill"]
-    A --> C["python -m sentinel /gaps ACME_PORTAL"]
-    C --> W["workspaces/ACME_PORTAL/"]
-    C --> R["JSON result, exit code,<br/>next step"]
-    R --> A --> U
-```
+<!-- Diagram source: user_guide/images/chat-command-flow.mmd (re-render with tools/render_doc_diagrams.py) -->
+![You type a command or ask in plain words; the agent runs python -m sentinel, which writes to the workspace and returns a result, and the agent tells you what was written and the next step.](images/chat-command-flow.svg)
 
 ## Surface matrix
 

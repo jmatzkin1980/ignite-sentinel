@@ -1,0 +1,8 @@
+flowchart LR
+    C{{"A command stopped:<br/>which exit code?"}}
+    C -- "1" --> X["Unexpected error: a bug.<br/>Keep the traceback and report it."]
+    C -- "2" --> U["Wrong usage: fix the syntax.<br/>See the command reference."]
+    C -- "3" --> I["Invalid input: fix what the<br/>message names and run again."]
+    C -- "4" --> G["Gate refusal: do the step the<br/>message or /next names."]
+    C -- "5" --> V["Unfavourable verdict: read the<br/>findings of /validate or /doctor."]
+    C -- "6" --> B["Workspace busy: another command<br/>is running. Wait and retry."]

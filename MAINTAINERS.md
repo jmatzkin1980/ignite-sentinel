@@ -40,6 +40,14 @@ Never edit a generated file by hand. Change the source and regenerate:
 - CI → `plugin-validate` runs Claude Code's own `claude plugin validate --strict` on the marketplace and both plugins.
 - When you add a lifecycle command, update the registry (`sentinel/commands.py`) and the manifest, regenerate, and review the command-router skill, which routes by pattern and needs no per-command file.
 
+## Documentation diagrams
+
+README and user-guide diagrams are committed SVG images, not ```` ```mermaid ```` blocks: the GitHub mobile app does not render Mermaid. Each `user_guide/images/<name>.svg` is rendered from `<name>.mmd` next to it, and the page carries an HTML comment pointing to that source.
+
+1. Edit the `.mmd` (or add one and show it with `![one-sentence alt text](images/<name>.svg)`).
+2. Run `python tools/render_doc_diagrams.py` (optionally with diagram names). It uses the vendored Mermaid in a headless Chrome or Edge, offline; pass `--browser <path>` or set `SENTINEL_CHROME` if it does not find one.
+3. Commit the `.mmd` and the `.svg` together. `tests/test_doc_diagrams.py` fails on a stale or missing SVG, on HTML labels (`foreignObject`) and on a ```` ```mermaid ```` fence left in a page.
+
 ## Cutting a release
 
 The version lives in `pyproject.toml`. `sentinel/__init__.py` and both `plugin.json` repeat it, and `python tools/release.py check` fails when any of them differs (CI → `release-check`).

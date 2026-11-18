@@ -1,0 +1,7 @@
+flowchart TD
+    U["You type /gaps ACME_PORTAL<br/>or ask 'what is still missing?'"] --> A["Agent and skill"]
+    A --> C["Runs<br/>python -m sentinel /gaps ACME_PORTAL"]
+    C --> W["Files in<br/>workspaces/ACME_PORTAL/"]
+    C --> R["JSON result, exit code,<br/>next step"]
+    R --> A
+    A -- "what was written,<br/>next step" --> U

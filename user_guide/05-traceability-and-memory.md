@@ -6,12 +6,8 @@ For the files themselves see the [artifact reference](02-artifact-reference.md).
 
 ## The three layers
 
-```mermaid
-flowchart LR
-    truth["Truth<br/>workspace artifacts<br/>(gaps, brief, specs, backlog...)"] --> graph["Traceability<br/>graph + matrix"]
-    truth --> mem["Memory<br/>search index"]
-    mem --> packs["Context packs<br/>for agents"]
-```
+<!-- Diagram source: user_guide/images/traceability-layers.mmd (re-render with tools/render_doc_diagrams.py) -->
+![The workspace files are the truth; the traceability graph and the memory search index are built from them, and the context packs for agents come from the memory.](images/traceability-layers.svg)
 
 | Layer | Where | Role | If it disagrees with the truth |
 |---|---|---|---|

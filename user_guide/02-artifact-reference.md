@@ -8,23 +8,8 @@ Terms such as gap, brief, spec unit, governed artifact or release series are def
 
 Every project lives in `workspaces/<PROJECT_ID>/`. The numbered folders follow the order of the work, so the folder you are in tells you the stage.
 
-```mermaid
-flowchart LR
-    init["/init"] --> root["workspace root<br/>state.json, config, .sentinel/"]
-    ingest["/ingest, /sources,<br/>/harvest, /stakeholders"] --> raw["00_raw/"]
-    ingest --> disc["01_discovery/"]
-    deepen["/annotate, /challenge, /scrutinize,<br/>/assume, /self-review, /maturity"] --> disc
-    resolve["/resolve-gaps, /sync"] --> changes["07_changes/"]
-    resolve --> disc
-    brief["/brief"] --> req["02_requirements/"]
-    split["/split, /prototype"] --> req
-    specs["/specs, /compose"] --> specsf["03_specs/"]
-    backlog["/backlog, /story-status,<br/>/refine-backlog"] --> back["04_backlog/"]
-    quality["/quality"] --> qual["05_quality/"]
-    trace["/trace, /health"] --> trc["06_traceability/"]
-    packs["/context-request, /retrieve --write-pack,<br/>/export, /view"] --> ctx["08_context_packs/"]
-    reindex["/reindex"] --> mem["memory.lancedb/"]
-```
+<!-- Diagram source: user_guide/images/artifact-lifecycle.mmd (re-render with tools/render_doc_diagrams.py) -->
+![The workspace folders in the order of the work, from the workspace root and 00_raw to 05_quality, each with the commands that write it, plus the folders filled all along the way: traceability, changes, context packs and the search index.](images/artifact-lifecycle.svg)
 
 A new project passes through the folders in this order: raw evidence (`00_raw`), discovery (`01_discovery`), the brief (`02_requirements`), specs (`03_specs`), backlog (`04_backlog`), quality (`05_quality`). Traceability (`06_traceability`), changes (`07_changes`) and context packs (`08_context_packs`) are filled all along the way.
 
