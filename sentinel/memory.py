@@ -1282,6 +1282,9 @@ def index_unindexed_nodes(project_id: str) -> list[str]:
     missing = [
         node for node in load_graph(project_id).get("nodes", [])
         if node.get("path") and node["path"] not in indexed and node.get("type") not in NOT_INDEXED_NODE_TYPES
+        # Client sources are indexed only by /ingest, /sync and /reindex, so a
+        # source brought back with /sources --current returns on the next /reindex.
+        and node.get("type") not in CLIENT_SOURCE_NODE_TYPES
         and Path(node["path"]).is_file() and Path(node["path"]).suffix.lower() in INDEXABLE_SUFFIXES
     ]
     if not missing:

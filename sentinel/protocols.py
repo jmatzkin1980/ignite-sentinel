@@ -154,6 +154,10 @@ def settle_after_failure(command: str, project_id: str | None) -> None:
     if not state_path(project_id).is_file():
         _PRE_COMMAND.pop(project_id, None)
         return
+    # A command that wrote no governed artifact leaves state.json untouched.
+    if _PRE_COMMAND[project_id].get("hashes") == snapshot_governed_artifact_hashes(project_id):
+        _PRE_COMMAND.pop(project_id, None)
+        return
     update_state(project_id, artifact_hashes=settle_governed_hashes(project_id, command))
 
 
