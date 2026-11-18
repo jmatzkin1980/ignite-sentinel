@@ -374,11 +374,19 @@ def _json_for_script(value: Any) -> str:
     return json_for_script(value)
 
 
-def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg: str | None = None) -> str:
+def render_dashboard(
+    model: dict[str, Any],
+    theme: dict[str, Any],
+    *,
+    theme_arg: str | None = None,
+    root_arg: str | Path | None = None,
+) -> str:
     """Validate the model, then render it inside the common shell with ``theme``.
 
     Raises ``DashboardModelError`` when the model is inconsistent: an invalid
     snapshot is never written. Deterministic for a given model and theme.
+    ``root_arg`` is the ``--root`` the page was built with, when it is not the
+    current folder; the regenerate command keeps it (by folder name only).
     """
     errors = validate_dashboard_model(model)
     if errors:
@@ -394,7 +402,9 @@ def render_dashboard(model: dict[str, Any], theme: dict[str, Any], *, theme_arg:
         i18n_json=_json_for_script({lang: UI_TEXT[lang] for lang in used}),
         **{f"t_{key}": value for key, value in PAGE_TEXT[language].items() if not key.startswith(("nav_", "legend_"))},
     )
-    content = page + _legend_section(theme, language) + _provenance_section(model["provenance"], theme_arg or str(theme.get("name") or DEFAULT_THEME), language)
+    content = page + _legend_section(theme, language) + _provenance_section(
+        model["provenance"], theme_arg or str(theme.get("name") or DEFAULT_THEME), language, root_arg=root_arg
+    )
     return render_shell(
         theme=theme,
         title="Ignite Sentinel - Workspaces Dashboard",
@@ -414,10 +424,13 @@ def render_html(model: dict[str, Any]) -> str:
 
 def generate_dashboard(root: str | Path = ".", open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
     root_path = Path(root).resolve()
+    # IMP-367: a dashboard built for another folder keeps --root in its regenerate command
+    root_arg = None if root_path == Path.cwd().resolve() else root_path
     loaded = load_theme(theme, search_dirs=user_theme_dirs())
     model = collect_dashboard_model(root_path)
     out = root_path / "dashboard.html"
-    write_text(out, render_dashboard(model, loaded, theme_arg=str(theme) if theme else None), root=root_path, newline="\n")
+    html_text = render_dashboard(model, loaded, theme_arg=str(theme) if theme else None, root_arg=root_arg)
+    write_text(out, html_text, root=root_path, newline="\n")
     if open_browser:
         open_local_file(out)
     return {
@@ -450,10 +463,22 @@ def _legend_section(theme: dict[str, Any], language: str = "es") -> str:
     return f'<section class="dash-section" id="legend" aria-labelledby="legend-h"><h2 id="legend-h">{title}</h2>' + legend_html(theme, language) + "</section>"
 
 
-def _provenance_section(provenance: dict[str, Any], theme_arg: str, language: str = "es") -> str:
+def root_argument_for_display(root_arg: str | Path | None) -> str:
+    """IMP-367: the --root of a printed regen command, by folder name only, quoted.
+
+    Like a theme path, a directory is never printed (it can carry a user name or a
+    client folder); the command runs from the folder that holds the root.
+    """
+    if root_arg is None:
+        return ""
+    name = Path(root_arg).resolve().name.replace('"', "")
+    return f' --root "{name}"' if name else ""
+
+
+def _provenance_section(provenance: dict[str, Any], theme_arg: str, language: str = "es", *, root_arg: str | Path | None = None) -> str:
     return provenance_section(
         language=language,
-        command=f"python -m sentinel /dashboard --theme {theme_argument_for_display(theme_arg)}",
+        command=f"python -m sentinel /dashboard{root_argument_for_display(root_arg)} --theme {theme_argument_for_display(theme_arg)}",
         cutoff=str(provenance.get("cutoff") or ""),
         sources=list(provenance.get("sources") or []),
         section_class="dash-section",

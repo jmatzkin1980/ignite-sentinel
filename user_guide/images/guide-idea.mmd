@@ -1,0 +1,7 @@
+flowchart TD
+    E["Evidence<br/>request, notes, prototypes, code"] --> G["Gaps<br/>questions with owners"]
+    G --> A["Answers and decisions"]
+    A --> B["Project brief"]
+    B --> S["PRD and specs"]
+    S --> K["Backlog and tests"]
+    A -. "still missing" .-> G

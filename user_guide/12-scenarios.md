@@ -28,21 +28,8 @@ A few terms come back often. A **gap** is an open question Sentinel found in you
 
 ### Which scenario is yours?
 
-```mermaid
-flowchart TD
-    A[What is your situation?] --> B{Is there a project yet?}
-    B -- "A pile of raw requests" --> T[Small situations: triage first]
-    B -- "No, one clear request" --> S1[Scenario 1: greenfield portal]
-    B -- Yes --> C{What happened?}
-    S1 --> S2[Scenario 2: thin intake, several rounds]
-    C -- "Input is thin or vague" --> S2
-    C -- "The client changed something" --> S3[Scenario 3: change mid-flight]
-    C -- "A command refused" --> S4[Scenario 4: gate refusal]
-    C -- "The scope is too big for one release" --> S5[Scenario 5: release split]
-    C -- "There is an HTML prototype" --> S6[Scenario 6: prototype]
-    C -- "It extends an existing system" --> S7[Scenario 7: brownfield harvest]
-    C -- "Building has started" --> S8[Scenario 8: feedback and story status]
-```
+<!-- Diagram source: user_guide/images/scenario-picker.mmd (re-render with tools/render_doc_diagrams.py) -->
+![Which scenario to read: with no project yet, triage a pile of requests or start with scenario 1; with a project, pick scenario 2 to 8 by what happened.](images/scenario-picker.svg)
 
 | Your situation | Scenario |
 | --- | --- |

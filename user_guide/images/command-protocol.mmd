@@ -1,0 +1,10 @@
+flowchart TD
+    A["You run a command"] -- "--source file missing" --> X3["Stops: exit 3"]
+    A --> L{{"1. Waits for the workspace lock"}}
+    L -- "still busy after 10 s" --> X6["Stops: exit 6"]
+    L --> P{{"2. Preflight checks the workspace"}}
+    P -- "refused" --> X34["Stops: exit 3 or 4"]
+    P --> R["Runs the command"]
+    R -- "refused" --> X345["Stops: exit 3, 4 or 5"]
+    R --> Q["3. Postflight: logs the command and,<br/>if it wrote files, refreshes traceability"]
+    Q --> D["Done: exit 0"]

@@ -580,23 +580,8 @@ The files are the source of truth; memory only helps find them. If a passage and
 
 **What to do.** Read the `sentinel error:` line, then the `next step:` line if there is one. Most refusals name the command to run. If not, run `/next ACME_PORTAL`: it prints the one step that unblocks the project. The chart and the table below group refusals by their exit code, the number a terminal or a script sees.
 
-```mermaid
-flowchart TD
-    R["Command failed"] --> C{"Exit code?"}
-    C -- "2 wrong usage" --> U["Fix the syntax: a missing required option<br/>such as --source, or an unknown value.<br/>Check the command reference."]
-    C -- "3 invalid input" --> I["Fix what the message names: an unsupported file,<br/>a bad id or value, a refused JSON payload,<br/>a --source file that does not exist (check the path),<br/>a missing or damaged state.json."]
-    C -- "4 gate refusal" --> G{"What does the message say?"}
-    G -- "Workspace not found" --> G1["/init PROJECT_ID"]
-    G -- "before /ingest" --> G2["/ingest PROJECT_ID --source FILE"]
-    G -- "maturity is BLOCKED" --> G3["/status, answer the blocking gaps,<br/>/resolve-gaps, /maturity"]
-    G -- "health is DIRTY" --> G4["/health and /maturity to see blockers"]
-    G -- "without backlog user stories" --> G5["/backlog first"]
-    G -- "no compiled brief, proposal or series;<br/>artifact not generated yet" --> G7["/next PROJECT_ID, then the step it names"]
-    G -- "other: privacy scan, strict gate,<br/>pending marks with --final, DoR/DoD" --> G6["/next PROJECT_ID, then fix what it names"]
-    C -- "5 unfavourable verdict" --> V["Read the findings of /validate or /doctor"]
-    C -- "6 workspace busy" --> B["Another command holds the workspace.<br/>Wait and retry."]
-    C -- "1 unexpected error" --> X["A genuine bug: keep the traceback and report it"]
-```
+<!-- Diagram source: user_guide/images/gate-refused.mmd (re-render with tools/render_doc_diagrams.py) -->
+![What to do for each exit code, from 1 (an unexpected error to report) to 6 (another command holds the workspace, wait and retry).](images/gate-refused.svg)
 
 | Code | What it means | Common causes | What to do |
 |---|---|---|---|

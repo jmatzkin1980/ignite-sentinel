@@ -1077,14 +1077,15 @@ def user_themes_check(root: Path) -> dict[str, str]:  # noqa: C901
             ignored = gitignore.is_file() and local_themes_rule_present(gitignore.read_bytes())
             if local.is_dir() and not ignored:
                 findings.append(f"{workspace.name}: .sentinel/themes exists but the workspace .gitignore does not exclude .sentinel/ (re-run /init {workspace.name}: it only adds what is missing)")
-    builtin = set(list_builtin_themes())
+    # IMP-367: load_theme matches built-in names case-insensitively, so Neutral.json is shadowed too
+    builtin = {theme_name.casefold() for theme_name in list_builtin_themes()}
     count = 0
     for folder in folders:
         if not folder.is_dir():
             continue
         for path in sorted(folder.glob("*.json")):
             count += 1
-            if path.stem in builtin:
+            if path.stem.casefold() in builtin:
                 findings.append(f"{path.name} uses a built-in name and is ignored (built-ins always win)")
                 continue
             try:

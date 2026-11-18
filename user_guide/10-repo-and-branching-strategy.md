@@ -6,12 +6,8 @@ You do not need git to use Sentinel. Git adds a history you can review and a way
 
 ## What lives where
 
-```mermaid
-flowchart LR
-  A[input/ staging folder] -->|/ingest| B[workspaces/ACME_PORTAL/]
-  B --> C[(your project repository)]
-  F[framework clone] -. never holds client data .- C
-```
+<!-- Diagram source: user_guide/images/repo-layout.mmd (re-render with tools/render_doc_diagrams.py) -->
+![Raw files go from input/ into workspaces/ACME_PORTAL/ through /ingest, the workspace goes into your private project repository, and the framework clone never holds client data.](images/repo-layout.svg)
 
 | Place | What | Versioned? |
 |-------|------|------------|

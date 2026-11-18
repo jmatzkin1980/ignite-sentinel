@@ -1,0 +1,12 @@
+flowchart LR
+    B{{"Is there a project yet?"}} --> T["A pile of raw requests:<br/>small situations, triage first"]
+    B --> S1["No, one clear request:<br/>Scenario 1, greenfield portal"]
+    B --> C{{"Yes: what happened?"}}
+    S1 --> S2["Input is thin or vague:<br/>Scenario 2, several rounds"]
+    C --> S2
+    C --> S3["The client changed something:<br/>Scenario 3, change mid-flight"]
+    C --> S4["A command refused:<br/>Scenario 4, gate refusal"]
+    C --> S5["Too big for one release:<br/>Scenario 5, release split"]
+    C --> S6["There is an HTML prototype:<br/>Scenario 6, prototype"]
+    C --> S7["It extends an existing system:<br/>Scenario 7, brownfield harvest"]
+    C --> S8["Building has started:<br/>Scenario 8, feedback and story status"]

@@ -83,18 +83,8 @@ Over MCP, a failed command comes back as an error result (`isError`) whose text 
 
 Every command that names a project goes through the same three steps. You do not call them; they explain why a command refuses, waits or writes files you did not name.
 
-```mermaid
-flowchart LR
-    A[Command] --> L{Workspace lock}
-    L -- busy after 10 s --> X6[exit 6]
-    L --> P{Preflight gates}
-    P -- refused --> X4[exit 3 or 4]
-    A -. source file missing .-> X3[exit 3]
-    P --> R[Run the command]
-    R -- refused --> X[exit 3, 4 or 5]
-    R --> Q[Postflight]
-    Q --> D[exit 0]
-```
+<!-- Diagram source: user_guide/images/command-protocol.mmd (re-render with tools/render_doc_diagrams.py) -->
+![A command waits for the workspace lock, passes the preflight checks, runs and ends with the postflight; a missing --source file, a busy lock, a refused check or a refused run stops it with the exit code shown.](images/command-protocol.svg)
 
 ### 1. The workspace lock
 
