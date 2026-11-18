@@ -140,7 +140,11 @@ class BacklogStalenessUnblockTests(SnapshotWorkspaceCase):
             code, err = run(["backlog", PROJECT])
         self.assertEqual(code, 4, err)
         self.assertIn("Blocking gaps remain open.", err)
-        self.assertIn("Run /health to see every finding", err)
+        # IMP-369: each finding with its fix, in order (was "Run /health to see every finding").
+        self.assertIn("1. Blocking gaps remain open. Close them with the client's answers: "
+                      f"run /resolve-gaps {PROJECT} --source ANSWERS.", err)
+        self.assertIn("2. Knowledge changed after BACKLOG.md, implementation_readiness.json were generated. "
+                      "Run /backlog.", err)
         self.assertEqual(backlog.stat().st_mtime, before, "a refused /backlog writes nothing")
         state = json.loads((self._ws() / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["health"], "DIRTY")

@@ -262,6 +262,10 @@ def next_step(
         key = "fix_brief"
     elif stage in POST_BRIEF_STAGES and not has_brief:
         key = "brief_missing"  # IMP-325: a deleted brief used to be ignored past /brief
+    elif (dirty or _refresh_pending(project_id)) and (fixes := _health_fixes(project_id)):
+        # IMP-369: the same classification as the DIRTY gate of /backlog, so /next names the
+        # concrete command ("Run /specs, then /backlog.") instead of "fix what is unhealthy".
+        return health_fix_step(project_id, fixes)
     elif stage == "READY_FOR_SPECS":
         key = "specs"
     elif stage == "SPECS_BELOW_THRESHOLD":
@@ -294,6 +298,42 @@ def next_step(
     return {"key": key, "title": title, "text": text,
             "command": command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
                                       genesis=proposal.get("genesis", "greenfield"))}
+
+
+HEALTH_FIX_TITLES = {
+    "reindex": "Index what the last commands recorded",
+    "gaps": "Close the blocking questions",
+    "feedback": "Settle the open implementation feedback",
+    "stale": "Review the Stale stories",
+    "chain": "Regenerate what the change made stale",
+    "review": "Review the semantic change",
+    "other": "Fix what makes the project unhealthy",
+}
+
+
+def _refresh_pending(project_id: str) -> bool:
+    from .protocols import downstream_refresh_pending
+
+    return downstream_refresh_pending(project_id)
+
+
+def _health_fixes(project_id: str) -> list[dict[str, Any]]:
+    from .health import health_fixes
+
+    return health_fixes(project_id)
+
+
+def health_fix_step(project_id: str, fixes: list[dict[str, Any]]) -> dict[str, str]:
+    """IMP-369: the next step while health is DIRTY: each fix in order, the first command to run."""
+    first = fixes[0]
+    command = first["steps"][0]
+    if " " not in command:  # the regeneration chain names bare commands (/brief, /specs, /backlog)
+        command = f"{command} {project_id}"
+    steps = " ".join(f"{number}. {fix['label']} {fix['fix']}" for number, fix in enumerate(fixes, start=1))
+    text = ("Health is DIRTY, so /backlog, /quality and /refine-backlog refuse until this is done. "
+            + (steps if len(fixes) > 1 else f"{first['label']} {first['fix']}"))
+    return {"key": "health", "title": HEALTH_FIX_TITLES.get(first["kind"], HEALTH_FIX_TITLES["other"]),
+            "text": text, "command": command}
 
 
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:

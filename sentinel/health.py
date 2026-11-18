@@ -119,7 +119,13 @@ def collect_health(project_id: str) -> dict:
     findings.extend(staleness)
     # IMP-360: findings /backlog itself clears by regenerating its own artifacts.
     remediated_by_backlog = staleness if backlog_remediates_staleness(project_id) else []
-    findings.extend(suspicious_trace_link_findings(project_id))
+    suspicious = suspicious_trace_link_findings(project_id)
+    findings.extend(suspicious)
+    # IMP-369: the semantic-change review clears by regeneration too; when only the
+    # backlog artifacts are left, /backlog is the step that clears it.
+    pending_review = pending_suspicious_links(project_id) if suspicious else None
+    if pending_review and pending_review["pending"] and all(rel in BACKLOG_OWNED_ARTIFACTS for rel in pending_review["pending"]):
+        remediated_by_backlog = [*remediated_by_backlog, *suspicious]
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
     warnings.extend(privacy["warnings"])
@@ -139,6 +145,7 @@ def collect_health(project_id: str) -> dict:
         "warnings": warnings,
         "remediated_by_backlog": remediated_by_backlog,
         "knowledge_staleness": staleness,
+        "suspicious_trace_links": suspicious,
         "broker": broker,
         "needs_context_gate": needs_context,
     }
@@ -267,7 +274,11 @@ def pending_stale_artifacts(project_id: str) -> list[str]:
     """
     base = workspace_path(project_id)
     state = read_json(base / "state.json", {})
-    payload = state.get("knowledge_staleness", {})
+    return _not_regenerated(project_id, state.get("knowledge_staleness", {}))
+
+
+def _not_regenerated(project_id: str, payload: object) -> list[str]:
+    """The `downstream_artifacts` of a marker not regenerated after its `recorded_at`."""
     if not isinstance(payload, dict):
         return []
     artifacts = [str(item) for item in payload.get("downstream_artifacts", []) if item]
@@ -306,19 +317,96 @@ def knowledge_staleness_findings(project_id: str) -> list[str]:
     ]
 
 
-def suspicious_trace_link_findings(project_id: str) -> list[str]:
+def pending_suspicious_links(project_id: str) -> dict | None:
+    """IMP-369: the semantic-change review still pending, or None.
+
+    A /sync whose note reads like a change of meaning ("now", "instead",
+    "out of scope"...) flags the trace links of that change for BA review. Two
+    things clear it: the BA records the review (`/trace --reviewed CHG-NNN`),
+    or regenerates the downstream artifacts the change feeds (brief, PRD,
+    specs, backlog) after it. Markers written before IMP-369 carry no
+    `recorded_at`; only the review clears those.
+    """
     state = read_json(workspace_path(project_id) / "state.json", {})
     payload = state.get("suspicious_trace_links", {})
     if not isinstance(payload, dict):
-        return []
+        return None
     links = [item for item in payload.get("links", []) if isinstance(item, dict)]
-    if not links:
+    if not links or payload.get("reviewed"):
+        return None
+    if payload.get("recorded_at"):
+        pending = _not_regenerated(project_id, payload)
+        if not pending:
+            return None
+    else:
+        pending = [rel for rel in STALE_ARTIFACT_OWNERS if (workspace_path(project_id) / rel).exists()]
+    return {"change_id": str(payload.get("change_id") or "latest change"), "links": links, "pending": pending,
+            "legacy": not payload.get("recorded_at")}
+
+
+def review_suspicious_links(project_id: str, change_id: str, reason: str = "") -> dict:
+    """IMP-369: `/trace --reviewed CHG-NNN` records that the BA reviewed a semantic change.
+
+    The BA read the trace links the change flagged and decided nothing
+    downstream has to change (or already changed it). The review is stored in
+    state.json and on each flagged edge of the graph (`review_status:
+    reviewed`); the /health finding clears. Only the change /health names can
+    be reviewed.
+    """
+    from .core.graph import load_graph, save_graph
+    from .errors import InputError
+    from .workspace import utc_now
+
+    change_id = change_id.strip().upper()
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    payload = state.get("suspicious_trace_links", {})
+    links = payload.get("links", []) if isinstance(payload, dict) else []
+    current = str(payload.get("change_id", "")) if isinstance(payload, dict) else ""
+    if not links or payload.get("reviewed"):
+        raise InputError(f"No semantic change is waiting for review (asked for {change_id}).",
+                         next_step=f"Run /health {project_id} to see what keeps health DIRTY.")
+    if change_id != current.upper():
+        raise InputError(f"{change_id} is not the change waiting for review; /health names {current}.",
+                         next_step=f"Run /trace {project_id} --reviewed {current}.")
+    reviewed = {"at": utc_now(), "reason": reason.strip() or "BA reviewed the flagged trace links; nothing downstream changes."}
+    graph = load_graph(project_id)
+    edges = 0
+    for edge in graph.get("edges", []):
+        if edge.get("from") == current and edge.get("suspicious"):
+            edge["review_status"] = "reviewed"
+            edge["reviewed_at"] = reviewed["at"]
+            edges += 1
+    save_graph(project_id, graph)
+    update_state(project_id, suspicious_trace_links={**payload, "reviewed": reviewed})
+    return {"change_id": current, "reviewed_links": edges, **reviewed}
+
+
+def regeneration_steps(pending: list[str]) -> list[str]:
+    """IMP-360/369: the commands that regenerate `pending` artifacts, in order, ending with /backlog."""
+    steps = list(dict.fromkeys(STALE_ARTIFACT_OWNERS.get(rel, "/backlog") for rel in pending))
+    order = ["/brief", "/specs"]
+    return [step for step in order if step in steps] + ["/backlog"]
+
+
+def suspicious_trace_link_findings(project_id: str) -> list[str]:
+    pending = pending_suspicious_links(project_id)
+    if pending is None:
         return []
-    targets = ", ".join(str(item.get("to")) for item in links[:8] if item.get("to"))
+    change_id = pending["change_id"]
+    targets = ", ".join(str(item.get("to")) for item in pending["links"][:8] if item.get("to"))
     suffix = f" Targets: {targets}." if targets else ""
+    chain = ", then ".join(regeneration_steps(pending["pending"]))
+    if pending.get("legacy"):
+        return [
+            f"Semantic change may invalidate downstream trace links for {change_id}; BA review required before "
+            f"implementation handoff.{suffix} Review the targets, then record the review with "
+            f"/trace {project_id} --reviewed {change_id}."
+        ]
     return [
-        f"Semantic change may invalidate downstream trace links for {payload.get('change_id', 'latest change')}; BA review required before implementation handoff."
+        f"Semantic change may invalidate downstream trace links for {change_id}; BA review required before implementation handoff."
         + suffix
+        + f" Review the targets, then run {chain}; or, if nothing downstream has to change, record the review with "
+        f"/trace {project_id} --reviewed {change_id}."
     ]
 
 
@@ -344,6 +432,103 @@ def implementation_feedback_findings(project_id: str) -> list[str]:
         + ", ".join(f"{story} ({len(ids)})" for story, ids in sorted(open_by_story.items()))
         + "."
     ]
+
+
+_NOT_INDEXED_RE = re.compile(r"^(\S+) is not indexed in memory\.$")
+_STALE_STORIES_PREFIX = "Backlog contains Stale stories after source changes: "
+
+
+def health_fixes(project_id: str, collected: dict | None = None) -> list[dict]:
+    """IMP-369: each /health finding with the command that clears it, in the order to run them.
+
+    One classification for the DIRTY gate of /backlog, /quality and
+    /refine-backlog and for /next, so both name the same concrete next command.
+    Each entry: `findings` (the /health lines it covers), `fix` (one sentence
+    the BA reads) and `steps` (the commands, in order). The regeneration chain
+    comes last and always ends with /backlog: it is what the DIRTY gate waits for.
+    """
+    collected = collected or collect_health(project_id)
+    findings = list(collected["findings"])
+    pid = project_id
+    entries: dict[str, dict] = {}
+
+    def add(key: str, rank: int, finding: str, fix: str, steps: list[str]) -> None:
+        entry = entries.setdefault(key, {"kind": key.split("-")[0], "rank": rank, "findings": [], "fix": fix, "steps": steps})
+        entry["findings"].append(finding)
+
+    chain_findings = set(collected.get("knowledge_staleness", [])) | set(collected.get("suspicious_trace_links", []))
+    pending: list[str] = []
+    for finding in findings:
+        if finding in chain_findings:
+            continue
+        if _NOT_INDEXED_RE.match(finding):
+            add("reindex", 0, finding, f"Run /reindex {pid}.", [f"/reindex {pid}"])
+        elif finding == "Blocking gaps remain open.":
+            changes = _open_change_gaps(project_id)
+            if changes:
+                steps = [f"/gaps {pid} --id {gap} --disposition accepted|rejected" for gap in changes]
+                add("gaps", 1, finding, f"Decide the late change{'s' if len(changes) > 1 else ''}: run "
+                    + ", then ".join(steps) + ".", steps)
+            else:
+                add("gaps", 1, finding, f"Close them with the client's answers: run /resolve-gaps {pid} --source ANSWERS.",
+                    [f"/resolve-gaps {pid} --source ANSWERS"])
+        elif finding.startswith("Open implementation feedback blocks DoD"):
+            add("feedback", 2, finding, f"Record the decision on each finding with /implementation-feedback {pid} "
+                "--source FILE (same id, status resolved).", [f"/implementation-feedback {pid} --source FILE"])
+        elif finding.startswith(_STALE_STORIES_PREFIX):
+            stories = [s.strip() for s in finding[len(_STALE_STORIES_PREFIX):].rstrip(".").split(",") if s.strip()]
+            steps = [f"/story-status {pid} --story {story} --set Draft" for story in stories]
+            add("stale", 3, finding, "Review each story against the change, then move it back: run "
+                + ", then ".join(steps) + ".", steps)
+        else:
+            add(f"other-{len(entries)}", 4, finding,
+                f"Fix it with the command that owns that artifact (never by hand); /health {pid} lists it.",
+                [f"/health {pid}"])
+    knowledge = [f for f in findings if f in set(collected.get("knowledge_staleness", []))]
+    suspicious = [f for f in findings if f in set(collected.get("suspicious_trace_links", []))]
+    if knowledge:
+        pending += pending_stale_artifacts(project_id)
+    review = pending_suspicious_links(project_id) if suspicious else None
+    if review:
+        pending += review["pending"]
+    for entry in entries.values():
+        entry["label"] = " ".join(entry["findings"])
+    if knowledge or suspicious:
+        pending = list(dict.fromkeys(pending))
+        steps = regeneration_steps(pending)
+        fix = "Run " + ", then ".join(steps) + "."
+        labels = []
+        if knowledge:
+            stale = ", ".join(rel.rsplit("/", 1)[-1] for rel in pending_stale_artifacts(project_id))
+            verb = "was" if len(pending_stale_artifacts(project_id)) == 1 else "were"
+            labels.append(f"Knowledge changed after {stale} {verb} generated.")
+        if review:
+            targets = ", ".join(str(item.get("to")) for item in review["links"][:8] if item.get("to"))
+            labels.append(f"Semantic change {review['change_id']} may invalidate downstream trace links"
+                          + (f" (targets: {targets})." if targets else "."))
+            fix = ("Review the targets, then " + fix[0].lower() + fix[1:]
+                   + f" If nothing downstream has to change, record the review instead with "
+                   f"/trace {pid} --reviewed {review['change_id']}.")
+            if review.get("legacy") and not knowledge:
+                # recorded before IMP-369: regeneration cannot be dated against it
+                steps = [f"/trace {pid} --reviewed {review['change_id']}"]
+                fix = f"Review the targets, then record the review with /trace {pid} --reviewed {review['change_id']}."
+        entries["chain"] = {"kind": "review" if review and not knowledge else "chain", "rank": 5,
+                            "findings": knowledge + suspicious, "label": " ".join(labels), "fix": fix,
+                            "steps": steps, "pending": pending, "review": review}
+    return [{k: v for k, v in entry.items() if k != "rank"}
+            for entry in sorted(entries.values(), key=lambda e: e["rank"])]
+
+
+def _open_change_gaps(project_id: str) -> list[str]:
+    """Open GAP-CHG-* rows (IMP-337): late changes that wait for the BA, not the client."""
+    path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    if not path.exists():
+        return []
+    return sorted(
+        str(gap.get("id", "")).strip("`") for gap in parse_gap_table(path.read_text(encoding="utf-8"), include_legacy=True)
+        if str(gap.get("id", "")).strip("`").startswith("GAP-CHG-") and str(gap.get("status", "")).strip("`").upper() != "CLOSED"
+    )
 
 
 def metric_source_gaps_closed(gaps_text: str) -> bool:

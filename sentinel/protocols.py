@@ -140,6 +140,23 @@ def settle_governed_hashes(project_id: str, command: str) -> dict[str, str]:
     return settled
 
 
+def settle_after_failure(command: str, project_id: str | None) -> None:
+    """IMP-369: a mutating command that stopped after preflight may already have written.
+
+    A refused /specs evaluates maturity, and that can open GAP-BRIEF-PROFILE in
+    gaps.md. Without a postflight, the command's own write looked like a hand
+    edit to the next command ("/brief changed hand-edited 01_discovery/gaps.md").
+    Settle the hashes of what this command wrote; a real hand edit it did not
+    touch keeps its old hash and stays flagged.
+    """
+    if not project_id or command not in MUTATING_COMMANDS or project_id not in _PRE_COMMAND:
+        return
+    if not state_path(project_id).is_file():
+        _PRE_COMMAND.pop(project_id, None)
+        return
+    update_state(project_id, artifact_hashes=settle_governed_hashes(project_id, command))
+
+
 def reconcile_health(project_id: str) -> None:
     """IMP-332: a command may not clear a /health DIRTY verdict whose cause remains.
 
@@ -184,7 +201,10 @@ def preflight_command(command: str, project_id: str | None) -> None:
     if command in {"specs", "backlog"} and phase == "initialized":
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
-    if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
+    if command in {"backlog", "quality", "refine-backlog"} and (health == "DIRTY" or downstream_refresh_pending(project_id)):
+        # IMP-369: the gate also reads the staleness markers themselves. /resolve-gaps
+        # sets health on its own criteria (CLEAN once no blocking gap is open), so after
+        # it recompiled the brief /backlog used to run on specs older than the brief.
         refuse_dirty_health(command, project_id)
 
     if command in {"backlog", "backlog-status", "quality", "refine-backlog", "implementation-feedback", "story-status"}:
@@ -207,6 +227,13 @@ def preflight_command(command: str, project_id: str | None) -> None:
         }
 
 
+def downstream_refresh_pending(project_id: str) -> bool:
+    """IMP-369: a knowledge change or a semantic-change review still waits for regeneration."""
+    from .health import pending_stale_artifacts, pending_suspicious_links
+
+    return bool(pending_stale_artifacts(project_id)) or pending_suspicious_links(project_id) is not None
+
+
 def refuse_dirty_health(command: str, project_id: str) -> None:
     """IMP-360: the DIRTY gate of /backlog, /quality and /refine-backlog.
 
@@ -215,7 +242,7 @@ def refuse_dirty_health(command: str, project_id: str) -> None:
     the backlog artifacts stale); otherwise each command is refused with what to
     do next. /quality and /refine-backlog consume the backlog, so they wait.
     """
-    from .health import STALE_ARTIFACT_OWNERS, collect_health, pending_stale_artifacts
+    from .health import collect_health, health_fixes
 
     collected = collect_health(project_id)
     findings = collected["findings"]
@@ -229,24 +256,26 @@ def refuse_dirty_health(command: str, project_id: str) -> None:
     others = [finding for finding in findings if finding not in collected["remediated_by_backlog"]]
     if command == "backlog" and not others:
         return
-    if all(finding in collected["knowledge_staleness"] for finding in findings):
-        # Only the knowledge change keeps health DIRTY: name the commands that
-        # regenerate what it left stale, in order, ending with /backlog.
-        pending = pending_stale_artifacts(project_id)
-        steps = list(dict.fromkeys(STALE_ARTIFACT_OWNERS.get(rel, "/backlog") for rel in pending))
-        steps = [step for step in steps if step != "/backlog"] + ["/backlog"]
-        if command != "backlog":
-            steps.append(f"/{command}")
-        chain = ", then ".join(steps)
-        stale = ", ".join(rel.rsplit("/", 1)[-1] for rel in pending)
-        verb = "was" if len(pending) == 1 else "were"
-        raise GateRefusal(
-            f"{prefix}: knowledge changed after {stale} {verb} generated. Run {chain}.",
-            f"Run {chain}.",
-        )
-    more = f" ({len(others) - 1} more finding(s))" if len(others) > 1 else ""
-    next_step = f"Run /health to see every finding, fix them, then run /{command} again."
-    raise GateRefusal(f"{prefix}: {others[0]}{more} {next_step}", next_step)
+    # IMP-369: every finding with its fix, in the order to do them (the same
+    # classification /next uses), ending with the command that was refused.
+    fixes = health_fixes(project_id, collected)
+    steps = list(dict.fromkeys(step for fix in fixes for step in fix["steps"]))
+    if command == "backlog" and "/backlog" not in steps:
+        steps.append("/backlog")
+    if command != "backlog":
+        steps.append(f"/{command}")
+    chain = ", then ".join(steps)
+    if len(fixes) == 1 and fixes[0].get("pending") is not None and not fixes[0].get("review"):
+        # Only the knowledge change keeps health DIRTY: the IMP-360 wording.
+        raise GateRefusal(f"{prefix}: {fixes[0]['label'][0].lower()}{fixes[0]['label'][1:-1]}. Run {chain}.",
+                          f"Run {chain}.")
+    if len(fixes) == 1:
+        tail = "" if command == "backlog" and fixes[0].get("pending") is not None else f" Then run /{command} again."
+        raise GateRefusal(f"{prefix}: {fixes[0]['label']} {fixes[0]['fix']}{tail}", f"Run {chain}.")
+    lines = [f"{number}. {fix['label']} {fix['fix']}" for number, fix in enumerate(fixes, start=1)]
+    if command != "backlog" or fixes[-1].get("pending") is None:
+        lines.append(f"{len(fixes) + 1}. Run /{command} again.")
+    raise GateRefusal(f"{prefix}. Do these in order:\n" + "\n".join(lines), f"Run {chain}.")
 
 
 def postflight_command(command: str, project_id: str | None, result: Any) -> None:
@@ -272,6 +301,16 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         from .release_series import refresh_series_if_stale
 
         refresh_series_if_stale(project_id)
+    if command in MUTATING_COMMANDS and command != "reindex":
+        # IMP-369: a node the command added to the graph is indexed now, not at the
+        # next /reindex, so /health does not turn DIRTY over the command's own record.
+        try:
+            from .memory import index_unindexed_nodes
+
+            index_unindexed_nodes(project_id)
+        except Exception as exc:  # noqa: BLE001 - memory is retrieval, never authority
+            print(f"sentinel warning: could not index the new records ({exc}); run /reindex {project_id}.",
+                  file=sys.stderr)
     if command in MUTATING_COMMANDS:
         # IMP-147: a mutating command is the only sanctioned writer of governed
         # artifacts. IMP-332: refresh the checksum of the artifacts it wrote only,

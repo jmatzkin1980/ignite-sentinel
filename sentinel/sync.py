@@ -185,11 +185,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
             else "CLEAN"
         ),
         last_change_id=change_id,
-        suspicious_trace_links={
-            "change_id": change_id,
-            "count": len(suspicious_links),
-            "links": suspicious_links,
-        },
+        **suspicious_links_state(project_id, change_id, suspicious_links),
     )
     return {
         "change_id": change_id,
@@ -417,6 +413,30 @@ def mark_suspicious_trace_links(
         )
     save_graph(project_id, graph)
     return suspicious
+
+
+def suspicious_links_state(project_id: str, change_id: str, links: list[dict[str, object]]) -> dict[str, object]:
+    """IMP-369: the semantic-change marker this /sync leaves in state.json.
+
+    It records when the change happened and which downstream artifacts it
+    feeds, so regenerating them afterwards (or `/trace --reviewed`) clears the
+    /health finding. A neutral /sync no longer wipes a review still pending:
+    only a review or a regeneration does.
+    """
+    from .health import pending_suspicious_links
+    from .knowledge.metabolism import downstream_stale_artifacts
+
+    if not links and pending_suspicious_links(project_id) is not None:
+        return {}
+    return {
+        "suspicious_trace_links": {
+            "change_id": change_id,
+            "count": len(links),
+            "links": links,
+            "recorded_at": utc_now(),
+            "downstream_artifacts": downstream_stale_artifacts(workspace_path(project_id)) if links else [],
+        }
+    }
 
 
 def focus_query_for_change(note: str, change_text: str, limit: int = 600) -> str:
