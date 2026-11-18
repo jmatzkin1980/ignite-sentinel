@@ -551,7 +551,7 @@ If `/specs` still refuses, `/next` now says *Waiting for client answers: Send th
 
 ### 4c. `/backlog`, `/quality` or `/refine-backlog` refuses because health is `DIRTY`
 
-These three commands refuse while health is `DIRTY`. The message says why and what to do. There are three forms:
+These three commands refuse while health is `DIRTY`, or while a change still waits for the brief, specs or backlog to be regenerated. The message says why and what to do; `/next` gives the same steps, with the first command to run. There are four forms:
 
 - **Something changed upstream.** The message names the out-of-date files and the commands that rebuild them, in order:
 
@@ -561,20 +561,42 @@ These three commands refuse while health is `DIRTY`. The message says why and wh
 
   Run exactly those commands, in that order. `/quality` and `/refine-backlog` wait until `/backlog` has run (their list ends `... then /backlog, then /quality.`).
 
-- **Something else keeps health `DIRTY`.** The message quotes the first finding:
+- **The note changed the meaning of something.** A `/sync` note with words such as "now", "instead" or "out of scope" asks you to check the trace links of that change:
 
   ```text
-  sentinel error: Cannot run /backlog while project health is DIRTY: Backlog contains Stale stories after source changes: US-001, US-002, US-004. Run /health to see every finding, fix them, then run /backlog again.
+  sentinel error: Cannot run /backlog while project health is DIRTY: Semantic change CHG-007 may invalidate downstream trace links (targets: GAP-001, DEC-001, REQ-002, PRD-001, DISC-003, SPEC-001, SPEC-U-001, SPEC-U-002). Review the targets, then run /brief, then /specs, then /backlog. If nothing downstream has to change, record the review instead with /trace ACME_PORTAL --reviewed CHG-007.
   ```
 
-  Run `/health ACME_PORTAL`, read every finding, and fix each with the command that owns it:
+  If the documents have to change, run the commands in order; regenerating them clears it. If nothing has to change, record your review:
+
+  ```text
+  /trace ACME_PORTAL --reviewed CHG-007 --reason "Checked with the Product Owner: no story covers document upload; nothing downstream changes."
+  ```
+
+  ```text
+  change_id: CHG-007
+  reviewed_links: 29
+  health: CLEAN
+  ```
+
+- **Something else keeps health `DIRTY`.** The message lists each finding with its fix, in the order to do them:
+
+  ```text
+  sentinel error: Cannot run /backlog while project health is DIRTY. Do these in order:
+  1. Open implementation feedback blocks DoD for US-003 (2). Record the decision on each finding with /implementation-feedback ACME_PORTAL --source FILE (same id, status resolved).
+  2. Backlog contains Stale stories after source changes: US-001. Review each story against the change, then move it back: run /story-status ACME_PORTAL --story US-001 --set Draft.
+  3. Run /backlog again.
+  next step: Run /implementation-feedback ACME_PORTAL --source FILE, then /story-status ACME_PORTAL --story US-001 --set Draft, then /backlog.
+  ```
+
+  With one finding the message is a single line, for example *Blocking gaps remain open. Decide the late change: run /gaps ACME_PORTAL --id GAP-CHG-FDC2C6 --disposition accepted|rejected. Then run /backlog again.* The fixes, by finding:
 
   | Finding | Fix |
   | --- | --- |
   | `Blocking gaps remain open.` | Answer them with `/resolve-gaps`, or decide a late change with `/gaps --id GAP-CHG-... --disposition` (scenario 9). |
   | `Backlog contains Stale stories after source changes: US-001.` | Review each story and move it back with `/story-status ... --set Ready` (or `Draft`). Regenerating the backlog does not clear it. |
   | `Open implementation feedback blocks DoD for US-003 (2).` | Resolve the findings with a new `/implementation-feedback` file (scenario 10). This blocks `/backlog`, `/quality` and `/refine-backlog` on purpose. |
-  | `CHG-007 is not indexed in memory.` (or `EV-001 ...`) | Run `/reindex ACME_PORTAL`, then `/health` again. |
+  | `CHG-007 is not indexed in memory.` | Run `/reindex ACME_PORTAL`. Commands index the records they add, so this usually means the local memory was lost (a moved or cloned workspace). |
 
 - **Health was set `DIRTY` and nothing explains it any more:** *Run /health to recompute project health, then run /backlog again.*
 
@@ -1063,23 +1085,7 @@ A brief whose technical places cite the code, two questions from the harvest (on
 
    Only `/story-status` changes a story's status or owner; never edit `US-NNN.md` or `BACKLOG.md`.
 
-4. **Rebuild the search index after status moves.** `/health` now says:
-
-   ```text
-   verdict: DIRTY
-   findings: CHG-008 is not indexed in memory.
-   ```
-
-   The status change was recorded but not yet added to the search index. Run:
-
-   ```text
-   /reindex ACME_PORTAL
-   /health ACME_PORTAL
-   ```
-
-   Health is `CLEAN` again. Do this before `/backlog`, `/quality` or `/refine-backlog`, which refuse while health is `DIRTY`.
-
-5. **Start work, and confirm the stories that were not touched.**
+4. **Start work.**
 
    ```text
    /story-status ACME_PORTAL --story US-001 --set "In Progress"
@@ -1087,21 +1093,13 @@ A brief whose technical places cite the code, two questions from the harvest (on
    ```
 
    ```text
-   verdict: DIRTY
-   findings: Backlog contains Stale stories after source changes: US-002, US-003, US-004.
+   status: In Progress
+   verdict: CLEAN
    ```
 
-   **What it means:** when a story moves ahead, Sentinel marks the stories of the same area that are behind it as Stale, so someone checks that they still hold. This happens again at each forward move (In Progress, In Review, Done). Review them, and move each one back:
+   **What it means:** each move is recorded and added to the search memory at once, so health stays `CLEAN` through the sprint. Moving US-001 does not touch US-002, US-003 or US-004: they stay Ready. A story is marked `Stale` only when something it was built from changes (scenario 9).
 
-   ```text
-   /story-status ACME_PORTAL --story US-002 --set Ready
-   /story-status ACME_PORTAL --story US-003 --set Ready
-   /story-status ACME_PORTAL --story US-004 --set Ready
-   ```
-
-   Regenerating the backlog does not clear a Stale story; only `/story-status` does.
-
-6. **Finish the story with its acceptance evidence.**
+5. **Finish the story with its acceptance evidence.**
 
    ```text
    /story-status ACME_PORTAL --story US-001 --set "In Review"
@@ -1116,10 +1114,9 @@ A brief whose technical places cite the code, two questions from the harvest (on
 
    The evidence file (here the notes of a demo) is copied into the workspace and traced to the story. Done is checked against the Definition of Done; by default a missing item is a warning, with a strict gate the move is refused. Open implementation feedback on the story is one of those items (scenario 10).
 
-7. **Leave the board clean, and report.** The move to Done marked the other three stories Stale again; you move them back to Ready as in step 5, then:
+6. **Report.** The other three stories are still Ready, and health is still `CLEAN`:
 
    ```text
-   /reindex ACME_PORTAL
    /health ACME_PORTAL
    /backlog-status ACME_PORTAL
    /dashboard
@@ -1193,7 +1190,7 @@ You want the plan to follow the new rule, with a record of what changed and why.
    ```
 
    ```text
-   /backlog  sentinel error: Cannot run /backlog while project health is DIRTY: Blocking gaps remain open. (1 more finding(s)) Run /health to see every finding, fix them, then run /backlog again.
+   /backlog  sentinel error: Cannot run /backlog while project health is DIRTY: Blocking gaps remain open. Decide the late change: run /gaps ACME_PORTAL --id GAP-CHG-FDC2C6 --disposition accepted|rejected. Then run /backlog again.
    /next     Confirm a late change: A late change waits for your decision: GAP-CHG-FDC2C6. Read each one in gaps.md (the note and the item it changes are both quoted), then accept it to apply the change or reject it as a false alarm.
    ```
 
@@ -1220,6 +1217,8 @@ You want the plan to follow the new rule, with a record of what changed and why.
    sentinel error: Cannot run /backlog while project health is DIRTY: knowledge changed after project-brief.md, prd.md, specs.md, BACKLOG.md, implementation_readiness.json were generated. Run /brief, then /specs, then /backlog.
    next step: Run /brief, then /specs, then /backlog.
    ```
+
+   `/next` says the same: *Regenerate what the change made stale*, with the command `/brief ACME_PORTAL`.
 
 5. **Record the new rule as the answer, then rebuild in order.** The question the assumption stood in for (`GAP-BUSINESS-RULES`) is still open. Answer it with the client's words:
 
@@ -1300,7 +1299,7 @@ The new rule in the brief, specs and backlog; the old assumption kept and marked
    ```text
    /health          verdict: DIRTY
                     findings: Open implementation feedback blocks DoD for US-003 (2).
-   /backlog         sentinel error: Cannot run /backlog while project health is DIRTY: Open implementation feedback blocks DoD for US-003 (2). Run /health to see every finding, fix them, then run /backlog again.
+   /backlog         sentinel error: Cannot run /backlog while project health is DIRTY: Open implementation feedback blocks DoD for US-003 (2). Record the decision on each finding with /implementation-feedback ACME_PORTAL --source FILE (same id, status resolved). Then run /backlog again.
    /refine-backlog  sentinel error: Cannot run /refine-backlog while project health is DIRTY: Open implementation feedback blocks DoD for US-003 (2). ...
    ```
 
@@ -1464,14 +1463,14 @@ Where each of the 37 commands appears. "S" is the smaller situations. For flags,
 | `/brief` | 1, 2, 3, 4, 7, 9 | `/story-status` | 4, 5, 8, 10 |
 | `/harvest` | 7 | `/implementation-feedback` | 10 |
 | `/split` | 5 | `/quality` | 1, 3, 5, 9 |
-| `/prototype` | 6 | `/trace` | 1, 5 |
+| `/prototype` | 6 | `/trace` | 1, 4, 5 |
 | `/sync` | 3, 6, 9 | `/health` | 1, 3, 4, 8, 9, 10 |
 | `/retrieve` | 3, S | `/validate` | 1, 4, 5 |
-| `/reindex` | 8, S | `/status` | 1, 2, 4, 5, 9 |
+| `/reindex` | 4, S | `/status` | 1, 2, 4, 5, 9 |
 | `/view` | 1, 5, 6 | `/next` | 1, 4, 9, 10 |
 | `/dashboard` | 8, S | | |
 
-Modes and flags, and where they appear: `/gaps --top` and `--disposition` (2, 9); `/scrutinize --lens` and `--mode anchors` (7); `/self-review --sufficiency` (2) and `--crosses` (S); `/sync --digest` (3) and `--analysis` (9); `/export --format interview` (1, 2) and `--final` (S); `--release rN` (5); `/prototype --inventory|--trace|--manual` (6); `/split --assess|--propose|--confirm|--move|--close` (5); `/context-request --id --status` (7, S); `/ingest --replace` (5).
+Modes and flags, and where they appear: `/gaps --top` and `--disposition` (2, 9); `/scrutinize --lens` and `--mode anchors` (7); `/self-review --sufficiency` (2) and `--crosses` (S); `/sync --digest` (3) and `--analysis` (9); `/export --format interview` (1, 2) and `--final` (S); `--release rN` (5); `/prototype --inventory|--trace|--manual` (6); `/split --assess|--propose|--confirm|--move|--close` (5); `/context-request --id --status` (7, S); `/ingest --replace` (5); `/trace --reviewed` (4).
 
 </details>
 

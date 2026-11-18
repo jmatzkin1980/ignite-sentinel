@@ -105,9 +105,22 @@ A `/sync` that changes what the project knows (an invalidated assumption, for ex
 /backlog ACME_PORTAL
 ```
 
-Once the brief and specs are regenerated, the stale backlog is the only finding left and `/backlog` runs: regenerating the backlog is what clears it. `/quality` and `/refine-backlog` keep refusing until it has. If `/backlog` still refuses, the message names another finding (an open blocking gap, for example); fix that one first.
+Once the brief and specs are regenerated, the stale backlog is the only finding left and `/backlog` runs: regenerating the backlog is what clears it. `/quality` and `/refine-backlog` keep refusing until it has. When more than one thing keeps health `DIRTY`, the refusal lists each finding with its fix, numbered in the order to do them (an open blocking gap first, `Stale` stories before the regeneration), and `/next` names the first command of that list.
+
+The same refusal follows `/resolve-gaps` when its answers recompiled the brief after the specs were generated: `/backlog` says "Run /specs, then /backlog." even though `/resolve-gaps` left health `CLEAN`. Answers that moved no gap (for example an answer under an id that is not in `gaps.md`) mark nothing stale.
 
 **Check:** `/health ACME_PORTAL` no longer reports the knowledge change and `/quality ACME_PORTAL` runs.
+
+### `/health` says a semantic change may invalidate trace links
+
+The note you loaded with `/sync` used words that signal a change of meaning ("now", "instead", "out of scope"...). `/health` and `/backlog` name the change and the two ways out:
+
+- something downstream has to change: run `/brief`, then `/specs`, then `/backlog`; regenerating them after the change clears the finding;
+- nothing has to change: record your review, `/trace ACME_PORTAL --reviewed CHG-005 --reason "..."`.
+
+A later `/sync` without those words does not clear it.
+
+**Check:** `/health ACME_PORTAL` no longer reports the semantic change.
 
 ## Next
 

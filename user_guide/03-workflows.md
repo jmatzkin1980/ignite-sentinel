@@ -514,25 +514,43 @@ Authorities: `minutes`, `decision_record`, `tech_lead`, `built`, `prototype`, `p
    /backlog ACME_PORTAL
    ```
 
-   After each step the refusal gets shorter ("Run /specs, then /backlog."). Once the brief and specs are regenerated, `/backlog` runs, and regenerating the backlog is what clears the last finding.
+   After each step the refusal gets shorter ("Run /specs, then /backlog."). Once the brief and specs are regenerated, `/backlog` runs, and regenerating the backlog is what clears the last finding. `/next` names the same next command at every step.
 
 4. Check quality again: `/quality ACME_PORTAL`. It refuses until `/backlog` has run ("Run /backlog, then /quality."), and so does `/refine-backlog`.
 
-5. **Stale stories.** When the change names a spec unit (`SPEC-U-...`), the stories built from it are marked `Stale`, and `/backlog` refuses with "Backlog contains Stale stories after source changes: US-001." Regenerating does not clear them: review each story and move it back yourself, then run the steps the next refusal names:
+5. **Stale stories.** When the change names a spec unit (`SPEC-U-...`), the stories built from it are marked `Stale`, and `/backlog` refuses with "Backlog contains Stale stories after source changes: US-001." Regenerating does not clear them: review each story and move it back yourself. The refusal and `/next` give the exact command:
 
    ```text
    /story-status ACME_PORTAL --story US-001 --set Draft
    ```
 
-   A `Stale` story can go to `Draft`, `Ready` or `Blocked`, never straight to `Done`.
+   A `Stale` story can go to `Draft`, `Ready` or `Blocked`, never straight to `Done`. Only a real change marks a story `Stale`: moving another story forward never does.
+
+6. **A change of meaning.** When the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar), Sentinel also asks you to check the trace links of that change. `/health` and the `/backlog` refusal say:
+
+   > sentinel error: Cannot run /backlog while project health is DIRTY: Semantic change CHG-007 may invalidate downstream trace links (targets: GAP-001, DEC-001, REQ-002, PRD-001, DISC-003, SPEC-001, SPEC-U-001, SPEC-U-002). Review the targets, then run /brief, then /specs, then /backlog. If nothing downstream has to change, record the review instead with /trace ACME_PORTAL --reviewed CHG-007.
+
+   `/next` gives the same text, titled *Review the semantic change*. Read what the change says against those documents (the targets are the questions, decisions, brief, PRD and specs the change may touch). If they have to change, run the commands it names: regenerating them after the change clears the finding, and the list gets shorter at each step. If nothing has to change, record your review, with a short reason:
+
+   ```text
+   /trace ACME_PORTAL --reviewed CHG-007 --reason "Checked with the Product Owner: no story covers document upload."
+   ```
+
+   The answer shows the change, how many links you marked reviewed, and `health: CLEAN` when nothing else is open. A later `/sync` without those words does not clear the finding for you.
 
 **How you know it worked.** `/health ACME_PORTAL` answers `CLEAN` and `/quality` runs. `/next` returns to the backlog steps.
 
 **If something goes wrong.**
 
-- `/backlog` still refuses with "Semantic change may invalidate downstream trace links for CHG-005; BA review required before implementation handoff." This happens when the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar). Regenerating does not clear it, and no command records the review. Today it clears when the next `/sync` carries none of those words: after you have checked the links, load a short review note (for example "BA review of the steering decision: the trace links of the brief and specs were checked with the Product Owner on 2026-11-18.") with `/sync`, then run `/backlog`.
-- `/backlog` refuses naming another finding (an open blocking question, open implementation feedback): fix that first. "(1 more finding(s))" means `/health` has more; run it to see them all.
-- While health is `DIRTY`, `/next` answers *Fix what makes the project unhealthy* without naming the step. The refusal message of `/backlog` is the precise guide.
+- `/backlog` refuses with several findings: it lists each one with its fix, in the order to do them, and ends with "Run /backlog again." The `next step:` line chains the same commands. Do them in that order.
+- `/backlog` refuses naming an open blocking question or open implementation feedback: fix that first, as the refusal says.
+- `/trace --reviewed` answers "CHG-009 is not the change waiting for review; /health names CHG-007.": use the id `/health` gives. "No semantic change is waiting for review" means there is nothing to record.
+
+<details><summary>For the technical reader</summary>
+
+The refusal and `/next` use the same list, built from the `/health` findings: `/reindex` for a record not indexed in memory, the `GAP-CHG` decision or `/resolve-gaps` for a blocking question, `/implementation-feedback` for open feedback, `/story-status ... --set Draft` for each `Stale` story, then the regeneration chain (`/brief`, `/specs`, `/backlog`) for a knowledge change or a change of meaning. `/backlog`, `/quality` and `/refine-backlog` check the staleness markers even when `state.json` says `CLEAN`, so a command that set health on its own criteria cannot let them run on specs older than the brief. The review is stored in `state.json#suspicious_trace_links.reviewed` and on each flagged edge of the traceability graph (`review_status: reviewed`).
+
+</details>
 
 <a id="finding-what-was-said-about-a-topic"></a>
 
@@ -765,7 +783,7 @@ The files are the source of truth; memory only helps find them. If a passage and
 
 4. Check again: `/quality ACME_PORTAL`, then `/trace ACME_PORTAL`.
 
-**How you know it worked.** `BACKLOG.md` shows the status and owner of each story. `/status ACME_PORTAL --full` lists what each story still misses to be Ready or Done.
+**How you know it worked.** `BACKLOG.md` shows the status and owner of each story. `/status ACME_PORTAL --full` lists what each story still misses to be Ready or Done. Moving one story leaves the other stories as they were, and `/health` stays `CLEAN`: each move is added to the search memory as it is recorded.
 
 **If something goes wrong.**
 
