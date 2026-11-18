@@ -66,6 +66,9 @@ memory.lancedb/
 08_context_packs/synthetic/
 # IMP-241: workspace-local themes (brand palettes, fonts) never enter git.
 .sentinel/
+# IMP-361: release mirrors (a full workspace copy, raw sources included) and release views.
+.series_work/
+08_context_packs/r*/views/*.html
 """
 
 
@@ -112,6 +115,7 @@ def ensure_workspace(project_id: str, root: Path | None = None, brief_version: i
         write_text(gitignore_file, WORKSPACE_GITIGNORE)
     else:
         ensure_local_themes_ignored(gitignore_file)
+        ensure_release_paths_ignored(gitignore_file)
     if not memory_path(project_id, root).exists():
         write_json(memory_path(project_id, root), {"chunks": [], "artifacts": [], "trace_edges": []})
     if not source_manifest_path(project_id, root).exists():
@@ -169,10 +173,46 @@ def ensure_local_themes_ignored(gitignore_file: Path) -> bool:
     raw = gitignore_file.read_bytes()
     if local_themes_rule_present(raw):
         return False
+    _append_ignore_block(
+        gitignore_file, raw, "# IMP-241: workspace-local themes (brand palettes, fonts) never enter git.", [LOCAL_THEMES_IGNORE_RULE]
+    )
+    return True
+
+
+def _append_ignore_block(gitignore_file: Path, raw: bytes, comment: str, rules: list[str]) -> None:
     newline = b"\r\n" if b"\r\n" in raw else b"\n"
     prefix = b"" if not raw or raw.endswith(b"\n") else newline
-    block = prefix + b"# IMP-241: workspace-local themes (brand palettes, fonts) never enter git." + newline + LOCAL_THEMES_IGNORE_RULE.encode("ascii") + newline
+    lines = [comment, *rules]
+    block = prefix + b"".join(line.encode("ascii") + newline for line in lines)
     append_bytes(gitignore_file, block, root=gitignore_file.parent)  # append-only: existing bytes are never rewritten
+
+
+# IMP-361: `.series_work/` holds a full copy of the workspace per release (raw sources included)
+# and release views land in `08_context_packs/<rN>/views/`; neither is evidence.
+RELEASE_IGNORE_RULES = (".series_work/", "08_context_packs/r*/views/*.html")
+_RELEASE_RULE_VARIANTS = {
+    ".series_work/": {".series_work", ".series_work/", "/.series_work", "/.series_work/", ".series_work/*",
+                      "/.series_work/*", ".series_work/**", "/.series_work/**"},
+    "08_context_packs/r*/views/*.html": {"08_context_packs/r*/views/*.html", "/08_context_packs/r*/views/*.html",
+                                         "08_context_packs/r*/views/", "/08_context_packs/r*/views/",
+                                         "08_context_packs/*/views/*.html", "/08_context_packs/*/views/*.html"},
+}
+
+
+def ensure_release_paths_ignored(gitignore_file: Path) -> bool:
+    """IMP-361: append the release-mirror and release-view rules to a pre-existing workspace .gitignore.
+
+    Same contract as ``ensure_local_themes_ignored``: append-only, idempotent, only the
+    missing rules are added. Returns True when something was added.
+    """
+    raw = gitignore_file.read_bytes()
+    lines = {line.strip().lstrip(chr(0xFEFF)) for line in raw.decode("utf-8", errors="replace").splitlines()}
+    missing = [rule for rule in RELEASE_IGNORE_RULES if not (_RELEASE_RULE_VARIANTS[rule] & lines)]
+    if not missing:
+        return False
+    _append_ignore_block(
+        gitignore_file, raw, "# IMP-361: release mirrors (a full workspace copy, raw sources included) and release views.", missing
+    )
     return True
 
 

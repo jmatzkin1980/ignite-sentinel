@@ -57,6 +57,25 @@ class ValidateBeforeWriteTests(unittest.TestCase):
         folder.mkdir()
         self.assertEqual(quiet_main(["resolve-gaps", "VBW", "--source", str(folder)]), 3)
 
+    def test_sync_with_a_folder_as_source_is_invalid_input(self):
+        # IMP-361: /sync was exempt from the folder check but reads one file, so a folder
+        # ended in exit 1 with a PermissionError traceback after nothing useful happened.
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+
+        folder = self.temp / "notes"
+        folder.mkdir()
+        (folder / "a.md").write_text("Note a.\n", encoding="utf-8")
+        changes_before = sorted(p.name for p in (self.ws / "07_changes").rglob("*"))
+        err = io.StringIO()
+        with redirect_stdout(io.StringIO()), redirect_stderr(err):
+            self.assertEqual(main(["sync", "VBW", "--source", str(folder)]), 3)
+        self.assertIn("--source must be a file, not a folder", err.getvalue())
+        self.assertIn("one file at a time", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+        self.assertEqual(sorted(p.name for p in (self.ws / "07_changes").rglob("*")), changes_before)
+        self.assertEqual(quiet_main(["sync", "VBW", "--source", str(folder), "--analysis", str(folder / "a.md")]), 3)
+
     def test_utf16_answers_are_refused_and_leave_nothing(self):
         path = self.temp / "answers.md"
         path.write_text("### GAP-ACCEPTANCE\n- Answer: yes\n", encoding="utf-16")

@@ -18,7 +18,7 @@ python -m sentinel /view ACME_PORTAL --artifact prd --open
 
 `/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first. The `diagrams` view is the exception: without a brief it stops with exit 3 and a message that names `/brief`, but prints no `next step:` line (see [Diagrams](#diagrams)).
 
-**Output path.** The file is `workspaces/<PROJECT_ID>/08_context_packs/views/<artifact>.html`. With `--release rN` it is `workspaces/<PROJECT_ID>/08_context_packs/rN/views/<artifact>.html`. Views are ignored by git and safe to delete: rebuild them any time. The Markdown stays the source of truth; do not edit the HTML.
+**Output path.** The file is `workspaces/<PROJECT_ID>/08_context_packs/views/<artifact>.html`. With `--release rN` it is `workspaces/<PROJECT_ID>/08_context_packs/rN/views/<artifact>.html`. The workspace `.gitignore` keeps both paths out of git (a workspace created before release views were ignored gets the rule on its next `/init`, `/ingest` or release command). Views are safe to delete: rebuild them any time. The Markdown stays the source of truth; do not edit the HTML.
 
 ## The 11 artifacts
 

@@ -247,7 +247,7 @@ def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms prof
     p.add_argument("--profile", help="comma-separated: UI,API,BAT,INT,MIG,REG,MT")
     p.add_argument("--genesis", help="greenfield|brownfield-integration|brownfield-extension|brownfield-replacement (comma-separated when mixed)")
     p.add_argument("--validation-direction", choices=("to-build", "built"))
-    p.add_argument("--brief-version", type=int, choices=(1, 2), help="2 compiles the brief v2 (opt-in per project)")
+    p.add_argument("--brief-version", type=int, choices=(1, 2), help="switch the project's brief compiler: 2 (the default for new projects) compiles the brief v2; 1 keeps v1")
 
 
 def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition on a gap an agentic channel raised

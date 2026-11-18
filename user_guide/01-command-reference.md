@@ -165,7 +165,7 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/story-status` | `backlog_gate.strict` and DoR (to `Ready`) or DoD (to `Done`) is incomplete | `DoR gate blocks Ready` / `DoD gate blocks Done` | 4 | Complete the items named; `--evidence` for DoD |
 | `/story-status` | The transition is not legal | `Illegal story transition` | 3 | See the transition table in [`story-status`](#story-status) |
 | `/ingest` | The project already has its primary requirement and `--replace` is not given | `already has its primary requirement` | 4 | `/sync PROJECT_ID --source PATH` to add the file, or `--replace` on purpose |
-| Any command with `--source` | The path is a folder (except `/sync`), or a `.md`/`.txt`/`.json`/`.html` file is not UTF-8 | `--source must be a file` / `--source is not UTF-8 text` | 3 | Pass the file; save it as UTF-8. Nothing was written |
+| Any command with `--source` | The path is a folder, or a `.md`/`.txt`/`.json`/`.html` file is not UTF-8 | `--source must be a file` / `--source is not UTF-8 text` | 3 | Pass the file (to `/sync`, one file per run; `/sync` without `--source` scans the input folders); save it as UTF-8. Nothing was written |
 | `/sync --analysis` | No `--source`, a quote not found verbatim, a missing or wrong-state target, a note that declares itself not validated | every reason | 3 | Fix the analysis; nothing was written |
 | `/stakeholders` | `--id`, `--name`, `--domain`, `--topic`, `--profile` or `--notes` without `--add` | `... go with --add` | 3 | Add `--add`, or drop the fields to list |
 | `/sources` | `--precedence --between` with another option | `/sources --precedence --between takes no other option` | 3 | Run the precedence question on its own |
@@ -177,8 +177,8 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 | `/refine-backlog` | No `04_backlog/EPIC-001.md` | `Cannot refine backlog before /backlog` | 4 | `/backlog` |
 | `/implementation-feedback` | No epic in `04_backlog/` | `Cannot process implementation feedback before /backlog` | 4 | `/backlog` |
 | `/export --final` | The brief, PRD or context request still has blocking pending marks (domain marks in a brief v2 do not block) | `/export --final refused: N pending marks remain` | 4 | Close the gaps, or export without `--final` |
-| `/export --format faq` | No resolved gaps yet | `Cannot export a FAQ before gaps are resolved` | 4 | `/resolve-gaps` |
-| `/export --format interview` | Before `/ingest` (no `01_discovery/gaps.md`) | `Export source not found` | 3 | `/ingest` |
+| `/export --format faq` | `01_discovery/gaps.md` exists but neither `decisions.md` nor `identity_seeds.md` does (`/ingest` writes both, so only after they were removed) | `Cannot export a FAQ before gaps are resolved` | 4 | Restore them from git. A FAQ with no confirmed answer yet is not refused: it is written and says it is empty |
+| `/export --format interview`, `--format faq` | Before `/ingest` (no `01_discovery/gaps.md`) | `Export source not found` | 3 | `/ingest` |
 | `/split` (prerequisites) | No compiled brief, a v1 brief on `--confirm`, no stored proposal, brief changed since the proposal, no confirmed series, release already closed, no stories or stories not Done on `--close` | the reason | 4 | Fix what is named; nothing was stored |
 | `/split` (refused input) | `--assess` or `--propose` on a v1 brief, refused proposal, partition not green, missing `--ba`/`--tech` or other bad options | the finding codes and reasons | 3 | Fix what is named; nothing was stored |
 | Release commands with `--release` | No confirmed series | `--release needs a confirmed release series` | 4 | `/split --confirm` |
@@ -439,6 +439,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 **Refuses when.**
 
 - The workspace does not exist → exit 4.
+- `--source` is a folder → exit 3 (`--source must be a file`). `/sync` reads one file per run; to pick up a folder of new files, put them in the input folders and run `/sync` without `--source`.
 - `--analysis` without `--source` → exit 3.
 - `--analysis` with a quote not found verbatim in the note or the target, a target that does not exist or is in the wrong state (a gap that is not `CLOSED`/`PARTIALLY_CLOSED`, an assumption that is not `ASSUMED`/`VALIDATED`, an unregistered source), or a note that declares itself not validated → exit 3 listing every reason. The analysis is checked before the note is stored, so nothing is written.
 
@@ -1327,8 +1328,8 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 **Refuses when.**
 
 - `--final` with blocking pending marks → exit 4. Domain marks in a brief v2 do not block (see below).
-- `faq` before any gap is resolved → exit 4.
-- The source artifact does not exist (for example `interview` before `/ingest`, since `gaps.md` is not there yet), a format that does not fit the artifact, `context-request` without `--domain`, or a secret found in the output → exit 3.
+- `faq` when `gaps.md` exists but neither `01_discovery/decisions.md` nor `identity_seeds.md` does → exit 4. `/ingest` writes both, so after it `faq` does not refuse: with no confirmed answer yet, the file says the FAQ is empty.
+- The source artifact does not exist (for example `interview` or `faq` before `/ingest`, since `gaps.md` is not there yet), a format that does not fit the artifact, `context-request` without `--domain`, or a secret found in the output → exit 3.
 
 **You get.** The path, `deliverable` (`working`, `draft` or `final`), `pending_marks` (the blocking count) and, when there are any, `deferred_marks`.
 
