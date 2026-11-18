@@ -8,7 +8,7 @@ It is for **business analysts and product managers** working on real client proj
 
 **Your client's data.** Sentinel runs on your machine and makes no network calls: every file it writes stays in your project folder. Your AI assistant, though, reads the client's documents and Sentinel's files in order to help you, so that content goes to the assistant's model provider, under your organization's agreement with it. When that is not allowed, run Sentinel from a plain terminal, and nothing leaves your machine. Details in [Privacy](user_guide/00-user-guide.md#privacy).
 
-Version 0.16.0 · [What changed](CHANGELOG.md) · New words are explained in the [glossary](user_guide/00-user-guide.md#glossary).
+Version 0.16.1 · [What changed](CHANGELOG.md) · New words are explained in the [glossary](user_guide/00-user-guide.md#glossary).
 
 ## Get started in 10 minutes
 
