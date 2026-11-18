@@ -4,83 +4,64 @@ Este documento es una carta breve para equipos de IT, Seguridad o Arquitectura q
 
 ## Resumen Para IT
 
-Ignite Sentinel vNext es un framework local-first para madurar requerimientos de negocio y producto. Se ejecuta desde un repositorio local y guarda la fuente de verdad en archivos versionables bajo `workspaces/[PROJECT_ID]/`.
+Ignite Sentinel vNext es un framework local-first para madurar requerimientos de negocio y producto. Guarda la fuente de verdad en archivos de texto bajo `workspaces/[PROJECT_ID]/`, en la carpeta donde se ejecuta.
 
-Para el ciclo core no requiere servicios externos, bases vectoriales remotas, MCP remoto, APIs de embeddings ni paquetes obligatorios de terceros. El runtime esta protegido por un guard de pureza stdlib: `/doctor` falla si se introduce una dependencia Python dura no opcional en la ruta caliente.
+Para el ciclo core no requiere servicios externos, bases vectoriales remotas, MCP remoto, APIs de embeddings ni paquetes obligatorios de terceros: usa solo la biblioteca estandar de Python. No tiene codigo de red; `/doctor` falla si aparece una importacion de red o una dependencia dura no opcional en el runtime.
 
 ## Requisitos
 
-Requisito minimo:
-
 - Python 3.10 o superior aprobado por la organizacion.
-- Una carpeta local con permisos de lectura y escritura para el repositorio y los workspaces.
+- Una carpeta local con permisos de lectura y escritura.
 
-No se requiere:
+No se requiere instalar paquetes Python para el ciclo core, permisos de administrador si Python ya esta disponible, servicios cloud ni conexion de red durante el uso normal.
 
-- instalacion global de paquetes Python para el ciclo core;
-- permisos de administrador para operar el framework si Python ya esta disponible;
-- servicios cloud, bases vectoriales remotas o embeddings externos para contenido de cliente;
-- conexion de red durante el uso normal, una vez que el repositorio o el `.pyz` ya fue copiado al entorno.
+## Formas De Instalarlo
 
-## Modos De Ejecucion
-
-| Entorno | Que pedir | Como correr |
+| Entorno | Que pedir | Como |
 |---|---|---|
-| Laptop con Python aprobado | Python 3.10+ en `PATH` o ruta conocida | `python -m sentinel /doctor` |
-| VDI con Python pero sin `pip` | Solo Python 3.10+ y carpeta writable | `python -m sentinel /doctor` |
-| VDI con scripts restringidos | Python 3.10+; evitar wrappers PowerShell si estan bloqueados | `python -m sentinel /doctor` |
-| Entorno con un solo archivo permitido | Python 3.10+ y `sentinel.pyz` generado en un entorno aprobado | `python sentinel.pyz /doctor --root .` |
-| Superficie con runtime aprobado | Usar Codex/Kilo/Claude/VS Code si ya estan aprobados por la organizacion | Ejecutar los comandos Sentinel desde chat o terminal local |
+| Claude Code aprobado | Python 3.10+ y Claude Code | Plugin desde GitHub: `/plugin marketplace add jmatzkin1980/ignite-sentinel#stable` y `/plugin install ignite-sentinel@ignite-sentinel` |
+| Claude Code aprobado, git bloqueado | Python 3.10+ y Claude Code 2.1.224+ | Archivo `.zip` del plugin de un release de GitHub, instalado por HTTPS con su `SHA256SUMS` |
+| Clon o ZIP del repositorio, sin `pip` | Python 3.10+ y carpeta writable | `python -m sentinel /doctor` |
+| Instalacion revisable, solo la linea de comandos | Python 3.10+ y `pip` | Wheel de un release: `python -m pip install .\ignite_sentinel-X.Y.Z-py3-none-any.whl`, verificable con `gh attestation verify` |
+| Un solo archivo permitido | Python 3.10+ y un `sentinel.pyz` construido en un entorno aprobado | `python sentinel.pyz /doctor` |
 
-## Modo Sin Instalacion De Paquetes
+Si PowerShell esta restringido, se llama a Python directamente; el launcher no hace falta.
 
-El ciclo core funciona sin instalar paquetes:
+El `.pyz` se construye desde un clon con `python -m sentinel.build`. No forma parte de un release de GitHub ni tiene atestacion, y no incluye la libreria de diagramas: `/view` muestra cada diagrama como codigo. Si alcanza con la linea de comandos, el wheel es la mejor opcion de un solo archivo porque esta atestado.
 
-```powershell
-python -m sentinel /doctor
-python -m sentinel /init PROJECT_ID
-python -m sentinel /ingest PROJECT_ID --source input\client_requirement\request.md
-```
+## Extras Opcionales
 
-Si `lancedb` no esta instalado, Sentinel usa memoria deterministica `json-hybrid`. Ese estado es sano para entornos restringidos: `/doctor` mantiene verdict global `PASS` y muestra los checks de memoria opcional como `WARN`, no como fallas.
+Sin extras, Sentinel usa memoria deterministica `json-hybrid`. Es un estado sano: `/doctor` mantiene el veredicto `PASS` y muestra la memoria opcional como `WARN`.
 
-La capa vectorial local es opcional. Si la organizacion la permite, puede habilitarse despues con:
+Si la organizacion lo permite, cada extra tiene un archivo de bloqueo con versiones y hashes en `constraints/` (`memory.txt`, `memory-semantic.txt`, `mcp.txt`). En un clon:
 
 ```powershell
-python -m pip install -e .[memory]
+python -m pip install --require-hashes -r constraints/memory.txt
+python -m pip install --no-deps -e .
 python -m sentinel /reindex PROJECT_ID
 ```
 
-## Single-File Zipapp
-
-Cuando conviene mover un unico archivo, el equipo puede construir un zipapp local:
-
-```powershell
-python -m sentinel.build
-python dist\sentinel.pyz /doctor --root .
-```
-
-Ese archivo se genera con `zipapp`, una herramienta de la biblioteca estandar de Python. Incluye los recursos runtime de Sentinel, como schemas, manifest de comandos, lentes, planes de retrieval y modelo de slicing. El artefacto `*.pyz` es local, reconstruible e ignorado por git.
+Sentinel nunca descarga un modelo de embeddings: los modelos locales se preparan en una maquina aprobada y se copian.
 
 ## Manejo De Datos
 
-Por diseno:
+- Los contenidos de cliente permanecen en archivos locales.
+- `workspaces/` esta ignorado por git en el repositorio del framework.
+- La memoria local es un indice reconstruible, no la fuente de verdad.
+- Los secretos detectados en las fuentes se reemplazan por `<SECRETO:tipo>` y se registran sin su valor.
 
-- los contenidos de cliente permanecen en archivos locales;
-- `workspaces/` esta ignorado por git por defecto;
-- la memoria local es un indice reconstruible, no la fuente de verdad;
-- no se usa MCP remoto, vector DB externa ni servicio externo de embeddings para contenido de cliente salvo aprobacion explicita fuera del framework.
-
-Si se opera desde una herramienta de agente aprobada por la organizacion, las politicas de esa herramienta aplican por separado. Ignite Sentinel no cambia ese canal: solo organiza y valida los artefactos locales del proyecto.
+Si se opera desde una herramienta de agente aprobada (Claude Code, Codex, Kilo Code, VS Code), las politicas de esa herramienta aplican por separado. Sentinel no cambia ese canal.
 
 ## Comando De Verificacion
-
-El primer comando recomendado para IT o para el usuario final es:
 
 ```powershell
 python -m sentinel /doctor
 ```
 
-`/doctor` verifica Python, estructura del repo, permisos de escritura, paridad de comandos, pureza stdlib, launchers portables y memoria local opcional. Un resultado `PASS` con advertencias opcionales de LanceDB es valido para operar en modo local restringido.
+Un resultado `PASS` con advertencias opcionales de LanceDB es valido para operar en modo restringido. Fuera de un clon (plugin, wheel o `.pyz`), `/doctor` corre en modo runtime y revisa solo el interprete, la paridad de comandos, la carpeta y los extras.
 
-Mas detalle: [user_guide/16-portability.md](user_guide/16-portability.md).
+## Para Revisar Mas
+
+- [Modo de portabilidad y nota para IT](user_guide/16-portability.md)
+- [Instalacion](user_guide/06-installation-vscode.md) y [entornos seguros](user_guide/09-secure-environments.md)
+- [Modelo de amenazas](user_guide/19-threat-model.md), [guia de administracion](user_guide/20-admin-guide.md) y [SECURITY.md](SECURITY.md)

@@ -65,7 +65,7 @@ python -m sentinel /doctor
 
 To give IT more to review, add the [threat model](19-threat-model.md) (what is protected and how to check each control), the [admin guide](20-admin-guide.md) (a managed settings policy for Claude Code, pinning a version, retention) and [SECURITY.md](../SECURITY.md). If you will install the plugin, say that it comes from GitHub (git, or HTTPS for the release archive).
 
-[PORTABILITY.md](../PORTABILITY.md) at the repository root is a separate, older letter in Spanish, not a translation of this note. It does not mention the plugin, the release archive, the threat model or the admin guide, and it installs the `memory` extra without the hash lock (`python -m pip install -e .[memory]`). When you need the reproducible install, use the steps in [Secure environments](09-secure-environments.md#offline-extras) instead.
+[PORTABILITY.md](../PORTABILITY.md) at the repository root is a short Spanish version for IT: the requirements, the install options (plugin, release archive, clone, wheel, `.pyz`), the hash-locked optional extras, data handling, the `/doctor` check and links to the threat model and admin guide. It is not a word-for-word translation of this note. For an install without internet, use the steps in [Secure environments](09-secure-environments.md#offline-extras).
 
 ## What not to promise
 

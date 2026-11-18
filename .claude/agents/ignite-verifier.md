@@ -18,8 +18,9 @@ output is a verification report.
 ## What you verify
 
 You receive the path of a governed artifact that was just written or edited
-(one of: `workspaces/*/02_requirements/project-brief.md`, `workspaces/*/03_specs/*.md`,
-`workspaces/*/04_backlog/*.md`). Verify, against the workspace's own files only:
+(one of: `workspaces/*/01_discovery/gaps.md`, `workspaces/*/02_requirements/requirements.md`,
+`workspaces/*/02_requirements/project-brief.md`, `workspaces/*/03_specs/*.md`,
+`workspaces/*/04_backlog/*.md`; the list lives in `sentinel/governed_artifacts.py`). Verify, against the workspace's own files only:
 
 1. **No invention.** Every substantive claim in the changed artifact traces to
    local evidence: a citation (`00_raw/…`, `` `GAP-*` ``, `` `CHG-*` ``, `` `DEC-*` ``,

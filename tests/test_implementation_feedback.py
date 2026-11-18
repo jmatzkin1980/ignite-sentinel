@@ -120,6 +120,88 @@ class ImplementationFeedbackTests(SnapshotWorkspaceCase):
         self.assertIn("story does not exist", report)
         self.assertFalse((self.ws / "04_backlog" / "US-999.md").exists())
 
+    def _state(self) -> dict:
+        return json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _gap_finding(summary: str, **extra: object) -> dict:
+        return {
+            "type": "gap",
+            "story": "US-001",
+            "summary": summary,
+            "evidence": "Downstream test run: " + summary,
+            **extra,
+        }
+
+    def test_default_ids_continue_after_earlier_runs_and_gaps_accumulate(self) -> None:
+        # IMP-367: positional defaults made a second run reuse IFB-001 / GAP-FEEDBACK-001
+        # and overwrite the first finding; write_text dropped the earlier gap row.
+        first = self._source({"findings": [self._gap_finding("Queue detail source is missing.")]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(first)]), 0)
+        second = self._source({"findings": [self._gap_finding("Queue export format is undefined.")]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(second)]), 0)
+
+        findings = self._state()["implementation_feedback"]["findings"]
+        self.assertEqual(sorted(findings), ["IFB-001", "IFB-002"])
+        self.assertEqual(findings["IFB-001"]["gap_id"], "GAP-FEEDBACK-001")
+        self.assertEqual(findings["IFB-002"]["gap_id"], "GAP-FEEDBACK-002")
+        self.assertIn("Queue detail source", findings["IFB-001"]["summary"])
+        gaps = (self.ws / "01_discovery" / "implementation_feedback_gaps.md").read_text(encoding="utf-8")
+        self.assertIn("`GAP-FEEDBACK-001`", gaps)
+        self.assertIn("`GAP-FEEDBACK-002`", gaps)
+
+    def test_explicit_ids_kept_and_resolved_gap_row_is_marked_not_deleted(self) -> None:
+        opened = self._source({"findings": [
+            self._gap_finding("Queue detail source is missing.", id="IFB-QUEUE", gap_id="GAP-FEEDBACK-QUEUE"),
+            self._gap_finding("Queue export format is undefined."),
+        ]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(opened)]), 0)
+        self.assertEqual(sorted(self._state()["implementation_feedback"]["findings"]), ["IFB-001", "IFB-QUEUE"])
+
+        resolved = self._source({"findings": [
+            self._gap_finding("Queue detail source added to the contract.", id="IFB-QUEUE",
+                              gap_id="GAP-FEEDBACK-QUEUE", status="resolved"),
+        ]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(resolved)]), 0)
+        gaps = (self.ws / "01_discovery" / "implementation_feedback_gaps.md").read_text(encoding="utf-8")
+        rows = {line.split("|")[1].strip(): line for line in gaps.splitlines() if line.startswith("| `GAP-")}
+        self.assertEqual(sorted(rows), ["`GAP-FEEDBACK-001`", "`GAP-FEEDBACK-QUEUE`"])
+        self.assertIn("| RESOLVED |", rows["`GAP-FEEDBACK-QUEUE`"])
+        self.assertIn("added to the contract", rows["`GAP-FEEDBACK-QUEUE`"])
+        self.assertIn("| OPEN |", rows["`GAP-FEEDBACK-001`"])
+
+    def test_health_is_recomputed_once_no_feedback_stays_open(self) -> None:
+        # IMP-367: resolving every finding left health DIRTY until /health ran.
+        from sentinel.health import run_health
+
+        baseline = run_health("IFB")["verdict"]
+        opened = self._source({"findings": [self._gap_finding("Queue detail source is missing.", id="IFB-QUEUE")]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(opened)]), 0)
+        self.assertEqual(self._state()["health"], "DIRTY")
+
+        resolved = self._source({"findings": [
+            self._gap_finding("Queue detail source added to the contract.", id="IFB-QUEUE", status="resolved"),
+        ]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(resolved)]), 0)
+        state = self._state()
+        self.assertEqual(state["implementation_feedback"]["open_by_story"], {})
+        self.assertEqual(state["health"], baseline)
+        self.assertEqual(state["health"], run_health("IFB")["verdict"])
+
+    def test_health_stays_dirty_when_another_cause_remains(self) -> None:
+        opened = self._source({"findings": [self._gap_finding("Queue detail source is missing.", id="IFB-QUEUE")]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(opened)]), 0)
+        # a Stale story is a separate DIRTY cause that resolving the feedback does not clear
+        state_file = self.ws / "state.json"
+        state = self._state()
+        state.setdefault("story_lifecycle", {}).setdefault("US-001", {})["status"] = "Stale"
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+        resolved = self._source({"findings": [
+            self._gap_finding("Queue detail source added to the contract.", id="IFB-QUEUE", status="resolved"),
+        ]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(resolved)]), 0)
+        self.assertEqual(self._state()["health"], "DIRTY")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -227,8 +227,15 @@ class ViewTests(unittest.TestCase):
     def test_a_v1_workspace_is_refused(self) -> None:
         (self.base / "02_requirements" / "project-brief.md").write_text("# Project Brief\n\n## 1. Overview\n\nx\n", encoding="utf-8")
         code, out = self.cli("view", "P", "--artifact", "diagrams")
-        self.assertNotEqual(code, 0)
+        self.assertEqual(code, 3, out)
         self.assertIn("reads the v2 brief", out)
+
+    def test_without_a_brief_it_is_a_gate_with_a_next_step(self) -> None:
+        # IMP-367: was a plain ValueError (exit 3) with a lower-case "(run /brief)"
+        (self.base / "02_requirements" / "project-brief.md").unlink()
+        code, out = self.cli("view", "P", "--artifact", "diagrams")
+        self.assertEqual(code, 4, out)
+        self.assertIn("next step: Run /brief P first.", out)
 
     def test_the_series_card(self) -> None:
         series = self.base / "02_requirements" / "series"

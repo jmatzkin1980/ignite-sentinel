@@ -16,7 +16,7 @@ The repository ships exactly one theme, `neutral`. Your own themes live on your 
 
 A theme **name** is looked up in this order:
 
-1. **Built-in names** (`neutral`) always resolve to the repository theme, in any letter case. A local theme with the same name is ignored, and a clone's `/doctor` warns about it when the file name matches exactly (`neutral.json`; a `Neutral.json` is ignored without a warning). Names may contain only letters, digits, `-` and `_`.
+1. **Built-in names** (`neutral`) always resolve to the repository theme, in any letter case. A local theme with the same name, in any letter case (`Neutral.json`), is ignored, and a clone's `/doctor` warns about it. Names may contain only letters, digits, `-` and `_`.
 2. **`/view` only:** `workspaces/<PROJECT_ID>/.sentinel/themes/<name>.json`, a theme for one workspace. The workspace `.gitignore` already excludes `.sentinel/`.
 3. **`~/.ignite/themes/<name>.json`**, your personal themes. The environment variable `IGNITE_THEMES_DIR` **replaces** that folder (use an absolute path; a relative one resolves against the current directory).
 

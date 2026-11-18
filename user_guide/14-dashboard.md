@@ -46,7 +46,7 @@ Each section appears only when there is data for it.
 | Documents / Documentos | The workspace documents, opened inside the dashboard. The canonical files stay in each workspace. |
 | Backlog, Story gates (DoR / DoD), Warnings | Backlog totals, the latest Definition of Ready and Done evaluation per story, and warnings. |
 
-The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. That command never carries `--root`: if you built the page with `--root PATH`, run it from that folder or add `--root PATH` yourself. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
+The page also carries the colour legend and a provenance block. Their behaviour is the same as in the views, described under [Shared page shell](15-artifact-views.md#shared-page-shell); on the dashboard, the provenance shows the cut-off date (the newest modification time among the files read), a 12-character sha256 of every `state.json`, and the command that regenerates the page. When you built the page with `--root` for another folder, that command keeps `--root` with the folder name only (never its full path), so run it from the folder that contains it. Two runs over the same workspaces give byte-identical HTML, and an inconsistent model fails instead of writing a misleading page.
 
 The dashboard has no feedback panel by design; capture and comments exist only in the artifact views.
 

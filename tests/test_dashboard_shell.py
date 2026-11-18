@@ -260,6 +260,23 @@ class DashboardThemeFlagTests(DashboardFixtureMixin, unittest.TestCase):
         self.assertIn("neutral", err)
         self.assertFalse((self.temp / "dashboard.html").exists())
 
+    def test_regenerate_command_keeps_root(self) -> None:
+        # IMP-367: built with --root from another folder, the provenance command dropped it
+        old = Path.cwd()
+        os.chdir(self.temp.parent)
+        try:
+            code, _, err = self._run("--root", str(self.temp), "--theme", "neutral")
+        finally:
+            os.chdir(old)
+        self.assertEqual(code, 0, err)
+        page = (self.temp / "dashboard.html").read_text(encoding="utf-8")
+        name = self.temp.resolve().name
+        self.assertIn(f"python -m sentinel /dashboard --root &quot;{name}&quot; --theme neutral", page)
+        self.assertNotIn(str(self.temp.parent.resolve()), page)  # a directory is never printed
+        os.chdir(self.temp)
+        self.assertEqual(self._run("--theme", "neutral")[0], 0)
+        self.assertIn("python -m sentinel /dashboard --theme neutral", (self.temp / "dashboard.html").read_text(encoding="utf-8"))
+
     def test_mcp_dashboard_arguments_forward_theme(self) -> None:
         from sentinel.mcp import dashboard_arguments
 

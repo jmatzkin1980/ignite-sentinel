@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from .errors import InputError  # IMP-302: typed errors
 
-import shutil
+import re
 from pathlib import Path
 from typing import Any
 
 from .core.markdown import table_cell
 from .core.graph import add_edge, add_node, upsert_node
-from .core.markdown import parse_table_rows
+from .core.markdown import parse_table_rows, split_table_row
 from .memory import ContextBroker
 from .payload_hygiene import archive_payload, sanitize_payload
 from .workspace import read_json, state_path, update_state, utc_now, workspace_path
@@ -22,6 +22,8 @@ class ImplementationFeedbackError(InputError):
 
 VALID_FINDING_TYPES = {"new-dependency", "gap", "ac-challenge", "surface-not-covered"}
 VALID_STATUSES = {"open", "resolved"}
+FINDING_ID_RE = re.compile(r"IFB-(\d+)")
+GAP_ID_RE = re.compile(r"GAP-FEEDBACK-(\d+)")
 
 
 def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, object]:
@@ -36,7 +38,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     if not isinstance(data, dict):
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
     story_index = load_story_index(base)
-    accepted, rejected = validate_findings(data, story_index)
+    accepted, rejected = validate_findings(data, story_index, existing_feedback_ids(project_id))
     # IMP-342: validated as written; stored and rendered redacted and neutralized
     accepted = sanitize_payload(base, accepted)
     rejected = sanitize_payload(base, rejected, verbatim_keys=("reason",))  # runtime prose: redacted only
@@ -108,6 +110,7 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
         domain="delivery",
         trace_ids=[run_id, *[item["story_id"] for item in accepted]],
     )
+    recompute_health_without_open_feedback(project_id)
 
     return {
         "feedback_id": run_id,
@@ -119,19 +122,51 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     }
 
 
-def validate_findings(data: dict[str, Any], story_index: dict[str, dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+def highest_number(ids: Any, pattern: re.Pattern[str]) -> int:
+    numbers = [int(found.group(1)) for found in (pattern.fullmatch(str(item).strip()) for item in ids) if found]
+    return max(numbers, default=0)
+
+
+def existing_feedback_ids(project_id: str) -> tuple[list[str], list[str]]:
+    """IMP-367: finding ids and gap ids earlier runs already used."""
+    state = read_json(state_path(project_id), {})
+    payload = state.get("implementation_feedback", {}) if isinstance(state, dict) else {}
+    findings = payload.get("findings", {}) if isinstance(payload, dict) else {}
+    findings = findings if isinstance(findings, dict) else {}
+    gap_ids = [str(item.get("gap_id")) for item in findings.values() if isinstance(item, dict) and item.get("gap_id")]
+    gap_ids.extend(existing_gap_rows(feedback_gaps_path(project_id)))
+    return list(findings), gap_ids
+
+
+def validate_findings(
+    data: dict[str, Any],
+    story_index: dict[str, dict[str, Any]],
+    existing_ids: tuple[list[str], list[str]] = ([], []),
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     findings = data.get("findings")
     if not isinstance(findings, list) or not findings:
         raise ImplementationFeedbackError("Implementation feedback source must contain a non-empty findings array.")
+    # IMP-367: a default id continues after the highest one already used (by an earlier
+    # run or explicitly in this payload), so a later run never overwrites a finding.
+    explicit = [item for item in findings if isinstance(item, dict)]
+    next_finding = highest_number([*existing_ids[0], *(item.get("id") or "" for item in explicit)], FINDING_ID_RE)
+    next_gap = highest_number([*existing_ids[1], *(item.get("gap_id") or "" for item in explicit)], GAP_ID_RE)
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, str]] = []
-    for index, finding in enumerate(findings, start=1):
-        finding_id = str(finding.get("id") or f"IFB-{index:03d}") if isinstance(finding, dict) else f"IFB-{index:03d}"
+    for finding in findings:
+        given = str(finding.get("id") or "").strip() if isinstance(finding, dict) else ""
+        if not given:
+            next_finding += 1
+        finding_id = given or f"IFB-{next_finding:03d}"
         reason = validate_finding_shape(finding, story_index)
         if reason:
             rejected.append({"id": finding_id, "reason": reason})
             continue
-        accepted.append(normalize_finding(finding, finding_id, index, story_index))
+        normalized = normalize_finding(finding, finding_id, story_index)
+        if normalized.get("gap_id") == "":
+            next_gap += 1
+            normalized["gap_id"] = f"GAP-FEEDBACK-{next_gap:03d}"
+        accepted.append(normalized)
     return accepted, rejected
 
 
@@ -161,9 +196,9 @@ def validate_finding_shape(finding: Any, story_index: dict[str, dict[str, Any]])
 def normalize_finding(
     finding: dict[str, Any],
     finding_id: str,
-    index: int,
     story_index: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
+    """The stored finding; a gap without an explicit gap_id gets "" (numbered by the caller)."""
     story_id = str(finding.get("story", finding.get("story_id", ""))).strip()
     finding_type = str(finding["type"]).strip()
     status = str(finding.get("status", "open")).strip().lower()
@@ -183,7 +218,7 @@ def normalize_finding(
         "created_at": utc_now(),
     }
     if finding_type == "gap":
-        normalized["gap_id"] = str(finding.get("gap_id") or f"GAP-FEEDBACK-{index:03d}").strip()
+        normalized["gap_id"] = str(finding.get("gap_id") or "").strip()
     return normalized
 
 
@@ -233,6 +268,24 @@ def persist_feedback_state(
     if payload["open_by_story"]:
         updates["health"] = "DIRTY"
     update_state(project_id, **updates)
+
+
+def recompute_health_without_open_feedback(project_id: str) -> None:
+    """IMP-367: once no feedback is open, health follows the current findings.
+
+    Open feedback sets health DIRTY; resolving the last finding must not leave it DIRTY
+    until /health runs, nor force CLEAN over another cause. Runs after the run's report
+    is indexed, so the new CHG node is not itself a finding.
+    """
+    state = read_json(state_path(project_id), {})
+    payload = state.get("implementation_feedback", {}) if isinstance(state, dict) else {}
+    if isinstance(payload, dict) and payload.get("open_by_story"):
+        return
+    if str(state.get("health", "")).upper() != "DIRTY":
+        return
+    from .health import run_health
+
+    run_health(project_id)
 
 
 def refresh_feedback_story_gates(project_id: str, findings: list[dict[str, Any]]) -> None:
@@ -332,15 +385,37 @@ This report records downstream implementation findings as governed feedback. Fin
     return path
 
 
+def feedback_gaps_path(project_id: str) -> Path:
+    return workspace_path(project_id) / "01_discovery" / "implementation_feedback_gaps.md"
+
+
+def existing_gap_rows(path: Path) -> dict[str, str]:
+    """IMP-367: the gap rows already in the file, by gap id, in file order."""
+    if not path.exists():
+        return {}
+    rows: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("| `GAP-"):
+            continue
+        gap_id = split_table_row(line)[0]
+        if gap_id:
+            rows[gap_id] = line
+    return rows
+
+
 def write_feedback_gaps(project_id: str, findings: list[dict[str, Any]]) -> Path | None:
     gap_findings = [item for item in findings if item.get("gap_id")]
     if not gap_findings:
         return None
-    path = workspace_path(project_id) / "01_discovery" / "implementation_feedback_gaps.md"
-    rows = "\n".join(
-        f"| `{item['gap_id']}` | `{item['story_id']}` | {item['type']} | {item['status'].upper()} | {table_cell(item['summary'], 180)} |"
-        for item in gap_findings
-    )
+    path = feedback_gaps_path(project_id)
+    # IMP-367: cumulative; a later run updates its rows by gap id (a resolved gap is
+    # marked RESOLVED) and keeps every row of earlier runs.
+    by_id = existing_gap_rows(path)
+    for item in gap_findings:
+        by_id[str(item["gap_id"])] = (
+            f"| `{item['gap_id']}` | `{item['story_id']}` | {item['type']} | {item['status'].upper()} | {table_cell(item['summary'], 180)} |"
+        )
+    rows = "\n".join(by_id.values())
     write_text(path, f"""# Implementation Feedback Gaps - {project_id}
 
 These gaps were opened by `/implementation-feedback`. They are downstream findings that require BA/Product review before the affected story is treated as Done.

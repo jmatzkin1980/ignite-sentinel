@@ -162,6 +162,15 @@ class DoctorLocalThemesTests(_LocalThemesBase):
         for needle in ("noprov", "neutral", "broken"):
             self.assertIn(needle, result["detail"])
 
+    def test_shadow_check_ignores_letter_case(self) -> None:
+        # IMP-367: --theme resolves built-in names in any case, so Neutral.json is shadowed too
+        from sentinel.doctor import user_themes_check
+
+        self.write(self.home_themes, self.brand(name="Neutral"))
+        result = user_themes_check(self.tmp)
+        self.assertEqual(result["status"], "WARN")
+        self.assertIn("Neutral.json uses a built-in name and is ignored", result["detail"])
+
 
 class LegacyWorkspaceGitignoreTests(_LocalThemesBase):
     def _legacy_workspace(self) -> Path:

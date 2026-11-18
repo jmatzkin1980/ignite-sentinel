@@ -34,6 +34,7 @@ from .citations import CITATION_RE as STRUCTURED_CITATION_RE
 from .core.io import write_text
 from .core.local_browser import open_local_file
 from .core.markdown import parse_table_rows
+from .errors import InputError
 from .resources import package_resource
 from .secrets_scan import assert_no_leaks
 from .shell import content_fingerprint, provenance_section, render_shell, template_text, theme_argument_for_display
@@ -143,8 +144,12 @@ COPY = {
 }
 
 
-class DiagramsError(ValueError):
-    """The diagrams cannot be built (no brief, or a v1 brief)."""
+class DiagramsError(InputError):
+    """The diagrams cannot be built (no brief, or a v1 brief).
+
+    IMP-367: a missing brief is a missing prerequisite, raised with ``gate=True`` (exit 4)
+    and a next step, like the other views; the rest stay invalid input (exit 3).
+    """
 
 
 # --- parsing the brief -------------------------------------------------------------------
@@ -554,7 +559,11 @@ def collect_diagrams_model(project_id: str) -> dict[str, Any]:
     base = workspace_path(project_id)
     brief = base / "02_requirements" / "project-brief.md"
     if not brief.is_file():
-        raise DiagramsError(f"/view diagrams needs the brief: workspaces/{project_id}/02_requirements/project-brief.md (run /brief)")
+        raise DiagramsError(
+            f"/view diagrams needs the brief: workspaces/{project_id}/02_requirements/project-brief.md does not exist.",
+            next_step=f"Run /brief {project_id} first.",
+            gate=True,
+        )
     text = brief.read_text(encoding="utf-8")
     if parse_brief(text).version != 2:
         raise DiagramsError("/view diagrams reads the v2 brief (its §3.3, §3.4, §5.1 and §5.6); this workspace compiles v1")

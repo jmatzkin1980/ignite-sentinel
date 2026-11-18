@@ -16,7 +16,7 @@ python -m sentinel /view ACME_PORTAL --artifact prd --open
 | `--theme NAME_OR_PATH` | A built-in theme name, a local theme name, or the path to a theme JSON. Without it: `theme:` in `sentinel.config.yaml`, then `neutral`. See [Themes](17-themes.md). |
 | `--release rN` | Build the view for one release of a confirmed series (`rN`, or `rN.M` for a sub-release). |
 
-`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first. The `diagrams` view is the exception: without a brief it stops with exit 3 and a message that names `/brief`, but prints no `next step:` line (see [Diagrams](#diagrams)).
+`/view` is read-only: it never changes a governed artifact. If the source artifact does not exist yet, it refuses with exit 4 (`Artifact not generated yet for /view: ...`) and the next step "Run /next PROJECT_ID to see which command comes first"; run the command that creates it first. The `diagrams` view needs the brief instead: without one it refuses with exit 4 and the next step "Run /brief PROJECT_ID first." (see [Diagrams](#diagrams)).
 
 **Output path.** The file is `workspaces/<PROJECT_ID>/08_context_packs/views/<artifact>.html`. With `--release rN` it is `workspaces/<PROJECT_ID>/08_context_packs/rN/views/<artifact>.html`. The workspace `.gitignore` keeps both paths out of git (a workspace created before release views were ignored gets the rule on its next `/init`, `/ingest` or release command). Views are safe to delete: rebuild them any time. The Markdown stays the source of truth; do not edit the HTML.
 
@@ -83,7 +83,7 @@ This view answers "what is missing, and from whom?". It is not built from one Ma
 /view ACME_PORTAL --artifact diagrams
 ```
 
-The diagrams view reads the **v2** brief. It fails with exit 3 if the brief does not exist (the message says to run `/brief`) or if the workspace compiles brief v1.
+The diagrams view reads the **v2** brief. If the brief does not exist, it refuses with exit 4 and the next step "Run /brief PROJECT_ID first." If the workspace compiles brief v1, it fails with exit 3.
 
 | Card | From | Mermaid type |
 |---|---|---|

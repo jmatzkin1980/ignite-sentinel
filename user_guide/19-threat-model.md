@@ -28,7 +28,7 @@ Keys Sentinel stores in `localStorage`:
 | `ignite-sentinel:view-feedback:<project>:<artifact>:<source>` | Feedback comments typed in a view |
 | `ignite-sentinel:view-feedback:<project>:<artifact>:<source>:source-sha` | The sha256 of the source the comments and guided answers were written against (no content) |
 | `ignite-sentinel:view-guided-response:<project>:<artifact>:<source>` | Answers typed in a guided response view |
-| <code>ignite-sentinel:readiness:&lt;project&gt;</code> | The sent/answered marks of the readiness view: the ids of the marked requests, no text |
+| `ignite-sentinel:readiness:<project>` | The sent/answered marks of the readiness view: the ids of the marked requests, no text (**Clear** in the view empties it) |
 | `ignite-sentinel:view-provenance` | Whether provenance is shown (a preference, no content) |
 | `ignite-sentinel:color-mode` | Light or dark (a preference, no content) |
 
