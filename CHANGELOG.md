@@ -6,6 +6,49 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-11-18
+
+H24: a guide any BA/PM can follow, and no dead ends on a real project. An audit of the user guide against the 0.15.0 code found 106 mismatches and a `/backlog` deadlock; live runs of every documented sequence found more. All are fixed, the README and the BA/PM pages are rewritten in plain language, and the diagrams are images that render everywhere.
+
+### Fixed
+
+- **No DIRTY dead ends (IMP-360, IMP-369).**
+  - After a change on a project with a backlog, `/backlog` runs again once the brief and specs are regenerated, and health returns to CLEAN. Before, it was refused forever.
+  - A change of meaning ("now", "instead", "out of scope") is cleared by regenerating, or recorded with the new `/trace PROJECT --reviewed CHG-NNN`.
+  - Every command indexes the graph nodes it adds (`/story-status`, Done evidence, `/stakeholders --add`).
+  - Moving one story forward no longer marks its siblings Stale.
+  - `/next` and the `/backlog` refusal name the concrete commands, numbered, one per finding.
+  - `/backlog` no longer runs on specs older than the brief.
+  - `/resolve-gaps` with only unknown ids no longer marks downstream stale.
+  - A refused command no longer leaves a false hand-edit warning.
+  - Answers routed to brief places 7.1, 9.1 and the glossary are kept, so GAP-BRIEF-S7 and S9 stay closed.
+- **CLI edges (IMP-361):**
+  - `/sync --source` with a folder is refused cleanly instead of crashing.
+  - The dashboard suggests `/sync` for a changed requirement.
+  - The workspace `.gitignore` excludes `.series_work/` and release views.
+  - Focus packs are named `*_focus.json`.
+- **Implementation feedback and smaller fixes (IMP-367, IMP-370):**
+  - Implementation feedback keeps its history, numbers ids across runs, resolves a gap by finding id, and recomputes health when nothing is open.
+  - `/sync` detects new gaps only in the new source.
+  - `/stakeholders --domain` takes lens names.
+  - A synced file gets its authority from its drop folder.
+  - Release-scoped `/next` hints keep `--release`.
+  - `/refine-backlog` is idempotent.
+  - Several EARS sentences in one answer each become a requirement.
+  - `/view diagrams` without a brief is a gate with a next step.
+  - The dashboard regenerate command keeps `--root`.
+  - The theme shadow check ignores letter case.
+- **The reference pages match the code (IMP-362, IMP-363):** the 106 audit findings are fixed across the command, artifact, memory, chat, install, adapter, plugin, admin, security and recovery pages, including correct offline install steps.
+
+### Changed
+
+- **Plain-language guide (IMP-365, IMP-366, IMP-368):**
+  - README and Start here are written for a first-time BA/PM.
+  - Workflows has 13 new situations, from moving on with assumptions to picking up a project after weeks.
+  - Scenarios are re-run live and add "the client changes scope after the backlog" and "development finds a hole".
+- **Diagrams are SVG images (IMP-364)** with their Mermaid source next to them, so they render on GitHub web and in the GitHub app. `tools/render_doc_diagrams.py` renders them offline with the vendored Mermaid; a test fails when an image is stale.
+- `PORTABILITY.md` is updated to the current install paths.
+
 ## [0.15.0] — 2026-11-17
 
 H23: closing what earlier horizons left open. A retired source leaves memory, every agent payload is redacted and shielded, instructions hidden in comments or encodings are caught, the deny hook covers the same files as hand-edit detection, the client gets a plain interview, the dashboard speaks the project's language, and each command writes the graph once.
