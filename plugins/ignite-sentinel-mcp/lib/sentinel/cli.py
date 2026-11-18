@@ -71,11 +71,16 @@ def check_source_exists(args) -> None:
             f"--source file not found: {source}",
             next_step=f"Check the path; it is read relative to the folder you run Sentinel from ({Path.cwd()}).",
         )
-    if args.command == "sync":
-        return  # /sync --source also takes a folder to scan
     if path.is_dir():
         # IMP-323: a folder used to end in exit 1 with a PermissionError traceback.
-        raise InputError(f"--source must be a file, not a folder: {source}", next_step="Pass the file itself.")
+        # IMP-361: /sync too; it reads one file per run (without --source it scans the input folders).
+        next_step = "Pass the file itself."
+        if args.command == "sync":
+            next_step = (
+                "Pass one file at a time, or run /sync without --source to scan the input and "
+                "context folders for new or modified files."
+            )
+        raise InputError(f"--source must be a file, not a folder: {source}", next_step=next_step)
     if path.suffix.lower() in _TEXT_SOURCE_SUFFIXES:
         # IMP-323: a UTF-16 file (what PowerShell 5.1 `>` writes) failed after the command had
         # already copied it into the workspace; refuse it before anything is written.
