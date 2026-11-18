@@ -295,9 +295,25 @@ def next_step(
     if key == "resolve_blocking" and assumed_blocking:
         text += ASSUMED_BLOCKING_NOTE.format(ids=", ".join(assumed_blocking))
     proposal = settings or {}
-    return {"key": key, "title": title, "text": text,
-            "command": command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
-                                      genesis=proposal.get("genesis", "greenfield"))}
+    command = command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
+                             genesis=proposal.get("genesis", "greenfield"))
+    return {"key": key, "title": title, "text": text, "command": release_scoped_command(command)}
+
+
+def release_scoped_command(command: str) -> str:
+    """IMP-370: inside a release scope, a suggested release command keeps `--release rN`.
+
+    `/next --release r1` used to suggest `/validate ACME_CLAIMS`, which runs over the
+    whole workspace. Commands that take no `--release` (/resolve-gaps, /gaps...) stay as they are.
+    """
+    from .commands import RELEASE_COMMANDS
+    from .release_scope import active_release
+
+    release = active_release()
+    if not release or "--release" in command:
+        return command
+    verb = command.split(" ", 1)[0].lstrip("/")
+    return f"{command} --release {release}" if verb in RELEASE_COMMANDS else command
 
 
 HEALTH_FIX_TITLES = {

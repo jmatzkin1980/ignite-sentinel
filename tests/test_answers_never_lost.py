@@ -57,6 +57,47 @@ class ParserTests(unittest.TestCase):
         response = parse_gap_responses(ACCEPTANCE)["GAP-ACCEPTANCE"]
         self.assertEqual(response["owner"], "Client workshop")
         self.assertEqual(response["decision_status"], "confirmed")
+        self.assertNotIn("sections", response)
+
+    def test_repeated_section_is_merged_not_overwritten(self):
+        # IMP-370: a second `### GAP-X` section used to replace the first one.
+        second = ACCEPTANCE.replace(
+            "When a queue has cases above the SLA threshold, the dashboard shall mark the queue as high risk.",
+            "While a queue is high risk, the dashboard shall show it first.",
+        ).replace("Client workshop", "Operations lead")
+        response = parse_gap_responses(ACCEPTANCE + "\n" + second)["GAP-ACCEPTANCE"]
+        self.assertIn("shall mark the queue as high risk.", response["answer"])
+        self.assertIn("While a queue is high risk", response["answer"])
+        self.assertEqual(response["owner"], "Client workshop; Operations lead")
+        self.assertEqual(response["decision_status"], "confirmed")
+        self.assertEqual(response["sections"], "2")
+        self.assertNotIn("conflicting_status", response)
+
+    def test_repeated_sections_with_different_statuses_are_flagged(self):
+        pending = ACCEPTANCE.replace("confirmed", "pending")
+        response = parse_gap_responses(ACCEPTANCE + "\n" + pending)["GAP-ACCEPTANCE"]
+        self.assertEqual(response["decision_status"], "confirmed; pending")
+        self.assertEqual(response["conflicting_status"], "yes")
+
+
+class EarsStatementTests(unittest.TestCase):
+    def test_several_ears_sentences_each_become_a_statement(self):
+        from sentinel.gap_resolution import ears_statements
+
+        answer = ("When a claim is submitted, the system shall show its reference number. "
+                  "If the policy system is down, then the system shall retry the lookup.; "
+                  "While a claim is under review, the system shall show its status. Agreed in the workshop.")
+        statements = ears_statements(answer)
+        self.assertEqual([pattern for _, pattern in statements], ["event", "unwanted", "state"])
+        self.assertEqual(statements[0][0], "When a claim is submitted, the system shall show its reference number.")
+        self.assertTrue(statements[2][0].endswith("Agreed in the workshop."))
+
+    def test_one_ears_sentence_keeps_the_whole_answer(self):
+        from sentinel.gap_resolution import ears_statements
+
+        answer = "When a claim is submitted, the system shall show its reference number. The client agreed."
+        self.assertEqual(ears_statements(answer), [(answer, "event")])
+        self.assertEqual(ears_statements("Prose only, no EARS here."), [])
 
 
 class ResolveGapsTests(SnapshotWorkspaceCase):
@@ -81,6 +122,27 @@ class ResolveGapsTests(SnapshotWorkspaceCase):
         result = self.resolve("typo.md", typo)
         self.assertEqual(result["unknown_gap_ids"], ["GAP-ACCEPTANCES"])
         self.assertTrue(any("GAP-ACCEPTANCES" in finding for finding in result["closure_findings"]))
+
+    def test_two_ears_sentences_in_one_answer_become_two_requirements(self):
+        # IMP-370: the whole answer became one REQ-EARS row; a repeated section kept only the last.
+        two = ACCEPTANCE.replace(
+            "the dashboard shall mark the queue as high risk.",
+            "the dashboard shall mark the queue as high risk. "
+            "While a queue is high risk, the dashboard shall show it first.",
+        )
+        third = ACCEPTANCE.replace(
+            "When a queue has cases above the SLA threshold, the dashboard shall mark the queue as high risk.",
+            "If the metrics feed is late, then the dashboard shall show the last refresh time.",
+        )
+        result = self.resolve("two-ears.md", two + "\n" + third)
+        self.assertIn("GAP-ACCEPTANCE", result["closed"])
+        self.assertIn("GAP-ACCEPTANCE: answered in 2 sections; the answers were merged into one.", result["closure_findings"])
+        requirements = (self.temp / "workspaces" / PROJECT / "02_requirements" / "requirements.md").read_text(encoding="utf-8")
+        rows = [line for line in requirements.splitlines() if line.startswith("| REQ-EARS-")]
+        self.assertEqual(len(rows), 3, rows)
+        self.assertIn("| event | When a queue has cases above the SLA threshold", rows[0])
+        self.assertIn("| state | While a queue is high risk", rows[1])
+        self.assertIn("| unwanted | If the metrics feed is late", rows[2])
 
     def test_findings_are_in_the_stored_report(self):
         no_evidence = ACCEPTANCE.replace("Synthetic workshop notes", "")

@@ -131,6 +131,19 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(again["source_conflicts"]["contradictions"], [])  # same topic, same gap
         self.assertEqual(len(load_ledger("CTR")["contradictions"][0]["statements"]), 3)
 
+    def test_an_unclassified_side_is_named_with_the_command_to_classify_it(self) -> None:
+        # IMP-370: two unclassified notes never resolved and the note said only "a person decides".
+        first = sync_change("CTR", self._file("notes/a.md", "# A\n\nEl plazo de entrega es de 30 días.\n"), "a")
+        second = sync_change("CTR", self._file("notes/b.md", "# B\n\nEl plazo de entrega es de 60 días.\n"), "b")
+        self.assertEqual(first["source_authority"]["authority"], "unclassified")
+        gap = self._gaps()[second["source_conflicts"]["contradictions"][0]]
+        ids = [first["source_id"], second["source_id"]]
+        self.assertIn(f"{ids[0]}, {ids[1]} has no source kind (unclassified)", gap["resolution_note"])
+        self.assertIn(f"/sources CTR --id {ids[0]} --authority KIND", gap["resolution_note"])
+        self.assertIn(f"/sources CTR --precedence business --between {ids[0]},{ids[1]}", gap["resolution_note"])
+        report = (self.ws / "01_discovery" / "contradictions.md").read_text(encoding="utf-8")
+        self.assertIn("has no source kind", report)
+
     def test_interim_value_follows_precedence(self) -> None:
         sync_change("CTR", self._file("02_technology_context/tl.md", "# TL\n\nEl plazo de entrega es de 45 días.\n"), "tl")
         sync_change("CTR", self._file("01_meetings/acta.md", "# Acta\n\nEl plazo de entrega es de 30 días.\n"), "acta")

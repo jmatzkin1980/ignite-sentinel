@@ -360,9 +360,10 @@ def evaluate_needs_context(project_id: str, indexed_chunks: int) -> dict[str, An
     message = None
     if needs_context:
         message = (
-            f"Project holds {indexed_chunks} indexed chunks but no focus context pack; "
-            "consult focused retrieval (a *_focus.json pack or /retrieve --write-pack) "
-            "instead of reading whole artifacts before downstream work."
+            f"Project holds {indexed_chunks} indexed chunks but no focus context pack "
+            "(08_context_packs/*_focus.json); consult focused retrieval instead of reading whole "
+            "artifacts before downstream work. /ingest and /sync write one; to write one directly, "
+            f"run /retrieve {project_id} --query \"...\" --workflow <name>_focus --write-pack."
         )
     return {
         "needs_context": needs_context,

@@ -130,7 +130,7 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **What to do.**
 
-1. Register who answers for each area. The `--domain` must be one of the gap lenses: `business`, `product`, `technical`, `design`, `quality`, `compliance` or `delivery`.
+1. Register who answers for each area. The `--domain` must be one of the gap lenses: `business`, `product`, `technical`, `design`, `quality`, `compliance` or `delivery`. `technology`, `frontend` and `backend` also work and are saved as `technical`.
 
    ```text
    /stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business --topic invoices
@@ -164,8 +164,8 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **If something goes wrong.**
 
-- A person gets no questions: their `--domain` does not match a lens. `technology` is not a lens name; use `technical`.
-- "/stakeholders --add requires --domain (the lens/domain this owner answers for).": add `--domain`.
+- "Unknown --domain 'operations': it must name a lens, or no gap would ever be routed to this owner. Use one of: business, product, quality, technical, compliance, delivery, design (also accepted: backend = technical, frontend = technical, technology = technical).": pick the lens closest to what the person answers for, and use `--topic` for the detail (`--domain business --topic operations`).
+- "/stakeholders --add requires --domain: the lens this owner answers for. Use one of: ...": add `--domain`.
 - "/stakeholders --id/--name/--domain/--topic/--profile/--notes go with --add": you forgot `--add`.
 
 <a id="client-answers-arrive"></a>
@@ -198,7 +198,8 @@ If you received many unrelated requests at once and are not sure how many projec
   - Its `Decision status` is not `confirmed` (or `not applicable`). Unconfirmed answers never close a question, by design.
   - It is vague ("TBD", "later"). The question stays partially closed, with a note.
 - An answer closed its question but the report flags it: it has no `Evidence or reference` line. Add one next time.
-- A question that asks for rules or acceptance criteria closed with the note "EARS-eligible, not normalized". Only answers written as testable sentences, such as "When an account holder opens the invoice screen, the system shall list every open invoice", become stories later. Propose that wording to the client.
+- A question that asks for rules or acceptance criteria closed with the note "EARS-eligible, not normalized". Only answers written as testable sentences, such as "When an account holder opens the invoice screen, the system shall list every open invoice", become stories later. Propose that wording to the client. One answer can hold several such sentences, on one line or one per bullet under `- Answer:`; each becomes its own testable requirement.
+- The same question appears twice in the file: Sentinel merges the two answers and says so ("GAP-USERS: answered in 2 sections; the answers were merged into one."). If one section says `confirmed` and the other `pending`, the question does not close; send it again with one decision status.
 - The answers came as a meeting note or an email: use `/sync` instead (see [Preparing a meeting](#preparing-a-meeting-and-processing-the-minutes)).
 - A question is irrelevant: answer it with `Decision status: not applicable` and say why in `Answer`. `/gaps --disposition` is only for questions an agent raised (see [You want the agent to find what you missed](#you-want-the-agent-to-find-what-you-missed)).
 
@@ -405,15 +406,20 @@ Checks that run on the brief, the PRD and the specs (`/self-review`, `/compose`)
 
    When two sources give different values for the same subject, it opens a blocking question `GAP-CTR-...` that quotes both lines with their source (`F-01 line 7`, `F-04 line 5`). Its question reads "Which value governs for 'the invoice history'? Both sources stay anchored until someone decides." A subject only one source mentions is not a contradiction. `01_discovery/contradictions.md` lists every contradiction.
 
-2. Ask which source governs in this kind of topic. Each loaded file is a numbered *source* (`F-01`, `F-02`, ...); `/sources` lists them. Sentinel applies fixed precedence rules, for example "Minutes govern business." and "A spec governs over an example; an example never closes a rule.". Precedence depends on the kind of source, so first say what the document is, then ask:
+2. Ask which source governs in this kind of topic. Each loaded file is a numbered *source* (`F-01`, `F-02`, ...); `/sources` lists them. Sentinel applies fixed precedence rules, for example "Minutes govern business." and "A spec governs over an example; an example never closes a rule.". Precedence depends on the kind of source. `/sync` takes the kind from the file's path: a path that says `meeting`, `minutes` or `minuta` is meeting minutes, `mail` or `slack` is a mail or chat note, and `client`, `response` or `interaction` is a client document. Here the file is `steering-minutes.md`, so it already counts as minutes. Ask:
 
    ```text
    /sources ACME_PORTAL
-   /sources ACME_PORTAL --id F-04 --authority minutes
    /sources ACME_PORTAL --precedence business --between F-01,F-04
    ```
 
    The answer names the winner (here `F-04`, the minutes) or says `unresolved`: no rule settles it, and a person decides. Asking changes nothing.
+
+   For a file whose path says none of this (`input/notes/update.md`), the kind stays unset, and the `/sync` result says so: "F-04 has no source kind (authority `unclassified`), so no precedence rule can settle a contradiction it takes part in. Set it: /sources ACME_PORTAL --id F-04 --authority KIND (minutes, decision_record, client_document, interaction, tech_lead, spec, ...)." Set the kind, then ask again:
+
+   ```text
+   /sources ACME_PORTAL --id F-04 --authority minutes
+   ```
 
 3. Settle it. The contradiction is a question like any other: answer it with the value that governs and who decided.
 
@@ -435,7 +441,7 @@ Checks that run on the brief, the PRD and the specs (`/self-review`, `/compose`)
 
 **If something goes wrong.**
 
-- The precedence answer is `unresolved` even though one document is clearly the minutes: a file loaded with `/sync` is "Not classified yet" until you set `--authority`.
+- The precedence answer is `unresolved` even though one document is clearly the minutes: its kind is unset or wrong. Check it in `/sources ACME_PORTAL` and fix it with `--authority`. The contradiction question says the same in its note when one of its sources has no kind.
 - `--precedence` takes one of nine scopes: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule`. Any other value is refused with the list. `--precedence` needs `--between` and takes no other option.
 
 <details><summary>For the technical reader</summary>
@@ -816,7 +822,6 @@ The files are the source of truth; memory only helps find them. If a passage and
 
    ```json
    {"findings": [{"id": "IFB-001", "type": "gap", "story": "US-001", "status": "resolved",
-                  "gap_id": "GAP-FEEDBACK-001",
                   "summary": "Older PDFs are out of scope; the story keeps 12 months.",
                   "evidence": "Product Owner mail of 2026-11-17"}]}
    ```
@@ -825,7 +830,7 @@ The files are the source of truth; memory only helps find them. If a passage and
    /implementation-feedback ACME_PORTAL --source feedback-resolved.json
    ```
 
-   The question shows `RESOLVED`. When no finding is open any more, Sentinel recomputes health by itself.
+   The finding id is enough: its question `GAP-FEEDBACK-001` shows `RESOLVED`, and no new question opens. When no finding is open any more, Sentinel recomputes health by itself.
 
 **How you know it worked.** `/health ACME_PORTAL` no longer lists the feedback. If nothing else is stale, it answers `CLEAN`, and `/quality` runs.
 

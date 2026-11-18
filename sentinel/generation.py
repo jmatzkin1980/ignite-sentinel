@@ -234,7 +234,7 @@ def _generate_specs(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     config = load_config(project_id)
     # IMP-151: soft gate — warn when the foundation drifted since last generation.
-    foundation_warnings = enforce_foundation_drift_gate(project_id, "specs", config)
+    enforce_foundation_drift_gate(project_id, "specs", config)
     req_path = base / "02_requirements" / "requirements.md"
     brief_path = base / "02_requirements" / "project-brief.md"
     source_path = brief_path if brief_path.exists() else req_path
@@ -361,7 +361,8 @@ def _generate_specs(project_id: str) -> dict[str, object]:
         "path": str(specs_path),
         "prd_section_readiness": prd_readiness,
         "warnings": specs_warnings,
-        "foundation_warnings": foundation_warnings,
+        # IMP-370: what is still stale AFTER this run; the pre-run check only gates strict mode.
+        "foundation_warnings": foundation_drift_warnings(project_id, "specs"),
         "specs_gate": gate_result,
         "spec_unit_delta": {
             "path": str(spec_unit_delta["path"].as_posix()),
@@ -396,7 +397,7 @@ def _generate_backlog(
     # IMP-151: soft gate — warn when backlog's foundation (specs, and the brief
     # behind it) drifted since generation. Blocks only under drift_gate.strict.
     config = load_config(project_id)
-    backlog_foundation_warnings = enforce_foundation_drift_gate(project_id, "backlog", config)
+    enforce_foundation_drift_gate(project_id, "backlog", config)
     # IMP-198: CLI flag takes precedence over the optional config field; default = user.
     effective_story_format = normalize_story_format(story_format or config.get("story_format"))
     spec_path = base / "03_specs" / "specs.md"
@@ -531,7 +532,8 @@ def _generate_backlog(
         "slice_plan": slice_plan["path"],
         "slice_plan_json": slice_plan["json_path"],
         "task_seed_contracts": "enabled" if with_task_seeds else "disabled",
-        "foundation_warnings": backlog_foundation_warnings,
+        # IMP-370: what is still stale AFTER this run (a stale specs stays stale; the backlog was just rebuilt).
+        "foundation_warnings": foundation_drift_warnings(project_id, "backlog"),
     }
 
 

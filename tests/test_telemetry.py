@@ -93,7 +93,7 @@ class TelemetryTests(unittest.TestCase):
         change = self.temp / "late-change.md"
         change.write_text("We need a dashboard for queue risk. Acceptance remains undefined.", encoding="utf-8")
         result = sync_change("TEL", change, "late clarification")
-        self.assertNotIn("GAP-USERS", result["reopened_gaps"])
+        self.assertNotIn("GAP-USERS", result["closed_gaps_detected_again"])
 
         tel = maturation_telemetry("TEL")
         self.assertEqual(tel["reopened_by_sync_total"], 0)

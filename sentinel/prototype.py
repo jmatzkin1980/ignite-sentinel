@@ -235,14 +235,15 @@ def build_inventory(project_id: str, source: str = "") -> dict[str, Any]:
     sources = _html_sources(project_id, source)
     if not sources:
         raise PrototypeError(f"no HTML prototype {'for ' + source + ' ' if source else ''}among the ingested sources; "
-                             "ingest it first (/ingest PROJECT_ID --source prototype.html)", gate=True)
+                             f"add it first (/sync {project_id} --source prototype.html; "
+                             "/ingest only takes the first requirement of a new project)", gate=True)
     base = workspace_path(project_id)
     prototypes = []
     for row in sources:
         copy = Path(row["copy"])
         path = copy if copy.is_absolute() else repo_root() / copy
         if not path.is_file():
-            raise PrototypeError(f"{row['id']}: its copy {row['copy']} is missing; ingest it again", gate=True)
+            raise PrototypeError(f"{row['id']}: its copy {row['copy']} is missing; add the prototype again with /sync {project_id} --source FILE", gate=True)
         inventory = extract_inventory(path.read_text(encoding="utf-8", errors="replace"))
         relative = path.resolve().relative_to(base.resolve()).as_posix() if path.resolve().is_relative_to(base.resolve()) else row["copy"]
         prototypes.append({"source": row["id"], "path": relative, **inventory})
