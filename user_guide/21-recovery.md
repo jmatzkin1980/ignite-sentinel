@@ -95,6 +95,20 @@ A refusal is not a failure of the tool: the command checked something and stoppe
 
 The full table is in [exit codes](01-command-reference.md#exit-codes), the conditions per command in the [gate matrix](01-command-reference.md#gate-matrix), and a decision chart in [A gate refused](03-workflows.md#a-gate-refused). When in doubt, `/next ACME_PORTAL` prints the next step alone.
 
+### `/backlog` refuses with health `DIRTY` after a change
+
+A `/sync` that changes what the project knows (an invalidated assumption, for example) marks the brief, PRD, specs and backlog stale, and health turns `DIRTY`. `/backlog` then refuses with `knowledge changed after ... were generated` and names the commands to run, in order:
+
+```text
+/brief ACME_PORTAL
+/specs ACME_PORTAL
+/backlog ACME_PORTAL
+```
+
+Once the brief and specs are regenerated, the stale backlog is the only finding left and `/backlog` runs: regenerating the backlog is what clears it. `/quality` and `/refine-backlog` keep refusing until it has. If `/backlog` still refuses, the message names another finding (an open blocking gap, for example); fix that one first.
+
+**Check:** `/health ACME_PORTAL` no longer reports the knowledge change and `/quality ACME_PORTAL` runs.
+
 ## Next
 
 - [Workflows: what to do in each situation](03-workflows.md)
