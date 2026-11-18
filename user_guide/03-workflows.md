@@ -130,7 +130,7 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **What to do.**
 
-1. Register who answers for each area. The `--domain` must be one of the gap lenses: `business`, `product`, `technical`, `design`, `quality`, `compliance` or `delivery`.
+1. Register who answers for each area. The `--domain` must be one of the gap lenses: `business`, `product`, `technical`, `design`, `quality`, `compliance` or `delivery`. `technology`, `frontend` and `backend` also work and are saved as `technical`.
 
    ```text
    /stakeholders ACME_PORTAL --add --name "Head of Billing" --domain business --topic invoices
@@ -164,8 +164,8 @@ If you received many unrelated requests at once and are not sure how many projec
 
 **If something goes wrong.**
 
-- A person gets no questions: their `--domain` does not match a lens. `technology` is not a lens name; use `technical`.
-- "/stakeholders --add requires --domain (the lens/domain this owner answers for).": add `--domain`.
+- "Unknown --domain 'operations': it must name a lens, or no gap would ever be routed to this owner. Use one of: business, product, quality, technical, compliance, delivery, design (also accepted: backend = technical, frontend = technical, technology = technical).": pick the lens closest to what the person answers for, and use `--topic` for the detail (`--domain business --topic operations`).
+- "/stakeholders --add requires --domain: the lens this owner answers for. Use one of: ...": add `--domain`.
 - "/stakeholders --id/--name/--domain/--topic/--profile/--notes go with --add": you forgot `--add`.
 
 <a id="client-answers-arrive"></a>
@@ -198,7 +198,8 @@ If you received many unrelated requests at once and are not sure how many projec
   - Its `Decision status` is not `confirmed` (or `not applicable`). Unconfirmed answers never close a question, by design.
   - It is vague ("TBD", "later"). The question stays partially closed, with a note.
 - An answer closed its question but the report flags it: it has no `Evidence or reference` line. Add one next time.
-- A question that asks for rules or acceptance criteria closed with the note "EARS-eligible, not normalized". Only answers written as testable sentences, such as "When an account holder opens the invoice screen, the system shall list every open invoice", become stories later. Propose that wording to the client.
+- A question that asks for rules or acceptance criteria closed with the note "EARS-eligible, not normalized". Only answers written as testable sentences, such as "When an account holder opens the invoice screen, the system shall list every open invoice", become stories later. Propose that wording to the client. One answer can hold several such sentences, on one line or one per bullet under `- Answer:`; each becomes its own testable requirement.
+- The same question appears twice in the file: Sentinel merges the two answers and says so ("GAP-USERS: answered in 2 sections; the answers were merged into one."). If one section says `confirmed` and the other `pending`, the question does not close; send it again with one decision status.
 - The answers came as a meeting note or an email: use `/sync` instead (see [Preparing a meeting](#preparing-a-meeting-and-processing-the-minutes)).
 - A question is irrelevant: answer it with `Decision status: not applicable` and say why in `Answer`. `/gaps --disposition` is only for questions an agent raised (see [You want the agent to find what you missed](#you-want-the-agent-to-find-what-you-missed)).
 
@@ -405,15 +406,20 @@ Checks that run on the brief, the PRD and the specs (`/self-review`, `/compose`)
 
    When two sources give different values for the same subject, it opens a blocking question `GAP-CTR-...` that quotes both lines with their source (`F-01 line 7`, `F-04 line 5`). Its question reads "Which value governs for 'the invoice history'? Both sources stay anchored until someone decides." A subject only one source mentions is not a contradiction. `01_discovery/contradictions.md` lists every contradiction.
 
-2. Ask which source governs in this kind of topic. Each loaded file is a numbered *source* (`F-01`, `F-02`, ...); `/sources` lists them. Sentinel applies fixed precedence rules, for example "Minutes govern business." and "A spec governs over an example; an example never closes a rule.". Precedence depends on the kind of source, so first say what the document is, then ask:
+2. Ask which source governs in this kind of topic. Each loaded file is a numbered *source* (`F-01`, `F-02`, ...); `/sources` lists them. Sentinel applies fixed precedence rules, for example "Minutes govern business." and "A spec governs over an example; an example never closes a rule.". Precedence depends on the kind of source. `/sync` takes the kind from the file's path: a path that says `meeting`, `minutes` or `minuta` is meeting minutes, `mail` or `slack` is a mail or chat note, and `client`, `response` or `interaction` is a client document. Here the file is `steering-minutes.md`, so it already counts as minutes. Ask:
 
    ```text
    /sources ACME_PORTAL
-   /sources ACME_PORTAL --id F-04 --authority minutes
    /sources ACME_PORTAL --precedence business --between F-01,F-04
    ```
 
    The answer names the winner (here `F-04`, the minutes) or says `unresolved`: no rule settles it, and a person decides. Asking changes nothing.
+
+   For a file whose path says none of this (`input/notes/update.md`), the kind stays unset, and the `/sync` result says so: "F-04 has no source kind (authority `unclassified`), so no precedence rule can settle a contradiction it takes part in. Set it: /sources ACME_PORTAL --id F-04 --authority KIND (minutes, decision_record, client_document, interaction, tech_lead, spec, ...)." Set the kind, then ask again:
+
+   ```text
+   /sources ACME_PORTAL --id F-04 --authority minutes
+   ```
 
 3. Settle it. The contradiction is a question like any other: answer it with the value that governs and who decided.
 
@@ -435,7 +441,7 @@ Checks that run on the brief, the PRD and the specs (`/self-review`, `/compose`)
 
 **If something goes wrong.**
 
-- The precedence answer is `unresolved` even though one document is clearly the minutes: a file loaded with `/sync` is "Not classified yet" until you set `--authority`.
+- The precedence answer is `unresolved` even though one document is clearly the minutes: its kind is unset or wrong. Check it in `/sources ACME_PORTAL` and fix it with `--authority`. The contradiction question says the same in its note when one of its sources has no kind.
 - `--precedence` takes one of nine scopes: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule`. Any other value is refused with the list. `--precedence` needs `--between` and takes no other option.
 
 <details><summary>For the technical reader</summary>
@@ -514,25 +520,43 @@ Authorities: `minutes`, `decision_record`, `tech_lead`, `built`, `prototype`, `p
    /backlog ACME_PORTAL
    ```
 
-   After each step the refusal gets shorter ("Run /specs, then /backlog."). Once the brief and specs are regenerated, `/backlog` runs, and regenerating the backlog is what clears the last finding.
+   After each step the refusal gets shorter ("Run /specs, then /backlog."). Once the brief and specs are regenerated, `/backlog` runs, and regenerating the backlog is what clears the last finding. `/next` names the same next command at every step.
 
 4. Check quality again: `/quality ACME_PORTAL`. It refuses until `/backlog` has run ("Run /backlog, then /quality."), and so does `/refine-backlog`.
 
-5. **Stale stories.** When the change names a spec unit (`SPEC-U-...`), the stories built from it are marked `Stale`, and `/backlog` refuses with "Backlog contains Stale stories after source changes: US-001." Regenerating does not clear them: review each story and move it back yourself, then run the steps the next refusal names:
+5. **Stale stories.** When the change names a spec unit (`SPEC-U-...`), the stories built from it are marked `Stale`, and `/backlog` refuses with "Backlog contains Stale stories after source changes: US-001." Regenerating does not clear them: review each story and move it back yourself. The refusal and `/next` give the exact command:
 
    ```text
    /story-status ACME_PORTAL --story US-001 --set Draft
    ```
 
-   A `Stale` story can go to `Draft`, `Ready` or `Blocked`, never straight to `Done`.
+   A `Stale` story can go to `Draft`, `Ready` or `Blocked`, never straight to `Done`. Only a real change marks a story `Stale`: moving another story forward never does.
+
+6. **A change of meaning.** When the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar), Sentinel also asks you to check the trace links of that change. `/health` and the `/backlog` refusal say:
+
+   > sentinel error: Cannot run /backlog while project health is DIRTY: Semantic change CHG-007 may invalidate downstream trace links (targets: GAP-001, DEC-001, REQ-002, PRD-001, DISC-003, SPEC-001, SPEC-U-001, SPEC-U-002). Review the targets, then run /brief, then /specs, then /backlog. If nothing downstream has to change, record the review instead with /trace ACME_PORTAL --reviewed CHG-007.
+
+   `/next` gives the same text, titled *Review the semantic change*. Read what the change says against those documents (the targets are the questions, decisions, brief, PRD and specs the change may touch). If they have to change, run the commands it names: regenerating them after the change clears the finding, and the list gets shorter at each step. If nothing has to change, record your review, with a short reason:
+
+   ```text
+   /trace ACME_PORTAL --reviewed CHG-007 --reason "Checked with the Product Owner: no story covers document upload."
+   ```
+
+   The answer shows the change, how many links you marked reviewed, and `health: CLEAN` when nothing else is open. A later `/sync` without those words does not clear the finding for you.
 
 **How you know it worked.** `/health ACME_PORTAL` answers `CLEAN` and `/quality` runs. `/next` returns to the backlog steps.
 
 **If something goes wrong.**
 
-- `/backlog` still refuses with "Semantic change may invalidate downstream trace links for CHG-005; BA review required before implementation handoff." This happens when the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar). Regenerating does not clear it, and no command records the review. Today it clears when the next `/sync` carries none of those words: after you have checked the links, load a short review note (for example "BA review of the steering decision: the trace links of the brief and specs were checked with the Product Owner on 2026-11-18.") with `/sync`, then run `/backlog`.
-- `/backlog` refuses naming another finding (an open blocking question, open implementation feedback): fix that first. "(1 more finding(s))" means `/health` has more; run it to see them all.
-- While health is `DIRTY`, `/next` answers *Fix what makes the project unhealthy* without naming the step. The refusal message of `/backlog` is the precise guide.
+- `/backlog` refuses with several findings: it lists each one with its fix, in the order to do them, and ends with "Run /backlog again." The `next step:` line chains the same commands. Do them in that order.
+- `/backlog` refuses naming an open blocking question or open implementation feedback: fix that first, as the refusal says.
+- `/trace --reviewed` answers "CHG-009 is not the change waiting for review; /health names CHG-007.": use the id `/health` gives. "No semantic change is waiting for review" means there is nothing to record.
+
+<details><summary>For the technical reader</summary>
+
+The refusal and `/next` use the same list, built from the `/health` findings: `/reindex` for a record not indexed in memory, the `GAP-CHG` decision or `/resolve-gaps` for a blocking question, `/implementation-feedback` for open feedback, `/story-status ... --set Draft` for each `Stale` story, then the regeneration chain (`/brief`, `/specs`, `/backlog`) for a knowledge change or a change of meaning. `/backlog`, `/quality` and `/refine-backlog` check the staleness markers even when `state.json` says `CLEAN`, so a command that set health on its own criteria cannot let them run on specs older than the brief. The review is stored in `state.json#suspicious_trace_links.reviewed` and on each flagged edge of the traceability graph (`review_status: reviewed`).
+
+</details>
 
 <a id="finding-what-was-said-about-a-topic"></a>
 
@@ -765,7 +789,7 @@ The files are the source of truth; memory only helps find them. If a passage and
 
 4. Check again: `/quality ACME_PORTAL`, then `/trace ACME_PORTAL`.
 
-**How you know it worked.** `BACKLOG.md` shows the status and owner of each story. `/status ACME_PORTAL --full` lists what each story still misses to be Ready or Done.
+**How you know it worked.** `BACKLOG.md` shows the status and owner of each story. `/status ACME_PORTAL --full` lists what each story still misses to be Ready or Done. Moving one story leaves the other stories as they were, and `/health` stays `CLEAN`: each move is added to the search memory as it is recorded.
 
 **If something goes wrong.**
 
@@ -798,7 +822,6 @@ The files are the source of truth; memory only helps find them. If a passage and
 
    ```json
    {"findings": [{"id": "IFB-001", "type": "gap", "story": "US-001", "status": "resolved",
-                  "gap_id": "GAP-FEEDBACK-001",
                   "summary": "Older PDFs are out of scope; the story keeps 12 months.",
                   "evidence": "Product Owner mail of 2026-11-17"}]}
    ```
@@ -807,7 +830,7 @@ The files are the source of truth; memory only helps find them. If a passage and
    /implementation-feedback ACME_PORTAL --source feedback-resolved.json
    ```
 
-   The question shows `RESOLVED`. When no finding is open any more, Sentinel recomputes health by itself.
+   The finding id is enough: its question `GAP-FEEDBACK-001` shows `RESOLVED`, and no new question opens. When no finding is open any more, Sentinel recomputes health by itself.
 
 **How you know it worked.** `/health ACME_PORTAL` no longer lists the feedback. If nothing else is stale, it answers `CLEAN`, and `/quality` runs.
 

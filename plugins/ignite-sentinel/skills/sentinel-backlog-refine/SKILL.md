@@ -23,6 +23,7 @@ Use this skill when the backlog already exists and an agent has a proposed impro
 - Do not propose refinements over `[PENDING INPUT]` stories or pending Spec Units.
 - Express slicing recommendations inside the existing INVEST/SPIDR/Lawrence model; do not alter the model.
 - Enabler candidates must name the supported boundary, enabled stories, concrete `enabled_capability`, measurable `verification_method`, risk reduced, and objective evidence. Reject generic setup, environment availability, broad hardening, or vague accessibility as enablers unless tied to confirmed project functionality and completion evidence.
+- Proposals accumulate across runs. Sending a proposal already on record (same content) adds nothing; its id comes back in `unchanged`. A new proposal without `id` whose default `BREF-NNN` is taken gets the next free number; an explicit `id` already on record replaces that proposal.
 - Accepted proposals are governed backlog refinements for BA review. They do not automatically rewrite stories, create scope, or replace the enabler boundary.
 
 ## JSON Shape

@@ -101,7 +101,7 @@ Before running, Sentinel checks the workspace:
 
 1. The workspace exists; otherwise exit 4 with `Run /init PROJECT_ID first`. Its `state.json` exists and parses; otherwise exit 3 naming the file and the fix (see [exit codes](#exit-codes)).
 2. `/specs` and `/backlog` need discovery: in phase `initialized` (nothing ingested) they exit 4.
-3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing and the message names the first finding and what to do next. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
+3. `/backlog`, `/quality` and `/refine-backlog` refuse while project health is `DIRTY` (exit 4), and also while a knowledge change or a semantic change still waits for its downstream artifacts to be regenerated, even if `state.json` reads `CLEAN` (for example right after `/resolve-gaps` recompiled the brief: the specs are older than the brief). A new workspace starts `DIRTY`; `/maturity` sets health to `CLEAN` when readiness is `READY_FOR_SPECS`, and `/health` sets it from its own verdict. The gate re-runs the `/health` checks without writing. The message lists each finding with the command that fixes it, in the order to run them (one finding: on one line; several: numbered, ending "Run /backlog again."), and the `next step:` line chains the same commands. `/next` gives the same list. One exception: when the only finding is that knowledge changed after the backlog was generated (the brief and specs are already regenerated, so only `04_backlog/BACKLOG.md` and `08_context_packs/implementation_readiness.json` are stale), `/backlog` runs, because regenerating them is the fix. `/quality` and `/refine-backlog` still refuse until `/backlog` has run. If the brief or specs are stale too, the message lists the commands to run in order, for example `Run /brief, then /specs, then /backlog.`
 4. `/backlog`, `/backlog-status`, `/quality`, `/refine-backlog`, `/implementation-feedback` and `/story-status` run the backlog privacy scan. It warns by default; with `privacy_scan.mode: block` in `sentinel.config.yaml` a finding stops the command (exit 4).
 5. `/quality` needs user stories in the traceability graph (exit 4).
 
@@ -119,7 +119,7 @@ After a successful command:
   - if the command set health to `CLEAN` while the last `/health` report was `DIRTY`, re-run the `/health` checks and keep their verdict.
 - `/validate` with `--override` also refreshes the traceability views.
 
-A command that fails runs no postflight and is not logged. `/validate` is the exception: an `INVALID` verdict (exit 5) is logged before the command exits.
+A command that fails runs no postflight and is not logged. `/validate` is the exception: an `INVALID` verdict (exit 5) is logged before the command exits. A mutating command that is refused after preflight (a `/specs` refused for maturity `BLOCKED` may already have opened `GAP-BRIEF-PROFILE` in `gaps.md`) still records the checksums of what it wrote, so the next command does not report its own write as a hand edit.
 
 ### Command types
 
@@ -424,7 +424,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 **Reads.** The `--source` file or the scanned folders; the source registry; with `--analysis`, the analysis file, `gaps.md`, `assumptions.md` and the confirmed answers.
 
-**Writes.** A redacted copy of the change and its `<name>_impact_report.md` in a `07_changes/` sub-folder chosen from the source path: `01_meetings/` when the path contains `meeting` or `minuta`, `02_mail_slack/` for `mail` or `slack`, `00_client_responses/` for `interaction`, `client` or `response`, and `03_domain_updates/` otherwise (also for a path under a technology, design or quality context folder). Also `07_changes/metabolism_log.md`, `01_discovery/gaps.md` when the change raises new gaps (`origin: sync`), seeds and decisions for any `### GAP-*` answer it closes, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `<name>_interaction_digest.md` (section (f) lists the decision-line hints) and, when it finds candidate answers, a `<name>_gap_response_proposed.md` file with every entry `PROPOSED`, for the BA to review; both land in the same `07_changes/` sub-folder as the copy. With `--analysis`, the `GAP-CHG` rows in `gaps.md`, `01_discovery/change_candidates.json`, a copy of the analysis under `01_discovery/change_analyses/` and a line in `agent_sweep_log.md`. Nothing else moves: the target gap stays closed and the assumption keeps its status until the BA accepts.
+**Writes.** A redacted copy of the change and its `<name>_impact_report.md` in a `07_changes/` sub-folder chosen from the source path: `01_meetings/` when the path contains `meeting`, `minutes` or `minuta`, `02_mail_slack/` for `mail` or `slack`, `00_client_responses/` for `interaction`, `client` or `response`, and `03_domain_updates/` otherwise (also for a path under a technology, design or quality context folder). Also `07_changes/metabolism_log.md`, `01_discovery/gaps.md` when the change raises new gaps (`origin: sync`), seeds and decisions for any `### GAP-*` answer it closes, refreshed `01_discovery/knowledge_state.*` and `development_readiness.json` when knowledge moves, `01_discovery/statement_ledger.json` and `contradictions.md`, the focus pack `08_context_packs/sync_focus.json`, source rows, graph edges and memory chunks. With `--digest`, `<name>_interaction_digest.md` (section (f) lists the decision-line hints) and, when it finds candidate answers, a `<name>_gap_response_proposed.md` file with every entry `PROPOSED`, for the BA to review; both land in the same `07_changes/` sub-folder as the copy. With `--analysis`, the `GAP-CHG` rows in `gaps.md`, `01_discovery/change_candidates.json`, a copy of the analysis under `01_discovery/change_analyses/` and a line in `agent_sweep_log.md`. Nothing else moves: the target gap stays closed and the assumption keeps its status until the BA accepts.
 
 **Refuses when.**
 
@@ -433,7 +433,11 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 - `--analysis` without `--source` → exit 3.
 - `--analysis` with a quote not found verbatim in the note or the target, a target that does not exist or is in the wrong state (a gap that is not `CLOSED`/`PARTIALLY_CLOSED`, an assumption that is not `ASSUMED`/`VALIDATED`, an unregistered source), or a note that declares itself not validated → exit 3 listing every reason. The analysis is checked before the note is stored, so nothing is written.
 
-**You get.** With `--source`: the change id, the copy `path`, reopened gaps (closed gaps the scan detected again; report only), answered context requests, the `context_pack` path, `prose_review`, `interaction_digest` (with `--digest`), and with `--analysis` the `change_analysis` block (`opened`, `skipped_existing`). Without `--source`: `{"mode": "autonomous", "detected", "processed", "duplicate_content", "changes": [...]}`, where each item of `changes` is the result above for one file and `duplicate_content` lists new paths whose content was already registered. There is no top-level change id in that mode, and the default note is `autonomous sync`.
+**New gaps come from the change.** A gap that quotes a mention (`GAP-AUTH-MODEL` for "auth", `GAP-CTP-BATCH` for "batch process", a weak-word gap) opens only when the synced file itself says it; the workspace text (gaps, brief, specs) is read only to tell whether something is still missing everywhere.
+
+**Source kind.** The new row gets its authority (the source kind precedence uses) from its folder, as for any source. A file outside the known input folders takes the kind its sub-folder implies when the path named it: `minutes` for a meeting, `interaction` for mail or Slack, `client_document` for a client response. Otherwise it stays `unclassified`, and `source_authority.next_step` gives the command to set it (`/sources PROJECT_ID --id F-NN --authority KIND`).
+
+**You get.** With `--source`: the change id, the copy `path`, `source_authority` (the row's id and authority, plus `next_step` when it is `unclassified`), `closed_gaps_detected_again` (closed gaps the scan found again; they stay `CLOSED`, report only), answered context requests, the `context_pack` path, `prose_review`, `interaction_digest` (with `--digest`), and with `--analysis` the `change_analysis` block (`opened`, `skipped_existing`). Without `--source`: `{"mode": "autonomous", "detected", "processed", "duplicate_content", "changes": [...]}`, where each item of `changes` is the result above for one file and `duplicate_content` lists new paths whose content was already registered. There is no top-level change id in that mode, and the default note is `autonomous sync`.
 
 **Next step.** Review the impact report. If a proposed gap response was written, confirm it and run `/resolve-gaps`. For each `GAP-CHG`, decide with `/gaps --id GAP-CHG-x --disposition accepted`, or `--disposition rejected --reason TEXT`. Then `/maturity`.
 
@@ -602,7 +606,7 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 
 **You get.** The findings by lens and technique.
 
-**Next step.** Dispose the gaps with `/gaps --disposition`, then `/maturity`.
+**Next step.** Record your call on each new gap with `/gaps --id GAP-X --disposition ...` (it does not close the gap), answer or close the ones that matter with `/resolve-gaps`, then `/maturity`.
 
 **See also.** skill `sentinel-challenge`.
 
@@ -648,7 +652,7 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 
 **You get.** The accepted findings and gaps.
 
-**Next step.** `/gaps --disposition` on the new gaps, then `/maturity`.
+**Next step.** Record your call on each new gap with `/gaps --id GAP-X --disposition ...` (it does not close the gap), answer or close the ones that matter with `/resolve-gaps`, then `/maturity`.
 
 **See also.** skill `sentinel-scrutiny`.
 
@@ -710,11 +714,13 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
 
-A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
+A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. A confirmed answer that holds two or more EARS sentences ("When ..., the system shall ...") gives one `REQ-EARS-*` row per sentence; a sentence that is not EARS stays with the EARS sentence before it. A gap answered in two `### GAP-...` sections of one file gets both answers, merged, and a finding ("answered in 2 sections; the answers were merged into one."); when the sections give different decision statuses, the gap does not close and the finding says so. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 
 **Reads.** The response file and `01_discovery/gaps.md`.
 
 **Writes.** `01_discovery/gaps.md`, a copy (secrets redacted, as in `/ingest`) and a resolution report under `07_changes/00_client_responses/`, `01_discovery/gap_resolution_log.md`, `knowledge_state.*`, `development_readiness.json`, seeds and decisions, EARS rows in `02_requirements/requirements.md`. In a v2 project it recompiles the brief.
+
+When the answers change what the project knows (a knowledge unit moves) or change the recompiled brief, the PRD, specs and backlog that already exist are marked stale; the recompiled brief itself is fresh. `/backlog` then refuses with "Run /specs, then /backlog." A file whose answers move no gap (every id unknown, or every answer left its gap where it was) marks nothing stale.
 
 **Refuses when.** Before `/ingest` → exit 4.
 
@@ -736,7 +742,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 ```text
 /stakeholders ACME_PORTAL
-/stakeholders ACME_PORTAL --add --name "Dana Ops" --domain operations --topic "SLA" --profile business
+/stakeholders ACME_PORTAL --add --name "Dana Ops" --domain business --topic "SLA" --profile business
 ```
 
 **Options.**
@@ -747,7 +753,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 | `--add` | flag | off | Add an owner. Without it, the command lists the registry. |
 | `--id` | `STK-NNN` | assigned | The owner's id. Assigned automatically when left out. |
 | `--name` | text | none | The owner's name. Required with `--add`. |
-| `--domain` | text | none | The domain or lens the owner answers for (free text, matched to a gap's lens). Required with `--add`. |
+| `--domain` | a lens: `business`, `product`, `quality`, `technical`, `compliance`, `delivery`, `design` | none | The lens the owner answers for; gaps of that lens are routed to them. `technology`, `frontend` and `backend` are accepted and stored as `technical`. Case does not matter. Required with `--add`. |
 | `--topic` | text | empty | A narrower topic. |
 | `--profile` | `business`, `technical` | none | Respondent profile; another value is dropped. |
 | `--notes` | text | empty | Free notes. |
@@ -756,7 +762,7 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 **Writes.** `01_discovery/stakeholders.md`.
 
-**Refuses when.** `--add` without `--name` or `--domain`, a duplicate `--id`, or an owner field (`--id`, `--name`, `--domain`, `--topic`, `--profile`, `--notes`) without `--add` → exit 3.
+**Refuses when.** `--add` without `--name` or `--domain`, a `--domain` that is not a lens (the message lists the valid ones), a duplicate `--id`, or an owner field (`--id`, `--name`, `--domain`, `--topic`, `--profile`, `--notes`) without `--add` → exit 3.
 
 **You get.** The registry rows.
 
@@ -1235,7 +1241,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 **Refuses when.** Phase `initialized` → exit 4. Maturity `BLOCKED` → exit 4. `drift_gate.strict` with a stale foundation → exit 4. `specs_gate.strict` below the threshold → exit 4.
 
-**You get.** The paths, `prd_section_readiness`, `foundation_warnings` and `specs_gate`.
+**You get.** The paths, `prd_section_readiness`, `foundation_warnings` and `specs_gate`. `foundation_warnings` is checked after the run, so it lists only what is still stale; the specs this run rewrote are not in it.
 
 **Next step.** `/self-review` and `/compose` if needed, then `/backlog`.
 
@@ -1367,7 +1373,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **Refuses when.** Phase `initialized`, health `DIRTY` (except when only the backlog is stale after a knowledge change; see [preflight](#2-preflight)), maturity `BLOCKED`, privacy scan in `block` mode, `drift_gate.strict` with a stale foundation, or `backlog_gate.strict` with a story failing DoR → exit 4.
 
-**You get.** The paths, the story count, foundation warnings and the pre-handoff gate.
+**You get.** The paths, the story count, foundation warnings and the pre-handoff gate. The foundation warnings are checked after the run: they name specs that are older than the brief or requirements, never the backlog this run rewrote.
 
 **Next step.** Review `04_backlog/BACKLOG.md`; `/quality`; move stories with `/story-status`. On a brief v2, `/validate` warns about build items of §9.1 that no story covers.
 
@@ -1448,9 +1454,11 @@ Legal transitions:
 
 By default the Definition of Ready and Definition of Done only warn. With `backlog_gate.strict: true` in the config, an incomplete DoR blocks `Ready` and an incomplete DoD blocks `Done`.
 
+Moving one story changes no other story: only a real change marks stories `Stale` (a `/sync` that touches their spec unit, or implementation feedback with `mark_stale`). The change record (`CHG-NNN`) and the evidence record (`EV-NNN`) the command creates are indexed in memory at once, so `/health` stays `CLEAN` without a `/reindex`.
+
 **Reads.** The story file, `state.json`, the gate config.
 
-**Writes.** `state.json` (lifecycle, gates, criteria freezes), the story's frontmatter and checklists, `04_backlog/status_log.md`, `04_backlog/BACKLOG.md`.
+**Writes.** `state.json` (lifecycle, gates, criteria freezes), the story's frontmatter and checklists, `04_backlog/status_log.md`, `04_backlog/BACKLOG.md`, the local memory.
 
 **Refuses when.** The story does not exist → exit 4. Strict DoR or DoD incomplete → exit 4. Privacy scan in `block` mode → exit 4. Illegal transition, unknown status or a malformed story id → exit 3.
 
@@ -1484,11 +1492,11 @@ python -m sentinel /refine-backlog ACME_PORTAL --source refinement.json
 
 **Reads.** The JSON, the epic and stories, the evidence.
 
-**Writes.** `04_backlog/EPIC-001.md` and the targeted stories (an `Agent Backlog Refinements` section), `04_backlog/refinements/` (copy, `accepted_refinements.json`, `refinement_report.md`).
+**Writes.** `04_backlog/EPIC-001.md` and the targeted stories (an `Agent Backlog Refinements` section), `04_backlog/refinements/` (copy, `accepted_refinements.json`, `refinement_report.md`). Proposals accumulate across runs. A proposal already on record with the same content is not added again (its id comes back in `unchanged`), so sending the same file twice changes nothing. A new proposal without `id` gets `BREF-NNN` from its position in the file, or the next free number when that id is taken; a proposal with an explicit `id` already on record replaces it.
 
 **Refuses when.** Health `DIRTY` or privacy scan in `block` mode → exit 4. No `04_backlog/EPIC-001.md` (`/backlog` has not written an epic yet) → exit 4. A payload that is not a JSON object with `proposals`, or no proposal accepted → exit 3; the message lists why each proposal was refused and only `refinement_report.md` is written: the backlog, the payload archive, state and the graph are untouched. When some are accepted, the refused ones are listed in the same report.
 
-**You get.** The accepted and refused proposals.
+**You get.** The accepted proposals (`accepted`; the ones already on record are listed again in `unchanged`) and the refused ones.
 
 **Next step.** Decide whether to act on them upstream and regenerate with `/backlog`.
 
@@ -1518,9 +1526,9 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **Reads.** The JSON and the stories.
 
-**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories. Runs accumulate: a finding without `id` gets the next free `IFB-NNN` and a gap without `gap_id` the next free `GAP-FEEDBACK-NNN`, so an earlier finding is never overwritten; sending a finding again with its `id` updates it (`status: resolved` closes it), and its row in `implementation_feedback_gaps.md` is marked `RESOLVED`, not deleted. While any finding that blocks DoD is `open`, it sets health `DIRTY`, so `/backlog`, `/quality` and `/refine-backlog` refuse until it is resolved, and `/health` reports "Open implementation feedback blocks DoD". Once none is open, health is recomputed from the current findings, as `/health` does.
+**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories. Runs accumulate: a finding without `id` gets the next free `IFB-NNN` and a gap without `gap_id` the next free `GAP-FEEDBACK-NNN`, so an earlier finding is never overwritten; sending a finding again with its `id` updates it (`status: resolved` closes it) and keeps its `GAP-FEEDBACK-NNN`, and its row in `implementation_feedback_gaps.md` is marked `RESOLVED`, not deleted. While any finding that blocks DoD is `open`, it sets health `DIRTY`, so `/backlog`, `/quality` and `/refine-backlog` refuse until it is resolved, and `/health` reports "Open implementation feedback blocks DoD". Once none is open, health is recomputed from the current findings, as `/health` does.
 
-**Feedback gaps live apart.** A `GAP-FEEDBACK-*` gap is listed in `01_discovery/implementation_feedback_gaps.md` and in the graph, never in `gaps.md`. `/resolve-gaps` does not apply an answer to it (the id comes back in `unknown_gap_ids`), and the gap counts of `/status` do not include it. To close one, send a new feedback file with the same finding `id` (and its `gap_id`) and `"status": "resolved"`: the finding stops blocking DoD, and when no finding is left open the health is recomputed (`CLEAN` if nothing else is wrong).
+**Feedback gaps live apart.** A `GAP-FEEDBACK-*` gap is listed in `01_discovery/implementation_feedback_gaps.md` and in the graph, never in `gaps.md`. `/resolve-gaps` does not apply an answer to it (the id comes back in `unknown_gap_ids`), and the gap counts of `/status` do not include it. To close one, send a new feedback file with the same finding `id` and `"status": "resolved"` (the finding keeps the gap it opened; `gap_id` is not needed): the finding stops blocking DoD, and when no finding is left open the health is recomputed (`CLEAN` if nothing else is wrong).
 
 **Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload, or no finding accepted → exit 3; the message lists why each finding was refused and only `feedback_report.md` is written: gaps, stories, state and the graph are untouched.
 
@@ -1572,17 +1580,18 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 ## `trace`
 
-**What it does.** Rewrites the traceability matrix and graph views from the graph.
+**What it does.** Rewrites the traceability matrix and graph views from the graph. With `--reviewed CHG-NNN` it records instead that you reviewed a semantic change: a `/sync` whose note reads like a change of meaning ("now", "instead", "must not", "replaces", "out of scope"...) flags the trace links of that change, and `/health` reports "Semantic change may invalidate downstream trace links for CHG-NNN" until you review it or regenerate what it feeds.
 
 **Type.** Mutating. Takes `--release`.
 
-**Use it when.** You want the matrix current before a review. Every mutating command already refreshes it.
+**Use it when.** You want the matrix current before a review (every mutating command already refreshes it). With `--reviewed`: you have read the targets `/health` lists and nothing downstream has to change. When something has to change, regenerate it instead (`/brief`, then `/specs`, then `/backlog`): regenerating after the change clears the finding too.
 
 **Syntax.**
 
 ```text
 /trace ACME_PORTAL
 /trace ACME_PORTAL --release r1
+/trace ACME_PORTAL --reviewed CHG-005 --reason "Checked with the Product Owner: no story covers document upload."
 ```
 
 **Options.**
@@ -1590,17 +1599,19 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
+| `--reviewed` | `CHG-NNN` | none | The change `/health` names in its semantic-change finding. Marks its flagged trace links reviewed and clears the finding. |
+| `--reason` | text | "BA reviewed the flagged trace links; nothing downstream changes." | Why nothing changes. Only with `--reviewed`. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | One release of a confirmed series. |
 
-**Reads.** `06_traceability/traceability_graph.json`.
+**Reads.** `06_traceability/traceability_graph.json`; with `--reviewed`, `state.json`.
 
-**Writes.** `06_traceability/traceability_matrix.md` and `06_traceability/traceability_graph.md`.
+**Writes.** `06_traceability/traceability_matrix.md` and `06_traceability/traceability_graph.md`. With `--reviewed`: `review_status: reviewed` on each flagged edge of the graph, the review (date and reason) in `state.json#suspicious_trace_links`, and the `/health` report.
 
-**Refuses when.** Only the common gates.
+**Refuses when.** Only the common gates. With `--reviewed`: no semantic change waits for review, or the id is not the one `/health` names (exit 3, with the right id in the next step); `--reason` without `--reviewed` (exit 3).
 
-**You get.** The graph, and the `matrix` and `mermaid` paths.
+**You get.** The graph, and the `matrix` and `mermaid` paths. With `--reviewed`: `change_id`, `reviewed_links`, `at`, `reason` and the `health` verdict after the review.
 
-**Next step.** `/health` or `/validate`.
+**Next step.** `/health` or `/validate`. After `--reviewed`, continue with `/next`.
 
 **See also.** [Traceability and memory](05-traceability-and-memory.md).
 
@@ -1639,7 +1650,18 @@ python -m sentinel /health ACME_PORTAL
 
 **You get.** `verdict` (`CLEAN` or `DIRTY`), `findings`, `warnings`, the memory backend and `needs_context_gate`.
 
-**Next step.** Fix each finding through its owning command (regenerate, `/reindex`, `/resolve-gaps`). A hand-edit warning means: revert the edit, or carry the change through the owning command or `/sync`. For a kept copy, do that with the text in the copy, then delete the copy.
+**Next step.** Fix each finding through its owning command; `/next` and the `/backlog` refusal give the list in order:
+
+| Finding | Fix |
+|---|---|
+| `CHG-007 is not indexed in memory.` | `/reindex ACME_PORTAL` |
+| `Blocking gaps remain open.` | `/gaps --id GAP-CHG-... --disposition accepted\|rejected` for a late change, else `/resolve-gaps` |
+| `Open implementation feedback blocks DoD for US-003 (2).` | `/implementation-feedback` with the same ids and `status: resolved` |
+| `Backlog contains Stale stories after source changes: US-001.` | `/story-status ACME_PORTAL --story US-001 --set Draft` after reviewing the story |
+| `Knowledge changed after downstream artifacts were generated ...` | The commands it names, in order (`/brief`, `/specs`, `/backlog`) |
+| `Semantic change may invalidate downstream trace links for CHG-005 ...` | Regenerate (`/brief`, `/specs`, `/backlog`), or `/trace ACME_PORTAL --reviewed CHG-005` when nothing downstream changes |
+
+A hand-edit warning means: revert the edit, or carry the change through the owning command or `/sync`. For a kept copy, do that with the text in the copy, then delete the copy.
 
 **See also.** skill `sentinel-health`.
 
@@ -1761,8 +1783,8 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `resolve_blocking` | A blocking gap is open (the text says so when an assumption is registered for it, and how to confirm it yourself). When a `GAP-CHG` is among them, the step is *Confirm a late change* and names it | `/resolve-gaps`, or `/gaps --id GAP-CHG-x --disposition accepted\|rejected` (`rejected` also needs `--reason`) |
 | `fix_brief` | `/brief` stopped the phase close | `/brief` |
 | `brief_missing` | Past `/brief` but the brief file is gone | `/brief` |
+| `health` | Health is `DIRTY`, or a change still waits for its downstream artifacts to be regenerated (`/backlog`, `/quality` and `/refine-backlog` would refuse). The text lists each finding with its fix, in order, the same list as the `/backlog` refusal; the title names the first one (for example *Regenerate what the change made stale*, *Review the Stale stories*, *Review the semantic change*) | The first fix, for example `/specs`, `/story-status ... --set Draft`, `/trace ... --reviewed CHG-NNN` or `/reindex`. `/health` only when nothing explains `DIRTY` any more |
 | `specs` / `fix_specs` | Ready for specs / specs below the threshold | `/specs` |
-| `health` | Ready for the backlog but health is `DIRTY` (`/backlog` and `/quality` would refuse) | `/health` |
 | `backlog` / `quality` / `handoff` | No stories yet / stories not checked / quality done | `/backlog` / `/quality` / `/validate`, then `/export` and `/story-status` |
 | `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
 | `brief` | No gap left open and no brief yet | `/brief` |

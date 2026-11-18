@@ -46,6 +46,7 @@ def metabolize_knowledge(
     validated_gap_ids: set[str] | None = None,
     broker: Any = None,
     invalidated_assumption_ids: set[str] | None = None,
+    record_staleness: bool = True,
 ) -> dict[str, Any]:
     """Refresh governed knowledge after a confirmed or invalidating change.
 
@@ -88,6 +89,10 @@ def metabolize_knowledge(
     # keeps known content from re-firing.
     promotions = record_promotion_events(project_id, assumption_result, evidence)
     unit_ids = impacted_knowledge_units(before_units, after_units, validated_gap_ids, invalidated_assumptions)
+    if not record_staleness:
+        # IMP-369: the caller changed nothing governed (e.g. /resolve-gaps whose answers
+        # moved no gap); a ledger rebuild that differs from the stored one is not a change.
+        unit_ids = []
     stale_artifacts = downstream_stale_artifacts(base) if unit_ids else []
     payload = {
         "change_id": change_id,

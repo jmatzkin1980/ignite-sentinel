@@ -246,17 +246,32 @@ def _interim(contradiction: dict[str, Any], authorities: dict[str, str], config:
     verdict = resolve_precedence(contradiction["scope"], candidates, config)
     direction = str(config.get("validation_direction") or "to-build")
     if verdict["status"] != "resolved":
-        return {"status": "unresolved", "source_id": None, "value": None, "mark": None, "rules": []}
+        # IMP-370: name the sources that have no kind; setting one may be all it takes
+        unclassified = [c["id"] for c in candidates if c["authority"] == "unclassified"]
+        return {"status": "unresolved", "source_id": None, "value": None, "mark": None, "rules": [],
+                "unclassified": unclassified}
     winner = next(item for item in contradiction["statements"] if item["source_id"] == verdict["winner"])
     return {"status": "resolved", "source_id": verdict["winner"], "value": winner["value"],
             "mark": INTERIM_MARKS.get(direction, INTERIM_MARKS["to-build"]), "rules": verdict["rules"]}
 
 
-def _contradiction_gap(item: dict[str, Any]) -> dict[str, str]:
+def unresolved_note(item: dict[str, Any], project_id: str = "PROJECT_ID") -> str:
+    """The interim note of a contradiction no precedence rule settles (IMP-370: say how to fix the kind)."""
+    unclassified = list((item.get("interim") or {}).get("unclassified") or [])
+    if not unclassified:
+        return "interim: none; no precedence rule settles it, a person decides"
+    ids = ", ".join(unclassified)
+    between = ",".join(dict.fromkeys(s["source_id"] for s in item["statements"]))
+    return (f"interim: none; {ids} has no source kind (unclassified), so no precedence rule applies. "
+            f"Set it with /sources {project_id} --id {unclassified[0]} --authority KIND, then check "
+            f"/sources {project_id} --precedence {item['scope']} --between {between}; otherwise a person decides")
+
+
+def _contradiction_gap(item: dict[str, Any], project_id: str = "PROJECT_ID") -> dict[str, str]:
     anchors = "; ".join(f"{s['source_id']} line {s['line']}: \"{_cell(s['quote'])}\"" for s in item["statements"])
     interim = item["interim"]
     note = (f"interim {interim['mark']}: {interim['source_id']} governs the body until this closes ({', '.join(interim['rules'])})"
-            if interim["status"] == "resolved" else "interim: none; no precedence rule settles it, a person decides")
+            if interim["status"] == "resolved" else unresolved_note(item, project_id))
     return {
         "id": item["gap_id"],
         "lens": _data()["lens_by_scope"].get(item["scope"], "business"),
@@ -390,7 +405,7 @@ def scan_source_conflicts(project_id: str, source_id: str, text: str, language: 
     write_json(_ledger_path(project_id), ledger)
     # Every ledger topic, not only this run's: a re-ingest rewrites gaps.md, and a gap
     # already present (open or closed) is never duplicated or reopened.
-    added = _merge_gaps(project_id, [_contradiction_gap(item) for item in ledger["contradictions"]]
+    added = _merge_gaps(project_id, [_contradiction_gap(item, project_id) for item in ledger["contradictions"]]
                         + [_citation_gap(item) for item in ledger["citations"]], language)
     result["new_gaps"] = added
     result["contradictions"] = [gap["id"] for gap in added if gap["origin"] == ORIGIN_CONTRADICTION]
@@ -424,6 +439,8 @@ def render_conflicts_report(project_id: str, ledger: dict[str, Any]) -> str:
         if interim.get("status") == "resolved":
             lines.append(f"- Interim value {interim['mark']}: \"{interim['value']}\" from `{interim['source_id']}` "
                          f"({', '.join(interim['rules'])}), until the gap closes.")
+        elif interim.get("unclassified"):
+            lines.append(f"- Interim value: none. {unresolved_note(item, project_id).split('; ', 1)[1]}.")
         else:
             lines.append("- Interim value: none. No precedence rule settles it; a person decides.")
         lines.append("")

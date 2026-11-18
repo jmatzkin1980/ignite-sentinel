@@ -276,7 +276,8 @@ def reopened_gap_ids_from_sync_reports(base: Path) -> list[str]:
     ids: list[str] = []
     for path in sorted((base / "07_changes").rglob("*_impact_report.md")):
         text = path.read_text(encoding="utf-8", errors="ignore")
-        section = text.split("## Reopened Closed Gaps", 1)
+        # IMP-370 renamed the section; reports written before keep the old heading.
+        section = re.split(r"^## (?:Closed Gaps Detected Again|Reopened Closed Gaps)\s*$", text, maxsplit=1, flags=re.M)
         if len(section) < 2:
             continue
         body = section[1].split("\n## ", 1)[0]

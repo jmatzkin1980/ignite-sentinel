@@ -15,16 +15,9 @@ from ..workspace import load_config, read_json, update_state, utc_now, workspace
 
 
 SPEC_UNIT_RE = re.compile(r"\bSPEC-U-\d{3}\b")
-ACTIVITY_DIVERGENCE_TRIGGER_STATUSES = {"In Progress", "In Review", "Done"}
-ACTIVITY_DIVERGENCE_STATUS_RANKS = {
-    "Draft": 0,
-    "Ready": 1,
-    "Blocked": 1,
-    "In Progress": 2,
-    "In Review": 3,
-    "Done": 4,
-    "Stale": -1,
-}
+# IMP-369: the "activity divergence" rule (a story moving to In Progress / In Review / Done
+# marked the Draft and Ready stories of its spec unit or domain Stale) is gone. A sibling's
+# progress changes no source or spec; Stale now comes only from a real change.
 
 BACKLOG_PRIVACY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
@@ -118,139 +111,12 @@ def mark_stale_stories_for_spec_units(
     return {"stale_spec_units": units, "stale_stories": stale_story_ids}
 
 
-def mark_stale_stories_for_activity_divergence(
-    project_id: str,
-    story_id: str,
-    change_id: str | None = None,
-) -> dict[str, Any]:
-    base, readiness_path, readiness, stories = _readiness_story_pack(project_id)
-    trigger_item = next((item for item in stories if str(item.get("story_id", "")).strip() == story_id), None)
-    if not trigger_item:
-        return {"reason": "activity_divergence", "stale_stories": []}
-
-    lifecycle = story_lifecycle_state(project_id)
-    trigger_lifecycle = lifecycle.get(story_id, {})
-    trigger_status = str(trigger_lifecycle.get("status", "Draft"))
-    if trigger_status not in ACTIVITY_DIVERGENCE_TRIGGER_STATUSES:
-        return {"reason": "activity_divergence", "stale_stories": []}
-
-    trigger_rank = story_activity_rank(trigger_status)
-    trigger_updated_at = str(trigger_lifecycle.get("updated_at", "")).strip()
-    trigger_source_unit = str(trigger_item.get("source_unit", "")).strip()
-    trigger_domain = story_domain(trigger_item)
-
-    peers: list[dict[str, Any]] = []
-    group_kind = ""
-    group_value = ""
-    if trigger_source_unit:
-        peers = [
-            item
-            for item in stories
-            if str(item.get("story_id", "")).strip() != story_id
-            and str(item.get("source_unit", "")).strip() == trigger_source_unit
-        ]
-        if peers:
-            group_kind = "source_unit"
-            group_value = trigger_source_unit
-    if not peers and trigger_domain:
-        peers = [
-            item
-            for item in stories
-            if str(item.get("story_id", "")).strip() != story_id and story_domain(item) == trigger_domain
-        ]
-        if peers:
-            group_kind = "domain"
-            group_value = trigger_domain
-    if not peers:
-        return {"reason": "activity_divergence", "stale_stories": []}
-
-    timestamp = utc_now()
-    stale_story_ids: list[str] = []
-    for item in peers:
-        peer_story_id = str(item.get("story_id", "")).strip()
-        if not peer_story_id:
-            continue
-        previous = lifecycle.get(peer_story_id, {})
-        previous_status = str(previous.get("status", "Draft"))
-        if previous_status == "Stale" or story_activity_rank(previous_status) >= trigger_rank:
-            continue
-        peer_updated_at = str(previous.get("updated_at", "")).strip()
-        if trigger_updated_at and peer_updated_at and peer_updated_at >= trigger_updated_at:
-            continue
-        owner = str(previous.get("owner", "")).strip()
-        detail = {
-            "stale_group_kind": group_kind,
-            "stale_group_value": group_value,
-            "stale_trigger_story": story_id,
-            "stale_trigger_status": trigger_status,
-        }
-        _apply_story_staleness(
-            project_id,
-            base=base,
-            lifecycle=lifecycle,
-            story_id=peer_story_id,
-            previous_status=previous_status,
-            owner=owner,
-            reason="activity_divergence",
-            detail=detail,
-            readiness_item=item,
-            change_message=f"{peer_story_id} marked Stale by activity divergence after {story_id}",
-            timestamp=timestamp,
-            change_id=change_id,
-        )
-        stale_story_ids.append(peer_story_id)
-
-    if not stale_story_ids:
-        return {
-            "reason": "activity_divergence",
-            "stale_stories": [],
-            "trigger_story": story_id,
-            "trigger_status": trigger_status,
-            "group_kind": group_kind,
-            "group_value": group_value,
-        }
-
-    update_state(
-        project_id,
-        story_lifecycle=lifecycle,
-        last_story_staleness_update=timestamp,
-        stale_stories={
-            "reason": "activity_divergence",
-            "stories": stale_story_ids,
-            "trigger_story": story_id,
-            "trigger_status": trigger_status,
-            "group_kind": group_kind,
-            "group_value": group_value,
-            "updated_at": timestamp,
-        },
-    )
-    if isinstance(readiness, dict):
-        write_json(readiness_path, readiness)
-    backlog_status(project_id)
-    return {
-        "reason": "activity_divergence",
-        "stale_stories": stale_story_ids,
-        "trigger_story": story_id,
-        "trigger_status": trigger_status,
-        "group_kind": group_kind,
-        "group_value": group_value,
-    }
-
-
 def story_spec_units(item: dict[str, Any]) -> set[str]:
     units: set[str] = set()
     for value in (item.get("source_unit"), *item.get("trace", [])):
         if isinstance(value, str) and SPEC_UNIT_RE.fullmatch(value):
             units.add(value)
     return units
-
-
-def story_domain(item: dict[str, Any]) -> str:
-    return str(item.get("domain", "")).strip().lower()
-
-
-def story_activity_rank(status: str) -> int:
-    return ACTIVITY_DIVERGENCE_STATUS_RANKS.get(str(status).strip(), 0)
 
 
 def _readiness_story_pack(project_id: str) -> tuple[Path, Path, dict[str, Any], list[dict[str, Any]]]:

@@ -469,7 +469,11 @@ class _Writer:
         if sid in _SPECIAL:
             return out  # filled by the section writers
         if sid == "A.glossary" and self.glossary:
-            return out + self.glossary_lines(title) + [""]
+            # IMP-369: a confirmed answer routed here (GAP-PRD-GLOSSARY-GOVERNANCE) is said under the
+            # table; before, it was dropped, so the self-correction gate stopped the brief
+            answers = [f"- {transcribe(fact.text)}{f' (`{fact.gap}`)' if fact.gap else ''} {self.cite(fact, title)}"
+                       for fact in self.facts.get(sid, [])]
+            return out + self.glossary_lines(title) + ([""] + answers if answers else []) + [""]
         if mark == "n/a":
             out += [self.na(sid, sid), ""]
             return out
@@ -605,18 +609,35 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         build = [w.pending("9.1/items", "9.1", "client")]
     # IMP-26u: a confirmed delivery answer (slicing, readiness, enablers) is said under the items
     title_91 = sections[9]["subsections"][0]["title"][lang]
-    build += [f"- {fact.text}{f' (`{fact.gap}`)' if fact.gap else ''} {w.cite(fact, title_91)}" for fact in w.facts.get("9.1", [])]
+    # IMP-369: an answer to the §9 umbrella (`9.1: …`) answers the place it was asked for, the
+    # non-software work; before, it landed under the items and the umbrella reopened on every compile
+    delivery = [f for f in w.facts.get("9.1", []) if not f.gap.startswith(UMBRELLA_PREFIX)]
+    umbrella_91 = [f for f in w.facts.get("9.1", []) if f.gap.startswith(UMBRELLA_PREFIX)]
+    build += [f"- {fact.text}{f' (`{fact.gap}`)' if fact.gap else ''} {w.cite(fact, title_91)}" for fact in delivery]
     if w.built:
         offset = len(items)
         for number, item in enumerate((c for c in inputs.contradictions if c.get("gap") in w.open_gaps), start=offset + 1):
             build.append(f"- `C-{number:02d}` {copy['defect']}: `{item['gap']}` — {copy['depends']}: {copy['none']}")
-    non_software = w.pending("9.1/non_software", "9.1", "domain")
+    if umbrella_91:
+        non_software = "\n".join(f"- {fact.text} (`{fact.gap}`) {w.cite(fact, title_91)}" for fact in umbrella_91)
+        w.covered("9.1/non_software", "9.1", len(umbrella_91))
+    else:
+        non_software = w.pending("9.1/non_software", "9.1", "domain")
 
     # §0.1 legend
     _fill(body["0"], "0.1", [f"- {line}" for line in copy["legend"]])
 
     # every mark is written by now; §7.2, §7.1 and §0.2 count the same places
-    risks = w.pending("7.1/risks", "7.1", "domain")
+    # IMP-369: a confirmed answer routed to §7.1 (the dependencies gap, or the umbrella line
+    # `7.1: …`) fills the risks block; before, the block was always pending, so the answer was
+    # dropped and GAP-BRIEF-S7 reopened on the next compile
+    if w.facts.get("7.1"):
+        title_71 = sections[7]["subsections"][0]["title"][lang]
+        risks = "\n".join(f"- {transcribe(fact.text)}{f' (`{fact.gap}`)' if fact.gap else ''} {w.cite(fact, title_71)}"
+                          for fact in w.facts["7.1"])
+        w.covered("7.1/risks", "7.1", len(w.facts["7.1"]))
+    else:
+        risks = w.pending("7.1/risks", "7.1", "domain")
     pending_places = [p for p in w.places if p["fill"] in ("pending", "pending_domain")]
     client = sum(1 for p in pending_places if p["fill"] == "pending")
     domain = len(pending_places) - client

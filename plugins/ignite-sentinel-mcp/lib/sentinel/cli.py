@@ -476,10 +476,20 @@ def _run_project_command(args) -> int:
 
             result = run_health(args.project_id)
             print_json(result)
+        elif args.command == "trace" and args.reviewed:
+            from .health import review_suspicious_links, run_health
+
+            if args.release:
+                raise ValueError("/trace --reviewed applies to the project, not to a release")
+            result = review_suspicious_links(args.project_id, args.reviewed, args.reason)
+            result["health"] = run_health(args.project_id)["verdict"]  # the finding it cleared
+            print_json(result)
         elif args.command == "trace":
             from .core.graph import load_graph
             from .traceability import write_mermaid_graph, write_traceability_matrix
 
+            if args.reason:
+                raise ValueError("/trace --reason goes with --reviewed CHG-NNN")
             matrix = write_traceability_matrix(args.project_id)
             mermaid = write_mermaid_graph(args.project_id)
             result = {"graph": load_graph(args.project_id), "matrix": str(matrix), "mermaid": str(mermaid)}
@@ -499,6 +509,12 @@ def _run_project_command(args) -> int:
         postflight_command(args.command, project_id, result)
         return EXIT_OK
     except Exception as exc:
+        try:
+            from .protocols import settle_after_failure
+
+            settle_after_failure(args.command, getattr(args, "project_id", None))  # IMP-369
+        except Exception:  # noqa: BLE001 - reporting the original error matters more
+            pass
         return report_error(exc)
 
 

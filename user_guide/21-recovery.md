@@ -26,7 +26,21 @@ Use `--replacement F-NN` when another row takes its place. Retiring does not del
 - The copy under `00_raw/` or `07_changes/` stays on disk for audit, but its text leaves the local memory. `/retrieve` and context packs stop returning it, and `/reindex` (with or without `--full`) skips it. The result lists the memory ids removed in `memory_removed`. If you retired the wrong row, `/sources ACME_PORTAL --id F-04 --current` brings it back, then run `/reindex ACME_PORTAL`.
 - Sentinel's own reports about the file (its impact report, for example) stay in memory: they record what happened.
 - A retired source reaches every document: its row gets a `pending` impact cell for each one. Review each cell and close it with `/sources ACME_PORTAL --id F-04 --cell DOCUMENT/SECTION --mark reviewed --reason "..."` (or `updated` after you regenerated it).
-- Gaps the wrong file opened stay in `gaps.md`. Decide them with the BA. For a gap an agent raised, record `/gaps ACME_PORTAL --id GAP-X --disposition irrelevant --reason "came from a retired source"`.
+- Gaps the wrong file opened stay in `gaps.md` until you close them. Close each one with an answer file whose decision status is `not applicable`, and say why in the answer:
+
+  ```markdown
+  ### GAP-X
+  - Answer: Not applicable: this question came from F-04, a file loaded by mistake and now retired.
+  - Owner / source: BA
+  - Evidence or reference: /sources ACME_PORTAL, F-04 retired
+  - Decision status: not applicable
+  ```
+
+  ```text
+  /resolve-gaps ACME_PORTAL --source input/interactions/close-retired-gaps.md
+  ```
+
+  The gap closes as out of scope (a non-goal in the decisions). A disposition (`/gaps ACME_PORTAL --id GAP-X --disposition irrelevant --reason "..."`) does not close anything: it only records that a gap an agent raised was a false alarm, and it is refused for gaps from the checklist, a contradiction or `/sync`.
 
 **Check:** `/sources ACME_PORTAL` shows the row as retired; `/retrieve` on a phrase from the wrong file no longer returns it; `/status ACME_PORTAL` no longer warns about its open cells once they are closed.
 
@@ -105,9 +119,22 @@ A `/sync` that changes what the project knows (an invalidated assumption, for ex
 /backlog ACME_PORTAL
 ```
 
-Once the brief and specs are regenerated, the stale backlog is the only finding left and `/backlog` runs: regenerating the backlog is what clears it. `/quality` and `/refine-backlog` keep refusing until it has. If `/backlog` still refuses, the message names another finding (an open blocking gap, for example); fix that one first.
+Once the brief and specs are regenerated, the stale backlog is the only finding left and `/backlog` runs: regenerating the backlog is what clears it. `/quality` and `/refine-backlog` keep refusing until it has. When more than one thing keeps health `DIRTY`, the refusal lists each finding with its fix, numbered in the order to do them (an open blocking gap first, `Stale` stories before the regeneration), and `/next` names the first command of that list.
+
+The same refusal follows `/resolve-gaps` when its answers recompiled the brief after the specs were generated: `/backlog` says "Run /specs, then /backlog." even though `/resolve-gaps` left health `CLEAN`. Answers that moved no gap (for example an answer under an id that is not in `gaps.md`) mark nothing stale.
 
 **Check:** `/health ACME_PORTAL` no longer reports the knowledge change and `/quality ACME_PORTAL` runs.
+
+### `/health` says a semantic change may invalidate trace links
+
+The note you loaded with `/sync` used words that signal a change of meaning ("now", "instead", "out of scope"...). `/health` and `/backlog` name the change and the two ways out:
+
+- something downstream has to change: run `/brief`, then `/specs`, then `/backlog`; regenerating them after the change clears the finding;
+- nothing has to change: record your review, `/trace ACME_PORTAL --reviewed CHG-005 --reason "..."`.
+
+A later `/sync` without those words does not clear it.
+
+**Check:** `/health ACME_PORTAL` no longer reports the semantic change.
 
 ## Next
 

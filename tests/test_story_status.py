@@ -126,45 +126,53 @@ class StoryStatusTests(SnapshotWorkspaceCase):
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "Draft")
 
-    def test_story_status_marks_shared_source_unit_peer_stale_by_activity_divergence(self):
+    # IMP-369: these two tests asserted the IMP-133 "activity divergence" rule (a story moving
+    # to In Progress marked the Draft/Ready stories of its spec unit, or else its domain, Stale).
+    # A sibling's progress changes no source and no spec, and the rule left health DIRTY on
+    # almost every sprint step, so it is gone. Stale stays reserved for a real change (see
+    # test_backlog_hooks: a /sync touching a spec unit marks only the stories built from it).
+    def test_story_progress_leaves_a_shared_source_unit_peer_alone(self):
         self.add_peer_story("US-002", "SPEC-U-001")
+        self._move_us001_to_in_progress()
+        self._assert_peer_untouched()
 
-        self.assertEqual(
-            main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
-            0,
-        )
-        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "In Progress"]), 0)
-
-        state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
-        self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "In Progress")
-        peer = state["story_lifecycle"]["US-002"]
-        self.assertEqual(peer["status"], "Stale")
-        self.assertEqual(peer["stale_reason"], "activity_divergence")
-        self.assertEqual(peer["stale_group_kind"], "source_unit")
-        self.assertEqual(peer["stale_group_value"], "SPEC-U-001")
-        self.assertEqual(peer["stale_trigger_story"], "US-001")
-
-        readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
-        peer_item = next(item for item in readiness["stories"] if item["story_id"] == "US-002")
-        self.assertEqual(peer_item["story_status"], "Stale")
-        self.assertEqual(peer_item["staleness"]["reason"], "activity_divergence")
-
-    def test_story_status_marks_domain_peer_stale_when_source_unit_has_no_peers(self):
+    def test_story_progress_leaves_a_domain_peer_alone(self):
         readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
         self.add_peer_story("US-002", "SPEC-U-002", domain=readiness["stories"][0]["domain"])
+        self._move_us001_to_in_progress()
+        self._assert_peer_untouched()
 
+    def _move_us001_to_in_progress(self) -> None:
         self.assertEqual(
             main(["story-status", "STATUS", "--story", "US-001", "--set", "Ready", "--owner", "Delivery Lead"]),
             0,
         )
         self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "In Progress"]), 0)
 
+    def _assert_peer_untouched(self) -> None:
         state = json.loads((self.ws / "state.json").read_text(encoding="utf-8"))
-        peer = state["story_lifecycle"]["US-002"]
-        self.assertEqual(peer["status"], "Stale")
-        self.assertEqual(peer["stale_reason"], "activity_divergence")
-        self.assertEqual(peer["stale_group_kind"], "domain")
-        self.assertEqual(peer["stale_group_value"], readiness["stories"][0]["domain"])
+        self.assertEqual(state["story_lifecycle"]["US-001"]["status"], "In Progress")
+        self.assertEqual(state["story_lifecycle"]["US-002"]["status"], "Draft")
+        readiness = json.loads((self.ws / "08_context_packs" / "implementation_readiness.json").read_text(encoding="utf-8"))
+        peer_item = next(item for item in readiness["stories"] if item["story_id"] == "US-002")
+        self.assertEqual(peer_item["story_status"], "Draft")
+        self.assertNotIn("staleness", peer_item)
+
+    def test_story_status_keeps_health_clean(self):
+        # IMP-369: the CHG and EV nodes /story-status creates are indexed by the command
+        # itself; /health used to report "CHG-00N is not indexed in memory." until /reindex.
+        from sentinel.health import run_health
+
+        self.assertEqual(run_health("STATUS")["verdict"], "CLEAN")
+        self._move_us001_to_in_progress()
+        self.assertEqual(main(["story-status", "STATUS", "--story", "US-001", "--set", "In Review"]), 0)
+        evidence = self.temp / "acceptance.md"
+        evidence.write_text("Demo on 22 March: the queue list showed every open risk queue.", encoding="utf-8")
+        self.assertEqual(
+            main(["story-status", "STATUS", "--story", "US-001", "--set", "Done", "--evidence", str(evidence)]), 0
+        )
+        report = run_health("STATUS")
+        self.assertEqual(report["verdict"], "CLEAN", report["findings"])
 
     def test_backlog_regeneration_preserves_story_lifecycle(self):
         self.assertEqual(

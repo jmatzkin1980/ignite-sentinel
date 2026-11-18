@@ -38,6 +38,38 @@ def _norm_domain(value: str) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
 
+def lens_names() -> list[str]:
+    """The lenses a gap can belong to, in their load order: what an owner can answer for."""
+    from .lens_registry import load_lens_checks
+
+    return list(dict.fromkeys(str(check["lens"]) for check in load_lens_checks()))
+
+
+def canonical_domain(value: str) -> str:
+    """IMP-370: --domain is a lens name (or one of its aliases), never free text.
+
+    A free-text domain such as `technology` used to be stored as written and then
+    matched no gap, because gaps carry the lens `technical`. The aliases of the one
+    lens normalizer (IMP-346) are accepted and stored as the lens they mean.
+    """
+    from .lens_registry import LENS_ALIASES, normalize_lens
+
+    valid = lens_names()
+    choices = ", ".join(valid)
+    aliases = ", ".join(f"{alias} = {lens}" for alias, lens in sorted(LENS_ALIASES.items()))
+    if not _norm_domain(value):
+        raise InputError(
+            f"/stakeholders --add requires --domain: the lens this owner answers for. Use one of: {choices}."
+        )
+    lens = normalize_lens(_norm_domain(value))
+    if lens not in valid:
+        raise InputError(
+            f"Unknown --domain {value.strip()!r}: it must name a lens, or no gap would ever be routed to this owner. "
+            f"Use one of: {choices} (also accepted: {aliases})."
+        )
+    return lens
+
+
 def parse_stakeholders(text: str) -> list[dict[str, str]]:
     rows = parse_table_rows(text, skip_separator_rows=True)
     parsed: list[dict[str, str]] = []
@@ -144,9 +176,7 @@ def add_stakeholder(
         raise GateRefusal(f"Workspace not found: {project_id}")
     if not str(name).strip():
         raise InputError("/stakeholders --add requires --name.")
-    normalized_domain = _norm_domain(domain)
-    if not normalized_domain:
-        raise InputError("/stakeholders --add requires --domain (the lens/domain this owner answers for).")
+    normalized_domain = canonical_domain(domain)
     rows = load_stakeholders(project_id)
     existing_ids = {row["id"].upper() for row in rows}
     if stakeholder_id:
@@ -193,8 +223,12 @@ def owner_for_lens(lens: str, stakeholders: list[dict[str, str]]) -> dict[str, s
     Deterministic and never fabricated: no match returns None so the caller can
     mark the gap unassigned rather than invent an owner.
     """
+    from .lens_registry import normalize_lens
+
     target = _norm_domain(lens)
     if not target:
         return None
-    matches = [row for row in stakeholders if row.get("domain") == target]
+    target = normalize_lens(target)
+    # IMP-370: a registry written before --domain was validated may hold an alias.
+    matches = [row for row in stakeholders if row.get("domain") and normalize_lens(row["domain"]) == target]
     return sorted(matches, key=lambda r: r.get("id", ""))[0] if matches else None
