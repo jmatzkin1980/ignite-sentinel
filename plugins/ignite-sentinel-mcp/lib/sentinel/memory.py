@@ -1151,7 +1151,11 @@ class ContextBroker:
             "pointers": pointers,
         }
         safe_workflow = re.sub(r"[^A-Za-z0-9_-]+", "-", workflow).strip("-") or "context"
-        pack_path = workspace_path(self.project_id) / "08_context_packs" / f"{safe_workflow}_focus.json"
+        # IMP-361: the callers pass `sync_focus` / `discovery_focus`; the file is `sync_focus.json`,
+        # not `sync_focus_focus.json`. An older doubled-name pack is left as is (the only reader,
+        # the retrieval gate in protocols.py, matches any `*_focus.json`).
+        stem = safe_workflow if safe_workflow.endswith("_focus") else f"{safe_workflow}_focus"
+        pack_path = workspace_path(self.project_id) / "08_context_packs" / f"{stem}.json"
         write_json(pack_path, pack)
         pack["path"] = str(pack_path.as_posix())
         return pack

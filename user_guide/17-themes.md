@@ -16,7 +16,7 @@ The repository ships exactly one theme, `neutral`. Your own themes live on your 
 
 A theme **name** is looked up in this order:
 
-1. **Built-in names** (`neutral`) always resolve to the repository theme, in any letter case. A local theme with the same name, in any letter case (`Neutral.json`), is ignored and `/doctor` warns about it. Names may contain only letters, digits, `-` and `_`.
+1. **Built-in names** (`neutral`) always resolve to the repository theme, in any letter case. A local theme with the same name, in any letter case (`Neutral.json`), is ignored, and a clone's `/doctor` warns about it. Names may contain only letters, digits, `-` and `_`.
 2. **`/view` only:** `workspaces/<PROJECT_ID>/.sentinel/themes/<name>.json`, a theme for one workspace. The workspace `.gitignore` already excludes `.sentinel/`.
 3. **`~/.ignite/themes/<name>.json`**, your personal themes. The environment variable `IGNITE_THEMES_DIR` **replaces** that folder (use an absolute path; a relative one resolves against the current directory).
 
@@ -39,14 +39,16 @@ The theme also colours the readiness and diagrams views. The colour legend has l
    > Some JSON keys are in Spanish: `procedencia` (provenance), `tipografia` (typography), `semantica` (semantic roles) and `isotipo` (logo). Keep them as they are.
 
 2. Change the token values (`#RRGGBB`) and the labels. Each role in `semantica` names the tokens it uses, and the legend is generated from it, so every colour on the page has a stated meaning.
-3. Fill `procedencia`: where the palette comes from and who approved it. A theme without it still loads, but `/doctor` reports a warning.
-4. Validate it:
+3. Fill `procedencia`: where the palette comes from and who approved it. A theme without it still loads, but a clone's `/doctor` reports a warning.
+4. Validate it. In a clone:
 
    ```bash
    python -m sentinel /doctor
    ```
 
-   `/doctor` lists every local theme under **user-local themes**. It checks `~/.ignite/themes` and `workspaces/*/.sentinel/themes` under the root you run it on.
+   The **user-local themes** check covers `~/.ignite/themes` (or `IGNITE_THEMES_DIR`) and `workspaces/*/.sentinel/themes` under the root you run it on. It reports how many local themes are valid, or a `WARN` with each finding; it does not list the theme names.
+
+   Outside a clone (the plugin, the wheel or a `.pyz`) `/doctor` runs in runtime mode and does not check themes. Test the theme by building a page with it, for example `/view ACME_PORTAL --artifact prd --theme acme`: a theme that does not validate makes the command fail with the reason.
 
 The validator rejects a missing token, a colour that is not `#RRGGBB`, token names or font lists that could inject CSS, and any external reference (`http://`, `url(`, `//`). Themes are local-first.
 

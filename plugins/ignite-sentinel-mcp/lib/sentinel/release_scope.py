@@ -166,6 +166,12 @@ def prepare_mirror(project_id: str, rid: str, root: Path) -> Path:
     brief = main / "02_requirements" / rid / "project-brief.md"
     if not brief.is_file():
         raise ReleaseSplitError(f"{brief.as_posix()} is missing; the series compiles at /split --confirm", gate=True)
+    gitignore = main / ".gitignore"
+    if gitignore.is_file():
+        # IMP-361: a workspace created before the rule existed gets it before its first mirror is written.
+        from .workspace import ensure_release_paths_ignored
+
+        ensure_release_paths_ignored(gitignore)
     mirror_root = main / WORK_DIR / rid
     mirror = mirror_root / "workspaces" / project_id
     previous_state = read_json(mirror / "state.json", {}) if (mirror / "state.json").exists() else {}

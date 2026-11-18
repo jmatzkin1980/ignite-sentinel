@@ -23,7 +23,7 @@ flowchart LR
 
 | Surface | How you type a command | What makes it work | If the command is swallowed | Guide |
 |---|---|---|---|---|
-| Claude Code, clone | `/init ACME_PORTAL` | `.claude/commands/` (one file per command, plus `/sentinel`), `.claude/skills/`, `CLAUDE.md`, a hook | `/sentinel /init ACME_PORTAL` | [Claude Code](13-claude-adapter.md) |
+| Claude Code, clone | `/init ACME_PORTAL` | `.claude/commands/` (one file per command, plus `/sentinel`), `.claude/skills/`, `CLAUDE.md`, a hook | `/sentinel /init ACME_PORTAL`, `/sentinel /doctor` | [Claude Code](13-claude-adapter.md) |
 | Claude Code, plugin | `sentinel /init ACME_PORTAL`, or plain words | The 27 skills, invoked as `/ignite-sentinel:<skill>`, and the hook. No per-command slash commands | `/ignite-sentinel:sentinel-command-router /init ACME_PORTAL` | [Plugin](18-claude-plugin.md) |
 | Codex (Desktop, VS Code, CLI), clone | `sentinel /init ACME_PORTAL` | `AGENTS.md`, `.agents/skills/` with the `sentinel-command-router` skill | Always use the `sentinel ` prefix | [Codex](08-codex-adapter.md) |
 | Kilo Code, clone | `/init ACME_PORTAL` | `.kilo/commands/` (one file per command, plus `/sentinel`), 7 agents, `.agents/skills/`, `kilo.jsonc` | `/sentinel /init ACME_PORTAL` | [Kilo Code](07-kilo-code-adapter.md) |
@@ -34,7 +34,7 @@ All surfaces run the same 37 commands. The full list with flags is in the [comma
 
 ## Claude Code
 
-**Clone.** Open the repository folder and type commands as `/command`. If `/init` starts Claude Code's own built-in project setup instead of Sentinel's, send `/sentinel /init ACME_PORTAL`: the `/sentinel` command runs any Sentinel command from one entry point. The hook in `.claude/settings.json` denies a hand edit of `gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and names the owning command.
+**Clone.** Open the repository folder and type commands as `/command`. Claude Code has its own `/init` and `/doctor`. If `/init` starts Claude Code's own built-in project setup instead of Sentinel's, send `/sentinel /init ACME_PORTAL`; if `/doctor` runs Claude Code's own diagnostics, send `/sentinel /doctor`. The `/sentinel` command runs any Sentinel command from one entry point. The hook in `.claude/settings.json` denies a hand edit of `gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md` and `04_backlog/*.md` and names the owning command.
 
 **Plugin.** The plugin ships skills and the hook, not slash commands. Type `sentinel /gaps ACME_PORTAL`, or ask in plain words ("show me the gaps for ACME_PORTAL"); the `sentinel-command-router` skill runs the command. To call a skill explicitly, use the plugin prefix:
 
@@ -125,13 +125,15 @@ Use this when you know what you want but not the command. Commands are in chat f
 
 | You say | Run | Notes |
 |---|---|---|
-| "Is Sentinel working on this machine?" | `/doctor` | Full check in a clone, runtime check elsewhere (plugin, wheel, `.pyz`). `WARN` on LanceDB is healthy. With the Claude Code plugin, type `sentinel /doctor`: a bare `/doctor` is Claude Code's own diagnostic. |
+| "Is Sentinel working on this machine?" | `/doctor` | Full check in a clone, runtime check elsewhere (plugin, wheel, `.pyz`). `WARN` on LanceDB is healthy. With the Claude Code plugin, type `sentinel /doctor`: a bare `/doctor` is Claude Code's own diagnostic. In a Claude Code clone, if `/doctor` runs Claude Code's diagnostic, send `/sentinel /doctor`. |
 | "I got a pile of requests, how many projects is this?" | `sentinel-intake-triage` skill, then `/init` | Groups requests by theme before any project exists. |
 | "I have a new client requirement in this file" | `/init` → `/ingest --source FILE` → `/brief --profile ... --genesis ...` → `/next` | `gaps.md` is ready after `/ingest`. Confirm the brief settings right after the first `/ingest`; `/next` asks for it and suggests values. In a Claude Code clone, if `/init` starts Claude Code's own setup, send `/sentinel /init`. |
+| "Keep the older v1 brief on this new project" | `/init --brief-version 1` | New projects get the brief v2. Switch an existing project with `/brief --brief-version N`; `/init` on an existing workspace does not change it. |
+| "The client sent a new version of the main requirement" | `/ingest --source FILE --replace` | Replaces the primary requirement on purpose: gaps are rebuilt, answered ones open again, and the result lists the saved answer files to re-apply with `/resolve-gaps`. Without `--replace` a second `/ingest` is refused; to add a file instead, use `/sync --source FILE`. |
 | "Set up the brief for a new screen-based system" | `/brief` → `/brief --profile UI --genesis greenfield` | Required once on a new project, right after the first `/ingest`. If skipped, see [what happens](00-user-guide.md#if-you-skip-the-brief-settings). |
-| "What is still missing?" | `/status` or `/gaps` | `/status` gives the verdict and counts. |
-| "Which questions should I ask first?" | `/gaps --top 5` | Writes `gap_round.md`. |
-| "Give me an interview script for the client" | `/export --artifact gaps --format interview` | Plain questions for the client, grouped by owner (by topic until stakeholders are registered). Send this, not `gaps.md`. |
+| "What is still missing?" | `/status` or `/gaps` | `/status` gives the verdict and counts; `/status --full` adds the detailed dump (maturity metrics, readiness, assumptions, story gates). |
+| "Which questions should I ask first?" | `/gaps --top 5` | Writes `gap_round.md`, a planning aid for you. |
+| "Give me an interview script for the client" | `/export --artifact gaps --format interview` | Plain questions for the client, grouped by owner (by topic until stakeholders are registered). It holds every gap that is not closed, not only the round of `/gaps --top`; trim it if you want to ask fewer. Send this, not `gaps.md`. |
 | "This person owns billing questions" | `/stakeholders --add --name NAME --domain DOMAIN` | List with plain `/stakeholders`. |
 | "Read the existing codebase" | `sentinel-brownfield-harvest` skill → `/harvest --source harvest.md` | Tags `[HECHO repo:file]` / `[FACT ...]`, `[INFERIDO]` / `[INFERRED]`, and others. |
 | "We have an HTML prototype" | `/sync --source FILE` (or `/ingest` if it is the first material) → `/prototype --inventory` → `/prototype --trace --source trace.json` | Traces are written with `sentinel-prototype-trace`. |
@@ -143,9 +145,9 @@ Use this when you know what you want but not the command. Commands are in chat f
 |---|---|---|
 | "Find the gaps the checklist missed" | `/annotate --source analysis.json` | `origin: agent`; each gap quotes the source. |
 | "Run a pre-mortem / stress-test it" | `/challenge --source findings.json` | `origin: challenge`. |
-| "Check it lens by lens against domain context" | `/scrutinize --source scrutiny.json` | `--mode implementability-probe` or `--mode anchors` for the other passes. |
+| "Check it lens by lens against domain context" | `/scrutinize --source scrutiny.json` | `--lens LENS` accepts the findings of one lens only. `--mode implementability-probe` or `--mode anchors` for the other passes. |
 | "We will proceed on this assumption" | `/assume --source assumptions.json` | Owner, risk, uncertainty, cited basis. |
-| "That agent gap is irrelevant" | `/gaps --id GAP-X --disposition irrelevant --reason TEXT` | Also `accepted`, `rejected`. |
+| "That agent gap is irrelevant" | `/gaps --id GAP-X --disposition irrelevant --reason TEXT` | Also `accepted`, and `rejected` (which needs `--reason` too). Only for gaps an agent pass raised; it records your call for the false-alarm metrics and does not close the gap. To take a blocking gap out of the way, close it with `/resolve-gaps` (for example `Decision status: not applicable`). |
 | "Is the brief enough to start building?" | `/self-review --sufficiency --source sufficiency.json` | Needs only the brief. |
 | "Do the brief's sections contradict each other?" | `/self-review --crosses --source crosses.json` | |
 
@@ -158,13 +160,16 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Technology answered CTX-001" | `/sync --source FILE` (the file's text names `CTX-001`) → `/context-request --id CTX-001 --status closed --reason TEXT` | `/sync` marks the request `answered` only when the id is in the file; the `--note` is not read for it. Otherwise run `/context-request --id CTX-001 --status answered` first: an `active` request cannot be closed. |
 | "Here are meeting notes / an email with changes" | `/sync --source FILE --note TEXT` → `/health` | Traced change, not silent scope creep. |
 | "Metabolize this raw mail thread" | `/sync --digest --source FILE` | Proposes cited impacts without applying them. |
-| "This note reverses what we confirmed" | `/sync --source NOTE --analysis FILE` → `/gaps --id GAP-CHG-x --disposition accepted\|rejected` | The agent writes the cited analysis (skill `sentinel-sync`); prose alone never reopens anything. |
+| "This note reverses what we confirmed" | `/sync --source NOTE --analysis FILE` → `/gaps --id GAP-CHG-x --disposition accepted\|rejected` | The agent writes the cited analysis (skill `sentinel-sync`); prose alone never reopens anything. `rejected` needs `--reason TEXT`. |
 | "Pick up whatever changed in the input folders" | `/sync` | Autonomous scan. |
 | "The new contract replaces the old one" | `/sources` → `/sources --id F-NN --superseded-by F-MM` | Ask the BA which governs; never assume the newest. |
-| "Which source wins for payment rules?" | `/sources --precedence SCOPE --between F-NN,F-MM` | |
+| "Which source wins for payment rules?" | `/sources --precedence SCOPE --between F-NN,F-MM` | `SCOPE` is one of `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule`; another value is refused (exit 3). |
+| "This source was withdrawn" | `/sources --id F-NN --retire --reason TEXT --replacement F-MM` | `--replacement` is optional. Its files leave the local memory; `/sources --id F-NN --current` brings it back. |
+| "This source stops governing at the end of the year" | `/sources --id F-NN --expire YYYY-MM-DD` | Add `--topic TOPIC` to expire it for one topic only. |
+| "We carried this source into the brief" | `/sources --id F-NN --cell brief/business --mark updated` | `--mark reviewed --reason TEXT` when nothing had to change, `pending` to reopen the cell. `--authority`, `--from` and `--close` set the other row fields. |
 | "Write the closing report of the sources" | `/sources --report` | `07_changes/closing_report.md`. |
 | "Is it ready to move forward?" | `/maturity` → `/status` | `READY_FOR_SPECS` or `BLOCKED`. |
-| "What do I do next?" | `/next` | One step, one command. On a new project it first asks for the one-time brief settings. |
+| "What do I do next?" | `/next` | One step, one command. On a new project it first asks for the requirement (`/ingest`), then for the one-time brief settings. |
 | "Why did the command refuse?" | `/next`, then [A gate refused](03-workflows.md#a-gate-refused) | Read the exit code. |
 
 ### Releases, specs and backlog
@@ -180,26 +185,27 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "Polish the PRD wording with citations" | `/compose --source composition.json` | After `/specs`. |
 | "Review the PRD skeptically" | `/self-review --source review.json` | |
 | "Prepare the backlog" | `/backlog` → `/backlog-status` → `/quality` → `/trace` → `/health` → `/validate` | `--story-format job` for job stories; `--with-task-seeds` only on request. |
-| "Show me the backlog board" | `/backlog-status` | `04_backlog/BACKLOG.md`. |
+| "Show me the backlog board" | `/backlog-status` | `04_backlog/BACKLOG.md`. `--override FILE` records cited decisions to proceed despite the board's warnings. |
 | "Move US-001 to Ready / Done" | `/story-status --story US-001 --set Ready --owner NAME` | Done takes `--evidence FILE`. |
-| "Reslice these stories" | `/refine-backlog --source refinement.json` | Proposals for BA review. |
-| "Implementation found a missing dependency" | `/implementation-feedback --source feedback.json` | May open `GAP-FEEDBACK-*`. |
-| "Score the stories and write test cases" | `/quality` | Needs stories. |
+| "Reslice these stories" | `/refine-backlog --source refinement.json` | Proposals for BA review. Refused while health is `DIRTY`, for example while implementation feedback is still open. |
+| "Implementation found a missing dependency" | `/implementation-feedback --source feedback.json` | May open `GAP-FEEDBACK-*`, kept in `01_discovery/implementation_feedback_gaps.md`, not in `gaps.md`. While a finding that blocks DoD is open, health is `DIRTY` and `/backlog`, `/quality` and `/refine-backlog` refuse. Close it with a new feedback file that gives the same finding `id` with `"status": "resolved"`, then run `/health`. |
+| "Score the stories and write test cases" | `/quality` | Needs stories. Refused while health is `DIRTY`. `--override FILE` records cited decisions to proceed despite the audit's warnings. |
 
 ### Review, share and maintain
 
 | You say | Run | Notes |
 |---|---|---|
 | "Show me what is missing per item and from whom" | `/view --artifact readiness` | Read-only HTML. |
-| "Show me the brief / PRD / backlog as a page" | `/view --artifact brief` | 11 artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, `readiness`, `release-guide`, `prototype`, `prototype-trace`, `prototype-manual`, `diagrams`. |
-| "Show me the portfolio dashboard" | `/dashboard` | `--theme NAME` to restyle. |
+| "Show me the brief / PRD / backlog as a page" | `/view --artifact brief` | 11 artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, `readiness`, `release-guide`, `prototype`, `prototype-trace`, `prototype-manual`, `diagrams`. `--open` opens it in the browser, `--theme NAME` restyles it, `--release rN` shows one release. |
+| "Show me the portfolio dashboard" | `/dashboard` | `--theme NAME` to restyle, `--open` to open it in the browser, `--root PATH` to scan another folder (terminal only). |
 | "Export the brief for the client" | `/export --artifact brief --format md` | Stamped draft while marks remain; `--final` refuses then. |
 | "Export the PRD for our MDX renderer" | `/export --artifact prd --format mdx` | |
+| "Export the request for Technology" | `/export --artifact context-request --domain technology` | `--domain` is required for a context request. |
 | "Give me an FAQ of what was decided" | `/export --artifact gaps --format faq` | |
 | "Is it ready to hand off?" | `/trace` → `/health` → `/validate` → `/status` | Hand off on `CLEAN`, `VALID`, `READY`. |
-| "We accept this validation finding on purpose" | `/validate --override decisions.json` | Records cited decisions; the verdict stays. |
+| "We accept this validation finding on purpose" | `/validate --override decisions.json` | Records cited decisions; the verdict stays. `/backlog-status` and `/quality` take `--override` the same way. |
 | "What changed since the backlog was generated?" | `/health` | Names the changed domains. |
-| "Give the agent only the context it needs" | `/retrieve --query TEXT --workflow implementation --write-pack` | `--timeline` for what changed and when. |
+| "Give the agent only the context it needs" | `/retrieve --query TEXT --workflow implementation --write-pack` | `--timeline` for what changed and when; `--order recency` for newest first; filters such as `--artifact-type`, `--domain`, `--trace-id` and `--limit N` narrow the result (all options in the [command reference](01-command-reference.md#retrieve)). |
 | "Refresh memory after context changed" | `/reindex` | `--full` for a total rebuild. |
 | "Give developers sample data" | `sentinel-handoff-datasets` skill | Synthetic, git-ignored, never evidence. |
 

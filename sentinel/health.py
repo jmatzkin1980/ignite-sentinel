@@ -21,6 +21,47 @@ METRIC_RE = re.compile(r"(\d+(?:[.,]\d+)?\s?%|\$\s?\d+)", re.I)
 
 def run_health(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
+    collected = collect_health(project_id)
+    findings, warnings = collected["findings"], collected["warnings"]
+    broker, needs_context = collected["broker"], collected["needs_context_gate"]
+    verdict = "CLEAN" if not findings else "DIRTY"
+    assumption_projection = assumptions_projection(project_id)
+    report_path = base / "06_traceability" / "health_report.md"
+    write_text(report_path, render_health(project_id, verdict, findings, warnings))
+    write_json(
+        base / "06_traceability" / "health_report.json",
+        {
+            "verdict": verdict,
+            "findings": findings,
+            "warnings": warnings,
+            "memory_backend": broker.backend,
+            "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
+            "needs_context_gate": needs_context,
+            "assumptions_projection": assumption_projection["summary"],
+        },
+    )
+    update_state(project_id, health=verdict)
+    return {
+        "verdict": verdict,
+        "findings": findings,
+        "warnings": warnings,
+        "remediated_by_backlog": collected["remediated_by_backlog"],
+        "memory": str(memory_path(project_id)),
+        "memory_backend": broker.backend,
+        "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
+        "needs_context_gate": needs_context,
+        "assumptions_projection": assumption_projection["summary"],
+    }
+
+
+def collect_health(project_id: str) -> dict:
+    """The /health findings and warnings, computed without writing anything.
+
+    IMP-360: `remediated_by_backlog` is the subset of findings that /backlog
+    itself clears by regenerating its own artifacts; the preflight lets /backlog
+    run when nothing else keeps health DIRTY.
+    """
+    base = workspace_path(project_id)
     graph = load_graph(project_id)
     findings: list[str] = []
     warnings: list[str] = []
@@ -74,7 +115,10 @@ def run_health(project_id: str) -> dict[str, object]:
     warnings.extend(out_of_cli_edit_warnings(project_id, base))
     warnings.extend(derived_drift_warnings(project_id))
     findings.extend(backlog_lifecycle_findings(project_id))
-    findings.extend(knowledge_staleness_findings(project_id))
+    staleness = knowledge_staleness_findings(project_id)
+    findings.extend(staleness)
+    # IMP-360: findings /backlog itself clears by regenerating its own artifacts.
+    remediated_by_backlog = staleness if backlog_remediates_staleness(project_id) else []
     findings.extend(suspicious_trace_link_findings(project_id))
     privacy = backlog_privacy_findings(project_id)
     findings.extend(privacy["findings"])
@@ -90,32 +134,13 @@ def run_health(project_id: str) -> dict[str, object]:
         else:
             warnings.append(needs_context["message"])
 
-    verdict = "CLEAN" if not findings else "DIRTY"
-    assumption_projection = assumptions_projection(project_id)
-    report_path = base / "06_traceability" / "health_report.md"
-    write_text(report_path, render_health(project_id, verdict, findings, warnings))
-    write_json(
-        base / "06_traceability" / "health_report.json",
-        {
-            "verdict": verdict,
-            "findings": findings,
-            "warnings": warnings,
-            "memory_backend": broker.backend,
-            "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
-            "needs_context_gate": needs_context,
-            "assumptions_projection": assumption_projection["summary"],
-        },
-    )
-    update_state(project_id, health=verdict)
     return {
-        "verdict": verdict,
         "findings": findings,
         "warnings": warnings,
-        "memory": str(memory_path(project_id)),
-        "memory_backend": broker.backend,
-        "memory_backend_degradation_reason": broker.lancedb_degraded_reason or None,
+        "remediated_by_backlog": remediated_by_backlog,
+        "knowledge_staleness": staleness,
+        "broker": broker,
         "needs_context_gate": needs_context,
-        "assumptions_projection": assumption_projection["summary"],
     }
 
 
@@ -221,33 +246,59 @@ def backlog_lifecycle_findings(project_id: str) -> list[str]:
     return ["Backlog contains Stale stories after source changes: " + ", ".join(stale) + "."]
 
 
-def knowledge_staleness_findings(project_id: str) -> list[str]:
-    state = read_json(workspace_path(project_id) / "state.json", {})
+# IMP-360: the downstream artifacts only /backlog rewrites, and the command that
+# rewrites each of the others (workspace-relative paths).
+BACKLOG_OWNED_ARTIFACTS = ("04_backlog/BACKLOG.md", "08_context_packs/implementation_readiness.json")
+STALE_ARTIFACT_OWNERS = {
+    "02_requirements/project-brief.md": "/brief",
+    "03_specs/prd.md": "/specs",
+    "03_specs/specs.md": "/specs",
+    **{rel: "/backlog" for rel in BACKLOG_OWNED_ARTIFACTS},
+}
+
+
+def pending_stale_artifacts(project_id: str) -> list[str]:
+    """Workspace-relative downstream artifacts still stale after the last knowledge change.
+
+    The prescribed remediation is regenerating the listed artifacts: one
+    regenerated strictly after the knowledge change (mtime > recorded_at) is
+    refreshed and stops counting as stale. Markers without recorded_at
+    (pre-fix workspaces) keep the conservative always-stale behavior.
+    """
+    base = workspace_path(project_id)
+    state = read_json(base / "state.json", {})
     payload = state.get("knowledge_staleness", {})
     if not isinstance(payload, dict):
         return []
     artifacts = [str(item) for item in payload.get("downstream_artifacts", []) if item]
-    units = [str(item) for item in payload.get("impacted_knowledge_units", []) if item]
-    if not artifacts:
-        return []
-    # The prescribed remediation is regenerating the listed artifacts: one
-    # regenerated strictly after the knowledge change (mtime > recorded_at)
-    # is refreshed and stops counting as stale. Markers without recorded_at
-    # (pre-fix workspaces) keep the conservative always-stale behavior.
     recorded_at = str(payload.get("recorded_at", ""))
-    if recorded_at:
-        pending = []
-        for item in artifacts:
-            path = Path(item)
+    pending = []
+    for item in artifacts:
+        path = Path(item)
+        if recorded_at:
             if not path.exists():
                 continue
             mtime_iso = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat()
             if mtime_iso > recorded_at:
                 continue
-            pending.append(item)
-        if not pending:
-            return []
-        artifacts = pending
+        pending.append(workspace_relative(project_id, item))
+    return pending
+
+
+def backlog_remediates_staleness(project_id: str) -> bool:
+    """IMP-360: True when every stale downstream artifact is one only /backlog rewrites."""
+    pending = pending_stale_artifacts(project_id)
+    return bool(pending) and all(rel in BACKLOG_OWNED_ARTIFACTS for rel in pending)
+
+
+def knowledge_staleness_findings(project_id: str) -> list[str]:
+    state = read_json(workspace_path(project_id) / "state.json", {})
+    payload = state.get("knowledge_staleness", {})
+    if not isinstance(payload, dict):
+        return []
+    units = [str(item) for item in payload.get("impacted_knowledge_units", []) if item]
+    if not pending_stale_artifacts(project_id):
+        return []
     detail = f" Impacted knowledge units: {', '.join(units)}." if units else ""
     return [
         "Knowledge changed after downstream artifacts were generated; refresh affected brief/PRD/spec/backlog before implementation handoff."

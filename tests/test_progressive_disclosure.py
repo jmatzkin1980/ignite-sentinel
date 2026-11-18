@@ -95,9 +95,15 @@ class FocusPackTests(unittest.TestCase):
             self.assertNotIn("text", pointer)
             self.assertNotIn("content", pointer)
             self.assertNotIn("context_text", pointer)
-        pack_file = Path("workspaces") / "FP" / "08_context_packs" / "sync_focus_focus.json"
+        # IMP-361: one `_focus` suffix, as the docs name it (it used to be sync_focus_focus.json).
+        pack_file = Path("workspaces") / "FP" / "08_context_packs" / "sync_focus.json"
         self.assertTrue(pack_file.exists())
-        self.assertTrue(pack["path"].endswith("sync_focus_focus.json"))
+        self.assertTrue(pack["path"].endswith("/sync_focus.json"))
+        self.assertFalse(pack_file.with_name("sync_focus_focus.json").exists())
+
+    def test_focus_pack_name_appends_the_suffix_once(self) -> None:
+        self.assertTrue(self.broker.build_focus_pack("discovery_focus", "alpha")["path"].endswith("/discovery_focus.json"))
+        self.assertTrue(self.broker.build_focus_pack("handoff", "alpha")["path"].endswith("/handoff_focus.json"))
 
     def test_focus_pack_degrades_without_error_on_weak_query(self) -> None:
         # A query with no lexical overlap must not raise and must return a valid
@@ -107,7 +113,7 @@ class FocusPackTests(unittest.TestCase):
         pack = self.broker.build_focus_pack("sync_focus", "zzzzz nonexistent vocabulary qqqqq")
         self.assertIsInstance(pack["pointers"], list)
         self.assertEqual(pack["count"], len(pack["pointers"]))
-        self.assertTrue(pack["path"].endswith("sync_focus_focus.json"))
+        self.assertTrue(pack["path"].endswith("/sync_focus.json"))
 
     def test_focus_pack_respects_global_budget(self) -> None:
         pack = self.broker.build_focus_pack(
@@ -156,6 +162,13 @@ class NeedsContextGateTests(unittest.TestCase):
         result = evaluate_needs_context("NC", indexed_chunks=13)
         self.assertTrue(result["has_focus_pack"])
         self.assertFalse(result["needs_context"])
+
+    def test_a_pack_with_the_old_doubled_name_still_clears_the_gate(self) -> None:
+        # IMP-361: workspaces written before the rename hold sync_focus_focus.json.
+        packs = Path("workspaces") / "NC" / "08_context_packs"
+        packs.mkdir(parents=True, exist_ok=True)
+        (packs / "sync_focus_focus.json").write_text("{}", encoding="utf-8")
+        self.assertTrue(evaluate_needs_context("NC", indexed_chunks=13)["has_focus_pack"])
 
     def test_strict_opt_in_via_config(self) -> None:
         with mock.patch(

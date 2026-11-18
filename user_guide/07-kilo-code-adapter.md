@@ -34,7 +34,7 @@ You can also describe what you need: "The client answered the gaps in input/inte
 
 Every command in the [command reference](01-command-reference.md) has a file in `.kilo/commands/`. If Kilo intercepts a name, write it as `/sentinel /init ACME_PORTAL`. If a command cannot run in chat at all, use the VS Code terminal: `python -m sentinel /health ACME_PORTAL`.
 
-When Windows cannot resolve `python`, the launcher finds one: `.\installers\sentinel.ps1 /health ACME_PORTAL`.
+When Windows cannot resolve `python`, the launcher finds one: `powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 /health ACME_PORTAL`. Use that exact form (or `pwsh ...`, or `sh installers/sentinel.sh ...` on macOS and Linux): it is the one `kilo.jsonc` pre-approves. A shorter form such as `.\installers\sentinel.ps1` also runs the launcher, but it is not pre-approved and falls to Kilo's own default, so Kilo may ask first.
 
 ## Agents
 
@@ -67,7 +67,7 @@ To make the skills available outside this repository, add the clone's `.agents/s
 |------|--------|
 | `permission.edit` | Editing is allowed, except for the governed artifacts (`gaps.md`, `requirements.md`, `project-brief.md`, `03_specs/*.md`, `04_backlog/*.md`), `.git/`, secrets, env files and build output. A hand edit of a governed artifact is stopped. The `gaps.md` and `requirements.md` rules were added later and have not been checked in Kilo yet. |
 | `permission.read` | Reads stay open; local secrets ask first. |
-| `permission.bash` | The Sentinel CLI (`python -m sentinel *`) and the clone launchers are pre-approved. Anything else follows Kilo's defaults. |
+| `permission.bash` | The Sentinel CLI (`python -m sentinel *`) and the clone launchers in the forms `powershell -ExecutionPolicy Bypass -File installers/sentinel.ps1 *`, `pwsh -ExecutionPolicy Bypass -File installers/sentinel.ps1 *` and `sh installers/sentinel.sh *` are pre-approved. Anything else follows Kilo's defaults. |
 
 The point of the first rule is that governed artifacts are written only by their command (`/ingest`, `/gaps`, `/resolve-gaps`, `/brief`, `/specs`, `/backlog`). When you need a change in one of them, edit its inputs or answer the gap, then regenerate: see [Workflows](03-workflows.md). `/doctor` checks that `kilo.jsonc` denies the same files as the Claude Code and Codex hook, and `/health` also flags a hand edit of a hash-tracked file.
 

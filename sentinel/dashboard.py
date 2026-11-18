@@ -291,7 +291,8 @@ SCENARIOS = [
     {
         "title": "Se agrego o cambio un requerimiento",
         "prompt": "Suma este nuevo requerimiento al workspace {project_id} y actualiza el estado de maduracion.",
-        "command": "/ingest {project_id} --source PATH -> /status {project_id}",
+        # IMP-361: /ingest refuses once the project has its primary requirement; a later one goes through /sync.
+        "command": "/sync {project_id} --source PATH --note \"NOTE\" -> /maturity {project_id} -> /status {project_id}",
     },
     {
         "title": "Tuve una reunion o un mail con definiciones nuevas",

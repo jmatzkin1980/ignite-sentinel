@@ -176,6 +176,15 @@ class StringTableTests(unittest.TestCase):
         for es, en in zip(dashboard.SCENARIOS, dashboard.SCENARIOS_EN):
             self.assertEqual(es["command"], en["command"])
 
+    def test_no_scenario_suggests_a_second_ingest(self) -> None:
+        # IMP-361: /ingest refuses once the project has its primary requirement, and every
+        # situation in the table happens after that; a new or changed requirement goes through /sync.
+        for scenario in dashboard.SCENARIOS:
+            self.assertNotIn("/ingest", scenario["command"], scenario["title"])
+        changed = dashboard.SCENARIOS_EN[2]
+        self.assertEqual(changed["title"], "A requirement was added or changed")
+        self.assertTrue(changed["command"].startswith("/sync {project_id} --source PATH"), changed["command"])
+
     def test_the_script_has_no_hard_coded_spanish(self) -> None:
         from sentinel.resources import package_resource
 

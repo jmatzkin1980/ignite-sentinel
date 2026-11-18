@@ -185,7 +185,7 @@ def preflight_command(command: str, project_id: str | None) -> None:
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
     if command in {"backlog", "quality", "refine-backlog"} and health == "DIRTY":
-        raise GateRefusal(f"Cannot run /{command} while project health is DIRTY. Run /maturity, /sync, or /health to inspect blockers.")
+        refuse_dirty_health(command, project_id)
 
     if command in {"backlog", "backlog-status", "quality", "refine-backlog", "implementation-feedback", "story-status"}:
         from .backlog.hooks import assert_backlog_privacy_clean
@@ -205,6 +205,48 @@ def preflight_command(command: str, project_id: str | None) -> None:
             "hashes": snapshot_governed_artifact_hashes(project_id),
             "kept": keep_hand_edits(project_id, command),
         }
+
+
+def refuse_dirty_health(command: str, project_id: str) -> None:
+    """IMP-360: the DIRTY gate of /backlog, /quality and /refine-backlog.
+
+    The findings come from /health (computed, not written). /backlog may run
+    when every finding is one it clears itself (the knowledge change left only
+    the backlog artifacts stale); otherwise each command is refused with what to
+    do next. /quality and /refine-backlog consume the backlog, so they wait.
+    """
+    from .health import STALE_ARTIFACT_OWNERS, collect_health, pending_stale_artifacts
+
+    collected = collect_health(project_id)
+    findings = collected["findings"]
+    prefix = f"Cannot run /{command} while project health is DIRTY"
+    if not findings:
+        # DIRTY was set by another command's own criteria; /health recomputes it.
+        raise GateRefusal(
+            f"{prefix}. Run /health to recompute project health, then run /{command} again.",
+            "Run /health.",
+        )
+    others = [finding for finding in findings if finding not in collected["remediated_by_backlog"]]
+    if command == "backlog" and not others:
+        return
+    if all(finding in collected["knowledge_staleness"] for finding in findings):
+        # Only the knowledge change keeps health DIRTY: name the commands that
+        # regenerate what it left stale, in order, ending with /backlog.
+        pending = pending_stale_artifacts(project_id)
+        steps = list(dict.fromkeys(STALE_ARTIFACT_OWNERS.get(rel, "/backlog") for rel in pending))
+        steps = [step for step in steps if step != "/backlog"] + ["/backlog"]
+        if command != "backlog":
+            steps.append(f"/{command}")
+        chain = ", then ".join(steps)
+        stale = ", ".join(rel.rsplit("/", 1)[-1] for rel in pending)
+        verb = "was" if len(pending) == 1 else "were"
+        raise GateRefusal(
+            f"{prefix}: knowledge changed after {stale} {verb} generated. Run {chain}.",
+            f"Run {chain}.",
+        )
+    more = f" ({len(others) - 1} more finding(s))" if len(others) > 1 else ""
+    next_step = f"Run /health to see every finding, fix them, then run /{command} again."
+    raise GateRefusal(f"{prefix}: {others[0]}{more} {next_step}", next_step)
 
 
 def postflight_command(command: str, project_id: str | None, result: Any) -> None:

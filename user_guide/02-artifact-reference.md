@@ -66,18 +66,18 @@ workspaces/<PROJECT_ID>/
 | `sentinel.config.yaml` | Project settings: language, privacy mode, gate thresholds, theme. | Every command | **Edit freely** | Created by `/init`; edited by you |
 | `.gitignore` | Keeps regenerable paths out of git when you version the workspace. | git | Edit freely | Created by `/init` |
 | `.sentinel/derived/state.json` | Counts and metrics Sentinel recomputes (gap counts, maturity metrics, backlog roll-up). | `/status`, the dashboard | Disposable | Every mutating command |
-| `.sentinel/command_log.jsonl` | One line per command that ran, append-only. | `/health`, admins, audits | Never edit by hand | Every command |
+| `.sentinel/command_log.jsonl` | One line per project command that ran, append-only. `/init`, `/doctor` and `/dashboard` are not logged. | `/health`, admins, audits | Never edit by hand | Every project command |
 | `.sentinel/themes/<name>.json` | A look-and-feel theme for this workspace only. | `/view` | Edit freely | You; see [themes](17-themes.md) |
 | `.sentinel/state.json.bak` | The previous `state.json`, copied before every state update. | You, to recover a deleted or damaged `state.json` | Leave alone; copy it over `state.json` to restore | Every command that updates the state |
 | `.sentinel/hand_edits/<timestamp>-<command>/` | A copy of each hand-edited governed file, made before a mutating command may change it. | You, to carry the edit through the owning command | Delete the copy once the change is carried through; `/health` warns until then | Every mutating command that finds a hand edit |
 | `.sentinel/state.json.bak-0.9.0` | One-time backup made when an old workspace is upgraded. | Nobody, unless you roll back | Leave alone | The first command that opens an old workspace |
 | `.sentinel/lock` | The lock that makes a second command wait (exit code 6). | Sentinel | Never touch | Every project command, read-only ones included |
 | `.series_work/<rN>/` | The mirror a command runs in when you pass `--release rN`. | Sentinel | Never edit by hand | Release commands |
-| `memory.lancedb/` | The retrieval index. See [below](#memorylancedb) and [Traceability and memory](05-traceability-and-memory.md). | `/retrieve` | Disposable | `/ingest`, `/sync`, `/reindex` |
+| `memory.lancedb/` | The retrieval index. See [below](#memorylancedb) and [Traceability and memory](05-traceability-and-memory.md). | `/retrieve` | Disposable | `/ingest`, `/sync`, `/resolve-gaps`, `/self-review`, `/reindex`, and most commands that write an artifact (they index it as they write it) |
 
 ### What the workspace `.gitignore` ignores
 
-When you version a workspace in your own repository (see [repository and branching strategy](10-repo-and-branching-strategy.md)), the generated `.gitignore` keeps out what can be rebuilt: `memory.lancedb/`, `08_context_packs/views/*.html`, `08_context_packs/synthetic/` and `.sentinel/`. Everything else, the matured artifacts, stays tracked. `.series_work/` is not in that list. If you use release series and do not want the mirrors in git, add it yourself.
+When you version a workspace in your own repository (see [repository and branching strategy](10-repo-and-branching-strategy.md)), the generated `.gitignore` keeps out what can be rebuilt: `memory.lancedb/`, `08_context_packs/views/*.html`, `08_context_packs/synthetic/`, `.sentinel/`, the release mirrors `.series_work/` (a full copy of the workspace per release, raw sources included) and the release views `08_context_packs/r*/views/*.html`. Everything else, the matured artifacts, stays tracked. A workspace whose `.gitignore` predates the release rules gets them appended on its next `/init`, `/ingest` or release command.
 
 ### Configuration keys
 
@@ -107,14 +107,18 @@ memory:
   context_folders: [00_raw/00_client_requirement, ..., 00_raw/05_interactions]
 ```
 
+`backlog_gate` is already in the file. `threshold` is the implementation-readiness score a story needs for its Definition of Ready (default 1.0). With `strict: false` (the default) an incomplete Definition of Ready or Done only warns; with `strict: true` it blocks: `/backlog` refuses while a story fails its Definition of Ready, and `/story-status` refuses `Ready` with an incomplete Definition of Ready and `Done` with an incomplete Definition of Done (exit 4).
+
 You may add these optional keys. All gates only warn by default; `strict: true` turns the warning into a refusal.
 
 | Key | Effect |
 |---|---|
+| `brief_gate.threshold`, `brief_gate.strict` | Minimum brief section readiness (default 0.5). Strict stops the brief phase from closing at `/brief` below it (stage `BRIEF_BELOW_THRESHOLD`; `/next` gives *Fix what stopped the brief*). |
 | `implementability_gate.strict` | Blocks the move to `READY_FOR_SPECS` at `/brief` while a requirement unit has an open gap only the client can answer. |
 | `drift_gate.strict` | Blocks `/specs` and `/backlog` when the artifacts they derive from changed since generation. |
-| `needs_context_gate.strict` | Turns the `/health` hint "use focused retrieval" into a finding. |
+| `needs_context_gate.strict`, `needs_context_gate.min_chunks` | Turns the `/health` hint "use focused retrieval" into a finding. The hint appears when the index holds at least `min_chunks` chunks (default 12) and no focus pack exists. |
 | `specs_gate.threshold`, `specs_gate.strict` | Minimum PRD section readiness (default 0.75); strict blocks `/specs` below it. |
+| `story_format` | `user` or `job`: the default wording of `/backlog` stories when `--story-format` is not given. |
 | `theme` | Default theme for `/view` (see [themes](17-themes.md)). |
 | `pii_report: true` | Also writes `01_discovery/pii_report.md` when personal data is found. |
 
@@ -126,16 +130,16 @@ Everything the client or the domain teams gave you, as received, in five context
 
 | Path | Purpose | Edit rule | Written by |
 |---|---|---|---|
-| `[source].md` (at the top of `00_raw/`) | The redacted copy of the primary client requirement, named after the file you passed to `/ingest` (for example `00_raw/loan-request.md`). | Never edit; replace it only with `/ingest --replace` | `/ingest` |
+| `[source].md` (at the top of `00_raw/`) | The redacted copy of the primary client requirement, named after the file you passed to `/ingest` (for example `00_raw/loan-request.md`). A `.md`, `.txt`, `.html` or `.htm` file keeps its extension (`00_raw/prototype.html`); any other file becomes `.md`, and a `.docx` also gets a `<name>_media/` folder. | Never edit; replace it only with `/ingest --replace` | `/ingest` |
 | `00_client_requirement/` | Extra client requirement material you add by hand. `/ingest` does not copy into it. | Add files; do not rewrite processed ones | You |
-| `01_business_context/` | Business rules, policies, process documents. | Add files freely | You, `/ingest`, `/sources` |
-| `02_technology_context/` | Architecture notes, API contracts, harvested code summaries (`harvest/`). | Add files freely | You, `/harvest`, `/sources` |
-| `03_design_context/` | Prototypes, design notes. | Add files freely | You, `/sources` |
+| `01_business_context/` | Business rules, policies, process documents. | Add files freely | You |
+| `02_technology_context/` | Architecture notes, API contracts, harvested code summaries (`harvest/`). | Add files freely | You; `/harvest` writes `harvest/` |
+| `03_design_context/` | Prototypes, design notes. | Add files freely | You |
 | `04_quality_context/` | Test strategy, quality rules. | Add files freely | You |
 | `05_interactions/` | Answered gap documents and meeting notes from the client. | Add files freely | You |
 | `source_manifest.json` | Which files were processed (path, hash, status, event id, timestamps). | Never edit by hand | `/ingest`, `/sync`, `/sources` |
 
-Raw input is evidence, not truth. Sentinel scans each ingested file for secrets and stores a **redacted copy**; the type, line and a hash of each redacted secret go to `01_discovery/secret_alerts.md`. A file you modify later is detected through its hash in `source_manifest.json` the next time you run `/sync PROJECT_ID`.
+Raw input is evidence, not truth. Sentinel scans each ingested file for secrets and stores a **redacted copy**; the type, line and a hash of each redacted secret go to `01_discovery/secret_alerts.md`. A file you modify later is detected through its hash in `source_manifest.json` the next time you run `/sync PROJECT_ID`. A file you bring in with `/sync --source PATH` is not copied into these folders: its copy goes to a `07_changes/` sub-folder (see [`07_changes/`](#07_changes-controlled-change)).
 
 ## `01_discovery/`: what is known and what is missing
 
@@ -147,10 +151,10 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 |---|---|---|---|---|
 | `gaps.md` | Questions the evidence leaves open, one section per gap, with why it matters, what answering it unblocks, the expected answer format and blank response fields. | You; the client and domain owners get the interview export | Never edit by hand (blocked by the hook, watched by `/health`); write answers in a separate response file for `/resolve-gaps` | `/ingest`, `/annotate`, `/challenge`, `/scrutinize`, `/harvest`, `/sync`, `/self-review`, `/resolve-gaps`, `/gaps` |
 | `requirement_maturity_report.md` | Verdict: `READY_FOR_SPECS` or `BLOCKED`, and why. | BA, PM | Never edit | `/maturity` |
-| `assumptions.md` | Register of assumptions a BA took on knowingly, with owner, risk and the quote that justifies them. | BA, PM, reviewers | Never edit | `/assume` |
+| `assumptions.md` | Register of assumptions a BA took on knowingly, with owner, risk and the quote that justifies them. Each submitted JSON is kept under `assumptions/`. | BA, PM, reviewers | Never edit | `/assume` |
 | `stakeholders.md` | Who answers for which lens. Used to route gaps to people. | BA | Never edit by hand; use `/stakeholders --add` | `/stakeholders` |
 
-`gaps.md` is your working ledger, not a client document: send the client the interview script (`/export --artifact gaps --format interview`), which shows plain questions without lens, severity or internal labels and keeps each `### GAP-…` reference. Each gap has a lens, a severity (`critical`, `high`, `medium`, `low`) and a status: `OPEN`, `ANSWERED`, `PARTIALLY_CLOSED`, `CLOSED`, `SUPERSEDED`, `NEW_REQUIREMENT` or `NEW_GAP`. The `Origin` column says who raised it (`checklist`, `agent`, `challenge`, `scrutiny`, `implementability-probe`, `harvest`), and `Unit` names the requirement unit (`RU-*`) it belongs to. Save the answered script into `00_raw/05_interactions/` or `input/interactions/` and run `/resolve-gaps`.
+`gaps.md` is your working ledger, not a client document: send the client the interview script (`/export --artifact gaps --format interview`), which shows plain questions without lens, severity or internal labels and keeps each `### GAP-…` reference. Each gap has a lens, a severity (`critical`, `high`, `medium`, `low`) and a status: `OPEN`, `ANSWERED`, `PARTIALLY_CLOSED` or `CLOSED`. The `Origin` column says who raised it: `checklist` (the deterministic checks of `/ingest` and the brief compiler), an agent pass (`agent` for `/annotate` and `/sync --analysis`, `challenge`, `scrutiny`, `implementability-probe`, `anchor-review`, `self-review`, `sufficiency`, `cross-review`), `harvest`, `sync` (a gap a `/sync` change raised), `split`, `contradiction` and `cited_not_delivered` (two sources disagree, or a source cites a document nobody delivered), or `injection_signal`. Only gaps from an agent pass take a `/gaps --disposition`. The `Unit` column names the requirement unit (`RU-*`) it belongs to. Save the answered script into `00_raw/05_interactions/` or `input/interactions/` and run `/resolve-gaps`.
 
 ### Supporting records
 
@@ -160,14 +164,18 @@ This folder holds the understanding Sentinel builds from the evidence. Start wit
 | `source_synthesis.md` | Per-source synthesis with verbatim citations, before cross-source review. Not indexed in memory. | Never edit | `/ingest` |
 | `requirement_units.md` | Index of cited requirement units (`RU-*`), the anchors discovery works on. | Never edit | `/ingest` |
 | `requirement_unit_deltas.md` | What was added, modified or removed when the primary requirement is replaced. Only after `/ingest --replace`. A signal, it never changes gaps. | Never edit | `/ingest` |
-| `identity_seeds.md` | Atomic project truths and pending truths with origin and lens. | Never edit | `/ingest` |
-| `decisions.md` | Decisions taken or pending. | Never edit | `/ingest`, `/sync` |
+| `identity_seeds.md` | Atomic project truths and pending truths with origin and lens. | Never edit | `/ingest`; `/resolve-gaps` and `/sync` add confirmed answers |
+| `decisions.md` | Decisions taken or pending. | Never edit | `/ingest`; `/resolve-gaps` and `/sync` add confirmed answers |
 | `knowledge_state.md` and `.json` | The ledger of what is `CONFIRMED`, `ASSUMED`, `OPEN` or `INFERRED`, by lens. | Never edit | `/ingest`, `/resolve-gaps`, `/sync` |
 | `development_readiness.json` | Development-certainty matrix: 16 areas by lens, plus per-unit implementability. | Never edit | `/maturity` |
 | `discovery_log.md`, `lens_review.md` | Multi-lens review of the evidence and the coverage checklist. | Never edit | `/ingest` |
 | `gap_resolution_log.md` | Append-only history of `/resolve-gaps` runs. | Never edit | `/resolve-gaps` |
 | `glossary.json` | The domain glossary that feeds the brief's glossary section. | Never edit | The brief compiler |
-| `statement_ledger.json`, `contradictions.md` | Claims per source and the contradictions between sources. | Never edit | `/sources`, brief compiler |
+| `statement_ledger.json`, `contradictions.md` | Claims per source and the contradictions between sources. The brief v2 compiler reads the ledger. | Never edit | `/ingest`, `/sync` |
+| `gap_elicitation.json` | The side record behind the response sections of `gaps.md`: per gap, its kind, closure reason, example answer, recommended option and any "meanwhile" assumption. | Never edit | Every command that rewrites `gaps.md` |
+| `gap_round.md` | The next round of at most N questions, ordered scope, security and privacy, UX, technical, then severity, each with a recommended option. A planning aid for the BA; the interview export does not read it. | Never edit | `/gaps --top N` |
+| `implementation_feedback_gaps.md` | The `GAP-FEEDBACK-*` gaps of the latest `/implementation-feedback` run that had `gap` findings. They are not in `gaps.md`, `/resolve-gaps` does not close them and `/status` does not count them; close one with a new feedback file that marks its finding `resolved` (see [`implementation-feedback`](01-command-reference.md#implementation-feedback)). | Never edit | `/implementation-feedback` |
+| `change_candidates.json`, `change_analyses/` | The late-change candidates of `/sync --analysis` (each linked to its `GAP-CHG-*`) and a copy of each analysis file. | Never edit | `/sync --analysis`; `/gaps --disposition` on a `GAP-CHG` |
 | `harvest.json` | What `/harvest` read from an existing system. | Never edit | `/harvest` |
 | `split_assessment.md` and `.json` | Whether the brief should be split into releases. | Never edit | `/split --assess` |
 | `secret_alerts.md`, `pii_report.md` | Redacted secrets (type, line, hash) and, if enabled, personal data findings. | Never edit | `/ingest`, `/sync`; secret alerts also `/resolve-gaps`, `/harvest` and the payload commands (`/annotate`, `/challenge`, `/scrutinize` and `/self-review` in every mode, `/compose`, `/assume`, `/refine-backlog`, `/implementation-feedback`, `--override`) |
@@ -185,6 +193,8 @@ Each pass writes one report. Passes with an archive folder below also keep the J
 | `implementability_probe_report.md` | `implementability_probe/` | `/scrutinize --mode implementability-probe` |
 | `anchor_review_log.md` | | `/scrutinize --mode anchors` |
 | `sufficiency_log.md` | | `/self-review --sufficiency` |
+| `cross_review_log.md` | | `/self-review --crosses` |
+| `03_specs/self_review/self_review_report.md` and `decision_register.md` (see [`03_specs/`](#03_specs-prd-and-specs)) | `03_specs/self_review/` | `/self-review` (default mode) |
 | `agent_sweep_log.md` | | Every agent pass: `/annotate`, `/challenge`, `/scrutinize` (all modes), `/self-review` (all modes) |
 | `agent_dispositions.json` | | `/gaps --id GAP-X --disposition` |
 
@@ -194,7 +204,7 @@ All of them are append-only records of what the runtime accepted and rejected. G
 
 | Path | Purpose | Read by | Edit rule | Written by |
 |---|---|---|---|---|
-| `project-brief.md` | The crystallised handoff from discovery to specs. | Everyone: BA, PM, design, tech, quality, the agents | **Never edit by hand** (blocked by the hook) | `/brief`; `/maturity` rewrites it when the verdict allows |
+| `project-brief.md` | The crystallised handoff from discovery to specs. | Everyone: BA, PM, design, tech, quality, the agents | **Never edit by hand** (blocked by the hook) | `/brief`; `/maturity` (and so `/specs` and `/backlog`, which re-run it) rewrites it when the verdict allows; in a v2 project `/resolve-gaps` rewrites the places the answered gaps fill |
 | `brief_compile_report.json` | What the compiler placed where and what it left pending. | BA, developers | Never edit | `/brief` |
 | `requirements.md` | Requirement statements extracted from raw input, plus normalised `REQ-EARS-*` rows. | Specs, `/validate` | Never edit by hand (blocked by the hook, watched by `/health`) | `/ingest`, `/resolve-gaps` |
 
@@ -225,9 +235,9 @@ The brief v2 sections:
 | 9. Things to build | Build list or phases. |
 | A. Glossary, A. Provenance | Domain glossary; provenance and reference data. |
 
-Sections that have no evidence show `[PENDING INPUT]` with the `GAP-*` that tracks them. Sentinel never fills a section with invented text. Citations use the structured `[[document § section # ID]]` form.
+A place that has no evidence shows a pending mark with the `GAP-*` that tracks it: `⏳ PENDING (GAP-X)` when the client must answer (it blocks "Ready to build" and `/export --final`), and `⏳ PENDING DOMAIN (GAP-X)` when a domain team must (it can wait). In a Spanish brief the marks read `⏳ PENDIENTE (GAP-X)` and `⏳ PENDIENTE DOMINIO (GAP-X)`. Sentinel never fills a section with invented text. Citations use the structured `[[document § section # ID]]` form.
 
-**Brief v1** (`/init --brief-version 1`, or a workspace created before v2) has eleven sections: identity and value, business lens, product lens (with a Non-Goals block), design lens, technical lens, governance and constraints, decisions and seeds, the uncertainty radar of gaps, readiness for PRD, specs and backlog, PRD coverage readiness, and domain context requests. Its headings follow the project language.
+**Brief v1** (`/init --brief-version 1`, or a workspace created before v2) has eleven sections: identity and value, business lens, product lens (with a Non-Goals block), design lens, technical lens, governance and constraints, decisions and seeds, the uncertainty radar of gaps, readiness for PRD, specs and backlog, PRD coverage readiness, and domain context requests. Its headings follow the project language. A place without evidence shows `[PENDING INPUT]` instead of the v2 marks. The PRD, specs and backlog use the same `[PENDING INPUT]`, and the specs and backlog write `[PENDING DOMAIN CONTEXT]` where a domain contract is missing.
 
 > [!NOTE]
 > To add a non-goal, close the relevant gap as "not applicable" with `/resolve-gaps`. Do not write it into the brief.
@@ -265,6 +275,7 @@ Created when a prototype is among your sources. See the [prototype workflow](03-
 | `specs.md` | The compact agent-facing specification: contract, spec-unit index, context map, retrieval plan, backlog seeds. | Tech lead, design, quality, coding agents | Never edit (hook) | `/specs` |
 | `units/SPEC-U-NNN.md` | One bounded execution unit per confirmed requirement statement, with frontmatter and source anchors. | Backlog generation, coding agents | Never edit | `/specs` |
 | `compositions/` | Audit trail of agent-written PRD paragraphs: the submitted JSON, `accepted_blocks.json`, `composition_report.md`, `regeneration_report.md`. | BA | Never edit | `/compose`, `/specs` |
+| `self_review/` | The skeptical review of the PRD and specs: the submitted JSON, `self_review_report.md` (accepted gaps and decisions) and `decision_register.md` (the `DEC-*` decisions it recorded). | BA, tech lead | Never edit | `/self-review` (default mode) |
 | `<rN>/` | The same files derived for one release. | | Never edit | `/specs --release rN` |
 
 Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Composition" with `Origin: agent`; they are re-applied when `/specs` regenerates, or dropped with a reason if their citation disappeared.
@@ -274,9 +285,9 @@ Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Comp
 | Path | Purpose | Read by | Edit rule | Written by |
 |---|---|---|---|---|
 | `BACKLOG.md` | The board: totals, roll-up by epic, stories grouped by status. | BA, PM | Never edit (hook) | `/backlog`, `/story-status`, `/backlog-status` |
-| `EPIC-001.md` | The main epic with its story map and embedded stories (narrative, Given/When/Then criteria, Definition of Ready and Done, retrieval plan). | BA, reviewers | Never edit (hook) | `/backlog` |
+| `EPIC-001.md` | The main epic with its story map and embedded stories (narrative, Given/When/Then criteria, Definition of Ready and Done, retrieval plan). | BA, reviewers | Never edit (hook) | `/backlog`; `/refine-backlog` adds an "Agent Backlog Refinements" section |
 | `EPIC-002-cross-cutting-enablers.md` | Optional epic for concrete cross-cutting foundations (shared UI structure, authentication, persistence, integration contracts). Only created when evidence names such work. | Tech lead | Never edit (hook) | `/backlog` |
-| `US-NNN.md` | One file per story, with lifecycle `status` and `owner` in the frontmatter. | Coding and test agents | Never edit (hook); change status with `/story-status` | `/backlog`, `/story-status` |
+| `US-NNN.md` | One file per story, with lifecycle `status` and `owner` in the frontmatter. | Coding and test agents | Never edit (hook); change status with `/story-status` | `/backlog`, `/story-status`; `/refine-backlog` adds an "Agent Backlog Refinements" section to each story it targets; `/implementation-feedback` updates the Definition of Done items |
 | `SLICE-PLAN.md` | Implementation order: enabler phase, waves, checkpoints. | Delivery, planning agents | Never edit (hook) | `/backlog` |
 | `status_log.md` | Append-only log of story status changes. | PM | Never edit | `/story-status` |
 | `acceptance_criteria_deltas.md` | Differences between the criteria frozen at `Ready` and the regenerated ones. | BA | Never edit | `/backlog` |
@@ -299,10 +310,10 @@ Valid story statuses are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `
 | Path | Purpose | Read by | Edit rule | Written by |
 |---|---|---|---|---|
 | `traceability_matrix.md` | Table of source-to-target links. | BA, auditors | Never edit | `/trace`, and after every mutating command |
-| `traceability_graph.md` | The graph as a Mermaid diagram. | BA, auditors | Never edit | `/trace` |
+| `traceability_graph.md` | The graph as a Mermaid diagram. | BA, auditors | Never edit | `/trace`, and after every mutating command |
 | `traceability_graph.json` | The graph itself: nodes and edges. | Tools, `/health` | Never edit | Every mutating command |
 | `health_report.md` and `.json` | The health verdict and findings: stale artifacts, hand edits, missing evidence. | Everyone | Never edit | `/health` |
-| `command_protocol_log.md` | The last 25 commands in plain text. | Humans | Never edit | Every command |
+| `command_protocol_log.md` | The last 25 project commands in plain text (`/init`, `/doctor` and `/dashboard` are not logged). | Humans | Never edit | Every project command |
 | `retired_ids.json` | Ids that were retired and must not be reused. | Sentinel | Never edit | ID allocation |
 | `<rN>/` | The same for one release. | | Never edit | `/trace --release rN` |
 
@@ -310,13 +321,16 @@ See [Traceability and memory](05-traceability-and-memory.md) for how the graph i
 
 ## `07_changes/`: controlled change
 
+`/sync` never writes at the top of this folder. It puts each change it brings in, with its report, in one of the four sub-folders below, chosen from the source path: `01_meetings/` when the path contains `meeting` or `minuta`, `02_mail_slack/` for `mail` or `slack`, `00_client_responses/` for `interaction`, `client` or `response`, and `03_domain_updates/` otherwise (also for a path under a technology, design or quality context folder). `/init` creates the four sub-folders.
+
 | Path | Purpose | Edit rule | Written by |
 |---|---|---|---|
-| `[source].md` | The copied source of a change (a meeting note, an email, a domain update). | Never edit | `/sync` |
-| `[source]_impact_report.md` | What the change touches: impacted nodes, reopened gaps, impacted knowledge units, stale downstream artifacts. Read it before regenerating anything. | Never edit | `/sync` |
+| `<sub-folder>/[source].md` | The redacted copy of a change (a meeting note, an email, a domain update). A `.txt`, `.html` or `.htm` file keeps its extension. | Never edit | `/sync` |
+| `<sub-folder>/[source]_impact_report.md` | What the change touches: impacted nodes, reopened gaps, impacted knowledge units, stale downstream artifacts. Read it before regenerating anything. | Never edit | `/sync` |
+| `<sub-folder>/[source]_interaction_digest.md`, `<sub-folder>/[source]_gap_response_proposed.md` | With `--digest`: the structured digest of the interaction, and a response file whose every entry is `PROPOSED`. Review it, change the status of what is confirmed, and pass it to `/resolve-gaps`. | Never edit the digest; work on a copy of the proposed response | `/sync --digest` |
 | `metabolism_log.md` | Append-only log of sync events and follow-up actions. | Never edit | `/sync` |
-| `00_client_responses/` | Answered gap documents, with one `[source]_gap_resolution_report.md` each (closed, answered, partial, still open). | Never edit | `/resolve-gaps` |
-| `01_meetings/`, `02_mail_slack/`, `03_domain_updates/` | Drop folders for change sources. | Add files freely | You |
+| `00_client_responses/` | Answered gap documents, with one `[source]_gap_resolution_report.md` each (closed, answered, partial, still open); also the answer files `/ingest --replace` asks you to re-apply. | Never edit | `/resolve-gaps`, `/sync` |
+| `01_meetings/`, `02_mail_slack/`, `03_domain_updates/` | Where `/sync` stores the changes it brings in. You may also drop a file here and run `/sync PROJECT_ID` without `--source`; the scan picks it up. | Never edit what `/sync` wrote | `/sync`; you may add files |
 | `04_regeneration/regen-NNN-*.md` | What changed when `/specs` or `/backlog` regenerated an artifact. Each change is marked `ADDED`, `MODIFIED` or `REMOVED`. | Never edit | `/specs`, `/backlog` |
 | `05_implementation_feedback/feedback_report.md` | Accepted and rejected findings from implementation, plus the archived JSON. | Never edit | `/implementation-feedback` |
 | `source_log.md` | The source registry: one `F-NN` row per source with authority, supersession and impact matrix. | Never edit; use `/sources` | `/sources` |

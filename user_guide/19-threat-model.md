@@ -2,7 +2,7 @@
 
 This page is for a security reviewer or an IT approver. It states what Ignite Sentinel protects, the threats it considers, the control for each threat, how to verify the control yourself, and the risk that remains.
 
-Every control below is checked by a test in `tests/` and most of them also by `python -m sentinel /doctor`. The design rule behind all of them: **the documents Sentinel reads are data, never instructions, and everything it writes stays in your project.**
+Every control below is checked by a test in `tests/` and most of them also by `python -m sentinel /doctor`. Below, a `/doctor` check is named by the label it prints, followed by the function that implements it. Most of these checks run only in a clone (`"mode": "framework"`); outside a clone `/doctor` runs in runtime mode, where of the checks cited here only "workspace ids" and "package imports no network module" run. The design rule behind all of them: **the documents Sentinel reads are data, never instructions, and everything it writes stays in your project.**
 
 ## System in one paragraph
 
@@ -14,9 +14,10 @@ A business analyst (BA) gives Sentinel source documents: requirements, transcrip
 |-------|----------------|----------------|
 | Client source documents | The BA's original files, and their copy in `workspaces/<PROJECT_ID>/00_raw/` | Confidential business information, sometimes personal data or credentials pasted by mistake |
 | Derived artifacts | `workspaces/<PROJECT_ID>/01_discovery/` to `08_context_packs/` | Same confidentiality as the sources, plus the BA's decisions |
+| Release series working copies | `workspaces/<PROJECT_ID>/.series_work/<rN>/`, one per release built with `--release` | A full copy of the workspace for that release, client sources (`00_raw/`) and change copies (`07_changes/`) included |
 | Local memory index | `workspaces/<PROJECT_ID>/` (JSON, or LanceDB when enabled) | A searchable copy of the text |
-| Views and dashboard | `workspaces/<PROJECT_ID>/08_context_packs/views/*.html`, `dashboard.html` | Rendered copies of the artifacts, opened from disk |
-| Browser storage of the views | The browser's `localStorage` for `file://` pages | Feedback comments and guided answers the BA types in a view stay there until exported or cleared (see below) |
+| Views and dashboard | `workspaces/<PROJECT_ID>/08_context_packs/views/*.html`, release views in `08_context_packs/<rN>/views/*.html`, `dashboard.html` | Rendered copies of the artifacts, opened from disk |
+| Browser storage of the views | The browser's `localStorage` for `file://` pages | Feedback comments, guided answers and readiness marks the BA enters in a view stay there until cleared (see below) |
 | The BA's machine and project | Everything outside the workspace | Sentinel runs with the BA's user rights |
 | The release channel | Tags, releases and the `stable` branch on GitHub | What every installation trusts |
 
@@ -24,13 +25,14 @@ Keys Sentinel stores in `localStorage`:
 
 | Key | Content |
 |-----|---------|
-| `ignite-sentinel:view-feedback:<project>:<artifact>:<source>` | Feedback comments typed in a view, and the source digest they were written against |
+| `ignite-sentinel:view-feedback:<project>:<artifact>:<source>` | Feedback comments typed in a view |
+| `ignite-sentinel:view-feedback:<project>:<artifact>:<source>:source-sha` | The sha256 of the source the comments and guided answers were written against (no content) |
 | `ignite-sentinel:view-guided-response:<project>:<artifact>:<source>` | Answers typed in a guided response view |
-| `ignite-sentinel:readiness:<project>` | Which requests of the readiness view the BA marked as handled (request ids only, no content; **Clear** in the view empties it) |
+| `ignite-sentinel:readiness:<project>` | The sent/answered marks of the readiness view: the ids of the marked requests, no text (**Clear** in the view empties it) |
 | `ignite-sentinel:view-provenance` | Whether provenance is shown (a preference, no content) |
 | `ignite-sentinel:color-mode` | Light or dark (a preference, no content) |
 
-Feedback and guided answers are client content. They never leave the browser: the views have no network access (T5's CSP). They stay until the BA exports them as Markdown, uses **Clear Comments** in the view, or clears the browser's site data for local files.
+Feedback and guided answers are client content. Nothing here leaves the browser: the views have no network access (T5's CSP). Exporting them as Markdown removes nothing. **Clear Comments** in a view empties its feedback comments only, and **Clear** in the readiness view empties its marks. Guided answers have no clear control: they stay until the BA empties each field or clears the browser's site data for local files, which removes every key above.
 
 ## Trust boundaries
 
@@ -80,7 +82,7 @@ A crafted project id, artifact name or source path (`..`, an absolute path, a sy
 
 **Control:** every file the runtime writes goes through `sentinel/core/io.py`. The destination must resolve inside its root, so `..`, foreign absolute paths and links that leave the root raise `UnconfinedWrite`; both spellings of a Windows folder (8.3 short names) compare equal. Writes land in a temporary file, are fsynced and swapped in with `os.replace`. Project ids are validated before any path is built. An AST guard keeps the rest of `sentinel/` from writing any other way.
 
-**Evidence:** `tests/test_safe_writer.py` (escapes, links, interrupted writes, the AST guard); `project_ids_check` in `/doctor`.
+**Evidence:** `tests/test_safe_writer.py` (escapes, links, interrupted writes, the AST guard); "workspace ids" (`project_ids_check`) in `/doctor`.
 
 **Residual risk:** an attacker who can already create links inside the project folder can redirect reads. Writes stay confined.
 
@@ -98,7 +100,7 @@ A source contains a private key, cloud key, token, JWT, URL with credentials, co
 - `token`: GitHub (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`), GitLab (`glpat-`), Slack (`xoxb-`, `xoxp-` and similar), OpenAI / Anthropic style `sk-…`, Stripe secret and restricted keys (`sk_live_`, `sk_test_`, `rk_live_`, `rk_test_`), Stripe webhook secrets (`whsec_`), npm (`npm_`), SendGrid (`SG.…`), and `Bearer` tokens of 24 characters or more;
 - `credential`: a key-value line whose key is `password`, `passwd`, `pwd`, `secret`, `client_secret`, `api_key` / `apikey`, `access_key`, `secret_key`, `token` or `access_token` / `auth_token` / `api_token` / `refresh_token` (also with a prefix such as `DB_PASSWORD`, and quoted as in JSON or YAML), followed by `=` or `:` and a value. Only the value is redacted. The value must look like a secret: at least 6 characters with a letter and a digit, or at least 20 characters of key-like charset. Placeholders (`<your password>`, `***`, `xxxx`, `${VAR}`, `{{VAR}}`, `%VAR%`, `your-…`, `example…`) and prose (`Password: required`) are not redacted.
 
-Not detected: a credential with no key in front of it, a value that is a single plain word (`changeme`), a credential in a table cell or prose ("the password is …"), and provider formats not listed above. The BA's original file is only read; the workspace copy and everything extracted from it carry `<SECRETO:type>` instead. Each redaction is logged in `01_discovery/secret_alerts.md` with type, line and a SHA-256 fingerprint, never the value. False positives are allowlisted by fingerprint. Memory redacts everything it indexes. `/view` and the exports refuse to write an output that carries a secret or a reference to another workspace. Personal data is reported only, opt-in, in `01_discovery/pii_report.md`. In the repository, `/doctor` runs `tracked_secrets_check` over `git ls-files` and `workspaces_ignored_check`, which fails when a new workspace would be committable.
+Not detected: a credential with no key in front of it, a value that is a single plain word (`changeme`), a credential in a table cell or prose ("the password is …"), and provider formats not listed above. The BA's original file is only read; the workspace copy and everything extracted from it carry `<SECRETO:type>` instead. Each redaction is logged in `01_discovery/secret_alerts.md` with type, line and a SHA-256 fingerprint, never the value. False positives are allowlisted by fingerprint. Memory redacts everything it indexes. `/view` and the exports refuse to write an output that carries a secret or a reference to another workspace. Personal data is reported only, opt-in, in `01_discovery/pii_report.md`. In a clone, `/doctor` runs "tracked files carry no secrets" (`tracked_secrets_check`) over `git ls-files` and "workspaces/ is ignored by git" (`workspaces_ignored_check`), which fails when a new workspace would be committable.
 
 **Evidence:** `tests/test_secrets_ingest.py`: six seeded secrets, six redactions, none in any output. `tests/test_privacy_imp336.py`: each credential and provider kind is redacted, placeholders are not, and nothing reaches the workspace, memory or `/retrieve` after `/ingest`, `/sync --source`, `/resolve-gaps` or `/harvest`. `tests/test_payload_hygiene_imp342.py`: no secret from a payload reaches any workspace file, and each one is logged in `secret_alerts.md`, for each payload command. `tests/test_payload_hygiene_imp347.py`: the same for `/annotate`, `/challenge`, `/scrutinize` (every mode), `/self-review --crosses` and `/self-review --sufficiency`.
 
@@ -108,7 +110,7 @@ Not detected: a credential with no key in front of it, a value that is a single 
 
 A compromised dependency, GitHub Action or release artifact runs code on the BA's machine.
 
-**Control:** the core has no mandatory third-party package (`stdlib_purity_check`). The optional extras are locked with hashes in `constraints/`; the install guides give the `--require-hashes` command, and a plain `pip install` of an extra skips that protection. CI runs CodeQL, dependency review, `pip-audit` over every lock and `claude plugin validate --strict`, with every Action pinned by commit SHA; Dependabot keeps them current. Each release carries a CycloneDX SBOM, and the wheel, the SBOM and each plugin archive have a build provenance attestation (`gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`). The plugin ships the runtime in source form so it can be read, and `claude_plugin_check` fails when it drifts from the generator. A `.pyz` built from a clone is not part of a release and carries no attestation: build it on a machine you trust.
+**Control:** the core has no mandatory third-party package ("stdlib purity", `stdlib_purity_check`, in a clone). The optional extras are locked with hashes in `constraints/`; the install guides give the `--require-hashes` command, and a plain `pip install` of an extra skips that protection. CI runs CodeQL, dependency review, `pip-audit` over every lock and `claude plugin validate --strict`, with every Action pinned by commit SHA; Dependabot keeps them current. Each release carries a CycloneDX SBOM, and the wheel, the SBOM and each plugin archive have a build provenance attestation (`gh attestation verify <file> --repo jmatzkin1980/ignite-sentinel`). The plugin ships the runtime in source form so it can be read, and in a clone "Claude Code plugin and marketplace" (`claude_plugin_check`) fails when it drifts from the generator. A `.pyz` built from a clone is not part of a release and carries no attestation: build it on a machine you trust.
 
 **Evidence:** `tests/test_supply_chain.py`, `tests/test_release.py`; the `security` and `release-attest` workflows in `.github/workflows/`.
 
@@ -118,7 +120,7 @@ A compromised dependency, GitHub Action or release artifact runs code on the BA'
 
 Code in the runtime or in a view sends client content to a remote host.
 
-**Control:** `network_isolation_check` is an AST scan that fails on any import of `socket`, `urllib`, `http`, `ftplib`, `smtplib`, `ssl` or an HTTP client, including dynamic imports with a literal name. `webbrowser` only opens existing local files. The embedding extras force offline mode and fall back to a local embedder without a model; they never download. The views and the dashboard carry a Content-Security-Policy (`default-src 'none'; connect-src 'none'; form-action 'none'; …`), so a page cannot fetch, post or load a remote image.
+**Control:** "package imports no network module" (`network_isolation_check`, in a clone and in runtime mode) is an AST scan that fails on any import of `socket`, `urllib`, `http`, `ftplib`, `smtplib`, `ssl` or an HTTP client, including dynamic imports with a literal name. `webbrowser` only opens existing local files. The embedding extras force offline mode and fall back to a local embedder without a model; they never download. The views and the dashboard carry a Content-Security-Policy (`default-src 'none'; connect-src 'none'; form-action 'none'; …`), so a page cannot fetch, post or load a remote image.
 
 **Evidence:** `tests/test_zero_network.py`, `tests/test_view_csp.py`.
 
@@ -128,7 +130,7 @@ Code in the runtime or in a view sends client content to a remote host.
 
 The plugin ships a hook, and hooks run commands with the user's rights on every matching tool call. A tampered hook would run on each edit.
 
-**Control:** the plugin has exactly one hook, `plugins/ignite-sentinel/hooks/deny-governed-artifact-write.py`, a read-only `PreToolUse` guard that only denies a hand `Write`/`Edit` of a governed artifact; it writes nothing and makes no network call. The plugin has no `bin/`, monitors, LSP servers or telemetry, and the MCP server is a separate plugin that installs disabled. The plugin is generated, and `claude_plugin_check` in `/doctor` fails when its hook, or any other file, differs from what the generator produces. `agentic_surface_audit_checks` flags dangerous shell constructs in the hook and settings JSON of the clone. An admin can set `allowManagedHooksOnly`: only hooks of plugins force-enabled by managed settings run, matched on the full `plugin@marketplace` id. In a clone, the same rule (no hand write of a governed artifact) is applied by a Claude Code hook, a Codex policy script and Kilo Code's `permission.edit` rules, the first two sharing one decision in `sentinel/hooks_logic.py`; `kilo_governed_deny_check` verifies the Kilo rules. The list of governed files comes from `sentinel/governed_artifacts.py`, the same list `/health` uses for hand-edit detection. Only the Claude Code hook and the Kilo rules have been watched refusing a write, and only for the brief, specs and backlog; the refusal for `gaps.md` and `requirements.md` has not been watched on any surface yet. The Codex script has not been watched at all, so for that surface the command gates and `/health`'s hand-edit detection are the control.
+**Control:** the plugin has exactly one hook, `plugins/ignite-sentinel/hooks/deny-governed-artifact-write.py`, a read-only `PreToolUse` guard that only denies a hand `Write`/`Edit` of a governed artifact; it writes nothing and makes no network call. The plugin has no `bin/`, monitors, LSP servers or telemetry, and the MCP server is a separate plugin that installs disabled. The plugin is generated, and in a clone "Claude Code plugin and marketplace" (`claude_plugin_check`) in `/doctor` fails when its hook, or any other file, differs from what the generator produces. The "agentic surface audit: ..." checks (`agentic_surface_audit_checks`) flag dangerous shell constructs in the hook and settings JSON of the clone. An admin can set `allowManagedHooksOnly`: only hooks of plugins force-enabled by managed settings run, matched on the full `plugin@marketplace` id. In a clone, the same rule (no hand write of a governed artifact) is applied by a Claude Code hook, a Codex policy script and Kilo Code's `permission.edit` rules, the first two sharing one decision in `sentinel/hooks_logic.py`; "kilo.jsonc denies editing governed artifacts" (`kilo_governed_deny_check`) verifies the Kilo rules. The list of governed files comes from `sentinel/governed_artifacts.py`, the same list `/health` uses for hand-edit detection. Only the Claude Code hook and the Kilo rules have been watched refusing a write, and only for the brief, specs and backlog; the refusal for `gaps.md` and `requirements.md` has not been watched on any surface yet. The Codex script has not been watched at all, so for that surface the command gates and `/health`'s hand-edit detection are the control.
 
 **Evidence:** `tests/test_governed_artifact_deny.py`, `tests/test_claude_plugin.py`.
 

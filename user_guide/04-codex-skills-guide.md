@@ -6,7 +6,7 @@ You do not need to memorise skill names. In Claude Code, Codex and Kilo Code the
 
 ## How skills work
 
-- **One source, three surfaces.** The 27 skills are written once under `.codex/skills/`. That folder is the canonical source, not a place any agent reads. `python -m sentinel.adapters` mirrors it, byte for byte, into the folders each surface actually loads. The skill text is identical everywhere.
+- **One source, three generated copies.** The 27 skills are written once under `.codex/skills/`. That folder is the canonical source, not a place any agent reads. `python -m sentinel.adapters` copies it into the folders the surfaces actually load. `.agents/skills/` and `.claude/skills/` are byte-for-byte copies. The plugin's copy (`plugins/ignite-sentinel/skills/`) changes one thing: each line that runs `python -m sentinel` is rewritten to run the plugin's own launcher through its Python finder. The rest of the skill text is identical everywhere.
 - **Skills never edit governed artifacts.** The gaps, brief, specs and backlog files change only through Sentinel commands. A skill prepares the input (often a small JSON file with verbatim quotes from your evidence), runs the command, and reports what the command accepted and rejected. If the command rejects a citation, the agent shortens it to the exact quote or drops the finding; it never paraphrases to get past the check.
 - **The runtime is the judge.** The agent proposes, the command validates and records, and you decide. Nothing a skill produces closes a gap or approves a decision by itself.
 - **Skills drive the same commands you can type.** Every command a skill runs is documented in the [command reference](01-command-reference.md).
@@ -25,7 +25,7 @@ Setup and daily use per surface: [Kilo Code](07-kilo-code-adapter.md), [Codex](0
 
 ### Human-only skill
 
-One skill, `sentinel-privacy-local-first`, is marked human-only (`disable-model-invocation: true`). The agent does not load it on its own; you invoke it deliberately. That marker is a Claude Code feature. In Codex and Kilo Code the skill can still trigger by itself, which is harmless. Either way the privacy rules are always on, because `AGENTS.md` and `CLAUDE.md` carry them. The other 26 skills are model-invocable.
+One skill, `sentinel-privacy-local-first`, is marked human-only (`disable-model-invocation: true`). The agent does not load it on its own; you invoke it deliberately. That marker is a Claude Code feature. In Codex and Kilo Code the skill can still trigger by itself, which is harmless. In a clone the privacy rules are always on, because `AGENTS.md` and `CLAUDE.md` carry them. The plugin ships neither file, so a plugin user does not get those always-on instructions. What a plugin user gets instead: the runtime enforces the core rules itself (memory stays local to the workspace, export goes only through audited commands, the backlog privacy scan runs), and the skills that touch client material carry a short local-first rule of their own (for example `sentinel-command-router`, `sentinel-intake-triage` and `sentinel-brownfield-harvest`). The other 26 skills are model-invocable.
 
 ### The proposal pattern
 
@@ -242,7 +242,7 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 ### `sentinel-privacy-local-first`
 
 - **Use it when** you want the full local-first rule set or an export checklist: source of truth in versionable workspace files, retrieval memory local to the workspace, no remote MCP, vector database or embedding service for client content, and export only through audited commands.
-- **What it does** is a deliberate reference; the non-negotiable rules are always on in `AGENTS.md` and `CLAUDE.md`.
+- **What it does** is a deliberate reference. In a clone the non-negotiable rules are always on in `AGENTS.md` and `CLAUDE.md`; the plugin ships neither file (see [Human-only skill](#human-only-skill)).
 - **Commands it drives** `/export` as the audited way out.
 - **Human-only** yes. Invoke it on purpose; it does not auto-load.
 
