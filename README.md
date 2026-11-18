@@ -1,31 +1,67 @@
 # Ignite Sentinel
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
-[![Privacy](https://img.shields.io/badge/privacy-local--first-2ea44f.svg)](#why-it-is-different)
+Ignite Sentinel helps you turn a client's raw request (a note, an email, meeting minutes, a prototype) into a project brief, a PRD, a backlog and test cases. It does not write requirements up for you: it finds what is missing, turns it into questions for the right person, and only builds on answers someone has confirmed. Everything it writes says where it came from.
 
-Ignite Sentinel turns a raw client request (a note, an email, a prototype, a pile of meeting minutes) into a project brief, a PRD, specs, a backlog and test cases, step by step, on your own machine. It never invents scope: every statement cites its evidence, and everything still unknown stays visible as a question, called a **gap**, until someone answers it.
+It is for **business analysts and product managers** working on real client projects, and for the developers who receive their work. You use it from the AI assistant you already have (Claude Code, Codex or Kilo Code) or from a plain terminal.
 
-You drive it from chat in Claude Code, Codex or Kilo Code, or from a plain terminal. Version 0.15.0.
+**What you get:** a list of open questions you can send to the client, a brief that cites every answer, a clear "what is still missing and from whom", a readiness verdict you can defend, and stories with acceptance criteria and test cases, each traced back to its source.
 
-New words (gap, brief, PRD, profile, genesis, lens, spec unit, slice plan...) are defined in the [glossary](user_guide/00-user-guide.md#glossary).
+**Your client's data.** Sentinel runs on your machine and makes no network calls: every file it writes stays in your project folder. Your AI assistant, though, reads the client's documents and Sentinel's files in order to help you, so that content goes to the assistant's model provider, under your organization's agreement with it. When that is not allowed, run Sentinel from a plain terminal, and nothing leaves your machine. Details in [Privacy](user_guide/00-user-guide.md#privacy).
 
-## Why it is different
+Version 0.15.0 · [What changed](CHANGELOG.md) · New words are explained in the [glossary](user_guide/00-user-guide.md#glossary).
 
-- **It matures requirements, it does not write them up.** Discovery is the core: Sentinel finds what is missing, asks for it, and only moves on when the answers are in.
-- **Nothing is invented.** A claim without evidence becomes a gap or a visible pending mark (`⏳ PENDING (GAP-X)` in the brief), never a guess.
-- **Gates protect every handoff.** Specs refuse to run on an immature requirement; the backlog refuses to run on an unhealthy project. A refusal says why and prints the `next step:`.
-- **Agents help, the runtime decides.** An agent can propose gaps, assumptions, PRD prose or backlog refinements, but each proposal must quote local evidence word for word or it is rejected.
-- **Traceable end to end.** Every test case traces back through story, spec, brief and gap to the source file it came from.
-- **Local-first.** Python standard library only. No cloud service, no external vector database, no remote embedding of client content. It runs on a locked-down virtual desktop.
+## Get started in 10 minutes
 
-## Who it is for
+You need **Python 3.10 or newer** and nothing else. Check with `python --version`.
 
-| You are a... | You get |
-|---|---|
-| **Business analyst** | An interview script you can send to the client, a brief that cites every answer, and a clear "what is still missing and from whom". |
-| **Product manager** | A readiness verdict (`READY`, `READY_WITH_WARNINGS`, `NOT_READY`), a PRD and a backlog you can defend line by line, and release planning when the scope is too big. |
-| **Developer** | Bounded spec units, stories with acceptance criteria and a retrieval plan, a slice plan, and a feedback channel when implementation finds a hole. |
+### 1. Pick your tool
+
+| You use | Install, in one step | Then type commands as |
+|---|---|---|
+| Claude Code, least setup | Add the plugin: `/plugin marketplace add jmatzkin1980/ignite-sentinel#stable`, then `/plugin install ignite-sentinel@ignite-sentinel` ([Path A](user_guide/06-installation-vscode.md#path-a-claude-code-plugin-from-the-marketplace)) | `sentinel /init ACME_PORTAL` |
+| Claude Code, with every command as `/command` | Copy the repository: `git clone https://github.com/jmatzkin1980/ignite-sentinel.git` and open the folder ([Path B](user_guide/06-installation-vscode.md#path-b-claude-code-clone)) | `/init ACME_PORTAL` |
+| Codex | Copy the repository and open the folder in Codex ([Path C](user_guide/06-installation-vscode.md#path-c-codex-clone)) | `sentinel /init ACME_PORTAL` |
+| Kilo Code (VS Code) | Copy the repository and open the folder in VS Code ([Path D](user_guide/06-installation-vscode.md#path-d-kilo-code-clone)) | `/init ACME_PORTAL` |
+| A terminal only | Copy the repository, or install the package file from a release ([Path E](user_guide/06-installation-vscode.md#path-e-terminal-only-no-agent)) | `python -m sentinel /init ACME_PORTAL` |
+
+No git, a locked-down machine or no internet? Every path, step by step, is in **[Install: choose your path](user_guide/06-installation-vscode.md)** and [Secure environments](user_guide/09-secure-environments.md).
+
+The rest of this page shows commands in chat form (`/init ...`). Add the prefix from the last column of the table for your tool. You can also ask in plain words, for example: *"Create a Sentinel project ACME_PORTAL from input/acme-request.md and tell me what is missing."*
+
+### 2. Try it on a sample request
+
+In the folder you run Sentinel from, create a folder `input/` and save this made-up request as `input/acme-request.md`:
+
+```markdown
+# ACME customer portal
+
+ACME wants a web portal where account holders see their open invoices.
+They log in with their customer number and download each invoice as a PDF.
+Overdue invoices should stand out. Payments stay out of this first version.
+The billing team owns the invoice data; it comes from the current billing system.
+Go-live is wanted before the end of the quarter.
+```
+
+Then run these five commands, one at a time:
+
+```text
+/doctor
+/init ACME_PORTAL
+/ingest ACME_PORTAL --source input/acme-request.md
+/brief ACME_PORTAL --profile UI --genesis greenfield
+/next ACME_PORTAL
+```
+
+1. `/doctor` checks your setup. You see the verdict `PASS`.
+2. `/init` creates the project folder `workspaces/ACME_PORTAL/`. You see its path. The project starts with health `DIRTY`, which is normal: nothing is known yet.
+3. `/ingest` reads the request and writes the list of open questions to `workspaces/ACME_PORTAL/01_discovery/gaps.md`. Open it: each question says why it matters and has an answer form.
+4. `/brief` tells Sentinel, once, what kind of system this is: a user interface (`UI`) on a new build (`greenfield`). You see the path of the project brief, with a pending mark wherever an answer is missing. ([What these values mean](user_guide/00-user-guide.md#the-brief).)
+5. `/next` tells you what to do now: *Waiting for client answers.* Send the client the interview script, which you create with `/export ACME_PORTAL --artifact gaps --format interview`.
+
+> [!NOTE]
+> In a Claude Code clone, `/init` and `/doctor` can start Claude Code's own built-in commands instead of Sentinel's. If that happens, send `/sentinel /init ACME_PORTAL` or `/sentinel /doctor`. With the plugin, always type `sentinel /doctor`.
+
+When the client's answers come back, `/resolve-gaps ACME_PORTAL --source input/acme-answers.md` reads them. The [first run end to end](user_guide/00-user-guide.md#first-run-end-to-end) walks the whole project from here to test cases, with what you see at each step.
 
 ## How it works
 
@@ -45,207 +81,69 @@ flowchart LR
     SPLIT -.-> SPECS
 ```
 
-1. **Intake.** `/ingest` reads the request and writes `gaps.md`: one question per missing or ambiguous point, with why it matters.
-2. **Brief settings (once).** Right after the first `/ingest`, you confirm what kind of system it is: `/brief ACME_PORTAL --profile UI --genesis greenfield` ([profile and genesis](user_guide/00-user-guide.md#glossary)). `/next` asks for this step until you do it, with suggested values; see [what happens if you skip it](user_guide/00-user-guide.md#if-you-skip-the-brief-settings).
-3. **Answers.** The client or a domain owner answers the interview script exported from it (`/export --artifact gaps --format interview`); `/resolve-gaps` closes only what is confirmed, and the project brief recompiles with each answer.
-4. **Maturity.** `/maturity` says `READY_FOR_SPECS` when no blocking gap is left; otherwise you plan another question round.
-5. **Downstream.** `/specs`, `/backlog` and `/quality` derive the [PRD](user_guide/00-user-guide.md#glossary) (product requirements document), stories and test cases, all traced.
+1. **You load what the client gave you.** Sentinel keeps a copy in the project folder, masks anything that looks like a password or key, and lists every missing or unclear point as a question, called a **gap**.
+2. **You confirm what kind of system it is**, once: its profile (screens, API, batch, ...) and whether it is new or changes an existing system. Sentinel proposes the values; you decide.
+3. **You send the questions to the client** as an interview script. Each answer comes back under its question.
+4. **Sentinel reads the answers.** Only a confirmed answer closes a question. Each one fills its place in the project brief; whatever is still unknown stays visible as a pending mark, never a guess.
+5. **Sentinel checks maturity.** When no blocking question is left, the requirement is ready for specs. If not, you plan another round of questions.
+6. **Sentinel writes the PRD, the backlog and the test cases**, each linked back to the answers and sources it came from.
+7. **Changes keep coming.** A meeting note or an email goes through `/sync`, which records it as a change and shows what it affects, instead of silent scope creep. A project too big for one delivery can be split into releases.
 
-Changes keep flowing in: `/sync` turns a meeting note or an email into a traced change instead of silent scope creep.
+At every point, `/next` tells you the one thing to do, and a command that cannot run yet says why and what to run first.
 
-## Choose your path
+## Commands at a glance
 
-| You use | Install | Then type |
-|---|---|---|
-| Claude Code (terminal, VS Code or desktop app), least setup | Plugin from the marketplace `jmatzkin1980/ignite-sentinel#stable` | `sentinel /init ACME_PORTAL` |
-| Claude Code, every command as `/command` | Clone the repository | `/init ACME_PORTAL` |
-| Codex | Clone the repository | `sentinel /init ACME_PORTAL` |
-| Kilo Code | Clone the repository | `/init ACME_PORTAL` |
-| A terminal only | Clone, or install the wheel | `python -m sentinel /init ACME_PORTAL` |
-
-Step-by-step instructions for every path, including offline and locked-down machines: **[Install: choose your path](user_guide/06-installation-vscode.md)**.
-
-You need Python 3.10 or newer and nothing else. Optional extras: `.[memory]` (local LanceDB retrieval), `.[memory-semantic]` (local embeddings; `.[embeddings]` installs the same packages), `.[mcp]` (MCP server).
-
-Good to know before you start:
-
-- **One folder per client, one workspace per project.** The folder you open is the root; each `/init` adds a project under `workspaces/`, and `/dashboard` shows every project of that root. See [organizing folders](user_guide/00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project).
-- **Updates.** With the plugin on `#stable`, a new release arrives through **Update marketplace** in `/plugin`; see [updating the plugin](user_guide/18-claude-plugin.md#updating-the-plugin). What changed is in the [CHANGELOG](CHANGELOG.md).
-- **The agent closes with a choice.** When something waits on you, it closes with one question and a few options, the recommended one first. Pick one or answer in your own words; picking never closes a gap for you.
-
-## Quick start: your first gaps document
-
-First create a folder `input/` in the folder you run Sentinel from (the repository root in a clone, your project folder with the plugin or the wheel; `workspaces/` will appear next to it). Save this synthetic request as `input/acme-request.md`:
-
-```markdown
-# ACME customer portal
-
-ACME wants a web portal where account holders see their open invoices.
-They log in with their customer number and download each invoice as a PDF.
-Overdue invoices should stand out. Payments stay out of this first version.
-The billing team owns the invoice data; it comes from the current billing system.
-Go-live is wanted before the end of the quarter.
-```
-
-**In chat** (Claude Code clone, Kilo Code; add the `sentinel ` prefix in Codex or with the plugin):
-
-```text
-/doctor
-/init ACME_PORTAL
-/ingest ACME_PORTAL --source input/acme-request.md
-/brief ACME_PORTAL --profile UI --genesis greenfield
-/next ACME_PORTAL
-```
-
-> [!NOTE]
-> In a Claude Code clone, `/init` can start Claude Code's own built-in project setup (it writes a `CLAUDE.md`) instead of Sentinel's. If that happens, send `/sentinel /init ACME_PORTAL`. Claude Code also has a built-in `/doctor`; if it answers instead of Sentinel, send `/sentinel /doctor`.
-
-**In a terminal:**
-
-```powershell
-python -m sentinel /doctor
-python -m sentinel /init ACME_PORTAL
-python -m sentinel /ingest ACME_PORTAL --source input/acme-request.md
-python -m sentinel /brief ACME_PORTAL --profile UI --genesis greenfield
-python -m sentinel /next ACME_PORTAL
-```
-
-What happens:
-
-1. `/doctor` checks Python and the repository files. `PASS` means go; a `WARN` about LanceDB is healthy. (With the plugin, the wheel or a `.pyz` it runs in runtime mode: it checks the interpreter, the folder and the optional extras, and skips the clone's files. With the Claude Code plugin, type `sentinel /doctor`: a bare `/doctor` is Claude Code's own diagnostic.)
-2. `/init` creates `workspaces/ACME_PORTAL/`. The project starts with health `DIRTY` and stage `DISCOVERY_RAW`. That is normal: nothing is known yet.
-3. `/ingest` copies a redacted version of the request (secrets masked) into the workspace and writes **`workspaces/ACME_PORTAL/01_discovery/gaps.md`**. Open it: each gap has a question, why it matters, what answering it unblocks, and an answer template. If the command stops with exit 3 and `--source file not found`, check the path: it is read relative to the folder you run Sentinel from.
-4. `/brief --profile --genesis` confirms, once, what kind of system this is (here a user interface on a new build), and compiles the project brief with a pending mark wherever an answer is missing. Do it right after the first `/ingest`; until then `/next` asks for it.
-5. `/next` prints the one next step. Right now it says *Waiting for client answers*. Send the client the interview script, not `gaps.md` (the working ledger): `/export ACME_PORTAL --artifact gaps --format interview` writes it to `08_context_packs/exports/gaps-interview.md`.
-
-Plain words work too: *"Create a Sentinel project ACME_PORTAL from input/acme-request.md and tell me what is missing."*
-
-> [!TIP]
-> When answers come back, the client fills, under each `### GAP-...` heading, the fields `Answer`, `Owner / source`, `Evidence or reference` and `Decision status` (`confirmed`, `pending` or `not applicable`); then run `/resolve-gaps ACME_PORTAL --source input/acme-answers.md`. The [user guide](user_guide/00-user-guide.md#first-run-end-to-end) walks the whole run from here to test cases.
-
-## Next steps by role
-
-- **Business analyst:** [concepts and first run](user_guide/00-user-guide.md), then [workflows](user_guide/03-workflows.md) (client answers, thin intake, changes), [scenarios](user_guide/12-scenarios.md), and [when something went wrong](user_guide/21-recovery.md).
-- **Product manager:** [concepts](user_guide/00-user-guide.md), [artifact views](user_guide/15-artifact-views.md), the [dashboard](user_guide/14-dashboard.md), and [release split](user_guide/03-workflows.md#release-split).
-- **Developer:** [command reference](user_guide/01-command-reference.md), [artifact reference](user_guide/02-artifact-reference.md), [backlog workflow](user_guide/03-workflows.md#backlog-refinement-and-story-status), [traceability and memory](user_guide/05-traceability-and-memory.md), and the MCP server in [chat and MCP](user_guide/11-chat-commands.md).
-
-## All commands
-
-Every command takes the project id first (except `/doctor` and `/dashboard`). Flags, outputs and refusals are in the [command reference](user_guide/01-command-reference.md).
-
-**Setup**
-
-| Command | Purpose |
+| To... | Run |
 |---|---|
-| `/doctor` | Check Python, repository files, skills, adapters and optional extras. |
-| `/init` | Create a project workspace (brief v2 by default; `--brief-version 1` keeps v1). |
-| `/dashboard` | Write a read-only HTML portfolio of all workspaces (`--theme` to restyle). |
+| Check that Sentinel works | `/doctor` |
+| Start a project | `/init ACME_PORTAL` |
+| Load the client's request | `/ingest ACME_PORTAL --source input/acme-request.md` |
+| Confirm what kind of system it is (once) | `/brief ACME_PORTAL --profile UI --genesis greenfield` |
+| Know what to do next | `/next ACME_PORTAL` |
+| Get the questions to send to the client | `/export ACME_PORTAL --artifact gaps --format interview` |
+| Process the client's answers | `/resolve-gaps ACME_PORTAL --source input/acme-answers.md` |
+| Bring in a meeting note, an email or a new document version | `/sync ACME_PORTAL --source input/meeting-notes.md` |
+| Check whether it is ready for specs | `/maturity ACME_PORTAL` |
+| Write the PRD, the backlog and the test cases | `/specs ACME_PORTAL`, then `/backlog ACME_PORTAL`, then `/quality ACME_PORTAL` |
+| See where the project stands | `/status ACME_PORTAL` |
+| Review a document in your browser | `/view ACME_PORTAL --artifact brief` |
+| See all projects of this client | `/dashboard` |
 
-**Discover**
+Every command, with its options and what it refuses, is in the [command reference](user_guide/01-command-reference.md). What to do in each situation (the client answered, a change arrived, a command refused) is in [Workflows](user_guide/03-workflows.md), and complete examples are in [Scenarios](user_guide/12-scenarios.md).
 
-| Command | Purpose |
-|---|---|
-| `/ingest` | Load a source (`.md`, `.txt`, `.html`, `.docx`), redact secrets, register it, open gaps. |
-| `/sync` | Turn new or changed information into traced change; `--digest` for raw mail or chat threads. |
-| `/harvest` | Load a tagged harvest of an existing codebase as evidence of what is already built. |
-| `/sources` | List the source registry (F-NN rows); say which version governs, settle precedence, write the closing report. |
-| `/gaps` | Regenerate `gaps.md`; `--top N` plans the next question round; `--id --disposition` records your call on an agent gap. |
-| `/annotate` | Merge agent-found semantic gaps, each with a verbatim quote. |
-| `/challenge` | Merge stress-test findings (pre-mortem, role-play, assumption inversion). |
-| `/scrutinize` | Merge lens-by-lens scrutiny against raw input and domain context. |
-| `/assume` | Register a BA-owned assumption with risk, uncertainty and cited basis. |
-| `/stakeholders` | Register who owns which topic, so each gap routes to a person. |
-| `/resolve-gaps` | Process answered gaps; close only confirmed answers; recompile the v2 brief. |
-| `/context-request` | Ask Technology, Design, Quality, Frontend or Backend for context; track each request. |
-| `/retrieve` | Pull a focused slice of context for an agent instead of the whole workspace. |
-| `/reindex` | Rebuild local retrieval memory from the workspace files. |
+## Good to know
 
-**Define**
+- **One folder per client, one workspace per project.** The folder you open is the root; each `/init` adds a project under its `workspaces/` folder, and `/dashboard` shows every project of that root. See [organizing folders](user_guide/00-user-guide.md#organizing-folders-one-per-client-one-workspace-per-project).
+- **Do not edit Sentinel's documents by hand.** The brief, the gaps list, the specs and the backlog change only through their command; fix the answer or the evidence instead. See [what you may edit](user_guide/00-user-guide.md#what-you-may-edit).
+- **Updates.** With the plugin, a new release arrives through **Update marketplace** in `/plugin`; see [updating the plugin](user_guide/18-claude-plugin.md#updating-the-plugin).
+- **The assistant closes with a choice.** When something waits on you, it ends with one question and a few options, the recommended one first. Pick one or answer in your own words; picking never closes a gap for you.
+- **Something went wrong?** A wrong file, a wrong answer, a refusal you do not understand: see [When something went wrong](user_guide/21-recovery.md) and [a gate refused](user_guide/03-workflows.md#a-gate-refused).
 
-| Command | Purpose |
-|---|---|
-| `/maturity` | Decide whether discovery is ready for specs; rewrite the readiness matrix and the brief. |
-| `/brief` | Compile the project brief; on a new project, confirm `--profile` and `--genesis` first. |
-| `/self-review` | Register a skeptical review; `--sufficiency` asks "is the brief enough to build?". |
-| `/split` | Plan a release series: `--assess`, `--propose`, `--confirm`, `--move`, `--close`. |
-| `/prototype` | Inventory an HTML prototype, trace each screen, write its user manual. |
-
-**Specify**
-
-| Command | Purpose |
-|---|---|
-| `/specs` | Generate the PRD, the spec index and bounded spec units. |
-| `/compose` | Merge agent-written PRD prose, each paragraph cited. |
-| `/export` | Export gaps, brief, PRD or a context request; drafts are stamped, `--final` refuses while blocking marks remain. |
-
-**Backlog**
-
-| Command | Purpose |
-|---|---|
-| `/backlog` | Derive epics, stories, acceptance criteria and the slice plan from the spec units. |
-| `/backlog-status` | Refresh the BA board `04_backlog/BACKLOG.md`. |
-| `/story-status` | Move a story through its lifecycle with Definition of Ready and Done checks. |
-| `/refine-backlog` | Merge cited agent refinement proposals for BA review. |
-| `/implementation-feedback` | Bring findings from implementation back as traced gaps and Done checks. |
-| `/quality` | Score stories and write test cases and the readiness audit. |
-
-**Verify**
-
-| Command | Purpose |
-|---|---|
-| `/trace` | Rewrite the traceability matrix and graph. |
-| `/health` | Audit blockers, staleness and hand edits of governed files. |
-| `/validate` | Check structure; quality findings are warnings. Exit 5 when not `VALID`. |
-| `/status` | The readiness verdict, gap counts and next step; `--full` for the detail. |
-| `/next` | The next step alone. |
-| `/view` | Write a read-only HTML view of one of 11 artifacts (gaps, brief, PRD, readiness, ...). |
-
-Release-aware commands take `--release rN` once a series is confirmed: `/specs`, `/backlog`, `/quality`, `/story-status`, `/trace`, `/validate`, `/status`, `/next`, `/view`.
-
-## When a command refuses
-
-Every failure prints the reason, and a `next step:` line when the runtime knows it. The exit code tells you the kind of problem:
-
-| Code | Meaning | Typical fix |
-|---|---|---|
-| 0 | Success | Go on. |
-| 2 | Wrong usage | Fix the syntax (missing `--source`, unknown option). |
-| 3 | Invalid input | Fix the payload or the value the message names. A `--source` file that does not exist ends here too: check the path, it is read relative to the folder you run Sentinel from. So does a missing or damaged `state.json`: see [recovery](user_guide/21-recovery.md). |
-| 4 | Gate refusal | A missing prerequisite or the project's state stops the command: run the step the message names, or `/next`. |
-| 5 | Unfavourable verdict | `/validate` is not `VALID` or `/doctor` is not `PASS`: read the findings. |
-| 6 | Workspace busy | Another command holds the workspace; wait and retry. |
-| 1 | Unexpected error, with a traceback | A genuine bug; report it with the traceback. |
-
-The full troubleshooting flow is in [workflows](user_guide/03-workflows.md#a-gate-refused).
-
-## Documentation
+## Learn more
 
 | Page | For |
 |---|---|
-| [00 Start here](user_guide/00-user-guide.md) | Concepts, glossary, first run end to end |
-| [01 Command reference](user_guide/01-command-reference.md) | Every command: syntax, options, outputs, refusals |
-| [02 Artifact reference](user_guide/02-artifact-reference.md) | Every generated file and who may change it |
+| [00 Start here](user_guide/00-user-guide.md) | Concepts, first run end to end, glossary |
 | [03 Workflows](user_guide/03-workflows.md) | What to do in each situation |
-| [04 Skills catalog](user_guide/04-codex-skills-guide.md) | The 27 agent skills |
-| [05 Traceability and memory](user_guide/05-traceability-and-memory.md) | Graph, matrix, retrieval, context packs |
-| [06 Install](user_guide/06-installation-vscode.md) | Choose your path |
-| [07 Kilo Code](user_guide/07-kilo-code-adapter.md) · [08 Codex](user_guide/08-codex-adapter.md) · [13 Claude Code](user_guide/13-claude-adapter.md) | Using Sentinel on that surface |
-| [09 Secure environments](user_guide/09-secure-environments.md) | Offline, VDI, approved installs |
-| [10 Versioning workspaces](user_guide/10-repo-and-branching-strategy.md) | Keeping your projects in git |
-| [11 Chat and MCP](user_guide/11-chat-commands.md) | Driving Sentinel from chat; intent to command |
 | [12 Scenarios](user_guide/12-scenarios.md) | Worked examples |
-| [14 Dashboard](user_guide/14-dashboard.md) · [15 Artifact views](user_guide/15-artifact-views.md) · [17 Themes](user_guide/17-themes.md) | HTML views and their look |
-| [16 Portability](user_guide/16-portability.md) | No-install mode, `.pyz`, environment matrix |
-| [18 Claude Code plugin](user_guide/18-claude-plugin.md) | Plugin install, channels, archive |
-| [19 Threat model](user_guide/19-threat-model.md) · [20 Admin guide](user_guide/20-admin-guide.md) | Security review and managed settings |
+| [11 Chat and MCP](user_guide/11-chat-commands.md) | Driving Sentinel from chat; plain words to commands |
+| [14 Dashboard](user_guide/14-dashboard.md) · [15 Artifact views](user_guide/15-artifact-views.md) · [17 Themes](user_guide/17-themes.md) | HTML pages to review with the client and the team |
 | [21 When something went wrong](user_guide/21-recovery.md) | Wrong file or answer, hand edits, lost or damaged files, refusals |
+| [06 Install](user_guide/06-installation-vscode.md) | Choose your path |
+| [07 Kilo Code](user_guide/07-kilo-code-adapter.md) · [08 Codex](user_guide/08-codex-adapter.md) · [13 Claude Code](user_guide/13-claude-adapter.md) · [18 Claude Code plugin](user_guide/18-claude-plugin.md) | Using Sentinel in that tool |
+| [01 Command reference](user_guide/01-command-reference.md) | Every command: options, outputs, refusals, exit codes |
+| [02 Artifact reference](user_guide/02-artifact-reference.md) | Every file Sentinel writes and who may change it |
+| [04 Skills catalog](user_guide/04-codex-skills-guide.md) | The 27 assistant skills |
+| [05 Traceability and memory](user_guide/05-traceability-and-memory.md) | Links between items, search, context packs |
+| [10 Versioning workspaces](user_guide/10-repo-and-branching-strategy.md) | Keeping your projects in git |
 
-## Security
+## For IT and security
 
-- [Security policy](SECURITY.md): how to report a vulnerability and supported versions.
+- [Secure environments](user_guide/09-secure-environments.md): offline machines, virtual desktops, approved installs, optional extras.
+- [Portability](user_guide/16-portability.md): modes without install, the single-file `.pyz`, and [a note for IT](user_guide/16-portability.md#a-note-for-it). An older note in Spanish: [PORTABILITY.md](PORTABILITY.md).
 - [Threat model](user_guide/19-threat-model.md): assets, threats, controls and how to verify each.
-- [Admin guide](user_guide/20-admin-guide.md): managed settings, pinning, retention, audit trail.
-- [IT portability note](PORTABILITY.md): an older note in Spanish for an IT or security review. The current English note is in [Portability](user_guide/16-portability.md#a-note-for-it).
+- [Admin guide](user_guide/20-admin-guide.md): managed settings, version pinning, retention, audit trail.
+- [Security policy](SECURITY.md): how to report a vulnerability, supported versions.
 
 Contributing to the framework itself? See [MAINTAINERS.md](MAINTAINERS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
