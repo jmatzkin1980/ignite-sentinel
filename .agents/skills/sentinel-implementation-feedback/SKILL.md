@@ -43,8 +43,8 @@ Field contract — the runtime rejects anything outside it, so copy it exactly:
 - `evidence`: required — feedback cannot be anonymous. Cite the concrete file, contract, error, or doc that grounds the finding.
 - `status`: `open` (default) or `resolved`.
 - `mark_stale`: optional; requires `source_units` so only the affected stories go `Stale`.
-- `gap_id`: optional for `type: gap`; defaults to the next free `GAP-FEEDBACK-NNN`.
-- `id`: optional; defaults to the next free `IFB-NNN`, after the ids of earlier runs. To resolve a finding, send it again with its `id` and `status: resolved`.
+- `gap_id`: optional for `type: gap`; defaults to the next free `GAP-FEEDBACK-NNN`. A finding sent again by its `id` keeps the gap it already opened, so you do not repeat `gap_id`.
+- `id`: optional; defaults to the next free `IFB-NNN`, after the ids of earlier runs. To resolve a finding, send it again with its `id` and `status: resolved`; its `GAP-FEEDBACK-*` row is marked `RESOLVED`.
 
 ## What Acceptance Triggers
 

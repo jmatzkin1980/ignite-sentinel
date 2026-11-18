@@ -154,6 +154,7 @@ def foundation_drift_warnings(project_id: str, phase: str) -> list[str]:
             warnings.append(
                 f"Foundation for /{phase} may be STALE: `{derived}` was generated before its "
                 f"source(s) changed ({', '.join(changed)}). Regenerate /{derived} through the CLI "
-                f"before relying on /{phase}, or confirm the change is immaterial. Nothing was rewritten."
+                f"before relying on /{phase}, or confirm the change is immaterial. Sentinel never "
+                f"regenerates `{derived}` on its own."
             )
     return warnings

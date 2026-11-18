@@ -97,6 +97,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
     )
+    resolution_results["findings"].extend(repeated_section_findings(responses))
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -169,6 +170,24 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     if brief_v2:
         result["brief_v2"] = brief_v2
     return result
+
+
+def repeated_section_findings(responses: dict[str, dict[str, str]]) -> list[str]:
+    """IMP-370: say when one gap was answered in several `### GAP-X` sections."""
+    findings: list[str] = []
+    for gap_id, response in responses.items():
+        sections = response.get("sections")
+        if not sections:
+            continue
+        if response.get("conflicting_status"):
+            findings.append(
+                f"{gap_id}: answered in {sections} sections with different decision statuses "
+                f"({response.get('decision_status', '')}); the answers were merged and the gap does not close. "
+                "Give one decision status for the whole answer."
+            )
+        else:
+            findings.append(f"{gap_id}: answered in {sections} sections; the answers were merged into one.")
+    return findings
 
 
 _TBD_IN_ANSWER = re.compile(r"(?<![\w-])(TBD|TBC|a definir|por definir|to be defined)(?![\w-])", re.I)
@@ -385,6 +404,41 @@ def _count_existing_ears(text: str) -> int:
     return len(re.findall(r"REQ-EARS-\d+", text))
 
 
+_EARS_SENTENCE_BREAK = re.compile(
+    r"(?<=[.;!?])\s+(?=(?:when|while|if|where|the|cuando|mientras|si|donde|el|la|los|las)\b)", re.I
+)
+
+
+def ears_statements(answer: str) -> list[tuple[str, str]]:
+    """IMP-370: the EARS statements in one answer, each with its pattern.
+
+    An answer may hold several "When ..., the system shall ..." sentences (or one
+    per indented bullet, joined with "; "). When two or more sentences are EARS each
+    becomes its own statement, and a non-EARS sentence stays attached to the EARS
+    sentence before it (or the first one) so nothing written is dropped. With fewer
+    than two, the whole answer is one statement, as before.
+    """
+    answer = answer.strip()
+    pieces = [piece.strip() for piece in _EARS_SENTENCE_BREAK.split(answer) if piece.strip()]
+    patterns = [classify_ears(piece.rstrip(";").strip()) for piece in pieces]
+    if sum(1 for pattern in patterns if pattern) < 2:
+        whole = classify_ears(answer)
+        return [(answer, whole)] if whole else []
+    statements: list[list[str]] = []
+    leading: list[str] = []
+    for piece, pattern in zip(pieces, patterns):
+        text = piece.rstrip(";").strip()
+        if pattern:
+            statements.append([text, pattern])
+        elif statements:
+            statements[-1][0] = f"{statements[-1][0]} {text}"
+        else:
+            leading.append(text)
+    if leading:
+        statements[0][0] = f"{statements[0][0]} {' '.join(leading)}"
+    return [(text, pattern) for text, pattern in statements]
+
+
 def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]], change_id: str) -> list[str]:
     """Normalize confirmed EARS-shaped answers into requirements.md (IMP-026).
 
@@ -395,9 +449,7 @@ def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]],
     candidates: list[tuple[dict[str, str], str, str]] = []
     for gap in closed:
         answer = (gap.get("answer") or "").strip()
-        pattern = classify_ears(answer)
-        if pattern:
-            candidates.append((gap, answer, pattern))
+        candidates.extend((gap, statement, pattern) for statement, pattern in ears_statements(answer))
     if not candidates:
         return []
     path = workspace_path(project_id) / "02_requirements" / "requirements.md"

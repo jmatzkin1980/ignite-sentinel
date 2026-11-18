@@ -67,7 +67,7 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     accepted_path = refinement_dir / "accepted_refinements.json"
     existing = read_json(accepted_path, [])
     existing_refinements = existing if isinstance(existing, list) else []
-    merged = [*existing_refinements, *accepted]
+    merged, unchanged = merge_refinements(existing_refinements, accepted)
     write_json(accepted_path, merged)
     render_backlog_refinements(base, merged)
     report_path = write_refinement_report(project_id, accepted, rejected, archived)
@@ -105,11 +105,50 @@ def apply_backlog_refinement(project_id: str, source: Path) -> dict[str, object]
     return {
         "refinement_id": refinement_id,
         "accepted": [item["id"] for item in accepted],
+        "unchanged": unchanged,
         "rejected": rejected,
         "source": str(archived.as_posix()),
         "report": str(report_path.as_posix()),
         "backlog": str(epic_path.as_posix()),
     }
+
+
+def _same_proposal(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    return {k: v for k, v in left.items() if k != "id"} == {k: v for k, v in right.items() if k != "id"}
+
+
+def merge_refinements(
+    existing: list[dict[str, Any]], accepted: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """IMP-370: accepting the same proposals again changes nothing.
+
+    A proposal already on record (same content) is not added a second time. A new
+    proposal whose default id (`BREF-NNN`, from its position in the file) is taken
+    gets the next free number. An explicit id already on record replaces that proposal.
+    Returns the merged list and the ids that were already on record unchanged.
+    """
+    merged = [dict(item) for item in existing if isinstance(item, dict)]
+    unchanged: list[str] = []
+    for proposal in accepted:
+        defaulted = bool(proposal.pop("_default_id", False))
+        twin = next((item for item in merged if _same_proposal(item, proposal)), None)
+        if twin is not None:
+            proposal["id"] = twin.get("id", proposal["id"])
+            unchanged.append(str(proposal["id"]))
+            continue
+        index = next((i for i, item in enumerate(merged) if item.get("id") == proposal["id"]), None)
+        if index is None:
+            merged.append(proposal)
+        elif defaulted:
+            used = {str(item.get("id")) for item in merged}
+            number = 1
+            while f"BREF-{number:03d}" in used:
+                number += 1
+            proposal["id"] = f"BREF-{number:03d}"
+            merged.append(proposal)
+        else:
+            merged[index] = proposal
+    return merged, unchanged
 
 
 def validate_refinement_proposals(
@@ -132,7 +171,10 @@ def validate_refinement_proposals(
         if reason:
             rejected.append({"id": proposal_id, "kind": str(proposal.get("kind", "?")), "reason": reason})
             continue
-        accepted.append(normalize_proposal(proposal, proposal_id))
+        normalized = normalize_proposal(proposal, proposal_id)
+        if not proposal.get("id"):
+            normalized["_default_id"] = True  # IMP-370: renumbered at merge time if the id is taken
+        accepted.append(normalized)
     return accepted, rejected
 
 
