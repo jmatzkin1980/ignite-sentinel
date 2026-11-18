@@ -78,13 +78,16 @@ class ThreatModelTests(unittest.TestCase):
 
     def test_storage_keys_match_the_views(self) -> None:
         text = _read(THREAT_MODEL)
-        scripts = _read(ROOT / "sentinel" / "themes" / "templates" / "view.js") + _read(
-            ROOT / "sentinel" / "themes" / "templates" / "shell.js"
-        ) + _read(ROOT / "sentinel" / "themes" / "templates" / "shell.html")
+        templates = ROOT / "sentinel" / "themes" / "templates"
+        # IMP-367: readiness.js stores its marks too
+        scripts = "".join(_read(templates / name) for name in ("view.js", "readiness.js", "shell.js", "shell.html"))
         cited = set(re.findall(r"`(ignite-sentinel:[a-z-]+)", text))
         self.assertTrue(cited, "the threat model names the localStorage keys")
         for key in cited:
             self.assertIn(f'"{key}', scripts, key)
+        # every key a view script stores is named in the threat model
+        stored = set(re.findall(r'"(ignite-sentinel:[a-z-]+)', scripts))
+        self.assertEqual(stored, cited)
 
 
 class CitationsExistTests(unittest.TestCase):

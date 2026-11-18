@@ -83,7 +83,7 @@ This view answers "what is missing, and from whom?". It is not built from one Ma
 /view ACME_PORTAL --artifact diagrams
 ```
 
-The diagrams view reads the **v2** brief. It fails with an error if the brief does not exist or if the workspace compiles brief v1.
+The diagrams view reads the **v2** brief. If the brief does not exist, it refuses with exit 4 and the next step "Run /brief PROJECT_ID first." If the workspace compiles brief v1, it fails with exit 3.
 
 | Card | From | Mermaid type |
 |---|---|---|

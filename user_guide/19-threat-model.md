@@ -26,6 +26,7 @@ Keys Sentinel stores in `localStorage`:
 |-----|---------|
 | `ignite-sentinel:view-feedback:<project>:<artifact>:<source>` | Feedback comments typed in a view, and the source digest they were written against |
 | `ignite-sentinel:view-guided-response:<project>:<artifact>:<source>` | Answers typed in a guided response view |
+| `ignite-sentinel:readiness:<project>` | Which requests of the readiness view the BA marked as handled (request ids only, no content; **Clear** in the view empties it) |
 | `ignite-sentinel:view-provenance` | Whether provenance is shown (a preference, no content) |
 | `ignite-sentinel:color-mode` | Light or dark (a preference, no content) |
 

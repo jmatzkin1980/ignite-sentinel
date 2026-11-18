@@ -65,7 +65,7 @@ python -m sentinel /doctor
 
 To give IT more to review, add the [threat model](19-threat-model.md) (what is protected and how to check each control), the [admin guide](20-admin-guide.md) (a managed settings policy for Claude Code, pinning a version, retention) and [SECURITY.md](../SECURITY.md). If you will install the plugin, say that it comes from GitHub (git, or HTTPS for the release archive).
 
-The same text in Spanish is in [PORTABILITY.md](../PORTABILITY.md) at the repository root.
+[PORTABILITY.md](../PORTABILITY.md) at the repository root is a short Spanish version for IT: the requirements, the install options (plugin, release archive, clone, wheel, `.pyz`), the hash-locked optional extras, data handling, the `/doctor` check and links to the threat model and admin guide. It is not a word-for-word translation of this note.
 
 ## What not to promise
 

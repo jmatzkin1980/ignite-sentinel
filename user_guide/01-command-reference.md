@@ -1511,7 +1511,7 @@ python -m sentinel /implementation-feedback ACME_PORTAL --source feedback.json
 
 **Reads.** The JSON and the stories.
 
-**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories.
+**Writes.** `07_changes/05_implementation_feedback/` (copy, `feedback_report.md`), `01_discovery/implementation_feedback_gaps.md` for `GAP-FEEDBACK-*`, `implementation_feedback` in `state.json`, the DoD item of affected stories. Runs accumulate: a finding without `id` gets the next free `IFB-NNN` and a gap without `gap_id` the next free `GAP-FEEDBACK-NNN`, so an earlier finding is never overwritten; sending a finding again with its `id` updates it (`status: resolved` closes it), and its row in `implementation_feedback_gaps.md` is marked `RESOLVED`, not deleted. Open findings set health `DIRTY`; once none is open, health is recomputed from the current findings, as `/health` does.
 
 **Refuses when.** Privacy scan in `block` mode → exit 4. No epic in `04_backlog/` (`/backlog` has not written one yet) → exit 4. A refused payload, or no finding accepted → exit 3; the message lists why each finding was refused and only `feedback_report.md` is written: gaps, stories, state and the graph are untouched.
 
@@ -1792,7 +1792,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **Writes.** `08_context_packs/views/<artifact>.html` (git-ignored). Comments in the feedback panel stay in the browser; their export uses the `/resolve-gaps` answer shape for gap markers and `/sync --source` for the rest.
 
-**Refuses when.** An unknown theme → exit 3. The artifact has not been generated yet → exit 4 with the next step "Run /next PROJECT_ID to see which command comes first".
+**Refuses when.** An unknown theme → exit 3. The artifact has not been generated yet → exit 4 with the next step "Run /next PROJECT_ID to see which command comes first". `diagrams` without a brief → exit 4 with the next step "Run /brief PROJECT_ID first."; `diagrams` on a workspace that compiles brief v1 → exit 3.
 
 **You get.** The view path.
 
