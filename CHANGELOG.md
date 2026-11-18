@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.16.1] — 2026-11-18
+
+H25: Workflows and Scenarios are written for a BA/PM who talks to the assistant in chat.
+
+### Changed
+
+- **Chat-first Workflows and Scenarios (IMP-380, IMP-381).** Every step now starts with what to tell the assistant in plain language ("Tell the assistant: …"), then what you will see and what it means. The equivalent terminal commands, exact messages and technical details are in a collapsed "In a terminal" block under each step. Scenarios keep their story: the situation, the steps, and what you have at the end.
+
 ## [0.16.0] — 2026-11-18
 
 H24: a guide any BA/PM can follow, and no dead ends on a real project. An audit of the user guide against the 0.15.0 code found 106 mismatches and a `/backlog` deadlock; live runs of every documented sequence found more. All are fixed, the README and the BA/PM pages are rewritten in plain language, and the diagrams are images that render everywhere.
