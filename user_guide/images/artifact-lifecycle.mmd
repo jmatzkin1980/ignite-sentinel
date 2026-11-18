@@ -1,0 +1,17 @@
+flowchart TD
+    ROOT["Workspace root: state.json, config, .sentinel/<br/>/init"]
+    ROOT --> RAW["00_raw/ - raw evidence<br/>/ingest, /sources, /harvest, /stakeholders"]
+    RAW --> DISC["01_discovery/ - gaps and reviews<br/>the four above, plus /resolve-gaps, /sync,<br/>/maturity and the review commands:<br/>/annotate, /challenge, /scrutinize,<br/>/assume, /self-review"]
+    DISC --> REQ["02_requirements/ - the brief<br/>/brief, /split, /prototype"]
+    REQ --> SPECS["03_specs/ - PRD and specs<br/>/specs, /compose"]
+    SPECS --> BACK["04_backlog/ - stories<br/>/backlog, /story-status, /refine-backlog"]
+    BACK --> QUAL["05_quality/ - test cases<br/>/quality"]
+    subgraph ALONG["Filled all along the way"]
+        direction TB
+        TRC["06_traceability/ - traceability<br/>/trace, /health"]
+        CHG["07_changes/ - change history<br/>/resolve-gaps, /sync"]
+        CTX["08_context_packs/ - packs, exports, views<br/>/context-request, /export, /view,<br/>/retrieve --write-pack"]
+        MEM["memory.lancedb/ - search index<br/>/reindex"]
+        TRC ~~~ CHG ~~~ CTX ~~~ MEM
+    end
+    QUAL ~~~ ALONG

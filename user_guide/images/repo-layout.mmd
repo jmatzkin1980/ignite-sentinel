@@ -1,0 +1,4 @@
+flowchart TD
+    A["input/<br/>staging folder for raw files"] -- "/ingest" --> B["workspaces/ACME_PORTAL/<br/>your project"]
+    B --> C[("Your private<br/>project repository")]
+    F["Sentinel framework clone"] -. "never holds client data" .- C

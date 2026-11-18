@@ -29,21 +29,8 @@ New words (gap, brief, PRD, profile, genesis, lens, spec unit, slice plan...) ar
 
 ## How it works
 
-```mermaid
-flowchart LR
-    IN["Intake<br/>/ingest, /harvest"] --> BRIEFSET["Brief settings, once<br/>/brief --profile --genesis"]
-    BRIEFSET --> GAPS["Gaps<br/>gaps.md"]
-    GAPS --> ANS["Answers<br/>/resolve-gaps<br/>(brief recompiles)"]
-    ANS --> MAT{"Maturity<br/>/maturity"}
-    MAT -- "blocking gaps remain" --> GAPS
-    MAT -- "ready" --> SPECS["Specs and PRD<br/>/specs"]
-    SPECS --> BACK["Backlog<br/>/backlog"]
-    BACK --> QUAL["Quality<br/>/quality"]
-    CHG["New info or a change<br/>/sync"] -.-> GAPS
-    PROTO["HTML prototype<br/>/prototype"] -.-> GAPS
-    MAT -. "too big for one release" .-> SPLIT["Release series<br/>/split"]
-    SPLIT -.-> SPECS
-```
+<!-- Diagram source: user_guide/images/readme-how-it-works.mmd (re-render with tools/render_doc_diagrams.py) -->
+![How Sentinel works: intake and brief settings produce gaps, answers go through a maturity check that loops back to the gaps until it is ready, then come the PRD and specs, the backlog and the test cases; changes, prototypes and release splits feed in on the side.](user_guide/images/readme-how-it-works.svg)
 
 1. **Intake.** `/ingest` reads the request and writes `gaps.md`: one question per missing or ambiguous point, with why it matters.
 2. **Brief settings (once).** Right after the first `/ingest`, you confirm what kind of system it is: `/brief ACME_PORTAL --profile UI --genesis greenfield` ([profile and genesis](user_guide/00-user-guide.md#glossary)). `/next` asks for this step until you do it, with suggested values; see [what happens if you skip it](user_guide/00-user-guide.md#if-you-skip-the-brief-settings).
