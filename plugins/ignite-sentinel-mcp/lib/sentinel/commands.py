@@ -258,6 +258,13 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 
 
+def _trace(p: argparse.ArgumentParser) -> None:
+    p.add_argument("project_id")
+    # IMP-369: record the BA review of a semantic change /health flagged (CHG-NNN)
+    p.add_argument("--reviewed", metavar="CHG-NNN")
+    p.add_argument("--reason", default="")
+
+
 def _reindex(p: argparse.ArgumentParser) -> None:
     p.add_argument("project_id")
     p.add_argument("--full", action="store_true")
@@ -307,7 +314,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("quality", MUTATING, _project_override, release=True),
     Command("health", READ_ONLY, _project),
     # IMP-306: /trace rewrites the traceability matrix and graph.
-    Command("trace", MUTATING, _project, release=True),
+    Command("trace", MUTATING, _trace, release=True),
     Command("validate", READ_ONLY, _project_override, release=True),
     Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}),
     Command("brief", MUTATING, _brief),

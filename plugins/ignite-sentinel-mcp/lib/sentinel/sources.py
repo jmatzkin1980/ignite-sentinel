@@ -23,6 +23,7 @@ from .core.io import write_text
 from .source_routing import (
     cascade_impact,
     closing_report,
+    default_authority,
     find_row_or_raise,
     mark_cell,
     render_closing_report,
@@ -126,10 +127,18 @@ def source_record(path: Path, status: str, event_id: str | None = None, source_i
     return record
 
 
-def open_source_row(project_id: str, path: Path, via: str, event_id: str | None = None) -> str:
-    """IMP-250a: open the F-NN row before a command crosses the source; returns its id."""
+def open_source_row(
+    project_id: str, path: Path, via: str, event_id: str | None = None, fallback_kind: str | None = None
+) -> str:
+    """IMP-250a: open the F-NN row before a command crosses the source; returns its id.
+
+    IMP-370: `fallback_kind` (the kind the /sync routing implies) gives the row its
+    authority when its folder would leave it `unclassified`.
+    """
     manifest = load_source_manifest(project_id)
     row = open_row(manifest, source_key(path), file_hash(path), via, event_id)
+    if fallback_kind and not row.get("authority") and row_authority(row) == "unclassified":
+        row["authority"] = default_authority(fallback_kind, source_key(path))
     seed_impact(row)  # IMP-250b: authority + impact matrix on first sight
     save_source_manifest(project_id, manifest)
     return str(row["id"])

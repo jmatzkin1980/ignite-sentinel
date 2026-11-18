@@ -155,10 +155,12 @@ def update_story_status(
     story_node = story_node_id(project_id, story_id)
     if story_node:
         add_edge(project_id, change_id, story_node, "updates_story_status")
-    if next_status != current_status and next_status in {"In Progress", "In Review", "Done"}:
-        from .hooks import mark_stale_stories_for_activity_divergence
-
-        mark_stale_stories_for_activity_divergence(project_id, story_id, change_id=change_id)
+    # IMP-369: a story's own progress no longer marks the Draft/Ready stories of its spec unit or
+    # domain Stale. Stale means "a source or spec changed under this story" (a /sync touching its
+    # spec unit, implementation feedback); a sibling moving forward changes neither, and marking
+    # them left health DIRTY on almost every sprint step.
+    # IMP-369: the CHG (and EV) nodes this command created are indexed by the postflight of
+    # every mutating command (memory.index_unindexed_nodes), so /health stays CLEAN.
     board = backlog_status(project_id)
 
     return {

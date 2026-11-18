@@ -228,7 +228,7 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
     for match in pattern.finditer(text):
         gap_id = match.group(1).strip()
         block = match.group(0)
-        responses[gap_id] = {
+        response = {
             "answer": extract_field(block, ("Respuesta", "Answer")),
             "owner": extract_field(block, ("Owner / fuente", "Owner / source")),
             "evidence": extract_field(block, ("Evidencia o referencia", "Evidence or reference")),
@@ -236,8 +236,47 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
         }
         closure = extract_field(block, ("Motivo de cierre", "Closure reason"))  # IMP-257, optional
         if closure:
-            responses[gap_id]["closure"] = closure
+            response["closure"] = closure
+        responses[gap_id] = merge_gap_response(responses[gap_id], response) if gap_id in responses else response
     return responses
+
+
+def _join_distinct(*values: str, sep: str = "; ") -> str:
+    parts: list[str] = []
+    for value in values:
+        for part in (p.strip() for p in str(value or "").split(sep)):
+            if part and part not in parts:
+                parts.append(part)
+    return sep.join(parts)
+
+
+def merge_gap_response(first: dict[str, str], second: dict[str, str]) -> dict[str, str]:
+    """IMP-370: a gap answered in two `### GAP-X` sections keeps both answers.
+
+    The answers are joined in file order; owner, evidence and closure reason keep
+    each distinct value. Decision statuses that disagree are both kept, which no
+    closure rule reads as confirmed, so the gap does not close on a mixed answer;
+    `sections` counts the sections and `conflicting_status` flags the mix.
+    """
+    def sentence(text: str) -> str:
+        text = text.strip()
+        return text if not text or text[-1] in ".!?;:" else text + "."
+
+    answers = [a for a in (first.get("answer", ""), second.get("answer", "")) if a.strip()]
+    merged = {
+        "answer": " ".join(sentence(a) for a in answers) if len(answers) > 1 else "".join(answers).strip(),
+        "owner": _join_distinct(first.get("owner", ""), second.get("owner", "")),
+        "evidence": _join_distinct(first.get("evidence", ""), second.get("evidence", "")),
+        "decision_status": _join_distinct(first.get("decision_status", ""), second.get("decision_status", "")),
+        "sections": str(int(first.get("sections", "1") or 1) + 1),
+    }
+    statuses = {s.strip().lower() for s in merged["decision_status"].split(";") if s.strip()}
+    if len(statuses) > 1:
+        merged["conflicting_status"] = "yes"
+    closure = _join_distinct(first.get("closure", ""), second.get("closure", ""))
+    if closure:
+        merged["closure"] = closure
+    return merged
 
 
 def extract_field(block: str, labels: tuple[str, ...]) -> str:

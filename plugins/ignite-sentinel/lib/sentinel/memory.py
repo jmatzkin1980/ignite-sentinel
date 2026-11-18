@@ -1259,6 +1259,57 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     }
 
 
+# Node types that are never indexed by design (see /health): acceptance criteria live
+# inside their story; a source synthesis repeats already-indexed raw sources (IMP-160).
+NOT_INDEXED_NODE_TYPES = frozenset({"acceptance_criteria", "source_synthesis"})
+
+
+def index_unindexed_nodes(project_id: str) -> list[str]:
+    """IMP-369: index the graph nodes a command added without indexing them.
+
+    /story-status (CHG, EV), /stakeholders --add (DISC) and other commands add a
+    graph node and left it out of memory, so /health turned DIRTY ("CHG-007 is
+    not indexed in memory.") until a manual /reindex. Postflight calls this after
+    every mutating command. It reads the memory index first and builds a broker
+    only when a node is missing, so a command that indexed its own nodes pays
+    nothing.
+    """
+    from .core.graph import load_graph
+
+    data = with_memory_paths(read_json(memory_path(project_id), {"chunks": [], "artifacts": [], "trace_edges": []}),
+                             lambda value: workspace_absolute(project_id, value))
+    indexed = {item.get("source_path") for item in data.get("artifacts", []) if isinstance(item, dict)}
+    missing = [
+        node for node in load_graph(project_id).get("nodes", [])
+        if node.get("path") and node["path"] not in indexed and node.get("type") not in NOT_INDEXED_NODE_TYPES
+        # Client sources are indexed only by /ingest, /sync and /reindex, so a
+        # source brought back with /sources --current returns on the next /reindex.
+        and node.get("type") not in CLIENT_SOURCE_NODE_TYPES
+        and Path(node["path"]).is_file() and Path(node["path"]).suffix.lower() in INDEXABLE_SUFFIXES
+    ]
+    if not missing:
+        return []
+    retired = retired_source_keys(project_id)
+    broker = ContextBroker(project_id)
+    done: list[str] = []
+    with broker.deferred_saves():
+        for node in missing:
+            path = Path(node["path"])
+            if retired and memory_key(project_id, path) in retired:
+                continue
+            broker.index_artifact(
+                node["id"],
+                node.get("type", "artifact"),
+                path,
+                path.read_text(encoding="utf-8"),
+                domain=node.get("domain", "product"),
+                trace_ids=[node["id"]],
+                client_source=node.get("type") in CLIENT_SOURCE_NODE_TYPES,
+            )
+            done.append(node["id"])
+    return done
+
+
 def _reindex_nodes(
     broker: ContextBroker, project_id: str, graph: dict[str, Any], full: bool, retired: set[str] | None = None
 ) -> tuple[list[str], list[str], list[str]]:

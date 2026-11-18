@@ -38,7 +38,9 @@ def apply_implementation_feedback(project_id: str, source: Path) -> dict[str, ob
     if not isinstance(data, dict):
         raise ImplementationFeedbackError("Implementation feedback source must be a JSON object with a findings array.")
     story_index = load_story_index(base)
-    accepted, rejected = validate_findings(data, story_index, existing_feedback_ids(project_id))
+    accepted, rejected = validate_findings(
+        data, story_index, existing_feedback_ids(project_id), existing_finding_gaps(project_id)
+    )
     # IMP-342: validated as written; stored and rendered redacted and neutralized
     accepted = sanitize_payload(base, accepted)
     rejected = sanitize_payload(base, rejected, verbatim_keys=("reason",))  # runtime prose: redacted only
@@ -138,10 +140,24 @@ def existing_feedback_ids(project_id: str) -> tuple[list[str], list[str]]:
     return list(findings), gap_ids
 
 
+def existing_finding_gaps(project_id: str) -> dict[str, str]:
+    """IMP-370: the gap each stored finding opened, by finding id."""
+    state = read_json(state_path(project_id), {})
+    payload = state.get("implementation_feedback", {}) if isinstance(state, dict) else {}
+    findings = payload.get("findings", {}) if isinstance(payload, dict) else {}
+    if not isinstance(findings, dict):
+        return {}
+    return {
+        str(finding_id): str(item["gap_id"])
+        for finding_id, item in findings.items() if isinstance(item, dict) and item.get("gap_id")
+    }
+
+
 def validate_findings(
     data: dict[str, Any],
     story_index: dict[str, dict[str, Any]],
     existing_ids: tuple[list[str], list[str]] = ([], []),
+    known_gaps: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     findings = data.get("findings")
     if not isinstance(findings, list) or not findings:
@@ -163,6 +179,10 @@ def validate_findings(
             rejected.append({"id": finding_id, "reason": reason})
             continue
         normalized = normalize_finding(finding, finding_id, story_index)
+        if normalized.get("gap_id") == "" and (known_gaps or {}).get(finding_id):
+            # IMP-370: a finding sent again by its id (to resolve it) keeps the gap it opened,
+            # instead of opening a new GAP-FEEDBACK and leaving the first one open.
+            normalized["gap_id"] = (known_gaps or {})[finding_id]
         if normalized.get("gap_id") == "":
             next_gap += 1
             normalized["gap_id"] = f"GAP-FEEDBACK-{next_gap:03d}"

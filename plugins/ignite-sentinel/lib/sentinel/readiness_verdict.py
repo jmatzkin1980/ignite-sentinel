@@ -262,6 +262,10 @@ def next_step(
         key = "fix_brief"
     elif stage in POST_BRIEF_STAGES and not has_brief:
         key = "brief_missing"  # IMP-325: a deleted brief used to be ignored past /brief
+    elif (dirty or _refresh_pending(project_id)) and (fixes := _health_fixes(project_id)):
+        # IMP-369: the same classification as the DIRTY gate of /backlog, so /next names the
+        # concrete command ("Run /specs, then /backlog.") instead of "fix what is unhealthy".
+        return health_fix_step(project_id, fixes)
     elif stage == "READY_FOR_SPECS":
         key = "specs"
     elif stage == "SPECS_BELOW_THRESHOLD":
@@ -291,9 +295,61 @@ def next_step(
     if key == "resolve_blocking" and assumed_blocking:
         text += ASSUMED_BLOCKING_NOTE.format(ids=", ".join(assumed_blocking))
     proposal = settings or {}
-    return {"key": key, "title": title, "text": text,
-            "command": command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
-                                      genesis=proposal.get("genesis", "greenfield"))}
+    command = command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
+                             genesis=proposal.get("genesis", "greenfield"))
+    return {"key": key, "title": title, "text": text, "command": release_scoped_command(command)}
+
+
+def release_scoped_command(command: str) -> str:
+    """IMP-370: inside a release scope, a suggested release command keeps `--release rN`.
+
+    `/next --release r1` used to suggest `/validate ACME_CLAIMS`, which runs over the
+    whole workspace. Commands that take no `--release` (/resolve-gaps, /gaps...) stay as they are.
+    """
+    from .commands import RELEASE_COMMANDS
+    from .release_scope import active_release
+
+    release = active_release()
+    if not release or "--release" in command:
+        return command
+    verb = command.split(" ", 1)[0].lstrip("/")
+    return f"{command} --release {release}" if verb in RELEASE_COMMANDS else command
+
+
+HEALTH_FIX_TITLES = {
+    "reindex": "Index what the last commands recorded",
+    "gaps": "Close the blocking questions",
+    "feedback": "Settle the open implementation feedback",
+    "stale": "Review the Stale stories",
+    "chain": "Regenerate what the change made stale",
+    "review": "Review the semantic change",
+    "other": "Fix what makes the project unhealthy",
+}
+
+
+def _refresh_pending(project_id: str) -> bool:
+    from .protocols import downstream_refresh_pending
+
+    return downstream_refresh_pending(project_id)
+
+
+def _health_fixes(project_id: str) -> list[dict[str, Any]]:
+    from .health import health_fixes
+
+    return health_fixes(project_id)
+
+
+def health_fix_step(project_id: str, fixes: list[dict[str, Any]]) -> dict[str, str]:
+    """IMP-369: the next step while health is DIRTY: each fix in order, the first command to run."""
+    first = fixes[0]
+    command = first["steps"][0]
+    if " " not in command:  # the regeneration chain names bare commands (/brief, /specs, /backlog)
+        command = f"{command} {project_id}"
+    steps = " ".join(f"{number}. {fix['label']} {fix['fix']}" for number, fix in enumerate(fixes, start=1))
+    text = ("Health is DIRTY, so /backlog, /quality and /refine-backlog refuse until this is done. "
+            + (steps if len(fixes) > 1 else f"{first['label']} {first['fix']}"))
+    return {"key": "health", "title": HEALTH_FIX_TITLES.get(first["kind"], HEALTH_FIX_TITLES["other"]),
+            "text": text, "command": command}
 
 
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:

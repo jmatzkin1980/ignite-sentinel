@@ -97,6 +97,7 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
     )
+    resolution_results["findings"].extend(repeated_section_findings(responses))
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -124,12 +125,18 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     update_gap_report_node_status(project_id, resolution_results["counts"])
 
     broker = ContextBroker(project_id)
+    # IMP-369: a file whose answers moved no gap (every id unknown, or every answer left
+    # its gap where it was) changes nothing downstream; it must not mark the brief,
+    # specs and backlog stale.
+    before_status = {gap["id"]: str(gap.get("status", "")).upper() for gap in existing}
+    moved = any(before_status.get(gap["id"]) != str(gap.get("status", "")).upper() for gap in resolution_results["gaps"])
     metabolism = metabolize_knowledge(
         project_id,
         change_id,
         source_text=text,
         validated_gap_ids={item["id"] for item in resolution_results["closed"]},
         broker=broker,
+        record_staleness=moved,
     )
     write_text(report_path, render_resolution_report(project_id, change_id, resolution_results, metabolism))
     broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id], client_source=True)
@@ -152,7 +159,11 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     # IMP-253b: in a v2 project the answers rewrite their places in the brief now
     from .compilers.brief_v2 import rewrite_after_gap_close
 
+    brief_path = base / "02_requirements" / "project-brief.md"
+    brief_before = brief_path.read_bytes() if brief_path.exists() else b""
     brief_v2 = rewrite_after_gap_close(project_id, [item["id"] for item in resolution_results["closed"]])
+    if brief_v2 and brief_path.exists() and brief_path.read_bytes() != brief_before:
+        mark_downstream_of_rewritten_brief(project_id, change_id)
     result = {
         "change_id": change_id,
         "gap_resolution_report_id": report_id,
@@ -169,6 +180,56 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     if brief_v2:
         result["brief_v2"] = brief_v2
     return result
+
+
+def mark_downstream_of_rewritten_brief(project_id: str, change_id: str) -> None:
+    """IMP-369: the answers rewrote the brief v2, so what was generated from it is stale.
+
+    The brief itself is fresh (this command just compiled it), so it leaves the
+    marker; the PRD, specs and backlog stay until regenerated. Without a marker
+    (no knowledge unit moved) /backlog used to run on specs older than the brief
+    with only a foundation warning; now it refuses with "Run /specs, then /backlog."
+    """
+    from .health import pending_stale_artifacts
+    from .knowledge.metabolism import downstream_stale_artifacts
+
+    base = workspace_path(project_id)
+    brief = (base / "02_requirements" / "project-brief.md").as_posix()
+    state = read_json(state_path(project_id), {})
+    marker = state.get("knowledge_staleness", {})
+    marker = marker if isinstance(marker, dict) else {}
+    artifacts = [str(item) for item in marker.get("downstream_artifacts", []) if item]
+    if artifacts and marker.get("recorded_at") and pending_stale_artifacts(project_id):
+        kept = [item for item in artifacts if Path(item).as_posix() != brief]
+        if kept != artifacts:
+            update_state(project_id, knowledge_staleness={**marker, "downstream_artifacts": kept})
+        return
+    downstream = [item for item in downstream_stale_artifacts(base) if Path(item).as_posix() != brief]
+    if downstream:
+        update_state(project_id, knowledge_staleness={
+            "change_id": change_id,
+            "impacted_knowledge_units": [],
+            "downstream_artifacts": downstream,
+            "recorded_at": utc_now(),
+        })
+
+
+def repeated_section_findings(responses: dict[str, dict[str, str]]) -> list[str]:
+    """IMP-370: say when one gap was answered in several `### GAP-X` sections."""
+    findings: list[str] = []
+    for gap_id, response in responses.items():
+        sections = response.get("sections")
+        if not sections:
+            continue
+        if response.get("conflicting_status"):
+            findings.append(
+                f"{gap_id}: answered in {sections} sections with different decision statuses "
+                f"({response.get('decision_status', '')}); the answers were merged and the gap does not close. "
+                "Give one decision status for the whole answer."
+            )
+        else:
+            findings.append(f"{gap_id}: answered in {sections} sections; the answers were merged into one.")
+    return findings
 
 
 _TBD_IN_ANSWER = re.compile(r"(?<![\w-])(TBD|TBC|a definir|por definir|to be defined)(?![\w-])", re.I)
@@ -385,6 +446,41 @@ def _count_existing_ears(text: str) -> int:
     return len(re.findall(r"REQ-EARS-\d+", text))
 
 
+_EARS_SENTENCE_BREAK = re.compile(
+    r"(?<=[.;!?])\s+(?=(?:when|while|if|where|the|cuando|mientras|si|donde|el|la|los|las)\b)", re.I
+)
+
+
+def ears_statements(answer: str) -> list[tuple[str, str]]:
+    """IMP-370: the EARS statements in one answer, each with its pattern.
+
+    An answer may hold several "When ..., the system shall ..." sentences (or one
+    per indented bullet, joined with "; "). When two or more sentences are EARS each
+    becomes its own statement, and a non-EARS sentence stays attached to the EARS
+    sentence before it (or the first one) so nothing written is dropped. With fewer
+    than two, the whole answer is one statement, as before.
+    """
+    answer = answer.strip()
+    pieces = [piece.strip() for piece in _EARS_SENTENCE_BREAK.split(answer) if piece.strip()]
+    patterns = [classify_ears(piece.rstrip(";").strip()) for piece in pieces]
+    if sum(1 for pattern in patterns if pattern) < 2:
+        whole = classify_ears(answer)
+        return [(answer, whole)] if whole else []
+    statements: list[list[str]] = []
+    leading: list[str] = []
+    for piece, pattern in zip(pieces, patterns):
+        text = piece.rstrip(";").strip()
+        if pattern:
+            statements.append([text, pattern])
+        elif statements:
+            statements[-1][0] = f"{statements[-1][0]} {text}"
+        else:
+            leading.append(text)
+    if leading:
+        statements[0][0] = f"{statements[0][0]} {' '.join(leading)}"
+    return [(text, pattern) for text, pattern in statements]
+
+
 def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]], change_id: str) -> list[str]:
     """Normalize confirmed EARS-shaped answers into requirements.md (IMP-026).
 
@@ -395,9 +491,7 @@ def materialize_ears_requirements(project_id: str, closed: list[dict[str, str]],
     candidates: list[tuple[dict[str, str], str, str]] = []
     for gap in closed:
         answer = (gap.get("answer") or "").strip()
-        pattern = classify_ears(answer)
-        if pattern:
-            candidates.append((gap, answer, pattern))
+        candidates.extend((gap, statement, pattern) for statement, pattern in ears_statements(answer))
     if not candidates:
         return []
     path = workspace_path(project_id) / "02_requirements" / "requirements.md"
