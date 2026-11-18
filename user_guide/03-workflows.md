@@ -1,4 +1,4 @@
-﻿# Workflows
+# Workflows
 
 This page tells you what to do in each situation you meet on a real project, from the first request to the handoff and after it. It is written for business analysts and product managers. If you have not run Sentinel yet, start with [Start here](00-user-guide.md); for longer worked examples, see [Scenarios](12-scenarios.md).
 
@@ -42,52 +42,90 @@ This page tells you what to do in each situation you meet on a real project, fro
 
 **When this happens.** The first real input arrives: a request, a brief, a guide or a set of notes.
 
-**What to do.**
+**What to do.** Talk to your assistant in plain language, one step at a time. The commands are only for people who work in a terminal; each step has them in a collapsed block.
 
-1. Create the project and load the request. `/init` creates the project folder (the *workspace*). `/ingest` reads the request, keeps a copy with secrets masked, and writes the list of open questions (the *gaps*, in `01_discovery/gaps.md`).
+1. Create the project and load the request.
+
+   **Tell the assistant:** "We just got a request from ACME for a customer portal. Start a project called ACME_PORTAL and read this request: input/acme-request.md."
+
+   **You'll see:** The assistant confirms that the project is created and that it read the request. It tells you how many open questions (the *gaps*) it found and that it kept a copy of the request with any secrets masked.
+
+   **What it means:** The project now has a place to keep everything, and the questions the request left unanswered are written down so none is forgotten.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /init ACME_PORTAL
    /ingest ACME_PORTAL --source input/acme-request.md
    ```
 
-   In a Claude Code clone, if `/init` starts Claude Code's own project setup (it writes a `CLAUDE.md`), send `/sentinel /init ACME_PORTAL` instead.
+   In a Claude Code clone, if `/init` starts Claude Code's own project setup, send `/sentinel /init ACME_PORTAL` instead.
+   </details>
 
-2. Say what kind of system this is, once. The *profile* says what the brief must cover (here a user interface); the *genesis* says whether you build from scratch or change an existing system. Sentinel then writes the project brief, with a pending mark wherever an answer is missing.
+2. Say what kind of system this is, once.
+
+   **Tell the assistant:** "It's a new web portal built from scratch, with a user interface. Write the project brief."
+
+   **You'll see:** The assistant writes the project brief and tells you that some parts are marked as pending, wherever the request does not give an answer yet. If you were not sure what kind of system it is, it first asks you to confirm the settings and proposes values taken from the request.
+
+   **What it means:** The *profile* says what the brief must cover (here, a user interface); the *genesis* says whether you build from scratch or change an existing system. The pending marks are the places the client still has to answer.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /brief ACME_PORTAL --profile UI --genesis greenfield
    ```
 
-   If you are not sure of the values, run `/next ACME_PORTAL` first: until you confirm them it answers *Confirm the brief settings* and proposes values taken from the request.
+   If you are not sure of the values, run `/next ACME_PORTAL` first: until you confirm them it answers *Confirm the brief settings* and proposes values from the request.
+   </details>
 
 3. Ask what to do next.
+
+   **Tell the assistant:** "What should I do next on ACME_PORTAL?"
+
+   **You'll see:** *Waiting for client answers*. The assistant tells you to send the client the interview script (the list of open questions, ready to send) and to come back when the answers arrive.
+
+   **What it means:** Sentinel has done what it can until the client replies. Go to [The request is only a few lines long](#the-request-is-only-a-few-lines-long) to plan the first round of questions.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /next ACME_PORTAL
    ```
+   </details>
 
-   You see *Waiting for client answers* and the text "Send the client the interview script (/export --artifact gaps --format interview) and run /resolve-gaps when answers return." That means Sentinel has done what it can until the client replies. Go to [The request is only a few lines long](#the-request-is-only-a-few-lines-long) to plan the first round of questions.
+4. Load every later file (a guide, meeting notes, a prototype) as a new source, never as a second request.
 
-4. Load every later file (a guide, meeting notes, a prototype) with `/sync`, never with a second `/ingest`:
+   **Tell the assistant:** "Add this billing guide to the project as a new source: input/billing-guide.md."
+
+   **You'll see:** The assistant confirms the file was added and says what it changed in what the project knows.
+
+   **What it means:** The project learns from the new file without replacing the first request or reopening questions already answered.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /sync ACME_PORTAL --source input/billing-guide.md
    ```
+   </details>
 
-**How you know it worked.** `workspaces/ACME_PORTAL/01_discovery/gaps.md` exists and lists questions. `/next` no longer asks for the brief settings. `02_requirements/project-brief.md` exists, with pending marks such as `⏳ PENDING (GAP-SCOPE)`.
+**How you know it worked.** The assistant can show you a list of open questions for the project. Asking "what next?" no longer asks you to confirm the brief settings. The project brief exists, with pending marks where an answer is missing.
 
 **If something goes wrong.**
 
-- `--source file not found`: the path is read from the folder you run Sentinel from. Check it.
-- A second `/ingest` is refused, because it would replace the first request and reopen every answered question. Use `/sync` for later files. To replace the first request on purpose, add `--replace` (see [When something went wrong](21-recovery.md#a-wrong-file-was-ingested)).
-- `/brief` with an unknown profile or genesis stops and lists the valid values. Several profiles go together as `--profile UI,REG`.
-- If you skip step 2, `/next` and `/status` keep asking for it, and `/specs` and `/backlog` refuse.
+- The assistant says it cannot find the file: the path is read from the folder you work in. Check the name and where the file is.
+- The assistant refuses to load a second request as the first one: that would replace the original and reopen every answered question. Tell it the file is an additional source instead. If you really want to replace the first request, say so explicitly (see [When something went wrong](21-recovery.md#a-wrong-file-was-ingested)).
+- The assistant stops on the kind of system and lists the valid options: pick one of them. You can combine several, for example a user interface and a regulatory one.
+- If you skip step 2, the assistant keeps asking for it, and refuses to write the specs or the backlog.
 
-<details><summary>For the technical reader</summary>
+<details><summary>In a terminal</summary>
+
+- `--source file not found`: the path is read from the folder you run Sentinel from.
+- A second `/ingest` is refused. Use `/sync` for later files. To replace the first request on purpose, add `--replace`.
+- `/brief` with an unknown profile or genesis stops and lists the valid values. Several profiles go together as `--profile UI,REG`.
+- Without step 2, `/next` and `/status` keep asking for it, and `/specs` and `/backlog` refuse.
 
 A binary file that is not `.docx` (a PDF, a corrupt Word file) is refused with exit 3; convert it to Markdown. Other UTF-8 text files are stored as Markdown with a warning. A `MIG` profile needs `--genesis brownfield-replacement`; a contradictory pair keeps `GAP-BRIEF-PROFILE` open. Older projects can keep the earlier brief format with `/init ACME_PORTAL --brief-version 1` (11 sections, no pending-mark places).
-
 </details>
 
 <a id="thin-intake"></a>
@@ -494,25 +532,49 @@ Authorities: `minutes`, `decision_record`, `tech_lead`, `built`, `prototype`, `p
 
 **When this happens.** The backlog is written, and a decision changes what the project knows: an assumption proven wrong, a new data source, a changed rule.
 
-**What to do.**
+**What to do.** Tell the assistant about the change, then let it walk you through the steps. It always knows which step is next.
 
-1. Load the decision:
+1. Load the decision.
+
+   **Tell the assistant:** "The sponsor sent a note that changes the scope: input/sponsor-note.md. Add it to ACME_PORTAL."
+
+   **You'll see:** The assistant confirms the note was added and warns that the brief, the PRD, the specs and the backlog are now out of date. The project health shows as dirty.
+
+   **What it means:** *Health* is Sentinel's structural check: clean means nothing is out of date or broken. Dirty means the documents no longer match what the project knows, so they must be regenerated.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /sync ACME_PORTAL --source input/sponsor-note.md --note "sponsor note"
    ```
+   </details>
 
-   Sentinel marks the brief, PRD, specs and backlog stale, and project *health* turns `DIRTY` (health is Sentinel's structural check; `CLEAN` means nothing is stale or broken).
+2. Try to update the backlog.
 
-2. Try the backlog. It refuses and lists the steps, in order:
+   **Tell the assistant:** "Update the backlog for ACME_PORTAL."
+
+   **You'll see:** The assistant refuses and explains why: what the project knows changed after the brief, PRD, specs and backlog were generated. It lists the steps to do, in order: the brief, then the specs, then the backlog.
+
+   **What it means:** This is expected, not a failure. Sentinel will not build a backlog on documents that are older than the change.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /backlog ACME_PORTAL
    ```
 
    > sentinel error: Cannot run /backlog while project health is DIRTY: knowledge changed after project-brief.md, prd.md, specs.md, BACKLOG.md, implementation_readiness.json were generated. Run /brief, then /specs, then /backlog.
+   </details>
 
-3. Run the steps it names:
+3. Run the steps it named.
+
+   **Tell the assistant:** "Go ahead: regenerate the brief, then the specs, then the backlog."
+
+   **You'll see:** The assistant does each step and reports it. After each one, the list of what is left gets shorter. When the brief and the specs are regenerated, the backlog runs, and regenerating the backlog clears the last finding.
+
+   **What it means:** The documents match the change again. Asking "what next?" at any point gives the same next step.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /brief ACME_PORTAL
@@ -520,42 +582,78 @@ Authorities: `minutes`, `decision_record`, `tech_lead`, `built`, `prototype`, `p
    /backlog ACME_PORTAL
    ```
 
-   After each step the refusal gets shorter ("Run /specs, then /backlog."). Once the brief and specs are regenerated, `/backlog` runs, and regenerating the backlog is what clears the last finding. `/next` names the same next command at every step.
+   `/next` names the same next command at every step.
+   </details>
 
-4. Check quality again: `/quality ACME_PORTAL`. It refuses until `/backlog` has run ("Run /backlog, then /quality."), and so does `/refine-backlog`.
+4. Check quality again.
 
-5. **Stale stories.** When the change names a spec unit (`SPEC-U-...`), the stories built from it are marked `Stale`, and `/backlog` refuses with "Backlog contains Stale stories after source changes: US-001." Regenerating does not clear them: review each story and move it back yourself. The refusal and `/next` give the exact command:
+   **Tell the assistant:** "Check the quality of the backlog again."
+
+   **You'll see:** The quality report. If the backlog has not been regenerated yet, the assistant tells you to do that first. The same goes for refining the backlog.
+
+   **What it means:** Quality is only checked on a backlog that is up to date with the change.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /quality ACME_PORTAL
+   ```
+
+   Until `/backlog` has run, it refuses ("Run /backlog, then /quality."), and so does `/refine-backlog`.
+   </details>
+
+5. **Stale stories.** When the change touches a part of the specs, the stories built from it are marked stale, and the assistant refuses to update the backlog until you review them.
+
+   **Tell the assistant:** "Story US-001 is stale after the change. I reviewed it; put it back to draft."
+
+   **You'll see:** The assistant explains that the backlog contains stale stories after the source change (it names them, for example US-001), and that regenerating does not clear them. After your instruction it confirms the story is back to draft.
+
+   **What it means:** A person has to look at each affected story and decide what happens to it. A stale story can go back to draft, to ready or to blocked, never straight to done. Only a real change makes a story stale: moving another story forward never does.
+
+   <details><summary>In a terminal</summary>
 
    ```text
    /story-status ACME_PORTAL --story US-001 --set Draft
    ```
 
-   A `Stale` story can go to `Draft`, `Ready` or `Blocked`, never straight to `Done`. Only a real change marks a story `Stale`: moving another story forward never does.
+   The refusal and `/next` give the exact command.
+   </details>
 
-6. **A change of meaning.** When the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar), Sentinel also asks you to check the trace links of that change. `/health` and the `/backlog` refusal say:
+6. **A change of meaning.** When the note uses words that signal a change of meaning ("now", "instead", "must not", "replaces", "out of scope", and similar), Sentinel also asks you to check the links between the documents that this change may touch.
+
+   **Tell the assistant:** "I checked with the Product Owner: no story covers document upload, so nothing downstream has to change. Record that review."
+
+   **You'll see:** Before this, the assistant says it cannot update the backlog while a change of meaning is waiting for review, and lists what the change may touch (the questions, decisions, brief, PRD and specs). After your instruction it shows the change, how many links you marked as reviewed, and that the project is clean if nothing else is open.
+
+   **What it means:** You read the change against those documents. If they have to change, regenerating them after the change clears the finding. If nothing has to change, your short reason is recorded instead. A later source without those words does not clear the finding for you.
+
+   <details><summary>In a terminal</summary>
+
+   `/health` and the `/backlog` refusal say:
 
    > sentinel error: Cannot run /backlog while project health is DIRTY: Semantic change CHG-007 may invalidate downstream trace links (targets: GAP-001, DEC-001, REQ-002, PRD-001, DISC-003, SPEC-001, SPEC-U-001, SPEC-U-002). Review the targets, then run /brief, then /specs, then /backlog. If nothing downstream has to change, record the review instead with /trace ACME_PORTAL --reviewed CHG-007.
 
-   `/next` gives the same text, titled *Review the semantic change*. Read what the change says against those documents (the targets are the questions, decisions, brief, PRD and specs the change may touch). If they have to change, run the commands it names: regenerating them after the change clears the finding, and the list gets shorter at each step. If nothing has to change, record your review, with a short reason:
+   `/next` gives the same text, titled *Review the semantic change*. To record the review:
 
    ```text
    /trace ACME_PORTAL --reviewed CHG-007 --reason "Checked with the Product Owner: no story covers document upload."
    ```
+   </details>
 
-   The answer shows the change, how many links you marked reviewed, and `health: CLEAN` when nothing else is open. A later `/sync` without those words does not clear the finding for you.
-
-**How you know it worked.** `/health ACME_PORTAL` answers `CLEAN` and `/quality` runs. `/next` returns to the backlog steps.
+**How you know it worked.** The assistant tells you the project is clean and the quality check runs. Asking "what next?" returns to the normal backlog steps.
 
 **If something goes wrong.**
 
-- `/backlog` refuses with several findings: it lists each one with its fix, in the order to do them, and ends with "Run /backlog again." The `next step:` line chains the same commands. Do them in that order.
-- `/backlog` refuses naming an open blocking question or open implementation feedback: fix that first, as the refusal says.
+- The assistant refuses to update the backlog and lists several problems: each comes with its fix, in the order to do them, and it ends by saying to run the backlog again. Do them in that order.
+- The assistant refuses because of an open blocking question or open feedback from the development team: deal with that first, as it explains.
+- The assistant says the change you named is not the one waiting for review, and gives the right one: use the one it names. If it says no change is waiting for review, there is nothing to record.
+
+<details><summary>In a terminal</summary>
+
+- `/backlog` refuses with several findings: it lists each one with its fix and ends with "Run /backlog again." The `next step:` line chains the same commands.
 - `/trace --reviewed` answers "CHG-009 is not the change waiting for review; /health names CHG-007.": use the id `/health` gives. "No semantic change is waiting for review" means there is nothing to record.
 
-<details><summary>For the technical reader</summary>
-
 The refusal and `/next` use the same list, built from the `/health` findings: `/reindex` for a record not indexed in memory, the `GAP-CHG` decision or `/resolve-gaps` for a blocking question, `/implementation-feedback` for open feedback, `/story-status ... --set Draft` for each `Stale` story, then the regeneration chain (`/brief`, `/specs`, `/backlog`) for a knowledge change or a change of meaning. `/backlog`, `/quality` and `/refine-backlog` check the staleness markers even when `state.json` says `CLEAN`, so a command that set health on its own criteria cannot let them run on specs older than the brief. The review is stored in `state.json#suspicious_trace_links.reviewed` and on each flagged edge of the traceability graph (`review_status: reviewed`).
-
 </details>
 
 <a id="finding-what-was-said-about-a-topic"></a>
