@@ -101,6 +101,26 @@ class RegistryLifecycleTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             add_stakeholder("STK", name="A", domain="")
 
+    def test_domain_alias_is_stored_as_its_lens_and_routes(self):
+        # IMP-370: `technology` used to be stored as written and matched no gap (lens `technical`).
+        result = add_stakeholder("STK", name="Tech Lead", domain="Technology")
+        self.assertEqual(result["added"]["domain"], "technical")
+        self.assertEqual(owner_for_lens("technical", load_stakeholders("STK"))["name"], "Tech Lead")
+
+    def test_unknown_domain_is_refused_with_the_valid_lenses(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            add_stakeholder("STK", name="Ops", domain="operations")
+        message = str(ctx.exception)
+        self.assertIn("Unknown --domain 'operations'", message)
+        for lens in ("business", "product", "technical", "design", "quality"):
+            self.assertIn(lens, message)
+        self.assertIn("technology = technical", message)
+        self.assertEqual(load_stakeholders("STK"), [])
+
+    def test_a_registry_written_with_an_alias_still_routes(self):
+        stk = [{"id": "STK-001", "name": "Old", "domain": "technology", "respondent_profile": "", "topic": "", "notes": ""}]
+        self.assertEqual(owner_for_lens("technical", stk)["id"], "STK-001")
+
 
 class RoutingTests(unittest.TestCase):
     def test_interview_groups_by_owner_with_explicit_unassigned(self):

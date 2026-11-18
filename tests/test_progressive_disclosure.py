@@ -11,6 +11,8 @@ Three runtime capabilities, all degradation-safe and LanceDB-agnostic:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import shutil
 import tempfile
@@ -151,6 +153,15 @@ class NeedsContextGateTests(unittest.TestCase):
         self.assertTrue(result["needs_context"])
         self.assertFalse(result["strict"])  # soft by default
         self.assertTrue(result["message"])
+
+    def test_the_suggested_retrieve_writes_a_pack_that_clears_the_gate(self) -> None:
+        # IMP-370: the message suggested `/retrieve --write-pack`, which wrote a non-focus pack.
+        message = evaluate_needs_context("NC", indexed_chunks=13)["message"]
+        self.assertIn('/retrieve NC --query "..." --workflow <name>_focus --write-pack', message)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["retrieve", "NC", "--query", "requirement statement", "--workflow",
+                                   "backlog_focus", "--write-pack"]), 0)
+        self.assertFalse(evaluate_needs_context("NC", indexed_chunks=13)["needs_context"])
 
     def test_below_threshold_does_not_warn(self) -> None:
         result = evaluate_needs_context("NC", indexed_chunks=3)

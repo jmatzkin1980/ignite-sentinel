@@ -73,6 +73,29 @@ class BacklogRefinementTests(SnapshotWorkspaceCase):
         self.assertIn('"relation": "refined_by"', graph)
         self.assertIn('"relation": "proposes_refinement_for"', graph)
 
+    def test_same_file_twice_adds_nothing_and_a_new_default_id_is_renumbered(self):
+        # IMP-370: the same file appended a second BREF-001 row.
+        proposal = {
+            "kind": "reslice",
+            "target_stories": ["US-001"],
+            "source_units": ["SPEC-U-001"],
+            "recommendation": "Keep this story focused on the confirmed queue metrics dependency.",
+            "rationale": "The Spec Unit names queue metrics as the observable trigger and response.",
+            "citations": [EARS],
+        }
+        draft = self._draft({"proposals": [proposal]})
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(draft)]), 0)
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(draft)]), 0)
+        accepted_path = self.ws / "04_backlog" / "refinements" / "accepted_refinements.json"
+        self.assertEqual([item["id"] for item in json.loads(accepted_path.read_text(encoding="utf-8"))], ["BREF-001"])
+        epic = (self.ws / "04_backlog" / "EPIC-001.md").read_text(encoding="utf-8")
+        self.assertEqual(epic.count("| `BREF-001` |"), 1)
+
+        other = dict(proposal, recommendation="Split the dashboard view from the queue metrics feed.")
+        self.assertEqual(main(["refine-backlog", "BREF", "--source", str(self._draft({"proposals": [other]}))]), 0)
+        ids = [item["id"] for item in json.loads(accepted_path.read_text(encoding="utf-8"))]
+        self.assertEqual(ids, ["BREF-001", "BREF-002"])
+
     def test_refinement_merges_discarded_alternative_context(self):
         draft = {
             "proposals": [

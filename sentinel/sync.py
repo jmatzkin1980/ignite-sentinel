@@ -41,7 +41,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     # IMP-270: read (and reject an unreadable format) before the F-NN row opens.
     extracted = read_source(source, media_stem=target.stem)
     # IMP-250a: the F-NN row opens before the cross and closes when it finishes.
-    source_id = open_source_row(project_id, source, "synced")
+    source_id = open_source_row(project_id, source, "synced", fallback_kind=routed_source_kind(source))
     # IMP-285: same redaction as /ingest before the change is analyzed or stored.
     text, sanitized = ingest_source(base, source, target, pii_report_enabled(load_config(project_id)), extracted)
     text, injection_ids = shield_source(base, source.name, text)  # IMP-286
@@ -58,7 +58,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         semantic_change_analysis(text, note),
     )
 
-    gaps = detect_gaps(sync_detection_text(base, text), load_domain_context(base))
+    gaps = detect_sync_gaps(base, text)
     gap_merge = materialize_sync_gaps(project_id, gaps, change_id)
     reopened = reopened_closed_gap_ids(base, gaps)
     sync_resolution = apply_structured_gap_responses(
@@ -194,6 +194,7 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
     return {
         "change_id": change_id,
         "source_id": source_id,
+        "source_authority": source_authority_report(project_id, source_id),
         "secret_redactions": sanitized.redactions,
         "injection_signals": injection_ids,
         "source_format": {"kind": extracted.kind, "images": len(extracted.images),
@@ -205,7 +206,8 @@ def sync_change(project_id: str, source: Path, note: str = "", digest: bool = Fa
         "gaps": gaps,
         "merged_gaps": gap_merge["merged"],
         "skipped_existing_gaps": gap_merge["skipped_existing"],
-        "reopened_gaps": reopened,
+        # IMP-370: was `reopened_gaps`, but /sync never reopens a gap; these stay CLOSED.
+        "closed_gaps_detected_again": reopened,
         "sync_closed_gaps": sync_resolution["closed"],
         "source_conflicts": conflicts,
         "answered_context_requests": answered_ctx,
@@ -444,6 +446,34 @@ def sync_detection_text(base: Path, change_text: str) -> str:
     return "\n\n".join(chunks)
 
 
+def detect_sync_gaps(base: Path, change_text: str) -> list[dict[str, str]]:
+    """The gaps a change raises (IMP-370: anchored in the change itself).
+
+    A gap that quotes a mention (`evidence_mention`: "auth", "batch process", a
+    weak word...) fires only when the CHANGE says it: the workspace text holds the
+    gap ledger, the brief and the specs, whose own wording ("auth method",
+    "batch process") used to raise GAP-AUTH-MODEL and GAP-CTP-BATCH on every
+    /sync. A gap about something missing everywhere (no mention to quote) is still
+    judged against the accumulated knowledge, so a short note does not reopen every
+    "nobody said who the users are" gap. A mention in the change whose detail the
+    workspace already gives (the accumulated scan does not fire) stays quiet too.
+    """
+    context = load_domain_context(base)
+    accumulated = detect_gaps(sync_detection_text(base, change_text), context)
+    own = {gap["id"]: gap for gap in detect_gaps(change_text, context)}
+
+    def quotes(gap: dict[str, str]) -> bool:
+        return bool(str(gap.get("evidence_mention", "")).strip())
+
+    result: list[dict[str, str]] = []
+    for gap in accumulated:
+        if not quotes(gap):
+            result.append(gap)
+        elif gap["id"] in own and quotes(own[gap["id"]]):
+            result.append(own[gap["id"]])  # quoted from the change, not from the workspace
+    return result
+
+
 def materialize_sync_gaps(project_id: str, detected: list[dict[str, str]], change_id: str) -> dict[str, list[str]]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
@@ -534,20 +564,57 @@ def reopened_closed_gap_ids(base: Path, detected_gaps: list[dict[str, str]]) -> 
     return sorted(closed & detected)
 
 
-def change_target_dir(base: Path, source: Path) -> Path:
+def change_route(source: Path) -> tuple[str, bool]:
+    """The 07_changes sub-folder a change goes to, and whether its path named it.
+
+    False means no keyword matched and the change fell into the domain-updates
+    folder by default, which says nothing about what kind of source it is.
+    """
     normalized = source.as_posix().lower()
     if "technology_context" in normalized or "design_context" in normalized or "quality_context" in normalized:
-        target = base / "07_changes" / "03_domain_updates"
-    elif "meeting" in normalized or "minuta" in normalized:
-        target = base / "07_changes" / "01_meetings"
-    elif "mail" in normalized or "slack" in normalized:
-        target = base / "07_changes" / "02_mail_slack"
-    elif "interaction" in normalized or "client" in normalized or "response" in normalized:
-        target = base / "07_changes" / "00_client_responses"
-    else:
-        target = base / "07_changes" / "03_domain_updates"
+        return "03_domain_updates", True
+    if "meeting" in normalized or "minuta" in normalized or "minutes" in normalized:
+        return "01_meetings", True
+    if "mail" in normalized or "slack" in normalized:
+        return "02_mail_slack", True
+    if "interaction" in normalized or "client" in normalized or "response" in normalized:
+        return "00_client_responses", True
+    return "03_domain_updates", False
+
+
+def change_target_dir(base: Path, source: Path) -> Path:
+    target = base / "07_changes" / change_route(source)[0]
     target.mkdir(parents=True, exist_ok=True)
     return target
+
+
+def routed_source_kind(source: Path) -> str | None:
+    """IMP-370: the source kind the /sync routing implies (meeting, mail_slack...), or None.
+
+    A file outside the known input folders used to stay `unclassified`, so no
+    precedence rule could ever settle a contradiction it took part in. When its
+    path named the routing (a "meeting" or "mail" file), that is its kind.
+    """
+    from .source_registry import KIND_BY_FOLDER
+
+    folder, matched = change_route(source)
+    return KIND_BY_FOLDER.get(folder) if matched else None
+
+
+AUTHORITY_HINT = (
+    "{source_id} has no source kind (authority `unclassified`), so no precedence rule can settle a "
+    "contradiction it takes part in. Set it: /sources {project_id} --id {source_id} --authority KIND "
+    "(minutes, decision_record, client_document, interaction, tech_lead, spec, ...)."
+)
+
+
+def source_authority_report(project_id: str, source_id: str) -> dict[str, object]:
+    row = source_row(project_id, source_id) or {}
+    authority = str(row.get("authority") or "unclassified")
+    report: dict[str, object] = {"source_id": source_id, "authority": authority}
+    if authority == "unclassified":
+        report["next_step"] = AUTHORITY_HINT.format(project_id=project_id, source_id=source_id)
+    return report
 
 
 def append_metabolism_log(
@@ -585,7 +652,10 @@ Every sync event records the evolution of project knowledge. Source files remain
             lines.append(f"  - `{gap['id']}` ({gap['severity']}): {gap['description']}\n")
     else:
         lines.append("- New or unresolved gaps: None detected by deterministic scan.\n")
-    lines.append(f"- Reopened closed gaps: {', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n")
+    lines.append(
+        "- Closed gaps detected again (not reopened): "
+        f"{', '.join(f'`{gap_id}`' for gap_id in reopened) if reopened else 'None'}\n"
+    )
     if knowledge_metabolism:
         units = knowledge_metabolism.get("impacted_knowledge_units", [])
         stale = knowledge_metabolism.get("downstream_stale_artifacts", [])
@@ -709,7 +779,7 @@ def render_impact(
 
 {prose_block}
 
-## Reopened Closed Gaps
+## Closed Gaps Detected Again
 
 _Report only (IMP-337): closed gaps whose trigger fired again in this change.
 Nothing is reopened here; a change reopens a gap only through a cited analysis

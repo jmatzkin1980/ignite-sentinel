@@ -111,8 +111,22 @@ class CommandTests(unittest.TestCase):
         code, out = self.cli("prototype", "P", "--inventory")
         self.assertNotEqual(code, 0)
         self.assertIn("no HTML prototype", out)
+        # IMP-370: the hint sent the BA to a second /ingest, which refuses in favour of /sync.
+        self.assertIn("/sync P --source prototype.html", out)
+        self.assertNotIn("(/ingest", out)
         code, out = self.cli("prototype", "P", "--inventory", "--source", "F-99")
         self.assertIn("no HTML prototype for F-99", out)
+
+    def test_a_prototype_added_with_sync_is_inventoried(self) -> None:
+        self.assertEqual(self.cli("init", "P")[0], 0)
+        Path("notes.md").write_text("Meeting notes about the claims portal, with enough words.\n", encoding="utf-8")
+        self.assertEqual(self.cli("ingest", "P", "--source", "notes.md")[0], 0)
+        Path("claims-portal.html").write_text(HTML, encoding="utf-8")
+        code, out = self.cli("sync", "P", "--source", "claims-portal.html")
+        self.assertEqual(code, 0, out)
+        code, out = self.cli("prototype", "P", "--inventory")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads(out)["prototypes"][0]["screens"], 4)
 
 
 if __name__ == "__main__":

@@ -123,6 +123,30 @@ class ReleaseScopeFlow(unittest.TestCase):
         self.assertNotIn("named outside its scope", text)
         self.assertIsInstance(verdict, (dict, str))
 
+    def test_next_keeps_the_release_in_its_command(self) -> None:
+        # IMP-370: /next --release r1 suggested `/quality NOVA`, which runs over the whole workspace.
+        self.assertEqual(self.cli("next", "NOVA", "--release", "r1"), 0)
+        step = json.loads(self.out["next --release r1"])
+        verb = step["command"].split(" ", 1)[0].lstrip("/")
+        from sentinel.commands import RELEASE_COMMANDS
+
+        if verb in RELEASE_COMMANDS:
+            self.assertTrue(step["command"].endswith("--release r1"), step)
+        self.assertEqual(self.cli("next", "NOVA"), 0)
+        self.assertNotIn("--release", json.loads(self.out["next"])["command"])
+
+    def test_release_scoped_command_only_scopes_release_commands(self) -> None:
+        from sentinel import release_scope
+        from sentinel.readiness_verdict import release_scoped_command
+
+        self.assertEqual(release_scoped_command("/validate P"), "/validate P")
+        release_scope._ACTIVE["release"] = "r2"
+        try:
+            self.assertEqual(release_scoped_command("/validate P"), "/validate P --release r2")
+            self.assertEqual(release_scoped_command("/resolve-gaps P --source PATH"), "/resolve-gaps P --source PATH")
+        finally:
+            release_scope._ACTIVE.pop("release", None)
+
     def test_printed_paths_point_to_the_release(self) -> None:
         self.assertIn("04_backlog", self.out["backlog --release r1"])
         self.assertNotIn(".series_work", self.out["backlog --release r1"])

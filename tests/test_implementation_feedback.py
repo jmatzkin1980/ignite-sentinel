@@ -170,6 +170,22 @@ class ImplementationFeedbackTests(SnapshotWorkspaceCase):
         self.assertIn("added to the contract", rows["`GAP-FEEDBACK-QUEUE`"])
         self.assertIn("| OPEN |", rows["`GAP-FEEDBACK-001`"])
 
+    def test_resolving_by_finding_id_alone_resolves_its_gap(self) -> None:
+        # IMP-370: without repeating gap_id, the resolution opened GAP-FEEDBACK-002 as RESOLVED
+        # and left GAP-FEEDBACK-001 OPEN.
+        opened = self._source({"findings": [self._gap_finding("Queue detail source is missing.")]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(opened)]), 0)
+        resolved = self._source({"findings": [
+            self._gap_finding("Queue detail source added to the contract.", id="IFB-001", status="resolved"),
+        ]})
+        self.assertEqual(main(["implementation-feedback", "IFB", "--source", str(resolved)]), 0)
+        findings = self._state()["implementation_feedback"]["findings"]
+        self.assertEqual(findings["IFB-001"]["gap_id"], "GAP-FEEDBACK-001")
+        gaps = (self.ws / "01_discovery" / "implementation_feedback_gaps.md").read_text(encoding="utf-8")
+        rows = {line.split("|")[1].strip(): line for line in gaps.splitlines() if line.startswith("| `GAP-")}
+        self.assertEqual(sorted(rows), ["`GAP-FEEDBACK-001`"])
+        self.assertIn("| RESOLVED |", rows["`GAP-FEEDBACK-001`"])
+
     def test_health_is_recomputed_once_no_feedback_stays_open(self) -> None:
         # IMP-367: resolving every finding left health DIRTY until /health ran.
         from sentinel.health import run_health
