@@ -26,7 +26,21 @@ Use `--replacement F-NN` when another row takes its place. Retiring does not del
 - The copy under `00_raw/` or `07_changes/` stays on disk for audit, but its text leaves the local memory. `/retrieve` and context packs stop returning it, and `/reindex` (with or without `--full`) skips it. The result lists the memory ids removed in `memory_removed`. If you retired the wrong row, `/sources ACME_PORTAL --id F-04 --current` brings it back, then run `/reindex ACME_PORTAL`.
 - Sentinel's own reports about the file (its impact report, for example) stay in memory: they record what happened.
 - A retired source reaches every document: its row gets a `pending` impact cell for each one. Review each cell and close it with `/sources ACME_PORTAL --id F-04 --cell DOCUMENT/SECTION --mark reviewed --reason "..."` (or `updated` after you regenerated it).
-- Gaps the wrong file opened stay in `gaps.md`. Decide them with the BA. For a gap an agent raised, record `/gaps ACME_PORTAL --id GAP-X --disposition irrelevant --reason "came from a retired source"`.
+- Gaps the wrong file opened stay in `gaps.md` until you close them. Close each one with an answer file whose decision status is `not applicable`, and say why in the answer:
+
+  ```markdown
+  ### GAP-X
+  - Answer: Not applicable: this question came from F-04, a file loaded by mistake and now retired.
+  - Owner / source: BA
+  - Evidence or reference: /sources ACME_PORTAL, F-04 retired
+  - Decision status: not applicable
+  ```
+
+  ```text
+  /resolve-gaps ACME_PORTAL --source input/interactions/close-retired-gaps.md
+  ```
+
+  The gap closes as out of scope (a non-goal in the decisions). A disposition (`/gaps ACME_PORTAL --id GAP-X --disposition irrelevant --reason "..."`) does not close anything: it only records that a gap an agent raised was a false alarm, and it is refused for gaps from the checklist, a contradiction or `/sync`.
 
 **Check:** `/sources ACME_PORTAL` shows the row as retired; `/retrieve` on a phrase from the wrong file no longer returns it; `/status ACME_PORTAL` no longer warns about its open cells once they are closed.
 

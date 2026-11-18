@@ -166,20 +166,30 @@ The text is vague on purpose. That is normal for a first request, and finding wh
    If the policy system is unavailable, then the system shall keep the claim as received and retry the policy lookup.
    ```
 
-   You process the main answers file, then one small answer file per behaviour:
+   The four sentences go in the answers file, one per bullet under the `GAP-ACCEPTANCE` answer:
+
+   ```markdown
+   ### GAP-ACCEPTANCE
+   - Answer:
+     - When a policyholder submits a claim with photos, the system shall register the claim and show its reference number.
+     - When an adjuster approves a large claim, the system shall route it to a senior adjuster for the second approval.
+     - While a claim is under review, the system shall show its current status to the policyholder.
+     - If the policy system is unavailable, then the system shall keep the claim as received and retry the policy lookup.
+   - Owner / source: Claims director, workshop
+   - Evidence or reference: workshop minutes, 12 March
+   - Decision status: confirmed
+   ```
+
+   You process the answers file, then check maturity:
 
    ```text
    /resolve-gaps ACME_PORTAL --source input/interactions/answered-gaps.md
-   /resolve-gaps ACME_PORTAL --source input/interactions/acceptance-1.md
-   /resolve-gaps ACME_PORTAL --source input/interactions/acceptance-2.md
-   /resolve-gaps ACME_PORTAL --source input/interactions/acceptance-3.md
-   /resolve-gaps ACME_PORTAL --source input/interactions/acceptance-4.md
    /maturity ACME_PORTAL
    ```
 
    Sentinel shows each gap it closed, then `readiness: READY_FOR_SPECS`. Each behaviour became one testable requirement (`REQ-EARS-001` to `REQ-EARS-004`) and, later, one story.
 
-   **What it means:** a gap closes only when the answer is substantive **and** its decision status is confirmed (or not applicable). "TBD" or "depends" keeps it open. Every closure needs an `Evidence or reference` line; a closure without one is listed as a finding. Sentinel reads one "When ..., the system shall ..." sentence per answer, so put each behaviour in its own answer file.
+   **What it means:** a gap closes only when the answer is substantive **and** its decision status is confirmed (or not applicable). "TBD" or "depends" keeps it open. Every closure needs an `Evidence or reference` line; a closure without one is listed as a finding. Each "When ..., the system shall ..." sentence in a confirmed answer becomes its own requirement, so one answer can carry several behaviours. Answer each question once: if a file has two sections for the same question, Sentinel merges them and says so.
 
    <details><summary>For the technical reader</summary>
 
@@ -413,12 +423,12 @@ A project whose questions are routed to named people, two answer rounds on recor
    ```
 
    ```text
-   source_id: F-08
-   merged_gaps: GAP-AUTH-MODEL, GAP-CTP-BATCH
+   source_id: F-04
+   merged_gaps: []
    Prose is stored and indexed, not interpreted: 2 line(s) changed nothing. Rewrite them as gap answers (### GAP-...) or pass a cited analysis with /sync --source NOTE --analysis FILE.
    ```
 
-   **What it means:** `/sync` registered the note as source `F-08` (every file Sentinel has read so far has its own number), opened two new questions it detected (how authentication and permissions work, and a batch job without its counterpart), and wrote an impact report next to the stored copy (`07_changes/00_client_responses/change-sso_impact_report.md`). It did **not** rewrite the brief from the prose: Sentinel never guesses what a sentence changes. The report's *Reopened Closed Gaps* section says *Nothing is reopened here; a change reopens a gap only through a cited analysis.* To change something already confirmed, the agent writes a cited analysis and you confirm it; scenario 9 shows that path.
+   **What it means:** `/sync` registered the note as source `F-04` (every file Sentinel has read so far has its own number) and wrote an impact report next to the stored copy (`07_changes/00_client_responses/change-sso_impact_report.md`). It opened no new question: a question that quotes a word from the file (such as "auth" or "batch process") opens only when the new file itself says that word without its detail, and this note does not. It did **not** rewrite the brief from the prose: Sentinel never guesses what a sentence changes. The report's *Closed Gaps Detected Again* section says *Nothing is reopened here; a change reopens a gap only through a cited analysis.* To change something already confirmed, the agent writes a cited analysis and you confirm it; scenario 9 shows that path.
 
 2. **See what is now out of date.**
 
@@ -434,7 +444,7 @@ A project whose questions are routed to named people, two answer rounds on recor
              next step: Run /brief, then /specs, then /backlog.
    ```
 
-   **What it means:** the backlog was built before the change. Sentinel names the files that are out of date and the commands that rebuild them, in order. You will do that in step 5, after the new questions are answered.
+   **What it means:** the backlog was built before the change. Sentinel names the files that are out of date and the commands that rebuild them, in order. You will do that in step 5, after the open questions are answered.
 
 3. **Digest the meeting notes.** A transcript or a long mail mixes answers, decisions and small talk. The digest sorts it:
 
@@ -453,19 +463,19 @@ A project whose questions are routed to named people, two answer rounds on recor
    ```
 
    ```text
-   unconfirmed_versions: F-11 version_of F-10
-   F-11 ... candidate new version of F-10, not confirmed
+   unconfirmed_versions: F-07 version_of F-06
+   F-07 ... candidate new version of F-06, not confirmed
    ```
 
    Sentinel noticed a known file with new content and opened a new row, but **it never assumes the newest version governs**. You decide and record it:
 
    ```text
-   /sources ACME_PORTAL --id F-10 --superseded-by F-11
+   /sources ACME_PORTAL --id F-06 --superseded-by F-07
    ```
 
-   Sentinel shows `superseded: 1` and no unconfirmed versions. When two sources disagree on a topic, ask `/sources ACME_PORTAL --precedence compliance --between F-10,F-11`. Here the answer is `status: unresolved`: no recorded rule decides between two client documents, so you take the question back to the client.
+   Sentinel shows `superseded: 1` and no unconfirmed versions. When two sources disagree on a topic, ask `/sources ACME_PORTAL --precedence compliance --between F-06,F-07`. Here the answer is `status: unresolved`: no recorded rule decides between two client documents, so you take the question back to the client.
 
-5. **Answer the new questions, then regenerate upstream first.**
+5. **Answer the open questions, then regenerate upstream first.**
 
    ```text
    /resolve-gaps ACME_PORTAL --source input/interactions/sso-answers.md
@@ -482,7 +492,7 @@ A project whose questions are routed to named people, two answer rounds on recor
 
    <details><summary>For the technical reader</summary>
 
-   `/specs` and `/backlog` may print `foundation_warnings` such as *Foundation for /specs may be STALE: `specs` was generated before its source(s) changed*. The check runs before the command regenerates, so it describes the previous version that this run replaces. If it still appears on the next run, an upstream file changed again.
+   `/specs` and `/backlog` print `foundation_warnings`. They are checked after the command has run, so they list only what is still out of date (*Foundation for /backlog may be STALE: `specs` was generated before its source(s) changed ...*), never the file the command just rewrote. In this order of commands the list is empty.
 
    </details>
 
@@ -1067,7 +1077,7 @@ A brief whose technical places cite the code, two questions from the harvest (on
 
    ```text
    verdict: DIRTY
-   findings: CHG-008 is not indexed in memory.
+   findings: CHG-003 is not indexed in memory.
    ```
 
    The status change was recorded but not yet added to the search index. Run:

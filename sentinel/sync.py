@@ -596,8 +596,11 @@ def routed_source_kind(source: Path) -> str | None:
     path named the routing (a "meeting" or "mail" file), that is its kind.
     """
     from .source_registry import KIND_BY_FOLDER
+    from .sources import source_key
 
-    folder, matched = change_route(source)
+    # The path as the registry keys it (relative to the project root when it can be), so a
+    # temp or home folder name ("tmpmail3x", "/home/client") never decides the kind.
+    folder, matched = change_route(Path(source_key(source)))
     return KIND_BY_FOLDER.get(folder) if matched else None
 
 
