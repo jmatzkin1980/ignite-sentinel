@@ -500,7 +500,7 @@ For an IT or security review, see [Secure environments](09-secure-environments.m
 
 ## Where to go next
 
-**Everyone:** [workflows by situation](03-workflows.md), [scenarios](12-scenarios.md), [chat commands](11-chat-commands.md), [when something went wrong](21-recovery.md).
+**Everyone:** [workflows by situation](03-workflows.md), [scenarios](12-scenarios.md) (a change on something that already exists is [scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)), [chat commands](11-chat-commands.md), [when something went wrong](21-recovery.md).
 
 **Business analyst:** [artifact reference](02-artifact-reference.md), [skills catalog](04-codex-skills-guide.md).
 
