@@ -391,8 +391,8 @@ def build_server():
         return run_cli(arguments)
 
     @tool(name="sentinel_resolve_gaps", description=TOOL_DESCRIPTIONS["resolve_gaps"])
-    def sentinel_resolve_gaps(project_id: str, source: str) -> dict:
-        return run_cli(["resolve-gaps", project_id, "--source", source])
+    def sentinel_resolve_gaps(project_id: str, source: str, change: str = "") -> dict:
+        return run_cli(["resolve-gaps", project_id, "--source", source] + (["--change", change] if change else []))
 
     @tool(name="sentinel_maturity", description=TOOL_DESCRIPTIONS["maturity"])
     def sentinel_maturity(project_id: str) -> dict:

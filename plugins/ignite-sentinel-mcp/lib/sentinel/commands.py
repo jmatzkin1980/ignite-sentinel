@@ -58,6 +58,12 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _resolve_gaps(parser: argparse.ArgumentParser) -> None:
+    _project_source(parser)
+    # IMP-382: answer this change's gaps (and confirm its border) instead of the project's
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-382: resolve this change's gaps instead of the project's")
+
+
 def _ingest(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", required=True)
@@ -285,7 +291,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("ingest", MUTATING, _ingest),
     Command("retrieve", READ_ONLY, _retrieve),
     Command("sync", MUTATING, _sync),
-    Command("resolve-gaps", MUTATING, _project_source),
+    Command("resolve-gaps", MUTATING, _resolve_gaps),
     Command("annotate", MUTATING, _project_source),
     Command("challenge", MUTATING, _project_source),
     Command("scrutinize", MUTATING, _scrutinize),

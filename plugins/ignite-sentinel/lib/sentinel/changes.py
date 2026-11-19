@@ -6,14 +6,16 @@ requirement, gaps and artifacts are never touched by it.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .core.graph import add_node
 from .core.io import write_text
 from .core.time import utc_now
-from .errors import GateRefusal
+from .errors import GateRefusal, InputError
 from .gaps import count_gaps, parse_gap_rows, render_gaps
 from .injection import shield_source
+from .lens_registry import SURFACE_TYPES
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
 from .sources import mark_source_processed, open_source_row
@@ -95,6 +97,87 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "gap_counts": count_gaps(gaps),
         "round": "scope",
     }
+
+
+BORDER_ZONES: tuple[str, ...] = ("nuevo", "adyacente", "preservado")
+_BORDER_TYPE_ALIASES = {"integración": "integracion"}
+_BORDER_FIELD = re.compile(r"^([ 	]*)-[ 	]*Borde[ 	]*:[ 	]*(.*)$", re.I | re.M)
+
+
+def parse_border(response_block: str, cite: str) -> list[dict[str, str]]:
+    """The structured border in a confirmed answer to GAP-SCOPE: one `zona | tipo | nombre` line per surface.
+
+    The border comes only from what the BA wrote; an invalid line rejects the whole block.
+    """
+    match = _BORDER_FIELD.search(response_block)
+    if not match:
+        raise InputError(
+            "La respuesta a GAP-SCOPE no trae el bloque `Borde:` "
+            f"(una línea `zona | tipo | nombre` por superficie; zonas: {', '.join(BORDER_ZONES)}; tipos: {', '.join(SURFACE_TYPES)}).",
+            next_step="Agregá `- Borde:` debajo de la respuesta de GAP-SCOPE y volvé a correr /resolve-gaps.",
+        )
+    indent = len(match.group(1).expandtabs(4))
+    lines = [match.group(2).strip()] if match.group(2).strip() else []
+    for line in response_block[match.end():].splitlines()[1:]:
+        if not line.strip() or len(line) - len(line.lstrip(" 	")) <= indent:
+            break
+        lines.append(line.strip())
+    border: list[dict[str, str]] = []
+    for raw in lines:
+        text = raw.lstrip("-*").strip()
+        parts = [part.strip() for part in text.split("|", 2)]
+        if len(parts) != 3 or not all(parts):
+            raise InputError(
+                f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre` "
+                f"(zonas válidas: {', '.join(BORDER_ZONES)}; tipos válidos: {', '.join(SURFACE_TYPES)}).",
+                next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
+            )
+        zone, kind, name = parts[0].lower(), parts[1].lower(), parts[2]
+        kind = _BORDER_TYPE_ALIASES.get(kind, kind)
+        if zone not in BORDER_ZONES:
+            raise InputError(
+                f"Zona de borde inválida «{parts[0]}» en la línea «{text}». Zonas válidas: {', '.join(BORDER_ZONES)}.",
+                next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
+            )
+        if kind not in SURFACE_TYPES:
+            raise InputError(
+                f"Tipo de borde inválido «{parts[1]}» en la línea «{text}». "
+                f"Tipos válidos: {', '.join(SURFACE_TYPES)} (integración se acepta con tilde).",
+                next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
+            )
+        border.append({"zone": zone, "type": kind, "name": name, "cite": cite})
+    if not border:
+        raise InputError(
+            "El bloque `Borde:` de GAP-SCOPE no tiene ninguna línea "
+            f"(`zona | tipo | nombre`; zonas: {', '.join(BORDER_ZONES)}; tipos: {', '.join(SURFACE_TYPES)}).",
+            next_step="Agregá al menos una superficie y volvé a correr /resolve-gaps.",
+        )
+    return border
+
+
+def without_border_block(text: str) -> str:
+    """The answer text minus its `Borde:` blocks: surface names are not claims about the source's validity."""
+    kept: list[str] = []
+    indent: int | None = None
+    for line in text.splitlines():
+        field = _BORDER_FIELD.match(line)
+        if field:
+            indent = len(field.group(1).expandtabs(4))
+            continue
+        if indent is not None:
+            if line.strip() and len(line) - len(line.lstrip(" 	")) > indent:
+                continue
+            indent = None
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def confirm_border(project_id: str, change_id: str, border: list[dict[str, str]]) -> None:
+    """Fix the confirmed border on the change and open its lens round."""
+    get_change(project_id, change_id)
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id].update({"border": list(border), "border_confirmed_at": utc_now(), "round": "lenses"})
+    update_state(project_id, changes=changes)
 
 
 def border_types(change: dict) -> frozenset[str]:

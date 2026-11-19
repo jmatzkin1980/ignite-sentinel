@@ -232,7 +232,7 @@ def _run_project_command(args) -> int:
         elif args.command == "resolve-gaps":
             from .gap_resolution import resolve_gaps
 
-            result = resolve_gaps(args.project_id, Path(args.source))
+            result = resolve_gaps(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "annotate":
             from .discovery import apply_annotation

@@ -99,6 +99,32 @@ def write_gap_elicitation(project_id: str, gaps: list[dict[str, str]], language:
     write_json(path or workspace_path(project_id) / "01_discovery" / "gap_elicitation.json", records)
 
 
+def change_border_guide(language: str) -> str:
+    """IMP-382: how to write the border under GAP-SCOPE; shown only when the parent is a change.
+
+    No `### GAP-` heading here: this file can be answered in place, and an example section would count as an answer.
+    """
+    if language == "es":
+        return """
+Al responder GAP-SCOPE de un cambio, agregar debajo de la respuesta el borde: una línea `zona | tipo | nombre` por superficie.
+Zonas: nuevo, adyacente, preservado. Tipos: pantalla, proceso, endpoint, dato, rol, integracion, regla.
+
+    - Borde:
+      - nuevo | pantalla | Botón "Guardar borrador" en el alta de proveedores
+      - adyacente | endpoint | Envío actual del alta de proveedores
+      - preservado | proceso | Envío completo del alta
+"""
+    return """
+When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
+Zones: nuevo, adyacente, preservado. Types: pantalla, proceso, endpoint, dato, rol, integracion, regla.
+
+    - Borde:
+      - nuevo | pantalla | "Save draft" button in the supplier registration
+      - adyacente | endpoint | Current submission of the supplier registration
+      - preservado | proceso | Full submission of the registration
+"""
+
+
 def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en", elicitation_path=None) -> str:
     if workspace_path(project_id).exists():
         meanwhile = gap_meanwhile_map(project_id)
@@ -111,6 +137,7 @@ def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, langua
     rows = "\n".join(gap_trace_row(gap, req_id, language) for gap in gaps)
     if not rows:
         rows = none_gap_row(language)
+    border_guide = change_border_guide(language) if str(req_id).startswith("CHG-") else ""
     if language == "es":
         return f"""# Gaps de Discovery - {project_id}
 
@@ -130,7 +157,7 @@ Formato sugerido de respuesta:
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión: confirmado / pendiente / no aplica
-
+{border_guide}
 ## Secciones para respuesta del cliente
 
 {response_sections}
@@ -171,7 +198,7 @@ Suggested response format:
 - Owner / source:
 - Evidence or reference:
 - Decision status: confirmed / pending / not applicable
-
+{border_guide}
 ## Client Response Sections
 
 {response_sections}
