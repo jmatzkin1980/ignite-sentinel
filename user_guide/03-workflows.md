@@ -26,6 +26,7 @@ This page tells you what to do in each situation you meet on a real project, fro
 | The scope is too big for one release | [The scope is too big for one release](#the-scope-is-too-big-for-one-release) |
 | You have an HTML prototype | [You have an HTML prototype](#you-have-an-html-prototype) |
 | The system already exists | [The system already exists](#the-system-already-exists) |
+| A change or new feature on something that already exists | [A change on something that already exists](#a-change-on-something-that-already-exists) |
 | Stories need reshaping, assigning or moving | [Stories need reshaping or moving](#stories-need-reshaping-or-moving) |
 | The development team asks a question or finds a problem | [The development team asks a question or finds a problem](#the-development-team-asks-a-question-or-finds-a-problem) |
 | You want to check quality before handing off | [Checking quality before handing off](#checking-quality-before-handing-off) |
@@ -1336,6 +1337,45 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
 
 "Harvest rejected" lists each bad line. The first file needs B0.
 </details>
+
+## A change on something that already exists
+
+**When this happens.** The request is a change or a new feature on a system that is already running, and you want it matured on its own, with its own questions, without touching the project's artifacts. A note that only updates what you are already maturing is not this: use [Something changed after a meeting or an email](#something-changed-after-a-meeting-or-an-email).
+
+**What to do.**
+
+1. Open the change.
+
+   **Tell the assistant:** "This is a change on something that already exists. Open it for ACME_PORTAL: input/change-note.md."
+
+   **You'll see:** A change, `CHG-001`, with only the short scope round: objective, users, scope, and what the product does today against what it should do.
+
+   **What it means:** The change matures apart from the project; nothing of the project is rewritten.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /ingest ACME_PORTAL --source input/change-note.md --change
+   ```
+   </details>
+
+2. Answer the scope with a border, then keep answering.
+
+   **Tell the assistant:** "Process the answers in input/scope.md for change CHG-001 of ACME_PORTAL." To get the change's questions again: "Regenerate the questions of CHG-001."
+
+   **You'll see:** With a valid `Borde:` block, the review round opens, scoped to the change and its border.
+
+   **What it means:** One bad border line rejects the whole file and nothing is written. The full walkthrough, with the border format, is [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists).
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /resolve-gaps ACME_PORTAL --source input/scope.md --change CHG-001
+   /gaps ACME_PORTAL --change CHG-001
+   ```
+   </details>
+
+**If something goes wrong.** A change brief, change specs and a change backlog do not exist yet; this path stops at the questions.
 
 <a id="backlog-refinement-and-story-status"></a>
 

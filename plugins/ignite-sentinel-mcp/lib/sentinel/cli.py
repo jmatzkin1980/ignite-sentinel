@@ -147,7 +147,7 @@ def _run_project_command(args) -> int:
         elif args.command == "ingest":
             from .discovery import ingest
 
-            result = ingest(args.project_id, Path(args.source), replace=bool(args.replace))
+            result = ingest(args.project_id, Path(args.source), replace=bool(args.replace), change=bool(args.change))
             print_json(result)
         elif args.command == "retrieve":
             from .memory import ContextBroker
@@ -210,12 +210,24 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
+            if args.change and (args.gap_id or args.disposition or args.top is not None):
+                from .errors import InputError
+
+                clash = "--id/--disposition" if (args.gap_id or args.disposition) else "--top"
+                raise InputError(
+                    f"/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
+                    next_step="Corré /gaps --change CHG-NNN solo, o quitá --change para usar " + clash + ".",
+                )
             if args.gap_id or args.disposition:
                 if not (args.gap_id and args.disposition):
                     raise ValueError("/gaps --disposition goes with --id GAP-X")
                 from .discovery import record_gap_disposition
 
                 print_json(record_gap_disposition(args.project_id, args.gap_id, args.disposition, args.reason))
+            elif args.change:
+                from .changes import regenerate_change_gaps
+
+                print_json(regenerate_change_gaps(args.project_id, args.change))
             elif args.top is not None:
                 from .discovery.elicitation import gap_round
 
@@ -228,7 +240,7 @@ def _run_project_command(args) -> int:
         elif args.command == "resolve-gaps":
             from .gap_resolution import resolve_gaps
 
-            result = resolve_gaps(args.project_id, Path(args.source))
+            result = resolve_gaps(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "annotate":
             from .discovery import apply_annotation

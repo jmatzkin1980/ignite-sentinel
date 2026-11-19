@@ -97,5 +97,40 @@ class AddCheckWithoutPythonTests(unittest.TestCase):
             lens_registry.clear_cache()
 
 
+class AppliesToAndSurfaces(unittest.TestCase):
+    PROJECT_ONLY = {"GAP-PRD-PERSONA-DETAIL", "GAP-PRD-FR-AC", "GAP-PRD-NFR-KPI", "GAP-PRD-GOVERNANCE",
+                    "GAP-PRD-DEPENDENCIES-ROADMAP", "GAP-DESIGN-PROTOTYPE-INPUT", "GAP-BACKLOG-ENABLERS"}
+
+    def test_project_only_checks_are_exactly_seven(self):
+        checks = lens_registry.load_lens_checks()
+        self.assertEqual({c["id"] for c in checks if c.get("applies_to") == ["project"]}, self.PROJECT_ONLY)
+
+    def test_every_check_applies_to_project(self):
+        self.assertTrue(all(lens_registry.check_applies(c, "project", None)
+                            for c in lens_registry.load_lens_checks()))
+
+    def test_change_drops_project_only_and_filters_by_border(self):
+        applies = lens_registry.check_applies
+        by_id = {c["id"]: c for c in lens_registry.load_lens_checks()}
+        self.assertFalse(applies(by_id["GAP-PRD-FR-AC"], "change", None))
+        self.assertTrue(applies(by_id["GAP-DESIGN-FLOW"], "change", None))
+        self.assertFalse(applies(by_id["GAP-DESIGN-FLOW"], "change", frozenset({"endpoint"})))
+        self.assertTrue(applies(by_id["GAP-BACKEND-SURFACE"], "change", frozenset({"dato"})))
+
+    def test_unknown_applies_to_or_surface_is_rejected(self):
+        import tempfile
+        for key, bad in (("applies_to", ["proyecto"]), ("surfaces", ["screen"])):
+            with tempfile.TemporaryDirectory(prefix="lens_scope_") as td:
+                (Path(td) / "x.json").write_text(json.dumps({"lens": "x", "checks": [{
+                    "id": "GAP-X", "severity": "low", "rule": "absent_tokens",
+                    "description": "d", "tokens": ["t"], key: bad}]}), encoding="utf-8")
+                with self.assertRaises(ValueError) as ctx:
+                    lens_registry.load_lens_checks(td)
+                self.assertIn("GAP-X", str(ctx.exception))
+                self.assertIn(key, str(ctx.exception))
+                self.assertIn("valid values", str(ctx.exception))
+            lens_registry.clear_cache()
+
+
 if __name__ == "__main__":
     unittest.main()

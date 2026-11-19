@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 1 (IMP-382).** A change or new feature on a system already in production has its own gap rounds, apart from the project's.
+  - `/ingest PROJECT --source NOTE --change` opens a `CHG-nnn` with only the scope round. `/gaps PROJECT --change CHG-nnn` regenerates its gaps.
+  - `/resolve-gaps PROJECT --source ANSWERS --change CHG-nnn` confirms a structured `Borde:` (one `zone | type | name` line per surface) under GAP-SCOPE and opens the lens round scoped to the border. One bad line rejects the whole file and writes nothing.
+  - Measured on the "save draft" fixture: the scope round has 4 gaps (3 blocking); with a border of pantalla, endpoint, dato and proceso the lens round has 18 (17 open, 1 closed, 3 blocking); the plain project path has 27 (4 blocking) for the same note.
+  - The project path is unchanged, and the MCP tools, manifest, skills and user guide cover `--change`.
+
 ## [0.16.1] — 2026-11-18
 
 H25: Workflows and Scenarios are written for a BA/PM who talks to the assistant in chat.

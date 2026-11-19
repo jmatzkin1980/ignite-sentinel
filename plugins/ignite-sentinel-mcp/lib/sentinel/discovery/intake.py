@@ -8,7 +8,7 @@ from ..core.graph import add_edge, add_node, upsert_node
 from ..core.io import read_json, write_text
 from ..core.markdown import parse_table_rows
 from ..deltas import DeltaStatus
-from ..errors import GateRefusal
+from ..errors import GateRefusal, InputError
 from ..gaps import count_gaps, lens_for_gap, parse_gap_rows, question_for_gap, readiness_stage_after_gap_change, render_gaps
 from ..injection import shield_source
 from ..knowledge.ledger import materialize_knowledge_ledger
@@ -36,7 +36,17 @@ def _answered_gap_count(base: Path) -> int:
     return sum(1 for status in statuses if status != "OPEN")
 
 
-def ingest(project_id: str, source: Path, replace: bool = False) -> dict[str, str]:
+def ingest(project_id: str, source: Path, replace: bool = False, change: bool = False) -> dict[str, str]:
+    if change:
+        # IMP-382: a change opens beside the project; replacing the primary requirement is another act.
+        if replace:
+            raise InputError(
+                "--change y --replace no van juntos: un cambio no reemplaza el requerimiento principal.",
+                next_step=f"Quitá uno: /ingest {project_id} --source {source.as_posix()} --change, o sin --change para reemplazar.",
+            )
+        from ..changes import ingest_change
+
+        return ingest_change(project_id, source)
     ensure_workspace(project_id)
     base = workspace_path(project_id)
     # IMP-320: /ingest builds the project's primary requirement. On a workspace that
@@ -510,6 +520,14 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
+        from ..changes import list_changes
+
+        open_changes = sorted(list_changes(project_id))
+        if open_changes:
+            raise GateRefusal(
+                f"{project_id} sólo tiene cambios: no hay 01_discovery/gaps.md del proyecto",
+                next_step=f"/gaps {project_id} --change {open_changes[0]}",
+            )
         raise GateRefusal("Cannot regenerate gaps before /ingest creates 01_discovery/gaps.md.")
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"

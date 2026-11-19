@@ -1,6 +1,6 @@
 # Scenarios
 
-This page tells ten short stories. Each one follows an invented project from the moment something arrives (a request, an answer, a change, a bug report) to the moment you have what you need. You see what to tell the assistant, what it comes back with, and what it means. Read the one that matches your situation, or read them in order to learn the whole lifecycle.
+This page tells eleven short stories. Each one follows an invented project from the moment something arrives (a request, an answer, a change, a bug report) to the moment you have what you need. You see what to tell the assistant, what it comes back with, and what it means. Read the one that matches your situation, or read them in order to learn the whole lifecycle.
 
 > [!NOTE]
 > Every company, person, number and quote below is invented and marked FICTIONAL SAMPLE. Nothing here is real client data. The answers are shortened from real runs of the current version of Sentinel on that sample.
@@ -41,6 +41,7 @@ A few terms come back often. A **gap** is an open question Sentinel found in you
 | The team starts building | [8. Building starts](#scenario-8-building-starts) |
 | The client changes a rule after the backlog is ready | [9. The client changes scope after the backlog is ready](#scenario-9-the-client-changes-scope-after-the-backlog-is-ready) |
 | A developer finds something the backlog does not cover | [10. Development finds a hole](#scenario-10-development-finds-a-hole) |
+| A change or new feature on something that already exists (no new project) | [11. A change on something that already exists](#scenario-11-a-change-on-something-that-already-exists) |
 | Something small: triage, domain teams, exports, the portfolio page | [Smaller situations](#smaller-situations) |
 
 | Role | Start with |
@@ -1870,6 +1871,118 @@ A late change on a confirmed answer uses `reopen_gap` in the analysis; the crite
 Both problems from US-003 on record with their evidence and resolution, the backlog rebuilt once they were settled, a proposal for the missing story, and a running history of findings in which a new one picks up the next number.
 
 **Decision points.** The developer reports; the BA decides. If the developer cannot point to evidence, it is a conversation, not a finding. A finding can also ask Sentinel to send the stories of the spec units it affects back for review; Sentinel then marks only those stories stale.
+
+---
+
+## Scenario 11: A change on something that already exists
+
+### The situation
+
+Purchasing runs a supplier backoffice that is already in production. The registration form is long, and analysts lose what they typed when a piece of data is missing or the session closes. The head of Purchasing asks for a "Save draft" button. This is not a new project: the system exists, and one piece of it changes. You want the change matured on its own, with its own questions and a clear border around what it touches, without a PRD. The project is `COMPRAS_PORTAL`.
+
+Save the request as input/change-draft.md:
+
+```markdown
+# Request: save a draft in the supplier registration form (FICTIONAL SAMPLE)
+
+The supplier registration form in the Purchasing backoffice is long (tax, bank and contact data, attached documents) and today it can only be submitted complete. Analysts lose what they typed when a piece of data is missing or the session closes.
+
+We need a "Save draft" button on that form so the analyst can save what is typed even if incomplete, and later list their drafts and resume them to finish the registration.
+
+The normal submit has to keep working as today. The existing system is already in production.
+```
+
+### Steps
+
+1. **Open the change.**
+
+   **Tell the assistant:** "This is a change on something that already exists, not a new project. Open it for COMPRAS_PORTAL: input/change-draft.md."
+
+   **You'll see:** A change, `CHG-001`, with four open questions, three of them blocking: the objective, the users, the scope, and what the product does today against what it should do. Nothing else yet.
+
+   **What it means:** A change matures apart from the project. It gets a short scope round first; the longer review questions come later, once you know what the change touches. The project's own requirement and questions are not touched.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /ingest COMPRAS_PORTAL --source input/change-draft.md --change
+   ```
+
+   ```text
+   change_id: CHG-001
+   gaps_path: workspaces/COMPRAS_PORTAL/01_discovery/CHG-001/gaps.md
+   round: scope
+   ```
+
+   The questions are in `01_discovery/CHG-001/gaps.md`: `GAP-OBJECTIVE`, `GAP-USERS`, `GAP-SCOPE` and `GAP-PRODUCT-ASIS-TOBE`.
+   </details>
+
+2. **Get the questions to send.**
+
+   **Tell the assistant:** "Regenerate the questions of CHG-001 for COMPRAS_PORTAL."
+
+   **You'll see:** The change's questions file, rewritten.
+
+   **What it means:** Send the head of Purchasing the open questions, as in scenario 2.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /gaps COMPRAS_PORTAL --change CHG-001
+   ```
+   </details>
+
+3. **Record the scope as a border.** The answer to the scope question lists every surface the change touches, one per line: the zone (`nuevo`, `adyacente` or `preservado`), the type of surface and its name. Save this as input/scope.md:
+
+   ```markdown
+   ### GAP-SCOPE
+   - Answer: Only the supplier registration form in the Purchasing backoffice.
+   - Borde:
+     - nuevo | pantalla | Save draft button on the supplier registration form
+     - nuevo | pantalla | My drafts list
+     - adyacente | endpoint | Current submit of the supplier registration
+     - adyacente | dato | Suppliers table
+     - preservado | proceso | Full submit of the registration
+   - Owner / source: Head of Purchasing
+   - Decision status: confirmed
+   ```
+
+   **Tell the assistant:** "Process the answers in input/scope.md for change CHG-001 of COMPRAS_PORTAL."
+
+   **You'll see:** The scope question closed, the border confirmed with its five surfaces, and a new round of review questions opened for the change. Because the border has screens, those include the design and frontend questions. A border with no screen (for example only a process and a data table) opens none of them.
+
+   **What it means:** The border is what scopes the review. Zones say how much of the system the change reaches: `nuevo` is built, `adyacente` is touched, `preservado` must keep working as it does. The types are `pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion` and `regla`. One line that does not follow the format rejects the whole file and nothing is written: fix the line and process the file again.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /resolve-gaps COMPRAS_PORTAL --source input/scope.md --change CHG-001
+   ```
+
+   ```text
+   change_id: CHG-001
+   round: lenses
+   closed: GAP-SCOPE
+   open: GAP-OBJECTIVE, GAP-USERS, GAP-PRODUCT-ASIS-TOBE
+   ```
+
+   The answer is stored under `07_changes/00_client_responses/`, and each border line cites it.
+   </details>
+
+4. **Answer the rest.** Keep going as in scenario 2: regenerate the change's questions, send them, process the answers with the same `--change CHG-001`.
+
+### What you have now
+
+A change, `CHG-001`, with its own questions, a confirmed border and a review round scoped to what the change touches. The project itself is exactly as it was.
+
+**What this does not do yet.** This first step stops at the questions. There is no change brief, no specs and no backlog for a change yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
+
+**Decision points.** If the request is a new product, or the existing system is not involved, it is a project: scenario 1. If the client changes a rule of a project whose backlog is already built, it is scenario 9.
+
+<details><summary>In a terminal</summary>
+
+Use `--change` only on `/ingest`, `/gaps` and `/resolve-gaps`. The id (`CHG-001`) comes from the `/ingest` output.
+</details>
 
 ---
 

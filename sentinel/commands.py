@@ -58,11 +58,19 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _resolve_gaps(parser: argparse.ArgumentParser) -> None:
+    _project_source(parser)
+    # IMP-382: answer this change's gaps (and confirm its border) instead of the project's
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-382: resolve this change's gaps instead of the project's")
+
+
 def _ingest(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", required=True)
     # IMP-320: replace the primary requirement on purpose; without it a second /ingest is refused.
     parser.add_argument("--replace", action="store_true")
+    # IMP-382: open a change (CHG-nnn) on an existing system instead of the project's requirement.
+    parser.add_argument("--change", action="store_true")
 
 
 def _project_override(parser: argparse.ArgumentParser) -> None:
@@ -255,6 +263,7 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--id", dest="gap_id")
     p.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
     p.add_argument("--reason", default="")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-382: regenerate this change's gaps instead of the project's")
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 
 
@@ -282,7 +291,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("ingest", MUTATING, _ingest),
     Command("retrieve", READ_ONLY, _retrieve),
     Command("sync", MUTATING, _sync),
-    Command("resolve-gaps", MUTATING, _project_source),
+    Command("resolve-gaps", MUTATING, _resolve_gaps),
     Command("annotate", MUTATING, _project_source),
     Command("challenge", MUTATING, _project_source),
     Command("scrutinize", MUTATING, _scrutinize),

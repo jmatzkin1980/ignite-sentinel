@@ -53,6 +53,7 @@
     },
     {
       "id": "GAP-PRD-NFR-KPI",
+      "applies_to": ["project"],
       "severity": "medium",
       "rule": "absent_tokens",
       "evidence_scope": "source",

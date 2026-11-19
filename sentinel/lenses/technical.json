@@ -43,6 +43,7 @@
     },
     {
       "id": "GAP-BACKLOG-ENABLERS",
+      "applies_to": ["project"],
       "severity": "medium",
       "rule": "absent_tokens",
       "evidence_scope": "all",
@@ -76,6 +77,7 @@
     },
     {
       "id": "GAP-FRONTEND-SURFACE",
+      "surfaces": ["pantalla"],
       "severity": "medium",
       "rule": "mention_without_counterpart",
       "evidence_scope": "frontend",
@@ -106,6 +108,7 @@
     },
     {
       "id": "GAP-BACKEND-SURFACE",
+      "surfaces": ["endpoint", "dato", "integracion"],
       "severity": "medium",
       "rule": "mention_without_counterpart",
       "evidence_scope": "technical",

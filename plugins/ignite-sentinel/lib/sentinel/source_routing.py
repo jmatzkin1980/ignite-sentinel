@@ -68,7 +68,7 @@ def row_authority(row: dict[str, Any]) -> str:
         return str(authority)
     kind = str(row.get("kind", "external"))
     events = row.get("events") or []
-    if kind == "external" and events and events[0].get("via") == "initial_ingested":
+    if kind == "external" and events and events[0].get("via") in {"initial_ingested", "change_ingested"}:
         kind = "client_requirement"  # /ingest takes the client requirement, wherever the file sits
     return default_authority(kind, (row.get("paths") or [""])[0])
 

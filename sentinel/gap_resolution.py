@@ -16,7 +16,7 @@ from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
 from .core.text import project_language, unique_path
-from .workspace import read_json, state_path, update_state, utc_now, workspace_path
+from .workspace import read_json, read_state, state_path, update_state, utc_now, workspace_path
 
 # IMP-250b: the note on a confirmed answer that came from an example file.
 EXAMPLE_SOURCE_NOTE = "example-source: an example never closes a rule; confirm it from a governing source"
@@ -57,13 +57,24 @@ def saved_response_files(base: Path) -> list[str]:
     return sorted(path.as_posix() for path in folder.iterdir() if path.is_file())
 
 
-def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
+def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) -> dict[str, object]:
+    from .changes import without_border_block
+
     base = workspace_path(project_id)
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}")
-    gaps_path = base / "01_discovery" / "gaps.md"
-    if not gaps_path.exists():
-        raise GateRefusal("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
+    if change_id:
+        # IMP-382: a change keeps its own gaps; an unknown change is refused before anything is written.
+        from .changes import change_gaps_path, get_change
+
+        get_change(project_id, change_id)
+        gaps_path = change_gaps_path(base, change_id)
+        if not gaps_path.exists():
+            raise GateRefusal(f"{change_id} has no gaps file yet.", next_step=f"Run /gaps {project_id} --change {change_id}.")
+    else:
+        gaps_path = base / "01_discovery" / "gaps.md"
+        if not gaps_path.exists():
+            raise GateRefusal("Cannot resolve gaps before /ingest creates 01_discovery/gaps.md.")
 
     # IMP-322: utf-8-sig, so a file saved with a BOM keeps its first `### GAP-` answer.
     # IMP-323: read before anything is written, so an unreadable file leaves no copy behind.
@@ -71,6 +82,9 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         text = source.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:
         raise InputError(f"{source.name} is not UTF-8 text.", next_step="Save it as UTF-8 and run /resolve-gaps again.") from None
+    if change_id:
+        # IMP-382: validate the border before the first write; an invalid one rejects the whole file.
+        _validate_change_border(gaps_path, text)
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -86,12 +100,14 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
-    req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"
+    req_id = change_id or (existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001")
 
-    change_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
+    record_id = add_node(project_id, "CHG", "change", target, source.stem, status="pending", domain="product")
     # IMP-250b / IMP-251: an example, an own artifact (echo) or a source that declares
     # itself not validated never closes a rule; its confirmed answers stay ANSWERED.
-    block_note = closing_block_note(source_row(project_id, source_id), text)
+    # IMP-382: the border's surface names ("Guardar borrador") are not a claim that the source is a draft.
+    note_text = without_border_block(text) if change_id else text
+    block_note = closing_block_note(source_row(project_id, source_id), note_text)
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
     # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
     resolution_results["findings"].extend(
@@ -100,27 +116,41 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     resolution_results["findings"].extend(repeated_section_findings(responses))
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
-    write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
+    if change_id:
+        from .changes import change_language
+
+        language = change_language(project_id, get_change(project_id, change_id), text)
+        write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language, gaps_path.with_name("gap_elicitation.json")))
+    else:
+        write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
 
     report_path = unique_path(target_dir / f"{source.stem}_gap_resolution_report.md")
-    write_text(report_path, render_resolution_report(project_id, change_id, resolution_results))
+    write_text(report_path, render_resolution_report(project_id, record_id, resolution_results))
     report_id = add_node(project_id, "DEC", "gap_resolution_report", report_path, "Gap resolution report", status="active")
-    add_edge(project_id, change_id, report_id, "produces")
+    add_edge(project_id, record_id, report_id, "produces")
+
+    if change_id:
+        # IMP-382: seeds, decisions, EARS and the knowledge metabolism come in a later increment;
+        # the project's gap report node is not the change's.
+        return _finish_change_resolution(
+            project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
+            resolution_results, unknown_gap_ids,
+        )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
     for gap_report_id in gap_report_ids:
-        add_edge(project_id, change_id, gap_report_id, "resolves")
+        add_edge(project_id, record_id, gap_report_id, "resolves")
 
-    seed_ids = materialize_resolution_seeds(project_id, resolution_results["closed"], change_id)
-    decision_ids = materialize_resolution_decisions(project_id, resolution_results["closed"], change_id)
+    seed_ids = materialize_resolution_seeds(project_id, resolution_results["closed"], record_id)
+    decision_ids = materialize_resolution_decisions(project_id, resolution_results["closed"], record_id)
     for node_id in seed_ids + decision_ids:
-        add_edge(project_id, change_id, node_id, "confirms")
+        add_edge(project_id, record_id, node_id, "confirms")
 
     # IMP-026: confirmed answers already written in EARS syntax are normalized
     # into requirements.md as testable statements. Prose answers stay as prose.
-    ears_ids = materialize_ears_requirements(project_id, resolution_results["closed"], change_id)
+    ears_ids = materialize_ears_requirements(project_id, resolution_results["closed"], record_id)
     for node_id in ears_ids:
-        add_edge(project_id, change_id, node_id, "normalizes")
+        add_edge(project_id, record_id, node_id, "normalizes")
 
     update_gap_report_node_status(project_id, resolution_results["counts"])
 
@@ -132,18 +162,18 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     moved = any(before_status.get(gap["id"]) != str(gap.get("status", "")).upper() for gap in resolution_results["gaps"])
     metabolism = metabolize_knowledge(
         project_id,
-        change_id,
+        record_id,
         source_text=text,
         validated_gap_ids={item["id"] for item in resolution_results["closed"]},
         broker=broker,
         record_staleness=moved,
     )
-    write_text(report_path, render_resolution_report(project_id, change_id, resolution_results, metabolism))
-    broker.index_artifact(change_id, "change", target, text, trace_ids=[change_id], client_source=True)
-    broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[change_id, report_id])
+    write_text(report_path, render_resolution_report(project_id, record_id, resolution_results, metabolism))
+    broker.index_artifact(record_id, "change", target, text, trace_ids=[record_id], client_source=True)
+    broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[record_id, report_id])
     reindex_workspace(project_id)
-    mark_source_processed(project_id, source, "gap_resolved", change_id, source_id=source_id)
-    mark_source_processed(project_id, target, "gap_response_copy", change_id, source_id=source_id)
+    mark_source_processed(project_id, source, "gap_resolved", record_id, source_id=source_id)
+    mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
 
     update_state(
@@ -151,11 +181,11 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
         phase="gaps_resolved",
         health="DIRTY" if resolution_results["counts"].get("blocking_open", 0) else "CLEAN",
         last_gap_resolution_id=report_id,
-        last_change_id=change_id,
+        last_change_id=record_id,
         gap_counts=resolution_results["counts"],
         readiness_stage=readiness_stage_after_gap_change(project_id, resolution_results["counts"]),
     )
-    append_gap_resolution_log(project_id, change_id, report_id, resolution_results)
+    append_gap_resolution_log(project_id, record_id, report_id, resolution_results)
     # IMP-253b: in a v2 project the answers rewrite their places in the brief now
     from .compilers.brief_v2 import rewrite_after_gap_close
 
@@ -163,9 +193,9 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     brief_before = brief_path.read_bytes() if brief_path.exists() else b""
     brief_v2 = rewrite_after_gap_close(project_id, [item["id"] for item in resolution_results["closed"]])
     if brief_v2 and brief_path.exists() and brief_path.read_bytes() != brief_before:
-        mark_downstream_of_rewritten_brief(project_id, change_id)
+        mark_downstream_of_rewritten_brief(project_id, record_id)
     result = {
-        "change_id": change_id,
+        "change_id": record_id,
         "gap_resolution_report_id": report_id,
         "path": str(report_path.as_posix()),
         "closed": [item["id"] for item in resolution_results["closed"]],
@@ -180,6 +210,77 @@ def resolve_gaps(project_id: str, source: Path) -> dict[str, object]:
     if brief_v2:
         result["brief_v2"] = brief_v2
     return result
+
+
+def _gap_block(text: str, gap_id: str) -> str:
+    pattern = re.compile(r"^###\s+(GAP-[A-Z0-9-]+).*?(?=^###\s+GAP-[A-Z0-9-]+|\Z)", re.M | re.S)
+    return "\n".join(match.group(0) for match in pattern.finditer(text) if match.group(1) == gap_id)
+
+
+def _validate_change_border(gaps_path: Path, text: str) -> None:
+    """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
+    from .changes import parse_border
+
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+    dry = apply_gap_responses(existing, parse_gap_responses(text))  # the same rules, writing nothing
+    if any(gap["id"] == "GAP-SCOPE" for gap in dry["closed"]):
+        parse_border(_gap_block(text, "GAP-SCOPE"), "")
+
+
+def _finish_change_resolution(
+    project_id: str,
+    source: Path,
+    change_id: str,
+    record_id: str,
+    source_id: str,
+    target: Path,
+    text: str,
+    report_path: Path,
+    report_id: str,
+    resolution_results: dict[str, object],
+    unknown_gap_ids: list[str],
+) -> dict[str, object]:
+    """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
+    from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
+
+    base = workspace_path(project_id)
+    saved = target.relative_to(base).as_posix()
+    changes = {key: dict(value) for key, value in read_state(project_id).get("changes", {}).items()}
+    changes[change_id]["responses"] = [*changes[change_id].get("responses", []), saved]
+    update_state(project_id, changes=changes)
+    scope_closed = any(gap["id"] == "GAP-SCOPE" for gap in resolution_results["closed"])
+    if scope_closed:
+        confirm_border(project_id, change_id, parse_border(_gap_block(text, "GAP-SCOPE"), f"{saved}#GAP-SCOPE"))
+        regenerate_change_gaps(project_id, change_id)
+    else:
+        changes = {key: dict(value) for key, value in read_state(project_id).get("changes", {}).items()}
+        changes[change_id]["gap_counts"] = resolution_results["counts"]
+        update_state(project_id, changes=changes)
+    change = get_change(project_id, change_id)
+
+    broker = ContextBroker(project_id)
+    write_text(report_path, render_resolution_report(project_id, record_id, resolution_results))
+    broker.index_artifact(record_id, "change", target, text, trace_ids=[record_id], client_source=True)
+    broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[record_id, report_id])
+    reindex_workspace(project_id)
+    mark_source_processed(project_id, source, "gap_resolved", record_id, source_id=source_id)
+    mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
+    mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
+    return {
+        "change_id": change_id,
+        "resolution_id": record_id,
+        "round": change.get("round"),
+        "border": change.get("border", []),
+        "gap_resolution_report_id": report_id,
+        "path": str(report_path.as_posix()),
+        "closed": [item["id"] for item in resolution_results["closed"]],
+        "answered": [item["id"] for item in resolution_results["answered"]],
+        "partially_closed": [item["id"] for item in resolution_results["partially_closed"]],
+        "open": [item["id"] for item in resolution_results["open"]],
+        "gap_counts": change.get("gap_counts"),
+        "closure_findings": resolution_results["findings"],
+        "unknown_gap_ids": unknown_gap_ids,
+    }
 
 
 def mark_downstream_of_rewritten_brief(project_id: str, change_id: str) -> None:

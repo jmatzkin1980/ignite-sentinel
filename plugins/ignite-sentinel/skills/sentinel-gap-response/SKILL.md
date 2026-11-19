@@ -26,6 +26,24 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /maturi
 sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /status PROJECT_ID
 ```
 
+## Answers for a Change (IMP-382)
+
+For the gaps of a CHG-nnn (`01_discovery/CHG-nnn/gaps.md`), pass the change: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /resolve-gaps PROJECT_ID --source PATH --change CHG-001`. The same closure rules apply, to that change's gaps only.
+
+GAP-SCOPE closes with a `Borde:` block: one line per surface, `zone | type | name`, indented under `- Borde:` in the answer. Zones: `nuevo`, `adyacente`, `preservado`. Types: `pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion` (`integración` is accepted), `regla`.
+
+```markdown
+### GAP-SCOPE
+- Answer: Save a draft of the supplier form.
+- Borde:
+  - nuevo | pantalla | Boton Guardar borrador
+  - adyacente | endpoint | Alta de proveedores
+  - preservado | proceso | Envio normal del formulario
+- Decision status: confirmed
+```
+
+One bad line rejects the whole file and nothing is written: fix the line and run again. A valid border is confirmed and opens the lens round, scoped by the surface types: with no `pantalla` in the border there are no design or frontend checks. Do not invent border lines the client did not give.
+
 ## Post-Response Metabolism (report it, do not just close gaps)
 
 Every `/resolve-gaps` pass metabolizes the confirmed knowledge and returns a `knowledge_metabolism` block. Your summary must cover what actually moved, not only the closed/open counts:

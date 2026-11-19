@@ -4,6 +4,7 @@
   "checks": [
     {
       "id": "GAP-DESIGN-FLOW",
+      "surfaces": ["pantalla"],
       "severity": "medium",
       "rule": "mention_without_counterpart",
       "evidence_scope": "design",
@@ -35,6 +36,7 @@
     },
     {
       "id": "GAP-DESIGN-STATES",
+      "surfaces": ["pantalla"],
       "severity": "medium",
       "rule": "mention_without_counterpart",
       "evidence_scope": "design",
@@ -66,6 +68,8 @@
     },
     {
       "id": "GAP-DESIGN-PROTOTYPE-INPUT",
+      "applies_to": ["project"],
+      "surfaces": ["pantalla"],
       "severity": "medium",
       "rule": "mention_without_counterpart",
       "evidence_scope": "design",
@@ -92,6 +96,7 @@
     },
     {
       "id": "GAP-CTP-DESIGN-EXCLUSION",
+      "surfaces": ["pantalla"],
       "severity": "medium",
       "rule": "mention_requires_counterpart",
       "evidence_scope": "source",

@@ -44,9 +44,9 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("doctor", "Validate that Ignite Sentinel is ready in this repository.", []),
     ("dashboard", "Generate the local read-only HTML portfolio dashboard for all workspaces.", []),
     ("init", "Create a new Sentinel project workspace.", ["project_id"]),
-    ("ingest", "Ingest raw client/domain evidence and run inquisitive discovery.", ["project_id", "source"]),
-    ("gaps", "Regenerate the discovery gap ledger (01_discovery/gaps.md; the client gets the interview export). With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7). On a GAP-CHG (IMP-337) accepted applies the change (reopens the gap or invalidates the assumption) and rejected closes it as a false alarm.", ["project_id"]),
-    ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers.", ["project_id", "source"]),
+    ("ingest", "Ingest raw client/domain evidence and run inquisitive discovery. With change=true (IMP-382) the source opens a CHG-nnn, a change or new feature on an existing system, with only its scope round (objective, users, scope, product as-is/to-be) in 01_discovery/CHG-nnn/gaps.md; the project's requirement and gaps are not touched.", ["project_id", "source"]),
+    ("gaps", "Regenerate the discovery gap ledger (01_discovery/gaps.md; the client gets the interview export). With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7). On a GAP-CHG (IMP-337) accepted applies the change (reopens the gap or invalidates the assumption) and rejected closes it as a false alarm. With change=CHG-nnn (IMP-382) regenerates that change's gap file 01_discovery/CHG-nnn/gaps.md instead of the project's.", ["project_id"]),
+    ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers. With change=CHG-nnn (IMP-382) applies them to that change's gaps; when GAP-SCOPE closes with a valid Borde block (one line per surface, zone | type | name, zone nuevo|adyacente|preservado) the border is confirmed and the lens round opens scoped by the surface types (no pantalla means no design or frontend checks); one bad border line rejects the file and nothing is written.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
@@ -373,21 +373,26 @@ def build_server():
         return run_cli(["init", project_id] + (["--brief-version", str(brief_version)] if brief_version else []))
 
     @tool(name="sentinel_ingest", description=TOOL_DESCRIPTIONS["ingest"])
-    def sentinel_ingest(project_id: str, source: str, replace: bool = False) -> dict:
-        return run_cli(["ingest", project_id, "--source", source] + (["--replace"] if replace else []))
+    def sentinel_ingest(project_id: str, source: str, replace: bool = False, change: bool = False) -> dict:
+        return run_cli(
+            ["ingest", project_id, "--source", source]
+            + (["--replace"] if replace else [])
+            + (["--change"] if change else [])
+        )
 
     @tool(name="sentinel_gaps", description=TOOL_DESCRIPTIONS["gaps"])
-    def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "", top: int = 0) -> dict:
+    def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "", top: int = 0,
+                     change: str = "") -> dict:
         arguments = ["gaps", project_id]
-        for flag, value in (("--id", id), ("--disposition", disposition), ("--reason", reason),
+        for flag, value in (("--id", id), ("--disposition", disposition), ("--reason", reason), ("--change", change),
                             ("--top", str(top) if top else "")):
             if value:
                 arguments += [flag, value]
         return run_cli(arguments)
 
     @tool(name="sentinel_resolve_gaps", description=TOOL_DESCRIPTIONS["resolve_gaps"])
-    def sentinel_resolve_gaps(project_id: str, source: str) -> dict:
-        return run_cli(["resolve-gaps", project_id, "--source", source])
+    def sentinel_resolve_gaps(project_id: str, source: str, change: str = "") -> dict:
+        return run_cli(["resolve-gaps", project_id, "--source", source] + (["--change", change] if change else []))
 
     @tool(name="sentinel_maturity", description=TOOL_DESCRIPTIONS["maturity"])
     def sentinel_maturity(project_id: str) -> dict:
