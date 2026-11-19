@@ -64,6 +64,15 @@ class ChangeIngest(SnapshotWorkspaceCase):
         self.assertIn("CHG-009 no es un cambio abierto de BORR", str(caught.exception))
         self.assertIn("CHG-001", caught.exception.next_step)
 
+    def test_reingesting_the_same_file_does_not_overwrite_the_open_change(self):
+        gaps = change_gaps_path(self.base, "CHG-001")
+        entry_before = json.dumps(list_changes("BORR"), sort_keys=True)
+        gaps_before = gaps.read_bytes()
+        code, _ = run_cli(["ingest", "BORR", "--source", "pedido.md", "--change"])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(json.dumps(list_changes("BORR"), sort_keys=True), entry_before)
+        self.assertEqual(gaps.read_bytes(), gaps_before)
+
     def test_second_change_gets_its_own_id(self):
         shutil.copy(FIXTURES / "change_request.md", Path.cwd() / "otro.md")
         out = json.loads(run_ok(["ingest", "BORR", "--source", "otro.md", "--change"]))

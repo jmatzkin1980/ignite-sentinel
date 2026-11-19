@@ -53,6 +53,15 @@ def ingest_change(project_id: str, source: Path) -> dict:
     ensure_workspace(project_id)
     base = workspace_path(project_id)
     raw_target = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
+    # The id comes from the source path (add_node dedups on it): a second --change with the
+    # same file would overwrite the open change's answers, border and gaps. Refuse before writing.
+    own_source = f"00_raw/{raw_target.name}"
+    for open_id, entry in list_changes(project_id).items():
+        if entry.get("source") == own_source:
+            raise GateRefusal(
+                f"{source.name} ya está abierto como {open_id} en {project_id}",
+                next_step=f"Seguí ese cambio con /gaps {project_id} --change {open_id}; para un cambio nuevo usá otro archivo.",
+            )
     extracted = read_source(source, media_stem=raw_target.stem)
     source_id = open_source_row(project_id, source, "change_ingested")
     config = load_config(project_id)
@@ -71,7 +80,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
 
     changes = dict(list_changes(project_id))
     changes[change_id] = {
-        "source": f"00_raw/{raw_target.name}",
+        "source": own_source,
         "opened_at": utc_now(),
         "round": "scope",
         "border": [],
