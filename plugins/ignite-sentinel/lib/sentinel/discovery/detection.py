@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 from ..gaps import question_for_gap
-from ..lens_registry import load_lens_checks, load_smell_catalog
+from ..lens_registry import check_applies, load_lens_checks, load_smell_catalog
 
 from .momtest import scan_questions
 
@@ -234,7 +234,14 @@ def counterpart_present(evidence: str, source: str, check: dict) -> bool:
     return False
 
 
-def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=None) -> list[dict[str, str]]:
+def detect_gaps(
+    text: str,
+    context: dict[str, str] | None = None,
+    lenses_dir=None,
+    *,
+    work: str = "project",
+    border_types: frozenset[str] | None = None,
+) -> list[dict[str, str]]:
     """Detect gaps by applying the declarative lens checklist (IMP-033).
 
     The lens knowledge (checks, severities, tokens, inquisitive rules) lives in
@@ -242,6 +249,9 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
     here. Each check declares a ``rule`` that decides how it fires; behavior is
     identical to the previous in-code checklist. ``lenses_dir`` overrides the
     source directory (used by tests to add a check without touching Python).
+    ``work`` and ``border_types`` (IMP-382) scope the checklist to a change: checks
+    that do not apply to the work kind or whose surfaces miss the border are
+    skipped. The defaults keep the project result byte-identical.
     """
     lowered = text.lower()
     context = context or {}
@@ -259,6 +269,8 @@ def detect_gaps(text: str, context: dict[str, str] | None = None, lenses_dir=Non
     }
     gaps: list[dict[str, str]] = []
     for check in load_lens_checks(lenses_dir):
+        if not check_applies(check, work, border_types):
+            continue
         rule = check.get("rule")
         evidence = scopes.get(check.get("evidence_scope", "source"), lowered)
         gap = {
