@@ -63,6 +63,8 @@ def _ingest(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
     # IMP-320: replace the primary requirement on purpose; without it a second /ingest is refused.
     parser.add_argument("--replace", action="store_true")
+    # IMP-382: open a change (CHG-nnn) on an existing system instead of the project's requirement.
+    parser.add_argument("--change", action="store_true")
 
 
 def _project_override(parser: argparse.ArgumentParser) -> None:

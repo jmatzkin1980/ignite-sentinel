@@ -147,7 +147,7 @@ def _run_project_command(args) -> int:
         elif args.command == "ingest":
             from .discovery import ingest
 
-            result = ingest(args.project_id, Path(args.source), replace=bool(args.replace))
+            result = ingest(args.project_id, Path(args.source), replace=bool(args.replace), change=bool(args.change))
             print_json(result)
         elif args.command == "retrieve":
             from .memory import ContextBroker
