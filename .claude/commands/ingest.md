@@ -18,6 +18,7 @@ Run from the repository root:
 
 ```powershell
 python -m sentinel /ingest PROJECT_ID --source PATH
+python -m sentinel /ingest PROJECT_ID --source PATH --change
 ```
 
 This also indexes generated artifacts plus workspace context folders into local LanceDB memory.

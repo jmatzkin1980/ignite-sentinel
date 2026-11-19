@@ -20,6 +20,7 @@ Run from the repository root:
 ```powershell
 python -m sentinel /gaps PROJECT_ID
 python -m sentinel /gaps PROJECT_ID --id GAP-X --disposition rejected --reason TEXT
+python -m sentinel /gaps PROJECT_ID --change CHG-NNN
 ```
 
 Return the generated `01_discovery/gaps.md` path and current gap counts.
