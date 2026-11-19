@@ -65,6 +65,7 @@
     },
     {
       "id": "GAP-PRD-GOVERNANCE",
+      "applies_to": ["project"],
       "severity": "medium",
       "rule": "absent_tokens",
       "evidence_scope": "source",

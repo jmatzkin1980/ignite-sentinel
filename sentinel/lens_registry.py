@@ -23,6 +23,11 @@ Check schema (per entry in a lens file's ``checks`` array):
       none of ``suppressors`` (source/baseline words) appear.
 - evidence_scope: which text the rule reads — source | technical | design |
   quality | frontend | all.
+- applies_to (optional): which work kinds the check serves, a subset of
+  WORK_KINDS (project | change). Absent means both.
+- surfaces (optional): border surface types (SURFACE_TYPES) the check is about.
+  In a change, the check is dropped when its surfaces do not meet the change's
+  border. Absent means it always applies.
 - why (optional): the field experience that motivates the check (team notes).
 """
 from __future__ import annotations
@@ -51,6 +56,8 @@ VALID_RULES = {
     "weak_word_smell",
 }
 VALID_SCOPES = {"source", "technical", "design", "quality", "frontend", "all"}
+WORK_KINDS: tuple[str, ...] = ("project", "change")
+SURFACE_TYPES: tuple[str, ...] = ("pantalla", "proceso", "endpoint", "dato", "rol", "integracion", "regla")
 
 # IMP-346: the one lens normalizer (it had diverged between the knowledge ledger
 # and the development-readiness matrix). Synonyms that are not lenses of their
@@ -133,8 +140,35 @@ def _load_ordered_lenses(by_name: dict) -> tuple:
         for raw in data.get("checks", []):
             entry = dict(raw)
             entry["lens"] = lens
+            _validate_check_scope(entry)
             checks.append(entry)
     return tuple(checks)
+
+
+def _validate_check_scope(check: dict) -> None:
+    for key, valid in (("applies_to", WORK_KINDS), ("surfaces", SURFACE_TYPES)):
+        values = check.get(key)
+        if values is None:
+            continue
+        if not isinstance(values, list) or not set(values) <= set(valid):
+            raise ValueError(
+                f"lens check {check.get('id', '?')}: {key} {values!r} is invalid; "
+                f"valid values: {', '.join(valid)}"
+            )
+
+
+def check_applies(check: dict, work: str, border_types: frozenset[str] | None) -> bool:
+    """Whether a lens check serves this work kind and, for a change, its border.
+
+    ``border_types`` is None when the border is not known yet: surface filtering
+    is skipped. A check without ``surfaces`` always applies.
+    """
+    if work not in check.get("applies_to", WORK_KINDS):
+        return False
+    surfaces = check.get("surfaces")
+    if border_types is not None and surfaces and not set(surfaces) & border_types:
+        return False
+    return True
 
 
 def lens_checks_for_lens(lens: str, lenses_dir: Path | str | None = None) -> list[dict]:
