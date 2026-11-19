@@ -15,7 +15,8 @@ from .core.time import utc_now
 from .errors import GateRefusal, InputError
 from .gaps import count_gaps, parse_gap_rows, render_gaps
 from .injection import shield_source
-from .lens_registry import SURFACE_TYPES
+from .core.text import unique_path
+from .lens_registry import SURFACE_TYPES, load_lens_checks
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
 from .sources import mark_source_processed, open_source_row
@@ -47,6 +48,21 @@ def get_change(project_id: str, change_id: str) -> dict:
     return changes[change_id]
 
 
+def _scope_gap() -> dict[str, str]:
+    check = next(c for c in load_lens_checks() if c["id"] == "GAP-SCOPE")
+    return {"id": check["id"], "lens": check["lens"], "severity": check["severity"], "description": check["description"]}
+
+
+def change_language(project_id: str, change: dict, fallback_text: str = "") -> str:
+    """The language the change's gaps are rendered in: fixed at ingest, never the project's."""
+    from .discovery.intake import resolve_project_language
+
+    stored = change.get("language")
+    if stored:
+        return str(stored)
+    return resolve_project_language(load_config(project_id).get("project_language", "auto"), fallback_text)
+
+
 def ingest_change(project_id: str, source: Path) -> dict:
     # Imported here: the discovery package imports this module's caller chain.
     from .discovery.detection import detect_gaps
@@ -54,16 +70,18 @@ def ingest_change(project_id: str, source: Path) -> dict:
 
     ensure_workspace(project_id)
     base = workspace_path(project_id)
-    raw_target = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
+    natural = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
     # The id comes from the source path (add_node dedups on it): a second --change with the
     # same file would overwrite the open change's answers, border and gaps. Refuse before writing.
-    own_source = f"00_raw/{raw_target.name}"
     for open_id, entry in list_changes(project_id).items():
-        if entry.get("source") == own_source:
+        if entry.get("source") == f"00_raw/{natural.name}" or entry.get("origin") == source.name:
             raise GateRefusal(
                 f"{source.name} ya está abierto como {open_id} en {project_id}",
                 next_step=f"Seguí ese cambio con /gaps {project_id} --change {open_id}; para un cambio nuevo usá otro archivo.",
             )
+    # A raw copy that is not this change's own (the project's input, a baseline source) is never overwritten.
+    raw_target = unique_path(natural)
+    own_source = f"00_raw/{raw_target.name}"
     extracted = read_source(source, media_stem=raw_target.stem)
     source_id = open_source_row(project_id, source, "change_ingested")
     config = load_config(project_id)
@@ -76,6 +94,8 @@ def ingest_change(project_id: str, source: Path) -> dict:
     change_id = add_node(project_id, "CHG", "change", raw_target, source.stem, status="open", domain="product")
 
     found = {g["id"]: g for g in detect_gaps(text, context, work="change")}
+    # GAP-SCOPE carries the border: it is always asked, whether or not its token check fires.
+    found.setdefault("GAP-SCOPE", _scope_gap())
     gaps = [found[gap_id] for gap_id in SCOPE_ROUND_IDS if gap_id in found]
     gaps_path = change_gaps_path(base, change_id)
     write_text(gaps_path, render_gaps(project_id, gaps, change_id, language, gaps_path.with_name("gap_elicitation.json")))
@@ -83,6 +103,8 @@ def ingest_change(project_id: str, source: Path) -> dict:
     changes = dict(list_changes(project_id))
     changes[change_id] = {
         "source": own_source,
+        "origin": source.name,
+        "language": language,
         "opened_at": utc_now(),
         "round": "scope",
         "border": [],
@@ -197,14 +219,14 @@ def _read_evidence(base: Path, change: dict) -> str:
 def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
     from .discovery.detection import detect_gaps
-    from .discovery.intake import load_domain_context, resolve_project_language
+    from .discovery.intake import load_domain_context
 
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
     gaps_path = change_gaps_path(base, change_id)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
     evidence = _read_evidence(base, change)
-    language = resolve_project_language(load_config(project_id).get("project_language", "auto"), evidence)
+    language = change_language(project_id, change, evidence)
     rows = list(existing)
     if change.get("round") == "lenses":
         have = {row["id"] for row in existing}

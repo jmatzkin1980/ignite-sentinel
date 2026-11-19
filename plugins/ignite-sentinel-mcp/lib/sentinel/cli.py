@@ -210,6 +210,14 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
+            if args.change and (args.gap_id or args.disposition or args.top is not None):
+                from .errors import InputError
+
+                clash = "--id/--disposition" if (args.gap_id or args.disposition) else "--top"
+                raise InputError(
+                    f"/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
+                    next_step="Corré /gaps --change CHG-NNN solo, o quitá --change para usar " + clash + ".",
+                )
             if args.gap_id or args.disposition:
                 if not (args.gap_id and args.disposition):
                     raise ValueError("/gaps --disposition goes with --id GAP-X")

@@ -150,7 +150,7 @@ def _validate_check_scope(check: dict) -> None:
         values = check.get(key)
         if values is None:
             continue
-        if not isinstance(values, list) or not set(values) <= set(valid):
+        if not isinstance(values, list) or not values or not set(values) <= set(valid):
             raise ValueError(
                 f"lens check {check.get('id', '?')}: {key} {values!r} is invalid; "
                 f"valid values: {', '.join(valid)}"

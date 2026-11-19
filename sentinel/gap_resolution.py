@@ -117,6 +117,9 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     if change_id:
+        from .changes import change_language
+
+        language = change_language(project_id, get_change(project_id, change_id), text)
         write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language, gaps_path.with_name("gap_elicitation.json")))
     else:
         write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))

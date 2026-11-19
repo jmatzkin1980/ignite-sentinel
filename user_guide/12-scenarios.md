@@ -40,8 +40,8 @@ A few terms come back often. A **gap** is an open question Sentinel found in you
 | The project extends a system that already exists in code | [7. An existing system](#scenario-7-an-existing-system) |
 | The team starts building | [8. Building starts](#scenario-8-building-starts) |
 | The client changes a rule after the backlog is ready | [9. The client changes scope after the backlog is ready](#scenario-9-the-client-changes-scope-after-the-backlog-is-ready) |
-| A change or new feature on something that already exists (no new project) | [11. A change on something that already exists](#scenario-11-a-change-on-something-that-already-exists) |
 | A developer finds something the backlog does not cover | [10. Development finds a hole](#scenario-10-development-finds-a-hole) |
+| A change or new feature on something that already exists (no new project) | [11. A change on something that already exists](#scenario-11-a-change-on-something-that-already-exists) |
 | Something small: triage, domain teams, exports, the portfolio page | [Smaller situations](#smaller-situations) |
 
 | Role | Start with |
