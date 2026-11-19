@@ -23,6 +23,17 @@ Use this skill to start or refresh discovery for a project.
 7. When maturity is blocked, send the client or domain owner the interview script (`/export PROJECT_ID --artifact gaps --format interview`, below), not `01_discovery/gaps.md`: `gaps.md` is the BA's working ledger, with lens, severity, candidate options and the trace table.
 8. Run `python -m sentinel /health PROJECT_ID` before downstream specs or backlog work.
 
+## A Change on an Existing System (IMP-382)
+
+When the material is a change or new feature on something that already exists (not a new project), do not open a project requirement and do not write a PRD. Ingest it as a change:
+
+```powershell
+python -m sentinel /ingest PROJECT_ID --source PATH --change
+python -m sentinel /gaps PROJECT_ID --change CHG-001
+```
+
+`--change` opens a CHG-nnn with only the scope round: GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE and GAP-PRODUCT-ASIS-TOBE, written to `01_discovery/CHG-nnn/gaps.md`. The project's requirement, gaps and artifacts are not touched. The PRD-only checks and GAP-BACKLOG-ENABLERS never fire for a change. The lens round opens later, when GAP-SCOPE closes with a border (see `sentinel-gap-response`). The change's brief, specs and backlog are not generated yet: say so to the BA instead of improvising them.
+
 ## Deepening Cycle After `/gaps`
 
 The lexical checklist behind `/gaps` is the floor, not the ceiling. Once `gaps.md` exists, chain the agentic deepening passes — each has its own skill with the full contract:

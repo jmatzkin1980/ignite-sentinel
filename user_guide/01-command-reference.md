@@ -374,6 +374,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a file path | required | The input. `.md`, `.txt`, `.html`, `.htm` are read as UTF-8 text; `.docx` is read with its text, images and comments. |
 | `--replace` | flag | off | Replace the project's primary requirement with this file on purpose. Gaps are rebuilt from the new file, so answered gaps open again; the result says how many and lists the saved answer files to re-apply with `/resolve-gaps`. |
+| `--change` | flag | off | The source is a change or new feature on an existing system, not a new project. Opens `CHG-nnn` with only the scope round (`GAP-OBJECTIVE`, `GAP-USERS`, `GAP-SCOPE`, `GAP-PRODUCT-ASIS-TOBE`) in `01_discovery/CHG-nnn/gaps.md`; the project's requirement and gaps are untouched. No change brief, specs or backlog yet. |
 
 **Reads.** The `--source` file.
 
@@ -506,6 +507,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 | `--disposition` | `accepted`, `rejected`, `irrelevant` | none | The BA's verdict on a gap raised by an agentic channel, that is a gap whose origin is `agent`, `challenge`, `scrutiny`, `implementability-probe`, `self-review`, `sufficiency` (`GAP-SUF-*`), `anchor-review` (`GAP-ANC-*`) or `cross-review` (`GAP-XRV-*`). |
 | `--reason` | text | empty | Why. Required for `rejected` and `irrelevant`. |
 | `--top` | an integer | none | Plan a round of at most N open gaps, ordered scope, then security and privacy, then UX, then technical, then by severity. |
+| `--change` | `CHG-nnn` | none | Regenerate the gap file of that change (`01_discovery/CHG-nnn/gaps.md`) instead of the project's. |
 
 **On any other gap the disposition only records your call.** It goes to `01_discovery/agent_dispositions.json` and feeds the per-channel false-alarm metrics that `/maturity` reports. The gap row in `gaps.md` does not change: a critical or high gap marked `irrelevant` stays open and keeps `/maturity` `BLOCKED`. To take it out of the way, close it through `/resolve-gaps` (for example with `Decision status: not applicable` and the reason).
 
@@ -713,6 +715,7 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
+| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. |
 
 A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. A confirmed answer that holds two or more EARS sentences ("When ..., the system shall ...") gives one `REQ-EARS-*` row per sentence; a sentence that is not EARS stays with the EARS sentence before it. A gap answered in two `### GAP-...` sections of one file gets both answers, merged, and a finding ("answered in 2 sections; the answers were merged into one."); when the sections give different decision statuses, the gap does not close and the finding says so. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 

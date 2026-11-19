@@ -9,6 +9,7 @@ Parse the project ID and source path from the invocation:
 
 ```text
 /ingest PROJECT_ID --source PATH
+/ingest PROJECT_ID --source PATH --change
 ```
 
 Run from the repository root:
@@ -24,3 +25,5 @@ Then summarize generated `RAW`, `REQ`, `GAP`, `DEC`, `SEED`, `DISC`, and lens re
 ```powershell
 python -m sentinel /retrieve PROJECT_ID --query "topic" --workflow discovery --write-pack
 ```
+
+With `--change` (IMP-382) the source is a change or new feature on an existing system. Sentinel opens a CHG-nnn with only the scope round (GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE, GAP-PRODUCT-ASIS-TOBE) in `01_discovery/CHG-nnn/gaps.md`; the project's requirement and gaps are not touched. The change's brief, specs and backlog are not generated yet.
