@@ -381,9 +381,10 @@ def build_server():
         )
 
     @tool(name="sentinel_gaps", description=TOOL_DESCRIPTIONS["gaps"])
-    def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "", top: int = 0) -> dict:
+    def sentinel_gaps(project_id: str, id: str = "", disposition: str = "", reason: str = "", top: int = 0,
+                     change: str = "") -> dict:
         arguments = ["gaps", project_id]
-        for flag, value in (("--id", id), ("--disposition", disposition), ("--reason", reason),
+        for flag, value in (("--id", id), ("--disposition", disposition), ("--reason", reason), ("--change", change),
                             ("--top", str(top) if top else "")):
             if value:
                 arguments += [flag, value]

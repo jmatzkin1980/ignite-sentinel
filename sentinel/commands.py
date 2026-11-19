@@ -257,6 +257,7 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--id", dest="gap_id")
     p.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
     p.add_argument("--reason", default="")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-382: regenerate this change's gaps instead of the project's")
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 
 

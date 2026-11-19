@@ -216,6 +216,10 @@ def _run_project_command(args) -> int:
                 from .discovery import record_gap_disposition
 
                 print_json(record_gap_disposition(args.project_id, args.gap_id, args.disposition, args.reason))
+            elif args.change:
+                from .changes import regenerate_change_gaps
+
+                print_json(regenerate_change_gaps(args.project_id, args.change))
             elif args.top is not None:
                 from .discovery.elicitation import gap_round
 

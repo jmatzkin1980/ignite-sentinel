@@ -82,7 +82,7 @@ def meanwhile_markdown(gap: dict[str, str], language: str) -> str:
     return f"\n{label} {meanwhile['statement']} (`{meanwhile['assumption']}`){where}\n"
 
 
-def write_gap_elicitation(project_id: str, gaps: list[dict[str, str]], language: str) -> None:
+def write_gap_elicitation(project_id: str, gaps: list[dict[str, str]], language: str, path=None) -> None:
     """The side record behind the response sections: kind, closure, example, recommended, meanwhile."""
     from ..core.io import write_json
 
@@ -96,14 +96,14 @@ def write_gap_elicitation(project_id: str, gaps: list[dict[str, str]], language:
             "recommended": {"label": options[0]["label"], "text": options[0]["text"], "inferred": True} if options else None,
             "meanwhile": gap.get("_meanwhile"),
         }
-    write_json(workspace_path(project_id) / "01_discovery" / "gap_elicitation.json", records)
+    write_json(path or workspace_path(project_id) / "01_discovery" / "gap_elicitation.json", records)
 
 
-def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en") -> str:
+def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en", elicitation_path=None) -> str:
     if workspace_path(project_id).exists():
         meanwhile = gap_meanwhile_map(project_id)
         gaps = [{**gap, "_meanwhile": meanwhile[gap["id"]]} if gap.get("id") in meanwhile else gap for gap in gaps]
-        write_gap_elicitation(project_id, gaps, language)
+        write_gap_elicitation(project_id, gaps, language, elicitation_path)
     response_sections = "\n\n".join(render_gap_response_section(gap, req_id, language) for gap in gaps)
     if not response_sections:
         response_sections = no_gaps_text(language)

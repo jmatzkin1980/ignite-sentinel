@@ -520,6 +520,14 @@ def regenerate_gaps(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
+        from ..changes import list_changes
+
+        open_changes = sorted(list_changes(project_id))
+        if open_changes:
+            raise GateRefusal(
+                f"{project_id} sólo tiene cambios: no hay 01_discovery/gaps.md del proyecto",
+                next_step=f"/gaps {project_id} --change {open_changes[0]}",
+            )
         raise GateRefusal("Cannot regenerate gaps before /ingest creates 01_discovery/gaps.md.")
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     req_id = existing[0].get("parent", "REQ-001").strip("`") if existing else "REQ-001"

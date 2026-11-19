@@ -12,7 +12,7 @@ from .core.graph import add_node
 from .core.io import write_text
 from .core.time import utc_now
 from .errors import GateRefusal
-from .gaps import count_gaps, render_gaps
+from .gaps import count_gaps, parse_gap_rows, render_gaps
 from .injection import shield_source
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
@@ -76,7 +76,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
     found = {g["id"]: g for g in detect_gaps(text, context, work="change")}
     gaps = [found[gap_id] for gap_id in SCOPE_ROUND_IDS if gap_id in found]
     gaps_path = change_gaps_path(base, change_id)
-    write_text(gaps_path, render_gaps(project_id, gaps, change_id, language))
+    write_text(gaps_path, render_gaps(project_id, gaps, change_id, language, gaps_path.with_name("gap_elicitation.json")))
 
     changes = dict(list_changes(project_id))
     changes[change_id] = {
@@ -94,4 +94,48 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "gaps_path": str(gaps_path.as_posix()),
         "gap_counts": count_gaps(gaps),
         "round": "scope",
+    }
+
+
+def border_types(change: dict) -> frozenset[str]:
+    """The surface types the BA confirmed (or proposed) in the change's border."""
+    return frozenset(str(item.get("type")) for item in change.get("border", []) if item.get("type"))
+
+
+def _read_evidence(base: Path, change: dict) -> str:
+    parts = []
+    for rel in [change["source"], *change.get("responses", [])]:
+        path = Path(rel)
+        path = path if path.is_absolute() else base / path
+        parts.append(path.read_text(encoding="utf-8"))
+    return "\n\n".join(parts)
+
+
+def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
+    """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
+    from .discovery.detection import detect_gaps
+    from .discovery.intake import load_domain_context, resolve_project_language
+
+    change = get_change(project_id, change_id)
+    base = workspace_path(project_id)
+    gaps_path = change_gaps_path(base, change_id)
+    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
+    evidence = _read_evidence(base, change)
+    language = resolve_project_language(load_config(project_id).get("project_language", "auto"), evidence)
+    rows = list(existing)
+    if change.get("round") == "lenses":
+        have = {row["id"] for row in existing}
+        found = detect_gaps(evidence, load_domain_context(base), work="change", border_types=border_types(change))
+        rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
+    write_text(gaps_path, render_gaps(project_id, rows, change_id, language, gaps_path.with_name("gap_elicitation.json")))
+    counts = count_gaps(rows)
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["gap_counts"] = counts
+    update_state(project_id, changes=changes)
+    return {
+        "project_id": project_id,
+        "change_id": change_id,
+        "path": str(gaps_path.as_posix()),
+        "gap_counts": counts,
+        "round": change.get("round"),
     }
