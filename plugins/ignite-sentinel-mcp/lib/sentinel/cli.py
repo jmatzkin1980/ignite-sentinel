@@ -94,6 +94,21 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
+    if args.command == "specs" and getattr(args, "release", None) and getattr(args, "change", None):
+        from .changes import change_language, get_change
+        from .errors import InputError
+
+        try:
+            language = change_language(args.project_id, get_change(args.project_id, args.change))
+        except Exception:  # an unknown change or workspace is reported by the command itself
+            language = "es"
+        if language == "en":
+            message = "/specs --change cannot be combined with --release: a change does not belong to a release series."
+            next_step = f"Run /specs {args.project_id} --change {args.change} without --release."
+        else:
+            message = "/specs --change no se combina con --release: un cambio no pertenece a una serie de releases."
+            next_step = f"Corré /specs {args.project_id} --change {args.change} sin --release."
+        return report_error(InputError(message, next_step=next_step))
     if getattr(args, "release", None):
         try:
             from .core.paths import validate_project_id
@@ -120,7 +135,7 @@ def _run_project_command(args) -> int:
 
             validate_project_id(project_id)
         check_source_exists(args)
-        preflight_command(args.command, project_id)
+        preflight_command(args.command, project_id, getattr(args, "change", None))
         result = None
         if args.command == "init":
             from .workspace import ensure_workspace
@@ -480,9 +495,16 @@ def _run_project_command(args) -> int:
                                      change_id=args.change)
             print_json(result)
         elif args.command == "specs":
-            from .generation import generate_specs
+            if args.change:
+                from .changes import get_change
+                from .compilers.change_specs import compile_change_specs
 
-            result = generate_specs(args.project_id)
+                get_change(args.project_id, args.change)
+                result = compile_change_specs(args.project_id, args.change)
+            else:
+                from .generation import generate_specs
+
+                result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":
             from .generation import generate_backlog

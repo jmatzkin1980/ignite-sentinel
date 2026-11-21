@@ -185,7 +185,7 @@ from .commands import MUTATING_COMMANDS, PROTOCOL_EXEMPT_COMMANDS, READ_ONLY_COM
 PROJECT_COMMANDS = READ_ONLY_COMMANDS | MUTATING_COMMANDS
 
 
-def preflight_command(command: str, project_id: str | None) -> None:
+def preflight_command(command: str, project_id: str | None, change: str | None = None) -> None:
     if command not in PROJECT_COMMANDS:
         return
     if not project_id:
@@ -202,7 +202,12 @@ def preflight_command(command: str, project_id: str | None) -> None:
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
-    if command in {"specs", "backlog"} and phase == "initialized":
+    if command == "specs" and not change:
+        from .changes import refuse_change_only_specs
+
+        refuse_change_only_specs(project_id)  # IMP-388: before the phase gate, which a change-only workspace trips
+    # IMP-388: /specs --change runs its own gates (brief, blocking gaps, unit rows), not the project's phase.
+    if command in {"specs", "backlog"} and phase == "initialized" and not (command == "specs" and change):
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
     if command in {"backlog", "quality", "refine-backlog"} and (health == "DIRTY" or downstream_refresh_pending(project_id)):

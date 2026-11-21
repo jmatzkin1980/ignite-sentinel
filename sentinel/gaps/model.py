@@ -240,6 +240,9 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
         closure = extract_field(block, ("Motivo de cierre", "Closure reason"))  # IMP-257, optional
         if closure:
             response["closure"] = closure
+        delta = extract_field(block, ("Delta",))  # IMP-388, optional: only a change reads it
+        if delta:
+            response["delta"] = delta
         responses[gap_id] = merge_gap_response(responses[gap_id], response) if gap_id in responses else response
     return responses
 
@@ -279,6 +282,9 @@ def merge_gap_response(first: dict[str, str], second: dict[str, str]) -> dict[st
     closure = _join_distinct(first.get("closure", ""), second.get("closure", ""))
     if closure:
         merged["closure"] = closure
+    delta = _join_distinct(first.get("delta", ""), second.get("delta", ""))
+    if delta:
+        merged["delta"] = delta
     return merged
 
 

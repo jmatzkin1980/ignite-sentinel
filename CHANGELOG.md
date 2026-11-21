@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 4a (IMP-388).** A change gets its requirements and its specification units, without a PRD.
+  - A gap answer of a change can declare `- Delta: ADDED | MODIFIED | REMOVED | UNCHANGED`. Only the BA fixes it (the runtime may propose one); an EARS answer of a change without a valid Delta does not close the gap. Confirmed EARS answers become `REQ-EARS-nnn` rows, with their Delta, in `02_requirements/CHG-nnn/requirements.md`, one per sentence.
+  - `/specs PROJECT --change CHG-nnn` writes `03_specs/CHG-nnn/specs.md`, `units/` and `change_specs_report.json`: one `SPEC-U-nnn` per ADDED, MODIFIED or REMOVED requirement; UNCHANGED rows are listed as preserved behavior, not units. Unit ids come from a per-project registry, so a later change never reuses one. It writes no PRD and refuses without the change brief, with blocking gaps open, or with no ADDED/MODIFIED/REMOVED row.
+  - On the "save draft" fixture, after the EARS answers: 0 blocking gaps, 3 units (all ADDED) and 1 preserved row. The skills and Scenario 11 (steps 9 and 10) of the user guide cover it. A response file that mentions "borrador" or "draft" in its first lines is still read as an unvalidated draft.
+  - A change still has no backlog; it comes in a later increment.
+
 ## [0.19.0] — 2026-11-21
 
 ### Added

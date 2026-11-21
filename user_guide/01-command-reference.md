@@ -717,7 +717,7 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
-| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. In a change, `Closure reason: by_baseline` (`Motivo de cierre`) closes a gap only when the answer is confirmed and `Evidence or reference` holds a backticked `00_raw/` path followed by a quote of 20 or more characters that appears literally in that file; a change note never counts. Otherwise the gap stays `ANSWERED` with a finding. |
+| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. In a change, `Closure reason: by_baseline` (`Motivo de cierre`) closes a gap only when the answer is confirmed and `Evidence or reference` holds a backticked `00_raw/` path followed by a quote of 20 or more characters that appears literally in that file; a change note never counts. Otherwise the gap stays `ANSWERED` with a finding. In a change, an answer phrased as EARS ("the system shall", "el sistema debe") also carries `- Delta: ADDED | MODIFIED | REMOVED | UNCHANGED` (`GAP-SCOPE` is exempt; plain prose needs none): without a valid Delta it does not close and stays `ANSWERED` with a proposal (`delta_findings`). Closed EARS answers become `REQ-EARS-nnn` rows in `02_requirements/CHG-nnn/requirements.md`; answering a gap again updates the Delta of a row in place (`delta_updated`) and moves rows whose wording is gone to a `Superseded requirements` table (`superseded_rows`), whose ids are never reused. |
 
 A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. A confirmed answer that holds two or more EARS sentences ("When ..., the system shall ...") gives one `REQ-EARS-*` row per sentence; a sentence that is not EARS stays with the EARS sentence before it. A gap answered in two `### GAP-...` sections of one file gets both answers, merged, and a finding ("answered in 2 sections; the answers were merged into one."); when the sections give different decision statuses, the gap does not close and the finding says so. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 
@@ -1231,6 +1231,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 ```text
 /specs ACME_PORTAL
 /specs ACME_PORTAL --release r1
+/specs ACME_PORTAL --change CHG-001
 ```
 
 **Options.**
@@ -1239,14 +1240,15 @@ The modes are mutually exclusive; giving none or two is exit 2.
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | Generate for one release of a confirmed series. |
+| `--change` | `CHG-NNN` | none | Specify that change instead of the project: one `SPEC-U` unit per `ADDED`, `MODIFIED` or `REMOVED` row of `02_requirements/CHG-nnn/requirements.md`; `UNCHANGED` rows are listed as preserved behavior. No PRD, no maturity run, and nothing of the project's is touched. Unit ids are stable across re-runs. It does not combine with `--release` (exit 3). |
 
 **Re-runs `/maturity` first.** `/specs` evaluates maturity again before it generates anything, so the `BLOCKED` refusal reflects the gaps as they are now, not the last `/maturity` you ran. That run rewrites `01_discovery/requirement_maturity_report.md` and `development_readiness.json`, may recompile `02_requirements/project-brief.md` (or open `GAP-BRIEF-PROFILE` on a brief v2 with unconfirmed settings), and sets phase and health as `/maturity` does.
 
 **Reads.** The brief, `02_requirements/requirements.md`, confirmed answers, decisions, local memory.
 
-**Writes.** `03_specs/prd.md`, `03_specs/specs.md`, `03_specs/units/SPEC-U-NNN.md`, `08_context_packs/specs_generation.json`, plus what the `/maturity` run writes. With `--release`, under `03_specs/rN/`.
+**Writes.** `03_specs/prd.md`, `03_specs/specs.md`, `03_specs/units/SPEC-U-NNN.md`, `08_context_packs/specs_generation.json`, plus what the `/maturity` run writes. With `--release`, under `03_specs/rN/`. With `--change CHG-nnn` (the maturity run does not apply): `03_specs/CHG-nnn/specs.md`, `03_specs/CHG-nnn/units/SPEC-U-NNN.md` and `03_specs/CHG-nnn/change_specs_report.json`, never `prd.md`; a unit whose row was superseded is removed on the next run.
 
-**Refuses when.** Phase `initialized` → exit 4. Maturity `BLOCKED` → exit 4. `drift_gate.strict` with a stale foundation → exit 4. `specs_gate.strict` below the threshold → exit 4.
+**Refuses when.** Phase `initialized` → exit 4. Maturity `BLOCKED` → exit 4. `drift_gate.strict` with a stale foundation → exit 4. `specs_gate.strict` below the threshold → exit 4. With `--change`: the change has no brief (`/brief --change` first), blocking gaps are still open, or it has no `ADDED`, `MODIFIED` or `REMOVED` rows → exit 4; `--change` with `--release` → exit 3. A plain `/specs` in a workspace that only has changes → exit 4, naming the change.
 
 **You get.** The paths, `prd_section_readiness`, `foundation_warnings` and `specs_gate`. `foundation_warnings` is checked after the run, so it lists only what is still stale; the specs this run rewrote are not in it.
 

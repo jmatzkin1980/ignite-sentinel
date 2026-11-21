@@ -259,7 +259,7 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     base = workspace_path(project_id)
     units_dir = base / "03_specs" / "units"
     units_dir.mkdir(parents=True, exist_ok=True)
-    units = build_spec_units(context, source_name)
+    units = build_spec_units(context, source_name, _registry_ids(project_id, context, base))
     active_paths: set[Path] = set()
     for unit in units:
         path = units_dir / f"{unit['id']}.md"
@@ -272,7 +272,45 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     return units
 
 
-def build_spec_units(context: dict[str, object], source_name: str) -> list[dict[str, object]]:
+def ensure_spec_unit_ids_seeded(project_id: str, base: Path) -> None:
+    """Seed the SPEC-U family from the project units on disk, once, before any id is assigned."""
+    from .. import id_registry
+
+    if id_registry.family_seeded(project_id, "SPEC-U"):
+        return
+    existing = {
+        str(ears): unit_id
+        for unit_id, item in spec_unit_snapshot(base).items()
+        for ears in item["frontmatter"].get("ears", [])
+        if str(ears).strip()
+    }
+    # the change units too, so a lost or corrupt registry never re-issues a change's ids
+    for path in sorted((base / "03_specs").glob("CHG-*/units/SPEC-U-*.md")):
+        front = parse_frontmatter(path.read_text(encoding="utf-8"))
+        unit_id = str(front.get("id", path.stem)).strip() or path.stem
+        for ears in front.get("ears", []):
+            if str(ears).strip():
+                existing.setdefault(str(ears), unit_id)
+    id_registry.seed_family(project_id, "SPEC-U", existing)
+
+
+def _registry_ids(project_id: str, context: dict[str, object], base: Path) -> dict[str, str] | None:
+    """Stable SPEC-U ids per EARS row once the workspace has changes; None keeps positional ids."""
+    from .. import id_registry
+
+    if not id_registry.registry_active(project_id):
+        return None
+    ensure_spec_unit_ids_seeded(project_id, base)
+    keys = []
+    for row in context.get("ears_requirements", []) if isinstance(context, dict) else []:
+        if isinstance(row, dict):
+            ears_id = str(row.get("id", "")).strip()
+            if EARS_REQUIREMENT_ID_RE.match(ears_id) and str(row.get("statement", "")).strip():
+                keys.append(ears_id)
+    return id_registry.assign_ids(project_id, "SPEC-U", keys)
+
+
+def build_spec_units(context: dict[str, object], source_name: str, ids: dict[str, str] | None = None) -> list[dict[str, object]]:
     rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
     if not isinstance(rows, list):
         return []
@@ -284,7 +322,7 @@ def build_spec_units(context: dict[str, object], source_name: str) -> list[dict[
         statement = str(row.get("statement", "")).strip()
         if not EARS_REQUIREMENT_ID_RE.match(ears_id) or not statement:
             continue
-        unit_id = f"SPEC-U-{len(units) + 1:03d}"
+        unit_id = ids[ears_id] if ids is not None else f"SPEC-U-{len(units) + 1:03d}"
         units.append(
             {
                 "id": unit_id,
@@ -311,10 +349,13 @@ def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
     sources = [str(item) for item in unit.get("sources", []) if str(item).strip()]
     source_rows = "\n".join(f"| `{source}` | Pointer |" for source in sources)
     ears_rows = "\n".join(f"| `{ears_id}` | {table_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
+    change_lines = ""
+    if unit.get("change"):
+        change_lines = f"change: {unit['change']}\ndelta: {unit.get('delta', '')}\n"
     return f"""---
 id: {unit['id']}
 status: {unit['status']}
-trace_ids:
+{change_lines}trace_ids:
 {frontmatter_list(trace_ids)}
 ears:
 {frontmatter_list(ears_ids)}

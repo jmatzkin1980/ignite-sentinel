@@ -119,6 +119,10 @@ Para cerrar un gap con lo que ya dice la línea de base, confirmar la respuesta 
     - Estado de decisión: confirmado
     - Evidencia o referencia: `00_raw/02_technology_context/sad-compras.md` "responde en menos de dos segundos"
     - Motivo de cierre: by_baseline
+
+Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué hace con lo existente; sin esa línea la respuesta no se confirma:
+
+    - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (sólo si la respuesta está en EARS)
 """
     return """
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
@@ -134,6 +138,10 @@ To close a gap with what the baseline already says, confirm the answer and add t
     - Decision status: confirmed
     - Evidence or reference: `00_raw/02_technology_context/sad-purchasing.md` "responds in under two seconds"
     - Closure reason: by_baseline
+
+If the answer is in EARS ("When ..., the system shall ..."), declare what it does to the existing system; without this line the answer is not confirmed:
+
+    - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (only if the answer is in EARS)
 """
 
 
