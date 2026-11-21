@@ -71,7 +71,8 @@ HARVEST = """# Harvest
 ## B1 Architecture
 - [DIVERGENCIA compras-api:README.md] El README dice v2; el codigo sirve rutas v1.
 """
-CITE = re.compile(r"GAP-[A-Z0-9-]+|`00_raw/|\b[\w.-]+:[\w./-]+|#GAP-SCOPE|harvest\.json")
+HARVEST_OOC = HARVEST + "- [FUERA DEL CÓDIGO owners] Quien es dueño de la integración de compras.\n"
+CITE = re.compile(r"GAP-[A-Z0-9-]+|`00_raw/|`01_discovery/CHG-\d+/gaps\.md`|\b[\w.-]+:[\w./-]+|#GAP-SCOPE|harvest\.json")
 
 
 def _build(*, scope: str | None = SCOPE_ANSWER, baseline: bool = True, extra: str | None = None,
@@ -240,6 +241,19 @@ class ScopeRound(SnapshotWorkspaceCase):
         )
 
 
+class ScopeRoundSection8(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(scope=None, baseline=False)
+
+    def test_section_8_explains_itself_while_the_border_is_unconfirmed(self):
+        text, _ = render_change_brief(collect_change_brief_inputs("BORR", "CHG-001"))
+        s = sections(text)
+        self.assertEqual(bullets(s[8]), ["- Se define al confirmar el borde (GAP-SCOPE)"])
+        self.assertNotIn("##", s[8])
+        self.assertEqual(bullets(s[6]), bullets(s[8]))
+
+
 class BackendOnly(SnapshotWorkspaceCase):
     @classmethod
     def build_workspace(cls):
@@ -328,8 +342,52 @@ class WithHarvest(SnapshotWorkspaceCase):
         for number, body in s.items():
             if number != 9:
                 for line in bullets(body):
-                    if not line.startswith(("- N/A — ", "- Ver §", "- Sin pregunta abierta")):
+                    if not line.startswith(("- N/A — ", "- Ver §")):
                         self.assertRegex(line, CITE, line)
+
+
+class ScopeRoundWithHarvest(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(scope=None, baseline=False, harvest=HARVEST)
+
+    def test_scope_round_brief_shows_no_harvest_facts(self):
+        text, _ = render_change_brief(collect_change_brief_inputs("BORR", "CHG-001"))
+        s = sections(text)
+        for fact in ("El analista envia", "cuatro pasos", "valida los datos fiscales"):
+            self.assertNotIn(fact, text)
+        self.assertRegex(s[8], r"⏳ PENDIENTE \(GAP-HRV-[0-9A-F]+\)")  # the divergence is a change gap
+
+
+class BackendOnlyWithHarvest(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(scope=BACKEND_ONLY_SCOPE, baseline=False, harvest=HARVEST)
+
+    def test_flow_facts_need_a_border_surface_of_that_block(self):
+        text, _ = render_change_brief(collect_change_brief_inputs("BORR", "CHG-001"))
+        s = sections(text)
+        self.assertNotIn("El analista envia", text)  # B7 belongs to a `proceso` surface; the border has none
+        self.assertNotIn("cuatro pasos", text)  # B6 belongs to a `pantalla` surface
+        self.assertIn("valida los datos fiscales", lens_body(s[5], "Técnica"))  # B2: endpoint and dato are in the border
+
+
+class OutOfCodeHarvestGap(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(harvest=HARVEST_OOC)
+
+    def test_out_of_code_gap_goes_to_technical_and_divergence_stays_in_section_8(self):
+        inputs = collect_change_brief_inputs("BORR", "CHG-001")
+        ids = {g["id"]: g for g in inputs["gaps"] if g["id"].startswith("GAP-HRV-")}
+        out_of_code = next(i for i, g in ids.items() if "Out of code" in g["description"])
+        divergence = next(i for i in ids if i != out_of_code)
+        text, _ = render_change_brief(inputs)
+        s = sections(text)
+        self.assertIn(f"({out_of_code})", lens_body(s[5], "Técnica"))
+        self.assertNotIn(out_of_code, s[8])
+        self.assertIn(divergence, s[8])
+        self.assertNotIn(divergence, s[5])
 
 
 if __name__ == "__main__":

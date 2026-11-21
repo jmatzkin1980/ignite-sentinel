@@ -1991,7 +1991,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "The architecture document and the operations manual of the current system are already in the context folders. Close the review questions of CHG-001 that they answer, quoting them, and show me each quote before processing."
 
-   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, seven of the 19 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments, technical input and quality), leaving 12 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
+   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, seven of the 18 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments, technical input and quality), leaving 11 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
 
    **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, and only when the quote is a literal piece of the cited file, at least 20 characters long. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
 
@@ -2003,7 +2003,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    ```text
    closed: GAP-QUALITY, GAP-TECH-NFR, GAP-TECH-DEEP-DIVE-INPUT, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-DELIVERY-READINESS, GAP-PRD-ROLLOUT-ENVIRONMENTS
-   gap_counts: open 12, closed 8, blocking_open 3, total 20
+   gap_counts: open 11, closed 8, blocking_open 3, total 19
    ```
 
    The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question.
@@ -2037,9 +2037,9 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "Compile the brief of CHG-001 for COMPRAS_PORTAL and tell me what is still open."
 
-   **You'll see:** A brief of the change with nine sections: context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, and what is pending. In the sample, the border lists the two new screens and the two adjacent surfaces, the preserved behavior is the full submit, and the baseline section names the two documents the closed questions quoted. Three places say `⏳ PENDIENTE` because a blocking question is still open: the objective, the users and acceptance. Section 9 lists all 12 open questions and says which of them block.
+   **You'll see:** A brief of the change with nine sections: context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, and what is pending. In the sample, the border lists the two new screens and the two adjacent surfaces, the preserved behavior is the full submit, and the baseline section names the two documents the closed questions quoted. Three places say `⏳ PENDING` because a blocking question is still open: the objective, the users and acceptance. Section 9 lists all 11 open questions and says which of them block. If you ran the optional harvest of step 6, its question (`GAP-HRV-…`) is also there: one more deferred mark and one more row in section 9.
 
-   **What it means:** Every line cites where it comes from (the request, the answer that confirmed the border, the quoted baseline file); nothing is invented, so a question nobody answered is a visible mark and never a guess. A mark `⏳ PENDIENTE (GAP-X)` blocks. A mark `⏳ PENDIENTE DOMINIO (GAP-X)` is deferred to the domain review and does not block. This is not the product's brief and not a PRD, and the project is untouched. The brief is rebuilt from the answers each time you run it; do not edit it by hand.
+   **What it means:** Every line cites where it comes from (the request, the answer that confirmed the border, the quoted baseline file); nothing is invented, so a question nobody answered is a visible mark and never a guess. A mark `⏳ PENDING (GAP-X)` blocks. A mark `⏳ PENDING DOMAIN (GAP-X)` is deferred to the domain review and does not block. A change written in Spanish shows the same marks as `⏳ PENDIENTE` and `⏳ PENDIENTE DOMINIO`: a change speaks the language of its request. This is not the product's brief and not a PRD, and the project is untouched. The brief is rebuilt from the answers each time you run it; do not edit it by hand.
 
    <details><summary>In a terminal</summary>
 
@@ -2050,7 +2050,7 @@ The normal submit has to keep working as today. The existing system is already i
    ```text
    change_id: CHG-001
    path: workspaces/COMPRAS_PORTAL/02_requirements/CHG-001/project-brief.md
-   summary: pending 12, blocking_open 3
+   summary: pending 11, blocking_open 3
    ```
 
    The sections are in `02_requirements/CHG-001/project-brief.md` and the counts per section in `change_brief_report.json` next to it. Without `--change`, a workspace that only has changes refuses `/brief` and names the change to use. `--change` takes no `--profile`, `--genesis`, `--validation-direction` or `--brief-version`.
@@ -2076,10 +2076,10 @@ The normal submit has to keep working as today. The existing system is already i
    path: workspaces/COMPRAS_PORTAL/08_context_packs/exports/CHG-001-project-brief.md
    deliverable: draft
    pending_marks: 3
-   deferred_marks: 9
+   deferred_marks: 8
    ```
 
-   The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (9 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
+   The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (8 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
    </details>
 
 ### What you have now

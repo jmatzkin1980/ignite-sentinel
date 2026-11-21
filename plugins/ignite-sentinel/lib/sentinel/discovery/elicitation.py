@@ -238,17 +238,20 @@ def build_interview_script(project_id: str, change_id: str | None = None) -> str
     """Read open gaps from the canonical gaps.md (the change's, with change_id) and render the interview script."""
     base = workspace_path(project_id)
     if change_id:  # IMP-386: only the change's questions
-        from ..changes import change_gaps_path
+        from ..changes import change_gaps_path, change_language, get_change
 
         gaps_path = change_gaps_path(base, change_id)
+        language = change_language(project_id, get_change(project_id, change_id))
     else:
         gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
-        raise GateRefusal("Cannot export an interview script before /ingest creates 01_discovery/gaps.md.")
+        shown = gaps_path.relative_to(base).as_posix() if change_id else "01_discovery/gaps.md"
+        raise GateRefusal(f"Cannot export an interview script before /ingest creates {shown}.")
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
-    state = read_json(base / "state.json", {})
-    configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
-    language = configured if configured in {"es", "en"} else "en"
+    if not change_id:
+        state = read_json(base / "state.json", {})
+        configured = state.get("project_language", load_config(project_id).get("project_language", "auto"))
+        language = configured if configured in {"es", "en"} else "en"
     from ..stakeholders import load_stakeholders
 
     return render_interview_script(project_id, gaps, language, load_stakeholders(project_id))

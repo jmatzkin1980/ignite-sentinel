@@ -91,8 +91,9 @@ def collect_artifact_model(project_id: str, artifact: str, change_id: str | None
     config = ARTIFACTS[artifact]
     relative = str(config["relative"])
     if change_id:  # IMP-386: the change's own brief or gaps, same model
-        relative = relative.replace("02_requirements/", f"02_requirements/{change_id}/", 1).replace(
-            "01_discovery/", f"01_discovery/{change_id}/", 1)
+        from .export import artifact_source
+
+        relative = artifact_source(base, artifact, None, change_id).relative_to(base).as_posix()
     path = base / relative
     if not path.exists() and config.get("fallback_relative") and not change_id:
         relative = str(config["fallback_relative"])
