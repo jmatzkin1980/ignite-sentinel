@@ -272,6 +272,40 @@ class MultilineAnswer(SnapshotWorkspaceCase):
         )
 
 
+LINE_PROSE_ANSWER = "\n".join([
+    "### GAP-BUSINESS-RULES",
+    "- Respuesta: Los proveedores de nivel L2 de soporte pueden retomar; ver línea 3 del manual.",
+    "- Owner / fuente: Jefa de Compras",
+    "- Evidencia o referencia: Acta de la reunión de relevamiento",
+    "- Estado de decisión: confirmado",
+    "",
+])
+
+
+class ValidateSkipsChanges(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(baseline=False, extra=LINE_PROSE_ANSWER)
+
+    def test_validate_does_not_scan_line_citations_inside_a_change(self):
+        from sentinel.citations import is_v2_artifact, validate_structured_citations
+
+        base = workspace_path("BORR")
+        out = compile_change_brief("BORR", "CHG-001")
+        text = Path(out["path"]).read_text(encoding="utf-8")
+        self.assertIn("nivel L2 de soporte", text)
+        self.assertIn("ver línea 3 del manual", text)
+        self.assertTrue(is_v2_artifact(text))
+        self.assertEqual(validate_structured_citations(base), [])
+        # The same text in a project v2 brief is still flagged: only CHG folders are skipped.
+        project_brief = base / "02_requirements" / "project-brief.md"
+        project_brief.write_text(text, encoding="utf-8")
+        findings = validate_structured_citations(base)
+        self.assertTrue(findings)
+        self.assertTrue(all(f.startswith("02_requirements/project-brief.md") for f in findings), findings)
+        self.assertTrue(any("L2" in f or "línea 3" in f for f in findings), findings)
+
+
 class WithHarvest(SnapshotWorkspaceCase):
     @classmethod
     def build_workspace(cls):

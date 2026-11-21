@@ -199,6 +199,9 @@ def validate_v2_artifact(name: str, text: str, documents: dict[str, str], retire
     return findings
 
 
+_CHANGE_DIR_RE = re.compile(r"CHG-\d+")
+
+
 def validate_structured_citations(base: Path) -> list[str]:
     """Validate every v2 artifact in the workspace. v1 artifacts are left untouched."""
     retired = load_retired_ids(base)
@@ -215,6 +218,10 @@ def validate_structured_citations(base: Path) -> list[str]:
         return cache[doc]
 
     for path in sorted(base.glob("0[1-6]_*/**/*.md")):
+        # IMP-386: a change (CHG-nnn) transcribes client answers verbatim; line-number
+        # citations in client prose are not the compiler's to edit, so its folder is skipped.
+        if any(_CHANGE_DIR_RE.fullmatch(part) for part in path.relative_to(base).parts[1:-1]):
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
