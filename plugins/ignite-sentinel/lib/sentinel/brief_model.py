@@ -242,7 +242,7 @@ def v2_sections_for_lens(lens: str) -> list[str]:
 
 # IMP-253a: the v2 subsection a gap's confirmed answer feeds. Finer than the lens
 # map: GAP-SCOPE lands in §6.1 (lens 6), GAP-BUSINESS-RULES in §2.2 (lens 2) and
-# GAP-DELIVERY-READINESS in §9.1 (no lens); a test pins those exceptions.
+# GAP-DELIVERY-READINESS in §9.1 (a delivery lens check); a test pins those exceptions.
 V2_GAP_ROUTES = {
     "GAP-OBJECTIVE": "1.1",
     "GAP-METRIC-SOURCE": "1.3",

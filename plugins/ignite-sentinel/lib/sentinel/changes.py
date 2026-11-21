@@ -216,6 +216,25 @@ def _read_evidence(base: Path, change: dict) -> str:
     return "\n\n".join(parts)
 
 
+def _lens_evidence(base: Path, change: dict) -> str:
+    """The change note plus only the answer text of each response file.
+
+    The form labels ("Owner / fuente", "Evidencia o referencia", ...) are not content: read as
+    evidence they would suppress checks that look for an owner, a source or a decision.
+    """
+    from .gaps import parse_gap_responses
+
+    parts = []
+    for i, rel in enumerate([change["source"], *change.get("responses", [])]):
+        path = Path(rel)
+        path = path if path.is_absolute() else base / path
+        text = path.read_text(encoding="utf-8")
+        if i:
+            text = "\n".join(r.get("answer", "") for r in parse_gap_responses(text).values())
+        parts.append(text)
+    return "\n\n".join(parts)
+
+
 def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
     from .discovery.detection import detect_gaps
@@ -230,7 +249,7 @@ def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     rows = list(existing)
     if change.get("round") == "lenses":
         have = {row["id"] for row in existing}
-        found = detect_gaps(evidence, load_domain_context(base), work="change", border_types=border_types(change))
+        found = detect_gaps(_lens_evidence(base, change), load_domain_context(base), work="change", border_types=border_types(change))
         rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
     write_text(gaps_path, render_gaps(project_id, rows, change_id, language, gaps_path.with_name("gap_elicitation.json")))
     counts = count_gaps(rows)

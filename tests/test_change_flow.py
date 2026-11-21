@@ -29,10 +29,10 @@ SCOPE_ANSWER = "\n".join([
 ])
 
 
-SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 18, 3
-# Six of the lens gaps have a citable phrase in the synthetic baseline. GAP-DELIVERY-READINESS is a
-# brief-time gap (no lens), so a change never asks it.
+SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 20, 3
+# Seven lens gaps have a citable phrase in the synthetic baseline.
 BASELINE_CLOSED = {
+    "GAP-DELIVERY-READINESS",
     "GAP-TECH-NFR", "GAP-GOVERNANCE-CONSTRAINTS", "GAP-PRD-GLOSSARY-GOVERNANCE",
     "GAP-PRD-ROLLOUT-ENVIRONMENTS", "GAP-TECH-DEEP-DIVE-INPUT", "GAP-QUALITY",
 }
@@ -57,9 +57,9 @@ class ChangeFlow(SnapshotWorkspaceCase):
         counts = change["gap_counts"]
         self.assertEqual(counts["total"], LENS_TOTAL)
         self.assertEqual(counts["blocking_open"], BLOCKING)
-        # 18 total = 17 open + 1 closed (GAP-SCOPE).
+        # 20 total = 19 open + 1 closed (GAP-SCOPE).
         self.assertEqual(counts["open"], LENS_TOTAL - 1)
-        # Load the baseline and close six lens gaps by citing it: open 17 -> 11, blocking stays 3.
+        # Load the baseline and close seven lens gaps by citing it: open 19 -> 12, blocking stays 3.
         raw = workspace_path("BORR") / "00_raw"
         shutil.copy(FIXTURES / "change_baseline" / "sad-compras.md", raw / "02_technology_context" / "sad-compras.md")
         shutil.copy(FIXTURES / "change_baseline" / "manual-compras.md", raw / "01_business_context" / "manual-compras.md")
@@ -68,7 +68,7 @@ class ChangeFlow(SnapshotWorkspaceCase):
         self.assertEqual(set(res["closed"]), BASELINE_CLOSED)
         self.assertEqual(res["closure_findings"], [])
         after = get_change("BORR", cid)["gap_counts"]
-        self.assertEqual((after["total"], after["open"], after["closed"]), (LENS_TOTAL, 11, 7))
+        self.assertEqual((after["total"], after["open"], after["closed"]), (LENS_TOTAL, 12, 8))
         self.assertEqual(after["blocking_open"], BLOCKING)
         rows = parse_gap_rows(change_gaps_path(workspace_path("BORR"), cid).read_text(encoding="utf-8"))
         self.assertEqual({r["id"] for r in rows if r.get("closure_reason") == "by_baseline"}, BASELINE_CLOSED)

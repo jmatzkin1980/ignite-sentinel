@@ -55,11 +55,11 @@ One Markdown file, by blocks. Every claim is one line with one tag:
 
 | Tag (es / en) | Means | Needs |
 |---|---|---|
-| `[HECHO repo:file]` / `[FACT repo:file]` | You read it in that file | a repo or doc listed in B0 (`name:file`) |
+| `[HECHO repo:file]` or `[HECHO doc:file]` / `[FACT repo:file]` | You read it in that file | `repo` or `doc` is the name of an entry in B0 |
 | `[INFERIDO]` / `[INFERRED]` | A deduction the code does not state | say what it rests on |
 | `[NO ENCONTRADO where]` / `[NOT FOUND where]` | You looked and it is not there | where it should be |
 | `[FUERA DEL CÓDIGO topic]` / `[OUT OF CODE topic]` | The code cannot say it | a topic of the closed list |
-| `[DIVERGENCIA repo:file]` / `[DIVERGENCE repo:file]` | Documentation and code disagree | the documenting file |
+| `[DIVERGENCIA repo:file]` or `[DIVERGENCIA doc:file]` / `[DIVERGENCE repo:file]` | Documentation and code disagree | the documenting file, in a repo or doc named in B0 |
 
 **Out of code is a closed list:** `owners`, `sla`, `why_without_adr`, `volume`, `purpose_and_retention`, `regulation`, `negotiability`, `role_administration`, `flag_removal_date`, `latency_targets`. These go to a person, as a non-blocking gap; never ask the code again.
 

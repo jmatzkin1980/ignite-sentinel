@@ -39,3 +39,10 @@
 - Evidencia o referencia: `00_raw/01_business_context/manual-compras.md` "pruebas de regresión del alta completa antes de salir a producción"
 - Estado de decisión: confirmado
 - Motivo de cierre: by_baseline
+
+### GAP-DELIVERY-READINESS
+- Respuesta: Lo vigente de la línea de base del backoffice de Compras aplica sin cambios a este cambio.
+- Owner / fuente: Arquitectura y Jefatura de Compras
+- Evidencia o referencia: `00_raw/01_business_context/manual-compras.md` "la Jefatura de Compras firmó el criterio de aceptación correspondiente"
+- Estado de decisión: confirmado
+- Motivo de cierre: by_baseline

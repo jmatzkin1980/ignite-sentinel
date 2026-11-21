@@ -1971,7 +1971,7 @@ The normal submit has to keep working as today. The existing system is already i
 
 4. **Answer the rest.** Keep going as in scenario 2: regenerate the change's questions, send them, process the answers with the same `--change CHG-001`.
 
-5. **Let what the system already says answer.** Some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the six):
+5. **Let what the system already says answer.** Some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the seven):
 
    ```markdown
    ### GAP-TECH-NFR
@@ -1991,7 +1991,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "The architecture document and the operations manual of the current system are already in the context folders. Close the review questions of CHG-001 that they answer, quoting them, and show me each quote before processing."
 
-   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, six of the 17 open review questions close (technical performance, governance constraints, glossary, rollout environments, technical input and quality), leaving 11 open, 3 of them blocking. Acceptance and the objective are not in any document, so they stay open.
+   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, seven of the 19 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments, technical input and quality), leaving 12 open, 3 of them blocking. Acceptance and the objective are not in any document, so they stay open.
 
    **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, and only when the quote is a literal piece of the cited file, at least 20 characters long. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
 
@@ -2002,8 +2002,8 @@ The normal submit has to keep working as today. The existing system is already i
    ```
 
    ```text
-   closed: GAP-QUALITY, GAP-TECH-NFR, GAP-TECH-DEEP-DIVE-INPUT, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-PRD-ROLLOUT-ENVIRONMENTS
-   gap_counts: open 11, closed 7, blocking_open 3, total 18
+   closed: GAP-QUALITY, GAP-TECH-NFR, GAP-TECH-DEEP-DIVE-INPUT, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-DELIVERY-READINESS, GAP-PRD-ROLLOUT-ENVIRONMENTS
+   gap_counts: open 12, closed 8, blocking_open 3, total 20
    ```
 
    The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question.
