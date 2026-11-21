@@ -1027,6 +1027,7 @@ python -m sentinel /maturity ACME_PORTAL
 /brief ACME_PORTAL --profile UI,REG --genesis brownfield-extension --validation-direction built
 /brief ACME_PORTAL
 /brief ACME_PORTAL --brief-version 1
+/brief ACME_PORTAL --change CHG-001
 ```
 
 **Options.**
@@ -1038,6 +1039,7 @@ python -m sentinel /maturity ACME_PORTAL
 | `--genesis` | `greenfield`, `brownfield-integration`, `brownfield-extension`, `brownfield-replacement` (comma list when mixed) | previous confirmation | Where it starts from. With two values, the most demanding one wins and the other is noted. |
 | `--validation-direction` | `to-build`, `built` | `to-build` | Whether you validate something to build or something already built. Overrides `validation_direction:` in the config. |
 | `--brief-version` | `1`, `2` | the project's | Switch the project's brief compiler. |
+| `--change` | `CHG-NNN` | none | Compile the brief of that change (`02_requirements/CHG-nnn/project-brief.md` and `change_brief_report.json`) instead of the project's. Nine sections, every line cited; open questions show as `⏳ PENDIENTE (GAP-X)` when blocking and `⏳ PENDIENTE DOMINIO (GAP-X)` when deferred. It takes no other flag (exit 3 with `--profile`, `--genesis`, `--validation-direction` or `--brief-version`), writes nothing of the project's, and produces no specs or backlog. An unknown or closed change → exit 4 naming the open ones. A workspace that only has changes refuses `/brief` without it (exit 4) and names the change to use. |
 
 A flag you leave out keeps the previous confirmation. Run it with `--profile` and `--genesis` once, right after the first `/ingest`; `/next` and `/status` ask for it until then, with values proposed from the raw input. Until profile and genesis are confirmed on a v2 project, `/maturity` (and so `/specs` and `/backlog`) opens the critical gap `GAP-BRIEF-PROFILE` and reports `BLOCKED` without compiling a brief. A `/brief` without flags opens the same gap, returns a `proposal` (never applied) and writes a provisional brief in the older v1 layout until you confirm. See [what happens if you skip it](00-user-guide.md#if-you-skip-the-brief-settings).
 
@@ -1303,6 +1305,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 /export ACME_PORTAL --artifact context-request --domain technology
 /export ACME_PORTAL --artifact prd --format mdx
 /export ACME_PORTAL --artifact prd --final
+/export ACME_PORTAL --artifact brief --change CHG-001
 ```
 
 **Options.**
@@ -1314,6 +1317,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 | `--format` (alias `--fmt`) | `md`, `mdx`, `interview`, `faq` | `md` | `mdx` only for `prd`; `interview` and `faq` only for `gaps`. |
 | `--domain` | a context-request domain | none | Required with `--artifact context-request`. |
 | `--final` | flag | off | Refuse while pending marks remain. |
+| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do. A workspace that only has changes refuses an export without it. |
 
 | Format | Writes | Notes |
 |---|---|---|
@@ -1813,6 +1817,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 /view ACME_PORTAL --artifact prd --open
 /view ACME_PORTAL --artifact readiness --theme my-theme.json
 /view ACME_PORTAL --release r1 --artifact backlog
+/view ACME_PORTAL --artifact brief --change CHG-001
 ```
 
 **Options.**
@@ -1824,6 +1829,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `--open` | flag | off | Open the view in the browser. MCP: `open_browser`. |
 | `--theme` | a built-in theme name or a path to a local theme JSON | the workspace config theme, else `neutral` | Visual theme. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The artifact of one release. |
+| `--change` | `CHG-NNN` | none | The brief or the gaps of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
 
 **Reads.** The artifact's Markdown, `state.json`, gaps, assumptions, readiness and the graph.
 

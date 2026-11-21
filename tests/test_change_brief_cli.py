@@ -83,5 +83,27 @@ class ChangeBriefCli(SnapshotWorkspaceCase):
         self.assertEqual(["brief", "P"], _argv("sentinel_brief", project_id="P"))
 
 
+class ProjectBriefUnchanged(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        shutil.copy(FIXTURES / "change_borrador.md", Path.cwd() / "pedido.md")
+        run_ok(["init", "MIXTO"])
+        run_ok(["ingest", "MIXTO", "--source", "pedido.md"])
+        run_ok(["ingest", "MIXTO", "--source", "pedido.md", "--change"])
+        run_ok(["init", "VACIO"])
+
+    def test_project_with_requirements_and_open_change_compiles_plain_brief(self):
+        base = workspace_path("MIXTO")
+        self.assertTrue((base / "02_requirements" / "requirements.md").exists())
+        out = json.loads(run_ok(["brief", "MIXTO"]))
+        self.assertTrue(out["project_brief"].endswith("project-brief.md"))
+        self.assertTrue((base / "02_requirements" / "project-brief.md").exists())
+
+    def test_fresh_project_keeps_the_ingest_refusal(self):
+        code, err = run_err(["brief", "VACIO"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("Cannot generate project brief before /ingest", err)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -76,3 +76,7 @@ When the BA asks "where do I start?" across the portfolio, present the workspace
 4. **Confirm readiness with a human** — pick this when a workspace looks structurally complete. Why: `CLEAN` plus ready signals means structurally ready, not human-approved — the sign-off is a person's call, not the dashboard's.
 
 Recommend where to start and why; do not run a mutating command just because the dashboard surfaced it.
+
+## A Change's Brief or Gaps
+
+`/view PROJECT_ID --artifact brief --change CHG-001` (or `--artifact gaps`) writes `08_context_packs/views/CHG-001-brief.html` from the change's own files; any other artifact is refused with `--change`. A workspace that only has changes refuses `/view` without it. Compile the change's brief first (`/brief --change`). To send it outside, use `/export --artifact brief --change CHG-001` (`--artifact gaps --format interview` for the questions); a draft carries a banner and `--final` refuses while blocking marks remain.

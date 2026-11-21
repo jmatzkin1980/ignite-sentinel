@@ -6,6 +6,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 3 (IMP-386).** A change gets its own brief, which you can view and export.
+  - `/brief PROJECT --change CHG-nnn` compiles `02_requirements/CHG-nnn/project-brief.md` and `change_brief_report.json`: nine sections (context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, pending). Every content line cites its origin. An open question is `⏳ PENDIENTE (GAP-X)` when it blocks and `⏳ PENDIENTE DOMINIO (GAP-X)` when it is deferred; nothing is invented. It takes no project setting (`--profile`, `--genesis`, `--validation-direction`, `--brief-version`: exit 3) and writes nothing of the project's.
+  - `/view PROJECT --artifact brief|gaps --change CHG-nnn` writes `08_context_packs/views/CHG-nnn-*.html`. `/export PROJECT --artifact brief|gaps --change CHG-nnn [--format md|interview] [--final]` writes `08_context_packs/exports/CHG-nnn-*`; a draft carries a banner, and `--final` refuses while blocking marks remain.
+  - A workspace that only has changes refuses `/brief`, `/view` and `/export` without `--change` and names the change to use. A project with its own requirement is unchanged, and the project path is byte-identical without the flag.
+  - On the "save draft" fixture the brief has 9 sections and 3 blocking marks (objective, users, acceptance), all listed in section 9.
+  - A change still has no specs and no backlog; they come in a later increment. The skills, manifest, MCP descriptions and Scenario 11 of the user guide cover the brief.
+
 ## [0.18.0] — 2026-11-21
 
 ### Added

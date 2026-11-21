@@ -2033,17 +2033,66 @@ The normal submit has to keep working as today. The existing system is already i
    The file starts with `## B0 Inventory` and a line `- doc: manual-compras — 00_raw/01_business_context/manual-compras.md`; each claim cites `[HECHO manual-compras:manual-compras.md]`. Without `--change`: `COMPRAS_PORTAL only has changes: the harvest gaps need a change` (in Spanish, `COMPRAS_PORTAL sólo tiene cambios: los gaps del harvest necesitan un cambio`), exit 4.
    </details>
 
+7. **Compile the brief of the change.** With the border confirmed and the baseline read, the change has enough to be written down as one document.
+
+   **Tell the assistant:** "Compile the brief of CHG-001 for COMPRAS_PORTAL and tell me what is still open."
+
+   **You'll see:** A brief of the change with nine sections: context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, and what is pending. In the sample, the border lists the two new screens and the two adjacent surfaces, the preserved behavior is the full submit, and the baseline section names the two documents the closed questions quoted. Three places say `⏳ PENDIENTE` because a blocking question is still open: the objective, the users and acceptance. Section 9 lists all 12 open questions and says which of them block.
+
+   **What it means:** Every line cites where it comes from (the request, the answer that confirmed the border, the quoted baseline file); nothing is invented, so a question nobody answered is a visible mark and never a guess. A mark `⏳ PENDIENTE (GAP-X)` blocks. A mark `⏳ PENDIENTE DOMINIO (GAP-X)` is deferred to the domain review and does not block. This is not the product's brief and not a PRD, and the project is untouched. The brief is rebuilt from the answers each time you run it; do not edit it by hand.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /brief COMPRAS_PORTAL --change CHG-001
+   ```
+
+   ```text
+   change_id: CHG-001
+   path: workspaces/COMPRAS_PORTAL/02_requirements/CHG-001/project-brief.md
+   summary: pending 12, blocking_open 3
+   ```
+
+   The sections are in `02_requirements/CHG-001/project-brief.md` and the counts per section in `change_brief_report.json` next to it. Without `--change`, a workspace that only has changes refuses `/brief` and names the change to use. `--change` takes no `--profile`, `--genesis`, `--validation-direction` or `--brief-version`.
+   </details>
+
+8. **Read it and send it.** To review it with someone, open it as a page. To send it, export it.
+
+   **Tell the assistant:** "Show me the brief of CHG-001 as a page, then export it so I can send it."
+
+   **You'll see:** A read-only page, `08_context_packs/views/CHG-001-brief.html`, and a Markdown copy, `08_context_packs/exports/CHG-001-project-brief.md`. The copy starts with a banner that says it is a draft, because three blocking marks remain.
+
+   **What it means:** A draft is a working document, not a deliverable. When the three blocking questions are answered (as in scenario 2, with `--change CHG-001`), compile the brief again and ask for the final export. While a blocking mark remains the final export refuses and says how many; the deferred domain marks do not stop it.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /view COMPRAS_PORTAL --artifact brief --change CHG-001
+   /export COMPRAS_PORTAL --artifact brief --change CHG-001
+   /export COMPRAS_PORTAL --artifact brief --change CHG-001 --final
+   ```
+
+   ```text
+   path: workspaces/COMPRAS_PORTAL/08_context_packs/exports/CHG-001-project-brief.md
+   deliverable: draft
+   pending_marks: 3
+   deferred_marks: 9
+   ```
+
+   The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (9 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
+   </details>
+
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, and the questions the existing documentation answers already closed with its own quotes. The project itself is exactly as it was.
+A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open. The project itself is exactly as it was.
 
-**What this does not do yet.** This stops at the questions. There is no change brief, no specs and no backlog for a change yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
+**What this does not do yet.** A change has its questions and its brief, but no specs and no backlog yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
 **Decision points.** If the request is a new product, or the existing system is not involved, it is a project: scenario 1. If the client changes a rule of a project whose backlog is already built, it is scenario 9.
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps` and `/harvest`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
