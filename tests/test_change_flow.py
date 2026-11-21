@@ -31,6 +31,8 @@ SCOPE_ANSWER = "\n".join([
 
 
 SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 20, 3
+# answers_ears.md: 2 event + 1 unwanted ADDED statements become units; 1 UNCHANGED statement is preserved.
+SPEC_UNITS, SPEC_PRESERVED, SPEC_BY_DELTA = 3, 1, {"ADDED": 3}
 # Seven lens gaps have a citable phrase in the synthetic baseline.
 BASELINE_CLOSED = {
     "GAP-DELIVERY-READINESS",
@@ -92,6 +94,18 @@ class ChangeFlow(SnapshotWorkspaceCase):
         for gap_id in ("GAP-OBJECTIVE", "GAP-USERS", "GAP-ACCEPTANCE"):
             self.assertIn(gap_id, section9)
         self.assertEqual(cid, brief_out["change_id"])
+        # The EARS answers (with Delta) close the blocking gaps; /specs --change writes the units of the change, no PRD.
+        shutil.copy(FIXTURES / "change_baseline" / "answers_ears.md", Path.cwd() / "answers_ears.md")
+        run_ok(["resolve-gaps", "BORR", "--source", "answers_ears.md", "--change", cid])
+        self.assertEqual(get_change("BORR", cid)["gap_counts"]["blocking_open"], 0)
+        run_ok(["brief", "BORR", "--change", cid])
+        report = json.loads((workspace_path("BORR") / "02_requirements" / cid / "change_brief_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(0, report["blocking_open"])
+        specs_out = json.loads(run_ok(["specs", "BORR", "--change", cid]))
+        self.assertEqual(len(specs_out["units"]), SPEC_UNITS)
+        self.assertEqual(len(specs_out["preserved"]), SPEC_PRESERVED)
+        self.assertEqual(specs_out["report"]["by_delta"], SPEC_BY_DELTA)
+        self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
         self.assertIn(json.loads(run_ok(["doctor"]))["verdict"], {"PASS", "WARN"})
         status = json.loads(run_ok(["status", "BORR"]))
         self.assertEqual(status["project_id"], "BORR")

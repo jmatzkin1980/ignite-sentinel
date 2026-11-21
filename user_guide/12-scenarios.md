@@ -2083,17 +2083,90 @@ The normal submit has to keep working as today. The existing system is already i
    The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (8 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
    </details>
 
+9. **Answer the blocking questions with requirements, and say what each one does to the system.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is). Save this as input/ears.md (it shows three of the five answers; the objective and the users are plain prose and need no Delta):
+
+   ```markdown
+   ### GAP-ACCEPTANCE
+   - Answer: When the analyst saves an incomplete registration, the system shall keep the data typed. When the analyst opens the list of incomplete registrations, the system shall list their saved registrations.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
+   - Delta: ADDED
+   - Decision status: confirmed
+
+   ### GAP-BUSINESS-RULES
+   - Answer: If a draft is older than 30 days, the system shall delete it.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
+   - Delta: ADDED
+   - Decision status: confirmed
+
+   ### GAP-PRODUCT-ASIS-TOBE
+   - Answer: When the user submits a complete registration, the system shall keep validating all the mandatory fields.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
+   - Delta: UNCHANGED
+   - Decision status: confirmed
+   ```
+
+   **Tell the assistant:** "Process the answers in input/ears.md for change CHG-001 of COMPRAS_PORTAL. The Delta of each requirement is the one I wrote; do not change it."
+
+   **You'll see:** The objective, the users, acceptance, business rules and the as-is to to-be question closed, no blocking question left, and four requirements written down for the change, each with its Delta: three `ADDED` and one `UNCHANGED`. The brief of the change, compiled again, shows 6 pending questions and none of them blocking.
+
+   **What it means:** The Delta is yours: Sentinel can propose a value from the wording but never fixes it. An EARS answer of a change with no Delta, or with a value outside the four, does not close the question; it stays answered with a message saying why. Prose answers (objective, users) need no Delta. One answer with several sentences becomes one requirement per sentence. A response file that mentions "borrador" or "draft" in its first lines is read as an unvalidated draft and its answers do not close: keep those words out of the opening lines.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /resolve-gaps COMPRAS_PORTAL --source input/ears.md --change CHG-001
+   /brief COMPRAS_PORTAL --change CHG-001
+   ```
+
+   ```text
+   closed: GAP-OBJECTIVE, GAP-USERS, GAP-PRODUCT-ASIS-TOBE, GAP-BUSINESS-RULES, GAP-ACCEPTANCE
+   gap_counts: open 6, closed 13, blocking_open 0, total 19
+   ears_rows: REQ-EARS-001, REQ-EARS-002, REQ-EARS-003, REQ-EARS-004
+   summary: pending 6, blocking_open 0
+   ```
+
+   The requirements are in `02_requirements/CHG-001/requirements.md`, a table with pattern, Delta, statement and the question each came from. Spanish answers use "Cuando ..., el sistema debe ..." and "Si ..., el sistema debe ...". The counts above include the baseline closures of step 5.
+   </details>
+
+10. **Write the specs of the change.** With the brief written and no blocking question left, the change can be turned into execution units.
+
+    **Tell the assistant:** "Generate the specs of CHG-001 for COMPRAS_PORTAL."
+
+    **You'll see:** Three units, `SPEC-U-001` to `SPEC-U-003`, one per `ADDED` requirement, in `03_specs/CHG-001/specs.md`. The requirement marked `UNCHANGED` is not a unit: it is listed apart, under preserved behavior, as what must keep working. There is no PRD.
+
+    **What it means:** A change gets the units of what it adds, modifies or removes, and a list of what it must not break. It does not get a PRD, which describes a whole product. Sentinel refuses if the brief of the change is missing, if a blocking question is open, or if the change has no `ADDED`, `MODIFIED` or `REMOVED` requirement. The unit numbers are reserved per project, so a later change never reuses one.
+
+    <details><summary>In a terminal</summary>
+
+    ```text
+    /specs COMPRAS_PORTAL --change CHG-001
+    ```
+
+    ```text
+    path: 03_specs/CHG-001/specs.md
+    units: SPEC-U-001, SPEC-U-002, SPEC-U-003
+    preserved: REQ-EARS-001
+    by_delta: ADDED 3
+    next_step: Review 03_specs/CHG-001/specs.md. The change backlog arrives in a later increment.
+    ```
+
+    The units are in `03_specs/CHG-001/units/` and the report in `change_specs_report.json` next to `specs.md`. Without `--change`, `/specs` keeps writing the PRD and specs of the project.
+    </details>
+
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open. The project itself is exactly as it was.
+A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart. The project itself is exactly as it was.
 
-**What this does not do yet.** A change has its questions and its brief, but no specs and no backlog yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
+**What this does not do yet.** A change has its questions, its brief, its requirements and its specs, but no backlog yet; it comes in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
 **Decision points.** If the request is a new product, or the existing system is not involved, it is a project: scenario 1. If the client changes a rule of a project whose backlog is already built, it is scenario 9.
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
