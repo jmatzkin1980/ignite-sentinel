@@ -2083,9 +2083,21 @@ The normal submit has to keep working as today. The existing system is already i
    The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (8 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
    </details>
 
-9. **Answer the blocking questions with requirements, and say what each one does to the system.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is). Save this as input/ears.md (it shows three of the five answers; the objective and the users are plain prose and need no Delta):
+9. **Answer the blocking questions with requirements, and say what each one does to the system.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is). Save this as input/ears.md (the objective and the users are plain prose and need no Delta; they go first):
 
    ```markdown
+   ### GAP-OBJECTIVE
+   - Answer: Let the Purchasing analyst save what is typed in the supplier registration even if incomplete, and resume it later without losing data.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
+   - Decision status: confirmed
+
+   ### GAP-USERS
+   - Answer: The Purchasing analysts who load supplier registrations in the backoffice; the Head of Purchasing reviews the pending ones of the team.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
+   - Decision status: confirmed
+
    ### GAP-ACCEPTANCE
    - Answer: When the analyst saves an incomplete registration, the system shall keep the data typed. When the analyst opens the list of incomplete registrations, the system shall list their saved registrations.
    - Owner / source: Head of Purchasing
