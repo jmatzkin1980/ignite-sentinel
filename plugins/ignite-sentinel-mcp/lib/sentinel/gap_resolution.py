@@ -102,6 +102,13 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         copy_file(source, target)
     responses = parse_gap_responses(text)
     _flag_baseline(responses, baseline_errors)
+    delta_findings: list[dict[str, str]] = []
+    change_lang = ""
+    if change_id:
+        from .changes import change_language
+
+        change_lang = change_language(project_id, get_change(project_id, change_id), text)
+        delta_findings = _flag_delta(responses, change_lang)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -123,9 +130,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     annotate_resolution_source_types(resolution_results, source)
     language = project_language(project_id)
     if change_id:
-        from .changes import change_language
-
-        language = change_language(project_id, get_change(project_id, change_id), text)
+        language = change_lang
         write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language, gaps_path.with_name("gap_elicitation.json")))
     else:
         write_text(gaps_path, render_gaps(project_id, resolution_results["gaps"], req_id, language))
@@ -140,7 +145,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         # the project's gap report node is not the change's.
         return _finish_change_resolution(
             project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
-            resolution_results, unknown_gap_ids,
+            resolution_results, unknown_gap_ids, responses, delta_findings, language,
         )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
@@ -231,6 +236,26 @@ def _flag_baseline(responses: dict[str, dict[str, str]], baseline_errors: dict[s
                 responses[gap_id]["baseline_error"] = error
 
 
+def _flag_delta(responses: dict[str, dict[str, str]], language: str) -> list[dict[str, str]]:
+    """IMP-388: a confirmed EARS answer of a change needs a BA-declared Delta; without one it is not confirmed."""
+    from .change_requirements import parse_delta, propose_delta
+
+    findings: list[dict[str, str]] = []
+    for gap_id, response in responses.items():
+        answer = str(response.get("answer", "")).strip()
+        if normalize_status(response.get("decision_status", "")) not in CONFIRMED_STATUSES or not is_substantive_answer(answer):
+            continue
+        statements = ears_statements(answer)
+        if not statements or parse_delta(str(response.get("delta", ""))):
+            continue
+        proposed = propose_delta(statements[0][0])
+        note = (f"falta un Delta válido (ADDED | MODIFIED | REMOVED | UNCHANGED); propuesta: {proposed}" if language == "es"
+                else f"a valid Delta is missing (ADDED | MODIFIED | REMOVED | UNCHANGED); proposal: {proposed}")
+        response["delta_error"] = note
+        findings.append({"gap": gap_id, "proposed": proposed, "note": note})
+    return findings
+
+
 def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
     """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
     from .changes import parse_border
@@ -266,6 +291,9 @@ def _finish_change_resolution(
     report_id: str,
     resolution_results: dict[str, object],
     unknown_gap_ids: list[str],
+    responses: dict[str, dict[str, str]] | None = None,
+    delta_findings: list[dict[str, str]] | None = None,
+    language: str = "es",
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
@@ -283,6 +311,10 @@ def _finish_change_resolution(
         changes = {key: dict(value) for key, value in read_state(project_id).get("changes", {}).items()}
         changes[change_id]["gap_counts"] = resolution_results["counts"]
         update_state(project_id, changes=changes)
+    # IMP-388: confirmed EARS answers with a declared Delta become the change's REQ-EARS rows.
+    from .change_requirements import materialize_change_ears
+
+    ears_rows = materialize_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
     change = get_change(project_id, change_id)
 
     broker = ContextBroker(project_id)
@@ -307,6 +339,8 @@ def _finish_change_resolution(
         "gap_counts": change.get("gap_counts"),
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
+        "delta_findings": delta_findings or [],
+        "ears_rows": ears_rows,
     }
 
 
@@ -439,6 +473,15 @@ def apply_gap_responses(
             gap["closure_reason"] = reason
             gap["resolution_note"] = f"resolved-by-inference: {gap['evidence']}; ratify to close"
             partially_closed.append(gap)
+            updated.append(gap)
+            continue
+        if confirmed and response.get("delta_error"):
+            # IMP-388: an EARS answer of a change without a declared Delta is not confirmed yet
+            note = str(response["delta_error"])
+            findings.append(f"{gap['id']}: {note}")
+            gap["status"] = "ANSWERED"
+            gap["resolution_note"] = note
+            answered.append(gap)
             updated.append(gap)
             continue
         if confirmed and reason == "by_baseline":
