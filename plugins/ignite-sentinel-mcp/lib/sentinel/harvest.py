@@ -5,6 +5,7 @@ skill, local only) and writes a tagged Markdown harvest, by blocks:
 
     ## B0 Inventory
     - repo: billing-api — services/billing
+    - doc: manual-compras — 00_raw/01_business_context/manual-compras.md
     ## B1 Architecture and components
     - [HECHO billing-api:src/app.py] The API is a Flask app with three blueprints.
     - [INFERIDO] Jobs run hourly, because the scheduler config names "hourly".
@@ -16,7 +17,10 @@ Tags are accepted in Spanish or English: HECHO/FACT, INFERIDO/INFERRED,
 NO ENCONTRADO/NOT FOUND, FUERA DEL CÓDIGO/OUT OF CODE, DIVERGENCIA/DIVERGENCE.
 
 The runtime:
-- validates the tags. A fact names `repo:file` with a repo from B0. A "not found"
+- validates the tags. A fact names `name:file` with a repo or a doc from B0 (IMP-384:
+  `- doc: name — path` inventories a document; B0 needs at least one repo or one doc;
+  B6 screens, B7 flows and B8 rules and roles are functional blocks read from documents
+  and feed no brief place). A "not found"
   says where it should be. "Out of code" uses a topic of the closed list. A
   divergence names `repo:file`;
 - redacts secrets (IMP-285) and stores the harvest under
@@ -54,21 +58,25 @@ BLOCK_PLACES = {"B0": "5.1", "B1": "5.1", "B2": "5.4", "B3": "5.6", "B4": "5.11"
 # bracketed word is captured as an unknown tag.
 _KNOWN = "|".join(re.escape(tag) for tag in sorted(TAGS, key=len, reverse=True))
 _TAG_RE = re.compile(rf"^\s*[-*]\s*\[(?P<tag>{_KNOWN}|[A-ZÁÉÍÓÚÑ]+)(?:\s+(?P<ref>[^\]]+))?\]\s*(?P<text>.+?)\s*$", re.I)
-_BLOCK_RE = re.compile(r"^#{2,3}\s*(?P<block>B[0-5])\b")
+_BLOCK_RE = re.compile(r"^#{2,3}\s*(?P<block>B[0-8])\b")
+_ANY_BLOCK_RE = re.compile(r"^#{2,3}\s*B\d+\b")  # a block heading outside B0-B8 closes the current block
 _REPO_RE = re.compile(r"^\s*[-*]\s*repo\s*:\s*(?P<name>[\w.\-/]+)", re.I)
+_DOC_RE = re.compile(r"^\s*[-*]\s*doc\s*:\s*(?P<name>[\w.\-/]+)", re.I)
 
 
 class HarvestError(InputError):
     pass
 
 
-def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
-    """Repos of B0, tagged entries with their block, and the errors found. Pure.
+def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = (),
+                  known_docs: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
+    """Repos and docs of B0, tagged entries with their block, and the errors found. Pure.
 
     IMP-326: `known_repos` are the repos an earlier harvest of the project already listed, so
-    a later file may deliver B1-B5 without repeating B0.
+    a later file may deliver B1-B8 without repeating B0 (`known_docs` likewise).
     """
     repos: list[str] = []
+    docs: list[str] = []
     entries: list[dict[str, str]] = []
     errors: list[str] = []
     block = ""
@@ -77,9 +85,16 @@ def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = ()) -> d
         if heading:
             block = heading.group("block")
             continue
+        if _ANY_BLOCK_RE.match(line):
+            block = ""
+            continue
         repo = _REPO_RE.match(line)
         if repo and block == "B0":
             repos.append(repo.group("name"))
+            continue
+        doc = _DOC_RE.match(line)
+        if doc and block == "B0":
+            docs.append(doc.group("name"))
             continue
         match = _TAG_RE.match(line)
         if not match:
@@ -89,7 +104,7 @@ def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = ()) -> d
             errors.append(f"line {number}: unknown tag [{match.group('tag')}]")
             continue
         if not block:
-            errors.append(f"line {number}: a tagged line outside any block B0-B5")
+            errors.append(f"line {number}: a tagged line outside any block B0-B8")
             continue
         entries.append({"line": str(number), "block": block, "kind": kind,
                         "ref": (match.group("ref") or "").strip(), "text": match.group("text").strip()})
@@ -98,17 +113,17 @@ def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = ()) -> d
         if kind in {"fact", "divergence"}:
             repo, _, path = ref.partition(":")
             if not repo or not path:
-                errors.append(f"{where}: [{kind}] needs `repo:file`")
-            elif repo not in repos and repo not in known_repos:
-                errors.append(f"{where}: repo {repo!r} is not in the B0 inventory")
+                errors.append(f"{where}: [{kind}] needs `repo:file` or `doc:file`")
+            elif repo not in repos and repo not in known_repos and repo not in docs and repo not in known_docs:
+                errors.append(f"{where}: repo or doc {repo!r} is not in the B0 inventory")
         elif kind == "not_found" and not ref:
             errors.append(f"{where}: [not found] says where it should be")
         elif kind == "out_of_code" and ref.lower() not in OUT_OF_CODE_TOPICS:
             errors.append(f"{where}: out-of-code topic must be one of {', '.join(sorted(OUT_OF_CODE_TOPICS))}")
-    if not repos and not known_repos:
-        errors.append("B0 lists no repository (`- repo: name — path`)")
+    if not repos and not known_repos and not docs and not known_docs:
+        errors.append("B0 lists no repository or document (`- repo: name — path` or `- doc: name — path`)")
     coverage = {kind: sum(1 for e in entries if e["kind"] == kind) for kind in ("fact", "inferred", "not_found", "out_of_code", "divergence")}
-    return {"repos": repos, "entries": entries, "errors": errors, "coverage": coverage}
+    return {"repos": repos, "docs": docs, "entries": entries, "errors": errors, "coverage": coverage}
 
 
 def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
@@ -139,11 +154,12 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     raw = source.read_text(encoding="utf-8")
     previous = load_harvest(base)
     previous_repos = [str(repo) for repo in previous.get("repos", [])]
+    previous_docs = [str(doc) for doc in previous.get("docs", [])]
     # IMP-336: parse the redacted text, so harvest.json entries never carry a secret
     # (alerts are recorded below, once the harvest is accepted).
     from .secrets_scan import detect_secrets, load_allowlist, redact
 
-    parsed = parse_harvest(redact(raw, detect_secrets(raw, load_allowlist(base))), previous_repos)
+    parsed = parse_harvest(redact(raw, detect_secrets(raw, load_allowlist(base))), previous_repos, previous_docs)
     if parsed["errors"]:
         raise HarvestError("Harvest rejected:\n- " + "\n- ".join(parsed["errors"]))
     source_id = open_source_row(project_id, source, "harvested")
@@ -163,9 +179,10 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     kept = [entry for entry in previous.get("entries", []) if entry.get("block") not in delivered]
     entries = sorted([*kept, *parsed["entries"]], key=lambda entry: (entry.get("block", ""), int(entry.get("line", 0) or 0)))
     repos = list(dict.fromkeys([*previous_repos, *parsed["repos"]]))
+    docs = list(dict.fromkeys([*previous_docs, *parsed["docs"]]))
     coverage = {kind: sum(1 for e in entries if e["kind"] == kind) for kind in parsed["coverage"]}
     sources = list(dict.fromkeys([*previous.get("source_ids", [previous.get("source_id")] if previous.get("source_id") else []), source_id]))
-    record = {"artifact": "harvest", "source_id": source_id, "source_ids": sources, "direction": "built", "repos": repos,
+    record = {"artifact": "harvest", "source_id": source_id, "source_ids": sources, "direction": "built", "repos": repos, "docs": docs,
               "coverage": coverage, "entries": entries,
               "secrets_redacted": int(previous.get("secrets_redacted", 0) or 0) + len(sanitized.findings)}
     write_json(base / "01_discovery" / "harvest.json", record)
