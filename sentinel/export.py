@@ -10,10 +10,15 @@ from .blocks import markdown_to_blocks
 from .core.io import copy_file, write_json, write_text
 from .core.paths import workspace_citation, workspace_relative  # IMP-300: `last_export` is workspace-relative
 from .secrets_scan import assert_no_leaks
+from .changes import change_gaps_path
 from .workspace import update_state, workspace_path
 
 
-def _language(project_id: str) -> str:
+def _language(project_id: str, change_id: str | None = None) -> str:
+    if change_id:  # IMP-386: a change speaks its own language, fixed at ingest, not the project's
+        from .changes import change_language, get_change
+
+        return "es" if change_language(project_id, get_change(project_id, change_id)) == "es" else "en"
     from .workspace import read_state
 
     state = read_state(project_id, {})
@@ -21,41 +26,52 @@ def _language(project_id: str) -> str:
 
 
 def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str | None = None,
-                    final: bool = False) -> dict[str, str]:
+                    final: bool = False, change_id: str | None = None) -> dict[str, str]:
     from .deliverables import gate
     from .pending_marks import compile_report_for
 
     fmt = fmt.lower()
     base = workspace_path(project_id)
-    source = artifact_source(base, artifact, domain)
+    if change_id:
+        from .changes import check_change_deliverable
+
+        check_change_deliverable(project_id, "export", artifact, change_id)
+        if fmt not in ("md", "interview"):
+            raise InputError(f"/export --change admite los formatos md e interview, no {fmt}.")
+    else:
+        from .changes import refuse_change_only_deliverable
+
+        refuse_change_only_deliverable(project_id, "export", artifact)
+    source = artifact_source(base, artifact, domain, change_id)
     if not source.exists():
         raise InputError(f"Export source not found: {source}")
     # IMP-272: a deliverable has zero pending marks or says it is a draft
     # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
                    report=compile_report_for(source))
-    result = _export(project_id, artifact, fmt, source, verdict)
+    result = _export(project_id, artifact, fmt, source, verdict, change_id)
     return {**result, **verdict}
 
 
-def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict) -> dict[str, str]:
+def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict,
+            change_id: str | None = None) -> dict[str, str]:
     from .deliverables import with_banner
 
     base = workspace_path(project_id)
     if fmt == "mdx":
         return export_mdx(project_id, artifact, source, verdict)
     if fmt == "interview":
-        return export_interview(project_id, artifact)
+        return export_interview(project_id, artifact, change_id)
     if fmt == "faq":
         return export_faq(project_id, artifact)
     if fmt != "md":
         raise InputError("Unsupported export format. Use md, mdx, interview, or faq.")
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
-    target = export_dir / source.name
+    target = export_dir / (f"{change_id}-{source.name}" if change_id else source.name)
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     if verdict["deliverable"] == "draft":
-        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id)))
+        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id)))
     else:
         copy_file(source, target)
     update_state(project_id, last_export=workspace_relative(project_id, target))
@@ -68,15 +84,15 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     }
 
 
-def export_interview(project_id: str, artifact: str) -> dict[str, str]:
+def export_interview(project_id: str, artifact: str, change_id: str | None = None) -> dict[str, str]:
     if artifact.lower() != "gaps":
         raise InputError("Interview export is currently supported only for --artifact gaps.")
     from .discovery import build_interview_script
 
-    script = build_interview_script(project_id)
+    script = build_interview_script(project_id, change_id=change_id)
     export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
-    target = export_dir / "gaps-interview.md"
+    target = export_dir / (f"{change_id}-gaps-interview.md" if change_id else "gaps-interview.md")
     assert_no_leaks(project_id, script, workspace_path(project_id), "interview export")
     write_text(target, script)
     update_state(project_id, last_export=workspace_relative(project_id, target))
@@ -84,7 +100,8 @@ def export_interview(project_id: str, artifact: str) -> dict[str, str]:
         "project_id": project_id,
         "artifact": "gaps",
         "format": "interview",
-        "source": str((workspace_path(project_id) / "01_discovery" / "gaps.md").as_posix()),
+        "source": str((change_gaps_path(workspace_path(project_id), change_id) if change_id
+                       else workspace_path(project_id) / "01_discovery" / "gaps.md").as_posix()),
         "path": str(target.as_posix()),
     }
 
@@ -206,8 +223,14 @@ python -m sentinel /export {project_id} --artifact {artifact} --format mdx
 """
 
 
-def artifact_source(base: Path, artifact: str, domain: str | None) -> Path:
+def artifact_source(base: Path, artifact: str, domain: str | None, change_id: str | None = None) -> Path:
     artifact = artifact.lower()
+    if change_id:  # IMP-386: the change's own brief and gaps; everything else is the project's
+        if artifact == "gaps":
+            return change_gaps_path(base, change_id)
+        if artifact == "brief":
+            return base / "02_requirements" / change_id / "project-brief.md"
+        raise InputError(f"Unsupported export artifact with --change: {artifact}")
     if artifact == "gaps":
         return base / "01_discovery" / "gaps.md"
     if artifact == "brief":

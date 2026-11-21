@@ -48,7 +48,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("gaps", "Regenerate the discovery gap ledger (01_discovery/gaps.md; the client gets the interview export). With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7). On a GAP-CHG (IMP-337) accepted applies the change (reopens the gap or invalidates the assumption) and rejected closes it as a false alarm. With change=CHG-nnn (IMP-382) regenerates that change's gap file 01_discovery/CHG-nnn/gaps.md instead of the project's.", ["project_id"]),
     ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers. With change=CHG-nnn (IMP-382) applies them to that change's gaps; when GAP-SCOPE closes with a valid Borde block (one line per surface, zone | type | name, zone nuevo|adyacente|preservado) the border is confirmed and the lens round opens scoped by the surface types (no pantalla means no design or frontend checks); one bad border line rejects the file and nothing is written. In a change, an answer with Motivo de cierre by_baseline closes the gap only when confirmed and citing a backticked 00_raw path plus a literal quote of 20+ characters from that file (never a change note); otherwise it stays ANSWERED with a finding.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
-    ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed.", ["project_id"]),
+    ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed. With change=CHG-nnn (IMP-386) it compiles that change's brief (02_requirements/CHG-nnn/project-brief.md) and takes no project settings; a change-only workspace refuses it without.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
     ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
     ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog.", ["project_id", "full"]),
@@ -63,7 +63,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
               "which clears that finding.", ["project_id"]),
     ("health", "Audit project health, including domain-context staleness.", ["project_id"]),
     ("validate", "Validate structure plus non-blocking semantic quality scores; with a confirmed series it also reports the series' sync and per-release integrity. release=rN validates that release's brief and derivations.", ["project_id"]),
-    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, readiness (what is missing per item and from whom, with one row per release when there is a series) release-guide (the series guide), prototype, prototype-trace, prototype-manual, or diagrams (the to-be diagrams of the v2 brief, rendered offline with the vendored mermaid). release=rN views that release (08_context_packs/rN/views/).", ["project_id", "artifact"]),
+    ("view", "Generate a local read-only HTML artifact view for gaps, brief, PRD, specs, backlog, readiness (what is missing per item and from whom, with one row per release when there is a series) release-guide (the series guide), prototype, prototype-trace, prototype-manual, or diagrams (the to-be diagrams of the v2 brief, rendered offline with the vendored mermaid). release=rN views that release (08_context_packs/rN/views/). With change=CHG-nnn (IMP-386) only brief and gaps are viewed, from that change, into views/CHG-nnn-<artifact>.html; a change-only workspace refuses a view without it.", ["project_id", "artifact"]),
     ("annotate", "Merge a validated agentic semantic analysis (origin: agent) of the raw input into gaps; each gap needs a verbatim evidence quote.", ["project_id", "source"]),
     ("challenge", "Merge validated advanced-elicitation findings (origin: challenge) from pre-mortem, per-lens role-play, assumption inversion, and JTBD Four Forces; writes challenge_report.md.", ["project_id", "source"]),
     ("harvest", "Ingest a tagged brownfield code harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B8; B6-B8 are functional blocks read from documents; B0 accepts doc: entries next to repos) as a governed source; routes out-of-code topics and README/code divergences to gaps. With change=CHG-nnn (IMP-384) the gaps open in that change; a change-only workspace refuses it without.", ["project_id", "source"]),
@@ -77,7 +77,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
-    ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel.", ["project_id", "artifact"]),
+    ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel. With change=CHG-nnn (IMP-386) only brief and gaps (md, interview) are exported, from that change, into exports/CHG-nnn-<name>; the project's exports are not touched and a change-only workspace refuses an export without it.", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
     ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close; authority sets the row's authority; cell DOCUMENT/SECTION with mark updated, reviewed (with reason) or pending closes an impact-matrix cell. precedence SCOPE with between F-NN,F-NN says which source governs; report writes 07_changes/closing_report.md by recipient.", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
@@ -299,13 +299,15 @@ def override_arguments(override: str = "") -> list[str]:
     return ["--override", override] if override else []
 
 
-def view_arguments(project_id: str, artifact: str, open_browser: bool = False, theme: str = "") -> list[str]:
+def view_arguments(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", change: str = "") -> list[str]:
     """CLI arguments for the view tool; ``theme`` is a built-in name or a local theme path."""
     arguments = ["view", project_id, "--artifact", artifact]
     if open_browser:
         arguments.append("--open")
     if theme:
         arguments += ["--theme", theme]
+    if change:
+        arguments += ["--change", change]
     return arguments
 
 
@@ -400,9 +402,10 @@ def build_server():
 
     @tool(name="sentinel_brief", description=TOOL_DESCRIPTIONS["brief"])
     def sentinel_brief(project_id: str, profile: str = "", genesis: str = "", validation_direction: str = "",
-                       brief_version: str = "") -> dict:
+                       brief_version: str = "", change: str = "") -> dict:
         arguments = ["brief", project_id]
         for flag, value in (("--profile", profile), ("--genesis", genesis), ("--validation-direction", validation_direction),
+                            ("--change", change),
                             ("--brief-version", str(brief_version) if brief_version else "")):
             if value:
                 arguments += [flag, value]
@@ -546,8 +549,8 @@ def build_server():
         return run_cli(["validate", project_id, *override_arguments(override), *release_arguments(release)])
 
     @tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
-    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", release: str = "") -> dict:
-        return run_cli(view_arguments(project_id, artifact, open_browser, theme) + release_arguments(release))
+    def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", release: str = "", change: str = "") -> dict:
+        return run_cli(view_arguments(project_id, artifact, open_browser, theme, change) + release_arguments(release))
 
     @tool(name="sentinel_annotate", description=TOOL_DESCRIPTIONS["annotate"])
     def sentinel_annotate(project_id: str, source: str) -> dict:
@@ -627,9 +630,10 @@ def build_server():
                        + (["--crosses"] if crosses else []))
 
     @tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
-    def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False, domain: str = "") -> dict:
+    def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False, domain: str = "",
+                        change: str = "") -> dict:
         return run_cli(["export", project_id, "--artifact", artifact, "--format", format] + (["--final"] if final else [])
-                       + (["--domain", domain] if domain else []))
+                       + (["--domain", domain] if domain else []) + (["--change", change] if change else []))
 
     @tool(name="sentinel_gap_elicitation", description=TOOL_DESCRIPTIONS["gap_elicitation"])
     def sentinel_gap_elicitation(project_id: str, gap_id: str, client_capabilities: str = "") -> dict:

@@ -99,6 +99,7 @@ def _view(p: argparse.ArgumentParser) -> None:
     p.add_argument("--artifact", required=True, choices=sorted(VIEW_ARTIFACTS))
     p.add_argument("--open", action="store_true")
     p.add_argument("--theme", default=None, help="built-in theme name or path to a local theme JSON (default: workspace config theme, else neutral)")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: view this change's brief or gaps (views/CHG-nnn-<artifact>.html)")
 
 
 def _init(p: argparse.ArgumentParser) -> None:
@@ -243,6 +244,7 @@ def _export(p: argparse.ArgumentParser) -> None:
     p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx", "interview", "faq"])
     p.add_argument("--domain")
     p.add_argument("--final", action="store_true", help="IMP-272: refuse to export while pending marks remain")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: export this change's brief or gaps (exports/CHG-nnn-<name>)")
 
 
 def _backlog(p: argparse.ArgumentParser) -> None:
@@ -262,6 +264,7 @@ def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms prof
     p.add_argument("--genesis", help="greenfield|brownfield-integration|brownfield-extension|brownfield-replacement (comma-separated when mixed)")
     p.add_argument("--validation-direction", choices=("to-build", "built"))
     p.add_argument("--brief-version", type=int, choices=(1, 2), help="switch the project's brief compiler: 2 (the default for new projects) compiles the brief v2; 1 keeps v1")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: compile this change's brief instead of the project's")
 
 
 def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition on a gap an agentic channel raised

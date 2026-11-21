@@ -142,7 +142,8 @@ def _run_project_command(args) -> int:
         elif args.command == "view":
             from .view import generate_artifact_view
 
-            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open), theme=args.theme)
+            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open), theme=args.theme,
+                                            change_id=args.change)
             print_json(result)
         elif args.command == "ingest":
             from .discovery import ingest
@@ -363,20 +364,38 @@ def _run_project_command(args) -> int:
         elif args.command == "brief":
             from .brief_schema import set_brief_settings, settings_status
             from .workspace import workspace_path
-            from .maturity import generate_project_brief
+            from .maturity import generate_project_brief, refuse_change_only_brief
 
-            if any(value is not None for value in (args.profile, args.genesis, args.validation_direction, args.brief_version)):
-                set_brief_settings(
-                    args.project_id,
-                    profiles=args.profile.split(",") if args.profile is not None else None,
-                    genesis=[value.strip() for value in args.genesis.split(",") if value.strip()] if args.genesis is not None else None,
-                    validation_direction=args.validation_direction,
-                    brief_version=args.brief_version,
-                )
-            result = generate_project_brief(args.project_id)
-            requirements = workspace_path(args.project_id) / "02_requirements" / "requirements.md"
-            raw = requirements.read_text(encoding="utf-8") if requirements.exists() else ""
-            result["brief_settings"] = settings_status(args.project_id, raw)
+            project_flags = {"--profile": args.profile, "--genesis": args.genesis,
+                             "--validation-direction": args.validation_direction, "--brief-version": args.brief_version}
+            if args.change:
+                from .errors import InputError
+
+                clash = [flag for flag, value in project_flags.items() if value is not None]
+                if clash:
+                    raise InputError(
+                        f"/brief --change no se combina con {', '.join(clash)}: esos ajustes son del proyecto.",
+                        next_step=f"Corré /brief {args.project_id} --change {args.change} solo, o quitá --change para ajustar el proyecto.",
+                    )
+                from .changes import get_change
+                from .compilers.change_brief import compile_change_brief
+
+                get_change(args.project_id, args.change)
+                result = compile_change_brief(args.project_id, args.change)
+            else:
+                refuse_change_only_brief(args.project_id)
+                if any(value is not None for value in (args.profile, args.genesis, args.validation_direction, args.brief_version)):
+                    set_brief_settings(
+                        args.project_id,
+                        profiles=args.profile.split(",") if args.profile is not None else None,
+                        genesis=[value.strip() for value in args.genesis.split(",") if value.strip()] if args.genesis is not None else None,
+                        validation_direction=args.validation_direction,
+                        brief_version=args.brief_version,
+                    )
+                result = generate_project_brief(args.project_id)
+                requirements = workspace_path(args.project_id) / "02_requirements" / "requirements.md"
+                raw = requirements.read_text(encoding="utf-8") if requirements.exists() else ""
+                result["brief_settings"] = settings_status(args.project_id, raw)
             print_json(result)
         elif args.command == "context-request":
             from .context_requests import generate_context_request, transition_context_request
@@ -457,7 +476,8 @@ def _run_project_command(args) -> int:
         elif args.command == "export":
             from .export import export_artifact
 
-            result = export_artifact(args.project_id, args.artifact, args.format, args.domain, final=args.final)
+            result = export_artifact(args.project_id, args.artifact, args.format, args.domain, final=args.final,
+                                     change_id=args.change)
             print_json(result)
         elif args.command == "specs":
             from .generation import generate_specs

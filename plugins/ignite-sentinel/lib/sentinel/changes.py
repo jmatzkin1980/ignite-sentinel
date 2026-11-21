@@ -33,6 +33,33 @@ def list_changes(project_id: str) -> dict[str, dict]:
     return read_state(project_id).get("changes", {})
 
 
+CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps")  # IMP-386: what /view and /export take with --change
+
+
+def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str) -> None:
+    """`/view` and `/export` with --change: only brief and gaps, and only of an open change."""
+    if artifact.lower() not in CHANGE_DELIVERABLES:
+        raise InputError(
+            f"/{command} --change sólo admite {' o '.join(CHANGE_DELIVERABLES)}, no {artifact}: el resto es del proyecto.",
+            next_step=f"Quitá --change para {artifact}, o usá --artifact brief|gaps --change {change_id}.",
+        )
+    get_change(project_id, change_id)
+
+
+def refuse_change_only_deliverable(project_id: str, command: str, artifact: str) -> None:
+    """IMP-386: a workspace that only holds changes has no project brief or gaps to view or export."""
+    if artifact.lower() not in CHANGE_DELIVERABLES:
+        return
+    if (workspace_path(project_id) / "02_requirements" / "requirements.md").exists():
+        return
+    open_changes = sorted(list_changes(project_id))
+    if open_changes:
+        raise GateRefusal(
+            f"{project_id} sólo tiene cambios: no hay {artifact} del proyecto para /{command}",
+            next_step=f"/{command} {project_id} --artifact {artifact} --change {open_changes[0]}",
+        )
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:

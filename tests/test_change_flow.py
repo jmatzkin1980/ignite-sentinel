@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 import unittest
@@ -79,6 +80,18 @@ class ChangeFlow(SnapshotWorkspaceCase):
         project_total = read_state("PROJ")["gap_counts"]["total"]
         self.assertEqual(project_total, 27)
         self.assertGreater(project_total, counts["total"])
+        # The change brief: 9 sections, the three blocking gaps listed in section 9.
+        brief_out = json.loads(run_ok(["brief", "BORR", "--change", cid]))
+        brief_path = workspace_path("BORR") / "02_requirements" / cid / "project-brief.md"
+        self.assertTrue(brief_path.exists())
+        brief_text = brief_path.read_text(encoding="utf-8")
+        self.assertEqual(9, len(re.findall(r"^## ", brief_text, flags=re.M)))
+        report = json.loads((workspace_path("BORR") / "02_requirements" / cid / "change_brief_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(3, report["blocking_open"])
+        section9 = brief_text.split("## 9.", 1)[1]
+        for gap_id in ("GAP-OBJECTIVE", "GAP-USERS", "GAP-ACCEPTANCE"):
+            self.assertIn(gap_id, section9)
+        self.assertEqual(cid, brief_out["change_id"])
         self.assertIn(json.loads(run_ok(["doctor"]))["verdict"], {"PASS", "WARN"})
         status = json.loads(run_ok(["status", "BORR"]))
         self.assertEqual(status["project_id"], "BORR")

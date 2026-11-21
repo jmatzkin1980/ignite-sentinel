@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "sections": [
+    {"id": 1, "title": {"es": "Contexto y línea de base", "en": "Context and baseline"}, "gaps": []},
+    {"id": 2, "title": {"es": "Problema y resultado", "en": "Problem and outcome"}, "gaps": ["GAP-OBJECTIVE", "GAP-USERS"]},
+    {"id": 3, "title": {"es": "Borde", "en": "Border"}, "gaps": ["GAP-SCOPE"]},
+    {"id": 4, "title": {"es": "Proceso as-is → to-be", "en": "Process as-is → to-be"}, "gaps": ["GAP-PRODUCT-ASIS-TOBE"]},
+    {"id": 5, "title": {"es": "Por lente", "en": "By lens"}, "gaps": []},
+    {"id": 6, "title": {"es": "Comportamiento preservado", "en": "Preserved behavior"}, "gaps": []},
+    {"id": 7, "title": {"es": "Reglas y aceptación", "en": "Rules and acceptance"}, "gaps": ["GAP-BUSINESS-RULES", "GAP-ACCEPTANCE", "GAP-QUALITY-HANDOFF"]},
+    {"id": 8, "title": {"es": "Blast radius e impacto", "en": "Blast radius and impact"}, "gaps": ["GAP-FRONTEND-SURFACE", "GAP-BACKEND-SURFACE"], "gap_prefixes": ["GAP-HRV-"]},
+    {"id": 9, "title": {"es": "Pendientes", "en": "Open items"}, "gaps": []}
+  ],
+  "lens_titles": {
+    "business": {"es": "Negocio", "en": "Business"},
+    "product": {"es": "Producto", "en": "Product"},
+    "design": {"es": "Diseño", "en": "Design"},
+    "technical": {"es": "Técnica", "en": "Technical"},
+    "quality": {"es": "Calidad", "en": "Quality"},
+    "compliance": {"es": "Compliance", "en": "Compliance"},
+    "delivery": {"es": "Delivery", "en": "Delivery"}
+  },
+  "lens_surfaces": {
+    "business": ["regla", "rol"],
+    "product": ["proceso"],
+    "design": ["pantalla"],
+    "technical": ["endpoint", "dato", "integracion"],
+    "quality": [],
+    "compliance": [],
+    "delivery": []
+  },
+  "surface_blocks": {
+    "pantalla": ["B6"],
+    "proceso": ["B7"],
+    "regla": ["B8"],
+    "rol": ["B8"],
+    "endpoint": ["B2", "B3", "B4"],
+    "dato": ["B2", "B3", "B4"],
+    "integracion": ["B2", "B3", "B4"]
+  },
+  "na_reason": {"es": "el borde no toca {lens}", "en": "the border does not touch {lens}"},
+  "na_condition": {"es": "el borde suma una superficie de {lens}", "en": "the border adds a {lens} surface"},
+  "copy": {
+    "es": {
+      "heading": "Brief del cambio {change_id} — {title}",
+      "project": "Proyecto",
+      "note": "Nota del cambio",
+      "baseline_cited": "Línea de base citada",
+      "repo": "Repositorio",
+      "doc": "Documento",
+      "already": "Ya existe",
+      "zones": {"nuevo": "Nuevo", "adyacente": "Adyacente", "preservado": "Preservado"},
+      "scope_answer": "Alcance (respuesta del cliente)",
+      "no_adjacent": "Sin superficies adyacentes en el borde ({cite})",
+      "no_preserved": "Sin superficies preservadas en el borde ({cite})",
+      "after_border": "Se define al confirmar el borde ({cite})",
+      "lenses_after_border": "Las lentes se abren al confirmar el borde ({cite})",
+      "lenses_not_open": "Se abre con la ronda de lentes ({ids})",
+      "note_covers": "Sin pregunta abierta: la nota del cambio lo cubre (ver §1) (`{cite}`)",
+      "see_sections": "Ver {sections}",
+      "surfaces_of_lens": "Superficies del borde de esta lente",
+      "table": ["Gap", "Lente", "Severidad", "Bloquea"],
+      "yes": "sí",
+      "no": "no",
+      "no_open": "Sin gaps abiertos en gaps.md del cambio ({cite})",
+      "no_text": "respuesta confirmada sin texto"
+    },
+    "en": {
+      "heading": "Change brief {change_id} — {title}",
+      "project": "Project",
+      "note": "Change note",
+      "baseline_cited": "Baseline cited",
+      "repo": "Repository",
+      "doc": "Document",
+      "already": "Already exists",
+      "zones": {"nuevo": "New", "adyacente": "Adjacent", "preservado": "Preserved"},
+      "scope_answer": "Scope (client answer)",
+      "no_adjacent": "No adjacent surfaces in the border ({cite})",
+      "no_preserved": "No preserved surfaces in the border ({cite})",
+      "after_border": "Defined once the border is confirmed ({cite})",
+      "lenses_after_border": "The lenses open once the border is confirmed ({cite})",
+      "lenses_not_open": "Opens with the lens round ({ids})",
+      "note_covers": "No open question: the change note covers it (see §1) (`{cite}`)",
+      "see_sections": "See {sections}",
+      "surfaces_of_lens": "Border surfaces of this lens",
+      "table": ["Gap", "Lens", "Severity", "Blocks"],
+      "yes": "yes",
+      "no": "no",
+      "no_open": "No open gaps in the change's gaps.md ({cite})",
+      "no_text": "confirmed answer without text"
+    }
+  }
+}

@@ -27,4 +27,4 @@ Then summarize generated `RAW`, `REQ`, `GAP`, `DEC`, `SEED`, `DISC`, and lens re
 python -m sentinel /retrieve PROJECT_ID --query "topic" --workflow discovery --write-pack
 ```
 
-With `--change` (IMP-382) the source is a change or new feature on an existing system. Sentinel opens a CHG-nnn with only the scope round (GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE, GAP-PRODUCT-ASIS-TOBE) in `01_discovery/CHG-nnn/gaps.md`; the project's requirement and gaps are not touched. The change's brief, specs and backlog are not generated yet.
+With `--change` (IMP-382) the source is a change or new feature on an existing system. Sentinel opens a CHG-nnn with only the scope round (GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE, GAP-PRODUCT-ASIS-TOBE) in `01_discovery/CHG-nnn/gaps.md`; the project's requirement and gaps are not touched. `/brief --change CHG-nnn` compiles the change's brief; its specs and backlog are not generated yet.

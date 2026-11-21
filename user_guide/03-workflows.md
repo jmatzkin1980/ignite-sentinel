@@ -1375,7 +1375,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
-**If something goes wrong.** A change brief, change specs and a change backlog do not exist yet; this path stops at the questions.
+**If something goes wrong.** `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); change specs and a change backlog do not exist yet.
 
 <a id="backlog-refinement-and-story-status"></a>
 

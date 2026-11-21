@@ -32,7 +32,7 @@ python -m sentinel /ingest PROJECT_ID --source PATH --change
 python -m sentinel /gaps PROJECT_ID --change CHG-001
 ```
 
-`--change` opens a CHG-nnn with only the scope round: GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE and GAP-PRODUCT-ASIS-TOBE, written to `01_discovery/CHG-nnn/gaps.md`. The project's requirement, gaps and artifacts are not touched. The PRD-only checks and GAP-BACKLOG-ENABLERS never fire for a change. The lens round opens later, when GAP-SCOPE closes with a border (see `sentinel-gap-response`). The change's brief, specs and backlog are not generated yet: say so to the BA instead of improvising them.
+`--change` opens a CHG-nnn with only the scope round: GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE and GAP-PRODUCT-ASIS-TOBE, written to `01_discovery/CHG-nnn/gaps.md`. The project's requirement, gaps and artifacts are not touched. The PRD-only checks and GAP-BACKLOG-ENABLERS never fire for a change. The lens round opens later, when GAP-SCOPE closes with a border (see `sentinel-gap-response`). `/brief --change CHG-nnn` compiles the change's brief (see `sentinel-project-brief`). Its specs and backlog are not generated yet: say so to the BA instead of improvising them.
 
 ## Deepening Cycle After `/gaps`
 
