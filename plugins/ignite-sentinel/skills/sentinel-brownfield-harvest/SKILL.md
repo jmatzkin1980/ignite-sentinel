@@ -1,6 +1,6 @@
 ---
 name: sentinel-brownfield-harvest
-description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it: read the code and write a tagged harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B5), then run /harvest so it becomes a governed source that feeds brief v2 §5. Trigger on 'harvest the existing system', 'read the current codebase for context', or brownfield technical-context needs. Not for client requirements or business context (use sentinel-discovery); it reads code, it never changes it."
+description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it: read the code and write a tagged harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B8, from code or from documents), then run /harvest so it becomes a governed source that feeds brief v2 §5. Trigger on 'harvest the existing system', 'read the current codebase for context', or brownfield technical-context needs. Not for client requirements or business context (use sentinel-discovery); it reads code, it never changes it."
 ---
 
 # Sentinel Brownfield Harvest
@@ -20,10 +20,20 @@ One Markdown file, by blocks. Every claim is one line with one tag:
 ## B0 Inventory
 - repo: queue-api — services/queue-api
 - repo: metrics-job — jobs/metrics
+- doc: manual-compras — 00_raw/01_business_context/manual-compras.md
 
 ## B1 Architecture and components
 - [HECHO queue-api:src/app.py] The queue API is a Flask app with three blueprints.
 - [INFERIDO] The metrics job runs hourly, because its scheduler entry is named hourly.
+
+## B6 Pantallas
+- [HECHO manual-compras:manual-compras.md] El alta de proveedores tiene cuatro pasos: datos fiscales, bancarios, contactos y adjuntos.
+
+## B7 Flujos
+- [HECHO queue-api:src/app.py] Una solicitud pasa de pendiente a aprobada y recién entonces genera la orden.
+
+## B8 Reglas y roles
+- [DIVERGENCIA manual-compras:manual-compras.md] El manual pide dos firmas para aprobar; el código valida una sola.
 
 ## B3 Integrations
 - [NO ENCONTRADO queue-api:src/clients/] No timeout is set for the metrics client.
@@ -39,26 +49,35 @@ One Markdown file, by blocks. Every claim is one line with one tag:
 | B3 | Integrations, APIs and events | §5.6 |
 | B4 | Security, governance and constraints | §5.11 |
 | B5 | Operations and observability | §5.16 |
+| B6 | Screens: what each one shows and asks | functional detail |
+| B7 | Flows: steps and transitions | functional detail |
+| B8 | Business rules and roles | functional detail |
 
 | Tag (es / en) | Means | Needs |
 |---|---|---|
-| `[HECHO repo:file]` / `[FACT repo:file]` | You read it in that file | a repo listed in B0 |
+| `[HECHO repo:file]` or `[HECHO doc:file]` / `[FACT repo:file]` | You read it in that file | `repo` or `doc` is the name of an entry in B0 |
 | `[INFERIDO]` / `[INFERRED]` | A deduction the code does not state | say what it rests on |
 | `[NO ENCONTRADO where]` / `[NOT FOUND where]` | You looked and it is not there | where it should be |
 | `[FUERA DEL CÓDIGO topic]` / `[OUT OF CODE topic]` | The code cannot say it | a topic of the closed list |
-| `[DIVERGENCIA repo:file]` / `[DIVERGENCE repo:file]` | Documentation and code disagree | the documenting file |
+| `[DIVERGENCIA repo:file]` or `[DIVERGENCIA doc:file]` / `[DIVERGENCE repo:file]` | Documentation and code disagree | the documenting file, in a repo or doc named in B0 |
 
 **Out of code is a closed list:** `owners`, `sla`, `why_without_adr`, `volume`, `purpose_and_retention`, `regulation`, `negotiability`, `role_administration`, `flag_removal_date`, `latency_targets`. These go to a person, as a non-blocking gap; never ask the code again.
 
 ## Workflow
 
 1. **Confirm local access and scope.** Nothing leaves the machine.
-2. **Read block by block (B0 → B5).** You may deliver one block at a time; each run of `/harvest` registers that harvest and adds it to the earlier ones. The first file must carry B0 (the repositories); later files may reuse those repos without repeating B0. Delivering a block again replaces that block only. One invalid line refuses the whole file, so fix it and run again.
+2. **Read block by block (B0 → B8).** B0 lists repos (`- repo: name — path`) and, for existing documents (manuals, SADs), `- doc: name — path`; HECHO and DIVERGENCIA cite `name:file` for either. B6–B8 are functional blocks (screens, flows, rules and roles) and are usually read from documents. You may deliver one block at a time; each run of `/harvest` registers that harvest and adds it to the earlier ones. The first file must carry B0 (the repositories or documents); later files may reuse those repos without repeating B0. Delivering a block again replaces that block only. One invalid line refuses the whole file, so fix it and run again.
 3. **Tag every claim.** An untagged line is dropped. `[HECHO]` needs the file that proves it. A name-based deduction is `[INFERIDO]`.
 4. **Run it:**
 
 ```powershell
 sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /harvest PROJECT_ID --source harvest.md
+```
+
+When the workspace has open changes (state `changes`, or `01_discovery/CHG-nnn/` folders), add `--change CHG-nnn` if the harvest is for one of them, so its gaps (GAP-HRV-*) open in that change instead of the project. A workspace that only has changes refuses /harvest without it.
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /harvest PROJECT_ID --source harvest.md --change CHG-001
 ```
 
 5. **Report** the coverage per tag, the gaps opened (out of code, divergences) and any rejected line with its reason. Then recompile the brief: `/brief PROJECT_ID`.

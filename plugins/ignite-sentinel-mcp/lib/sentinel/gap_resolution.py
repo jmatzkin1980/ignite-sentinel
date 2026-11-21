@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from .ears import classify_ears
-from .gaps import CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
+from .gaps import CHANGE_CLOSURE_REASONS, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -82,9 +82,13 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         text = source.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:
         raise InputError(f"{source.name} is not UTF-8 text.", next_step="Save it as UTF-8 and run /resolve-gaps again.") from None
+    baseline_errors: dict[str, str | None] = {}
     if change_id:
         # IMP-382: validate the border before the first write; an invalid one rejects the whole file.
-        _validate_change_border(gaps_path, text)
+        # IMP-384: every by_baseline citation is checked first (a finding, never an exception), so the dry run
+        # sees a GAP-SCOPE closed by by_baseline as closed and validates its border too.
+        baseline_errors = _check_baseline_citations(base, project_id, change_id, text)
+        _validate_change_border(gaps_path, text, baseline_errors)
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -97,6 +101,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     else:
         copy_file(source, target)
     responses = parse_gap_responses(text)
+    _flag_baseline(responses, baseline_errors)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -108,7 +113,8 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     # IMP-382: the border's surface names ("Guardar borrador") are not a claim that the source is a draft.
     note_text = without_border_block(text) if change_id else text
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
-    resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
+    resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
+                                              language=project_language(project_id))
     # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
@@ -217,14 +223,35 @@ def _gap_block(text: str, gap_id: str) -> str:
     return "\n".join(match.group(0) for match in pattern.finditer(text) if match.group(1) == gap_id)
 
 
-def _validate_change_border(gaps_path: Path, text: str) -> None:
+def _flag_baseline(responses: dict[str, dict[str, str]], baseline_errors: dict[str, str | None]) -> None:
+    for gap_id, error in baseline_errors.items():
+        if gap_id in responses:
+            responses[gap_id]["baseline_checked"] = True
+            if error:
+                responses[gap_id]["baseline_error"] = error
+
+
+def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
     """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
     from .changes import parse_border
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
-    dry = apply_gap_responses(existing, parse_gap_responses(text))  # the same rules, writing nothing
+    dry_responses = parse_gap_responses(text)
+    _flag_baseline(dry_responses, baseline_errors or {})
+    dry = apply_gap_responses(existing, dry_responses)  # the same rules, writing nothing
     if any(gap["id"] == "GAP-SCOPE" for gap in dry["closed"]):
         parse_border(_gap_block(text, "GAP-SCOPE"), "")
+
+
+def _check_baseline_citations(base: Path, project_id: str, change_id: str, text: str) -> dict[str, str | None]:
+    """IMP-384: gap id -> the finding of its by_baseline citation, or None when the citation holds."""
+    from .changes import validate_baseline_citation
+
+    errors: dict[str, str | None] = {}
+    for gap_id, response in parse_gap_responses(text).items():
+        if str(response.get("closure", "")).strip().strip("`").lower().replace(" ", "_") == "by_baseline":
+            errors[gap_id] = validate_baseline_citation(base, project_id, change_id, str(response.get("evidence", "")))
+    return errors
 
 
 def _finish_change_resolution(
@@ -342,6 +369,9 @@ def closure_for(gap_id: str, response: dict[str, str], decision: str) -> tuple[s
 
     raw = str(response.get("closure", "")).strip().strip("`").lower().replace(" ", "_")
     findings: list[str] = []
+    if raw in CHANGE_CLOSURE_REASONS:
+        # IMP-384: the change path checked the citation before this runs; apply_gap_responses gates it
+        return raw, findings
     if raw and raw not in CLOSURE_REASONS and raw != REOPEN_FALSE_PREMISE:
         findings.append(f"{gap_id}: unknown closure reason {raw!r}; use one of {', '.join(CLOSURE_REASONS)}.")
         raw = ""
@@ -360,6 +390,7 @@ def apply_gap_responses(
     responses: dict[str, dict[str, str]],
     can_close: bool = True,
     block_note: str | None = None,
+    language: str = "en",
 ) -> dict[str, object]:
     findings: list[str] = []
     closed: list[dict[str, str]] = []
@@ -410,6 +441,20 @@ def apply_gap_responses(
             partially_closed.append(gap)
             updated.append(gap)
             continue
+        if confirmed and reason == "by_baseline":
+            # IMP-384: nothing closes by itself; a confirmed answer AND a validated citation, on a change only
+            if not response.get("baseline_checked"):
+                note = ("by_baseline sólo vale en un cambio (--change)" if language == "es"
+                        else "by_baseline only applies within a change (--change)")
+            else:
+                note = str(response.get("baseline_error") or "")
+            if note:
+                findings.append(f"{gap['id']}: {note}")
+                gap["status"] = "ANSWERED"
+                gap["resolution_note"] = note
+                answered.append(gap)
+                updated.append(gap)
+                continue
         if confirmed and can_close:
             findings.extend(closure_findings)
             gap["closure_reason"] = reason

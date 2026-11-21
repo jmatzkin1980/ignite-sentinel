@@ -264,7 +264,7 @@ def _run_project_command(args) -> int:
         elif args.command == "harvest":
             from .harvest import apply_harvest
 
-            print_json(apply_harvest(args.project_id, Path(args.source)))
+            print_json(apply_harvest(args.project_id, Path(args.source), args.change))
         elif args.command == "split" and args.propose:
             if not args.source:
                 raise ValueError("/split --propose needs --source PROPOSAL.json (written with the sentinel-release-split skill)")

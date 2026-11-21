@@ -216,6 +216,25 @@ def _read_evidence(base: Path, change: dict) -> str:
     return "\n\n".join(parts)
 
 
+def _lens_evidence(base: Path, change: dict) -> str:
+    """The change note plus only the answer text of each response file.
+
+    The form labels ("Owner / fuente", "Evidencia o referencia", ...) are not content: read as
+    evidence they would suppress checks that look for an owner, a source or a decision.
+    """
+    from .gaps import parse_gap_responses
+
+    parts = []
+    for i, rel in enumerate([change["source"], *change.get("responses", [])]):
+        path = Path(rel)
+        path = path if path.is_absolute() else base / path
+        text = path.read_text(encoding="utf-8")
+        if i:
+            text = "\n".join(r.get("answer", "") for r in parse_gap_responses(text).values())
+        parts.append(text)
+    return "\n\n".join(parts)
+
+
 def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
     from .discovery.detection import detect_gaps
@@ -230,7 +249,7 @@ def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     rows = list(existing)
     if change.get("round") == "lenses":
         have = {row["id"] for row in existing}
-        found = detect_gaps(evidence, load_domain_context(base), work="change", border_types=border_types(change))
+        found = detect_gaps(_lens_evidence(base, change), load_domain_context(base), work="change", border_types=border_types(change))
         rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
     write_text(gaps_path, render_gaps(project_id, rows, change_id, language, gaps_path.with_name("gap_elicitation.json")))
     counts = count_gaps(rows)
@@ -244,3 +263,80 @@ def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
         "gap_counts": counts,
         "round": change.get("round"),
     }
+
+
+# --- IMP-384: closing a change gap by citing the baseline --------------------------------------
+
+_CITE_PATH = re.compile(r"`([^`]+)`")
+_CITE_QUOTE = re.compile(r'"([^"]*)"|\u201c([^\u201d]*)\u201d')
+MIN_BASELINE_QUOTE = 20
+
+
+def _squash(text: str) -> str:
+    return " ".join(text.split())
+
+
+def validate_baseline_citation(base: Path, project_id: str, change_id: str, evidence: str) -> str | None:
+    """None when the evidence cites a baseline file and quotes it literally; else the finding, in the change's language.
+
+    The baseline is what sits under `00_raw/`; the notes of any change are not baseline. Nothing outside
+    the workspace is read, and an unreadable file is a finding, never an exception.
+    """
+    changes = list_changes(project_id)
+    change = changes.get(change_id)
+    es = change_language(project_id, change) == "es" if change else True
+
+    def msg(spanish: str, english: str) -> str:
+        return spanish if es else english
+
+    path_match = _CITE_PATH.search(evidence or "")
+    quote_match = _CITE_QUOTE.search(evidence or "")
+    if not path_match or not quote_match:
+        return msg(
+            "by_baseline pide en la evidencia una ruta bajo 00_raw/ entre acentos graves y una frase literal entre comillas.",
+            "by_baseline needs, in the evidence, a path under 00_raw/ in backticks and a literal quote in quotation marks.",
+        )
+    rel = path_match.group(1).strip()
+    quote = _squash(quote_match.group(1) if quote_match.group(1) is not None else quote_match.group(2))
+    try:
+        raw_root = (base / "00_raw").resolve()
+        target = (base / rel).resolve()
+        inside = target.is_relative_to(raw_root) and target != raw_root
+    except (OSError, ValueError):
+        inside = False
+    if not inside:
+        return msg(
+            f"by_baseline: la ruta {rel!r} no está bajo 00_raw/ del workspace.",
+            f"by_baseline: the path {rel!r} is not under the workspace 00_raw/.",
+        )
+    notes = set()
+    for entry in changes.values():
+        try:
+            notes.add((base / str(entry.get("source", ""))).resolve())
+        except (OSError, ValueError):
+            continue
+    if target in notes:
+        return msg(
+            f"by_baseline: {rel!r} es la nota de un cambio, no la línea de base.",
+            f"by_baseline: {rel!r} is the note of a change, not the baseline.",
+        )
+    if len(quote) < MIN_BASELINE_QUOTE:
+        return msg(
+            f"by_baseline: la frase citada tiene menos de {MIN_BASELINE_QUOTE} caracteres.",
+            f"by_baseline: the quoted text is shorter than {MIN_BASELINE_QUOTE} characters.",
+        )
+    try:
+        content = target.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return msg(
+            f"by_baseline: {rel!r} no se puede leer como texto UTF-8.",
+            f"by_baseline: {rel!r} cannot be read as UTF-8 text.",
+        )
+    if "\x00" in content:
+        return msg(f"by_baseline: {rel!r} es binario, no texto.", f"by_baseline: {rel!r} is binary, not text.")
+    if quote not in _squash(content):
+        return msg(
+            f"by_baseline: la frase no aparece literal en {rel!r} (se compara sin diferencias de espacios, respetando mayúsculas).",
+            f"by_baseline: the quote is not literal (verbatim) in {rel!r} (compared with whitespace collapsed, case kept).",
+        )
+    return None

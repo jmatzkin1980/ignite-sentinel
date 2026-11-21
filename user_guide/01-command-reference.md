@@ -456,6 +456,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 
 ```text
 /harvest ACME_PORTAL --source harvest.md
+/harvest ACME_PORTAL --source harvest.md --change CHG-001
 python -m sentinel /harvest ACME_PORTAL --source harvest.md
 ```
 
@@ -464,7 +465,8 @@ python -m sentinel /harvest ACME_PORTAL --source harvest.md
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--source` | a Markdown file | required | The harvest, written locally with the `sentinel-brownfield-harvest` skill (blocks `## B0 Inventory` to `## B5`). |
+| `--source` | a Markdown file | required | The harvest, written locally with the `sentinel-brownfield-harvest` skill (blocks `## B0 Inventory` to `## B8`). B0 lists code with `- repo: name — path` and documents with `- doc: name — path`; B6 to B8 are screens, flows, and rules and roles. |
+| `--change` | `CHG-NNN` | none | Opens the harvest's gaps (GAP-HRV-*) in that change instead of the project. A workspace that only has changes refuses the harvest without it. |
 
 **Reads.** The harvest file.
 
@@ -715,7 +717,7 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
-| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. |
+| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. In a change, `Closure reason: by_baseline` (`Motivo de cierre`) closes a gap only when the answer is confirmed and `Evidence or reference` holds a backticked `00_raw/` path followed by a quote of 20 or more characters that appears literally in that file; a change note never counts. Otherwise the gap stays `ANSWERED` with a finding. |
 
 A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. A confirmed answer that holds two or more EARS sentences ("When ..., the system shall ...") gives one `REQ-EARS-*` row per sentence; a sentence that is not EARS stays with the EARS sentence before it. A gap answered in two `### GAP-...` sections of one file gets both answers, merged, and a finding ("answered in 2 sections; the answers were merged into one."); when the sections give different decision statuses, the gap does not close and the finding says so. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 

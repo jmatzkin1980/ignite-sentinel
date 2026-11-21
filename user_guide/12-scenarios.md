@@ -1971,17 +1971,79 @@ The normal submit has to keep working as today. The existing system is already i
 
 4. **Answer the rest.** Keep going as in scenario 2: regenerate the change's questions, send them, process the answers with the same `--change CHG-001`.
 
+5. **Let what the system already says answer.** In the sample, right after the scope round, some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the seven):
+
+   ```markdown
+   ### GAP-TECH-NFR
+   - Answer: The service keeps the performance requirement already in force.
+   - Owner / source: Architecture
+   - Evidence or reference: `00_raw/02_technology_context/sad-compras.md` "responde en menos de dos segundos al percentil 95 en horario pico"
+   - Decision status: confirmed
+   - Closure reason: by_baseline
+
+   ### GAP-QUALITY
+   - Answer: The existing regression practice applies to this change.
+   - Owner / source: Head of Purchasing
+   - Evidence or reference: `00_raw/01_business_context/manual-compras.md` "pruebas de regresión del alta completa antes de salir a producción"
+   - Decision status: confirmed
+   - Closure reason: by_baseline
+   ```
+
+   **Tell the assistant:** "The architecture document and the operations manual of the current system are already in the context folders. Close the review questions of CHG-001 that they answer, quoting them, and show me each quote before processing."
+
+   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, seven of the 19 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments, technical input and quality), leaving 12 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
+
+   **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, and only when the quote is a literal piece of the cited file, at least 20 characters long. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /resolve-gaps COMPRAS_PORTAL --source input/baseline.md --change CHG-001
+   ```
+
+   ```text
+   closed: GAP-QUALITY, GAP-TECH-NFR, GAP-TECH-DEEP-DIVE-INPUT, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-DELIVERY-READINESS, GAP-PRD-ROLLOUT-ENVIRONMENTS
+   gap_counts: open 12, closed 8, blocking_open 3, total 20
+   ```
+
+   The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question.
+   </details>
+
+6. **Optionally, read the documents for functional detail.** If the manual describes screens, flows and rules, you can have the assistant read it into a harvest and send its questions to the change.
+
+   **Tell the assistant:** "Read the operations manual as a harvest for COMPRAS_PORTAL and put its questions in CHG-001."
+
+   **You'll see:** The harvest registered as a source, with the count of claims per tag and the questions it opened (one per topic the document cannot say, such as who owns the glossary), all inside the change.
+
+   **What it means:** A harvest can list documents next to repositories, and has blocks for screens (B6), flows (B7) and rules and roles (B8). On a workspace that only has changes, the harvest needs the change: without it the command refuses and names the one to use.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /harvest COMPRAS_PORTAL --source input/harvest.md --change CHG-001
+   ```
+
+   ```text
+   blocks_delivered: B6, B8
+   coverage: fact 1, out_of_code 1
+   gaps_opened: GAP-HRV-3763E999
+   change_id: CHG-001
+   ```
+
+   The file starts with `## B0 Inventory` and a line `- doc: manual-compras — 00_raw/01_business_context/manual-compras.md`; each claim cites `[HECHO manual-compras:manual-compras.md]`. Without `--change`: `COMPRAS_PORTAL only has changes: the harvest gaps need a change` (in Spanish, `COMPRAS_PORTAL sólo tiene cambios: los gaps del harvest necesitan un cambio`), exit 4.
+   </details>
+
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border and a review round scoped to what the change touches. The project itself is exactly as it was.
+A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, and the questions the existing documentation answers already closed with its own quotes. The project itself is exactly as it was.
 
-**What this does not do yet.** This first step stops at the questions. There is no change brief, no specs and no backlog for a change yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
+**What this does not do yet.** This stops at the questions. There is no change brief, no specs and no backlog for a change yet; they come in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
 **Decision points.** If the request is a new product, or the existing system is not involved, it is a project: scenario 1. If the client changes a rule of a project whose backlog is already built, it is scenario 9.
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps` and `/resolve-gaps`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps` and `/harvest`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
