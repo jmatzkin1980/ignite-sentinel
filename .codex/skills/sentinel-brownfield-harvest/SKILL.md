@@ -74,7 +74,7 @@ One Markdown file, by blocks. Every claim is one line with one tag:
 python -m sentinel /harvest PROJECT_ID --source harvest.md
 ```
 
-When the workspace has changes (`07_changes/`), the harvest is for one of them: add `--change CHG-nnn` so its gaps (GAP-HRV-*) open in that change instead of the project. Without the flag, a workspace that only has changes refuses the harvest.
+When the workspace has open changes (state `changes`, or `01_discovery/CHG-nnn/` folders), add `--change CHG-nnn` if the harvest is for one of them, so its gaps (GAP-HRV-*) open in that change instead of the project. A workspace that only has changes refuses /harvest without it.
 
 ```powershell
 python -m sentinel /harvest PROJECT_ID --source harvest.md --change CHG-001

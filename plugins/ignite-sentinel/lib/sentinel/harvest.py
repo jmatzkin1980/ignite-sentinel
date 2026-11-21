@@ -22,7 +22,7 @@ The runtime:
   B6 screens, B7 flows and B8 rules and roles are functional blocks read from documents
   and feed no brief place). A "not found"
   says where it should be. "Out of code" uses a topic of the closed list. A
-  divergence names `repo:file`;
+  divergence names `name:file`;
 - redacts secrets (IMP-285) and stores the harvest under
   `00_raw/02_technology_context/harvest/` as a governed F-NN row (`built`);
 - routes "out of code" to the domain (a non-blocking gap: never ask the code
@@ -160,12 +160,15 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
         change = get_change(project_id, change_id)
     elif not (base / "01_discovery" / "gaps.md").exists():
         from .changes import list_changes
+        from .core.text import project_language
         from .errors import GateRefusal
 
         open_changes = sorted(list_changes(project_id))
         if open_changes:
             raise GateRefusal(
-                f"{project_id} sólo tiene cambios: los gaps del harvest necesitan un cambio",
+                (f"{project_id} sólo tiene cambios: los gaps del harvest necesitan un cambio"
+                 if project_language(project_id) == "es"
+                 else f"{project_id} only has changes: the harvest gaps need a change"),
                 next_step=f"/harvest {project_id} --source {source} --change {open_changes[0]}",
             )
     raw = source.read_text(encoding="utf-8")
@@ -199,10 +202,15 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
     docs = list(dict.fromkeys([*previous_docs, *parsed["docs"]]))
     coverage = {kind: sum(1 for e in entries if e["kind"] == kind) for kind in parsed["coverage"]}
     sources = list(dict.fromkeys([*previous.get("source_ids", [previous.get("source_id")] if previous.get("source_id") else []), source_id]))
-    record = {"artifact": "harvest", "source_id": source_id, "source_ids": sources, "direction": "built", "repos": repos, "docs": docs,
+    record = {"artifact": "harvest", "source_id": source_id, "source_ids": sources, "direction": "built", "repos": repos,
+              **({"docs": docs} if docs else {}),
               "coverage": coverage, "entries": entries,
               "secrets_redacted": int(previous.get("secrets_redacted", 0) or 0) + len(sanitized.findings)}
     write_json(base / "01_discovery" / "harvest.json", record)
+    if change is not None:
+        from .changes import change_language
+
+        language = change_language(project_id, change)
     gaps = [g for g in (_gap(e, language) for e in parsed["entries"]) if g]
     gaps_path = base / "01_discovery" / "gaps.md"
     opened: list[str] = []
@@ -214,8 +222,7 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
             existing = [g for g in parse_gap_rows(change_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if change_path.exists() else []
             merged = merge_gaps_by_topic(existing, gaps)
             opened = [g["id"] for g in merged["added"]]
-            change_lang = change_language(project_id, change)
-            write_text(change_path, render_gaps(project_id, merged["gaps"], str(change_id), change_lang,
+            write_text(change_path, render_gaps(project_id, merged["gaps"], str(change_id), language,
                                                 change_path.with_name("gap_elicitation.json")))
             changes = {key: dict(value) for key, value in list_changes(project_id).items()}
             changes[str(change_id)]["gap_counts"] = count_gaps(merged["gaps"])
@@ -228,7 +235,7 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
         write_text(gaps_path, render_gaps(project_id, merged["gaps"], req_id, language))
         counts = count_gaps(merged["gaps"])
         update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
-    result = {"project_id": project_id, "source_id": source_id, "repos": repos, "coverage": coverage,
+    result = {"project_id": project_id, "source_id": source_id, "repos": repos, "docs": docs, "coverage": coverage,
               "blocks_delivered": sorted(delivered), "blocks_total": sorted({e["block"] for e in entries}),
               "gaps_opened": opened, "secrets_redacted": len(sanitized.findings), "path": str(target.as_posix())}
     if change_id:

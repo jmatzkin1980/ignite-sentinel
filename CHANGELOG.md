@@ -13,6 +13,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
   - `/harvest PROJECT --source FILE` accepts `- doc: name — path` in B0, cites `name:file`, and adds blocks B6 screens, B7 flows and B8 rules and roles. With `--change CHG-nnn` its gaps (GAP-HRV-*) go to the change; a change-only workspace refuses it without the flag.
   - Measured on the "save draft" fixture with a synthetic Compras baseline: loading it and confirming seven `by_baseline` answers takes the lens round from 19 open gaps to 12 (20 total, 8 closed, 3 blocking still open). The project path stays at 27, unchanged.
   - The lens round now reads the change note plus only the answer text of each response file. Before, the answer-form labels ("Owner / fuente", "Evidencia o referencia") counted as evidence and suppressed checks: `GAP-DELIVERY-READINESS` and `GAP-QUALITY-HANDOFF` never appeared, so the lens round had 18 gaps instead of 20.
+  - A change opened on 0.17.0 gains `GAP-DELIVERY-READINESS` and `GAP-QUALITY-HANDOFF` on its next `/gaps --change`.
   - The skills, manifest, MCP descriptions and Scenario 11 of the user guide cover both.
 
 ## [0.17.0] — 2026-11-19

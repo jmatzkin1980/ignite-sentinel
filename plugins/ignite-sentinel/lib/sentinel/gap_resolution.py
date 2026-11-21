@@ -113,7 +113,8 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     # IMP-382: the border's surface names ("Guardar borrador") are not a claim that the source is a draft.
     note_text = without_border_block(text) if change_id else text
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
-    resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note)
+    resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
+                                              language=project_language(project_id))
     # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
@@ -389,6 +390,7 @@ def apply_gap_responses(
     responses: dict[str, dict[str, str]],
     can_close: bool = True,
     block_note: str | None = None,
+    language: str = "en",
 ) -> dict[str, object]:
     findings: list[str] = []
     closed: list[dict[str, str]] = []
@@ -442,7 +444,8 @@ def apply_gap_responses(
         if confirmed and reason == "by_baseline":
             # IMP-384: nothing closes by itself; a confirmed answer AND a validated citation, on a change only
             if not response.get("baseline_checked"):
-                note = "by_baseline sólo vale en un cambio (--change)"
+                note = ("by_baseline sólo vale en un cambio (--change)" if language == "es"
+                        else "by_baseline only applies within a change (--change)")
             else:
                 note = str(response.get("baseline_error") or "")
             if note:

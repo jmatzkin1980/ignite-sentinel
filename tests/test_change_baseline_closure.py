@@ -200,6 +200,20 @@ class ProjectPath(SnapshotWorkspaceCase):
         self.assertEqual(row["status"], "ANSWERED")
         self.assertTrue(any("sólo vale en un cambio" in f for f in findings), findings)
 
+    def test_project_path_by_baseline_note_follows_the_project_language(self):
+        state_file = workspace_path("PRJ") / "state.json"
+        original = state_file.read_text(encoding="utf-8")
+        try:
+            for language, expected in (("en", "by_baseline only applies within a change (--change)"),
+                                       ("es", "by_baseline sólo vale en un cambio (--change)")):
+                state = json.loads(original)
+                state["project_language"] = language
+                state_file.write_text(json.dumps(state), encoding="utf-8")
+                _, findings = self.respond("by_baseline")
+                self.assertTrue(any(expected in f for f in findings), (language, findings))
+        finally:
+            state_file.write_text(original, encoding="utf-8")
+
     def test_project_path_unknown_reason_message_unchanged(self):
         self.assertNotIn("by_baseline", CLOSURE_REASONS)
         _, findings = closure_for("GAP-X", {"closure": "nonsense", "evidence": "x"}, "confirmed")

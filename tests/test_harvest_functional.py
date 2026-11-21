@@ -97,10 +97,10 @@ class HarvestFunctionalApply(unittest.TestCase):
         self.assertEqual(record["docs"], ["manual-compras"])
         self.assertEqual(sorted({e["block"] for e in record["entries"]}), ["B6", "B7"])
 
-    def test_repo_only_harvest_stores_empty_docs(self):
+    def test_repo_only_harvest_stores_no_docs_key(self):
         text = "## B0\n- repo: api \u2014 svc\n## B1 A\n- [HECHO api:a.py] x.\n"
         self.assertEqual(self.harvest("h.md", text), 0)
-        self.assertEqual(json.loads(self.record_path.read_text(encoding="utf-8"))["docs"], [])
+        self.assertNotIn("docs", json.loads(self.record_path.read_text(encoding="utf-8")))
 
 
 if __name__ == "__main__":
