@@ -1,19 +1,23 @@
 """IMP-388: `/specs --change` builds SPEC-U units from the change's REQ-EARS rows, never a PRD."""
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import sys
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_cli, run_ok  # noqa: E402
+from sentinel.cli import main as cli_main  # noqa: E402
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.compilers.change_specs import compile_change_specs  # noqa: E402
 from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.errors import GateRefusal  # noqa: E402
+from sentinel.traceability import load_graph  # noqa: E402
 from sentinel.id_registry import registry_path  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
@@ -111,10 +115,14 @@ class ChangeSpecs(SnapshotWorkspaceCase):
         self.assertIn("continuar validando", specs_md)
 
     def test_graph_links_each_unit_to_its_ears_requirement(self):
-        run_ok(["specs", "BORR", "--change", self.cid])
-        graph = (workspace_path("BORR") / "06_traceability").glob("*")
-        text = " ".join(p.read_text(encoding="utf-8") for p in graph if p.suffix in {".json", ".md"})
-        self.assertIn("SPEC-U-001", text)
+        res = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        graph = load_graph("BORR")
+        nodes = {n["id"]: n for n in graph["nodes"]}
+        for unit_id in res["units"]:
+            self.assertEqual(nodes[unit_id]["type"], "spec_unit")
+            targets = [e["to"] for e in graph["edges"] if e["from"] == unit_id and e["relation"] == "traces_to"]
+            self.assertEqual(len(targets), 1)
+            self.assertEqual(nodes[targets[0]]["type"], "ears_requirement")
 
     def test_refuses_without_change_brief(self):
         (workspace_path("BORR") / "02_requirements" / self.cid / "project-brief.md").unlink()
@@ -171,13 +179,17 @@ class ChangeSpecs(SnapshotWorkspaceCase):
         self.assertEqual(captured[1], ["specs", "BORR"])
 
     def test_plain_specs_in_change_only_workspace_refuses(self):
-        code, _ = run_cli(["specs", "BORR"])
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = cli_main(["specs", "BORR"])
         self.assertEqual(code, 4)
+        self.assertIn("--change CHG-001", err.getvalue() + out.getvalue())
+        self.assertNotIn("Run /ingest first", err.getvalue() + out.getvalue())
         self.assertFalse((workspace_path("BORR") / "03_specs" / self.cid).exists())
-        from sentinel.changes import refuse_change_only_specs
-        with self.assertRaises(GateRefusal) as caught:
-            refuse_change_only_specs("BORR")
-        self.assertIn("--change CHG-001", caught.exception.next_step)
+
+    def test_release_with_change_refused_only_for_specs(self):
+        code, _ = run_cli(["specs", "BORR", "--change", self.cid, "--release", "r1"])
+        self.assertEqual(code, 3)
 
 
 class ChangeSpecsWithProject(SnapshotWorkspaceCase):

@@ -94,16 +94,13 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if getattr(args, "release", None) and getattr(args, "change", None):
-        try:
-            from .errors import InputError
+    if args.command == "specs" and getattr(args, "release", None) and getattr(args, "change", None):
+        from .errors import InputError
 
-            raise InputError(
-                f"/{args.command} --change no se combina con --release: un cambio no pertenece a una serie de releases.",
-                next_step=f"Corré /{args.command} {args.project_id} --change {args.change} sin --release.",
-            )
-        except Exception as exc:
-            return report_error(exc)
+        return report_error(InputError(
+            "/specs --change no se combina con --release: un cambio no pertenece a una serie de releases.",
+            next_step=f"Corré /specs {args.project_id} --change {args.change} sin --release.",
+        ))
     if getattr(args, "release", None):
         try:
             from .core.paths import validate_project_id
@@ -497,10 +494,8 @@ def _run_project_command(args) -> int:
                 get_change(args.project_id, args.change)
                 result = compile_change_specs(args.project_id, args.change)
             else:
-                from .changes import refuse_change_only_specs
                 from .generation import generate_specs
 
-                refuse_change_only_specs(args.project_id)
                 result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":

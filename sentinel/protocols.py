@@ -202,6 +202,10 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
+    if command == "specs" and not change:
+        from .changes import refuse_change_only_specs
+
+        refuse_change_only_specs(project_id)  # IMP-388: before the phase gate, which a change-only workspace trips
     # IMP-388: /specs --change runs its own gates (brief, blocking gaps, unit rows), not the project's phase.
     if command in {"specs", "backlog"} and phase == "initialized" and not (command == "specs" and change):
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
