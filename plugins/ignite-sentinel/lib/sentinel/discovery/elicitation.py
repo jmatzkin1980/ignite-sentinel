@@ -234,10 +234,15 @@ def render_interview_script(
     return "\n\n".join(parts) + "\n"
 
 
-def build_interview_script(project_id: str) -> str:
-    """Read open gaps from the canonical gaps.md and render the interview script."""
+def build_interview_script(project_id: str, change_id: str | None = None) -> str:
+    """Read open gaps from the canonical gaps.md (the change's, with change_id) and render the interview script."""
     base = workspace_path(project_id)
-    gaps_path = base / "01_discovery" / "gaps.md"
+    if change_id:  # IMP-386: only the change's questions
+        from ..changes import change_gaps_path
+
+        gaps_path = change_gaps_path(base, change_id)
+    else:
+        gaps_path = base / "01_discovery" / "gaps.md"
     if not gaps_path.exists():
         raise GateRefusal("Cannot export an interview script before /ingest creates 01_discovery/gaps.md.")
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))

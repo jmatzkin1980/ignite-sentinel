@@ -142,7 +142,8 @@ def _run_project_command(args) -> int:
         elif args.command == "view":
             from .view import generate_artifact_view
 
-            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open), theme=args.theme)
+            result = generate_artifact_view(args.project_id, args.artifact, open_browser=bool(args.open), theme=args.theme,
+                                            change_id=args.change)
             print_json(result)
         elif args.command == "ingest":
             from .discovery import ingest
@@ -475,7 +476,8 @@ def _run_project_command(args) -> int:
         elif args.command == "export":
             from .export import export_artifact
 
-            result = export_artifact(args.project_id, args.artifact, args.format, args.domain, final=args.final)
+            result = export_artifact(args.project_id, args.artifact, args.format, args.domain, final=args.final,
+                                     change_id=args.change)
             print_json(result)
         elif args.command == "specs":
             from .generation import generate_specs
