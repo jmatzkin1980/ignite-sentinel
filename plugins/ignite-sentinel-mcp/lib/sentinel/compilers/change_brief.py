@@ -161,7 +161,15 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         for prefix in item.get("gap_prefixes", []):
             prefixes.append((prefix, item["id"]))
 
+    def is_out_of_code(gap_id: str) -> bool:
+        # IMP-384: a harvest question for the domain (out of code) is a technical-lens question
+        # (§5); the divergences of a harvest stay in the blast radius (§8).
+        gap = by_id.get(gap_id, {})
+        return gap_id.startswith("GAP-HRV-") and str(gap.get("kind", "")).strip("`").lower() == "domain"
+
     def section_of(gap_id: str) -> int | None:
+        if is_out_of_code(gap_id):
+            return None
         if gap_id in routed:
             return routed[gap_id]
         return next((number for prefix, number in prefixes if gap_id.startswith(prefix)), None)
@@ -194,7 +202,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         ids = ", ".join(gap_id for gap_id, n in routed.items() if n == number)
         key = "note_covers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
         if not section.lines:
-            section.info(copy[key].format(ids=ids))
+            section.info(copy[key].format(ids=ids, cite=gaps_cite))
 
     # Harvest facts, each shown once: section 4 claims the flows (B7) before the lenses do.
     facts = [e for e in harvest.get("entries", []) if e.get("kind") == "fact"]
@@ -210,6 +218,11 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
                 used.add(index)
                 taken.append(entry)
         return taken
+
+    # Harvest facts only follow a confirmed border: the blocks of the surface types it holds.
+    border_blocks: set[str] = set()
+    for item in border:
+        border_blocks |= set(template["surface_blocks"].get(item.get("type"), []))
 
     # 1 Context and baseline
     s1 = sec[1]
@@ -233,8 +246,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         for gap in routed_gaps(number):
             gap_line(sec[number], gap)
         if number == 4:
-            for entry in facts_of(set(template["surface_blocks"].get("proceso", [])) & {"B7"}):
-                sec[4].fill(fact_line(entry))
+            if "B7" in border_blocks:
+                for entry in facts_of({"B7"}):
+                    sec[4].fill(fact_line(entry))
         empty_note(sec[number], number)
 
     # 3 Border, 6 preserved behavior, 8 blast radius
@@ -269,6 +283,8 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         s6.info(copy["after_border"].format(cite=scope_cite))
     for gap in routed_gaps(8):
         gap_line(s8, gap)
+    if not border_confirmed and not routed_gaps(8):
+        s8.info(copy["after_border"].format(cite=scope_cite))
 
     # 5 By lens
     s5 = sec[5]

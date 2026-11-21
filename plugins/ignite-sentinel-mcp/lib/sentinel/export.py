@@ -14,7 +14,11 @@ from .changes import change_gaps_path
 from .workspace import update_state, workspace_path
 
 
-def _language(project_id: str) -> str:
+def _language(project_id: str, change_id: str | None = None) -> str:
+    if change_id:  # IMP-386: a change speaks its own language, fixed at ingest, not the project's
+        from .changes import change_language, get_change
+
+        return "es" if change_language(project_id, get_change(project_id, change_id)) == "es" else "en"
     from .workspace import read_state
 
     state = read_state(project_id, {})
@@ -67,7 +71,7 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     target = export_dir / (f"{change_id}-{source.name}" if change_id else source.name)
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     if verdict["deliverable"] == "draft":
-        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id)))
+        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id)))
     else:
         copy_file(source, target)
     update_state(project_id, last_export=workspace_relative(project_id, target))

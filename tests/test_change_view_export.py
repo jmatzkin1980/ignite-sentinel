@@ -46,7 +46,7 @@ class ChangeViewExport(SnapshotWorkspaceCase):
         self.assertTrue(target.exists())
         self.assertEqual(target.as_posix(), out["path"])
         self.assertEqual("draft", out["deliverable"])
-        self.assertIn("DRAFT", target.read_text(encoding="utf-8"))
+        self.assertIn("BORRADOR", target.read_text(encoding="utf-8"))  # the change is in Spanish
         self.assertFalse((self.base / "08_context_packs" / "exports" / "project-brief.md").exists())
 
     def test_export_change_brief_final_refused_with_blocking(self):
@@ -66,6 +66,24 @@ class ChangeViewExport(SnapshotWorkspaceCase):
         text = target.read_text(encoding="utf-8")
         self.assertIn("GAP-", text)
         self.assertFalse((exports / "gaps-interview.md").exists())
+
+    def test_spanish_change_exports_spanish_banner_and_interview(self):
+        # The project language is "auto" (resolves to en); the change was ingested in Spanish.
+        out = json.loads(run_ok(["export", "BORR", "--artifact", "brief", "--change", CHG]))
+        self.assertIn("BORRADOR", Path(out["path"]).read_text(encoding="utf-8"))
+        out = json.loads(run_ok(["export", "BORR", "--artifact", "gaps", "--change", CHG, "--format", "interview"]))
+        text = Path(out["path"]).read_text(encoding="utf-8")
+        self.assertIn("Guion de entrevista", text)
+        self.assertNotIn("Interview script", text)
+
+    def test_interview_refusal_names_the_change_gaps_path(self):
+        from sentinel.discovery import build_interview_script
+        from sentinel.errors import GateRefusal
+
+        (self.base / "01_discovery" / CHG / "gaps.md").unlink()
+        with self.assertRaises(GateRefusal) as caught:
+            build_interview_script("BORR", change_id=CHG)
+        self.assertIn(f"01_discovery/{CHG}/gaps.md", str(caught.exception))
 
     def test_export_change_faq_refused(self):
         code, _ = run_err(["export", "BORR", "--artifact", "gaps", "--change", CHG, "--format", "faq"])
@@ -122,6 +140,28 @@ class ChangeViewExport(SnapshotWorkspaceCase):
                          _argv("sentinel_export", project_id="P", artifact="brief", change="CHG-001"))
         self.assertEqual(["export", "P", "--artifact", "brief", "--format", "md"],
                          _argv("sentinel_export", project_id="P", artifact="brief"))
+
+
+BLOCKING_ANSWERS = "\n".join(
+    f"### {gap}\n- Respuesta: {text}\n- Owner / fuente: Jefa de Compras\n"
+    f"- Evidencia o referencia: Acta de la reunión de relevamiento\n- Estado de decisión: confirmado\n- Motivo de cierre: answered\n"
+    for gap, text in (("GAP-OBJECTIVE", "Que el analista retome el alta más tarde."), ("GAP-USERS", "Analistas de Compras."),
+                      ("GAP-ACCEPTANCE", "Cuando el analista guarda, el sistema conserva lo cargado."))
+)
+
+
+class ChangeFinalWithDeferredMarks(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        _build(extra=BLOCKING_ANSWERS)
+        run_ok(["brief", "BORR", "--change", CHG])
+
+    def test_final_export_with_only_deferred_marks_is_final(self):
+        out = json.loads(run_ok(["export", "BORR", "--artifact", "brief", "--change", CHG, "--final"]))
+        self.assertEqual("final", out["deliverable"])
+        self.assertGreater(int(out["deferred_marks"]), 0)
+        target = workspace_path("BORR") / "08_context_packs" / "exports" / f"{CHG}-project-brief.md"
+        self.assertNotIn("BORRADOR", target.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
