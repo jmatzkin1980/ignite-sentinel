@@ -113,6 +113,12 @@ Zonas: nuevo, adyacente, preservado. Tipos: pantalla, proceso, endpoint, dato, r
       - nuevo | pantalla | Botón "Guardar borrador" en el alta de proveedores
       - adyacente | endpoint | Envío actual del alta de proveedores
       - preservado | proceso | Envío completo del alta
+
+Para cerrar un gap con lo que ya dice la línea de base, confirmar la respuesta y agregar el motivo con su cita (ruta bajo 00_raw/ y frase literal de al menos 20 caracteres):
+
+    - Estado de decisión: confirmado
+    - Evidencia o referencia: `00_raw/02_technology_context/sad-compras.md` "responde en menos de dos segundos"
+    - Motivo de cierre: by_baseline
 """
     return """
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
@@ -122,6 +128,12 @@ Zones: nuevo, adyacente, preservado. Types: pantalla, proceso, endpoint, dato, r
       - nuevo | pantalla | "Save draft" button in the supplier registration
       - adyacente | endpoint | Current submission of the supplier registration
       - preservado | proceso | Full submission of the registration
+
+To close a gap with what the baseline already says, confirm the answer and add the reason with its citation (a path under 00_raw/ and a literal quote of at least 20 characters):
+
+    - Decision status: confirmed
+    - Evidence or reference: `00_raw/02_technology_context/sad-purchasing.md` "responds in under two seconds"
+    - Closure reason: by_baseline
 """
 
 

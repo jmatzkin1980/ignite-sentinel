@@ -150,6 +150,9 @@ CLOSURE_REASONS = (
     "answered", "by_absence", "by_removal", "by_transfer", "accepted_debt", "risk_accepted", "split",
     "reframed", "dissolved", "narrowed", "by_decision", "already_closed_elsewhere", "resolved_by_inference",
 )
+# IMP-384: closure reasons that only a change (--change) knows; never part of CLOSURE_REASONS,
+# so the project's "unknown closure reason" message stays as it was.
+CHANGE_CLOSURE_REASONS = ("by_baseline",)
 REOPEN_FALSE_PREMISE = "reopened_false_premise"
 # A closure reason that needs a specific id in its citation.
 CLOSURE_CITES = {"by_decision": "DEC-", "resolved_by_inference": "ASM-"}
