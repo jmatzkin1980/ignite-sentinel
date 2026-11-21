@@ -1,6 +1,6 @@
 ---
 description: Generate a local read-only HTML view for one Sentinel artifact.
-argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams|specs [OPTIONS] [--release rN]
+argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams|specs [OPTIONS] [--release rN] [--change CHG-NNN]
 ---
 
 # Ignite View
@@ -19,6 +19,8 @@ Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness, r
 `diagrams` (IMP-273) is not a Markdown artifact either: it draws the to-be diagrams of the v2 brief (states §3.4, sequence §3.3, architecture §5.1/§5.6, the series waves) as Mermaid, only from structured lines (`A → B: label`, `Component (new)`, tables with named columns). A pending section is dashed with its GAP. It renders offline with the vendored mermaid; without it, each card shows its code, not rendered.
 
 `--release rN` (IMP-267b) runs this command for one release of a confirmed series: the release brief `02_requirements/rN/project-brief.md` is the input and the outputs land under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`. The release keeps its own lifecycle; the project's state and artifacts are not touched. Without `--release` nothing changes.
+
+`--change CHG-NNN` (IMP-386) views the brief or the gaps of one change, from its own files, into `08_context_packs/views/CHG-NNN-<artifact>.html`; other artifacts are refused. A workspace that only has changes refuses a view without it.
 
 Run from the repository root:
 

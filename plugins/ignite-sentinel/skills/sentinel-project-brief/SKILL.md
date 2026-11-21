@@ -110,3 +110,16 @@ Name the rung and the reason; the BA chooses whether to advance or keep maturing
 - The brief should be complete enough to guide PRD, specs, backlog, and acceptance strategy.
 - It should not replace domain packs. Technology deepens architecture and contracts later; Design deepens flows and prototypes; Quality deepens test cases.
 - Critical/high gaps that are `OPEN`, `ANSWERED`, or `PARTIALLY_CLOSED` are blockers before downstream specs/backlog. The brief only advances the phase to `READY_FOR_SPECS` when no blocking gaps remain. In v2, §0.2 states it as "Ready to build".
+
+## The Brief of a Change
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /brief PROJECT_ID --change CHG-001
+```
+
+Use it when the request is a change on a system that already exists (`/ingest --change`) and the BA wants it matured on its own. It writes `02_requirements/CHG-001/project-brief.md` and `change_brief_report.json`: nine sections (context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, pending). Every content line cites its origin (the change note, the baseline file a closed gap quoted, the border, a confirmed answer). Nothing is invented: an open question is a `⏳ PENDIENTE (GAP-X)` mark when it blocks, and `⏳ PENDIENTE DOMINIO (GAP-X)` when it is deferred. Report the path and `blocking_open`; section 9 lists what is still open.
+
+- It is not the product's brief and not a PRD. The project's brief, state and brief settings are never touched, and `--change` does not combine with `--profile`, `--genesis`, `--validation-direction` or `--brief-version` (exit 3).
+- A workspace that only has changes refuses a plain `/brief` and names the change to use; a project with its own requirement still compiles its brief without the flag.
+- A change still produces no specs and no backlog. Say so; do not improvise them from the brief.
+- To review or send it: `/view PROJECT_ID --artifact brief --change CHG-001` and `/export PROJECT_ID --artifact brief --change CHG-001`. The export is a draft while pending marks remain; `--final` refuses while blocking ones do. The brief is recompiled from the answers, never hand-edited.

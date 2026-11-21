@@ -464,6 +464,7 @@ def generate_project_brief(project_id: str) -> dict[str, object]:
     base = workspace_path(project_id)
     gaps_path = base / "01_discovery" / "gaps.md"
     requirements_path = base / "02_requirements" / "requirements.md"
+    # The CLI calls this before writing any brief settings; repeated here for direct callers.
     refuse_change_only_brief(project_id)
     if not requirements_path.exists():
         raise GateRefusal("Cannot generate project brief before /ingest creates requirements.md.")

@@ -18,6 +18,8 @@ Allowed artifacts: `gaps`, `brief`, `prd`, `specs`, `backlog`, and `readiness, r
 
 `--release rN` (IMP-267b) runs this command for one release of a confirmed series: the release brief `02_requirements/rN/project-brief.md` is the input and the outputs land under `03_specs/rN/`, `04_backlog/rN/`, `05_quality/rN/`, `06_traceability/rN/` and `08_context_packs/rN/`. The release keeps its own lifecycle; the project's state and artifacts are not touched. Without `--release` nothing changes.
 
+`--change CHG-NNN` (IMP-386) views the brief or the gaps of one change, from its own files, into `08_context_packs/views/CHG-NNN-<artifact>.html`; other artifacts are refused. A workspace that only has changes refuses a view without it.
+
 Run from the repository root:
 
 ```powershell
