@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 2 (IMP-384).** A change can close gaps by citing the baseline, and the harvest reaches functional detail.
+  - `Motivo de cierre: by_baseline` closes a change gap only when the answer is confirmed and cites a backticked `00_raw/` path plus a literal quote of 20 or more characters found in that file (whitespace collapsed, case kept). The cited file cannot be a change note. Otherwise the gap stays ANSWERED with a finding. Outside a change it never closes.
+  - `/harvest PROJECT --source FILE` accepts `- doc: name — path` in B0, cites `name:file`, and adds blocks B6 screens, B7 flows and B8 rules and roles. With `--change CHG-nnn` its gaps (GAP-HRV-*) go to the change; a change-only workspace refuses it without the flag.
+  - Measured on the "save draft" fixture with a synthetic Compras baseline: loading it and confirming six `by_baseline` answers takes the lens round from 17 open gaps to 11 (18 total, 3 blocking still open). The project path stays at 27, unchanged.
+  - The skills, manifest, MCP descriptions and Scenario 11 of the user guide cover both.
+
 ## [0.17.0] — 2026-11-19
 
 ### Added
