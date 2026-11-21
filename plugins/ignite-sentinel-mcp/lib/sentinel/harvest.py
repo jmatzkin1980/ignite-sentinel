@@ -142,7 +142,7 @@ def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
     return None
 
 
-def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
+def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -> dict[str, Any]:
     from .core.io import write_json, write_text
     from .secrets_scan import sanitize_text
     from .sources import mark_source_processed, open_source_row
@@ -151,6 +151,23 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     base = workspace_path(project_id)
     if not base.exists():
         raise HarvestError(f"Workspace not found: {project_id}")
+    # IMP-384: where the harvest's gaps go is settled before anything is written. The harvest
+    # itself (harvest.json, the raw copy) belongs to the workspace: the baseline is shared.
+    change = None
+    if change_id:
+        from .changes import get_change
+
+        change = get_change(project_id, change_id)
+    elif not (base / "01_discovery" / "gaps.md").exists():
+        from .changes import list_changes
+        from .errors import GateRefusal
+
+        open_changes = sorted(list_changes(project_id))
+        if open_changes:
+            raise GateRefusal(
+                f"{project_id} sólo tiene cambios: los gaps del harvest necesitan un cambio",
+                next_step=f"/harvest {project_id} --source {source} --change {open_changes[0]}",
+            )
     raw = source.read_text(encoding="utf-8")
     previous = load_harvest(base)
     previous_repos = [str(repo) for repo in previous.get("repos", [])]
@@ -189,7 +206,21 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
     gaps = [g for g in (_gap(e, language) for e in parsed["entries"]) if g]
     gaps_path = base / "01_discovery" / "gaps.md"
     opened: list[str] = []
-    if gaps and gaps_path.exists():
+    if change is not None:
+        if gaps:
+            from .changes import change_gaps_path, change_language, list_changes
+
+            change_path = change_gaps_path(base, str(change_id))
+            existing = [g for g in parse_gap_rows(change_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if change_path.exists() else []
+            merged = merge_gaps_by_topic(existing, gaps)
+            opened = [g["id"] for g in merged["added"]]
+            change_lang = change_language(project_id, change)
+            write_text(change_path, render_gaps(project_id, merged["gaps"], str(change_id), change_lang,
+                                                change_path.with_name("gap_elicitation.json")))
+            changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+            changes[str(change_id)]["gap_counts"] = count_gaps(merged["gaps"])
+            update_state(project_id, changes=changes)
+    elif gaps and gaps_path.exists():
         existing = [g for g in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"]
         merged = merge_gaps_by_topic(existing, gaps)
         opened = [g["id"] for g in merged["added"]]
@@ -197,9 +228,12 @@ def apply_harvest(project_id: str, source: Path) -> dict[str, Any]:
         write_text(gaps_path, render_gaps(project_id, merged["gaps"], req_id, language))
         counts = count_gaps(merged["gaps"])
         update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
-    return {"project_id": project_id, "source_id": source_id, "repos": repos, "coverage": coverage,
-            "blocks_delivered": sorted(delivered), "blocks_total": sorted({e["block"] for e in entries}),
-            "gaps_opened": opened, "secrets_redacted": len(sanitized.findings), "path": str(target.as_posix())}
+    result = {"project_id": project_id, "source_id": source_id, "repos": repos, "coverage": coverage,
+              "blocks_delivered": sorted(delivered), "blocks_total": sorted({e["block"] for e in entries}),
+              "gaps_opened": opened, "secrets_redacted": len(sanitized.findings), "path": str(target.as_posix())}
+    if change_id:
+        result["change_id"] = change_id
+    return result
 
 
 def load_harvest(base: Path) -> dict[str, Any]:

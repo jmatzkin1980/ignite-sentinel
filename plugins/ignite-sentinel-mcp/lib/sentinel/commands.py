@@ -64,6 +64,12 @@ def _resolve_gaps(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--change", metavar="CHG-NNN", help="IMP-382: resolve this change's gaps instead of the project's")
 
 
+def _harvest(parser: argparse.ArgumentParser) -> None:
+    _project_source(parser)
+    # IMP-384: send the harvest's gaps to this change instead of the project's
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-384: open the harvest's gaps in this change instead of the project's")
+
+
 def _ingest(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", required=True)
@@ -295,7 +301,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("annotate", MUTATING, _project_source),
     Command("challenge", MUTATING, _project_source),
     Command("scrutinize", MUTATING, _scrutinize),
-    Command("harvest", MUTATING, _project_source),  # IMP-262
+    Command("harvest", MUTATING, _harvest),  # IMP-262
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     Command("split", MUTATING, _split,
             mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}),

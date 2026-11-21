@@ -558,8 +558,8 @@ def build_server():
         return run_cli(["challenge", project_id, "--source", source])
 
     @tool(name="sentinel_harvest", description=TOOL_DESCRIPTIONS["harvest"])
-    def sentinel_harvest(project_id: str, source: str) -> dict:
-        return run_cli(["harvest", project_id, "--source", source])
+    def sentinel_harvest(project_id: str, source: str, change: str = "") -> dict:
+        return run_cli(["harvest", project_id, "--source", source, *(["--change", change] if change else [])])
 
     @tool(name="sentinel_prototype", description=TOOL_DESCRIPTIONS["prototype"])
     def sentinel_prototype(project_id: str, mode: str = "inventory", source: str = "") -> dict:
