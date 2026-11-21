@@ -135,6 +135,24 @@ class ChangeRequirements(SnapshotWorkspaceCase):
         self.assertIn("| ID | Pattern | Statement | Source |", text)
         self.assertNotIn("Delta", text)
 
+    def test_project_ears_ids_skip_change_ids(self):
+        run_ok(["init", "PROJ"])
+        shutil.copy(FIXTURES / "change_borrador.md", Path("proyecto.md"))
+        run_ok(["ingest", "PROJ", "--source", "proyecto.md"])
+        folder = workspace_path("PROJ") / "02_requirements"
+        with (folder / "requirements.md").open("a", encoding="utf-8") as handle:
+            handle.write("\n| REQ-EARS-001 | event | x | `GAP-A` / `CHG-X` |\n")
+        change_file = folder / "CHG-001" / "requirements.md"
+        change_file.parent.mkdir(parents=True)
+        change_file.write_text("| REQ-EARS-002 | event | y | `GAP-B` |\n| REQ-EARS-003 | event | z | `GAP-C` |\n", encoding="utf-8")
+        one = ("Cuando el comprador guarda el alta incompleta, el sistema debe conservar los datos cargados.")
+        Path("p.md").write_text(acceptance(one, None), encoding="utf-8")
+        res = json.loads(run_ok(["resolve-gaps", "PROJ", "--source", "p.md"]))
+        self.assertIn("GAP-ACCEPTANCE", res["closed"])
+        text = (folder / "requirements.md").read_text(encoding="utf-8")
+        self.assertIn("| REQ-EARS-004 |", text)
+        self.assertNotIn("| REQ-EARS-002 |", text)
+
 
 if __name__ == "__main__":
     unittest.main()

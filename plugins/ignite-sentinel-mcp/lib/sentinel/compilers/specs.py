@@ -259,7 +259,7 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     base = workspace_path(project_id)
     units_dir = base / "03_specs" / "units"
     units_dir.mkdir(parents=True, exist_ok=True)
-    units = build_spec_units(context, source_name)
+    units = build_spec_units(context, source_name, _registry_ids(project_id, context, base))
     active_paths: set[Path] = set()
     for unit in units:
         path = units_dir / f"{unit['id']}.md"
@@ -272,7 +272,30 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     return units
 
 
-def build_spec_units(context: dict[str, object], source_name: str) -> list[dict[str, object]]:
+def _registry_ids(project_id: str, context: dict[str, object], base: Path) -> dict[str, str] | None:
+    """Stable SPEC-U ids per EARS row once the workspace has changes; None keeps positional ids."""
+    from .. import id_registry
+
+    if not id_registry.registry_active(project_id):
+        return None
+    if not id_registry.family_seeded(project_id, "SPEC-U"):
+        existing = {
+            str(ears): unit_id
+            for unit_id, item in spec_unit_snapshot(base).items()
+            for ears in item["frontmatter"].get("ears", [])
+            if str(ears).strip()
+        }
+        id_registry.seed_family(project_id, "SPEC-U", existing)
+    keys = []
+    for row in context.get("ears_requirements", []) if isinstance(context, dict) else []:
+        if isinstance(row, dict):
+            ears_id = str(row.get("id", "")).strip()
+            if EARS_REQUIREMENT_ID_RE.match(ears_id) and str(row.get("statement", "")).strip():
+                keys.append(ears_id)
+    return id_registry.assign_ids(project_id, "SPEC-U", keys)
+
+
+def build_spec_units(context: dict[str, object], source_name: str, ids: dict[str, str] | None = None) -> list[dict[str, object]]:
     rows = context.get("ears_requirements", []) if isinstance(context, dict) else []
     if not isinstance(rows, list):
         return []
@@ -284,7 +307,7 @@ def build_spec_units(context: dict[str, object], source_name: str) -> list[dict[
         statement = str(row.get("statement", "")).strip()
         if not EARS_REQUIREMENT_ID_RE.match(ears_id) or not statement:
             continue
-        unit_id = f"SPEC-U-{len(units) + 1:03d}"
+        unit_id = ids[ears_id] if ids is not None else f"SPEC-U-{len(units) + 1:03d}"
         units.append(
             {
                 "id": unit_id,
