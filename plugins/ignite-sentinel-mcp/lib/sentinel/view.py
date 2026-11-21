@@ -84,14 +84,17 @@ def citation_pattern(text: str) -> re.Pattern[str]:
     return V2_CITATION_RE if is_v2_artifact(text) else CITATION_RE
 
 
-def collect_artifact_model(project_id: str, artifact: str) -> dict[str, Any]:
+def collect_artifact_model(project_id: str, artifact: str, change_id: str | None = None) -> dict[str, Any]:
     if artifact not in ARTIFACTS:
         raise ValueError(f"Unsupported artifact: {artifact}. Expected one of: {', '.join(sorted(ARTIFACTS))}.")
     base = workspace_path(project_id)
     config = ARTIFACTS[artifact]
     relative = str(config["relative"])
+    if change_id:  # IMP-386: the change's own brief or gaps, same model
+        relative = relative.replace("02_requirements/", f"02_requirements/{change_id}/", 1).replace(
+            "01_discovery/", f"01_discovery/{change_id}/", 1)
     path = base / relative
-    if not path.exists() and config.get("fallback_relative"):
+    if not path.exists() and config.get("fallback_relative") and not change_id:
         relative = str(config["fallback_relative"])
         path = base / relative
     if not path.exists():
@@ -758,7 +761,16 @@ def _clean_config_scalar(value: object) -> str:
     return text
 
 
-def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False, theme: str | Path | None = None) -> dict[str, Any]:
+def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = False, theme: str | Path | None = None,
+                           change_id: str | None = None) -> dict[str, Any]:
+    if change_id:
+        from .changes import check_change_deliverable
+
+        check_change_deliverable(project_id, "view", artifact, change_id)
+    else:
+        from .changes import refuse_change_only_deliverable
+
+        refuse_change_only_deliverable(project_id, "view", artifact)
     if artifact == "readiness":  # IMP-247: not a Markdown artifact; its own model
         from .readiness_view import generate_readiness_view
 
@@ -770,11 +782,11 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
     if theme_warning:
         print(f"sentinel warning: {theme_warning}", file=sys.stderr)
-    model = collect_artifact_model(project_id, artifact)
+    model = collect_artifact_model(project_id, artifact, change_id)
     rendered = render_artifact_view(model, loaded, theme_arg=theme_arg)
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{artifact}.html"
+    out = out_dir / (f"{change_id}-{artifact}.html" if change_id else f"{artifact}.html")
     assert_no_leaks(project_id, rendered, workspace_path(project_id), f"/view {artifact}")
     write_text(out, rendered, newline="\n")
     if open_browser:
