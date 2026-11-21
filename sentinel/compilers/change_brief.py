@@ -31,6 +31,13 @@ _CITE_PATH = re.compile(r"`([^`]+)`")
 _CITE_QUOTE = re.compile(r'"([^"]*)"|“([^”]*)”')
 
 
+def _v2_marker() -> str:
+    """The v2 artifact marker: it makes count_pending_marks read blocking and deferred marks apart."""
+    from ..citations import id_registry
+
+    return id_registry()["v2_marker"]
+
+
 def _template() -> dict[str, Any]:
     return read_package_json("templates", "change_brief.json")
 
@@ -128,10 +135,12 @@ def _is_open(gap: dict) -> bool:
 
 def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     template = _template()
+    v2_marker = _v2_marker()
     language = inputs.get("language") if inputs.get("language") in {"es", "en"} else "es"
     copy = template["copy"][language]
     markers = _markers()
     pending_text = markers["pending"][language]
+    domain_text = markers["pending_domain"][language]
     na_text = markers["na"][language]
     change = inputs["change"]
     change_id = inputs["change_id"]
@@ -157,13 +166,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             return routed[gap_id]
         return next((number for prefix, number in prefixes if gap_id.startswith(prefix)), None)
 
-    def mark_text(gap_id: str) -> str:
-        return pending_text.format(gap=gap_id)
+    def mark_text(gap_id: str, blocks: bool = True) -> str:
+        return (pending_text if blocks else domain_text).format(gap=gap_id)
 
     def gap_line(section: _Section, gap: dict) -> None:
         gap_id = gap["id"]
         if _is_open(gap):
-            section.mark(mark_text(gap_id))
+            section.mark(mark_text(gap_id, bool(gap.get("blocks"))))
             return
         answer = gap.get("answer", "")
         if gap.get("closure_reason") == "by_baseline":
@@ -183,7 +192,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
     def empty_note(section: _Section, number: int) -> None:
         ids = ", ".join(gap_id for gap_id, n in routed.items() if n == number)
-        key = "no_answers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
+        key = "note_covers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
         if not section.lines:
             section.info(copy[key].format(ids=ids))
 
@@ -284,7 +293,12 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             for entry in facts_of(blocks):
                 body.fill(fact_line(entry))
             if not body.lines:
-                if kinds:
+                elsewhere = sorted({section_of(g["id"]) for g in gaps
+                                    if str(g.get("lens", "")).strip("`").lower() == lens and section_of(g["id"])})
+                if elsewhere:
+                    refs = ", ".join(f"§{n}" for n in elsewhere)
+                    body.info(copy["see_sections"].format(sections=refs))
+                elif kinds:
                     for item in border:
                         if item.get("type") in kinds:
                             body.fill(surface_line(item))
@@ -315,7 +329,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         s9.info(copy["no_open"].format(cite=gaps_cite))
 
     heading = copy["heading"].format(change_id=change_id, title=inputs.get("note_title", ""))
-    out = [f"# {heading}", "", f"{copy['project']}: {inputs.get('project_id', '')}", ""]
+    out = [v2_marker, "", f"# {heading}", "", f"{copy['project']}: {inputs.get('project_id', '')}", ""]
     for item in template["sections"]:
         out.append(f"## {item['id']}. {item['title'][language]}")
         out.append("")
@@ -346,6 +360,7 @@ def compile_change_brief(project_id: str, change_id: str) -> dict[str, Any]:
     text, report = render_change_brief(inputs)
     folder = workspace_path(project_id) / "02_requirements" / change_id
     path = folder / BRIEF_NAME
+    pending_total = count_pending_marks(text).total
     write_text(path, text)
     write_json(folder / REPORT_NAME, report)
     return {
@@ -353,5 +368,5 @@ def compile_change_brief(project_id: str, change_id: str) -> dict[str, Any]:
         "change_id": change_id,
         "path": str(path.as_posix()),
         "report": report,
-        "summary": {"pending": report["blocking_open"], "blocking_open": report["blocking_open"]},
+        "summary": {"pending": pending_total, "blocking_open": report["blocking_open"]},
     }

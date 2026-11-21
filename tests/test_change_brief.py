@@ -168,8 +168,8 @@ class FullChange(SnapshotWorkspaceCase):
             if number == 9:
                 continue
             for line in bullets(body):
-                if line.startswith("- N/A — "):
-                    continue  # a counterfactual, not a content line
+                if line.startswith(("- N/A — ", "- Ver §", "- Sin pregunta abierta")):
+                    continue  # a counterfactual or a pointer, not a content line
                 self.assertRegex(line, CITE, f"section {number}: {line}")
                 self.assertRegex(line.rstrip(), r"\)$", f"section {number}: {line}")
 
@@ -180,7 +180,24 @@ class FullChange(SnapshotWorkspaceCase):
     def test_pending_count_matches_deliverables_counter(self):
         text, report = self.brief()
         self.assertEqual(count_pending_marks(text).blocking, report["blocking_open"])
-        self.assertGreaterEqual(report["blocking_open"], 3)
+        # Open gaps of blocking severity: GAP-OBJECTIVE, GAP-USERS (high), GAP-ACCEPTANCE (critical).
+        self.assertEqual(report["blocking_open"], 3)
+        inputs = collect_change_brief_inputs("BORR", "CHG-001")
+        self.assertEqual(sum(1 for g in inputs["gaps"] if g["status"] != "CLOSED" and g["severity"] in {"critical", "high"}), 3)
+        self.assertEqual(count_pending_marks(text).deferred, len(report["pending_gaps"]) - 3)
+
+    def test_non_blocking_open_gaps_are_deferred_marks(self):
+        text, _ = self.brief()
+        s = sections(text)
+        self.assertIn("⏳ PENDIENTE DOMINIO (GAP-QUALITY-HANDOFF)", s[7])
+        self.assertIn("⏳ PENDIENTE (GAP-ACCEPTANCE)", s[7])
+        self.assertNotIn("⏳ PENDIENTE DOMINIO (GAP-ACCEPTANCE)", s[7])
+
+    def test_lens_with_gaps_only_elsewhere_points_to_sections(self):
+        text, _ = self.brief()
+        negocio = lens_body(sections(text)[5], "Negocio")
+        self.assertIn("- Ver §2, §7", negocio)
+        self.assertNotIn("N/A", negocio)
 
     def test_compile_writes_brief_and_report_only_in_the_change_folder(self):
         base = workspace_path("BORR")
@@ -192,7 +209,7 @@ class FullChange(SnapshotWorkspaceCase):
         self.assertEqual(json.loads(report.read_text(encoding="utf-8")), out["report"])
         self.assertFalse((base / "02_requirements" / "project-brief.md").exists())
         n = out["report"]["blocking_open"]
-        self.assertEqual(out["summary"], {"pending": n, "blocking_open": n})
+        self.assertEqual(out["summary"], {"pending": len(out["report"]["pending_gaps"]), "blocking_open": n})
         self.assertEqual(compile_change_brief("BORR", "CHG-001")["report"], out["report"])
 
     def test_no_harvest_json_is_fine(self):
@@ -215,7 +232,8 @@ class ScopeRound(SnapshotWorkspaceCase):
         self.assertEqual(len(bullets(s[5])), 1)
         self.assertNotRegex(s[5], r"GAP-(?!SCOPE)[A-Z-]+")
         self.assertEqual(count_pending_marks(text).blocking, report["blocking_open"])
-        self.assertEqual(report["blocking_open"], 4)  # OBJECTIVE, USERS, SCOPE, ASIS-TOBE
+        self.assertEqual(report["blocking_open"], 3)  # OBJECTIVE, USERS (high), SCOPE (critical)
+        self.assertIn("⏳ PENDIENTE DOMINIO (GAP-PRODUCT-ASIS-TOBE)", s[4])
         self.assertEqual(
             set(report["pending_gaps"]),
             {"GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE"},
@@ -236,6 +254,7 @@ class BackendOnly(SnapshotWorkspaceCase):
         )
         self.assertNotIn("⏳", design)
         self.assertIn("Sin superficies preservadas", sections(text)[6])
+        self.assertIn("- Ver §2, §7", lens_body(sections(text)[5], "Negocio"))
         self.assertEqual(count_pending_marks(text).blocking, report["blocking_open"])
 
 
@@ -275,7 +294,7 @@ class WithHarvest(SnapshotWorkspaceCase):
         for number, body in s.items():
             if number != 9:
                 for line in bullets(body):
-                    if not line.startswith("- N/A — "):
+                    if not line.startswith(("- N/A — ", "- Ver §", "- Sin pregunta abierta")):
                         self.assertRegex(line, CITE, line)
 
 
