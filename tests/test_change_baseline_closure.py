@@ -144,6 +144,40 @@ class ByBaseline(Base):
         self.assertIsInstance(validate_baseline_citation(base, self.project, "CHG-001", "nada"), str)
 
 
+class ScopeByBaseline(Base):
+    project = "BSC"
+
+    def snapshot(self) -> tuple:
+        base = workspace_path(self.project)
+        folder = base / "07_changes" / "00_client_responses"
+        copies = sorted(p.name for p in folder.iterdir()) if folder.is_dir() else []
+        return (copies, (base / "state.json").read_bytes(), change_gaps_path(base, "CHG-001").read_bytes())
+
+    def test_scope_by_baseline_without_border_is_rejected_before_any_write(self):
+        # a change whose scope is still open: build a fresh one in this class
+        self.put(SAD, SAD_TEXT)
+        base = workspace_path(self.project)
+        text = chr(10).join([
+            "### GAP-SCOPE",
+            "- Respuesta: Sólo el formulario de alta de proveedores.",
+            "- Owner / fuente: Jefa de Compras",
+            f"- Evidencia o referencia: {cite()}",
+            "- Estado de decisión: confirmado",
+            "- Motivo de cierre: by_baseline",
+            "",
+        ])
+        Path("resp.md").write_text(text, encoding="utf-8")
+        before = self.snapshot()
+        code, _ = __import__("helpers").run_cli(["resolve-gaps", self.project, "--source", "resp.md", "--change", "CHG-001"])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(self.snapshot(), before)
+        self.assertTrue(base.exists())
+
+    def test_failing_citation_alone_stays_answered_and_never_raises(self):
+        row = self.resolve_and_row("GAP-TECH-NFR", answer(cite(quote="no está en el archivo de ninguna manera")))
+        self.assertStays(row, "literal")
+
+
 class ProjectPath(SnapshotWorkspaceCase):
     @classmethod
     def build_workspace(cls):

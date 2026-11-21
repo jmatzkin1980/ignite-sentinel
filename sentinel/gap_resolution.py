@@ -85,9 +85,10 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     baseline_errors: dict[str, str | None] = {}
     if change_id:
         # IMP-382: validate the border before the first write; an invalid one rejects the whole file.
-        _validate_change_border(gaps_path, text)
-        # IMP-384: and check every by_baseline citation (a finding, never an exception) before it too.
+        # IMP-384: every by_baseline citation is checked first (a finding, never an exception), so the dry run
+        # sees a GAP-SCOPE closed by by_baseline as closed and validates its border too.
         baseline_errors = _check_baseline_citations(base, project_id, change_id, text)
+        _validate_change_border(gaps_path, text, baseline_errors)
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -100,10 +101,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     else:
         copy_file(source, target)
     responses = parse_gap_responses(text)
-    for gap_id, error in baseline_errors.items():
-        responses[gap_id]["baseline_checked"] = True
-        if error:
-            responses[gap_id]["baseline_error"] = error
+    _flag_baseline(responses, baseline_errors)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -224,12 +222,22 @@ def _gap_block(text: str, gap_id: str) -> str:
     return "\n".join(match.group(0) for match in pattern.finditer(text) if match.group(1) == gap_id)
 
 
-def _validate_change_border(gaps_path: Path, text: str) -> None:
+def _flag_baseline(responses: dict[str, dict[str, str]], baseline_errors: dict[str, str | None]) -> None:
+    for gap_id, error in baseline_errors.items():
+        if gap_id in responses:
+            responses[gap_id]["baseline_checked"] = True
+            if error:
+                responses[gap_id]["baseline_error"] = error
+
+
+def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
     """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
     from .changes import parse_border
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
-    dry = apply_gap_responses(existing, parse_gap_responses(text))  # the same rules, writing nothing
+    dry_responses = parse_gap_responses(text)
+    _flag_baseline(dry_responses, baseline_errors or {})
+    dry = apply_gap_responses(existing, dry_responses)  # the same rules, writing nothing
     if any(gap["id"] == "GAP-SCOPE" for gap in dry["closed"]):
         parse_border(_gap_block(text, "GAP-SCOPE"), "")
 
