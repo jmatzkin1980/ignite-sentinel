@@ -69,6 +69,10 @@ The same contract holds for assumptions (IMP-182). A **test before advancing** a
   - `by_decision` must cite a `DEC-*`.
   - `resolved_by_inference` must cite an `ASM-*` and keeps the gap partially closed until ratified.
   - `reopened_false_premise` reopens a closed gap.
+  - `by_baseline` closes a gap from the existing system's documentation. It works **only in a change** (`--change CHG-nnn`); on the project path it never closes. Write it so the runtime can check it:
+    - `Evidence or reference` holds the workspace-relative path in backticks under `00_raw/`, then a quote in `"…"` of **20 characters or more** that appears literally in that file (whitespace collapsed, case kept). Copy the sentence; never paraphrase it.
+    - Never cite the note of a change as the baseline: that is the request itself, not the system.
+    - The answer must be confirmed by the BA. If the quote is not literal, or you are unsure the file really answers the gap, ask the BA instead of closing: the gap stays ANSWERED with a finding.
 - **Report `closure_findings`** from `/resolve-gaps`. They name closures without a citation or with the wrong one.
 
 ## Grill Mode: Guided Live Gap Closure (IMP-184)
