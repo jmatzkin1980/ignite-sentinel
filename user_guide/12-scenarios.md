@@ -1944,6 +1944,7 @@ The normal submit has to keep working as today. The existing system is already i
      - adyacente | dato | Suppliers table
      - preservado | proceso | Full submit of the registration
    - Owner / source: Head of Purchasing
+   - Evidence or reference: purchasing workshop notes, 2026-11-18
    - Decision status: confirmed
    ```
 
