@@ -94,6 +94,16 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
+    if getattr(args, "release", None) and getattr(args, "change", None):
+        try:
+            from .errors import InputError
+
+            raise InputError(
+                f"/{args.command} --change no se combina con --release: un cambio no pertenece a una serie de releases.",
+                next_step=f"Corré /{args.command} {args.project_id} --change {args.change} sin --release.",
+            )
+        except Exception as exc:
+            return report_error(exc)
     if getattr(args, "release", None):
         try:
             from .core.paths import validate_project_id
@@ -120,7 +130,7 @@ def _run_project_command(args) -> int:
 
             validate_project_id(project_id)
         check_source_exists(args)
-        preflight_command(args.command, project_id)
+        preflight_command(args.command, project_id, getattr(args, "change", None))
         result = None
         if args.command == "init":
             from .workspace import ensure_workspace
@@ -480,9 +490,18 @@ def _run_project_command(args) -> int:
                                      change_id=args.change)
             print_json(result)
         elif args.command == "specs":
-            from .generation import generate_specs
+            if args.change:
+                from .changes import get_change
+                from .compilers.change_specs import compile_change_specs
 
-            result = generate_specs(args.project_id)
+                get_change(args.project_id, args.change)
+                result = compile_change_specs(args.project_id, args.change)
+            else:
+                from .changes import refuse_change_only_specs
+                from .generation import generate_specs
+
+                refuse_change_only_specs(args.project_id)
+                result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":
             from .generation import generate_backlog

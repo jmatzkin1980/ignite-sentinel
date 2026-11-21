@@ -272,20 +272,28 @@ def write_spec_units(project_id: str, context: dict[str, object], source_name: s
     return units
 
 
+def ensure_spec_unit_ids_seeded(project_id: str, base: Path) -> None:
+    """Seed the SPEC-U family from the project units on disk, once, before any id is assigned."""
+    from .. import id_registry
+
+    if id_registry.family_seeded(project_id, "SPEC-U"):
+        return
+    existing = {
+        str(ears): unit_id
+        for unit_id, item in spec_unit_snapshot(base).items()
+        for ears in item["frontmatter"].get("ears", [])
+        if str(ears).strip()
+    }
+    id_registry.seed_family(project_id, "SPEC-U", existing)
+
+
 def _registry_ids(project_id: str, context: dict[str, object], base: Path) -> dict[str, str] | None:
     """Stable SPEC-U ids per EARS row once the workspace has changes; None keeps positional ids."""
     from .. import id_registry
 
     if not id_registry.registry_active(project_id):
         return None
-    if not id_registry.family_seeded(project_id, "SPEC-U"):
-        existing = {
-            str(ears): unit_id
-            for unit_id, item in spec_unit_snapshot(base).items()
-            for ears in item["frontmatter"].get("ears", [])
-            if str(ears).strip()
-        }
-        id_registry.seed_family(project_id, "SPEC-U", existing)
+    ensure_spec_unit_ids_seeded(project_id, base)
     keys = []
     for row in context.get("ears_requirements", []) if isinstance(context, dict) else []:
         if isinstance(row, dict):
@@ -334,10 +342,13 @@ def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
     sources = [str(item) for item in unit.get("sources", []) if str(item).strip()]
     source_rows = "\n".join(f"| `{source}` | Pointer |" for source in sources)
     ears_rows = "\n".join(f"| `{ears_id}` | {table_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
+    change_lines = ""
+    if unit.get("change"):
+        change_lines = f"change: {unit['change']}\ndelta: {unit.get('delta', '')}\n"
     return f"""---
 id: {unit['id']}
 status: {unit['status']}
-trace_ids:
+{change_lines}trace_ids:
 {frontmatter_list(trace_ids)}
 ears:
 {frontmatter_list(ears_ids)}

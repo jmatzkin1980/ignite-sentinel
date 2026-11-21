@@ -55,7 +55,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan. The result's prose_review says how many lines were stored but not interpreted and hints the confirmed items each decision line talks about. With source and analysis (an agent's cited change candidates: reopen_gap, invalidate_assumption, contradiction), each valid candidate opens a blocking GAP-CHG for the BA to accept or reject with sentinel_gaps.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
-    ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/.", ["project_id"]),
+    ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/. change=CHG-NNN builds spec units from that change's REQ-EARS rows into 03_specs/CHG-NNN/ (no PRD).", ["project_id"]),
     ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health). release=rN derives that release's backlog and slice plan into 04_backlog/rN/.", ["project_id"]),
     ("quality", "Generate test cases and the backlog readiness audit. release=rN audits that release into 05_quality/rN/.", ["project_id"]),
     ("trace", "Generate the traceability matrix and graph. release=rN traces that release into 06_traceability/rN/. "
@@ -516,8 +516,8 @@ def build_server():
             sensitivity=sensitivity, section=section, max_chars=max_chars, summary_only=summary_only)])
 
     @tool(name="sentinel_specs", description=TOOL_DESCRIPTIONS["specs"])
-    def sentinel_specs(project_id: str, release: str = "") -> dict:
-        return run_cli(["specs", project_id, *release_arguments(release)])
+    def sentinel_specs(project_id: str, release: str = "", change: str = "") -> dict:
+        return run_cli(["specs", project_id, *release_arguments(release), *(["--change", change] if change else [])])
 
     @tool(name="sentinel_backlog", description=TOOL_DESCRIPTIONS["backlog"])
     def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "", story_format: str = "") -> dict:

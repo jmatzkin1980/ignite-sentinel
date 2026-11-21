@@ -267,6 +267,11 @@ def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms prof
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: compile this change's brief instead of the project's")
 
 
+def _specs(p: argparse.ArgumentParser) -> None:
+    p.add_argument("project_id")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-388: build this change's spec units instead of the project's")
+
+
 def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
     p.add_argument("project_id")
     p.add_argument("--id", dest="gap_id")
@@ -327,7 +332,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("backlog", MUTATING, _backlog, release=True),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.
     Command("maturity", MUTATING, _project),
-    Command("specs", MUTATING, _project, release=True),
+    Command("specs", MUTATING, _specs, release=True),
     Command("backlog-status", MUTATING, _project_override),
     Command("quality", MUTATING, _project_override, release=True),
     Command("health", READ_ONLY, _project),

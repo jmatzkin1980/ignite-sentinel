@@ -60,6 +60,18 @@ def refuse_change_only_deliverable(project_id: str, command: str, artifact: str)
         )
 
 
+def refuse_change_only_specs(project_id: str) -> None:
+    """IMP-388: a workspace that only holds changes has no project requirements to derive specs from."""
+    if (workspace_path(project_id) / "02_requirements" / "requirements.md").exists():
+        return
+    open_changes = sorted(list_changes(project_id))
+    if open_changes:
+        raise GateRefusal(
+            f"{project_id} sólo tiene cambios: no hay 02_requirements/requirements.md del proyecto para /specs",
+            next_step=f"/specs {project_id} --change {open_changes[0]}",
+        )
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:
