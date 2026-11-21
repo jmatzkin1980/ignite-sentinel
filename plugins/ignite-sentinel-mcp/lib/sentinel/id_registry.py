@@ -32,7 +32,11 @@ def _load(project_id: str) -> dict:
 def _entry(data: dict, family: str) -> dict:
     entry = data["families"].setdefault(family, {"issued": {}, "last": 0})
     entry.setdefault("issued", {})
-    entry["last"] = max(int(entry.get("last", 0)), _max_number(entry["issued"].values()))
+    try:
+        last = int(entry.get("last", 0))
+    except (TypeError, ValueError):
+        last = 0  # a non-numeric value falls back to the highest issued number
+    entry["last"] = max(last, _max_number(entry["issued"].values()))
     return entry
 
 

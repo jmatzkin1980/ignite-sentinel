@@ -5,11 +5,15 @@ import re
 from pathlib import Path
 
 from .core.graph import add_edge, add_node
-from .core.io import append_text, write_text
+from .core.io import write_text
 from .workspace import workspace_path
 
 DELTA_VALUES = ("ADDED", "MODIFIED", "REMOVED", "UNCHANGED")
-_UNCHANGED_HINT = re.compile(r"\b(continue to|continuar\w*|seguir\w*|sigue)\b", re.I)
+_UNCHANGED_HINT = re.compile(
+    r"\b(continue to|continuar\w*|seguir\w*|sigue|keep\w*|still|manten\w*|mantien\w*)\b", re.I
+)
+SUPERSEDED_HEADINGS = ("## Superseded requirements", "## Requisitos reemplazados")
+TABLE_HEADER = ["| ID | Pattern | Delta | Statement | Source |", "| --- | --- | --- | --- | --- |"]
 _EARS_ID = re.compile(r"REQ-EARS-(\d+)")
 _ESCAPED_PIPE = "\\|"
 _CELL_SPLIT = re.compile(r"(?<!\\)\|")
@@ -52,8 +56,11 @@ def load_change_ears(project_id: str, change_id: str) -> list[dict]:
     if not path.is_file():
         return []
     rows: list[dict] = []
+    superseded = False
     for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("| REQ-EARS-"):
+        if line.startswith("## "):
+            superseded = line.strip() in SUPERSEDED_HEADINGS
+        if superseded or not line.startswith("| REQ-EARS-"):
             continue
         cells = [cell.strip() for cell in _CELL_SPLIT.split(line.strip().strip("|"))]
         if len(cells) < 5:
@@ -65,49 +72,106 @@ def load_change_ears(project_id: str, change_id: str) -> list[dict]:
     return rows
 
 
-def materialize_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,
-                            language: str = "es", record_id: str | None = None) -> list[str]:
-    """Write a REQ-EARS row per EARS statement of each closed answer; a (gap, statement) already there adds nothing."""
+def _row_cells(line: str) -> list[str]:
+    return [cell.strip() for cell in _CELL_SPLIT.split(line.strip().strip("|"))]
+
+
+def _row_gap(line: str) -> str:
+    cells = _row_cells(line)
+    found = _SOURCE.search(cells[4]) if len(cells) >= 5 else None
+    return found.group(1) if found else ""
+
+
+def _split_file(text: str) -> tuple[list[str], list[str], list[str]]:
+    """(head lines, active row lines, superseded row lines) of a change requirements file."""
+    head: list[str] = []
+    active: list[str] = []
+    old: list[str] = []
+    in_old = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            in_old = line.strip() in SUPERSEDED_HEADINGS
+        if line.startswith("| REQ-EARS-"):
+            (old if in_old else active).append(line)
+        elif not line.startswith("| ID |") and not line.startswith("| ---") and not in_old:
+            head.append(line)
+    return head, active, old
+
+
+def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,
+                          language: str = "es", record_id: str | None = None) -> dict[str, list[str]]:
+    """Reconcile the REQ-EARS rows of each (re)closed answer of a change.
+
+    A row whose (gap, statement) is still produced keeps its id and takes the declared Delta in place;
+    a statement no longer produced moves to the Superseded table (its id is never reused); a new one
+    takes the next id. GAP-SCOPE (the border) is exempt.
+    """
     from .gap_resolution import ears_statements
 
     base = workspace_path(project_id)
     path = change_requirements_path(base, change_id)
-    seen: set[tuple[str, str]] = set()
-    for row in load_change_ears(project_id, change_id):
-        gap = _SOURCE.search(row["source"])
-        seen.add((gap.group(1) if gap else "", _cell(row["statement"])))
-    candidates: list[tuple[dict, str, str, str]] = []
+    result: dict[str, list[str]] = {"added": [], "delta_updated": [], "superseded": []}
+    exists = path.is_file()
+    original = path.read_text(encoding="utf-8") if exists else ""
+    head, active, old = _split_file(original) if exists else ([], [], [])
+    next_index = next_ears_index(base)
+    new_rows: list[tuple[str, dict, str, str, str]] = []
     for gap in closed:
-        delta = parse_delta(str(responses.get(gap["id"], {}).get("delta", "")))
-        if not delta:
+        if gap["id"] == "GAP-SCOPE":
             continue
-        for statement, pattern in ears_statements((gap.get("answer") or "").strip()):
-            key = (gap["id"], _cell(statement))
-            if key in seen:
+        answer = (gap.get("answer") or "").strip()
+        statements = ears_statements(answer)
+        delta = parse_delta(str(responses.get(gap["id"], {}).get("delta", "")))
+        if statements and not delta:
+            continue
+        produced: dict[str, tuple[str, str]] = {}
+        for statement, pattern in statements:
+            produced.setdefault(_cell(statement), (statement, pattern))
+        matched: set[str] = set()
+        for position, line in enumerate(active):
+            if _row_gap(line) != gap["id"]:
                 continue
-            seen.add(key)
-            candidates.append((gap, statement, pattern, delta))
-    if not candidates:
-        return []
-    lines: list[str] = []
-    if not path.exists():
-        title = f"# Requisitos del cambio {change_id}" if language == "es" else f"# Change requirements {change_id}"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        write_text(path, "\n".join([
-            title, "", "## Normalized Requirements (EARS)", "",
-            "| ID | Pattern | Delta | Statement | Source |", "| --- | --- | --- | --- | --- |", "",
-        ]))
-    index = next_ears_index(base)
-    node_ids: list[str] = []
-    for offset, (gap, statement, pattern, delta) in enumerate(candidates):
-        req_id = f"REQ-EARS-{index + offset:03d}"
-        lines.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` |")
+            cells = _row_cells(line)
+            key = _cell(cells[3].replace(_ESCAPED_PIPE, "|"))
+            if key in produced and key not in matched:
+                matched.add(key)
+                if cells[2] != delta:
+                    cells[2] = delta or cells[2]
+                    active[position] = "| " + " | ".join(cells) + " |"
+                    result["delta_updated"].append(cells[0])
+            else:
+                active[position] = ""
+                old.append(line)
+                result["superseded"].append(cells[0])
+        for key, (statement, pattern) in produced.items():
+            if key not in matched:
+                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta)))
+                next_index += 1
+    active = [line for line in active if line]
+    for req_id, gap, statement, pattern, delta in new_rows:
+        active.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` |")
         node_id = add_node(
             project_id, "REQ", "ears_requirement", path, f"{req_id} ({pattern}, {delta}) from {gap['id']}",
             status="confirmed", domain=gap.get("lens", "product"),
         )
         if record_id:
             add_edge(project_id, record_id, node_id, "normalizes")
-        node_ids.append(req_id)
-    append_text(path, "\n".join(lines) + "\n")
-    return node_ids
+        result["added"].append(req_id)
+    if not (new_rows or result["delta_updated"] or result["superseded"]):
+        return result
+    title = head[0] if head and head[0].startswith("# ") else (
+        f"# Requisitos del cambio {change_id}" if language == "es" else f"# Change requirements {change_id}"
+    )
+    spanish = title.startswith("# Requisitos")
+    lines = [title, "", "## Normalized Requirements (EARS)", "", *TABLE_HEADER, *active, ""]
+    if old:
+        lines += [SUPERSEDED_HEADINGS[1 if spanish else 0], "", *TABLE_HEADER, *old, ""]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_text(path, chr(10).join(lines))
+    return result
+
+
+def materialize_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,
+                            language: str = "es", record_id: str | None = None) -> list[str]:
+    """The ids of the rows a (re)closing added; see `reconcile_change_ears` for the full result."""
+    return reconcile_change_ears(project_id, change_id, closed, responses, language, record_id)["added"]

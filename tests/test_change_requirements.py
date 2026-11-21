@@ -121,6 +121,53 @@ class ChangeRequirements(SnapshotWorkspaceCase):
         res = self.resolve("a.md", acceptance(EARS_TWO, "ADDED"))
         self.assertEqual(res["ears_rows"], ["REQ-EARS-003", "REQ-EARS-004"])
 
+    def test_delta_correction_updates_rows_in_place_with_the_same_ids(self):
+        self.resolve("a.md", acceptance(EARS_TWO, "ADDED"))
+        before = [r["id"] for r in load_change_ears("BORR", self.cid)]
+        res = self.resolve("b.md", acceptance(EARS_TWO, "MODIFIED"))
+        rows = load_change_ears("BORR", self.cid)
+        self.assertEqual([r["id"] for r in rows], before)
+        self.assertEqual({r["delta"] for r in rows}, {"MODIFIED"})
+        self.assertEqual(res["delta_updated"], before)
+        self.assertEqual(res["ears_rows"], [])
+        self.assertEqual(res["superseded_rows"], [])
+
+    def test_rewording_supersedes_the_old_row_and_never_reuses_its_id(self):
+        self.resolve("a.md", acceptance(EARS_TWO, "ADDED"))
+        first, second = load_change_ears("BORR", self.cid)
+        reworded = EARS_TWO.replace("conservar los datos cargados", "conservar los datos ingresados")
+        res = self.resolve("b.md", acceptance(reworded, "ADDED"))
+        self.assertEqual(res["superseded_rows"], [first["id"]])
+        self.assertEqual(res["ears_rows"], ["REQ-EARS-003"])
+        rows = load_change_ears("BORR", self.cid)
+        self.assertEqual([r["id"] for r in rows], [second["id"], "REQ-EARS-003"])
+        text = self.rows_path().read_text(encoding="utf-8")
+        self.assertIn("## Requisitos reemplazados", text)
+        head, _, tail = text.partition("## Requisitos reemplazados")
+        self.assertNotIn(first["id"], head)
+        self.assertIn(first["id"], tail)
+        self.assertEqual(next_ears_index(workspace_path("BORR")), 4)
+        later = self.resolve("c.md", acceptance(reworded + " Cuando el comprador cierra sesión, el sistema debe liberar el alta.", "ADDED"))
+        self.assertEqual(later["ears_rows"], ["REQ-EARS-004"])
+        self.assertEqual(len(load_change_ears("BORR", self.cid)), 3)
+
+    def test_scope_answer_with_ears_wording_needs_no_delta_and_makes_no_row(self):
+        from sentinel.gap_resolution import ears_statements
+
+        scope = SCOPE_ANSWER.replace(
+            "Respuesta: ", "Respuesta: Cuando Compras abre el alta, el sistema debe limitarse al formulario de proveedores. ", 1)
+        self.assertTrue(ears_statements("Cuando Compras abre el alta, el sistema debe limitarse al formulario de proveedores."))
+        res = self.resolve("s.md", scope)
+        self.assertIn("GAP-SCOPE", res["closed"])
+        self.assertEqual(res["delta_findings"], [])
+        self.assertEqual(res["ears_rows"], [])
+        self.assertFalse(self.rows_path().exists())
+
+    def test_propose_delta_unchanged_for_keep_still_and_mantener(self):
+        for text in ("the system shall keep validating the data", "the system shall still validate", "el sistema debe mantener la validación",
+                     "el sistema debe mantiene la validación"):
+            self.assertEqual(propose_delta(text), "UNCHANGED", text)
+
     def test_project_path_ignores_delta_field(self):
         run_ok(["init", "PROJ"])
         shutil.copy(FIXTURES / "change_borrador.md", Path("proyecto.md"))

@@ -34,6 +34,11 @@ TEXT = {
         "preserved_header": ["REQ-EARS", "Enunciado"],
         "note": "El backlog del cambio llega en un incremento posterior.",
         "next": "Revisá {path}. El backlog del cambio llega en un incremento posterior.",
+        "no_brief": "{cid} no tiene brief: /specs --change parte de {brief}",
+        "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s)",
+        "no_rows": "{cid} no tiene filas ADDED, MODIFIED ni REMOVED: no hay unidades para especificar",
+        "no_rows_next": ("Respondé GAP-ACCEPTANCE en EARS con Delta (ADDED, MODIFIED o REMOVED) y corré "
+                         "/resolve-gaps {pid} --change {cid}"),
     },
     "en": {
         "title": "# Change specification {cid}",
@@ -45,6 +50,11 @@ TEXT = {
         "preserved_header": ["REQ-EARS", "Statement"],
         "note": "The change backlog arrives in a later increment.",
         "next": "Review {path}. The change backlog arrives in a later increment.",
+        "no_brief": "{cid} has no brief: /specs --change starts from {brief}",
+        "blocking": "{cid} has {n} blocking gap(s) open",
+        "no_rows": "{cid} has no ADDED, MODIFIED or REMOVED rows: there are no units to specify",
+        "no_rows_next": ("Answer GAP-ACCEPTANCE in EARS with a Delta (ADDED, MODIFIED or REMOVED) and run "
+                         "/resolve-gaps {pid} --change {cid}"),
     },
 }
 
@@ -62,25 +72,24 @@ def _table(header: list[str], rows: list[list[str]]) -> str:
 def _gate(project_id: str, change_id: str) -> tuple[dict, list[dict]]:
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
-    if not (base / BRIEF_PATH.format(cid=change_id)).is_file():
+    text = TEXT.get(change_language(project_id, change), TEXT["es"])
+    brief = BRIEF_PATH.format(cid=change_id)
+    if not (base / brief).is_file():
         raise GateRefusal(
-            f"{change_id} no tiene brief: /specs --change parte de {BRIEF_PATH.format(cid=change_id)}",
+            text["no_brief"].format(cid=change_id, brief=brief),
             next_step=f"/brief {project_id} --change {change_id}",
         )
     blocking = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
     if blocking > 0:
         raise GateRefusal(
-            f"{change_id} tiene {blocking} gap(s) bloqueante(s) abierto(s)",
+            text["blocking"].format(cid=change_id, n=blocking),
             next_step=f"/resolve-gaps {project_id} --change {change_id}",
         )
     rows = load_change_ears(project_id, change_id)
     if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in rows):
         raise GateRefusal(
-            f"{change_id} no tiene filas ADDED, MODIFIED ni REMOVED: no hay unidades para especificar",
-            next_step=(
-                f"Respondé GAP-ACCEPTANCE en EARS con Delta (ADDED, MODIFIED o REMOVED) y corré "
-                f"/resolve-gaps {project_id} --change {change_id}"
-            ),
+            text["no_rows"].format(cid=change_id),
+            next_step=text["no_rows_next"].format(pid=project_id, cid=change_id),
         )
     return change, rows
 

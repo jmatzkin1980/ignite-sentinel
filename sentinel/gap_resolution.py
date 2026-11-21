@@ -243,6 +243,8 @@ def _flag_delta(responses: dict[str, dict[str, str]], language: str) -> list[dic
 
     findings: list[dict[str, str]] = []
     for gap_id, response in responses.items():
+        if gap_id == "GAP-SCOPE":
+            continue  # the border is exempt from Delta and from EARS rows
         answer = str(response.get("answer", "")).strip()
         if normalize_status(response.get("decision_status", "")) not in CONFIRMED_STATUSES or not is_substantive_answer(answer):
             continue
@@ -313,9 +315,9 @@ def _finish_change_resolution(
         changes[change_id]["gap_counts"] = resolution_results["counts"]
         update_state(project_id, changes=changes)
     # IMP-388: confirmed EARS answers with a declared Delta become the change's REQ-EARS rows.
-    from .change_requirements import materialize_change_ears
+    from .change_requirements import reconcile_change_ears
 
-    ears_rows = materialize_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
+    reconciled = reconcile_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
     change = get_change(project_id, change_id)
 
     broker = ContextBroker(project_id)
@@ -341,7 +343,9 @@ def _finish_change_resolution(
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
         "delta_findings": delta_findings or [],
-        "ears_rows": ears_rows,
+        "ears_rows": reconciled["added"],
+        "delta_updated": reconciled["delta_updated"],
+        "superseded_rows": reconciled["superseded"],
     }
 
 

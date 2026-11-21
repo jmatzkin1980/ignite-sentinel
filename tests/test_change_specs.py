@@ -165,6 +165,56 @@ class ChangeSpecs(SnapshotWorkspaceCase):
         again = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
         self.assertEqual(again["units"], second["units"])
 
+    def test_superseded_row_loses_its_unit_on_rerun(self):
+        first = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        reworded = ACCEPTANCE.replace("conservar los datos cargados", "conservar los datos ingresados")
+        res = answer("BORR", self.cid, "r.md", reworded)
+        self.assertEqual(len(res["superseded_rows"]), 1)
+        rows = workspace_path("BORR") / "02_requirements" / self.cid / "requirements.md"
+        old_id = res["superseded_rows"][0]
+        old_unit = json.loads(registry_path("BORR").read_text(encoding="utf-8"))["families"]["SPEC-U"]["issued"][old_id]
+        self.assertIn(old_unit, first["units"])
+        second = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        self.assertNotIn(old_unit, second["units"])
+        self.assertNotIn(old_unit, unit_files("BORR"))
+        self.assertEqual(len(second["units"]), 3)
+        self.assertIn(old_id, rows.read_text(encoding="utf-8"))
+
+    def test_english_refusal_follows_the_change_language(self):
+        changes = read_json(workspace_path("BORR") / "state.json", {})["changes"]
+        changes[self.cid]["language"] = "en"
+        changes[self.cid]["gap_counts"]["blocking_open"] = 2
+        update_state("BORR", changes=changes)
+        with self.assertRaises(GateRefusal) as caught:
+            compile_change_specs("BORR", self.cid)
+        self.assertIn("blocking gap(s) open", str(caught.exception))
+        code, _ = run_cli(["specs", "BORR", "--change", self.cid, "--release", "r1"])
+        self.assertEqual(code, 3)
+        err = io.StringIO()
+        with redirect_stderr(err), redirect_stdout(io.StringIO()):
+            cli_main(["specs", "BORR", "--change", self.cid, "--release", "r1"])
+        self.assertIn("cannot be combined with --release", err.getvalue())
+
+    def test_lost_registry_does_not_reissue_change_ids(self):
+        first = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        before = {p.stem: p.read_text(encoding="utf-8") for p in units_dir("BORR").glob("*.md")}
+        registry_path("BORR").unlink()
+        answer("BORR", self.cid, "b.md", EXTRA)
+        second = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        self.assertEqual(second["units"][:3], first["units"])
+        self.assertEqual(second["units"][3], "SPEC-U-004")
+        for name, text in before.items():
+            self.assertEqual((units_dir("BORR") / f"{name}.md").read_text(encoding="utf-8"), text)
+
+    def test_non_numeric_last_in_registry_is_tolerated(self):
+        run_ok(["specs", "BORR", "--change", self.cid])
+        data = json.loads(registry_path("BORR").read_text(encoding="utf-8"))
+        data["families"]["SPEC-U"]["last"] = "n/a"
+        registry_path("BORR").write_text(json.dumps(data), encoding="utf-8")
+        answer("BORR", self.cid, "b.md", EXTRA)
+        second = json.loads(run_ok(["specs", "BORR", "--change", self.cid]))
+        self.assertEqual(second["units"][3], "SPEC-U-004")
+
     def test_cli_and_mcp_accept_change(self):
         code, out = run_cli(["specs", "BORR", "--change", self.cid])
         self.assertEqual(code, 0)

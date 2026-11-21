@@ -121,5 +121,5 @@ Use it when the request is a change on a system that already exists (`/ingest --
 
 - It is not the product's brief and not a PRD. The project's brief, state and brief settings are never touched, and `--change` does not combine with `--profile`, `--genesis`, `--validation-direction` or `--brief-version` (exit 3).
 - A workspace that only has changes refuses a plain `/brief` and names the change to use; a project with its own requirement still compiles its brief without the flag.
-- A change still produces no specs and no backlog. Say so; do not improvise them from the brief.
+- A change's specs come from `/specs --change CHG-nnn` (never from the brief); it still has no backlog. Say so; do not improvise one.
 - To review or send it: `/view PROJECT_ID --artifact brief --change CHG-001` and `/export PROJECT_ID --artifact brief --change CHG-001`. The export is a draft while pending marks remain; `--final` refuses while blocking ones do. The brief is recompiled from the answers, never hand-edited.

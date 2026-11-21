@@ -284,6 +284,13 @@ def ensure_spec_unit_ids_seeded(project_id: str, base: Path) -> None:
         for ears in item["frontmatter"].get("ears", [])
         if str(ears).strip()
     }
+    # the change units too, so a lost or corrupt registry never re-issues a change's ids
+    for path in sorted((base / "03_specs").glob("CHG-*/units/SPEC-U-*.md")):
+        front = parse_frontmatter(path.read_text(encoding="utf-8"))
+        unit_id = str(front.get("id", path.stem)).strip() or path.stem
+        for ears in front.get("ears", []):
+            if str(ears).strip():
+                existing.setdefault(str(ears), unit_id)
     id_registry.seed_family(project_id, "SPEC-U", existing)
 
 
