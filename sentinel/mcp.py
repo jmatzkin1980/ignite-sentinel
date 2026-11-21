@@ -48,7 +48,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("gaps", "Regenerate the discovery gap ledger (01_discovery/gaps.md; the client gets the interview export). With id and disposition (accepted, rejected or irrelevant; rejected and irrelevant need a reason), record the BA's disposition on a gap an agentic channel raised (IMP-271 / F7). On a GAP-CHG (IMP-337) accepted applies the change (reopens the gap or invalidates the assumption) and rejected closes it as a false alarm. With change=CHG-nnn (IMP-382) regenerates that change's gap file 01_discovery/CHG-nnn/gaps.md instead of the project's.", ["project_id"]),
     ("resolve_gaps", "Process structured gap answers; closes only substantive confirmed answers. With change=CHG-nnn (IMP-382) applies them to that change's gaps; when GAP-SCOPE closes with a valid Borde block (one line per surface, zone | type | name, zone nuevo|adyacente|preservado) the border is confirmed and the lens round opens scoped by the surface types (no pantalla means no design or frontend checks); one bad border line rejects the file and nothing is written. In a change, an answer with Motivo de cierre by_baseline closes the gap only when confirmed and citing a backticked 00_raw path plus a literal quote of 20+ characters from that file (never a change note); otherwise it stays ANSWERED with a finding.", ["project_id", "source"]),
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
-    ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed.", ["project_id"]),
+    ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed. With change=CHG-nnn (IMP-386) it compiles that change's brief (02_requirements/CHG-nnn/project-brief.md) and takes no project settings; a change-only workspace refuses it without.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
     ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
     ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog.", ["project_id", "full"]),
@@ -400,9 +400,10 @@ def build_server():
 
     @tool(name="sentinel_brief", description=TOOL_DESCRIPTIONS["brief"])
     def sentinel_brief(project_id: str, profile: str = "", genesis: str = "", validation_direction: str = "",
-                       brief_version: str = "") -> dict:
+                       brief_version: str = "", change: str = "") -> dict:
         arguments = ["brief", project_id]
         for flag, value in (("--profile", profile), ("--genesis", genesis), ("--validation-direction", validation_direction),
+                            ("--change", change),
                             ("--brief-version", str(brief_version) if brief_version else "")):
             if value:
                 arguments += [flag, value]
