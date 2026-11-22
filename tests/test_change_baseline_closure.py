@@ -27,7 +27,7 @@ SCOPE_ANSWER = "\n".join([
     "- Estado de decisión: confirmado",
     "",
 ])
-SAD = "00_raw/02_technology_context/sad-compras.md"
+SAD = "00_raw/06_baseline/sad-compras.md"
 SAD_TEXT = (
     "# SAD Compras\n\nEl servicio de compras responde en menos de\n   dos segundos al percentil 95 en horario pico.\n"
     "Los datos se retienen durante siete años.\n"
@@ -68,8 +68,15 @@ class Base(SnapshotWorkspaceCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
 
+    def load_baseline(self, name: str = "sad-compras.md", data=SAD_TEXT) -> None:
+        """Register the baseline the way a person does: /sources --load ... --role linea_de_base."""
+        folder = Path("fixtures_in")
+        folder.mkdir(exist_ok=True)
+        (folder / name).write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
+        run_ok(["sources", self.project, "--load", str(folder / name), "--role", "linea_de_base", "--change", "CHG-001"])
+
     def resolve_and_row(self, gap: str, text: str) -> dict:
-        self.put(SAD, SAD_TEXT)
+        self.load_baseline()
         Path("resp.md").write_text(text, encoding="utf-8")
         out = json.loads(run_ok(["resolve-gaps", self.project, "--source", "resp.md", "--change", "CHG-001"]))
         self.findings = out["closure_findings"]
@@ -119,9 +126,14 @@ class ByBaseline(Base):
     def test_binary_or_non_utf8_file_stays_answered(self):
         for name, data in (("bin.md", b"\x00\x01" + SAD_TEXT.encode() + b"\x00"), ("latin.md", SAD_TEXT.encode() + "ñ".encode("latin-1"))):
             with self.subTest(name=name):
-                self.put(f"00_raw/{name}", data)
-                row = self.resolve_and_row("GAP-TECH-NFR", answer(cite(f"00_raw/{name}")))
-                self.assertStays(row, "")
+                if name == "bin.md":
+                    self.load_baseline(name, data)  # registered, so the finding is about the content
+                    path, needle = f"00_raw/06_baseline/{name}", "binario"
+                else:  # /sources --load refuses non-UTF-8 text, so a hand copy is all there can be
+                    self.put(f"00_raw/{name}", data)
+                    path, needle = f"00_raw/{name}", ""
+                row = self.resolve_and_row("GAP-TECH-NFR", answer(cite(path)))
+                self.assertStays(row, needle)
 
     def test_missing_file_and_missing_parts_stay_answered(self):
         for evidence in (cite("00_raw/no-existe.md"), f"`{SAD}`", f'"{QUOTE}"', "ver el SAD"):
@@ -138,7 +150,7 @@ class ByBaseline(Base):
         self.assertNotEqual(row["status"], "CLOSED")
 
     def test_validator_returns_none_or_text(self):
-        self.put(SAD, SAD_TEXT)
+        self.load_baseline()
         base = workspace_path(self.project)
         self.assertIsNone(validate_baseline_citation(base, self.project, "CHG-001", cite()))
         self.assertIsInstance(validate_baseline_citation(base, self.project, "CHG-001", "nada"), str)
@@ -155,7 +167,7 @@ class ScopeByBaseline(Base):
 
     def test_scope_by_baseline_without_border_is_rejected_before_any_write(self):
         # a change whose scope is still open: build a fresh one in this class
-        self.put(SAD, SAD_TEXT)
+        self.load_baseline()
         base = workspace_path(self.project)
         text = chr(10).join([
             "### GAP-SCOPE",

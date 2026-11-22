@@ -66,9 +66,8 @@ class ChangeFlow(SnapshotWorkspaceCase):
         # 20 total = 19 open + 1 closed (GAP-SCOPE).
         self.assertEqual(counts["open"], LENS_TOTAL - 1)
         # Load the baseline and close seven lens gaps by citing it: open 19 -> 12, blocking stays 3.
-        raw = workspace_path("BORR") / "00_raw"
-        shutil.copy(FIXTURES / "change_baseline" / "sad-compras.md", raw / "02_technology_context" / "sad-compras.md")
-        shutil.copy(FIXTURES / "change_baseline" / "manual-compras.md", raw / "01_business_context" / "manual-compras.md")
+        for name in ("sad-compras.md", "manual-compras.md"):
+            run_ok(["sources", "BORR", "--load", str(FIXTURES / "change_baseline" / name), "--role", "linea_de_base", "--change", cid])
         shutil.copy(FIXTURES / "change_baseline" / "answers_baseline.md", Path.cwd() / "answers_baseline.md")
         res = json.loads(run_ok(["resolve-gaps", "BORR", "--source", "answers_baseline.md", "--change", cid]))
         self.assertEqual(set(res["closed"]), BASELINE_CLOSED)

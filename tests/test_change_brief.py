@@ -86,9 +86,8 @@ def _build(*, scope: str | None = SCOPE_ANSWER, baseline: bool = True, extra: st
         (root / "scope.md").write_text(scope, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", "CHG-001"])
     if baseline:
-        raw = base / "00_raw"
-        shutil.copy(FIXTURES / "change_baseline" / "sad-compras.md", raw / "02_technology_context" / "sad-compras.md")
-        shutil.copy(FIXTURES / "change_baseline" / "manual-compras.md", raw / "01_business_context" / "manual-compras.md")
+        for name in ("sad-compras.md", "manual-compras.md"):
+            run_ok(["sources", "BORR", "--load", str(FIXTURES / "change_baseline" / name), "--role", "linea_de_base", "--change", "CHG-001"])
         shutil.copy(FIXTURES / "change_baseline" / "answers_baseline.md", root / "answers_baseline.md")
         run_ok(["resolve-gaps", "BORR", "--source", "answers_baseline.md", "--change", "CHG-001"])
     if extra:
@@ -145,11 +144,11 @@ class FullChange(SnapshotWorkspaceCase):
         s5 = sections(text)[5]
         self.assertIn(
             "Ya existe: «responde en menos de dos segundos al percentil 95 en horario pico» "
-            "(`00_raw/02_technology_context/sad-compras.md`, GAP-TECH-NFR)",
+            "(`00_raw/06_baseline/sad-compras.md`, GAP-TECH-NFR)",
             s5,
         )
-        self.assertIn("`00_raw/01_business_context/manual-compras.md`", s5)
-        self.assertIn("`00_raw/02_technology_context/sad-compras.md`", sections(text)[1])
+        self.assertIn("`00_raw/06_baseline/manual-compras.md`", s5)
+        self.assertIn("`00_raw/06_baseline/sad-compras.md`", sections(text)[1])
 
     def test_open_gaps_are_pending_marks_and_listed(self):
         text, report = self.brief()

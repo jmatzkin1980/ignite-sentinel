@@ -120,8 +120,10 @@ Un cuarto campo opcional, `alias`, da un nombre corto para repetir en Superficie
 Para cerrar un gap con lo que ya dice la línea de base, confirmar la respuesta y agregar el motivo con su cita (ruta bajo 00_raw/ y frase literal de al menos 20 caracteres):
 
     - Estado de decisión: confirmado
-    - Evidencia o referencia: `00_raw/02_technology_context/sad-compras.md` "responde en menos de dos segundos"
+    - Evidencia o referencia: `00_raw/06_baseline/sad-compras.md` "responde en menos de dos segundos"
     - Motivo de cierre: by_baseline
+
+Sólo cierra una fuente cargada como línea de base (/sources … --load … --role linea_de_base).
 
 Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué hace con lo existente; sin esa línea la respuesta no se confirma:
 
@@ -144,8 +146,10 @@ An optional fourth field, `alias`, gives a short name to repeat in Surface (up t
 To close a gap with what the baseline already says, confirm the answer and add the reason with its citation (a path under 00_raw/ and a literal quote of at least 20 characters):
 
     - Decision status: confirmed
-    - Evidence or reference: `00_raw/02_technology_context/sad-purchasing.md` "responds in under two seconds"
+    - Evidence or reference: `00_raw/06_baseline/sad-purchasing.md` "responds in under two seconds"
     - Closure reason: by_baseline
+
+It only closes from a source loaded as the baseline (/sources ... --load ... --role linea_de_base).
 
 If the answer is in EARS ("When ..., the system shall ..."), declare what it does to the existing system; without this line the answer is not confirmed:
 
