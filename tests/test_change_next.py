@@ -14,6 +14,7 @@ from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
+from test_change_affected_stories import ANSWERS as REMOVED_ANSWERS  # noqa: E402
 from test_change_specs import ACCEPTANCE, ALL_ANSWERS, EXTRA, PROJECT_EARS, PROJECT_RAW, answer, open_change  # noqa: E402
 from test_mcp_parity import _tools  # noqa: E402
 
@@ -31,9 +32,9 @@ def cli_json(argv: list[str]) -> dict:
     return json.loads(out)
 
 
-def set_change(project: str, **fields) -> None:
+def set_change(project: str, cid: str = CID, **fields) -> None:
     changes = read_json(workspace_path(project) / "state.json", {})["changes"]
-    changes[CID].update(fields)
+    changes[cid].update(fields)
     update_state(project, changes=changes)
 
 
@@ -85,6 +86,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         run_ok(["backlog", "BORR", "--change", CID])
         s = step()
         self.assertEqual(s["key"], "done")
+        self.assertEqual(s["command"], "")
         self.assertNotIn("prd", " ".join(s.values()).lower())
 
     def test_specs_not_current_goes_back_to_specs(self):
@@ -208,6 +210,39 @@ class ChangeNextMixed(SnapshotWorkspaceCase):
         status = cli_json(["status", "MIX"])
         self.assertEqual(status["next_action"]["key"], before["key"])
         self.assertEqual(status["changes"][0]["next_step"]["key"], "lenses")
+
+
+class ChangeNextRemovedUnit(SnapshotWorkspaceCase):
+    """A REMOVED row over only not-implemented stories produces no story: the backlog is not behind for it."""
+
+    @classmethod
+    def build_workspace(cls):
+        build_matured_workspace("MIX", PROJECT_RAW, gap_acceptance_answer(PROJECT_EARS))
+        cls.cid = open_change("MIX")
+        answer("MIX", cls.cid, "a.md", REMOVED_ANSWERS)
+        run_ok(["brief", "MIX", "--change", cls.cid])
+        run_ok(["specs", "MIX", "--change", cls.cid])
+
+    def test_dropped_unit_does_not_keep_next_on_backlog(self):
+        self.assertEqual(change_next_step("MIX", self.cid)["key"], "backlog")
+        run_ok(["backlog", "MIX", "--change", self.cid])
+        backlog = read_json(workspace_path("MIX") / "state.json", {})["changes"][self.cid]["backlog"]
+        self.assertEqual(len(backlog["dropped_units"]), 1)
+        self.assertIn(change_next_step("MIX", self.cid)["key"], ("validate", "done"))
+        self.assertIn(cli_json(["next", "MIX", "--change", self.cid])["key"], ("validate", "done"))
+        self.assertIn(cli_json(["status", "MIX", "--change", self.cid])["next_action"]["key"], ("validate", "done"))
+
+    def test_dropped_unit_gone_from_the_specs_is_ignored(self):
+        run_ok(["backlog", "MIX", "--change", self.cid])
+        set_change("MIX", self.cid, backlog={**read_json(workspace_path("MIX") / "state.json", {})["changes"][self.cid]["backlog"],
+                                   "dropped_units": ["SPEC-U-099"]})
+        self.assertEqual(change_next_step("MIX", self.cid)["key"], "backlog")
+
+    def test_release_verdict_carries_no_changes(self):
+        from sentinel.readiness_verdict import build_readiness_verdict
+
+        self.assertIn("changes", build_readiness_verdict("MIX"))
+        self.assertNotIn("changes", build_readiness_verdict("MIX", release="r1"))
 
 
 if __name__ == "__main__":

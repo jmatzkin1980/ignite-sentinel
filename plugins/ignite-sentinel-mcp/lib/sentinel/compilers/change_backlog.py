@@ -212,6 +212,7 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     warnings: list[str] = []
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
+    dropped_units: list[str] = []
     for story in stories:
         row = rows_by_id.get(ears_of_unit.get(str(story.get("source_unit", "")), ""))
         delta = parse_delta(row["delta"]) if row else None
@@ -231,10 +232,12 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
             story["type"], story["modifica"] = "change_request", modifies
         elif delta == "REMOVED" and affected:
             dropped.append(story["id"])
+            dropped_units.append(str(story.get("source_unit", "")))
             continue
         kept.append(story)
     stories[:] = kept
-    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped}
+    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped,
+            "dropped_units": dropped_units}
 
 
 def _write_modificada_por(base: Path, own: set[str], change_id: str, modified_by: dict[str, list[str]]) -> None:
@@ -457,6 +460,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     stale = affected["all_stale"]
     changes[change_id]["backlog"] = {
         "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
+        "dropped_units": affected["dropped_units"],  # IMP-396: units deliberately left without a story
     }
     update_state(project_id, changes=changes)
 

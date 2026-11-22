@@ -155,7 +155,9 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     )
     result["next_step"] = next_step(project_id, state, result, has_stories=bool(stories), has_brief=brief_exists,
                                     assumed_blocking=assumed_blocking)
-    if state.get("changes"):  # IMP-396: only a workspace with changes grows the key; path A stays as it was
+    # IMP-396: only a workspace with changes grows the key (path A stays as it was), and never inside a
+    # release scope: changes are project-level, a release verdict covers the release only.
+    if state.get("changes") and release is None:
         result["changes"] = changes_overview(project_id)
         if not (base / "02_requirements" / "requirements.md").exists():
             # a change-only workspace has no project to ingest or write a PRD for: the next step is the change's
@@ -366,15 +368,19 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
             or specs_currency(project_id, change_id) != "current"):
         return "specs"
-    if not change.get("backlog") or _backlog_behind(base, change_id, read_change_units(project_id, change_id)):
+    if not change.get("backlog") or _backlog_behind(
+            base, change_id, read_change_units(project_id, change_id), list(change["backlog"].get("dropped_units") or [])):
         return "backlog"
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
     return "done"
 
 
-def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]]) -> bool:
-    """The units the change's stories came from differ from the current units of its specs."""
+def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:
+    """The units the change's stories came from differ from the current units of its specs.
+
+    Units `/backlog --change` deliberately dropped (a REMOVED row over only not-implemented stories) have no story and are not counted;
+    a dropped unit no longer in the specs is ignored."""
     from .core.markdown import parse_frontmatter
 
     sources: set[str] = set()
@@ -385,7 +391,7 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]]) -> 
             continue
         if str(front.get("change", "")).strip() == change_id:
             sources.add(str(front.get("source_unit", "")).strip())
-    return sources != {unit["id"] for unit in units}
+    return sources != {unit["id"] for unit in units} - set(dropped_units)
 
 
 def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
@@ -417,6 +423,9 @@ def changes_overview(project_id: str) -> list[dict[str, Any]]:
 
 
 def _first_change_step(overview: list[dict[str, Any]]) -> dict[str, str]:
+    """The first change with a pending step (or the first change when all are done).
+
+    Its `change_id` is exposed at top level only in a change-only workspace, where this replaces the project step."""
     pending = [item["next_step"] for item in overview if item["next_step"]["key"] != "done"]
     return dict((pending or [overview[0]["next_step"]])[0])
 
