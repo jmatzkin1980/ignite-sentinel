@@ -43,7 +43,12 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     blockers: list[str] = []
     warnings: list[str] = []
     partial: list[dict[str, str]] = []
-    if not discovered:
+    # IMP-398: a workspace that only holds changes has no project discovery to run; its changes answer for it.
+    overview: list[dict[str, Any]] | None = None
+    if state.get("changes") and (release if release is not None else _active_release()) is None:
+        overview = changes_overview(project_id)
+    change_only = overview is not None and not (base / "02_requirements" / "requirements.md").exists()
+    if not discovered and not change_only:
         blockers.append("Discovery has not run: there is no 01_discovery/gaps.md.")
     if blocking_open:
         blockers.append(f"{len(blocking_open)} blocking gap(s) open: {', '.join(blocking_open)}.")
@@ -127,6 +132,13 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     elif release is not None and release != scoped:
         partial.append({"check": "release", "reason": f"Release {release} was named outside its scope; run the command with --release {release} for a verdict over that release's brief and backlog. This verdict covers the whole workspace."})
 
+    if change_only and overview is not None:
+        pending = [item for item in overview if item["next_step"]["key"] != "done"]
+        blockers[:0] = [_change_blocker(project_id, item) for item in pending]
+        if not pending:
+            # existing value on purpose (views switch on it): the pieces are up to date, the request coverage is not measured
+            warnings.append(COVERAGE_NOT_MEASURED)
+
     if blockers:
         verdict = "NOT_READY"
     elif warnings or partial:
@@ -157,12 +169,34 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
                                     assumed_blocking=assumed_blocking)
     # IMP-396: only a workspace with changes grows the key (path A stays as it was), and never inside a
     # release scope: changes are project-level, a release verdict covers the release only.
-    if state.get("changes") and release is None:
-        result["changes"] = changes_overview(project_id)
+    if overview is not None and release is None:
+        result["changes"] = overview
         if not (base / "02_requirements" / "requirements.md").exists():
             # a change-only workspace has no project to ingest or write a PRD for: the next step is the change's
             result["next_step"] = _first_change_step(result["changes"])
     return result
+
+
+COVERAGE_NOT_MEASURED = ("Request coverage is not measured yet: the registered pieces of the changes are up to date, "
+                         "but Sentinel does not check that each rule and criterion of the request has its requirement or its discard.")
+
+
+def _active_release() -> str | None:
+    from .release_scope import active_release
+
+    return active_release()
+
+
+def _change_blocker(project_id: str, item: dict[str, Any]) -> str:
+    """IMP-398: one blocker per pending change, in the change's language: its id, pending step and (lenses) blocking count."""
+    from .changes import change_language, get_change
+
+    step = item["next_step"]
+    change = get_change(project_id, item["change_id"])
+    n = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    es = change_language(project_id, change) == "es"
+    detail = f" ({n} bloqueante/s)" if es and step["key"] == "lenses" else (f" ({n} blocking)" if step["key"] == "lenses" else "")
+    return f"{item['change_id']}: {step['key']}{detail}. {step['title']}."
 
 
 _READY_LINE_PREFIXES = ("Ready to build:", "Listo para construir:")
