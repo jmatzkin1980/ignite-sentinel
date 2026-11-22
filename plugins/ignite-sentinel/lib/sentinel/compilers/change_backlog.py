@@ -13,7 +13,7 @@ from typing import Any
 from .. import id_registry
 from ..change_requirements import load_change_ears, parse_delta
 from ..changes import change_language, get_change
-from ..core.graph import add_edge, add_node, upsert_node
+from ..core.graph import add_edge, add_node, children_of, load_graph, save_graph, upsert_node
 from ..core.io import read_json, remove, write_json, write_text
 from ..core.markdown import frontmatter_list, parse_frontmatter, table_cell
 from ..core.time import utc_now
@@ -28,6 +28,8 @@ TEXT = {
     "es": {
         "no_specs": "{cid} no tiene especificación: /backlog --change parte de {path}",
         "no_units": "{cid} no tiene unidades en {path}: no hay historias que derivar",
+        "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): las historias saldrían de unidades desactualizadas",
+        "stale_specs": "La especificación de {cid} no está al día con sus filas REQ-EARS (cambiaron desde /specs --change)",
         "epic_outcome": "Entregar el cambio {cid} sobre lo existente: una historia por unidad, con el comportamiento preservado como criterios pass-to-pass.",
         "stories": "## Historias",
         "header": ["Historia", "Delta", "Unidad", "Título"],
@@ -38,6 +40,8 @@ TEXT = {
     "en": {
         "no_specs": "{cid} has no specification: /backlog --change starts from {path}",
         "no_units": "{cid} has no units in {path}: there are no stories to derive",
+        "blocking": "{cid} has {n} blocking gap(s) open: the stories would come from stale units",
+        "stale_specs": "The specification of {cid} is not current with its REQ-EARS rows (they changed since /specs --change)",
         "epic_outcome": "Deliver the change {cid} on the existing system: one story per unit, with the preserved behavior as pass-to-pass criteria.",
         "stories": "## Stories",
         "header": ["Story", "Delta", "Unit", "Title"],
@@ -145,6 +149,19 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[d
     units = read_change_units(project_id, change_id)
     if not units:
         raise GateRefusal(text["no_units"].format(cid=change_id, path=_units_path(change_id)), next_step=next_step)
+    blocking = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    if blocking > 0:
+        raise GateRefusal(
+            text["blocking"].format(cid=change_id, n=blocking),
+            next_step=f"/resolve-gaps {project_id} --change {change_id}",
+        )
+    report = read_json(base / "03_specs" / change_id / "change_specs_report.json", {})
+    specs_ears = set(report.get("ears", [])) if isinstance(report, dict) else set()
+    current_ears = {
+        str(row["id"]) for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
+    }
+    if specs_ears != current_ears:
+        raise GateRefusal(text["stale_specs"].format(cid=change_id), next_step=next_step)
     return change, text, units
 
 
@@ -232,8 +249,6 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     # Graph: ids equal the registry ids (upsert, never add_node).
     upsert_node(project_id, epic_id, "epic", epic_path, title, domain="product")
     add_edge(project_id, change_id, epic_id, "decomposes_to")
-    from ..core.graph import children_of, load_graph, save_graph
-
     node_type = {str(n.get("id")): str(n.get("type")) for n in load_graph(project_id).get("nodes", [])}
     for story, path in zip(stories, story_paths):
         story_node = upsert_node(project_id, story["id"], "user_story", path, story["title"], domain=story["domain"])
@@ -278,11 +293,13 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
         lifecycle.pop(story_id, None)
     state = read_json(state_path(project_id), {})
     gates = state.get("story_gates", {})
-    if isinstance(gates, dict) and removed:
-        for story_id in removed:
-            gates.pop(story_id, None)
-        update_state(project_id, story_gates=gates)
-    update_state(project_id, story_lifecycle=lifecycle)
+    gates = dict(gates) if isinstance(gates, dict) else {}
+    for story_id in removed:
+        gates.pop(story_id, None)
+    story_ids = [story["id"] for story in stories]
+    changes = state.get("changes", {})
+    changes[change_id]["backlog"] = {"stories": story_ids, "change_requests": [], "generated_at": utc_now()}
+    update_state(project_id, story_gates=gates, story_lifecycle=lifecycle, changes=changes)
 
     assert_backlog_privacy_clean(project_id)
     broker = shared_broker(project_id)
@@ -295,10 +312,6 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
                           domain="delivery", trace_ids=[str(i.get("story_id")) for i in all_items] or ["IMPL-READINESS"])
     board = backlog_status(project_id)
 
-    story_ids = [story["id"] for story in stories]
-    changes = read_state(project_id).get("changes", {})
-    changes[change_id]["backlog"] = {"stories": story_ids, "change_requests": [], "generated_at": utc_now()}
-    update_state(project_id, changes=changes)
     epic_rel = epic_path.relative_to(base).as_posix()
     report = {
         "change_id": change_id, "epic": epic_id, "stories": story_ids, "removed": removed,

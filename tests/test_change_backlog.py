@@ -17,7 +17,7 @@ from sentinel.compilers.change_backlog import compile_change_backlog  # noqa: E4
 from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.errors import GateRefusal  # noqa: E402
 from sentinel.traceability import load_graph  # noqa: E402
-from sentinel.workspace import read_json, workspace_path  # noqa: E402
+from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_specs import (  # noqa: E402
     ALL_ANSWERS, EXTRA, PROJECT_EARS, PROJECT_RAW, answer, open_change, units_dir,
 )
@@ -87,7 +87,6 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         for story_id in res["stories"]:
             self.assertEqual(nodes[story_id]["type"], "user_story")
             self.assertIn({"from": "EPIC-CHG-001", "to": story_id, "relation": "contains"}, graph["edges"])
-        self.assertIn("EPIC-CHG-001", {n["id"] for n in graph["nodes"]})
         self.assertNotIn("EPIC-003", nodes)
 
     def test_state_next_step_and_board(self):
@@ -173,6 +172,43 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         self.assertEqual(caught.exception.next_step, f"/specs BORR --change {self.cid}")
         self.assertFalse((backlog_dir("BORR") / "EPIC-CHG-001.md").exists())
 
+    def test_refuses_with_blocking_gap_open(self):
+        changes = state("BORR")["changes"]
+        changes[self.cid]["gap_counts"]["blocking_open"] = 2
+        update_state("BORR", changes=changes)
+        with self.assertRaises(GateRefusal) as caught:
+            compile_change_backlog("BORR", self.cid)
+        self.assertIn("2 gap(s) bloqueante(s)", str(caught.exception))
+        self.assertEqual(caught.exception.next_step, f"/resolve-gaps BORR --change {self.cid}")
+        self.assertFalse((backlog_dir("BORR") / "EPIC-CHG-001.md").exists())
+
+    def test_refuses_when_specs_are_stale(self):
+        answer("BORR", self.cid, "b.md", EXTRA)  # a new row after /specs --change
+        for language, fragment in (("es", "no está al día"), ("en", "is not current")):
+            changes = state("BORR")["changes"]
+            changes[self.cid]["language"] = language
+            update_state("BORR", changes=changes)
+            with self.assertRaises(GateRefusal) as caught:
+                compile_change_backlog("BORR", self.cid)
+            self.assertIn(fragment, str(caught.exception))
+            self.assertEqual(caught.exception.next_step, f"/specs BORR --change {self.cid}")
+        self.assertFalse((backlog_dir("BORR") / "EPIC-CHG-001.md").exists())
+        run_ok(["specs", "BORR", "--change", self.cid])
+        self.assertEqual(len(self.run_backlog()["stories"]), 4)
+
+    def test_english_change_gets_english_text(self):
+        changes = state("BORR")["changes"]
+        changes[self.cid]["language"] = "en"
+        update_state("BORR", changes=changes)
+        res = self.run_backlog()
+        self.assertTrue(res["next_step"].startswith("Review the board"))
+        epic = (backlog_dir("BORR") / "EPIC-CHG-001.md").read_text(encoding="utf-8")
+        self.assertIn("Deliver the change CHG-001", epic)
+        self.assertIn("## Preserved behavior", epic)
+        row = next(line for line in story("BORR", "US-001").splitlines() if line.startswith("| AC-001-06 |"))
+        self.assertIn("the preserved behavior stays the same", row)
+        self.assertNotIn("sigue igual", row)
+
     def test_unknown_change_refused(self):
         code, _ = run_cli(["backlog", "BORR", "--change", "CHG-009"])
         self.assertEqual(code, 4)
@@ -226,7 +262,10 @@ class ChangeBacklogWithProject(SnapshotWorkspaceCase):
         self.assertNotIn("change:", before["US-001.md"])
         items = {i["story_id"] for i in readiness("MIX")["stories"]}
         self.assertTrue({"US-001", "US-002", "US-003", "US-004", "US-005"} <= items)
-        self.assertIn("EPIC-001", {n["id"] for n in load_graph("MIX")["nodes"]} | {"EPIC-001"})
+        epics = {n["id"] for n in load_graph("MIX")["nodes"] if n["type"] == "epic"}
+        self.assertIn("EPIC-001", epics)
+        self.assertIn(f"EPIC-{self.cid}", epics)
+        self.assertEqual({e for e in epics if e.startswith("EPIC-CHG")}, {f"EPIC-{self.cid}"})
 
     def test_project_backlog_after_change_keeps_change_stories(self):
         run_ok(["backlog", "MIX", "--change", self.cid])
@@ -236,6 +275,8 @@ class ChangeBacklogWithProject(SnapshotWorkspaceCase):
         for name, text in change_files.items():
             self.assertEqual((backlog_dir("MIX") / name).read_text(encoding="utf-8"), text)
         self.assertEqual(state("MIX")["story_lifecycle"]["US-004"]["status"], "Draft")
+        items = {i["story_id"] for i in readiness("MIX")["stories"]}
+        self.assertTrue({"US-003", "US-004", "US-005"} <= items)
 
 
 if __name__ == "__main__":

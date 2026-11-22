@@ -153,7 +153,8 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
         by_delta[unit["delta"]] = by_delta.get(unit["delta"], 0) + 1
     unit_ids = [unit["id"] for unit in units]
     preserved = [row["id"] for row in preserved_rows]
-    report = {"change_id": change_id, "units": unit_ids, "preserved": preserved, "by_delta": by_delta}
+    report = {"change_id": change_id, "units": unit_ids, "ears": [row["id"] for row in unit_rows],
+              "preserved": preserved, "by_delta": by_delta}
     write_json(folder / "change_specs_report.json", report)
 
     requirements_path = base / EARS_ANCHOR.format(cid=change_id).split("#")[0]
