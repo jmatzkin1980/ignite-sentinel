@@ -147,10 +147,67 @@ def classify_pair(first: dict[str, Any] | None, second: dict[str, Any] | None) -
     return AGREE if first["value_key"] == second["value_key"] else CONTRADICTION
 
 
+def _alt(values: list[str]) -> str:
+    return "(?:" + "|".join(values) + ")"
+
+
+def _declares_draft(folded: str, data: dict[str, Any], position: int) -> bool:
+    """IMP-390: `borrador`/`draft` count only as a title mark, a heading, metadata, the bare mark or a self-declaration.
+
+    Every value in `source_routing.json` that feeds these patterns must be accent-folded
+    (lowercase, no diacritics), because the text is folded with `_fold` before matching.
+    """
+    term = _alt(data["unvalidated_draft_terms"])
+    has_term = re.compile(rf"\b{term}\b")
+    plural_term = _alt(data["unvalidated_draft_terms"] + data["unvalidated_draft_plurals"])
+    if not has_term.search(folded) and not re.search(rf"\b{plural_term}\b", folded):
+        return False
+    if folded.startswith("#"):
+        return bool(has_term.search(folded))
+    # Title mark: first lines only, the term as its own segment (start or end, set off by a separator or brackets).
+    # Quoted, table and list-item text (answer fields) is content, not a title.
+    if (
+        position < int(data["unvalidated_title_lines"])
+        and "|" not in folded and '"' not in folded
+        and not re.match(r"^(?:[-*+]|\d+[.)])\s", folded)
+    ):
+        version = r"(?:\s+v?\d+(?:\.\d+)*)?"
+        close = r"[\s\])*_.]*"
+        start = rf"^[\s*_(\[]*{term}(?={close}$|\s*[-—–:|(\[,]|\s+v?\d+(?:\.\d+)*\b)"
+        end = rf"(?:[(\[]|[-—–:,])\s*[*_]*{term}{version}{close}$"
+        if re.search(start, folded) or re.search(end, folded):
+            return True
+    keys = _alt(sorted(data["unvalidated_metadata_keys"], key=len, reverse=True))
+    meta = re.match(rf"^(?:[-*]\s+)?(?:\*\*)?{keys}(?:\*\*)?\s*:(?:\*\*)?\s*(?P<value>.*)$", folded)
+    if meta and has_term.search(meta.group("value")):
+        return True
+    row = re.match(rf"^\|\s*(?:\*\*)?{keys}(?:\*\*)?\s*\|(?P<value>[^|]*)", folded)
+    if row and has_term.search(row.group("value")):
+        return True
+    keyless = _alt(data["unvalidated_keyless_keys"])
+    if re.match(rf"^(?:[-*]\s+)?(?:\*\*)?{keyless}(?:\*\*)?\s+{term}\b", folded):
+        return True
+    if re.fullmatch(term, " ".join(re.sub(r"[\W_]+", " ", folded).split())):
+        return True
+    doc_subject = _alt(data["unvalidated_self_subjects"])
+    any_subject = _alt(data["unvalidated_self_subjects"] + data["unvalidated_self_subjects_bare"])
+    verbs = _alt(data["unvalidated_self_verbs"])
+    adverbs = _alt(data["unvalidated_self_adverbs"])
+    ordinals = _alt(data["unvalidated_self_ordinals"])
+    phrases = _alt(data["unvalidated_self_phrases"])
+    declared = rf"\b{any_subject}\s+{verbs}\s+(?:{adverbs}\s+)?(?:(?:un|a)\s+)?(?:{ordinals}\s+)?{plural_term}\b"
+    if re.search(declared, folded):
+        return True
+    return bool(re.search(rf"\b{doc_subject}\b", folded) and re.search(rf"\b{phrases}\b", folded))
+
+
 def declares_unvalidated(text: str) -> bool:
     data = _data()
-    head = [line for _, line in _citable_lines(text)][: int(data["unvalidated_header_lines"])]
-    return bool(re.search(data["unvalidated_pattern"], _fold("\n".join(head))))
+    head = [line.lstrip("\ufeff").strip() for _, line in _citable_lines(text)][: int(data["unvalidated_header_lines"])]
+    folded = [_fold(line) for line in head]
+    if re.search(data["unvalidated_pattern"], "\n".join(folded)):
+        return True
+    return any(_declares_draft(line, data, index) for index, line in enumerate(folded))
 
 
 def new_technical_names(line: str, corpus: str) -> list[str]:
