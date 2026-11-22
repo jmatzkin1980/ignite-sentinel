@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from .core.io import read_json
-from .core.markdown import parse_frontmatter
+from .core.markdown import frontmatter_bounds, parse_frontmatter
 from . import id_registry
 
 _SPEC_UNIT = re.compile(r"^SPEC-U-\d{3}$")
@@ -53,3 +53,35 @@ def ensure_story_ids_seeded(project_id: str, base: Path) -> None:
         if _SPEC_UNIT.match(unit):
             issued.setdefault(unit, story_id)
     id_registry.seed_family(project_id, "US", issued)
+
+
+def with_modificada_por(text: str, ids: list[str]) -> str:
+    """The story's text with `modificada_por` set to `ids` (removed when empty); nothing else changes."""
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
+        return text
+    start, end = bounds
+    out: list[str] = []
+    skipping = False
+    for line in text[start:end].split("\n"):
+        if line.startswith("modificada_por:"):
+            skipping = True
+            continue
+        if skipping and line.startswith("  - "):
+            continue
+        skipping = False
+        out.append(line)
+    if ids:
+        out += ["modificada_por:", *[f"  - {sid}" for sid in ids]]
+    return text[:start] + "\n".join(out) + text[end:]
+
+
+def carry_modificada_por(path: Path, rendered: str) -> str:
+    """IMP-393: a project story re-rendered by /backlog keeps the `modificada_por` its file already had
+    (the change stories that modify it). A story without that key renders byte-identical."""
+    try:
+        current = parse_frontmatter(path.read_text(encoding="utf-8")).get("modificada_por", [])
+    except OSError:
+        return rendered
+    ids = [str(i) for i in current] if isinstance(current, list) else ([str(current)] if current else [])
+    return with_modificada_por(rendered, ids) if ids else rendered

@@ -115,7 +115,8 @@ def mark_stories_stale(project_id: str, story_ids: list[str], reason: str, chang
     """IMP-393: mark these stories Stale because a change affects them. Only the ones given, by id.
 
     The caller passes the stories that are not implemented (Draft, Ready, Blocked); a story that is
-    already Stale is left as it is. Returns the ids this call marked.
+    already Stale is left as it is. Callers must pass only not-implemented ids: a Done or in-progress story is
+    never staled by a change (it gets a change request instead). Returns the ids this call marked.
     """
     base, readiness_path, readiness, items = _readiness_story_pack(project_id)
     by_id = {str(item.get("story_id", "")): item for item in items}

@@ -15,10 +15,10 @@ from ..change_requirements import load_change_ears, parse_delta
 from ..changes import change_language, get_change
 from ..core.graph import add_edge, add_node, children_of, load_graph, save_graph, upsert_node
 from ..core.io import read_json, remove, write_json, write_text
-from ..core.markdown import frontmatter_bounds, frontmatter_list, parse_frontmatter, table_cell
+from ..core.markdown import frontmatter_list, parse_frontmatter, table_cell
 from ..core.time import utc_now
 from ..errors import GateRefusal
-from ..story_ids import ensure_story_ids_seeded
+from ..story_ids import ensure_story_ids_seeded, with_modificada_por
 from ..workspace import read_state, state_path, update_state, workspace_path
 from .change_brief import _note_title
 from .change_specs import UNIT_DELTAS
@@ -36,6 +36,7 @@ TEXT = {
         "preserved": "## Comportamiento preservado",
         "no_preserved": "_Sin filas UNCHANGED._",
         "next": "Revisá el tablero {board} y las historias de {cid} en {epic}.",
+        "missing_affected": "{sid}, que {row} de {cid} dice afectar, ya no existe en el backlog: se ignora",
         "stale_reason": "El cambio {cid} modifica o retira lo que esta historia entrega",
         "in_progress": "{sid} está {status}: queda como está; {new} lleva el cambio {cid} como change request y hay que coordinarlo con quien la implementa",
     },
@@ -50,6 +51,7 @@ TEXT = {
         "preserved": "## Preserved behavior",
         "no_preserved": "_No UNCHANGED rows._",
         "next": "Review the board {board} and the stories of {cid} in {epic}.",
+        "missing_affected": "{sid}, which {row} of {cid} says it affects, no longer exists in the backlog: ignored",
         "stale_reason": "The change {cid} modifies or retires what this story delivers",
         "in_progress": "{sid} is {status}: it is left as it is; {new} carries the change {cid} as a change request, coordinate it with whoever implements it",
     },
@@ -195,6 +197,8 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
         row = rows_by_id.get(ears_of_unit.get(str(story.get("source_unit", "")), ""))
         delta = parse_delta(row["delta"]) if row else None
         affected = list(row.get("affects") or []) if row and delta in ("MODIFIED", "REMOVED") else []
+        missing = [sid for sid in affected if sid not in on_disk]
+        warnings += [text["missing_affected"].format(sid=sid, cid=change_id, row=row["id"]) for sid in missing]
         affected = [sid for sid in affected if sid in on_disk]
         statuses = {sid: lifecycle_for_story(project_id, sid)["status"] for sid in affected}
         modifies = [sid for sid, status in statuses.items() if status == "Done" or status in _IN_PROGRESS]
@@ -213,28 +217,6 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     return {"to_stale": list(dict.fromkeys(to_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped}
 
 
-def _with_modificada_por(text: str, ids: list[str]) -> str:
-    """The story's text with `modificada_por` set to `ids` (removed when empty); nothing else changes."""
-    bounds = frontmatter_bounds(text)
-    if bounds is None:
-        return text
-    start, end = bounds
-    lines = text[start:end].split("\n")
-    out: list[str] = []
-    skipping = False
-    for line in lines:
-        if line.startswith("modificada_por:"):
-            skipping = True
-            continue
-        if skipping and line.startswith("  - "):
-            continue
-        skipping = False
-        out.append(line)
-    if ids:
-        out += ["modificada_por:", *[f"  - {sid}" for sid in ids]]
-    return text[:start] + "\n".join(out) + text[end:]
-
-
 def _write_modificada_por(base: Path, own: set[str], modified_by: dict[str, list[str]]) -> None:
     """Originals gain `modificada_por` (this change's stories that modify them); entries of this change that no
     longer apply are dropped. Only that key of the frontmatter is touched."""
@@ -247,7 +229,7 @@ def _write_modificada_por(base: Path, own: set[str], modified_by: dict[str, list
         current = [str(i) for i in current] if isinstance(current, list) else [str(current)]
         wanted = list(dict.fromkeys([i for i in current if i not in own] + modified_by.get(path.stem, [])))
         if wanted != current:
-            write_text(path, _with_modificada_por(front_text, wanted))
+            write_text(path, with_modificada_por(front_text, wanted))
 
 
 def _readiness_summary(items: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:

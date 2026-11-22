@@ -13,6 +13,7 @@ from sentinel.id_registry import registry_path  # noqa: E402
 from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.slice_plan import build_phases, build_story_rows  # noqa: E402
 from sentinel.compilers.slicing import build_cross_cutting_enabler_specs  # noqa: E402
+from sentinel.story_ids import carry_modificada_por  # noqa: E402
 from sentinel.traceability import load_graph  # noqa: E402
 from sentinel.workspace import read_json, workspace_path  # noqa: E402
 from test_change_specs import PROJECT_EARS, PROJECT_RAW, open_change  # noqa: E402
@@ -123,6 +124,7 @@ class ChangeAffectedStories(SnapshotWorkspaceCase):
         self.assertEqual(state()["story_lifecycle"]["US-001"]["status"], "In Progress")
         self.assertEqual(story("US-001").replace(f"modificada_por:\n  - {new}\n", ""), before)
         self.assertIn("US-001", story(new))
+        self.assertIn({"from": new, "to": "US-001", "relation": "modifies"}, load_graph("MIX")["edges"])
 
     def test_in_progress_warning_in_english(self):
         set_status("US-001", "Ready", "In Progress")
@@ -156,6 +158,43 @@ class ChangeAffectedStories(SnapshotWorkspaceCase):
         self.assertEqual(front["modifica"], ["US-001"])
         self.assertEqual(state()["story_lifecycle"]["US-002"]["status"], "Stale")
         self.assertIn("US-002", res["stale"])
+        self.assertEqual(parse_frontmatter(story("US-001"))["modificada_por"], [new])
+        self.assertNotIn("modificada_por", story("US-002"))
+        self.assertIn({"from": new, "to": "US-001", "relation": "modifies"}, load_graph("MIX")["edges"])
+        self.assertNotIn({"from": new, "to": "US-002", "relation": "modifies"}, load_graph("MIX")["edges"])
+
+    def test_removed_on_done_story_makes_change_request(self):
+        set_status("US-002", "Ready", "In Progress", "In Review", "Done")
+        res = self.run_backlog()
+        removed = self.by_delta(res)["REMOVED"]
+        front = parse_frontmatter(story(removed))
+        self.assertEqual((front["type"], front["modifica"]), ("change_request", ["US-002"]))
+        self.assertEqual(state()["story_lifecycle"]["US-002"]["status"], "Done")
+        self.assertEqual(parse_frontmatter(story("US-002"))["modificada_por"], [removed])
+        self.assertEqual(res["stale"], ["US-001"])
+
+    def test_missing_affected_story_warns(self):
+        (backlog_dir() / "US-002.md").unlink()
+        res = self.run_backlog()
+        self.assertTrue(any("US-002" in w for w in res["warnings"]))
+        self.assertEqual(res["stale"], ["US-001"])
+
+    def test_modificada_por_survives_project_backlog(self):
+        set_status("US-001", "Ready", "In Progress", "In Review", "Done")
+        res = self.run_backlog()
+        new = self.by_delta(res)["MODIFIED"]
+        run_ok(["backlog", "MIX"])
+        after = story("US-001")
+        self.assertEqual(parse_frontmatter(after)["modificada_por"], [new])
+        self.assertEqual(state()["story_lifecycle"]["US-001"]["status"], "Done")
+        # only the frontmatter key is carried; the story is otherwise the project's own render
+        front = parse_frontmatter(after)
+        self.assertEqual((front["type"], front["parent_epic"], front["status"]), ("value_story", "EPIC-001", "Done"))
+        rendered = "---\nid: US-001\ntrace:\n  - X\n---\n\nbody\n"
+        path = backlog_dir() / "US-001.md"
+        self.assertEqual(carry_modificada_por(path, rendered), rendered.replace("  - X\n", "  - X\nmodificada_por:\n  - " + new + "\n"))
+        self.assertEqual(carry_modificada_por(backlog_dir() / "US-002.md", rendered), rendered)
+        self.assertEqual(carry_modificada_por(backlog_dir() / "US-099.md", rendered), rendered)
 
     def test_change_request_enters_slice_plan(self):
         from unittest.mock import patch

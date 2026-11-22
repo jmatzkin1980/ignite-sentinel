@@ -9,7 +9,7 @@ from typing import Any
 from .core.markdown import table_cell
 from .memory import apply_pack_disclosure_budget, get_multi_domain_context, shared_broker, shared_brokers
 from . import id_registry
-from .story_ids import ensure_story_ids_seeded, is_change_story
+from .story_ids import carry_modificada_por, ensure_story_ids_seeded, is_change_story
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
@@ -450,7 +450,7 @@ def _generate_backlog(
     for index, story_spec in enumerate(story_specs, start=1):
         story_path = base / "04_backlog" / (f"{story_spec['id']}.md" if stable_ids else f"US-{index:03d}.md")
         story_paths.append(story_path)
-        write_text(story_path, render_story(project_id, epic_id, story_spec, effective_story_format))
+        write_text(story_path, carry_modificada_por(story_path, render_story(project_id, epic_id, story_spec, effective_story_format)))
         active_story_paths.add(story_path)
         story_id = (
             upsert_node(project_id, story_spec["id"], "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
