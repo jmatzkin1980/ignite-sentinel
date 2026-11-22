@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-11-22
+
 ### Added
 
 - **Changes to an existing system, increment 4b (IMP-393).** A change gets its backlog, and what it affects in the backlog that already exists is traced.
