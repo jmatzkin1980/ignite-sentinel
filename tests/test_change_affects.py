@@ -26,6 +26,7 @@ def answer(delta: str | None, affects: str | None, evidence: str | None = None, 
         lines.append(f"- Delta: {delta}")
     if affects is not None:
         lines.append(f"- Afecta: {affects}")
+    lines.append("- Superficie: Tabla de proveedores")
     if evidence is not None:
         lines.append(f"- Evidencia o referencia: {evidence}")
     lines.append("- Estado de decisión: confirmado")
@@ -117,7 +118,7 @@ class ChangeAffects(SnapshotWorkspaceCase):
         res = self.resolve("a.md", answer("MODIFIED", "US-002"))
         self.assertIn("GAP-ACCEPTANCE", res["closed"])
         text = self.rows_path().read_text(encoding="utf-8")
-        self.assertIn("| ID | Pattern | Delta | Statement | Source | Afecta |", text)
+        self.assertIn("| ID | Pattern | Delta | Statement | Source | Afecta | Superficie |", text)
         rows = load_change_ears("BORR", self.cid)
         self.assertEqual(rows[0]["affects"], ["US-002"])
         again = self.resolve("b.md", answer("MODIFIED", "US-001, US-002"))

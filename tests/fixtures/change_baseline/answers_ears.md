@@ -15,6 +15,7 @@
 - Owner / fuente: Jefa de Compras
 - Evidencia o referencia: taller de Compras, 2026-11-18
 - Delta: ADDED
+- Superficie: Botón "Guardar borrador" en el alta de proveedores; Listado "Mis borradores"
 - Estado de decisión: confirmado
 
 ### GAP-BUSINESS-RULES
@@ -22,6 +23,7 @@
 - Owner / fuente: Jefa de Compras
 - Evidencia o referencia: taller de Compras, 2026-11-18
 - Delta: ADDED
+- Superficie: Tabla de proveedores
 - Estado de decisión: confirmado
 
 ### GAP-PRODUCT-ASIS-TOBE
@@ -29,4 +31,5 @@
 - Owner / fuente: Jefa de Compras
 - Evidencia o referencia: taller de Compras, 2026-11-18
 - Delta: UNCHANGED
+- Superficie: Envío actual del alta de proveedores
 - Estado de decisión: confirmado

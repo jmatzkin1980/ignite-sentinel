@@ -91,6 +91,8 @@ def read_change_units(project_id: str, change_id: str) -> list[dict[str, Any]]:
             "relative_path": path.relative_to(base).as_posix(),
             "change": change_id,
             "delta": str(front.get("delta", "")).strip(),
+            "surfaces": [str(item) for item in front.get("surfaces", []) if str(item).strip()]
+            if isinstance(front.get("surfaces"), list) else [],
             "trace_ids": [str(item) for item in front.get("trace_ids", []) if str(item).strip()],
             "ears": [str(item) for item in front.get("ears", []) if str(item).strip()],
             "sources": [str(item) for item in front.get("sources", []) if str(item).strip()],

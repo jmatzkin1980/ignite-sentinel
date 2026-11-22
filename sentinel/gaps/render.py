@@ -124,6 +124,7 @@ Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué
 
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (sólo si la respuesta está en EARS)
     - Afecta: US-003, US-007 | ninguna (sólo si el Delta es MODIFIED o REMOVED y el proyecto ya tiene historias)
+    - Superficie: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (una o más del borde, separadas por `;`; obligatoria en toda respuesta EARS de un cambio)
 """
     return """
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
@@ -144,6 +145,7 @@ If the answer is in EARS ("When ..., the system shall ..."), declare what it doe
 
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (only if the answer is in EARS)
     - Affects: US-003, US-007 | none (only if the Delta is MODIFIED or REMOVED and the project already has stories)
+    - Surface: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (one or more of the border, separated by `;`; required on every EARS answer of a change)
 """
 
 

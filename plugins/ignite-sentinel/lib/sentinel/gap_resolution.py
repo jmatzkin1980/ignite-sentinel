@@ -105,6 +105,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     _flag_baseline(responses, baseline_errors)
     delta_findings: list[dict[str, str]] = []
     affects_findings: list[dict[str, object]] = []
+    surface_findings: list[dict[str, object]] = []
     change_lang = ""
     if change_id:
         from .changes import change_language
@@ -112,6 +113,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         change_lang = change_language(project_id, get_change(project_id, change_id), text)
         delta_findings = _flag_delta(responses, change_lang)
         affects_findings = _flag_affects(project_id, change_id, responses, change_lang)
+        surface_findings = _flag_surface(project_id, change_id, responses, change_lang)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -149,6 +151,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         return _finish_change_resolution(
             project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
             resolution_results, unknown_gap_ids, responses, delta_findings, language, affects_findings,
+            surface_findings,
         )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
@@ -310,6 +313,46 @@ def _flag_affects(project_id: str, change_id: str, responses: dict[str, dict[str
     return findings
 
 
+def _flag_surface(project_id: str, change_id: str, responses: dict[str, dict[str, str]], language: str) -> list[dict[str, object]]:
+    """IMP-396: a confirmed EARS answer of a change (any Delta) names at least one valid surface of the confirmed border.
+
+    Without a confirmed border (the scope round) the check does not apply; GAP-SCOPE is exempt.
+    """
+    from .change_requirements import parse_surfaces, propose_surfaces
+    from .changes import get_change
+
+    change = get_change(project_id, change_id)
+    border = change.get("border", []) or []
+    if not change.get("border_confirmed_at") or not border:
+        return []
+    names = [str(item.get("name", "")) for item in border if item.get("name")]
+    findings: list[dict[str, object]] = []
+    for gap_id, response in responses.items():
+        if gap_id == "GAP-SCOPE" or response.get("delta_error"):
+            continue
+        answer = str(response.get("answer", "")).strip()
+        if normalize_status(response.get("decision_status", "")) not in CONFIRMED_STATUSES or not is_substantive_answer(answer):
+            continue
+        statements = ears_statements(answer)
+        if not statements:
+            continue
+        valid, unknown = parse_surfaces(str(response.get("surface", "")), border)
+        if valid and not unknown:
+            continue
+        proposed = propose_surfaces(" ".join(s for s, _ in statements), border)
+        listed = "; ".join(names)
+        if unknown:
+            note = (f"Superficie nombra superficies que no están en el borde: {'; '.join(unknown)}; el borde: {listed}" if language == "es"
+                    else f"Surface names surfaces missing from the border: {'; '.join(unknown)}; the border: {listed}")
+        else:
+            note = (f"falta Superficie (una o más del borde, separadas por `;`); propuesta: {'; '.join(proposed) or 'ninguna'}; el borde: {listed}"
+                    if language == "es" else
+                    f"Surface is missing (one or more of the border, separated by `;`); proposal: {'; '.join(proposed) or 'none'}; the border: {listed}")
+        response["delta_error"] = note
+        findings.append({"gap": gap_id, "proposed": proposed, "border": names, "note": note})
+    return findings
+
+
 def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
     """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
     from .changes import parse_border
@@ -349,6 +392,7 @@ def _finish_change_resolution(
     delta_findings: list[dict[str, str]] | None = None,
     language: str = "es",
     affects_findings: list[dict[str, object]] | None = None,
+    surface_findings: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
@@ -396,6 +440,7 @@ def _finish_change_resolution(
         "unknown_gap_ids": unknown_gap_ids,
         "delta_findings": delta_findings or [],
         "affects_findings": affects_findings or [],
+        "surface_findings": surface_findings or [],
         "ears_rows": reconciled["added"],
         "delta_updated": reconciled["delta_updated"],
         "superseded_rows": reconciled["superseded"],

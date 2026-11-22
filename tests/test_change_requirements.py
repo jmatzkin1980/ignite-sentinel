@@ -26,6 +26,7 @@ def acceptance(answer: str, delta: str | None) -> str:
     lines = ["### GAP-ACCEPTANCE", f"- Respuesta: {answer}", "- Owner / fuente: Jefa de Compras"]
     if delta is not None:
         lines.append(f"- Delta: {delta}")
+    lines.append("- Superficie: Tabla de proveedores")
     lines.append("- Estado de decisión: confirmado")
     return "\n".join(lines) + "\n"
 
