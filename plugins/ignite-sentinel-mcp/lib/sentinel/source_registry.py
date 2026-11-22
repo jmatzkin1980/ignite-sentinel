@@ -46,6 +46,10 @@ KIND_BY_FOLDER = {
     "03_design_context": "design_context",
     "04_quality_context": "quality_context",
     "05_interactions": "interaction",
+    "06_baseline": "baseline",
+    "07_prior_plan": "prior_plan",
+    "08_new_design": "new_design",
+    "09_request": "client_requirement",
     "00_client_responses": "client_response",
     "01_meetings": "meeting",
     "02_mail_slack": "mail_slack",
@@ -57,10 +61,49 @@ KIND_BY_FOLDER = {
     "quality_context": "quality_context",
     "interactions": "interaction",
 }
+# IMP-400: the role a source plays in a change (brownfield path). Rows of the project path
+# never carry one; the harvest is Sentinel's reading and has no role.
+SOURCE_ROLES = ("pedido", "linea_de_base", "plan_previo", "diseno_nuevo")
+ROLE_FOLDERS = {
+    "pedido": "00_raw/09_request",
+    "linea_de_base": "00_raw/06_baseline",
+    "plan_previo": "00_raw/07_prior_plan",
+    "diseno_nuevo": "00_raw/08_new_design",
+}
+_ROLE_BY_KIND = {
+    "baseline": "linea_de_base",
+    "business_context": "linea_de_base",
+    "technology_context": "linea_de_base",
+    "prior_plan": "plan_previo",
+    "new_design": "diseno_nuevo",
+    "design_context": "diseno_nuevo",
+}
 
 
 class SourceRegistryError(ValueError):
     """A `/sources` request that would leave the registry inconsistent."""
+
+
+def role_is_declared(row: dict[str, Any]) -> bool:
+    return bool(row.get("role"))
+
+
+def row_role(row: dict[str, Any]) -> str | None:
+    """The declared role, else the one the row's history and kind imply (None if none)."""
+    if row.get("role"):
+        return str(row["role"])
+    events = row.get("events") or []
+    if any(event.get("via") == "harvested" for event in events):
+        return None
+    if events and events[0].get("via") in ("change_ingested", "initial_ingested"):
+        return "pedido"
+    return _ROLE_BY_KIND.get(str(row.get("kind")))
+
+
+def set_role(row: dict[str, Any], role: str) -> None:
+    if role not in SOURCE_ROLES:
+        raise SourceRegistryError(f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}")
+    row["role"] = role
 
 
 def source_kind(key: str) -> str:
@@ -368,6 +411,7 @@ _COPY = {
         "candidate": "candidate new version of {id}, not confirmed",
         "copies": "copies: {n}",
         "authority": "authority: {authority}",
+        "role": "role: {role}",
         "cells": "impact cells pending: {n}",
         "missing": "original no longer present",
         "unknown": "unknown",
@@ -390,6 +434,7 @@ _COPY = {
         "candidate": "posible versión nueva de {id}, sin confirmar",
         "copies": "copias: {n}",
         "authority": "autoridad: {authority}",
+        "role": "rol: {role}",
         "cells": "celdas de impacto pendientes: {n}",
         "missing": "el original ya no está",
         "unknown": "sin dato",
@@ -424,6 +469,8 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             notes.append(copy["candidate"].format(id=row["pending_version_of"]))
         if row.get("copies"):
             notes.append(copy["copies"].format(n=len(row["copies"])))
+        if role_is_declared(row):
+            notes.append(copy["role"].format(role=row["role"]))
         if row.get("authority"):
             notes.append(copy["authority"].format(authority=row["authority"]))
         pending = sum(1 for cell in row.get("impact") or [] if cell.get("state") == "pending")

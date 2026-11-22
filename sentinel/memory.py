@@ -38,6 +38,10 @@ CONTEXT_FOLDERS = {
     "00_raw/03_design_context": ("design_context", "design"),
     "00_raw/04_quality_context": ("quality_context", "quality"),
     "00_raw/05_interactions": ("interaction_context", "product"),
+    "00_raw/06_baseline": ("baseline_context", "technical"),
+    "00_raw/07_prior_plan": ("prior_plan_context", "product"),
+    "00_raw/08_new_design": ("design_context", "design"),
+    "00_raw/09_request": ("raw_context", "product"),
     "07_changes": ("change_context", "product"),
 }
 INDEXABLE_SUFFIXES = {".md", ".txt", ".html", ".htm"}

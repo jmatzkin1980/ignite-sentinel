@@ -20,7 +20,7 @@ from .core.text import unique_path
 from .lens_registry import SURFACE_TYPES, load_lens_checks
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
-from .sources import mark_source_processed, open_source_row
+from .sources import declare_source_role, mark_source_processed, open_source_row
 from .workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
 SCOPE_ROUND_IDS: tuple[str, ...] = ("GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE")
@@ -124,6 +124,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
     own_source = f"00_raw/{raw_target.name}"
     extracted = read_source(source, media_stem=raw_target.stem)
     source_id = open_source_row(project_id, source, "change_ingested")
+    declare_source_role(project_id, source_id, "pedido")  # IMP-400: the note is the request
     config = load_config(project_id)
     text, _sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config), extracted)
     text, _injection_ids = shield_source(base, source.name, text)
@@ -151,6 +152,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "border_confirmed_at": None,
         "responses": [],
         "gap_counts": count_gaps(gaps),
+        "sources": [source_id],
     }
     update_state(project_id, changes=changes)
     return {

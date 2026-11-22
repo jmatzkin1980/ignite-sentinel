@@ -12,6 +12,7 @@ from .source_registry import (
     close_row,
     SourceRegistryError,
     ensure_registry,
+    set_role,
     find_row,
     open_row,
     registry_summary,
@@ -142,6 +143,16 @@ def open_source_row(
     seed_impact(row)  # IMP-250b: authority + impact matrix on first sight
     save_source_manifest(project_id, manifest)
     return str(row["id"])
+
+
+def declare_source_role(project_id: str, source_id: str, role: str) -> None:
+    """IMP-400: persist the role a source plays in a change on its F-NN row."""
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    if row is None:
+        raise SourceRegistryError(f"fuente desconocida: {source_id}")
+    set_role(row, role)
+    save_source_manifest(project_id, manifest)
 
 
 def mark_source_processed(
