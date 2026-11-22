@@ -2206,7 +2206,7 @@ The normal submit has to keep working as today. The existing system is already i
 
     **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command: nothing is pending. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
 
-    **What it means:** The checks are: every unit cites its requirement and the border surface (`unit_citations`); every `UNCHANGED` requirement is a pass-to-pass criterion in the stories (`preserved_pass_to_pass`); every requirement names surfaces of the border (`rows_have_surfaces`); and every story stays inside the border (`stories_inside_border`). A finding makes the verdict `INVALID` and the command exits 5, with each finding naming what to fix. `/validate` does not rewrite anything.
+    **What it means:** The checks are: every unit cites the change brief and points at a current requirement (`unit_citations`); every `UNCHANGED` requirement is a pass-to-pass criterion in the stories (`preserved_pass_to_pass`); every requirement names surfaces of the border (`rows_have_surfaces`); and every story stays inside the border (`stories_inside_border`). A finding makes the verdict `INVALID` and the command exits 5, with each finding naming what to fix. `/validate` does not rewrite anything.
 
     <details><summary>In a terminal</summary>
 
@@ -2244,7 +2244,7 @@ Some borders say the change is bigger than a change. Sentinel warns, but never b
 | `new_actors` | The border adds a role in the `nuevo` zone. |
 | `third_party_contract` | A `MODIFIED` or `REMOVED` requirement touches an adjacent endpoint or integration, a contract others rely on. |
 
-In the sample, say the head of Purchasing also wants a new role who approves the drafts, so the scope answer has `- nuevo | rol | Draft approver` instead of the drafts list.
+In the sample, say the head of Purchasing also wants a new role who approves the drafts, so the scope answer has `- nuevo | rol | Draft approver` instead of the drafts list (the other border surfaces stay).
 
 **Tell the assistant:** "What is next for CHG-001?"
 

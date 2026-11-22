@@ -84,12 +84,17 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     except UnicodeDecodeError:
         raise InputError(f"{source.name} is not UTF-8 text.", next_step="Save it as UTF-8 and run /resolve-gaps again.") from None
     baseline_errors: dict[str, str | None] = {}
+    scope_border: list[dict[str, str]] | None = None
     if change_id:
         # IMP-382: validate the border before the first write; an invalid one rejects the whole file.
         # IMP-384: every by_baseline citation is checked first (a finding, never an exception), so the dry run
         # sees a GAP-SCOPE closed by by_baseline as closed and validates its border too.
         baseline_errors = _check_baseline_citations(base, project_id, change_id, text)
-        _validate_change_border(gaps_path, text, baseline_errors)
+        from .changes import change_language
+
+        scope_border = _validate_change_border(
+            gaps_path, text, baseline_errors, change_language(project_id, get_change(project_id, change_id), text)
+        )
     source_id = open_source_row(project_id, source, "gap_resolved")  # IMP-250a
     target_dir = base / "07_changes" / "00_client_responses"
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -113,7 +118,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         change_lang = change_language(project_id, get_change(project_id, change_id), text)
         delta_findings = _flag_delta(responses, change_lang)
         affects_findings = _flag_affects(project_id, change_id, responses, change_lang)
-        surface_findings = _flag_surface(project_id, change_id, responses, change_lang)
+        surface_findings = _flag_surface(project_id, change_id, responses, change_lang, scope_border)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -313,18 +318,28 @@ def _flag_affects(project_id: str, change_id: str, responses: dict[str, dict[str
     return findings
 
 
-def _flag_surface(project_id: str, change_id: str, responses: dict[str, dict[str, str]], language: str) -> list[dict[str, object]]:
+def _flag_surface(
+    project_id: str,
+    change_id: str,
+    responses: dict[str, dict[str, str]],
+    language: str,
+    scope_border: list[dict[str, str]] | None = None,
+) -> list[dict[str, object]]:
     """IMP-396: a confirmed EARS answer of a change (any Delta) names at least one valid surface of the confirmed border.
 
-    Without a confirmed border (the scope round) the check does not apply; GAP-SCOPE is exempt.
+    The border is the one GAP-SCOPE closes with in this same file (`scope_border`), else the confirmed one.
+    Without either (the scope round, GAP-SCOPE not closing) the check does not apply; GAP-SCOPE is exempt.
     """
     from .change_requirements import parse_surfaces, propose_surfaces
     from .changes import get_change
 
     change = get_change(project_id, change_id)
-    border = change.get("border", []) or []
-    if not change.get("border_confirmed_at") or not border:
-        return []
+    if scope_border:
+        border = scope_border
+    else:
+        border = change.get("border", []) or []
+        if not change.get("border_confirmed_at") or not border:
+            return []
     names = [str(item.get("name", "")) for item in border if item.get("name")]
     findings: list[dict[str, object]] = []
     for gap_id, response in responses.items():
@@ -353,8 +368,13 @@ def _flag_surface(project_id: str, change_id: str, responses: dict[str, dict[str
     return findings
 
 
-def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
-    """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
+def _validate_change_border(
+    gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None, language: str = "es"
+) -> list[dict[str, str]] | None:
+    """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write.
+
+    Returns the border parsed from this file when GAP-SCOPE closes (IMP-396: the surface check of the same file uses it).
+    """
     from .changes import parse_border
 
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
@@ -362,7 +382,8 @@ def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[st
     _flag_baseline(dry_responses, baseline_errors or {})
     dry = apply_gap_responses(existing, dry_responses)  # the same rules, writing nothing
     if any(gap["id"] == "GAP-SCOPE" for gap in dry["closed"]):
-        parse_border(_gap_block(text, "GAP-SCOPE"), "")
+        return parse_border(_gap_block(text, "GAP-SCOPE"), "", language)
+    return None
 
 
 def _check_baseline_citations(base: Path, project_id: str, change_id: str, text: str) -> dict[str, str | None]:

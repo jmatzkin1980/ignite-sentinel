@@ -41,7 +41,8 @@ def escalation_warnings(project_id: str, change_id: str) -> list[dict]:
     processes = _names(border, lambda i: i.get("type") == "proceso")
     integrations = _names(border, lambda i: i.get("type") == "integracion" and i.get("zone") in ("nuevo", "adyacente"))
     if len(processes) >= 2 or integrations:
-        found.append(("several_processes", list(dict.fromkeys(processes + integrations)), []))
+        shown = processes + integrations if len(processes) >= 2 else integrations
+        found.append(("several_processes", list(dict.fromkeys(shown)), []))
 
     actors = _names(border, lambda i: i.get("type") == "rol" and i.get("zone") == "nuevo")
     if actors:

@@ -134,6 +134,9 @@ class ChangeFlow(SnapshotWorkspaceCase):
         # IMP-396: the finished change validates, has no pending step and raises no escalation warning.
         validate_out = json.loads(run_ok(["validate", "BORR", "--change", cid]))
         self.assertEqual(validate_out["verdict"], "VALID")
+        self.assertEqual({c["id"]: c["status"] for c in validate_out["checks"]}, {
+            "unit_citations": "PASS", "preserved_pass_to_pass": "PASS",
+            "rows_have_surfaces": "PASS", "stories_inside_border": "PASS"})
         self.assertEqual(validate_out["warnings"], [])
         next_out = json.loads(run_ok(["next", "BORR", "--change", cid]))
         self.assertEqual(next_out["key"], "done")

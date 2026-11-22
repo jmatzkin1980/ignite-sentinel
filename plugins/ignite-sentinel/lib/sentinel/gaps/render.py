@@ -145,7 +145,7 @@ If the answer is in EARS ("When ..., the system shall ..."), declare what it doe
 
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (only if the answer is in EARS)
     - Affects: US-003, US-007 | none (only if the Delta is MODIFIED or REMOVED and the project already has stories)
-    - Surface: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (one or more of the border, separated by `;`; required on every EARS answer of a change)
+    - Surface: "Save draft" button in the supplier registration; Current submission of the supplier registration (one or more of the border, separated by `;`; required on every EARS answer of a change)
 """
 
 

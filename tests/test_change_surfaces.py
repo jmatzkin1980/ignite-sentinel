@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, run_cli, run_ok  # noqa: E402
 from sentinel.change_requirements import (  # noqa: E402
     change_requirements_path, load_change_ears, parse_surfaces, propose_surfaces,
 )
@@ -201,3 +201,53 @@ class ProjectPathIgnoresSurface(SnapshotWorkspaceCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def scope_round_answer(surface_line: str | None) -> str:
+    """GAP-SCOPE with its border plus an EARS answer to GAP-PRODUCT-ASIS-TOBE, in the same file."""
+    lines = ["### GAP-PRODUCT-ASIS-TOBE", f"- Respuesta: {ONE}", "- Owner / fuente: Jefa de Compras", "- Delta: ADDED"]
+    if surface_line is not None:
+        lines.append(f"- Superficie: {surface_line}")
+    lines.append("- Estado de decisión: confirmado")
+    return SCOPE_ANSWER + "\n" + "\n".join(lines) + "\n"
+
+
+class ChangeScopeRoundSurfaces(SnapshotWorkspaceCase):
+    """IMP-396: the scope round also checks Superficie, against the border GAP-SCOPE closes with in the same file."""
+
+    @classmethod
+    def build_workspace(cls):
+        shutil.copy(FIXTURES / "change_borrador.md", Path.cwd() / "pedido.md")
+        run_ok(["init", "BORR"])
+        run_ok(["ingest", "BORR", "--source", "pedido.md", "--change"])
+
+    def resolve(self, text: str) -> dict:
+        Path("scope_round.md").write_text(text, encoding="utf-8")
+        return json.loads(run_ok(["resolve-gaps", "BORR", "--source", "scope_round.md", "--change", "CHG-001"]))
+
+    def test_same_file_ears_without_surface_stays_open(self):
+        res = self.resolve(scope_round_answer(None))
+        self.assertIn("GAP-SCOPE", res["closed"])
+        self.assertNotIn("GAP-PRODUCT-ASIS-TOBE", res["closed"])
+        self.assertEqual(res["surface_findings"][0]["gap"], "GAP-PRODUCT-ASIS-TOBE")
+        self.assertIn(LISTADO, res["surface_findings"][0]["border"])
+        self.assertFalse(change_requirements_path(workspace_path("BORR"), "CHG-001").exists())
+
+    def test_same_file_ears_with_a_typo_stays_open_and_reports_it(self):
+        res = self.resolve(scope_round_answer("Listdo Mis borradores"))
+        self.assertNotIn("GAP-PRODUCT-ASIS-TOBE", res["closed"])
+        self.assertIn("Listdo Mis borradores", res["surface_findings"][0]["note"])
+
+    def test_same_file_ears_with_a_valid_surface_closes_and_is_recorded(self):
+        res = self.resolve(scope_round_answer(LISTADO))
+        self.assertIn("GAP-PRODUCT-ASIS-TOBE", res["closed"])
+        self.assertEqual(res["surface_findings"], [])
+        self.assertEqual(load_change_ears("BORR", "CHG-001")[0]["surfaces"], [LISTADO])
+
+    def test_border_name_with_semicolon_is_rejected(self):
+        bad = SCOPE_ANSWER.replace('Listado "Mis borradores"', "Listado; borradores")
+        Path("bad.md").write_text(bad, encoding="utf-8")
+        code, out = run_cli(["resolve-gaps", "BORR", "--source", "bad.md", "--change", "CHG-001"])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(get_change("BORR", "CHG-001")["round"], "scope")
+        self.assertFalse(get_change("BORR", "CHG-001").get("border_confirmed_at"))

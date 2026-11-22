@@ -314,6 +314,8 @@ CHANGE_TEXT = {
         "lenses": ("Cerrar las preguntas bloqueantes del cambio",
                    "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en {path} y corré /resolve-gaps."),
         "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
+        "brief_stale": ("Recompilar el brief del cambio",
+                        "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
         "requirements": ("Responder los requisitos del cambio",
                          "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé en EARS con Delta y Superficie y corré /resolve-gaps."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
@@ -328,6 +330,8 @@ CHANGE_TEXT = {
         "lenses": ("Close the change's blocking questions",
                    "{cid} has {n} blocking gap(s) open: answer them in {path} and run /resolve-gaps."),
         "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
+        "brief_stale": ("Recompile the change brief",
+                        "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
         "requirements": ("Answer the change requirements",
                          "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer in EARS with Delta and Superficie and run /resolve-gaps."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
@@ -361,7 +365,7 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "scope"
     if int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0) > 0:
         return "lenses"
-    if not (base / "02_requirements" / change_id / "project-brief.md").is_file():
+    if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
         return "brief"
     if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id)):
         return "requirements"
@@ -374,6 +378,20 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
     return "done"
+
+
+def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
+    """IMP-396: the compiled brief's report no longer matches the change's blocking gaps (or has no report)."""
+    from .core.io import read_json
+
+    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
+    if not isinstance(report, dict):
+        return True
+    try:
+        recorded = int(report.get("blocking_open", 0) or 0)
+    except (TypeError, ValueError):
+        return True
+    return recorded != int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
 
 
 def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:
@@ -400,7 +418,9 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
 
     change = get_change(project_id, change_id)
     key = _change_step_key(project_id, change_id, change)
-    title, text = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])[key]
+    texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
+    stale = key == "brief" and (workspace_path(project_id) / "02_requirements" / change_id / "project-brief.md").is_file()
+    title, text = texts["brief_stale" if stale else key]
     ctx = {
         "cid": change_id, "pid": project_id,
         "n": int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0),

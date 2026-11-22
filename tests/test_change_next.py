@@ -89,6 +89,26 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertEqual(s["command"], "")
         self.assertNotIn("prd", " ".join(s.values()).lower())
 
+    def test_stale_change_brief_sends_back_to_brief(self):
+        # The brief was compiled with the 3 blocking gaps open; closing them leaves it stale.
+        (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        run_ok(["brief", "BORR", "--change", CID])
+        report = workspace_path("BORR") / "02_requirements" / CID / "change_brief_report.json"
+        self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["blocking_open"], 3)
+        self.assertEqual(step()["key"], "lenses")
+        answer("BORR", CID, "a.md", ALL_ANSWERS)
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("brief", f"/brief BORR --change {CID}"))
+        self.assertIn("cambió el estado de los gaps", s["text"])
+        self.assertEqual(cli_json(["next", "BORR", "--change", CID])["key"], "brief")
+        run_ok(["brief", "BORR", "--change", CID])
+        self.assertNotEqual(step()["key"], "brief")
+        report.unlink()
+        self.assertEqual(step()["key"], "brief")
+        set_change("BORR", language="en")
+        self.assertIn("state of the gaps changed", step()["text"])
+
     def test_specs_not_current_goes_back_to_specs(self):
         self.test_each_row_of_the_table_in_order()
         answer("BORR", CID, "b.md", EXTRA)
@@ -166,6 +186,41 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
             _tools()["sentinel_status"](project_id="P", change=CID)
             _tools()["sentinel_next"](project_id="P")
         self.assertEqual(captured, [["next", "P", "--change", CID], ["status", "P", "--change", CID], ["next", "P"]])
+
+
+class ChangeNextSeriesRelease(SnapshotWorkspaceCase):
+    """A release verdict through the CLI (production fills `release` from the active scope) carries no `changes`."""
+
+    @classmethod
+    def build_workspace(cls):
+        from test_release_split import VALID as SERIES  # noqa: PLC0415
+
+        base = workspace_path("NOVA")
+        run_ok(["init", "NOVA", "--brief-version", "1"])
+        run_ok(["ingest", "NOVA", "--source", str(FIXTURES / "complete_requirement.md")])
+        run_ok(["maturity", "NOVA"])
+        (base / "02_requirements" / "project-brief.md").write_text(SERIES["brief"], encoding="utf-8")
+        from sentinel.discovery import parse_gap_rows, render_gaps
+
+        gaps = base / "01_discovery" / "gaps.md"
+        rows = [r for r in parse_gap_rows(gaps.read_text(encoding="utf-8")) if r.get("id") != "NONE"]
+        rows += [{"id": g, "lens": "business", "severity": "low", "status": "OPEN", "description": "synthetic gap",
+                  "question": "Which?", "evidence_mention": "x", "origin": "agent", "resolution_note": ""}
+                 for g in SERIES["open_gaps"]]
+        gaps.write_text(render_gaps("NOVA", rows, "REQ-001", "en"), encoding="utf-8")
+        Path("proposal.json").write_text(json.dumps(SERIES["payload"]), encoding="utf-8")
+        run_ok(["split", "NOVA", "--propose", "--source", "proposal.json"])
+        run_ok(["split", "NOVA", "--confirm", "--ba", "Ana", "--tech", "Core"])
+        shutil.copy(FIXTURES / "change_borrador.md", Path.cwd() / "pedido.md")
+        run_ok(["ingest", "NOVA", "--source", "pedido.md", "--change"])
+
+    def test_release_verdict_carries_no_changes(self):
+        self.assertIn("changes", cli_json(["next", "NOVA"]))
+        self.assertIn("changes", cli_json(["status", "NOVA"]))
+        self.assertNotIn("changes", cli_json(["next", "NOVA", "--release", "r1"]))
+        status = cli_json(["status", "NOVA", "--release", "r1"])
+        self.assertNotIn("changes", status)
+        self.assertNotIn("changes", status["verdict"])
 
 
 class ChangeNextWarnings(SnapshotWorkspaceCase):

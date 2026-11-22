@@ -1702,7 +1702,7 @@ A hand-edit warning means: revert the edit, or carry the change through the owni
 | `PROJECT_ID` | id | required | The workspace. |
 | `--override` | a JSON file | none | Cited `DEC-*` decisions to proceed despite an `INVALID` verdict or warnings. Recorded under `06_traceability/gate_overrides/`; the verdict stays as it is. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | One release of a confirmed series. |
-| `--change` | `CHG-NNN` | none | Validate that change only, with four checks: `unit_citations` (each unit cites its requirement row and the border surface), `preserved_pass_to_pass` (each `UNCHANGED` row is a pass-to-pass criterion in the stories), `rows_have_surfaces` (every row names surfaces of the border) and `stories_inside_border` (each story stays inside the border). A check whose artifact does not exist yet shows `SKIP`. The result has `verdict` (`VALID` or `INVALID`), `findings`, `checks` and the escalation `warnings`. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | Validate that change only, with four checks: `unit_citations` (each unit cites the change brief and points at a current requirement row of the change), `preserved_pass_to_pass` (each `UNCHANGED` row is a pass-to-pass criterion in the stories), `rows_have_surfaces` (every row names surfaces of the border) and `stories_inside_border` (each story stays inside the border). A check whose artifact does not exist yet shows `SKIP`. The result has `verdict` (`VALID` or `INVALID`), `findings`, `checks` and the escalation `warnings`. It does not combine with `--release` (exit 3). |
 
 On a project with a series, a plain `/validate` also reports the series' sync findings and each release's integrity.
 
@@ -1744,13 +1744,13 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `PROJECT_ID` | id | required | The workspace. |
 | `--full` | flag | off | Add the detailed dump: maturity metrics, development readiness, assumptions, knowledge ledger, story gates, backlog rollup, last change ids. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The verdict for one release. A release that depends on an unclosed release is `NOT_READY`, with the dependency named. |
-| `--change` | `CHG-NNN` | none | Show only that change: its round, border, gap counts, `next_action` and escalation `warnings`. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | Show only that change: its round, whether the border is confirmed (`border_confirmed`), gap counts, `next_action` and escalation `warnings`. It does not combine with `--release` (exit 3). |
 
 **Reads.** `state.json` and the workspace artifacts.
 
 **Writes.** Nothing.
 
-**Refuses when.** Only the common gates. A `NOT_READY` verdict exits 0.
+**Refuses when.** Only the common gates. A `NOT_READY` verdict exits 0. `--change` with `--release` → exit 3; an unknown change → exit 4.
 
 **You get.**
 
@@ -1792,7 +1792,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **Writes.** Nothing.
 
-**Refuses when.** Only the common gates.
+**Refuses when.** Only the common gates. `--change` with `--release` → exit 3; an unknown change → exit 4.
 
 **You get.** `key`, `title`, `text` and the `command` to run. The steps, in the order they are checked:
 
@@ -1809,7 +1809,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
 | `brief` | No gap left open and no brief yet | `/brief` |
 
-With `--change`, the keys are the steps of that sequence instead; the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change or move to the project path, and nothing blocks.
+With `--change`, the keys are the steps of that sequence instead (the `brief` step also comes back when the compiled change brief no longer matches the change's blocking gaps: recompile it); the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change or move to the project path, and nothing blocks.
 
 **Next step.** Run that command. On a brief v2 project with unconfirmed settings it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 

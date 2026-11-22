@@ -128,6 +128,9 @@ class ChangeValidation(SnapshotWorkspaceCase):
         result = validate_change("BORR", CID)
         self.assertEqual(checks(result)["rows_have_surfaces"], "FAIL")
         self.assertTrue(any("REQ-EARS-001" in f for f in result["findings"]))
+        finding = next(f for f in result["findings"] if "REQ-EARS-001" in f)
+        self.assertIn("--source", finding)
+        self.assertRegex(finding, r"GAP-[A-Z-]+")
 
     def test_row_with_surface_outside_the_border(self):
         path = workspace_path("BORR") / "02_requirements" / CID / "requirements.md"

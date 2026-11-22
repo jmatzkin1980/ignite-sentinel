@@ -67,6 +67,15 @@ class ChangeEscalation(SnapshotWorkspaceCase):
         self.setup_change([item("preservado", "integracion", "Pasarela")])
         self.assertEqual(escalation_warnings("BORR", "CHG-001"), [])
 
+    def test_one_process_next_to_an_integration_lists_only_the_integration(self):
+        self.setup_change([item("preservado", "proceso", "Alta"), item("adyacente", "integracion", "Pasarela")])
+        (w,) = escalation_warnings("BORR", "CHG-001")
+        self.assertEqual(w["surfaces"], ["Pasarela"])
+        self.setup_change([item("nuevo", "proceso", "Alta"), item("preservado", "proceso", "Baja"),
+                           item("adyacente", "integracion", "Pasarela")])
+        (w,) = escalation_warnings("BORR", "CHG-001")
+        self.assertEqual(w["surfaces"], ["Alta", "Baja", "Pasarela"])
+
     def test_new_actors(self):
         self.setup_change([item("nuevo", "rol", "Auditor"), item("adyacente", "rol", "Jefa")])
         (w,) = escalation_warnings("BORR", "CHG-001")

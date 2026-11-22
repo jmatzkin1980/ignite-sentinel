@@ -1,6 +1,8 @@
 """IMP-396: `/validate --change CHG-nnn`. Four structural checks over the artifacts of one change; read-only."""
 from __future__ import annotations
 
+import re
+
 from .change_escalation import escalation_warnings
 from .change_requirements import load_change_ears, parse_surfaces
 from .changes import change_language, get_change
@@ -19,7 +21,7 @@ TEXT = {
         "p2p_next": "Corré /backlog {project} --change {change} para regenerar las historias.",
         "row_no_surface": "La fila {row} no declara superficie.",
         "row_unknown_surface": "La fila {row} nombra la superficie {surface}, que no está en el borde del cambio.",
-        "rows_next": "Respondé la fila con una Superficie del borde con /resolve-gaps {project} --change {change}.",
+        "rows_next": "/resolve-gaps {project} --source <respuestas> --change {change} — re-respondé {gap} con Superficie (una del borde).",
         "artifact_no_surface": "{artifact} no declara superficies.",
         "artifact_unknown_surface": "{artifact} nombra la superficie {surface}, que no está en el borde del cambio.",
         "border_next": "Corré /specs {project} --change {change} y /backlog {project} --change {change} para regenerarlos desde las filas.",
@@ -37,7 +39,7 @@ TEXT = {
         "p2p_next": "Run /backlog {project} --change {change} to regenerate the stories.",
         "row_no_surface": "Row {row} declares no surface.",
         "row_unknown_surface": "Row {row} names the surface {surface}, which is not in the change border.",
-        "rows_next": "Answer the row with a border Surface through /resolve-gaps {project} --change {change}.",
+        "rows_next": "/resolve-gaps {project} --source <answers> --change {change} — answer {gap} again with a Surface (one of the border).",
         "artifact_no_surface": "{artifact} declares no surfaces.",
         "artifact_unknown_surface": "{artifact} names the surface {surface}, which is not in the change border.",
         "border_next": "Run /specs {project} --change {change} and /backlog {project} --change {change} to regenerate them from the rows.",
@@ -68,6 +70,12 @@ def _change_stories(project_id: str, change_id: str) -> list[dict]:
     return stories
 
 
+def _source_gap(row: dict) -> str:
+    """The gap a row came from (its Fuente cell carries `GAP-X`, or `file#GAP-X`)."""
+    found = re.search(r"GAP-[A-Z0-9-]+", str(row.get("source", "")))
+    return found.group(0) if found else str(row["id"])
+
+
 def _p2p_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith("| AC-") and "pass-to-pass" in line]
 
@@ -83,8 +91,12 @@ def validate_change(project_id: str, change_id: str) -> dict:
     findings: list[str] = []
     checks: list[dict] = []
 
-    def record(check_id: str, found: list[str], next_key: str) -> None:
-        found = [f"{item} {text['next']}: {text[next_key].format(**ctx)}" for item in found]
+    def record(check_id: str, found: list, next_key: str) -> None:
+        # an item is a message, or (message, source gap) when the next step names the gap
+        found = [
+            f"{message} {text['next']}: {text[next_key].format(**ctx, gap=gap)}"
+            for message, gap in ((i, "") if isinstance(i, str) else i for i in found)
+        ]
         findings.extend(found)
         checks.append({"id": check_id, "status": "FAIL" if found else "PASS", "detail": "; ".join(found) or text["ok"]})
 
@@ -126,11 +138,12 @@ def validate_change(project_id: str, change_id: str) -> dict:
         found = []
         for row in rows:
             surfaces = row.get("surfaces", [])
+            gap = _source_gap(row)
             if not surfaces:
-                found.append(text["row_no_surface"].format(row=row["id"]))
+                found.append((text["row_no_surface"].format(row=row["id"]), gap))
             for surface in surfaces:
                 if parse_surfaces(surface, border)[1]:
-                    found.append(text["row_unknown_surface"].format(row=row["id"], surface=surface))
+                    found.append((text["row_unknown_surface"].format(row=row["id"], surface=surface), gap))
         record("rows_have_surfaces", found, "rows_next")
 
     # 4. stories_inside_border
