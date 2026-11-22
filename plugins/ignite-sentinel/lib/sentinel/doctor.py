@@ -74,7 +74,7 @@ def is_framework_root(root: Path) -> bool:
 # none, so the runtime doctor names the packages of each extra (pyproject.toml) instead.
 def _runtime_installs() -> tuple[tuple[str, str], ...]:
     # IMP-398: `python` may not be on PATH (plugin installs); name the interpreter Sentinel runs with.
-    pip = f'"{sys.executable}" -m pip install'
+    pip = f'"{sys.executable or "python"}" -m pip install'
     return (
         ("python -m pip install -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
         ("python -m pip install -e .[memory]", f"{pip} lancedb"),
