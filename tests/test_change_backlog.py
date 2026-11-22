@@ -140,6 +140,18 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         self.assertEqual(state("BORR")["story_lifecycle"]["US-001"]["owner"], "ana")
         self.assertIn("status: Ready", story("BORR", "US-001"))
 
+    def test_rerun_with_same_inputs_is_identical(self):
+        self.run_backlog()
+        files = ["EPIC-CHG-001.md", "US-001.md", "US-002.md", "US-003.md"]
+        before = {n: (backlog_dir("BORR") / n).read_text(encoding="utf-8") for n in files}
+        context = (workspace_path("BORR") / "08_context_packs" / self.cid / "backlog_generation.json").read_text(encoding="utf-8")
+        self.run_backlog()
+        self.run_backlog()
+        for name, text in before.items():
+            self.assertEqual((backlog_dir("BORR") / name).read_text(encoding="utf-8"), text, name)
+        after = (workspace_path("BORR") / "08_context_packs" / self.cid / "backlog_generation.json").read_text(encoding="utf-8")
+        self.assertEqual(after, context)
+
     def test_rerun_removes_superseded_story_keeps_ids(self):
         self.run_backlog()
         kept = story("BORR", "US-003")

@@ -189,7 +189,7 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     from ..backlog.rollup import backlog_status
     from ..backlog.status import audit_acceptance_criteria_freezes, lifecycle_for_story
     from ..generation import build_backlog_generation_context, implementation_readiness_for_story
-    from ..memory import shared_broker
+    from ..memory import memory_key, shared_broker
     from .backlog import render_story
     from .slicing import build_backlog_story_specs
 
@@ -207,6 +207,15 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     ensure_story_ids_seeded(project_id, base)
     ids = id_registry.assign_ids(project_id, "US", [unit["id"] for unit in units])
 
+    # A rerun must not retrieve what the previous run derived (the change's epic, stories and readiness pack):
+    # drop those rows from memory so the same inputs give the same stories; they are indexed again at the end.
+    previous_ids = set(_change_story_ids(base, change_id))
+    pack_path = base / "08_context_packs" / "implementation_readiness.json"
+    epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
+    shared_broker(project_id).forget_sources({
+        memory_key(project_id, path)
+        for path in (epic_path, pack_path, *(base / "04_backlog" / f"{sid}.md" for sid in previous_ids))
+    })
     specs_text = (base / _specs_path(change_id)).read_text(encoding="utf-8")
     backlog_context = build_backlog_generation_context(project_id, specs_text, "")
     stories = build_backlog_story_specs(project_id, backlog_context, language=language, units=units, ids=ids)
@@ -231,12 +240,10 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
         readiness_items.append(item)
 
     # Files: this change's stories (and only them) are replaced; the ones that no longer come out are removed.
-    previous_ids = set(_change_story_ids(base, change_id))
     current_ids = {story["id"] for story in stories}
     removed = sorted(previous_ids - current_ids)
     write_json(base / pack_rel, backlog_context)
     title = _note_title(base, change)
-    epic_path = base / "04_backlog" / f"{epic_id}.md"
     write_text(epic_path, _render_epic(project_id, change_id, title, stories, preserved, text, pack_rel))
     story_paths: list[Path] = []
     for story in stories:
@@ -269,7 +276,6 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
         save_graph(project_id, graph)
 
     # Readiness: this change's items replace their own previous ones; the others stay.
-    pack_path = base / "08_context_packs" / "implementation_readiness.json"
     pack = read_json(pack_path, {})
     pack = pack if isinstance(pack, dict) else {}
     own = previous_ids | current_ids
