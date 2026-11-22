@@ -14,7 +14,8 @@ _UNCHANGED_HINT = re.compile(
 )
 SUPERSEDED_HEADINGS = ("## Superseded requirements", "## Requisitos reemplazados")
 TABLE_HEADER = [
-    "| ID | Pattern | Delta | Statement | Source | Afecta |", "| --- | --- | --- | --- | --- | --- |",
+    "| ID | Pattern | Delta | Statement | Source | Afecta | Superficie |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
 ]
 _STORY_ID = re.compile(r"\bUS-\d{3}\b")
 _NO_AFFECTS = ("ninguna", "ninguno", "none")
@@ -46,9 +47,47 @@ def _affects_cell(ids: list[str]) -> str:
     return ", ".join(ids) if ids else "-"
 
 
+def _fold_name(text: str) -> str:
+    """Case, accent and spacing folded, so a surface name matches however the BA typed it."""
+    from .source_conflicts import _fold
+
+    return " ".join(_fold(str(text or "")).split())
+
+
+def parse_surfaces(value: str, border: list[dict]) -> tuple[list[str], list[str]]:
+    """IMP-396: (valid, unknown) surfaces of a `Superficie` value against the border; valid ones as the border spells them."""
+    by_name = {_fold_name(item.get("name", "")): str(item.get("name", "")) for item in border if item.get("name")}
+    valid: list[str] = []
+    unknown: list[str] = []
+    for part in str(value or "").split(";"):
+        part = part.strip().strip("`").strip()
+        if not part or part == "-":
+            continue
+        canonical = by_name.get(_fold_name(part))
+        target, name = (valid, canonical) if canonical else (unknown, part)
+        if name not in target:
+            target.append(name)
+    return valid, unknown
+
+
+def propose_surfaces(statement: str, border: list[dict]) -> list[str]:
+    """IMP-396: the border surfaces whose name appears in the statement (a proposal; the BA declares)."""
+    folded = _fold_name(statement)
+    found: list[str] = []
+    for item in border:
+        name = str(item.get("name", ""))
+        if name and _fold_name(name) in folded and name not in found:
+            found.append(name)
+    return found
+
+
+def _surfaces_cell(names: list[str]) -> str:
+    return "; ".join(names) if names else "-"
+
+
 def _padded(cells: list[str]) -> list[str]:
-    """A 0.20.0 row (5 columns) gets the Afecta column."""
-    return cells if len(cells) >= 6 else [*cells, "-"]
+    """A 0.20.0 row (5 columns) gets Afecta, a 0.21.0 row (6) gets Superficie."""
+    return [*cells, *["-"] * max(0, 7 - len(cells))]
 
 
 def story_files(base: Path) -> dict[str, Path]:
@@ -129,6 +168,8 @@ def load_change_ears(project_id: str, change_id: str) -> list[dict]:
             "id": cells[0], "pattern": cells[1], "delta": cells[2],
             "statement": cells[3].replace(_ESCAPED_PIPE, "|"), "source": cells[4],
             "affects": _STORY_ID.findall(cells[5]) if len(cells) >= 6 else [],
+            "surfaces": [s.strip() for s in cells[6].replace(_ESCAPED_PIPE, "|").split(";") if s.strip() and s.strip() != "-"]
+            if len(cells) >= 7 else [],
         })
     return rows
 
@@ -176,7 +217,10 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
     original = path.read_text(encoding="utf-8") if exists else ""
     head, active, old = _split_file(original) if exists else ([], [], [])
     next_index = next_ears_index(base)
-    new_rows: list[tuple[str, dict, str, str, str, str]] = []
+    from .changes import get_change
+
+    border = get_change(project_id, change_id).get("border", []) or []
+    new_rows: list[tuple[str, dict, str, str, str, str, str]] = []
     for gap in closed:
         if gap["id"] == "GAP-SCOPE":
             continue
@@ -188,6 +232,7 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
         affects = _affects_cell(
             (parse_affects(str(responses.get(gap["id"], {}).get("affects", ""))) or []) if delta in _AFFECTING_DELTAS else []
         )
+        surfaces = _surfaces_cell(parse_surfaces(str(responses.get(gap["id"], {}).get("surface", "")), border)[0])
         produced: dict[str, tuple[str, str]] = {}
         for statement, pattern in statements:
             produced.setdefault(_cell(statement), (statement, pattern))
@@ -199,9 +244,10 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
             key = _cell(cells[3].replace(_ESCAPED_PIPE, "|"))
             if key in produced and key not in matched:
                 matched.add(key)
-                if cells[2] != delta or cells[5] != affects:
+                if cells[2] != delta or cells[5] != affects or cells[6] != surfaces:
                     cells[2] = delta or cells[2]
                     cells[5] = affects
+                    cells[6] = surfaces
                     active[position] = "| " + " | ".join(cells) + " |"
                     result["delta_updated"].append(cells[0])
             else:
@@ -210,11 +256,13 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
                 result["superseded"].append(cells[0])
         for key, (statement, pattern) in produced.items():
             if key not in matched:
-                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta), affects))
+                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta), affects, surfaces))
                 next_index += 1
     active = [line for line in active if line]
-    for req_id, gap, statement, pattern, delta, affects in new_rows:
-        active.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` | {affects} |")
+    for req_id, gap, statement, pattern, delta, affects, surfaces in new_rows:
+        active.append(
+            f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` | {affects} | {_cell(surfaces)} |"
+        )
         node_id = add_node(
             project_id, "REQ", "ears_requirement", path, f"{req_id} ({pattern}, {delta}) from {gap['id']}",
             status="confirmed", domain=gap.get("lens", "product"),
@@ -229,7 +277,7 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
     )
     spanish = title.startswith("# Requisitos")
     def full(line: str) -> str:
-        return line if len(_row_cells(line)) >= 6 else "| " + " | ".join(_padded(_row_cells(line))) + " |"
+        return line if len(_row_cells(line)) >= 7 else "| " + " | ".join(_padded(_row_cells(line))) + " |"
 
     active = [full(line) for line in active]
     old = [full(line) for line in old]

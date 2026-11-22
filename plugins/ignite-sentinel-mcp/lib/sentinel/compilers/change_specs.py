@@ -120,6 +120,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
             "status": "evidence-backed",
             "change": change_id,
             "delta": parse_delta(row["delta"]),
+            "surfaces": list(row.get("surfaces") or []),
             "trace_ids": [change_id, row["id"]],
             "ears": [row["id"]],
             "sources": sources,

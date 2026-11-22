@@ -165,7 +165,7 @@ _BORDER_TYPE_ALIASES = {"integración": "integracion"}
 _BORDER_FIELD = re.compile(r"^([ 	]*)-[ 	]*Borde[ 	]*:[ 	]*(.*)$", re.I | re.M)
 
 
-def parse_border(response_block: str, cite: str) -> list[dict[str, str]]:
+def parse_border(response_block: str, cite: str, language: str = "es") -> list[dict[str, str]]:
     """The structured border in a confirmed answer to GAP-SCOPE: one `zona | tipo | nombre` line per surface.
 
     The border comes only from what the BA wrote; an invalid line rejects the whole block.
@@ -205,6 +205,13 @@ def parse_border(response_block: str, cite: str) -> list[dict[str, str]]:
                 f"Tipo de borde inválido «{parts[1]}» en la línea «{text}». "
                 f"Tipos válidos: {', '.join(SURFACE_TYPES)} (integración se acepta con tilde).",
                 next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
+            )
+        if ";" in name:
+            raise InputError(
+                (f"El nombre de superficie «{name}» no puede llevar `;` (separa las superficies en Superficie)." if language == "es"
+                 else f"The surface name «{name}» cannot contain `;` (it separates surfaces in Surface)."),
+                next_step=("Sacá el `;` del nombre y volvé a correr /resolve-gaps con el mismo archivo." if language == "es"
+                           else "Remove the `;` from the name and run /resolve-gaps again with the same file."),
             )
         border.append({"zone": zone, "type": kind, "name": name, "cite": cite})
     if not border:

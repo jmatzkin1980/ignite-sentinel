@@ -25,14 +25,14 @@ from test_mcp_parity import _tools  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 OBJECTIVE = ("### GAP-OBJECTIVE\n- Respuesta: Cuando el comprador cambia el texto del aviso, el sistema debe mostrar el aviso nuevo.\n"
-             "- Owner / fuente: Jefa de Compras\n- Delta: MODIFIED\n- Estado de decisión: confirmado\n")
+             "- Owner / fuente: Jefa de Compras\n- Delta: MODIFIED\n- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n")
 USERS = ("### GAP-USERS\n- Respuesta: Cuando el comprador sigue enviando el alta completa, el sistema debe continuar validando los datos.\n"
-         "- Owner / fuente: Jefa de Compras\n- Delta: UNCHANGED\n- Estado de decisión: confirmado\n")
+         "- Owner / fuente: Jefa de Compras\n- Delta: UNCHANGED\n- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n")
 ACCEPTANCE = ("### GAP-ACCEPTANCE\n- Respuesta: Cuando el comprador guarda el alta incompleta, el sistema debe conservar los datos cargados. "
               "Cuando el comprador abre la lista de pendientes, el sistema debe listar sus altas incompletas.\n"
-              "- Owner / fuente: Jefa de Compras\n- Delta: ADDED\n- Estado de decisión: confirmado\n")
+              "- Owner / fuente: Jefa de Compras\n- Delta: ADDED\n- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n")
 EXTRA = ("### GAP-TECH-NFR\n- Respuesta: Cuando el comprador consulta sus altas incompletas, el sistema debe responder en menos de dos segundos.\n"
-         "- Owner / fuente: Jefa de Compras\n- Delta: ADDED\n- Estado de decisión: confirmado\n")
+         "- Owner / fuente: Jefa de Compras\n- Delta: ADDED\n- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n")
 ALL_ANSWERS = ACCEPTANCE + "\n" + OBJECTIVE + "\n" + USERS
 PROJECT_RAW = """# Operations Risk Dashboard
 

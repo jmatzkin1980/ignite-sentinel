@@ -91,6 +91,8 @@ def read_change_units(project_id: str, change_id: str) -> list[dict[str, Any]]:
             "relative_path": path.relative_to(base).as_posix(),
             "change": change_id,
             "delta": str(front.get("delta", "")).strip(),
+            "surfaces": [str(item) for item in front.get("surfaces", []) if str(item).strip()]
+            if isinstance(front.get("surfaces"), list) else [],
             "trace_ids": [str(item) for item in front.get("trace_ids", []) if str(item).strip()],
             "ears": [str(item) for item in front.get("ears", []) if str(item).strip()],
             "sources": [str(item) for item in front.get("sources", []) if str(item).strip()],
@@ -149,6 +151,20 @@ context_pack: {context_pack}
 """
 
 
+def specs_currency(project_id: str, change_id: str) -> str:
+    """"current" when the specs report matches the current rows, "old" when it has no deltas, else "stale"."""
+    report = read_json(workspace_path(project_id) / "03_specs" / change_id / "change_specs_report.json", {})
+    deltas = report.get("deltas") if isinstance(report, dict) else None
+    if not isinstance(deltas, dict):
+        return "old"
+    specs_ears = {str(key): str(value) for key, value in deltas.items()}
+    current_ears = {
+        str(row["id"]): parse_delta(row["delta"])
+        for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
+    }
+    return "current" if specs_ears == current_ears else "stale"
+
+
 def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[dict[str, Any]]]:
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
@@ -165,16 +181,10 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[d
             text["blocking"].format(cid=change_id, n=blocking),
             next_step=f"/resolve-gaps {project_id} --change {change_id}",
         )
-    report = read_json(base / "03_specs" / change_id / "change_specs_report.json", {})
-    deltas = report.get("deltas") if isinstance(report, dict) else None
-    if not isinstance(deltas, dict):
+    state = specs_currency(project_id, change_id)
+    if state == "old":
         raise GateRefusal(text["old_specs"].format(cid=change_id), next_step=next_step)
-    specs_ears = {str(key): str(value) for key, value in deltas.items()}
-    current_ears = {
-        str(row["id"]): parse_delta(row["delta"])
-        for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
-    }
-    if specs_ears != current_ears:
+    if state == "stale":
         raise GateRefusal(text["stale_specs"].format(cid=change_id), next_step=next_step)
     return change, text, units
 
@@ -202,6 +212,7 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     warnings: list[str] = []
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
+    dropped_units: list[str] = []
     for story in stories:
         row = rows_by_id.get(ears_of_unit.get(str(story.get("source_unit", "")), ""))
         delta = parse_delta(row["delta"]) if row else None
@@ -221,10 +232,12 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
             story["type"], story["modifica"] = "change_request", modifies
         elif delta == "REMOVED" and affected:
             dropped.append(story["id"])
+            dropped_units.append(str(story.get("source_unit", "")))
             continue
         kept.append(story)
     stories[:] = kept
-    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped}
+    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped,
+            "dropped_units": dropped_units}
 
 
 def _write_modificada_por(base: Path, own: set[str], change_id: str, modified_by: dict[str, list[str]]) -> None:
@@ -447,6 +460,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     stale = affected["all_stale"]
     changes[change_id]["backlog"] = {
         "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
+        "dropped_units": affected["dropped_units"],  # IMP-396: units deliberately left without a story
     }
     update_state(project_id, changes=changes)
 

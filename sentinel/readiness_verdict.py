@@ -155,6 +155,13 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     )
     result["next_step"] = next_step(project_id, state, result, has_stories=bool(stories), has_brief=brief_exists,
                                     assumed_blocking=assumed_blocking)
+    # IMP-396: only a workspace with changes grows the key (path A stays as it was), and never inside a
+    # release scope: changes are project-level, a release verdict covers the release only.
+    if state.get("changes") and release is None:
+        result["changes"] = changes_overview(project_id)
+        if not (base / "02_requirements" / "requirements.md").exists():
+            # a change-only workspace has no project to ingest or write a PRD for: the next step is the change's
+            result["next_step"] = _first_change_step(result["changes"])
     return result
 
 
@@ -298,6 +305,149 @@ def next_step(
     command = command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
                              genesis=proposal.get("genesis", "greenfield"))
     return {"key": key, "title": title, "text": text, "command": release_scoped_command(command)}
+
+
+CHANGE_TEXT = {
+    "es": {
+        "scope": ("Cerrar el borde del cambio",
+                  "Respondé GAP-SCOPE con el borde del cambio (una línea por superficie: zona | tipo | nombre) y corré /resolve-gaps."),
+        "lenses": ("Cerrar las preguntas bloqueantes del cambio",
+                   "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en {path} y corré /resolve-gaps."),
+        "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
+        "brief_stale": ("Recompilar el brief del cambio",
+                        "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
+        "requirements": ("Responder los requisitos del cambio",
+                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé en EARS con Delta y Superficie y corré /resolve-gaps."),
+        "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
+        "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
+        "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
+        "done": ("Cambio al día",
+                 "{cid} no tiene pasos pendientes: revisá el tablero 04_backlog/BACKLOG.md y las historias de EPIC-{cid}."),
+    },
+    "en": {
+        "scope": ("Close the change border",
+                  "Answer GAP-SCOPE with the change border (one line per surface: zone | type | name) and run /resolve-gaps."),
+        "lenses": ("Close the change's blocking questions",
+                   "{cid} has {n} blocking gap(s) open: answer them in {path} and run /resolve-gaps."),
+        "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
+        "brief_stale": ("Recompile the change brief",
+                        "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
+        "requirements": ("Answer the change requirements",
+                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer in EARS with Delta and Superficie and run /resolve-gaps."),
+        "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
+        "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
+        "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
+        "done": ("Change up to date",
+                 "{cid} has no pending step: review the board 04_backlog/BACKLOG.md and the stories of EPIC-{cid}."),
+    },
+}
+CHANGE_COMMANDS = {
+    "scope": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "brief": "/brief {pid} --change {cid}",
+    "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "specs": "/specs {pid} --change {cid}",
+    "backlog": "/backlog {pid} --change {cid}",
+    "validate": "/validate {pid} --change {cid}",
+    "done": "",
+}
+
+
+def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
+    """IMP-396: the first step of the change's sequence that is still pending (none ever suggests the PRD)."""
+    from .change_requirements import load_change_ears, parse_delta
+    from .change_validation import validate_change
+    from .compilers.change_backlog import read_change_units, specs_currency
+    from .compilers.change_specs import UNIT_DELTAS
+
+    base = workspace_path(project_id)
+    if change.get("round") == "scope":
+        return "scope"
+    if int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0) > 0:
+        return "lenses"
+    if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
+        return "brief"
+    if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id)):
+        return "requirements"
+    if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
+            or specs_currency(project_id, change_id) != "current"):
+        return "specs"
+    if not change.get("backlog") or _backlog_behind(
+            base, change_id, read_change_units(project_id, change_id), list(change["backlog"].get("dropped_units") or [])):
+        return "backlog"
+    if validate_change(project_id, change_id)["verdict"] != "VALID":
+        return "validate"
+    return "done"
+
+
+def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
+    """IMP-396: the compiled brief's report no longer matches the change's blocking gaps (or has no report)."""
+    from .core.io import read_json
+
+    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
+    if not isinstance(report, dict):
+        return True
+    try:
+        recorded = int(report.get("blocking_open", 0) or 0)
+    except (TypeError, ValueError):
+        return True
+    return recorded != int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+
+
+def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:
+    """The units the change's stories came from differ from the current units of its specs.
+
+    Units `/backlog --change` deliberately dropped (a REMOVED row over only not-implemented stories) have no story and are not counted;
+    a dropped unit no longer in the specs is ignored."""
+    from .core.markdown import parse_frontmatter
+
+    sources: set[str] = set()
+    for path in sorted((base / "04_backlog").glob("US-*.md")):
+        try:
+            front = parse_frontmatter(path.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        if str(front.get("change", "")).strip() == change_id:
+            sources.add(str(front.get("source_unit", "")).strip())
+    return sources != {unit["id"] for unit in units} - set(dropped_units)
+
+
+def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
+    """IMP-396: the next step of one change, in the change's language."""
+    from .changes import change_language, get_change
+
+    change = get_change(project_id, change_id)
+    key = _change_step_key(project_id, change_id, change)
+    texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
+    stale = key == "brief" and (workspace_path(project_id) / "02_requirements" / change_id / "project-brief.md").is_file()
+    title, text = texts["brief_stale" if stale else key]
+    ctx = {
+        "cid": change_id, "pid": project_id,
+        "n": int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0),
+        "path": f"01_discovery/{change_id}/gaps.md" if key == "lenses" else f"02_requirements/{change_id}/project-brief.md",
+    }
+    return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
+            "command": CHANGE_COMMANDS[key].format(**ctx)}
+
+
+def changes_overview(project_id: str) -> list[dict[str, Any]]:
+    """IMP-396: per change, its next step and its escalation warnings."""
+    from .change_escalation import escalation_warnings
+    from .changes import list_changes
+
+    return [
+        {"change_id": change_id, "next_step": change_next_step(project_id, change_id),
+         "warnings": escalation_warnings(project_id, change_id)}
+        for change_id in sorted(list_changes(project_id))
+    ]
+
+
+def _first_change_step(overview: list[dict[str, Any]]) -> dict[str, str]:
+    """The first change with a pending step (or the first change when all are done).
+
+    Its `change_id` is exposed at top level only in a change-only workspace, where this replaces the project step."""
+    pending = [item["next_step"] for item in overview if item["next_step"]["key"] != "done"]
+    return dict((pending or [overview[0]["next_step"]])[0])
 
 
 def release_scoped_command(command: str) -> str:

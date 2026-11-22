@@ -26,6 +26,7 @@ def answer(delta: str | None, affects: str | None, evidence: str | None = None, 
         lines.append(f"- Delta: {delta}")
     if affects is not None:
         lines.append(f"- Afecta: {affects}")
+    lines.append("- Superficie: Tabla de proveedores")
     if evidence is not None:
         lines.append(f"- Evidencia o referencia: {evidence}")
     lines.append("- Estado de decisión: confirmado")
@@ -54,7 +55,9 @@ class ChangeAffects(SnapshotWorkspaceCase):
 
     def setUp(self):
         super().setUp()
-        self.cid = next(iter(json.loads(run_ok(["status", "BORR"])).get("changes", {"CHG-001": 0})), "CHG-001")
+        # IMP-396: /status now lists the changes (a list of per-change dicts); the id is the first one's.
+        listed = json.loads(run_ok(["status", "BORR"])).get("changes") or [{"change_id": "CHG-001"}]
+        self.cid = listed[0]["change_id"]
 
     def resolve(self, name: str, text: str) -> dict:
         Path(name).write_text(text, encoding="utf-8")
@@ -117,7 +120,7 @@ class ChangeAffects(SnapshotWorkspaceCase):
         res = self.resolve("a.md", answer("MODIFIED", "US-002"))
         self.assertIn("GAP-ACCEPTANCE", res["closed"])
         text = self.rows_path().read_text(encoding="utf-8")
-        self.assertIn("| ID | Pattern | Delta | Statement | Source | Afecta |", text)
+        self.assertIn("| ID | Pattern | Delta | Statement | Source | Afecta | Superficie |", text)
         rows = load_change_ears("BORR", self.cid)
         self.assertEqual(rows[0]["affects"], ["US-002"])
         again = self.resolve("b.md", answer("MODIFIED", "US-001, US-002"))

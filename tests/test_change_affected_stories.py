@@ -19,11 +19,11 @@ from sentinel.workspace import read_json, workspace_path  # noqa: E402
 from test_change_specs import PROJECT_EARS, PROJECT_RAW, open_change  # noqa: E402
 
 MODIFIED_ROW = ("### GAP-OBJECTIVE\n- Respuesta: Cuando el comprador cambia el texto del aviso, el sistema debe mostrar el aviso nuevo.\n"
-                "- Owner / fuente: Jefa de Compras\n- Delta: MODIFIED\n- Afecta: US-001\n- Estado de decisión: confirmado\n")
+                "- Owner / fuente: Jefa de Compras\n- Delta: MODIFIED\n- Superficie: Tabla de proveedores\n- Afecta: US-001\n- Estado de decisión: confirmado\n")
 REMOVED_ROW = ("### GAP-ACCEPTANCE\n- Respuesta: Cuando el comprador guarda el alta incompleta, el sistema debe conservar los datos cargados.\n"
-               "- Owner / fuente: Jefa de Compras\n- Delta: REMOVED\n- Afecta: US-002\n- Estado de decisión: confirmado\n")
+               "- Owner / fuente: Jefa de Compras\n- Delta: REMOVED\n- Superficie: Tabla de proveedores\n- Afecta: US-002\n- Estado de decisión: confirmado\n")
 UNCHANGED_ROW = ("### GAP-USERS\n- Respuesta: Cuando el comprador sigue enviando el alta completa, el sistema debe continuar validando los datos.\n"
-                 "- Owner / fuente: Jefa de Compras\n- Delta: UNCHANGED\n- Estado de decisión: confirmado\n")
+                 "- Owner / fuente: Jefa de Compras\n- Delta: UNCHANGED\n- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n")
 ANSWERS = REMOVED_ROW + "\n" + MODIFIED_ROW + "\n" + UNCHANGED_ROW
 
 

@@ -257,6 +257,12 @@ def _backlog(p: argparse.ArgumentParser) -> None:
 def _status(p: argparse.ArgumentParser) -> None:
     p.add_argument("project_id")
     p.add_argument("--full", action="store_true")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-396: where this change stands instead of the project")
+
+
+def _next(p: argparse.ArgumentParser) -> None:
+    p.add_argument("project_id")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-396: the next step of this change instead of the project's")
 
 
 def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms profile, genesis and validation direction
@@ -271,6 +277,12 @@ def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms prof
 def _specs(p: argparse.ArgumentParser) -> None:
     p.add_argument("project_id")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-388: build this change's spec units instead of the project's")
+
+
+def _validate(p: argparse.ArgumentParser) -> None:
+    p.add_argument("project_id")
+    p.add_argument("--override")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-396: validate this change's artifacts instead of the project's")
 
 
 def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
@@ -323,7 +335,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("implementation-feedback", MUTATING, _project_source),
     Command("story-status", MUTATING, _story_status, release=True),
     Command("context-request", MUTATING, _context_request, mcp_params={"id": ("request_id",)}),
-    Command("next", READ_ONLY, _project, release=True),  # IMP-294: the next step of /status, alone
+    Command("next", READ_ONLY, _next, release=True),  # IMP-294: the next step of /status, alone
     # IMP-244: /stakeholders writes the stakeholder registry, so it is logged and snapshotted
     # like every other writer (listing goes through it too; cost is negligible).
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}),
@@ -339,7 +351,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("health", READ_ONLY, _project),
     # IMP-306: /trace rewrites the traceability matrix and graph.
     Command("trace", MUTATING, _trace, release=True),
-    Command("validate", READ_ONLY, _project_override, release=True),
+    Command("validate", READ_ONLY, _validate, release=True),
     Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}),
     Command("brief", MUTATING, _brief),
     Command("status", READ_ONLY, _status, release=True),

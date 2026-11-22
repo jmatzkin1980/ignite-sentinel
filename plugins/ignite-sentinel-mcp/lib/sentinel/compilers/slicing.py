@@ -341,6 +341,8 @@ def build_backlog_story_specs(
         if unit.get("change"):
             story["change"] = str(unit["change"])
             story["delta"] = str(unit.get("delta", ""))
+            if unit.get("surfaces"):
+                story["surfaces"] = list(unit["surfaces"])
         story["execution_contract"] = build_agent_execution_contract(story, story_context, domain_coverage)
         specs.append(story)
     return specs

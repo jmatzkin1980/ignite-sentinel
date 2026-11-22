@@ -9,17 +9,32 @@ from .gaps import parse_gap_table
 from .workspace import read_json, state_path, workspace_path
 
 
-def project_next(project_id: str) -> dict[str, object]:
-    """`/next` (IMP-294): exactly the next step `/status` gives, and nothing else."""
-    return {"project_id": project_id, **build_readiness_verdict(project_id)["next_step"]}
+def project_next(project_id: str, change_id: str | None = None) -> dict[str, object]:
+    """`/next` (IMP-294): exactly the next step `/status` gives, and nothing else.
+
+    IMP-396: a workspace with changes adds `changes`; `change_id` answers for that change alone.
+    """
+    if change_id:
+        from .change_escalation import escalation_warnings
+        from .readiness_verdict import change_next_step
+
+        return {"project_id": project_id, **change_next_step(project_id, change_id),
+                "warnings": escalation_warnings(project_id, change_id)}
+    verdict = build_readiness_verdict(project_id)
+    result: dict[str, object] = {"project_id": project_id, **verdict["next_step"]}
+    if "changes" in verdict:
+        result["changes"] = verdict["changes"]
+    return result
 
 
-def project_status(project_id: str, full: bool = True) -> dict[str, object]:
+def project_status(project_id: str, full: bool = True, change_id: str | None = None) -> dict[str, object]:
     """`/status`. The verdict (IMP-248) is the summary; `full` adds the detailed dump.
 
     The Python API returns the full dump by default; the CLI prints the summary
     unless `--full` is passed.
     """
+    if change_id:
+        return change_status(project_id, change_id)
     state = read_json(state_path(project_id), {})
     verdict = build_readiness_verdict(project_id)
     summary: dict[str, object] = {
@@ -36,6 +51,8 @@ def project_status(project_id: str, full: bool = True) -> dict[str, object]:
         "next_step": verdict["next_step"]["text"],
         "next_action": verdict["next_step"],
     }
+    if "changes" in verdict:  # IMP-396: only a workspace with changes grows the key
+        summary["changes"] = verdict["changes"]
     if not full:
         return summary
     metrics = maturity_metrics(project_id)
@@ -53,6 +70,26 @@ def project_status(project_id: str, full: bool = True) -> dict[str, object]:
         "knowledge_ledger": knowledge_ledger_summary(project_id),
         "story_gates": summarize_story_gates(state.get("story_gates", {})),
         "backlog_rollup": backlog_status(project_id, write=False)["summary"],
+    }
+
+
+def change_status(project_id: str, change_id: str) -> dict[str, object]:
+    """IMP-396: `/status --change`: where one change stands, its next step and its escalation warnings."""
+    from .change_escalation import escalation_warnings
+    from .changes import get_change
+    from .readiness_verdict import change_next_step
+
+    change = get_change(project_id, change_id)
+    step = change_next_step(project_id, change_id)
+    return {
+        "project_id": project_id,
+        "change_id": change_id,
+        "round": change.get("round"),
+        "border_confirmed": bool(change.get("border_confirmed_at")),
+        "gap_counts": change.get("gap_counts", {}),
+        "next_step": step["text"],
+        "next_action": step,
+        "warnings": escalation_warnings(project_id, change_id),
     }
 
 

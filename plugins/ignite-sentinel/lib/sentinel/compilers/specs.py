@@ -352,6 +352,9 @@ def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
     change_lines = ""
     if unit.get("change"):
         change_lines = f"change: {unit['change']}\ndelta: {unit.get('delta', '')}\n"
+        surfaces = [str(item) for item in unit.get("surfaces", []) if str(item).strip()]
+        if surfaces:
+            change_lines += f"surfaces:\n{frontmatter_list(surfaces)}\n"
     return f"""---
 id: {unit['id']}
 status: {unit['status']}
