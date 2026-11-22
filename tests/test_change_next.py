@@ -20,6 +20,12 @@ from test_mcp_parity import _tools  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CID = "CHG-001"
+SAD = FIXTURES / "change_baseline" / "sad-compras.md"
+
+
+def load_baseline(project: str, cid: str = CID) -> None:
+    """IMP-400: the `baseline` step comes after scope; these tests load it through the CLI to reach the later steps."""
+    run_ok(["sources", project, "--load", str(SAD), "--role", "linea_de_base", "--change", cid])
 
 
 def step(project: str = "BORR", cid: str = CID) -> dict:
@@ -59,6 +65,10 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
         s = step()
+        self.assertEqual((s["key"], s["command"]), (
+            "baseline", f"/sources BORR --load PATH --role linea_de_base --change {CID}"))
+        load_baseline("BORR")
+        s = step()
         self.assertEqual(s["key"], "lenses")
         self.assertEqual(s["command"], f"/resolve-gaps BORR --source PATH --change {CID}")
 
@@ -93,6 +103,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         # The brief was compiled with the 3 blocking gaps open; closing them leaves it stale.
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        load_baseline("BORR")
         run_ok(["brief", "BORR", "--change", CID])
         report = workspace_path("BORR") / "02_requirements" / CID / "change_brief_report.json"
         self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["blocking_open"], 3)
@@ -231,6 +242,7 @@ class ChangeNextWarnings(SnapshotWorkspaceCase):
 
     def test_warnings_in_next_and_status(self):
         self.assertEqual(changes_overview("BORR")[0]["warnings"], [])
+        load_baseline("BORR")  # no baseline would add its own warning: this test is about the escalation ones
         border = read_json(workspace_path("BORR") / "state.json", {})["changes"][CID]["border"]
         set_change("BORR", border=[*border, {"zone": "nuevo", "type": "rol", "name": "Auditor"}])
         (overview,) = changes_overview("BORR")
@@ -257,6 +269,7 @@ class ChangeNextMixed(SnapshotWorkspaceCase):
     def test_with_a_change_the_project_step_stays_and_changes_is_added(self):
         before = cli_json(["next", "MIX"])
         cid = open_change("MIX")
+        load_baseline("MIX", cid)
         nxt = cli_json(["next", "MIX"])
         self.assertEqual(nxt["key"], before["key"])
         self.assertEqual(nxt["command"], before["command"])
@@ -274,6 +287,7 @@ class ChangeNextRemovedUnit(SnapshotWorkspaceCase):
     def build_workspace(cls):
         build_matured_workspace("MIX", PROJECT_RAW, gap_acceptance_answer(PROJECT_EARS))
         cls.cid = open_change("MIX")
+        load_baseline("MIX", cls.cid)
         answer("MIX", cls.cid, "a.md", REMOVED_ANSWERS)
         run_ok(["brief", "MIX", "--change", cls.cid])
         run_ok(["specs", "MIX", "--change", cls.cid])

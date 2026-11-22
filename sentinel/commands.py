@@ -240,6 +240,8 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--load", metavar="PATH", help="IMP-400: register this file with --role (a redacted copy in the role's folder)")
     p.add_argument("--role", help="IMP-400: pedido, linea_de_base, plan_previo or diseno_nuevo")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
+    p.add_argument("--no-baseline", action="store_true", dest="no_baseline",
+                   help="IMP-400: with --change and --reason, the change has no baseline to load")
 
 
 def _export(p: argparse.ArgumentParser) -> None:

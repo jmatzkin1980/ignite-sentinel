@@ -87,8 +87,11 @@ def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str
             "evidence_mention": cited or str(sha), "origin": "sources", "resolution_note": ""}
 
 
-def check_change_versions(project_id: str, change_id: str) -> dict[str, Any]:
-    """Compare what the change's request cites against the current non-request sources."""
+def check_change_versions(project_id: str, change_id: str, write: bool = True) -> dict[str, Any]:
+    """Compare what the change's request cites against the current non-request sources.
+
+    `write=False` only reports (no gap is opened): `/status` reads, it never writes.
+    """
     from .changes import change_gaps_path, change_language, list_changes
     from .core.io import write_text
     from .gaps import count_gaps, parse_gap_rows, render_gaps
@@ -129,7 +132,7 @@ def check_change_versions(project_id: str, change_id: str) -> dict[str, Any]:
                 result["mismatched"].append({**report, "source_id": row["id"], "reason": "sha" if by_name is not None else "version"})
                 loaded_name = Path(str(row["paths"][0])).name if row.get("paths") else str(row["id"])
                 new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"])))
-    if new_gaps:
+    if new_gaps and write:
         path = change_gaps_path(workspace_path(project_id), change_id)
         existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []
         known = {g["id"] for g in existing}

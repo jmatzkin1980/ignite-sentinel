@@ -470,7 +470,17 @@ def _run_project_command(args) -> int:
                 "mark": args.mark,
             }
             role_option = args.role  # IMP-400: --id F-NN --role ROLE
-            if args.load or args.change:
+            if args.no_baseline:
+                # IMP-400: --change CHG --no-baseline --reason TEXT waives the change's baseline step.
+                if not args.change:
+                    raise ValueError("/sources --no-baseline needs --change CHG-NNN")
+                if (args.load or args.role or args.precedence or args.between or args.report or args.source_id
+                        or any(value for key, value in changes.items() if key != "reason")):
+                    raise ValueError("/sources --no-baseline takes only --change and --reason")
+                from .sources import waive_baseline
+
+                result = waive_baseline(args.project_id, args.change, args.reason or "")
+            elif args.load or args.change:
                 # IMP-400: --load PATH --role ROLE [--change CHG] registers a source with its role.
                 if args.precedence or args.between or args.report or args.source_id or any(value for value in changes.values()):
                     raise ValueError("/sources --load takes only --role and --change")

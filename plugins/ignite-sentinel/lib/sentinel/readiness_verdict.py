@@ -351,6 +351,10 @@ CHANGE_TEXT = {
     "es": {
         "scope": ("Cerrar el borde del cambio",
                   "Respondé GAP-SCOPE con el borde del cambio (una línea por superficie: zona | tipo | nombre) y corré /resolve-gaps."),
+        "baseline": ("Registrar la línea de base",
+                     "{cid} no tiene ninguna fuente de lo construido registrada. Cargá el relevamiento, el SAD o el manual con "
+                     "/sources {pid} --load ARCHIVO --role linea_de_base --change {cid}. Si el cambio no tiene línea de base, "
+                     "decilo con /sources {pid} --change {cid} --no-baseline --reason \"…\""),
         "lenses": ("Cerrar las preguntas bloqueantes del cambio",
                    "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en un archivo de respuestas "
                    "(no en gaps.md, que lo genera Sentinel) y corré /resolve-gaps --change {cid}."),
@@ -377,6 +381,10 @@ CHANGE_TEXT = {
     "en": {
         "scope": ("Close the change border",
                   "Answer GAP-SCOPE with the change border (one line per surface: zone | type | name) and run /resolve-gaps."),
+        "baseline": ("Register the baseline",
+                     "{cid} has no source of what is built registered. Load the survey, the SAD or the manual with "
+                     "/sources {pid} --load FILE --role linea_de_base --change {cid}. If the change has no baseline, "
+                     "say so with /sources {pid} --change {cid} --no-baseline --reason \"…\""),
         "lenses": ("Close the change's blocking questions",
                    "{cid} has {n} blocking gap(s) open: answer them in a responses file "
                    "(not in gaps.md, which Sentinel generates) and run /resolve-gaps --change {cid}."),
@@ -403,6 +411,7 @@ CHANGE_TEXT = {
 }
 CHANGE_COMMANDS = {
     "scope": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "baseline": "/sources {pid} --load PATH --role linea_de_base --change {cid}",
     "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
@@ -424,6 +433,8 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     base = workspace_path(project_id)
     if change.get("round") == "scope":
         return "scope"
+    if not change.get("baseline_waived") and not _has_baseline(project_id):
+        return "baseline"
     if int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0) > 0:
         return "lenses"
     if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
@@ -441,6 +452,15 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if _extraction_pending(base, change_id):
         return "pending_extraction"
     return "done"
+
+
+def _has_baseline(project_id: str) -> bool:
+    """IMP-400: some current registered row of the workspace plays the baseline role (the baseline belongs to the system)."""
+    from .source_registry import row_role
+    from .sources import load_source_manifest
+
+    return any(r.get("validity", "current") == "current" and row_role(r) == "linea_de_base"
+               for r in load_source_manifest(project_id).get("registry", []))
 
 
 def _open_ears_gaps(base: Path, change_id: str) -> list[str]:

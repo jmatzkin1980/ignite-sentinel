@@ -532,3 +532,20 @@ def iter_source_files(folder: Path) -> list[Path]:
             continue
         files.append(path)
     return files
+
+
+def waive_baseline(project_id: str, change_id: str, reason: str) -> dict[str, Any]:
+    """IMP-400: the change has no baseline to load; record who said so and why (the `baseline` step stops asking)."""
+    from .changes import get_change, list_changes
+    from .errors import InputError
+    from .workspace import update_state
+
+    if not (reason or "").strip():
+        raise InputError("--no-baseline needs --reason with the why: sin motivo no hay dispensa.",
+                         next_step=f'/sources {project_id} --change {change_id} --no-baseline --reason "…"')
+    get_change(project_id, change_id)
+    waiver = {"reason": reason.strip(), "at": utc_now()}
+    changes = {k: dict(v) for k, v in list_changes(project_id).items()}
+    changes[change_id]["baseline_waived"] = waiver
+    update_state(project_id, changes=changes)
+    return {"project_id": project_id, "change_id": change_id, "baseline_waived": waiver}

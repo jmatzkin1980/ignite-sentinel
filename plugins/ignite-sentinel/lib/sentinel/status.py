@@ -81,6 +81,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
 
     change = get_change(project_id, change_id)
     step = change_next_step(project_id, change_id)
+    sources = change_sources(project_id, change_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -89,8 +90,59 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "gap_counts": change.get("gap_counts", {}),
         "next_step": step["text"],
         "next_action": step,
-        "warnings": escalation_warnings(project_id, change_id),
+        "sources": sources,
+        "warnings": [*escalation_warnings(project_id, change_id), *_source_warnings(project_id, change_id, sources)],
     }
+
+
+def change_sources(project_id: str, change_id: str) -> dict[str, object]:
+    """IMP-400: the change's sources by role, the system's baseline, and what the request cites but nobody loaded."""
+    from .changes import get_change
+    from .source_registry import SOURCE_ROLES, row_role
+    from .source_versions import check_change_versions
+    from .sources import load_source_manifest
+
+    change = get_change(project_id, change_id)
+    rows = {str(r.get("id")): r for r in load_source_manifest(project_id).get("registry", [])}
+    mine = [rows[i] for i in change.get("sources") or [] if i in rows]
+    by_role: dict[str, list[str]] = {}
+    for role in SOURCE_ROLES:
+        ids = [str(r["id"]) for r in mine if row_role(r) == role]
+        if ids:
+            by_role[role] = ids
+    baseline = [str(r["id"]) for r in rows.values()
+                if r.get("validity", "current") == "current" and row_role(r) == "linea_de_base"]
+    cited = check_change_versions(project_id, change_id, write=False)["not_loaded"]
+    not_loaded = [str(item["cited"]) for item in cited if item.get("cited")]
+    return {
+        "by_role": by_role,
+        "baseline": baseline,
+        "baseline_waived": change.get("baseline_waived") or None,
+        "not_loaded": list(dict.fromkeys(not_loaded)),
+        "open_rows": [str(r["id"]) for r in mine if r.get("lifecycle") == "open"],
+    }
+
+
+def _source_warnings(project_id: str, change_id: str, sources: dict[str, object]) -> list[dict[str, object]]:
+    """Same shape as the escalation warnings: a `trigger` and its `message`."""
+    from .changes import change_language, get_change
+
+    es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    warnings: list[dict[str, object]] = []
+    if not sources["baseline"] and not sources["baseline_waived"]:
+        warnings.append({"trigger": "no_baseline", "message": f"{change_id}: no hay línea de base registrada" if es
+                         else f"{change_id}: no baseline is registered"})
+    if sources["not_loaded"]:
+        names = ", ".join(sources["not_loaded"])  # type: ignore[arg-type]
+        warnings.append({"trigger": "cited_not_loaded", "message": (
+            f"{change_id}: el pedido cita documentos que no se cargaron: {names}" if es
+            else f"{change_id}: the request cites documents that were not loaded: {names}")})
+    if sources["open_rows"]:
+        ids = ", ".join(sources["open_rows"])  # type: ignore[arg-type]
+        warnings.append({"trigger": "open_source_rows", "message": (
+            f"{change_id}: fuentes con la carga sin cerrar: {ids}" if es
+            else f"{change_id}: sources with an unfinished load: {ids}")})
+    return warnings
 
 
 def gap_origin_counts(project_id: str) -> dict[str, int]:
