@@ -155,11 +155,14 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "sources": [source_id],
     }
     update_state(project_id, changes=changes)
+    from .source_versions import check_change_versions
+
+    check_change_versions(project_id, change_id)  # IMP-400: a request that cites another version of a loaded source
     return {
         "project_id": project_id,
         "change_id": change_id,
         "gaps_path": str(gaps_path.as_posix()),
-        "gap_counts": count_gaps(gaps),
+        "gap_counts": list_changes(project_id)[change_id]["gap_counts"],
         "round": "scope",
     }
 

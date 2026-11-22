@@ -310,6 +310,10 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
         update_state(project_id, changes=changes)
     index_context_folders(project_id)
     write_source_log(project_id, load_source_manifest(project_id), source_log_path(project_id), _language(project_id))
+    from .source_versions import check_versions_for
+
+    # IMP-400: with --change, that change; a non-request source without --change, every change.
+    version_gaps = check_versions_for(project_id, change_id) if (change_id or role != "pedido") else []
     return {
         "source_id": source_id,
         "role": role,
@@ -317,7 +321,7 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
         "change_id": change_id,
         "reused": reused,
         "in_place": in_place,
-        "version_gaps": [],
+        "version_gaps": version_gaps,
     }
 
 
