@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command in {"specs", "backlog", "validate"} and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"specs", "backlog", "validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -427,11 +427,11 @@ def _run_project_command(args) -> int:
         elif args.command == "next":
             from .status import project_next
 
-            print_json(project_next(args.project_id))
+            print_json(project_next(args.project_id, args.change))
         elif args.command == "status":
             from .status import project_status
 
-            result = project_status(args.project_id, full=args.full)  # IMP-248: summary by default
+            result = project_status(args.project_id, full=args.full, change_id=args.change)  # IMP-248: summary by default
             print_json(result)
         elif args.command == "stakeholders":
             from .stakeholders import add_stakeholder, list_stakeholders

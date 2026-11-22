@@ -50,8 +50,8 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("maturity", "Evaluate requirement maturity with quantified metrics and trend.", ["project_id"]),
     ("brief", "Materialize the mature project brief from discovery evidence. With profile (UI,API,BAT,INT,MIG,REG,MT), genesis (greenfield|brownfield-integration|brownfield-extension|brownfield-replacement) or validation_direction (to-build|built), first record what the BA confirmed; the output reports brief_settings with a proposal while they are unconfirmed. With change=CHG-nnn (IMP-386) it compiles that change's brief (02_requirements/CHG-nnn/project-brief.md) and takes no project settings; a change-only workspace refuses it without.", ["project_id"]),
     ("context_request", "Generate a domain context request (technology|design|quality|frontend|backend), or with id CTX-NNN and status move it along its lifecycle: active -> answered -> closed, or obsolete (closed and obsolete need a reason and are final). /sync marks an active CTX answered when a change cites it.", ["project_id"]),
-    ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command.", ["project_id"]),
-    ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog.", ["project_id", "full"]),
+    ("next", "Print only the next step, exactly as /status gives it in next_action: key, title, text and command. A workspace with changes adds changes (per change: next step and escalation warnings); a change-only workspace gives the first pending change step, never ingest. With change=CHG-nnn (IMP-396) only that change: scope, lenses, brief, requirements, specs, backlog, validate or done.", ["project_id"]),
+    ("status", "Report the ready-to-build verdict, gap counts, gate matrix, maturity score and next step; full=true adds the detailed metrics. release=rN gives the verdict over that release's brief and backlog. A workspace with changes adds changes; change=CHG-nnn (IMP-396) reports only that change: round, gap counts, next step and escalation warnings.", ["project_id", "full"]),
     ("sync", "Metabolize new evidence; without source runs the autonomous novelty scan. The result's prose_review says how many lines were stored but not interpreted and hints the confirmed items each decision line talks about. With source and analysis (an agent's cited change candidates: reopen_gap, invalidate_assumption, contradiction), each valid candidate opens a blocking GAP-CHG for the BA to accept or reject with sentinel_gaps.", ["project_id"]),
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
@@ -420,12 +420,12 @@ def build_server():
         return run_cli(arguments)
 
     @tool(name="sentinel_next", description=TOOL_DESCRIPTIONS["next"])
-    def sentinel_next(project_id: str, release: str = "") -> dict:
-        return run_cli(["next", project_id, *release_arguments(release)])
+    def sentinel_next(project_id: str, release: str = "", change: str = "") -> dict:
+        return run_cli(["next", project_id, *release_arguments(release), *(["--change", change] if change else [])])
 
     @tool(name="sentinel_status", description=TOOL_DESCRIPTIONS["status"])
-    def sentinel_status(project_id: str, full: bool = False, release: str = "") -> dict:
-        return run_cli(["status", project_id] + (["--full"] if full else []) + release_arguments(release))
+    def sentinel_status(project_id: str, full: bool = False, release: str = "", change: str = "") -> dict:
+        return run_cli(["status", project_id] + (["--full"] if full else []) + release_arguments(release) + (["--change", change] if change else []))
 
     @tool(name="sentinel_stakeholders", description=TOOL_DESCRIPTIONS["stakeholders"])
     def sentinel_stakeholders(

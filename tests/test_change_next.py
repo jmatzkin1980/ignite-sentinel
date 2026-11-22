@@ -1,0 +1,214 @@
+"""IMP-396: `/next` and `/status` know the change: one step per row of its sequence, never the PRD."""
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_cli, run_ok  # noqa: E402
+from sentinel import mcp as sentinel_mcp  # noqa: E402
+from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
+from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
+from test_change_flow import SCOPE_ANSWER  # noqa: E402
+from test_change_specs import ACCEPTANCE, ALL_ANSWERS, EXTRA, PROJECT_EARS, PROJECT_RAW, answer, open_change  # noqa: E402
+from test_mcp_parity import _tools  # noqa: E402
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+CID = "CHG-001"
+
+
+def step(project: str = "BORR", cid: str = CID) -> dict:
+    return change_next_step(project, cid)
+
+
+def cli_json(argv: list[str]) -> dict:
+    code, out = run_cli(argv)
+    assert code == 0, (argv, code, out)
+    return json.loads(out)
+
+
+def set_change(project: str, **fields) -> None:
+    changes = read_json(workspace_path(project) / "state.json", {})["changes"]
+    changes[CID].update(fields)
+    update_state(project, changes=changes)
+
+
+def requirements_path(project: str = "BORR") -> Path:
+    return workspace_path(project) / "02_requirements" / CID / "requirements.md"
+
+
+class ChangeNextSequence(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        root = Path.cwd()
+        shutil.copy(FIXTURES / "change_borrador.md", root / "pedido.md")
+        run_ok(["init", "BORR"])
+        run_ok(["ingest", "BORR", "--source", "pedido.md", "--change"])
+
+    def test_each_row_of_the_table_in_order(self):
+        s = step()
+        self.assertEqual((s["key"], s["change_id"]), ("scope", CID))
+        self.assertEqual(s["command"], f"/resolve-gaps BORR --source PATH --change {CID}")
+        self.assertIn("GAP-SCOPE", s["text"])
+
+        (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        s = step()
+        self.assertEqual(s["key"], "lenses")
+        self.assertEqual(s["command"], f"/resolve-gaps BORR --source PATH --change {CID}")
+
+        answer("BORR", CID, "a.md", ALL_ANSWERS)
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("brief", f"/brief BORR --change {CID}"))
+
+        run_ok(["brief", "BORR", "--change", CID])
+        rows = requirements_path().read_text(encoding="utf-8")
+        kept = [ln for ln in rows.splitlines() if "| ADDED |" not in ln and "| MODIFIED |" not in ln]
+        requirements_path().write_text("\n".join(kept) + "\n", encoding="utf-8")
+        s = step()
+        self.assertEqual(s["key"], "requirements")
+        self.assertIn("Delta", s["text"])
+        self.assertIn("Superficie", s["text"])
+        requirements_path().write_text(rows, encoding="utf-8")
+
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("specs", f"/specs BORR --change {CID}"))
+
+        run_ok(["specs", "BORR", "--change", CID])
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("backlog", f"/backlog BORR --change {CID}"))
+
+        run_ok(["backlog", "BORR", "--change", CID])
+        s = step()
+        self.assertEqual(s["key"], "done")
+        self.assertNotIn("prd", " ".join(s.values()).lower())
+
+    def test_specs_not_current_goes_back_to_specs(self):
+        self.test_each_row_of_the_table_in_order()
+        answer("BORR", CID, "b.md", EXTRA)
+        self.assertEqual(step()["key"], "specs")
+
+    def test_backlog_behind_the_specs(self):
+        self.test_each_row_of_the_table_in_order()
+        answer("BORR", CID, "b.md", EXTRA)
+        run_ok(["specs", "BORR", "--change", CID])
+        self.assertEqual(step()["key"], "backlog")
+        run_ok(["backlog", "BORR", "--change", CID])
+        self.assertEqual(step()["key"], "done")
+
+    def test_validate_when_the_change_is_not_valid(self):
+        self.test_each_row_of_the_table_in_order()
+        story = workspace_path("BORR") / "04_backlog" / "US-002.md"
+        lines = [ln.replace("pass-to-pass", "regression") if ln.startswith("| AC-002-06 |") else ln
+                 for ln in story.read_text(encoding="utf-8").splitlines()]
+        story.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("validate", f"/validate BORR --change {CID}"))
+
+    def test_change_only_workspace_never_says_ingest(self):
+        out = cli_json(["next", "BORR"])
+        self.assertEqual((out["key"], out["change_id"]), ("scope", CID))
+        self.assertNotEqual(out["key"], "ingest")
+        self.assertEqual(out["changes"][0]["next_step"]["key"], "scope")
+        status = cli_json(["status", "BORR"])
+        self.assertEqual(status["next_action"]["key"], "scope")
+        self.assertEqual(status["next_action"]["change_id"], CID)
+        self.assertNotIn("ingest", status["next_action"]["command"])
+        self.assertEqual(status["changes"][0]["change_id"], CID)
+
+    def test_change_only_picks_the_first_change_with_something_pending(self):
+        self.test_each_row_of_the_table_in_order()
+        out = cli_json(["next", "BORR"])
+        self.assertEqual(out["key"], "done")  # every change is done: the first one is reported
+        shutil.copy(FIXTURES / "change_borrador.md", Path.cwd() / "otro.md")
+        second = json.loads(run_ok(["ingest", "BORR", "--source", "otro.md", "--change"]))["change_id"]
+        out = cli_json(["next", "BORR"])
+        self.assertEqual((out["change_id"], out["key"]), (second, "scope"))
+
+    def test_next_and_status_with_change(self):
+        nxt = cli_json(["next", "BORR", "--change", CID])
+        self.assertEqual((nxt["project_id"], nxt["change_id"], nxt["key"]), ("BORR", CID, "scope"))
+        self.assertNotIn("changes", nxt)
+        status = cli_json(["status", "BORR", "--change", CID])
+        self.assertEqual((status["change_id"], status["round"]), (CID, "scope"))
+        self.assertEqual(status["next_action"], {k: nxt[k] for k in ("change_id", "key", "title", "text", "command")})
+        self.assertNotIn("verdict", status)
+
+    def test_unknown_change_is_refused_like_elsewhere(self):
+        for command in ("next", "status"):
+            code, _ = run_cli([command, "BORR", "--change", "CHG-009"])
+            self.assertEqual(code, run_cli(["specs", "BORR", "--change", "CHG-009"])[0], command)
+            self.assertNotEqual(code, 0)
+
+    def test_release_with_change_is_refused(self):
+        for command in ("next", "status"):
+            code, _ = run_cli([command, "BORR", "--change", CID, "--release", "r1"])
+            self.assertEqual(code, 3, command)
+
+    def test_english_follows_the_change_language(self):
+        set_change("BORR", language="en")
+        s = step()
+        self.assertEqual(s["key"], "scope")
+        self.assertIn("Close the change border", s["title"])
+        self.assertIn("Answer GAP-SCOPE", s["text"])
+        self.assertEqual(cli_json(["next", "BORR"])["title"], s["title"])
+
+    def test_mcp_forwards_change(self):
+        captured: list[list[str]] = []
+        with patch.object(sentinel_mcp, "run_cli", lambda a: captured.append(a) or {"exit_code": 0}):
+            _tools()["sentinel_next"](project_id="P", change=CID)
+            _tools()["sentinel_status"](project_id="P", change=CID)
+            _tools()["sentinel_next"](project_id="P")
+        self.assertEqual(captured, [["next", "P", "--change", CID], ["status", "P", "--change", CID], ["next", "P"]])
+
+
+class ChangeNextWarnings(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        run_ok(["init", "BORR"])
+        open_change("BORR")
+
+    def test_warnings_in_next_and_status(self):
+        self.assertEqual(changes_overview("BORR")[0]["warnings"], [])
+        border = read_json(workspace_path("BORR") / "state.json", {})["changes"][CID]["border"]
+        set_change("BORR", border=[*border, {"zone": "nuevo", "type": "rol", "name": "Auditor"}])
+        (overview,) = changes_overview("BORR")
+        self.assertEqual([w["trigger"] for w in overview["warnings"]], ["new_actors"])
+        self.assertEqual(cli_json(["next", "BORR"])["changes"][0]["warnings"], overview["warnings"])
+        self.assertEqual(cli_json(["next", "BORR", "--change", CID])["warnings"], overview["warnings"])
+        self.assertEqual(cli_json(["status", "BORR"])["changes"][0]["warnings"], overview["warnings"])
+        self.assertEqual(cli_json(["status", "BORR", "--change", CID])["warnings"], overview["warnings"])
+
+
+class ChangeNextMixed(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        build_matured_workspace("MIX", PROJECT_RAW, gap_acceptance_answer(PROJECT_EARS), backlog=False)
+
+    def test_without_changes_no_key_and_same_step(self):
+        nxt = cli_json(["next", "MIX"])
+        self.assertNotIn("changes", nxt)
+        self.assertEqual(nxt["key"], "backlog")
+        status = cli_json(["status", "MIX"])
+        self.assertNotIn("changes", status)
+        self.assertNotIn("changes", status["verdict"])
+
+    def test_with_a_change_the_project_step_stays_and_changes_is_added(self):
+        before = cli_json(["next", "MIX"])
+        cid = open_change("MIX")
+        nxt = cli_json(["next", "MIX"])
+        self.assertEqual(nxt["key"], before["key"])
+        self.assertEqual(nxt["command"], before["command"])
+        self.assertNotIn("change_id", nxt)
+        self.assertEqual([(c["change_id"], c["next_step"]["key"]) for c in nxt["changes"]], [(cid, "lenses")])
+        status = cli_json(["status", "MIX"])
+        self.assertEqual(status["next_action"]["key"], before["key"])
+        self.assertEqual(status["changes"][0]["next_step"]["key"], "lenses")
+
+
+if __name__ == "__main__":
+    unittest.main()

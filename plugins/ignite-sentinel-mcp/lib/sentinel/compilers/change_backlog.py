@@ -151,6 +151,20 @@ context_pack: {context_pack}
 """
 
 
+def specs_currency(project_id: str, change_id: str) -> str:
+    """"current" when the specs report matches the current rows, "old" when it has no deltas, else "stale"."""
+    report = read_json(workspace_path(project_id) / "03_specs" / change_id / "change_specs_report.json", {})
+    deltas = report.get("deltas") if isinstance(report, dict) else None
+    if not isinstance(deltas, dict):
+        return "old"
+    specs_ears = {str(key): str(value) for key, value in deltas.items()}
+    current_ears = {
+        str(row["id"]): parse_delta(row["delta"])
+        for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
+    }
+    return "current" if specs_ears == current_ears else "stale"
+
+
 def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[dict[str, Any]]]:
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
@@ -167,16 +181,10 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[d
             text["blocking"].format(cid=change_id, n=blocking),
             next_step=f"/resolve-gaps {project_id} --change {change_id}",
         )
-    report = read_json(base / "03_specs" / change_id / "change_specs_report.json", {})
-    deltas = report.get("deltas") if isinstance(report, dict) else None
-    if not isinstance(deltas, dict):
+    state = specs_currency(project_id, change_id)
+    if state == "old":
         raise GateRefusal(text["old_specs"].format(cid=change_id), next_step=next_step)
-    specs_ears = {str(key): str(value) for key, value in deltas.items()}
-    current_ears = {
-        str(row["id"]): parse_delta(row["delta"])
-        for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
-    }
-    if specs_ears != current_ears:
+    if state == "stale":
         raise GateRefusal(text["stale_specs"].format(cid=change_id), next_step=next_step)
     return change, text, units
 

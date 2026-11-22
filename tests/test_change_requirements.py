@@ -48,7 +48,9 @@ class ChangeRequirements(SnapshotWorkspaceCase):
 
     def setUp(self):
         super().setUp()
-        self.cid = next(iter(json.loads(run_ok(["status", "BORR"])).get("changes", {"CHG-001": 0})), "CHG-001")
+        # IMP-396: /status now lists the changes (a list of per-change dicts); the id is the first one's.
+        listed = json.loads(run_ok(["status", "BORR"])).get("changes") or [{"change_id": "CHG-001"}]
+        self.cid = listed[0]["change_id"]
 
     def resolve(self, name: str, text: str) -> dict:
         Path(name).write_text(text, encoding="utf-8")

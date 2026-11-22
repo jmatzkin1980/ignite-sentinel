@@ -21,4 +21,6 @@ python -m sentinel /next PROJECT_ID
 
 It prints the next step and nothing else: `key`, `title`, `text` and the `command` to run. It is the same decision as `next_action` in `/status`, so the two never disagree. Read-only.
 
+`--change CHG-NNN` (IMP-396) gives the next step of that change alone: `scope`, `lenses`, `brief`, `requirements`, `specs`, `backlog`, `validate` or `done`, each with its command and the change's escalation `warnings`; it never suggests the PRD. In a workspace with changes the output also carries `changes` (per change: `next_step` and `warnings`); a workspace that holds only changes gives the first pending change step, never `/ingest`. Without `--change` nothing else changes.
+
 Say the step in one line and offer the command. For why the project is or is not ready, use `/status`.
