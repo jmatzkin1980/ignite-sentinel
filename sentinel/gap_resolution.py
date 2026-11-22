@@ -104,12 +104,14 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     responses = parse_gap_responses(text)
     _flag_baseline(responses, baseline_errors)
     delta_findings: list[dict[str, str]] = []
+    affects_findings: list[dict[str, object]] = []
     change_lang = ""
     if change_id:
         from .changes import change_language
 
         change_lang = change_language(project_id, get_change(project_id, change_id), text)
         delta_findings = _flag_delta(responses, change_lang)
+        affects_findings = _flag_affects(project_id, change_id, responses, change_lang)
     existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
     known_ids = {gap["id"] for gap in existing}
     unknown_gap_ids = sorted(gap_id for gap_id in responses if gap_id not in known_ids)
@@ -146,7 +148,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         # the project's gap report node is not the change's.
         return _finish_change_resolution(
             project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
-            resolution_results, unknown_gap_ids, responses, delta_findings, language,
+            resolution_results, unknown_gap_ids, responses, delta_findings, language, affects_findings,
         )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
@@ -259,6 +261,50 @@ def _flag_delta(responses: dict[str, dict[str, str]], language: str) -> list[dic
     return findings
 
 
+def _flag_affects(project_id: str, change_id: str, responses: dict[str, dict[str, str]], language: str) -> list[dict[str, object]]:
+    """IMP-393: a confirmed MODIFIED/REMOVED EARS answer of a change names the stories it affects.
+
+    Without stories in 04_backlog (a project not yet backlogged) the field is optional. With stories, a missing or
+    unknown id keeps the answer unconfirmed; on ADDED/UNCHANGED the field is ignored with a note.
+    """
+    from .change_requirements import _AFFECTING_DELTAS, parse_affects, parse_delta, story_candidates, story_files
+
+    known = set(story_files(workspace_path(project_id)))
+    findings: list[dict[str, object]] = []
+    for gap_id, response in responses.items():
+        if gap_id == "GAP-SCOPE" or response.get("delta_error"):
+            continue
+        answer = str(response.get("answer", "")).strip()
+        if normalize_status(response.get("decision_status", "")) not in CONFIRMED_STATUSES or not is_substantive_answer(answer):
+            continue
+        if not ears_statements(answer):
+            continue
+        delta = parse_delta(str(response.get("delta", "")))
+        raw = str(response.get("affects", "")).strip()
+        if delta not in _AFFECTING_DELTAS:
+            if raw:
+                note = (f"Afecta se ignora: el Delta es {delta}" if language == "es" else f"Affects is ignored: the Delta is {delta}")
+                findings.append({"gap": gap_id, "candidates": [], "note": note})
+            continue
+        if not known:
+            continue
+        ids = parse_affects(raw)
+        unknown = [item for item in (ids or []) if item not in known]
+        if ids is not None and not unknown:
+            continue
+        candidates = story_candidates(project_id, change_id, str(response.get("evidence", "")))
+        listed = ", ".join(candidates) or ("ninguna" if language == "es" else "none")
+        if unknown:
+            note = (f"Afecta nombra historias que no existen en 04_backlog: {', '.join(unknown)}; candidatas: {listed}" if language == "es"
+                    else f"Affects names stories missing from 04_backlog: {', '.join(unknown)}; candidates: {listed}")
+        else:
+            note = (f"falta Afecta (historias US-nnn o `ninguna`) para un Delta {delta}; candidatas: {listed}" if language == "es"
+                    else f"Affects is missing (US-nnn stories or `none`) for a {delta} Delta; candidates: {listed}")
+        response["delta_error"] = note
+        findings.append({"gap": gap_id, "candidates": candidates, "note": note})
+    return findings
+
+
 def _validate_change_border(gaps_path: Path, text: str, baseline_errors: dict[str, str | None] | None = None) -> None:
     """IMP-382: a GAP-SCOPE answer that closes needs a valid border; checked before any write."""
     from .changes import parse_border
@@ -297,6 +343,7 @@ def _finish_change_resolution(
     responses: dict[str, dict[str, str]] | None = None,
     delta_findings: list[dict[str, str]] | None = None,
     language: str = "es",
+    affects_findings: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
@@ -343,6 +390,7 @@ def _finish_change_resolution(
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
         "delta_findings": delta_findings or [],
+        "affects_findings": affects_findings or [],
         "ears_rows": reconciled["added"],
         "delta_updated": reconciled["delta_updated"],
         "superseded_rows": reconciled["superseded"],

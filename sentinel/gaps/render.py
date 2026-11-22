@@ -123,6 +123,7 @@ Para cerrar un gap con lo que ya dice la línea de base, confirmar la respuesta 
 Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué hace con lo existente; sin esa línea la respuesta no se confirma:
 
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (sólo si la respuesta está en EARS)
+    - Afecta: US-003, US-007 | ninguna (sólo si el Delta es MODIFIED o REMOVED y el proyecto ya tiene historias)
 """
     return """
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
@@ -142,6 +143,7 @@ To close a gap with what the baseline already says, confirm the answer and add t
 If the answer is in EARS ("When ..., the system shall ..."), declare what it does to the existing system; without this line the answer is not confirmed:
 
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (only if the answer is in EARS)
+    - Affects: US-003, US-007 | none (only if the Delta is MODIFIED or REMOVED and the project already has stories)
 """
 
 
