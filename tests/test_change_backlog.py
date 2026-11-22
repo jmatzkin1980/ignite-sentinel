@@ -184,6 +184,20 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         self.assertEqual(caught.exception.next_step, f"/specs BORR --change {self.cid}")
         self.assertFalse((backlog_dir("BORR") / "EPIC-CHG-001.md").exists())
 
+    def test_refusal_after_forget_keeps_memory_indexed(self):
+        from sentinel.memory import ContextBroker
+
+        self.run_backlog()
+        with patch("sentinel.backlog.hooks.assert_backlog_privacy_clean", side_effect=GateRefusal("privacy")):
+            with self.assertRaises(GateRefusal) as caught:
+                compile_change_backlog("BORR", self.cid)
+        self.assertEqual(str(caught.exception), "privacy")
+        indexed = {a["artifact_id"] for a in ContextBroker("BORR").data.get("artifacts", [])}
+        self.assertTrue({"EPIC-CHG-001", "US-001", "US-002", "US-003", "IMPL-READINESS"} <= indexed)
+        for story_id in ("US-001", "EPIC-CHG-001", "IMPL-READINESS"):
+            rows = ContextBroker("BORR").retrieve(story_id, "test", limit=20)
+            self.assertIn(story_id, {r["artifact_id"] for r in rows})
+
     def test_refuses_with_blocking_gap_open(self):
         changes = state("BORR")["changes"]
         changes[self.cid]["gap_counts"]["blocking_open"] = 2

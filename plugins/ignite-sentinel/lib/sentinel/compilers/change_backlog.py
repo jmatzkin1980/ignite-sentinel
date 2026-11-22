@@ -184,6 +184,46 @@ def _readiness_summary(items: list[dict[str, Any]]) -> tuple[str, dict[str, Any]
 
 
 def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
+    """The change's stories. Memory rows of the change's own derived files are dropped while building (so a rerun
+    does not retrieve its previous output) and indexed again from disk on every exit path, refusals included."""
+    try:
+        return _compile_change_backlog(project_id, change_id)
+    finally:
+        _reindex_change_artifacts(project_id, change_id)
+
+
+def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
+    from ..memory import shared_broker
+
+    base = workspace_path(project_id)
+    epic_id = epic_id_for(change_id)
+    epic_path = base / "04_backlog" / f"{epic_id}.md"
+    pack_path = base / "08_context_packs" / "implementation_readiness.json"
+    story_ids = _change_story_ids(base, change_id)
+    if not epic_path.is_file() and not story_ids:
+        return
+    items: dict[str, dict[str, Any]] = {}
+    pack = read_json(pack_path, {})
+    for item in pack.get("stories", []) if isinstance(pack, dict) else []:
+        if isinstance(item, dict) and item.get("story_id"):
+            items[str(item["story_id"])] = item
+    broker = shared_broker(project_id)
+    if epic_path.is_file():
+        broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"),
+                              trace_ids=[epic_id, change_id, *story_ids])
+    for story_id in story_ids:
+        path = base / "04_backlog" / f"{story_id}.md"
+        text = path.read_text(encoding="utf-8")
+        trace = [str(t) for t in parse_frontmatter(text).get("trace", []) or []]
+        broker.index_artifact(story_id, "user_story", path, text,
+                              domain=str(items.get(story_id, {}).get("domain", "functional")),
+                              trace_ids=[epic_id, story_id, *trace])
+    if pack_path.is_file():
+        broker.index_artifact("IMPL-READINESS", "implementation_readiness", pack_path, pack_path.read_text(encoding="utf-8"),
+                              domain="delivery", trace_ids=list(items) or ["IMPL-READINESS"])
+
+
+def _compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     from ..backlog.gates import evaluate_story_gates, update_story_gate_state
     from ..backlog.hooks import assert_backlog_privacy_clean
     from ..backlog.rollup import backlog_status
@@ -308,14 +348,6 @@ def compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     update_state(project_id, story_gates=gates, story_lifecycle=lifecycle, changes=changes)
 
     assert_backlog_privacy_clean(project_id)
-    broker = shared_broker(project_id)
-    broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"),
-                          trace_ids=[epic_id, change_id, *current_ids])
-    for story, path in zip(stories, story_paths):
-        broker.index_artifact(story["id"], "user_story", path, path.read_text(encoding="utf-8"),
-                              domain=story["domain"], trace_ids=[epic_id, story["id"], *story["trace"]])
-    broker.index_artifact("IMPL-READINESS", "implementation_readiness", pack_path, pack_path.read_text(encoding="utf-8"),
-                          domain="delivery", trace_ids=[str(i.get("story_id")) for i in all_items] or ["IMPL-READINESS"])
     board = backlog_status(project_id)
 
     epic_rel = epic_path.relative_to(base).as_posix()
