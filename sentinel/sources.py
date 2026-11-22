@@ -16,7 +16,11 @@ from .source_registry import (
     find_row,
     open_row,
     registry_summary,
+    ROLE_FOLDERS,
+    SOURCE_ROLES,
+    role_is_declared,
     row_for_hash,
+    source_kind,
     update_row,
     write_source_log,
 )
@@ -155,6 +159,177 @@ def declare_source_role(project_id: str, source_id: str, role: str) -> None:
     save_source_manifest(project_id, manifest)
 
 
+def _load_language(project_id: str, change_id: str | None) -> str:
+    if change_id:
+        from .changes import change_language, list_changes
+
+        entry = list_changes(project_id).get(change_id)
+        if entry:
+            return change_language(project_id, entry)
+    return _language(project_id)
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    try:
+        path.resolve().relative_to(folder.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _text(language: str, es: str, en: str) -> str:
+    return es if language == "es" else en
+
+
+def load_source(project_id: str, source: Path, role: str, change_id: str | None = None) -> dict[str, Any]:
+    """IMP-400: register `source` with the role it plays in a change.
+
+    A file outside 00_raw gets a redacted copy in the role's folder; a context file already
+    inside 00_raw is registered in place. The same content reuses its F-NN row.
+    """
+    from .changes import get_change, list_changes
+    from .core.text import unique_path
+    from .errors import InputError
+    from .injection import shield_source
+    from .memory import CONTEXT_FOLDERS, _sentinel_output_paths, index_context_folders
+    from .secrets_scan import ingest_source, pii_report_enabled
+    from .source_formats import read_source, target_suffix
+    from .workspace import ensure_workspace, update_state
+
+    language = _load_language(project_id, change_id)
+    if role not in SOURCE_ROLES:
+        raise InputError(_text(
+            language,
+            f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}",
+            f"unknown role: {role}; valid roles: {', '.join(SOURCE_ROLES)}",
+        ))
+    if role == "pedido" and not change_id:
+        raise InputError(
+            _text(language, "el pedido de un proyecto entra con /ingest", "a project's request enters with /ingest"),
+            next_step=_text(
+                language,
+                f"Usá /ingest {project_id} --source NOTA (proyecto) o /ingest {project_id} --source NOTA --change (cambio); "
+                "--role pedido de /sources va con --change CHG-NNN.",
+                f"Use /ingest {project_id} --source NOTE (project) or /ingest {project_id} --source NOTE --change (change); "
+                "/sources --role pedido goes with --change CHG-NNN.",
+            ),
+        )
+    if change_id:
+        get_change(project_id, change_id)
+    if not source.is_file():
+        raise InputError(_text(language, f"--load debe ser un archivo: {source}", f"--load must be a file: {source}"))
+
+    ensure_workspace(project_id)
+    base = workspace_path(project_id)
+    raw = base / "00_raw"
+    key = source_key(source)
+    resolved = source.resolve()
+    own = {str(Path(item).resolve()) for item in _sentinel_output_paths(project_id)}
+    if (
+        "harvest" in resolved.parts
+        or str(resolved) in own
+        or default_authority(source_kind(key), key) == "own_artifact"
+        or source.name.endswith(SENTINEL_OUTPUT_SUFFIXES)
+    ):
+        raise InputError(
+            _text(
+                language,
+                f"{source.name} es una lectura de Sentinel, no una fuente: no se carga con rol.",
+                f"{source.name} is a reading by Sentinel, not a source: it is not loaded with a role.",
+            ),
+            next_step=_text(
+                language,
+                "Cargá el documento original del cliente que Sentinel leyó.",
+                "Load the client's original document that Sentinel read.",
+            ),
+        )
+
+    in_place = any(_inside(source, base / folder) for folder in CONTEXT_FOLDERS if folder.startswith("00_raw/"))
+    manifest = load_source_manifest(project_id)
+    existing = row_for_hash(manifest, file_hash(source))
+    if existing is not None and role_is_declared(existing) and existing["role"] != role:
+        raise InputError(
+            _text(
+                language,
+                f"{existing['id']} ya está registrada como {existing['role']}; "
+                f"para cambiarlo usá /sources {project_id} --id {existing['id']} --role {role}",
+                f"{existing['id']} is already registered as {existing['role']}; "
+                f"to change it use /sources {project_id} --id {existing['id']} --role {role}",
+            )
+        )
+
+    def make_copy(source_id_for_copy: str | None) -> tuple[Path, str]:
+        copy = unique_path(base / ROLE_FOLDERS[role] / f"{source.stem}{target_suffix(source)}")
+        config = load_config(project_id)
+        extracted = read_source(source, media_stem=copy.stem)
+        source_id = source_id_for_copy or open_source_row(project_id, source, "role_loaded")
+        text, _sanitized = ingest_source(base, source, copy, pii_report_enabled(config), extracted)
+        shield_source(base, source.name, text)
+        return copy, source_id
+
+    reused = existing is not None
+    if reused:
+        source_id = str(existing["id"])
+        target = source if in_place else None
+        if target is None:  # the content already has a copy in the workspace: no second one
+            for candidate in [*existing.get("copies", []), *existing.get("paths", [])]:
+                found = Path(candidate) if Path(candidate).is_absolute() else Path.cwd() / candidate
+                if found.is_file() and _inside(found, raw):
+                    target = found
+                    break
+        if target is None:  # registered, but no copy left: make one
+            target, _ = make_copy(source_id)
+            mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
+    elif in_place:
+        target = source
+        source_id = open_source_row(project_id, source, "role_loaded")
+        mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
+    else:
+        target, source_id = make_copy(None)
+        mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
+        mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
+
+    # A declared role overwrites an inferred one; the role's folder gives the row its authority
+    # (built / spec / prototype) unless a person or the routing already set one.
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    set_role(row, role)
+    if row_authority(row) == "unclassified":
+        by_role = default_authority(source_kind(f"{ROLE_FOLDERS[role]}/x"), "")
+        if by_role != "unclassified":
+            set_authority(row, by_role)
+    save_source_manifest(project_id, manifest)
+    if change_id:
+        changes = {k: dict(v) for k, v in list_changes(project_id).items()}
+        listed = list(changes[change_id].get("sources") or [])
+        if source_id not in listed:
+            listed.append(source_id)
+        changes[change_id]["sources"] = listed
+        update_state(project_id, changes=changes)
+    index_context_folders(project_id)
+    write_source_log(project_id, load_source_manifest(project_id), source_log_path(project_id), _language(project_id))
+    return {
+        "source_id": source_id,
+        "role": role,
+        "path": source_key(target),
+        "change_id": change_id,
+        "reused": reused,
+        "in_place": in_place,
+        "version_gaps": [],
+    }
+
+
+def load_message(project_id: str, result: dict[str, Any]) -> str:
+    language = _load_language(project_id, result.get("change_id"))
+    change_id = result.get("change_id")
+    where = (f", en {change_id}" if language == "es" else f", in {change_id}") if change_id else ""
+    return _text(
+        language,
+        f"{result['source_id']} registrada como {result['role']}{where}: `{result['path']}`",
+        f"{result['source_id']} registered as {result['role']}{where}: `{result['path']}`",
+    )
+
+
 def mark_source_processed(
     project_id: str,
     path: Path,
@@ -251,6 +426,7 @@ def update_source(
     source_id: str,
     *,
     authority: str | None = None,
+    role: str | None = None,
     cell: str | None = None,
     mark: str | None = None,
     **changes: Any,
@@ -263,6 +439,8 @@ def update_source(
     row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
     if authority:
         set_authority(row, authority)
+    if role:
+        set_role(row, role)  # IMP-400: fix the role of a row
     if changes.get("retire"):
         cascade_impact(row)  # IMP-250b: a retired source reaches every document
     if cell is not None:

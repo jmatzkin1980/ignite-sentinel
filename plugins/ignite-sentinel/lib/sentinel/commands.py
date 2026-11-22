@@ -236,6 +236,10 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--precedence", metavar="SCOPE")
     p.add_argument("--between", metavar="F-NN,F-NN")
     p.add_argument("--report", action="store_true")
+    # IMP-400: load a source with the role it plays in a change, or fix a row's role.
+    p.add_argument("--load", metavar="PATH", help="IMP-400: register this file with --role (a redacted copy in the role's folder)")
+    p.add_argument("--role", help="IMP-400: pedido, linea_de_base, plan_previo or diseno_nuevo")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
 
 
 def _export(p: argparse.ArgumentParser) -> None:

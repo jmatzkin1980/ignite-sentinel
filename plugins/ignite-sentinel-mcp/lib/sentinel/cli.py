@@ -453,7 +453,7 @@ def _run_project_command(args) -> int:
                 result = list_stakeholders(args.project_id)
             print_json(result)
         elif args.command == "sources":
-            from .sources import list_sources, source_precedence, update_source, write_closing_report
+            from .sources import list_sources, load_message, load_source, source_precedence, update_source, write_closing_report
 
             changes = {
                 "from_who": args.from_who,
@@ -469,22 +469,33 @@ def _run_project_command(args) -> int:
                 "cell": args.cell,
                 "mark": args.mark,
             }
-            if args.precedence or args.between:
+            role_option = args.role  # IMP-400: --id F-NN --role ROLE
+            if args.load or args.change:
+                # IMP-400: --load PATH --role ROLE [--change CHG] registers a source with its role.
+                if args.precedence or args.between or args.report or args.source_id or any(value for value in changes.values()):
+                    raise ValueError("/sources --load takes only --role and --change")
+                if not args.load:
+                    raise ValueError("/sources --change goes with --load PATH --role ROLE")
+                if not args.role:
+                    raise ValueError("/sources --load needs --role pedido|linea_de_base|plan_previo|diseno_nuevo")
+                result = load_source(args.project_id, Path(args.load), args.role, args.change)
+                result = {**result, "message": load_message(args.project_id, result)}
+            elif args.precedence or args.between:
                 if not (args.precedence and args.between):
                     raise ValueError("/sources --precedence SCOPE goes with --between F-NN,F-NN")
-                if args.report or args.source_id or any(value for value in changes.values()):
+                if args.report or args.source_id or role_option or any(value for value in changes.values()):
                     # IMP-333: other options used to be ignored in silence
                     raise ValueError("/sources --precedence --between takes no other option")
                 ids = [item.strip() for item in args.between.split(",") if item.strip()]
                 result = source_precedence(args.project_id, args.precedence, ids)
             elif args.report:
-                if args.source_id or any(value for value in changes.values()):
+                if args.source_id or role_option or any(value for value in changes.values()):
                     raise ValueError("/sources --report takes no other option")
                 result = write_closing_report(args.project_id)
             elif args.source_id:
-                result = update_source(args.project_id, args.source_id, **changes)
-            elif any(value for value in changes.values()):
-                raise ValueError("/sources needs --id F-NN to change a row")
+                result = update_source(args.project_id, args.source_id, role=role_option, **changes)
+            elif role_option or any(value for value in changes.values()):
+                raise ValueError("/sources needs --id F-NN to change a row (--role goes with --id F-NN or --load PATH)")
             else:
                 result = list_sources(args.project_id)
             print_json(result)
