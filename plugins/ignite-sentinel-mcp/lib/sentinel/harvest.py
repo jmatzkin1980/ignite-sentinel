@@ -136,8 +136,10 @@ def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
                 "evidence_mention": f"harvest {entry['block']}", "origin": "harvest", "resolution_note": ""}
     if entry["kind"] == "divergence":
         return {"id": f"GAP-HRV-{digest}", "lens": "technical", "severity": "high", "status": "OPEN",
-                "description": f"⚠ README vs code divergence ({entry['ref']}): {entry['text']}"[:240],
-                "question": ("¿Cuál rige: lo documentado o lo construido?" if es else "Which governs: what is documented or what is built?"),
+                "description": (f"⚠ Divergencia entre lo documentado y lo construido ({entry['ref']}): {entry['text']}" if es
+                                else f"⚠ Divergence between what is documented and what is built ({entry['ref']}): {entry['text']}")[:240],
+                "question": ("¿Qué rige: lo construido, lo que dice el pedido, o hay que construirlo o corregirlo en este cambio?" if es
+                             else "Which governs: what is built, what the request says, or does it have to be built or fixed in this change?"),
                 "evidence_mention": entry["ref"], "origin": "harvest", "resolution_note": ""}
     return None
 

@@ -106,6 +106,8 @@ def change_border_guide(language: str) -> str:
     """
     if language == "es":
         return """
+Las respuestas no se escriben en este archivo: van en un archivo aparte (por ejemplo `input/respuestas/CHG-nnn-respuestas.md`) y se procesan con `/resolve-gaps P --source ARCHIVO --change CHG-nnn`.
+
 Al responder GAP-SCOPE de un cambio, agregar debajo de la respuesta el borde: una línea `zona | tipo | nombre` por superficie.
 Zonas: nuevo, adyacente, preservado. Tipos: pantalla, proceso, endpoint, dato, rol, integracion, regla.
 
@@ -127,6 +129,8 @@ Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué
     - Superficie: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (una o más del borde, separadas por `;`; obligatoria en toda respuesta EARS de un cambio)
 """
     return """
+Answers are not written in this file: they go in a separate file (for example `input/respuestas/CHG-nnn-answers.md`) and are processed with `/resolve-gaps P --source FILE --change CHG-nnn`.
+
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
 Zones: nuevo, adyacente, preservado. Types: pantalla, proceso, endpoint, dato, rol, integracion, regla.
 

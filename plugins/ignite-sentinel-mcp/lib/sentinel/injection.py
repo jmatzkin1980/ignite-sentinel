@@ -34,7 +34,11 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(
             rf"\b(?:ignore|disregard|forget|override)\b{_W}{{0,40}}\b(?:previous|prior|above|earlier|all|any|your)\b"
             rf"{_W}{{0,30}}\b(?:instructions?|rules|prompts?|guidelines|directives)\b"
-            rf"|\b(?:ignor|olvid|descart|omit)[aáeé]\w*\b{_W}{{0,40}}\b(?:instrucciones|reglas|indicaciones|directivas)\b",
+            # IMP-398: like the English branch, Spanish needs a "previous instructions" qualifier, or the
+            # second-person imperative; "El diseño omite reglas vigentes" is business text, not an override.
+            rf"|\b(?:ignor|olvid|descart|omit)[aáeé]\w*\b{_W}{{0,40}}\b(?:anteriores|previas|de\s+arriba|todas|tus|las\s+del\s+sistema)\b"
+            rf"{_W}{{0,30}}\b(?:instrucciones|reglas|indicaciones|directivas)\b"
+            rf"|\b(?:ignorá|ignora\s+las|olvidá|olvida\s+las|omití)\s+(?:\w+\s+){{0,3}}?(?:instrucciones|indicaciones|directivas)\b",
             re.I,
         ),
     ),
