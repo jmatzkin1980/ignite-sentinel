@@ -285,14 +285,18 @@ def strip_ears_lead(statement: str) -> str:
 
 
 def build_backlog_story_specs(
-    project_id: str, backlog_context: dict[str, Any], language: str | None = None
+    project_id: str,
+    backlog_context: dict[str, Any],
+    language: str | None = None,
+    units: list[dict[str, Any]] | None = None,
+    ids: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
     text = STORY_TEXT[language]
     specs: list[dict[str, Any]] = []
     global_domain_coverage = build_domain_context_coverage(backlog_context)
     backlog_context["domain_context_coverage"] = global_domain_coverage
-    spec_units = read_spec_units(project_id)
+    spec_units = read_spec_units(project_id) if units is None else units
     slicing_model = load_slicing_model()
     if not spec_units:
         story = pending_backlog_story(global_domain_coverage, backlog_context, slicing_model, language)
@@ -301,7 +305,7 @@ def build_backlog_story_specs(
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, global_domain_coverage)
         return [story]
     for index, unit in enumerate(spec_units, start=1):
-        story_id = f"US-{index:03d}"
+        story_id = ids[str(unit.get("id", ""))] if ids is not None else f"US-{index:03d}"
         story_context = build_story_backlog_context(project_id, story_id, unit, backlog_context)
         domain_coverage = build_domain_context_coverage(story_context)
         backlog_context.setdefault("per_story", {})[story_id] = story_context
@@ -561,6 +565,7 @@ def build_cross_cutting_enabler_specs(
     value_stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
     language: str | None = None,
+    stable_ids: bool = False,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
     enabled_value_stories = [story for story in value_stories if story.get("type") == "value_story"]
@@ -576,12 +581,19 @@ def build_cross_cutting_enabler_specs(
     for candidate in ENABLER_CANDIDATES:
         if not any(token in evidence for token in candidate["tokens"]):
             continue
-        story_id = f"US-{start + len(specs):03d}"
         trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
         if language == "es":
             title, description, goal, benefit = (candidate[key] for key in ("title", "description", "goal", "benefit"))
         else:
             title, description, goal, benefit = ENABLER_TEXT_EN[candidate["key"]]
+        if stable_ids:
+            from .. import id_registry
+            from ..story_ids import enabler_key
+
+            key = enabler_key(title)
+            story_id = id_registry.assign_ids(project_id, "US", [key])[key]
+        else:
+            story_id = f"US-{start + len(specs):03d}"
         story = {
             "id": story_id,
             "type": "cross_cutting_enabler",

@@ -16,6 +16,7 @@ from .rollup import backlog_status
 from ..core.markdown import parse_frontmatter, parse_table_rows, update_frontmatter_keys
 from ..core.graph import add_edge, add_node, nodes_by_type
 from ..deltas import DELTA_LEGEND, delta_marker
+from ..story_ids import is_change_story
 from ..workspace import read_json, state_path, update_state, utc_now, workspace_path
 from ..core.io import write_text
 
@@ -97,6 +98,11 @@ def apply_lifecycle_to_stories(project_id: str, stories: list[dict[str, Any]]) -
                 "owner": str(previous.get("owner", "")).strip(),
             },
         )
+    # IMP-393: a change's stories are not the project run's to drop; project stories keep today's behaviour.
+    base = workspace_path(project_id) / "04_backlog"
+    for story_id, previous in lifecycle.items():
+        if story_id not in merged and is_change_story(base / f"{story_id}.md"):
+            merged[story_id] = previous
     update_state(project_id, story_lifecycle=merged)
     return merged
 
