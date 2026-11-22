@@ -166,6 +166,38 @@ _BORDER_TYPE_ALIASES = {"integración": "integracion"}
 _BORDER_FIELD = re.compile(r"^([ 	]*)-[ 	]*Borde[ 	]*:[ 	]*(.*)$", re.I | re.M)
 
 
+ALIAS_MAX = 40
+
+
+def _check_alias(alias: str, name: str, border: list[dict[str, str]], language: str) -> str:
+    """IMP-398: a short alias for a surface: no `;` or `|`, at most 40 characters, no accents, unique in the border."""
+    import unicodedata
+
+    es = language == "es"
+    problem = None
+    if not alias:
+        problem = "está vacío" if es else "is empty"
+    elif ";" in alias or "|" in alias:
+        problem = "no puede llevar `;` ni `|`" if es else "cannot contain `;` or `|`"
+    elif len(alias) > ALIAS_MAX:
+        problem = f"tiene más de {ALIAS_MAX} caracteres" if es else f"is longer than {ALIAS_MAX} characters"
+    elif unicodedata.normalize("NFD", alias) != alias:
+        problem = "no puede llevar tildes" if es else "cannot contain accents"
+    else:
+        key = alias.casefold()
+        taken = [item for item in border if str(item.get("alias", "")).casefold() == key or str(item.get("name", "")).casefold() == key]
+        if taken or name.casefold() == key:
+            problem = "ya lo usa otra superficie del borde" if es else "is already used by another border surface"
+    if problem:
+        raise InputError(
+            (f"El alias «{alias}» de la superficie «{name}» {problem}." if es
+             else f"The alias «{alias}» of the surface «{name}» {problem}."),
+            next_step=("Corregí el alias (corto, sin `;` ni `|`, sin tildes, único) y volvé a correr /resolve-gaps con el mismo archivo." if es
+                       else "Fix the alias (short, no `;` or `|`, no accents, unique) and run /resolve-gaps again with the same file."),
+        )
+    return alias
+
+
 def parse_border(response_block: str, cite: str, language: str = "es") -> list[dict[str, str]]:
     """The structured border in a confirmed answer to GAP-SCOPE: one `zona | tipo | nombre` line per surface.
 
@@ -187,8 +219,8 @@ def parse_border(response_block: str, cite: str, language: str = "es") -> list[d
     border: list[dict[str, str]] = []
     for raw in lines:
         text = raw.lstrip("-*").strip()
-        parts = [part.strip() for part in text.split("|", 2)]
-        if len(parts) != 3 or not all(parts):
+        parts = [part.strip() for part in text.split("|", 3)]
+        if len(parts) not in (3, 4) or not all(parts[:3]):
             raise InputError(
                 f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre` "
                 f"(zonas válidas: {', '.join(BORDER_ZONES)}; tipos válidos: {', '.join(SURFACE_TYPES)}).",
@@ -214,7 +246,10 @@ def parse_border(response_block: str, cite: str, language: str = "es") -> list[d
                 next_step=("Sacá el `;` del nombre y volvé a correr /resolve-gaps con el mismo archivo." if language == "es"
                            else "Remove the `;` from the name and run /resolve-gaps again with the same file."),
             )
-        border.append({"zone": zone, "type": kind, "name": name, "cite": cite})
+        item = {"zone": zone, "type": kind, "name": name, "cite": cite}
+        if len(parts) == 4:
+            item["alias"] = _check_alias(parts[3], name, border, language)
+        border.append(item)
     if not border:
         raise InputError(
             "El bloque `Borde:` de GAP-SCOPE no tiene ninguna línea "

@@ -55,8 +55,11 @@ def _fold_name(text: str) -> str:
 
 
 def parse_surfaces(value: str, border: list[dict]) -> tuple[list[str], list[str]]:
-    """IMP-396: (valid, unknown) surfaces of a `Superficie` value against the border; valid ones as the border spells them."""
+    """IMP-396: (valid, unknown) surfaces of a `Superficie` value against the border; valid ones as the border spells them (name or alias in, canonical name out)."""
     by_name = {_fold_name(item.get("name", "")): str(item.get("name", "")) for item in border if item.get("name")}
+    for item in border:
+        if item.get("alias") and item.get("name"):
+            by_name.setdefault(_fold_name(item["alias"]), str(item["name"]))
     valid: list[str] = []
     unknown: list[str] = []
     for part in str(value or "").split(";"):

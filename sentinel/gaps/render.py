@@ -110,6 +110,7 @@ Las respuestas no se escriben en este archivo: van en un archivo aparte (por eje
 
 Al responder GAP-SCOPE de un cambio, agregar debajo de la respuesta el borde: una línea `zona | tipo | nombre` por superficie.
 Zonas: nuevo, adyacente, preservado. Tipos: pantalla, proceso, endpoint, dato, rol, integracion, regla.
+Un cuarto campo opcional, `alias`, da un nombre corto para repetir en Superficie (hasta 40 caracteres, sin `;` ni `|`, sin tildes, único en el borde): `zona | tipo | nombre | alias`. Superficie acepta el nombre o el alias y guarda siempre el nombre.
 
     - Borde:
       - nuevo | pantalla | Botón "Guardar borrador" en el alta de proveedores
@@ -133,6 +134,7 @@ Answers are not written in this file: they go in a separate file (for example `i
 
 When answering GAP-SCOPE of a change, add the border below the answer: one `zone | type | name` line per surface.
 Zones: nuevo, adyacente, preservado. Types: pantalla, proceso, endpoint, dato, rol, integracion, regla.
+An optional fourth field, `alias`, gives a short name to repeat in Surface (up to 40 characters, no `;` or `|`, no accents, unique in the border): `zone | type | name | alias`. Surface accepts the name or the alias and always stores the name.
 
     - Borde:
       - nuevo | pantalla | "Save draft" button in the supplier registration
