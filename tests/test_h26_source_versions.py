@@ -107,6 +107,54 @@ class VersionGaps(SnapshotWorkspaceCase):
         self.assertEqual(report["mismatched"][0]["reason"], "version")
         self.assertEqual(len([g for g in gap_ids("VER") if g.startswith("GAP-VER-")]), 1)
 
+    def _ver(self, project_id):
+        return [g for g in gap_ids(project_id) if g.startswith("GAP-VER-")]
+
+    def _request(self, project_id: str, body: str) -> None:
+        (Path.cwd() / f"{project_id}.md").write_text(
+            PEDIDO.read_text(encoding="utf-8").split("## Fuentes consultadas")[0] + "\n## Fuentes consultadas\n\n" + body, encoding="utf-8")
+
+    def test_two_stale_documents_open_two_distinct_gaps(self):
+        proto = VERSIONS / "prototipo-alta.md"
+        self._request("TWO", "- sad-compras-v3.md\n- prototipo-alta-v2.md\n")
+        run_ok(["init", "TWO"])
+        run_ok(["sources", "TWO", "--load", str(SAD_V2), "--role", "linea_de_base"])
+        run_ok(["sources", "TWO", "--load", str(proto), "--role", "diseno_nuevo"])
+        out = json.loads(run_ok(["ingest", "TWO", "--source", "TWO.md", "--change"]))
+        ids = self._ver("TWO")
+        self.assertEqual(len(set(ids)), 2)
+        self.assertEqual(out["gap_counts"]["blocking_open"], 3 + 2)
+        self.assertEqual(blocking("TWO"), 5)
+        gaps = workspace_path("TWO") / "01_discovery" / "CHG-001" / "gaps.md"
+        gaps.write_text("\n".join(l for l in gaps.read_text(encoding="utf-8").splitlines() if "GAP-VER-" not in l) + "\n", encoding="utf-8")
+        self.assertEqual(sorted(check_change_versions("TWO", "CHG-001")["opened"]), sorted(ids))
+
+    def test_load_without_change_checks_every_change(self):
+        out = json.loads(run_ok(["sources", "VER", "--load", str(SAD_V2), "--role", "linea_de_base"]))
+        self.assertEqual(len(out["version_gaps"]), 1)
+        self.assertEqual(self._ver("VER"), out["version_gaps"])
+        self.assertEqual(blocking("VER"), 4)
+
+    def test_baseline_loaded_before_the_change_opens_gap_at_ingest(self):
+        self._request("PRE", "- sad-compras-v3.md (sha256: 3f2a9c1)\n")
+        run_ok(["init", "PRE"])
+        run_ok(["sources", "PRE", "--load", str(SAD_V2), "--role", "linea_de_base"])
+        out = json.loads(run_ok(["ingest", "PRE", "--source", "PRE.md", "--change"]))
+        self.assertEqual(len(self._ver("PRE")), 1)
+        self.assertEqual(out["gap_counts"]["blocking_open"], 4)
+
+    def test_sha_of_another_row_does_not_match_the_name(self):
+        proto = VERSIONS / "prototipo-alta.md"
+        self._request("OTH", f"- sad-compras-v2.md (sha256: {file_content_hash(proto)[:12]})\n")
+        run_ok(["init", "OTH"])
+        run_ok(["sources", "OTH", "--load", str(proto), "--role", "diseno_nuevo"])
+        run_ok(["ingest", "OTH", "--source", "OTH.md", "--change"])
+        out = json.loads(run_ok(["sources", "OTH", "--load", str(SAD_V2), "--role", "linea_de_base", "--change", "CHG-001"]))
+        self.assertEqual(len(out["version_gaps"]), 1)
+        report = check_change_versions("OTH", "CHG-001")
+        self.assertEqual(report["matched"], [])
+        self.assertEqual(report["mismatched"][0]["reason"], "sha")
+
     def test_borrador_fixture_unchanged(self):
         shutil.copy(BORRADOR, Path.cwd() / "borrador.md")
         run_ok(["init", "BRD"])

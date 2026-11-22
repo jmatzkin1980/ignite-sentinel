@@ -91,7 +91,7 @@ def check_change_versions(project_id: str, change_id: str) -> dict[str, Any]:
     """Compare what the change's request cites against the current non-request sources."""
     from .changes import change_gaps_path, change_language, list_changes
     from .core.io import write_text
-    from .gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, render_gaps
+    from .gaps import count_gaps, parse_gap_rows, render_gaps
     from .sources import load_source_manifest
     from .workspace import update_state, workspace_path
 
@@ -112,31 +112,38 @@ def check_change_versions(project_id: str, change_id: str) -> dict[str, Any]:
             if key in seen:
                 continue
             seen.add(key)
-            by_sha = next((r for r in loaded if sha and str(r.get("hash", "")).startswith(sha)), None)
             by_name = next((r for r in loaded if cited and cited.lower() in _basenames(r)), None)
             by_family = None
             if cited and by_name is None and version_key(cited):
                 by_family = next((r for r in loaded if any(version_key(n) == version_key(cited) for n in _basenames(r))), None)
             report = {"cited": cited, "sha": sha, "line": ref["line"]}
-            if by_sha is not None or (by_name is not None and not sha):
-                result["matched"].append({**report, "source_id": (by_sha or by_name)["id"]})
-            elif by_name is not None or by_family is not None:
-                row = by_name or by_family
-                reason = "sha" if by_name is not None else "version"
-                result["mismatched"].append({**report, "source_id": row["id"], "reason": reason})
-                loaded_name = Path(str(row["paths"][0])).name if row.get("paths") else str(row["id"])
-                new_gaps.append(_gap(change_id, language, cited or "", sha, loaded_name, str(row["id"])))
-            else:
+            row = by_name or by_family
+            if cited is None:  # a bare sha: it must prefix some loaded hash
+                hit = next((r for r in loaded if sha and str(r.get("hash", "")).startswith(sha)), None)
+                result["matched" if hit else "not_loaded"].append({**report, "source_id": hit["id"]} if hit else report)
+            elif row is None:
                 result["not_loaded"].append(report)
+            elif sha is None and by_name is not None or (sha and str(row.get("hash", "")).startswith(sha)):
+                result["matched"].append({**report, "source_id": row["id"]})  # the sha counts only on the row the name points to
+            else:
+                result["mismatched"].append({**report, "source_id": row["id"], "reason": "sha" if by_name is not None else "version"})
+                loaded_name = Path(str(row["paths"][0])).name if row.get("paths") else str(row["id"])
+                new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"])))
     if new_gaps:
         path = change_gaps_path(workspace_path(project_id), change_id)
         existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []
-        merged = merge_gaps_by_topic(existing, new_gaps)
-        result["opened"] = [g["id"] for g in merged["added"]]
-        if merged["added"]:
-            write_text(path, render_gaps(project_id, merged["gaps"], change_id, language, path.with_name("gap_elicitation.json")))
+        known = {g["id"] for g in existing}
+        added = []
+        for gap in new_gaps:  # exact id only: two stale documents are two questions, never folded by topic
+            if gap["id"] not in known:
+                known.add(gap["id"])
+                added.append(gap)
+        result["opened"] = [g["id"] for g in added]
+        if added:
+            rows = [*existing, *added]
+            write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
             updated = {k: dict(v) for k, v in list_changes(project_id).items()}
-            updated[change_id]["gap_counts"] = count_gaps(merged["gaps"])
+            updated[change_id]["gap_counts"] = count_gaps(rows)
             update_state(project_id, changes=updated)
     return result
 
