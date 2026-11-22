@@ -15,7 +15,7 @@ from ..change_requirements import load_change_ears, parse_delta
 from ..changes import change_language, get_change
 from ..core.graph import add_edge, add_node, children_of, load_graph, save_graph, upsert_node
 from ..core.io import read_json, remove, write_json, write_text
-from ..core.markdown import frontmatter_list, parse_frontmatter, table_cell
+from ..core.markdown import frontmatter_bounds, frontmatter_list, parse_frontmatter, table_cell
 from ..core.time import utc_now
 from ..errors import GateRefusal
 from ..story_ids import ensure_story_ids_seeded
@@ -36,6 +36,8 @@ TEXT = {
         "preserved": "## Comportamiento preservado",
         "no_preserved": "_Sin filas UNCHANGED._",
         "next": "Revisá el tablero {board} y las historias de {cid} en {epic}.",
+        "stale_reason": "El cambio {cid} modifica o retira lo que esta historia entrega",
+        "in_progress": "{sid} está {status}: queda como está; {new} lleva el cambio {cid} como change request y hay que coordinarlo con quien la implementa",
     },
     "en": {
         "no_specs": "{cid} has no specification: /backlog --change starts from {path}",
@@ -48,6 +50,8 @@ TEXT = {
         "preserved": "## Preserved behavior",
         "no_preserved": "_No UNCHANGED rows._",
         "next": "Review the board {board} and the stories of {cid} in {epic}.",
+        "stale_reason": "The change {cid} modifies or retires what this story delivers",
+        "in_progress": "{sid} is {status}: it is left as it is; {new} carries the change {cid} as a change request, coordinate it with whoever implements it",
     },
 }
 
@@ -165,6 +169,87 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[d
     return change, text, units
 
 
+_NOT_IMPLEMENTED = ("Draft", "Ready", "Blocked")
+_IN_PROGRESS = ("In Progress", "In Review")
+
+
+def _classify_affected(project_id: str, base: Path, change_id: str, stories: list[dict[str, Any]],
+                       units: list[dict[str, Any]], rows: list[dict[str, Any]],
+                       text: dict[str, Any]) -> dict[str, Any]:
+    """What each MODIFIED/REMOVED row does to the existing stories it affects.
+
+    Not implemented ones go Stale; implemented (Done) and in-progress ones make the row's story a change request.
+    A REMOVED row that touches only not-implemented stories produces no story. Mutates `stories` (type, modifica, drops).
+    """
+    from ..backlog.status import lifecycle_for_story
+
+    rows_by_id = {str(row["id"]): row for row in rows}
+    ears_of_unit = {unit["id"]: next((e for e in unit["ears"] if e in rows_by_id), "") for unit in units}
+    on_disk = {path.stem for path in (base / "04_backlog").glob("US-*.md")}
+    to_stale: list[str] = []
+    modified_by: dict[str, list[str]] = {}
+    warnings: list[str] = []
+    kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    for story in stories:
+        row = rows_by_id.get(ears_of_unit.get(str(story.get("source_unit", "")), ""))
+        delta = parse_delta(row["delta"]) if row else None
+        affected = list(row.get("affects") or []) if row and delta in ("MODIFIED", "REMOVED") else []
+        affected = [sid for sid in affected if sid in on_disk]
+        statuses = {sid: lifecycle_for_story(project_id, sid)["status"] for sid in affected}
+        modifies = [sid for sid, status in statuses.items() if status == "Done" or status in _IN_PROGRESS]
+        to_stale += [sid for sid, status in statuses.items() if status in _NOT_IMPLEMENTED]
+        for sid in modifies:
+            modified_by.setdefault(sid, []).append(story["id"])
+            if statuses[sid] in _IN_PROGRESS:
+                warnings.append(text["in_progress"].format(sid=sid, status=statuses[sid], new=story["id"], cid=change_id))
+        if modifies:
+            story["type"], story["modifica"] = "change_request", modifies
+        elif delta == "REMOVED" and affected:
+            dropped.append(story["id"])
+            continue
+        kept.append(story)
+    stories[:] = kept
+    return {"to_stale": list(dict.fromkeys(to_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped}
+
+
+def _with_modificada_por(text: str, ids: list[str]) -> str:
+    """The story's text with `modificada_por` set to `ids` (removed when empty); nothing else changes."""
+    bounds = frontmatter_bounds(text)
+    if bounds is None:
+        return text
+    start, end = bounds
+    lines = text[start:end].split("\n")
+    out: list[str] = []
+    skipping = False
+    for line in lines:
+        if line.startswith("modificada_por:"):
+            skipping = True
+            continue
+        if skipping and line.startswith("  - "):
+            continue
+        skipping = False
+        out.append(line)
+    if ids:
+        out += ["modificada_por:", *[f"  - {sid}" for sid in ids]]
+    return text[:start] + "\n".join(out) + text[end:]
+
+
+def _write_modificada_por(base: Path, own: set[str], modified_by: dict[str, list[str]]) -> None:
+    """Originals gain `modificada_por` (this change's stories that modify them); entries of this change that no
+    longer apply are dropped. Only that key of the frontmatter is touched."""
+    for path in sorted((base / "04_backlog").glob("US-*.md")):
+        front_text = path.read_text(encoding="utf-8")
+        front = parse_frontmatter(front_text)
+        if str(front.get("change", "")).strip():
+            continue
+        current = front.get("modificada_por", [])
+        current = [str(i) for i in current] if isinstance(current, list) else [str(current)]
+        wanted = list(dict.fromkeys([i for i in current if i not in own] + modified_by.get(path.stem, [])))
+        if wanted != current:
+            write_text(path, _with_modificada_por(front_text, wanted))
+
+
 def _readiness_summary(items: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
     blockers = sum(1 for item in items if item.get("status") != "ready")
     pending_by_domain: dict[str, int] = {}
@@ -259,6 +344,9 @@ def _compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     specs_text = (base / _specs_path(change_id)).read_text(encoding="utf-8")
     backlog_context = build_backlog_generation_context(project_id, specs_text, "")
     stories = build_backlog_story_specs(project_id, backlog_context, language=language, units=units, ids=ids)
+    affected = _classify_affected(project_id, base, change_id, stories, units, rows, text)
+    for story_id in affected["dropped"]:
+        backlog_context.get("per_story", {}).pop(story_id, None)
     pack_rel = f"08_context_packs/{change_id}/backlog_generation.json"
     epic_id = epic_id_for(change_id)
     lifecycle = read_state(project_id).get("story_lifecycle", {})
@@ -343,9 +431,26 @@ def _compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     for story_id in removed:
         gates.pop(story_id, None)
     story_ids = [story["id"] for story in stories]
+    change_requests = [story["id"] for story in stories if story["type"] == "change_request"]
     changes = state.get("changes", {})
-    changes[change_id]["backlog"] = {"stories": story_ids, "change_requests": [], "generated_at": utc_now()}
-    update_state(project_id, story_gates=gates, story_lifecycle=lifecycle, changes=changes)
+    update_state(project_id, story_gates=gates, story_lifecycle=lifecycle)
+
+    # Existing stories the change affects: Stale for the not implemented, `modificada_por` + `modifies` for the rest.
+    from ..backlog.hooks import mark_stories_stale
+
+    _write_modificada_por(base, previous_ids | current_ids, affected["modified_by"])
+    node_ids = {str(n.get("id")) for n in load_graph(project_id).get("nodes", [])}
+    for story in stories:
+        for original in story.get("modifica", []):
+            if story["id"] in node_ids and original in node_ids:
+                add_edge(project_id, story["id"], original, "modifies")
+    stale_now = mark_stories_stale(project_id, affected["to_stale"], text["stale_reason"].format(cid=change_id), change_id)
+    record = changes.get(change_id, {}).get("backlog") or {}
+    stale = list(dict.fromkeys([*record.get("stale", []), *stale_now]))
+    changes[change_id]["backlog"] = {
+        "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
+    }
+    update_state(project_id, changes=changes)
 
     assert_backlog_privacy_clean(project_id)
     board = backlog_status(project_id)
@@ -354,6 +459,7 @@ def _compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
     report = {
         "change_id": change_id, "epic": epic_id, "stories": story_ids, "removed": removed,
         "pass_to_pass": [row["id"] for row in preserved],
+        "change_requests": change_requests, "stale": stale_now, "warnings": affected["warnings"],
     }
     write_json(base / "08_context_packs" / change_id / "backlog_report.json", report)
     return {
@@ -362,9 +468,9 @@ def _compile_change_backlog(project_id: str, change_id: str) -> dict[str, Any]:
         "epic": epic_id,
         "path": epic_rel,
         "stories": story_ids,
-        "change_requests": [],
-        "stale": [],
-        "warnings": [],
+        "change_requests": change_requests,
+        "stale": stale_now,
+        "warnings": affected["warnings"],
         "report": report,
         "backlog_board": board["path"],
         "next_step": text["next"].format(board="04_backlog/BACKLOG.md", cid=change_id, epic=epic_rel),

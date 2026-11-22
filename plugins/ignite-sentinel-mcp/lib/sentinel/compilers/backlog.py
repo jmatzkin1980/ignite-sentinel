@@ -713,7 +713,7 @@ def render_story(project_id: str, epic_id: str, story: dict[str, Any], story_for
         if story.get("delta"):
             change_front += f"delta: {story['delta']}\n"
         if story.get("modifica"):
-            change_front += f"modifica: {story['modifica']}\n"
+            change_front += f"modifica:\n{frontmatter_list(list(story['modifica']))}\n"
         product_requirement = f"`{story['change']}`, `{story['fr']}`, `{story['jtbd']}`"
     else:
         product_requirement = f"`REQ-001`, `PRD-001`, `SPEC-001`, `{story['fr']}`, `{story['jtbd']}`"

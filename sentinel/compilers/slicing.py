@@ -574,7 +574,8 @@ def build_cross_cutting_enabler_specs(
     stable_ids: bool = False,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
-    enabled_value_stories = [story for story in value_stories if story.get("type") == "value_story"]
+    # IMP-393: a change request is a value story too (it delivers a change to something already built).
+    enabled_value_stories = [story for story in value_stories if story.get("type") in ("value_story", "change_request")]
     if not enabled_value_stories:
         return []
     evidence = cross_cutting_enabler_evidence(project_id)
