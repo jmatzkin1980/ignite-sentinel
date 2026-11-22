@@ -23,6 +23,7 @@ from .drift import derived_drift_warnings
 from .source_registry import registry_warnings
 from .sources import source_registry_summary
 from .gaps import BLOCKING_GAP_STATUSES, blocking_severities, count_gaps, is_blocking, parse_gap_table
+from .pending_marks import change_extraction_pending as _extraction_pending
 from .workspace import load_config, workspace_path
 
 VERDICTS = ("READY", "READY_WITH_WARNINGS", "NOT_READY")
@@ -53,7 +54,12 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     if blocking_open:
         blockers.append(f"{len(blocking_open)} blocking gap(s) open: {', '.join(blocking_open)}.")
 
-    gate_matrix = [{"gate": "gaps", "state": "BLOCKING_OPEN" if blocking_open else ("CLEAR" if discovered else "NOT_RUN"), "blocks": bool(blocking_open) or not discovered}]
+    if change_only and not discovered:
+        # no project discovery to run: the changes' own steps answer for it, so this gate does not apply (and does not block)
+        gaps_gate = {"gate": "gaps", "state": "NOT_APPLICABLE", "blocks": False}
+    else:
+        gaps_gate = {"gate": "gaps", "state": "BLOCKING_OPEN" if blocking_open else ("CLEAR" if discovered else "NOT_RUN"), "blocks": bool(blocking_open) or not discovered}
+    gate_matrix = [gaps_gate]
 
     stage = str(state.get("readiness_stage", "DISCOVERY_RAW"))
     brief_exists = (base / "02_requirements" / "project-brief.md").exists()
@@ -355,14 +361,15 @@ CHANGE_TEXT = {
                          "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps."),
         "requirements_none": ("Responder los requisitos del cambio",
                               "{cid} no tiene ninguna pregunta funcional abierta donde responder los requisitos; el pedido los trae "
-                              "pero Sentinel todavía no los extrae solo (llega en un próximo incremento)."),
+                              "pero Sentinel todavía no los extrae solo (llega en un próximo incremento). Mientras tanto el cambio se queda en este paso y el BA revisa el pedido a mano."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
         "pending_extraction": ("Pasar el contenido del pedido al brief",
                                "{cid}: el brief no tiene todavía el contenido del pedido en {sections}. Sentinel todavía no lo extrae solo "
-                               "(llega en un próximo incremento): mientras tanto, cada regla y criterio del pedido se carga respondiendo "
-                               "en EARS, con Delta y Superficie, una pregunta del cambio."),
+                               "(llega en un próximo incremento). La marca se limpia solo cuando se responde una pregunta de esa sección; "
+                               "si el cambio no tiene ninguna abierta, la marca queda hasta el incremento de extracción, el cambio sigue "
+                               "en este paso, /export --final se rechaza y el BA revisa el pedido a mano."),
         "done": ("Piezas del cambio al día",
                  "Las piezas registradas de {cid} están al día. Sentinel todavía no mide qué parte del pedido quedó cubierta: "
                  "verificá que cada regla y criterio del pedido tenga su requisito o su descarte."),
@@ -380,14 +387,15 @@ CHANGE_TEXT = {
                          "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps."),
         "requirements_none": ("Answer the change requirements",
                               "{cid} has no open functional question where the requirements can be answered; the request brings them "
-                              "but Sentinel does not extract them on its own yet (coming in a later increment)."),
+                              "but Sentinel does not extract them on its own yet (coming in a later increment). Meanwhile the change stays at this step and the BA checks the request by hand."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
         "pending_extraction": ("Move the request content into the brief",
                                "{cid}: the brief does not hold the request content yet in {sections}. Sentinel does not extract it on its own "
-                               "yet (coming in a later increment): meanwhile, each rule and criterion of the request is loaded by answering "
-                               "one question of the change in EARS, with Delta and Superficie."),
+                               "yet (coming in a later increment). The mark clears only when a question of that section is answered; "
+                               "if the change has no such open question, the mark stays until the extraction increment, the change stays "
+                               "at this step, /export --final is refused and the BA checks the request by hand."),
         "done": ("Change pieces up to date",
                  "The registered pieces of {cid} are up to date. Sentinel does not yet measure how much of the request is covered: "
                  "check that each rule and criterion of the request has its requirement or its discard."),
@@ -433,15 +441,6 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if _extraction_pending(base, change_id):
         return "pending_extraction"
     return "done"
-
-
-def _extraction_pending(base: Path, change_id: str) -> list[str]:
-    """IMP-398: the sections of the change brief that still say "the request covers this, the brief does not hold it"."""
-    from .core.io import read_json
-
-    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
-    pending = report.get("extraction_pending") if isinstance(report, dict) else None
-    return [str(item) for item in pending] if isinstance(pending, list) else []
 
 
 def _open_ears_gaps(base: Path, change_id: str) -> list[str]:

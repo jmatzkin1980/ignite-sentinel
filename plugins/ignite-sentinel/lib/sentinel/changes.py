@@ -238,7 +238,7 @@ def parse_border(response_block: str, cite: str, language: str = "es") -> list[d
         parts = [part.strip() for part in text.split("|", 3)]
         if len(parts) not in (3, 4) or not all(parts[:3]):
             raise InputError(
-                f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre` "
+                f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre [| alias]` (alias opcional) "
                 f"(zonas válidas: {', '.join(BORDER_ZONES)}; tipos válidos: {', '.join(SURFACE_TYPES)}).",
                 next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
             )

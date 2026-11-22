@@ -12,7 +12,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/doctor`
 - `/dashboard`
 - `/init PROJECT_ID`
-- `/ingest PROJECT_ID --source PATH [--replace] [--change]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose)
+- `/ingest PROJECT_ID --source PATH [--replace] [--change]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose. This note does not apply with `--change`: each `/ingest --change` opens a new change and returns its id, so it can be run as many times as there are changes)
 - `/maturity PROJECT_ID`
 - `/gaps PROJECT_ID [--change CHG-NNN]`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
@@ -41,11 +41,11 @@ Translate short chat commands into Sentinel CLI executions.
 - `/sources PROJECT_ID --id F-NN [--authority AUTHORITY] [--cell DOCUMENT/SECTION --mark updated|reviewed|pending [--reason TEXT]]`
 - `/sources PROJECT_ID --precedence SCOPE --between F-NN,F-MM`
 - `/sources PROJECT_ID --report`
-- `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md`
+- `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md [--change CHG-NNN]` (with `--change` it accepts only `brief` and `gaps`)
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
 - `/export PROJECT_ID --artifact gaps --format faq`
-- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open] [--theme NAME] [--release rN]`
+- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open] [--theme NAME] [--release rN] [--change CHG-NNN]` (with `--change` it accepts only `brief` and `gaps`)
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`

@@ -4,6 +4,7 @@ That command installs the clone's own project; in a plugin, wheel or .pyz projec
 is no project to install, so the hint has to name the packages instead.
 """
 
+import os
 import sys
 import tempfile
 import unittest
@@ -21,7 +22,7 @@ class DoctorRuntimeInstallHintsTest(unittest.TestCase):
         )}
         detail = runtime_hint(check)["detail"]
         self.assertNotIn("-e .", detail)
-        py = f'"{sys.executable}" -m pip install'  # IMP-398: the interpreter Sentinel runs with
+        py = (f'& "{sys.executable}"' if os.name == "nt" else f'"{sys.executable}"') + " -m pip install"  # IMP-398: the interpreter Sentinel runs with
         self.assertIn(f"`{py} lancedb`", detail)
         self.assertIn(f"`{py} model2vec sentence-transformers`", detail)
         self.assertIn(f'`{py} "mcp>=1.2,<3"`', detail)

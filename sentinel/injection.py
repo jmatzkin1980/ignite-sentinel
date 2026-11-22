@@ -39,8 +39,8 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             rf"|\b(?:ignor|olvid|descart|omit)[aáeé]\w*\b{_W}{{0,40}}\b(?:anteriores|previas|de\s+arriba|todas|tus|las\s+del\s+sistema)\b"
             rf"{_W}{{0,30}}\b(?:instrucciones|reglas|indicaciones|directivas)\b"
             rf"|\b(?:ignor|olvid|descart|omit)\w*\b{_W}{{0,40}}\b(?:instrucciones|reglas|indicaciones|directivas)\b"
-            rf"{_W}{{0,30}}\b(?:anteriores|previas|de\s+arriba|todas|tus|las\s+del\s+sistema)\b"
-            rf"|\b(?:ignorá|ignora\s+las|olvidá|olvida\s+las|omití)\s+(?:\w+\s+){{0,3}}?(?:instrucciones|indicaciones|directivas)\b",
+            rf"{_W}{{0,30}}\b(?:anteriores|previas|de\s+arriba|todas|tus|las\s+del\s+sistema|del\s+sistema)\b"
+            rf"|\b(?:ignorá|ignora\s+las|ignore\s+las|ignoren|olvidá|olvida\s+las|olvide\s+las|olviden|omití|omita|descarte\s+las)\s+(?:\w+\s+){{0,3}}?(?:instrucciones|indicaciones|directivas)\b",
             re.I,
         ),
     ),

@@ -46,21 +46,29 @@ def pending_count(text: str, report: dict | None = None) -> int:
 def banner(count: int, language: str, extraction: list[str] | None = None) -> str:
     sections = ", ".join(f"§{n}" for n in (extraction or []))
     if language == "es":
-        text = (f"> **BORRADOR** — quedan {count} marcas pendientes: es un documento de trabajo, no un entregable. "
-                "Cuando no quede ninguna, regeneralo con `/export --final`.")
-        return text + (f" Extracción pendiente del pedido: {sections}." if sections else "")
-    text = (f"> **DRAFT** — {count} pending marks remain: this is a working document, not a deliverable. "
-            "Once none remain, regenerate it with `/export --final`.")
-    return text + (f" Extraction pending from the request: {sections}." if sections else "")
+        if count:
+            text = (f"> **BORRADOR** — quedan {count} marcas pendientes: es un documento de trabajo, no un entregable. "
+                    "Cuando no quede ninguna, regeneralo con `/export --final`.")
+        else:
+            text = "> **BORRADOR** — es un documento de trabajo, no un entregable."
+        return text + (f" Además, el contenido del pedido todavía no está extraído en {sections}." if sections else "")
+    if count:
+        text = (f"> **DRAFT** — {count} pending marks remain: this is a working document, not a deliverable. "
+                "Once none remain, regenerate it with `/export --final`.")
+    else:
+        text = "> **DRAFT** — this is a working document, not a deliverable."
+    return text + (f" Also, the request content is not yet extracted in {sections}." if sections else "")
 
 
 EXTRACTION_TEXT = {
     "es": ("{n} sección(es) del brief todavía sin extraer del pedido ({sections})",
-           "Sentinel todavía no extrae solo el contenido del pedido (llega en un próximo incremento): cargá cada regla y criterio "
-           "respondiendo en EARS, con Delta y Superficie, una pregunta del cambio, o exportá sin --final para obtener un borrador marcado."),
+           "Sentinel todavía no extrae solo el contenido del pedido (llega en un próximo incremento). La marca se limpia solo "
+           "cuando se responde una pregunta de esa sección; si el cambio no tiene ninguna abierta, queda hasta el incremento de "
+           "extracción y el BA revisa el pedido a mano. Exportá sin --final para obtener un borrador marcado."),
     "en": ("{n} section(s) of the brief not yet extracted from the request ({sections})",
-           "Sentinel does not extract the request content on its own yet (coming in a later increment): load each rule and criterion "
-           "by answering one question of the change in EARS, with Delta and Superficie, or export without --final to get a marked draft."),
+           "Sentinel does not extract the request content on its own yet (coming in a later increment). The mark clears only when "
+           "a question of that section is answered; if the change has no such open question, it stays until the extraction "
+           "increment and the BA checks the request by hand. Export without --final to get a marked draft."),
 }
 
 
@@ -92,7 +100,7 @@ def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None
             f"/export --final refused: {count} pending marks remain in the {artifact}{deferred}. "
             "Close them (or export without --final to get a marked draft).")
     if sections:
-        return {"deliverable": "draft", "pending_marks": count + len(sections), "extraction_pending": sections, **extra}
+        return {"deliverable": "draft", "pending_marks": count, "extraction_pending": sections, **extra}
     return {"deliverable": "draft" if count else "final", "pending_marks": count, **extra}
 
 

@@ -57,6 +57,8 @@ class ChangeOnly(SnapshotWorkspaceCase):
         self.assertEqual(verdict["blockers"], [])
         self.assertEqual(verdict["verdict"], "READY_WITH_WARNINGS")
         self.assertIn(COVERAGE_NOT_MEASURED, verdict["warnings"])
+        gaps_gate = next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps")
+        self.assertEqual(gaps_gate, {"gate": "gaps", "state": "NOT_APPLICABLE", "blocks": False})
         self.assertFalse([w for w in verdict["warnings"] + verdict["blockers"] if DISCOVERY in w])
 
 
@@ -70,6 +72,7 @@ class WithoutChanges(SnapshotWorkspaceCase):
         self.assertNotIn("changes", verdict)
         self.assertEqual(verdict["verdict"], "NOT_READY")
         self.assertEqual(verdict["blockers"], ["Discovery has not run: there is no 01_discovery/gaps.md."])
+        self.assertEqual(next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps"), {"gate": "gaps", "state": "NOT_RUN", "blocks": True})
         self.assertNotIn(COVERAGE_NOT_MEASURED, verdict["warnings"])
 
 

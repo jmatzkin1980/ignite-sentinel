@@ -37,6 +37,10 @@ class GateTests(unittest.TestCase):
         lines = stamped.splitlines()
         self.assertEqual(lines[1], "# Project Brief — X")
         self.assertTrue(lines[3].startswith("> **BORRADOR** — quedan 3 marcas pendientes"))
+        banner_es = with_banner("# T\n", 2, "es", ["2", "4"])
+        self.assertIn("Además, el contenido del pedido todavía no está extraído en §2, §4.", banner_es)
+        self.assertNotIn("4 marcas", banner_es)
+        self.assertNotIn("pending marks", with_banner("# T\n", 0, "en", ["2"]))
         self.assertIn("**DRAFT** — 1 pending marks remain", with_banner("# T\n", 1, "en"))
 
 

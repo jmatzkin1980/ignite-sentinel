@@ -23,7 +23,6 @@ from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import set_change  # noqa: E402
-from test_change_specs import ALL_ANSWERS  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CID = "CHG-001"
@@ -95,9 +94,7 @@ class Mature(SnapshotWorkspaceCase):
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "requirements")
         # Past requirements/specs/backlog/validate, the brief's pending extraction is what is left, never "done".
-        # The middle steps are patched on purpose: no real walk reaches pending_extraction today, by design (the
-        # extraction that would empty it arrives in a later increment, and until then a brief holding the mark
-        # stops at requirements).
+        # The middle steps are patched here only to pin the ordering cheaply; Walk below reaches it for real.
         with patch("sentinel.change_requirements.load_change_ears", return_value=[{"delta": "ADDED"}]), \
                 patch("sentinel.change_requirements.parse_delta", return_value="ADDED"), \
                 patch("sentinel.compilers.change_backlog.specs_currency", return_value="current"), \
@@ -113,7 +110,8 @@ class Mature(SnapshotWorkspaceCase):
             self.assertEqual(s["command"], "")
             self.assertEqual(s["title"], "Pasar el contenido del pedido al brief")
             self.assertIn("el brief no tiene todavía el contenido del pedido en §2, §4", s["text"])
-            self.assertIn("cada regla y criterio del pedido se carga respondiendo en EARS, con Delta y Superficie", s["text"])
+            self.assertIn("La marca se limpia solo cuando se responde una pregunta de esa sección", s["text"])
+            self.assertIn("/export --final se rechaza", s["text"])
             self.assertIn("llega en un próximo incremento", s["text"])
             # without pending extraction the same state is done
             report_path = workspace_path("MAD") / "02_requirements" / CID / "change_brief_report.json"
@@ -150,7 +148,10 @@ class Mature(SnapshotWorkspaceCase):
         target = workspace_path("MAD") / "08_context_packs" / "exports" / f"{CID}-project-brief.md"
         text = target.read_text(encoding="utf-8")
         self.assertIn("BORRADOR", text)
-        self.assertIn("Extracción pendiente del pedido: §2, §4.", text)
+        self.assertIn("Además, el contenido del pedido todavía no está extraído en §2, §4.", text)
+        # pending_marks is the blocking count only; extraction is reported apart
+        self.assertEqual(out["pending_marks"], brief_report("MAD")["blocking_open"])
+        self.assertNotIn("2 marcas pendientes", text)
 
     def test_brief_compiled_before_the_border_does_not_say_pending_extraction(self):
         root = Path.cwd()
@@ -179,6 +180,41 @@ class Mature(SnapshotWorkspaceCase):
         self.assertEqual(recorded, out["gap_counts"])
         self.assertEqual(recorded["total"], 1)
         self.assertEqual(recorded["blocking_open"], 1)
+
+
+class Walk(SnapshotWorkspaceCase):
+    """Walk (a): a request with rules but no acceptance criteria; the lens round opens GAP-ACCEPTANCE only."""
+
+    @classmethod
+    def build_workspace(cls):
+        root = Path.cwd()
+        text = (FIXTURES / "change_mature" / "pedido_maduro.md").read_text(encoding="utf-8")
+        start = text.index("## Criterios de aceptación")
+        end = text.index("## Se preserva")
+        (root / "pedido.md").write_text(text[:start] + text[end:], encoding="utf-8")
+        (root / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
+        (root / "acc.md").write_text(
+            "### GAP-ACCEPTANCE\n- Respuesta: Cuando el analista envía un alta con un CUIT ya registrado, el sistema debe rechazarla "
+            "y nombrar al proveedor existente.\n- Owner / fuente: Jefa de Compras\n- Delta: ADDED\n"
+            "- Superficie: Tabla de proveedores\n- Estado de decisión: confirmado\n", encoding="utf-8")
+        run_ok(["init", "WLK"])
+        run_ok(["ingest", "WLK", "--source", "pedido.md", "--change"])
+        run_ok(["resolve-gaps", "WLK", "--source", "scope.md", "--change", CID])
+        run_ok(["resolve-gaps", "WLK", "--source", "acc.md", "--change", CID])
+        for command in ("brief", "specs", "backlog", "validate"):
+            run_ok([command, "WLK", "--change", CID])
+
+    def test_real_walk_reaches_pending_extraction_and_stays(self):
+        step = change_next_step("WLK", CID)
+        self.assertEqual(step["key"], "pending_extraction")
+        self.assertEqual(step["command"], "")
+        self.assertIn("§", step["text"])
+        self.assertIn("la marca queda hasta el incremento de extracción", step["text"])
+        # the honest exit: --final is refused, a draft is not
+        code, err = run_err(["export", "WLK", "--artifact", "brief", "--change", CID, "--final"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("sin extraer del pedido", err)
+        self.assertEqual(json.loads(run_ok(["export", "WLK", "--artifact", "brief", "--change", CID]))["deliverable"], "draft")
 
 
 class Borrador(SnapshotWorkspaceCase):
@@ -234,7 +270,8 @@ class Borrador(SnapshotWorkspaceCase):
                 s = change_next_step("BORR", CID)
         self.assertEqual(s["title"], "Move the request content into the brief")
         self.assertIn("the brief does not hold the request content yet in §2, §7", s["text"])
-        self.assertIn("each rule and criterion of the request is loaded by answering one question of the change in EARS", s["text"])
+        self.assertIn("The mark clears only when a question of that section is answered", s["text"])
+        self.assertIn("/export --final is refused", s["text"])
         self.assertEqual(s["command"], "")
         with patch("sentinel.readiness_verdict._change_step_key", return_value="requirements"), \
                 patch("sentinel.readiness_verdict._open_ears_gaps", return_value=[]):

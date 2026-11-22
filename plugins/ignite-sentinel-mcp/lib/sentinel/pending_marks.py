@@ -89,3 +89,12 @@ def compile_report_for(source: Path) -> dict[str, Any] | None:
     path = source.parent / REPORT_NAME
     report = read_json(path, None) if path.exists() else None
     return report if isinstance(report, dict) else None
+
+
+def change_extraction_pending(base: Path, change_id: str) -> list[str]:
+    """IMP-398: the sections of the change brief the request covers and the brief does not hold yet."""
+    from .core.io import read_json
+
+    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
+    pending = report.get("extraction_pending") if isinstance(report, dict) else None
+    return [str(item) for item in pending] if isinstance(pending, list) else []

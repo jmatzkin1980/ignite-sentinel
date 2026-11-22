@@ -1754,7 +1754,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **You get.**
 
-- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, a strict gate blocks, or the brief v2 says "Ready to build: no"), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`. In a workspace that only has changes, the blockers list each change's own blocking gaps (never "Discovery has not run"), and when every change is done the verdict is `READY_WITH_WARNINGS` with the warning "Request coverage is not measured yet": Sentinel does not check that each rule and criterion of the request has its requirement.
+- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, a strict gate blocks, or the brief v2 says "Ready to build: no"), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`. In a workspace that only has changes, the blockers list each pending change with its step (for example `CHG-001: scope. Cerrar el borde del cambio.`; never "Discovery has not run"), and when every change is done the verdict is `READY_WITH_WARNINGS` with the warning "Request coverage is not measured yet": Sentinel does not check that each rule and criterion of the request has its requirement.
 - `ready_to_build`: the brief v2's own "Ready to build" line and whether it says yes (`null` for a v1 brief). The verdict never says ready while the brief says no.
 - `gap_counts`, `maturity_score`, the `sources` summary.
 - `next_step` and `next_action` (`key`, `title`, `text`, `command`).
@@ -1786,7 +1786,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The next step for one release. |
-| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `lenses`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `done` (`done` has an empty `command`); it never reaches the PRD. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `lenses`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `pending_extraction`, `done` (`pending_extraction` and `done` have an empty `command`; `pending_extraction` shows only while the change brief still holds a `⏳ PENDIENTE DE EXTRACCIÓN` mark, and it does not clear until the extraction increment unless a question of that section is answered); it never reaches the PRD. It does not combine with `--release` (exit 3). |
 
 **Reads.** The same as `/status`.
 
