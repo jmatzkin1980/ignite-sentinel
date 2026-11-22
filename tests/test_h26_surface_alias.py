@@ -35,6 +35,22 @@ class SurfaceAlias(unittest.TestCase):
         self.assertIn("alias", str(ctx.exception).lower())
         self.assertIn("already", str(ctx.exception))
 
+    def test_alias_collisions_use_the_lookup_fold(self):
+        cases = [
+            ("alias equal to another name", ["nuevo | proceso | Uno | Dos", "nuevo | proceso | Dos"]),
+            ("accent-only difference", ["nuevo | dato | Padrón", "nuevo | dato | Otro | padron"]),
+            ("later name equals earlier alias", ["nuevo | proceso | Uno | corto", "nuevo | proceso | Corto"]),
+            ("whitespace fold", ["nuevo | proceso | Uno | a b", "nuevo | proceso | Dos | a  b"]),
+        ]
+        for label, lines in cases:
+            with self.assertRaises(InputError, msg=label) as ctx:
+                parse_border(block(*lines), "c")
+            self.assertIn("alias", str(ctx.exception).lower(), label)
+
+    def test_alias_equal_to_own_name_is_allowed(self):
+        border = parse_border(block("nuevo | proceso | Uno | uno", "nuevo | proceso | Dos"), "c")
+        self.assertEqual(parse_surfaces("UNO", border), (["Uno"], []))
+
     def test_invalid_alias_rejected(self):
         for bad in ("a;b", "a|b", "x" * 41, "Corté", ""):
             with self.assertRaises(InputError, msg=bad):
