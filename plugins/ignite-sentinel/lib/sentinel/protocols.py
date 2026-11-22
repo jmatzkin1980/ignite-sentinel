@@ -202,15 +202,15 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
-    if command == "specs" and not change:
+    if command in {"specs", "backlog"} and not change:
         from .changes import refuse_change_only_specs
 
-        refuse_change_only_specs(project_id)  # IMP-388: before the phase gate, which a change-only workspace trips
-    # IMP-388: /specs --change runs its own gates (brief, blocking gaps, unit rows), not the project's phase.
-    if command in {"specs", "backlog"} and phase == "initialized" and not (command == "specs" and change):
+        refuse_change_only_specs(project_id, command)  # IMP-388: before the phase gate, which a change-only workspace trips
+    # IMP-388/393: --change runs its own gates (brief, blocking gaps, unit rows, specs), not the project's phase.
+    if command in {"specs", "backlog"} and phase == "initialized" and not change:
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
-    if command in {"backlog", "quality", "refine-backlog"} and (health == "DIRTY" or downstream_refresh_pending(project_id)):
+    if command in {"backlog", "quality", "refine-backlog"} and not (command == "backlog" and change) and (health == "DIRTY" or downstream_refresh_pending(project_id)):
         # IMP-369: the gate also reads the staleness markers themselves. /resolve-gaps
         # sets health on its own criteria (CLEAN once no blocking gap is open), so after
         # it recompiled the brief /backlog used to run on specs older than the brief.

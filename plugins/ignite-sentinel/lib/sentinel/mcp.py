@@ -56,7 +56,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("reindex", "Rebuild local memory from workspace artifacts.", ["project_id"]),
     ("retrieve", "Focused context retrieval (progressive disclosure) for a workflow.", ["project_id", "query", "workflow"]),
     ("specs", "Generate PRD and AI-friendly specs (blocked while maturity is BLOCKED). release=rN derives from that release's brief into 03_specs/rN/. change=CHG-NNN builds spec units from that change's REQ-EARS rows into 03_specs/CHG-NNN/ (no PRD).", ["project_id"]),
-    ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health). release=rN derives that release's backlog and slice plan into 04_backlog/rN/.", ["project_id"]),
+    ("backlog", "Generate epics, stories, and implementation readiness; optionally include task-seed contracts (gated by health). release=rN derives that release's backlog and slice plan into 04_backlog/rN/. change=CHG-NNN builds that change's stories (one per spec unit, under EPIC-CHG-NNN, UNCHANGED rows as pass-to-pass) into 04_backlog/; it needs /specs --change first and does not combine with release.", ["project_id"]),
     ("quality", "Generate test cases and the backlog readiness audit. release=rN audits that release into 05_quality/rN/.", ["project_id"]),
     ("trace", "Generate the traceability matrix and graph. release=rN traces that release into 06_traceability/rN/. "
               "reviewed=CHG-NNN (with an optional reason) records the BA review of the semantic change /health flags, "
@@ -520,8 +520,10 @@ def build_server():
         return run_cli(["specs", project_id, *release_arguments(release), *(["--change", change] if change else [])])
 
     @tool(name="sentinel_backlog", description=TOOL_DESCRIPTIONS["backlog"])
-    def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "", story_format: str = "") -> dict:
+    def sentinel_backlog(project_id: str, with_task_seeds: bool = False, release: str = "", story_format: str = "", change: str = "") -> dict:
         arguments = ["backlog", project_id]
+        if change:
+            arguments += ["--change", change]
         if with_task_seeds:
             arguments.append("--with-task-seeds")
         if story_format:

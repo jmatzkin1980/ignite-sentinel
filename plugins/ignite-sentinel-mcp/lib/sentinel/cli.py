@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command == "specs" and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"specs", "backlog"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -103,11 +103,11 @@ def run_command(args, argv: list[str]) -> int:
         except Exception:  # an unknown change or workspace is reported by the command itself
             language = "es"
         if language == "en":
-            message = "/specs --change cannot be combined with --release: a change does not belong to a release series."
-            next_step = f"Run /specs {args.project_id} --change {args.change} without --release."
+            message = f"/{args.command} --change cannot be combined with --release: a change does not belong to a release series."
+            next_step = f"Run /{args.command} {args.project_id} --change {args.change} without --release."
         else:
-            message = "/specs --change no se combina con --release: un cambio no pertenece a una serie de releases."
-            next_step = f"Corré /specs {args.project_id} --change {args.change} sin --release."
+            message = f"/{args.command} --change no se combina con --release: un cambio no pertenece a una serie de releases."
+            next_step = f"Corré /{args.command} {args.project_id} --change {args.change} sin --release."
         return report_error(InputError(message, next_step=next_step))
     if getattr(args, "release", None):
         try:
@@ -507,13 +507,20 @@ def _run_project_command(args) -> int:
                 result = generate_specs(args.project_id)
             print_json(result)
         elif args.command == "backlog":
-            from .generation import generate_backlog
+            if args.change:
+                from .changes import get_change
+                from .compilers.change_backlog import compile_change_backlog
 
-            result = generate_backlog(
-                args.project_id,
-                with_task_seeds=bool(args.with_task_seeds),
-                story_format=args.story_format,
-            )
+                get_change(args.project_id, args.change)
+                result = compile_change_backlog(args.project_id, args.change)
+            else:
+                from .generation import generate_backlog
+
+                result = generate_backlog(
+                    args.project_id,
+                    with_task_seeds=bool(args.with_task_seeds),
+                    story_format=args.story_format,
+                )
             print_json(result)
         elif args.command == "backlog-status":
             from .backlog.rollup import backlog_status

@@ -251,6 +251,7 @@ def _backlog(p: argparse.ArgumentParser) -> None:
     p.add_argument("project_id")
     p.add_argument("--with-task-seeds", action="store_true")
     p.add_argument("--story-format", choices=("user", "job"), default=None)
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-393: build this change's stories (one epic per change) instead of the project's")
 
 
 def _status(p: argparse.ArgumentParser) -> None:
