@@ -1678,7 +1678,7 @@ Loaded files are stored with secrets masked, but client names, figures and decis
 
 - "Artifact not generated yet for /view: workspaces/ACME_PORTAL/03_specs/prd.md"; the next step says to run `/next ACME_PORTAL`.
 - "/view diagrams needs the brief: ... does not exist." with "Run /brief ACME_PORTAL first."
-- "/export --final refused: 8 pending marks remain in the brief (36 deferred domain marks do not block). Close them (or export without --final to get a marked draft)."
+- "/export --final refused: 8 pending marks remain in the brief (36 deferred marks do not block). Close them (or export without --final to get a marked draft)."
 - Exports live under `08_context_packs/exports/`; do not share `gaps.md`, `state.json` or `.sentinel/`.
 </details>
 

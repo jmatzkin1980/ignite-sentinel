@@ -1952,7 +1952,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **You'll see:** The scope question closed, the border confirmed with its five surfaces, and a new round of review questions opened for the change. Because the border has screens, those include the design and frontend questions. A border with no screen (for example only a process and a data table) opens none of them.
 
-   **What it means:** The border is what scopes the review. Zones say how much of the system the change reaches: `nuevo` is built, `adyacente` is touched, `preservado` must keep working as it does. The types are `pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion` and `regla`. One line that does not follow the format rejects the whole file and nothing is written: fix the line and process the file again.
+   **What it means:** The border is what scopes the review. Zones say how much of the system the change reaches: `nuevo` is built, `adyacente` is touched, `preservado` must keep working as it does. The types are `pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion` and `regla`. A line can carry a fourth field, a short alias (`nuevo | pantalla | Save draft button on the supplier registration form | draft button`), to repeat in `Superficie` instead of the long name; Sentinel always stores the name. One line that does not follow the format rejects the whole file and nothing is written: fix the line and process the file again.
 
    <details><summary>In a terminal</summary>
 
@@ -1972,7 +1972,7 @@ The normal submit has to keep working as today. The existing system is already i
 
 4. **Answer the rest.** Keep going as in scenario 2: regenerate the change's questions, send them, process the answers with the same `--change CHG-001`.
 
-5. **Let what the system already says answer.** In the sample, right after the scope round, some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the seven):
+5. **Let what the system already says answer.** In the sample, right after the scope round, some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the six):
 
    ```markdown
    ### GAP-TECH-NFR
@@ -1992,7 +1992,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "The architecture document and the operations manual of the current system are already in the context folders. Close the review questions of CHG-001 that they answer, quoting them, and show me each quote before processing."
 
-   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, seven of the 18 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments, technical input and quality), leaving 11 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
+   **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, six of the 16 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments and quality), leaving 10 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
 
    **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, and only when the quote is a literal piece of the cited file, at least 20 characters long. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
 
@@ -2003,8 +2003,8 @@ The normal submit has to keep working as today. The existing system is already i
    ```
 
    ```text
-   closed: GAP-QUALITY, GAP-TECH-NFR, GAP-TECH-DEEP-DIVE-INPUT, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-DELIVERY-READINESS, GAP-PRD-ROLLOUT-ENVIRONMENTS
-   gap_counts: open 11, closed 8, blocking_open 3, total 19
+   closed: GAP-QUALITY, GAP-TECH-NFR, GAP-GOVERNANCE-CONSTRAINTS, GAP-PRD-GLOSSARY-GOVERNANCE, GAP-DELIVERY-READINESS, GAP-PRD-ROLLOUT-ENVIRONMENTS
+   gap_counts: open 10, closed 7, blocking_open 3, total 17
    ```
 
    The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question.
@@ -2016,7 +2016,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **You'll see:** The harvest registered as a source, with the count of claims per tag and the questions it opened (one per topic the document cannot say, such as who owns the glossary), all inside the change.
 
-   **What it means:** A harvest can list documents next to repositories, and has blocks for screens (B6), flows (B7) and rules and roles (B8). On a workspace that only has changes, the harvest needs the change: without it the command refuses and names the one to use.
+   **What it means:** A harvest can list documents next to repositories, and has blocks for screens (B6), flows (B7) and rules and roles (B8). On a workspace that only has changes, the harvest needs the change: without it the command refuses and names the one to use. Inside a change, a divergence between the documents and what is built opens a question in the change's language that adds a third way out: "Which governs: what is built, what the request says, or does it have to be built or fixed in this change?". A harvest of the project keeps the shorter question (scenario 7).
 
    <details><summary>In a terminal</summary>
 
@@ -2038,9 +2038,9 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "Compile the brief of CHG-001 for COMPRAS_PORTAL and tell me what is still open."
 
-   **You'll see:** A brief of the change with nine sections: context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, and what is pending. In the sample, the border lists the two new screens and the two adjacent surfaces, the preserved behavior is the full submit, and the baseline section names the two documents the closed questions quoted. Three places say `⏳ PENDING` because a blocking question is still open: the objective, the users and acceptance. Section 9 lists all 11 open questions and says which of them block. If you ran the optional harvest of step 6, its question (`GAP-HRV-…`) is also there: one more deferred mark and one more row in section 9.
+   **You'll see:** A brief of the change with nine sections: context and baseline, problem and result, border, as-is to to-be process, per lens, preserved behavior, rules and acceptance, blast radius and impact, and what is pending. In the sample, the border lists the two new screens and the two adjacent surfaces, the preserved behavior is the full submit, and the baseline section names the two documents the closed questions quoted. Three places say `⏳ PENDING` because a blocking question is still open: the objective, the users and acceptance. Section 9 lists all 10 open questions and says which of them block. If you ran the optional harvest of step 6, its question (`GAP-HRV-…`) is also there: one more deferred mark and one more row in section 9; the harvest's context (B1) and technical (B5) facts are quoted in sections 1 and 5.
 
-   **What it means:** Every line cites where it comes from (the request, the answer that confirmed the border, the quoted baseline file); nothing is invented, so a question nobody answered is a visible mark and never a guess. A mark `⏳ PENDING (GAP-X)` blocks. A mark `⏳ PENDING DOMAIN (GAP-X)` is deferred to the domain review and does not block. A change written in Spanish shows the same marks as `⏳ PENDIENTE` and `⏳ PENDIENTE DOMINIO`: a change speaks the language of its request. This is not the product's brief and not a PRD, and the project is untouched. The brief is rebuilt from the answers each time you run it; do not edit it by hand.
+   **What it means:** Every line cites where it comes from (the request, the answer that confirmed the border, the quoted baseline file); nothing is invented, so a question nobody answered is a visible mark and never a guess. A mark `⏳ PENDING (GAP-X)` blocks. A mark `⏳ PENDING DOMAIN (GAP-X)` is deferred to the domain review and does not block. A third mark, `⏳ PENDING EXTRACTION`, appears when the request does cover a topic but Sentinel has not moved that content into the brief: it never reads "the note covers it", because Sentinel does not measure that. It is deferred too, and it blocks the final export (see the variant at the end of this scenario). A change written in Spanish shows the same marks as `⏳ PENDIENTE`, `⏳ PENDIENTE DOMINIO` and `⏳ PENDIENTE DE EXTRACCIÓN`: a change speaks the language of its request. Where a divergence found by a harvest was settled by the baseline, the brief shows the answer and, below it, "Baseline support: «quote»". This is not the product's brief and not a PRD, and the project is untouched. The brief is rebuilt from the answers each time you run it; do not edit it by hand.
 
    <details><summary>In a terminal</summary>
 
@@ -2051,7 +2051,7 @@ The normal submit has to keep working as today. The existing system is already i
    ```text
    change_id: CHG-001
    path: workspaces/COMPRAS_PORTAL/02_requirements/CHG-001/project-brief.md
-   summary: pending 11, blocking_open 3
+   summary: pending 10, blocking_open 3
    ```
 
    The sections are in `02_requirements/CHG-001/project-brief.md` and the counts per section in `change_brief_report.json` next to it. Without `--change`, a workspace that only has changes refuses `/brief` and names the change to use. `--change` takes no `--profile`, `--genesis`, `--validation-direction` or `--brief-version`.
@@ -2063,7 +2063,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **You'll see:** A read-only page, `08_context_packs/views/CHG-001-brief.html`, and a Markdown copy, `08_context_packs/exports/CHG-001-project-brief.md`. The copy starts with a banner that says it is a draft, because three blocking marks remain.
 
-   **What it means:** A draft is a working document, not a deliverable. When the three blocking questions are answered (as in scenario 2, with `--change CHG-001`), compile the brief again and ask for the final export. While a blocking mark remains the final export refuses and says how many; the deferred domain marks do not stop it.
+   **What it means:** A draft is a working document, not a deliverable. When the three blocking questions are answered (as in scenario 2, with `--change CHG-001`), compile the brief again and ask for the final export. While a blocking mark remains the final export refuses and says how many; the deferred marks (domain and pending extraction alike) are counted, but only the pending extraction ones also stop it, because they mean the brief does not hold what the request says. When some are left, the draft banner lists the sections.
 
    <details><summary>In a terminal</summary>
 
@@ -2077,10 +2077,10 @@ The normal submit has to keep working as today. The existing system is already i
    path: workspaces/COMPRAS_PORTAL/08_context_packs/exports/CHG-001-project-brief.md
    deliverable: draft
    pending_marks: 3
-   deferred_marks: 8
+   deferred_marks: 7
    ```
 
-   The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (8 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
+   The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (7 deferred marks do not block). Close them (or export without --final to get a marked draft).` `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
    </details>
 
 9. **Answer the blocking questions with requirements, and say what each one does to the system and where.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is), and a `Superficie` line: the surface or surfaces of the border it touches, by the names you gave in step 3, separated by `;`. Save this as input/ears.md (the objective and the users are plain prose and need no Delta):
@@ -2125,7 +2125,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **Tell the assistant:** "Process the answers in input/ears.md for change CHG-001 of COMPRAS_PORTAL. The Delta of each requirement is the one I wrote; do not change it."
 
-   **You'll see:** The objective, the users, acceptance, business rules and the as-is to to-be question closed, no blocking question left, and four requirements written down for the change, each with its Delta: three `ADDED` and one `UNCHANGED`. The brief of the change, compiled again, shows 6 pending questions and none of them blocking.
+   **You'll see:** The objective, the users, acceptance, business rules and the as-is to to-be question closed, no blocking question left, and four requirements written down for the change, each with its Delta: three `ADDED` and one `UNCHANGED`. The brief of the change, compiled again, shows 5 pending questions and none of them blocking.
 
    **What it means:** The Delta and the surfaces are yours: Sentinel can propose a value from the wording but never fixes it, and it checks each surface name against the border (a name outside the border keeps the answer open, with `surface_findings` and the candidates). The surfaces travel into the requirements, the units and the stories. An EARS answer of a change with no Delta, or with a value outside the four, does not close the question; it stays answered with a message saying why. Any answer phrased as EARS ("el sistema debe" or "the system shall") needs a Delta and a `Superficie`, except the scope question (`GAP-SCOPE`); plain prose (objective, users) needs none. If you answer a question again, the same sentence keeps its requirement and takes the new Delta; a reworded sentence replaces the old requirement, which moves to a "Superseded requirements" table. One answer with several sentences becomes one requirement per sentence.
 
@@ -2138,9 +2138,9 @@ The normal submit has to keep working as today. The existing system is already i
 
    ```text
    closed: GAP-OBJECTIVE, GAP-USERS, GAP-PRODUCT-ASIS-TOBE, GAP-BUSINESS-RULES, GAP-ACCEPTANCE
-   gap_counts: open 6, closed 13, blocking_open 0, total 19
+   gap_counts: open 5, closed 12, blocking_open 0, total 17
    ears_rows: REQ-EARS-001, REQ-EARS-002, REQ-EARS-003, REQ-EARS-004
-   summary: pending 6, blocking_open 0
+   summary: pending 5, blocking_open 0
    ```
 
    The requirements are in `02_requirements/CHG-001/requirements.md`, a table with pattern, Delta, statement, the question each came from, `Afecta` and `Superficie`. Spanish answers use "Cuando ..., el sistema debe ..." and "Si ..., el sistema debe ...". The counts above include the baseline closures of step 5.
@@ -2204,7 +2204,7 @@ The normal submit has to keep working as today. The existing system is already i
 
     **Tell the assistant:** "Validate CHG-001 for COMPRAS_PORTAL and tell me what is next."
 
-    **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command: nothing is pending. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
+    **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command, and its text says what `done` means and what it does not: the pieces Sentinel registered are up to date, but Sentinel does not measure how much of the request they cover. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
 
     **What it means:** The checks are: every unit cites the change brief and points at a current requirement (`unit_citations`); every `UNCHANGED` requirement is a pass-to-pass criterion in the stories (`preserved_pass_to_pass`); every requirement names surfaces of the border (`rows_have_surfaces`); and every story stays inside the border (`stories_inside_border`). A finding makes the verdict `INVALID` and the command exits 5, with each finding naming what to fix. `/validate` does not rewrite anything.
 
@@ -2225,13 +2225,13 @@ The normal submit has to keep working as today. The existing system is already i
     ```text
     change_id: CHG-001
     key: done
-    title: Change up to date
-    text: CHG-001 has no pending step: review the board 04_backlog/BACKLOG.md and the stories of EPIC-CHG-001.
+    title: Change pieces up to date
+    text: The registered pieces of CHG-001 are up to date. Sentinel does not yet measure how much of the request is covered: check that each rule and criterion of the request has its requirement or its discard.
     command:
     warnings: []
     ```
 
-    `/status COMPRAS_PORTAL --change CHG-001` shows the same step under `next_action`, with the round and the gap counts. The sequence of a change is scope, lenses, brief, requirements, specs, backlog, validate, done; it never asks for a PRD. Without `--change`, `/next` and `/status` list each change under `changes` and, in a workspace that only has changes, show the first pending one. `/validate` without `--change` in a workspace that only has changes is refused (exit 4) and names the change to use. `--change` does not combine with `--release` (exit 3).
+    `/status COMPRAS_PORTAL --change CHG-001` shows the same step under `next_action`, with the round and the gap counts. The sequence of a change is scope, lenses, brief, requirements, specs, backlog, validate, pending extraction, done; it never asks for a PRD. The step `pending_extraction` ("Move the request content into the brief") comes before `done` while the brief of the change still carries a `⏳ PENDING EXTRACTION` mark; it has no command, because the way out is to answer one question of the change in EARS, with Delta and Superficie. Without `--change`, `/next` and `/status` list each change under `changes` and, in a workspace that only has changes, show the first pending one. In a workspace that only has changes, `/status` gives the verdict `READY_WITH_WARNINGS` once every change is done, with the warning "Request coverage is not measured yet"; while a change is pending it is `NOT_READY` and lists that change's blockers, never "Discovery has not run". `/validate` without `--change` in a workspace that only has changes is refused (exit 4) and names the change to use. `--change` does not combine with `--release` (exit 3).
     </details>
 
 ### Escalation warnings: when the change looks too big
@@ -2339,6 +2339,52 @@ Say the supplier backoffice was itself built with Sentinel, and its backlog exis
 
    `04_backlog/US-004.md` has `type: change_request`, `change: CHG-003`, `delta: MODIFIED` and `modifica: US-001`.
    </details>
+
+### Variant: the request already says everything
+
+Sometimes the request is not a note but a finished document: objective, users, process, rules and acceptance criteria are all written. Say the Head of Purchasing sends "Request: supplier registration with approval by amount", with a border of one new process (approval by amount), one adjacent data (the suppliers table) and one preserved process (registration with a low amount). This runs in its own project, `COMPRAS_ALTAS`, so the change is `CHG-001`.
+
+**Tell the assistant:** "Open this request as a change for COMPRAS_ALTAS, record its scope, and compile the brief."
+
+**You'll see:** After the scope round, no question asks for the rules or the acceptance criteria: the request already gives them. The brief has two sections with `⏳ PENDING EXTRACTION: the request covers this and it is not in the brief yet`, section 2 (problem and result) and section 7 (rules and acceptance), and section 9 adds `extraction pending: §2, §7`. The marks block nothing by themselves, but they stop the final export. The next step is `requirements`, and its text says there is no open functional question to answer them in.
+
+**What it means:** Sentinel does not read the request and write its rules into the brief on its own yet. The mark says exactly that, instead of saying the note covers it: you load each rule and criterion by answering a question of the change in EARS, with Delta and Superficie, as in step 9. A draft export is allowed and lists the sections; `--final` is refused until none is left.
+
+<details><summary>In a terminal</summary>
+
+```text
+/ingest COMPRAS_ALTAS --source input/change-approval.md --change
+/resolve-gaps COMPRAS_ALTAS --source input/scope-approval.md --change CHG-001
+/brief COMPRAS_ALTAS --change CHG-001
+/export COMPRAS_ALTAS --artifact brief --change CHG-001
+/export COMPRAS_ALTAS --artifact brief --change CHG-001 --final
+/next COMPRAS_ALTAS --change CHG-001
+```
+
+```text
+extraction_pending: 2, 7
+summary: pending 10, blocking_open 0
+```
+
+```text
+deliverable: draft
+pending_marks: 2
+extraction_pending: 2, 7
+deferred_marks: 10
+```
+
+The draft banner reads "2 pending marks remain ... Extraction pending from the request: §2, §7." The final export is refused (exit 4): `/export --final refused: 2 section(s) of the brief not yet extracted from the request (§2, §7).` with the next step "Sentinel does not extract the request content on its own yet (coming in a later increment): load each rule and criterion by answering one question of the change in EARS, with Delta and Superficie, or export without --final to get a marked draft."
+
+```text
+change_id: CHG-001
+key: requirements
+title: Answer the change requirements
+text: CHG-001 has no open functional question where the requirements can be answered; the request brings them but Sentinel does not extract them on its own yet (coming in a later increment).
+command: /resolve-gaps COMPRAS_ALTAS --source PATH --change CHG-001
+```
+
+Once the pieces are registered (specs, backlog, a `VALID` validation) and the marks are still there, the step is `pending_extraction` instead of `done`: "Move the request content into the brief".
+</details>
 
 ### What you have now
 
