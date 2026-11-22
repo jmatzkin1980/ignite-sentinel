@@ -6,6 +6,10 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+
+- **A file that only mentions "borrador" or "draft" is no longer read as an unvalidated source (IMP-390).** A source counts as unvalidated only when it declares itself so: a validation-state phrase ("sin validar", "not yet validated"...), a heading, a metadata line (`Estado: borrador`, `status: draft`, frontmatter), a line that is only the mark (`BORRADOR`, `[DRAFT]`), or a self-declaration ("Este documento es un borrador"). A feature called "Guardar borrador" in the first lines no longer keeps `/resolve-gaps` answers from closing, and `/sync` no longer flags the note. The words and keys live in `source_routing.json`.
+
 ## [0.20.0] — 2026-11-21
 
 ### Added

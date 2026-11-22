@@ -147,10 +147,35 @@ def classify_pair(first: dict[str, Any] | None, second: dict[str, Any] | None) -
     return AGREE if first["value_key"] == second["value_key"] else CONTRADICTION
 
 
+def _declares_draft(folded: str, data: dict[str, Any]) -> bool:
+    """IMP-390: `borrador`/`draft` count only as a heading, metadata, the bare mark or a self-declaration."""
+    term = "(?:" + "|".join(data["unvalidated_draft_terms"]) + ")"
+    has_term = re.compile(rf"\b{term}\b")
+    if not has_term.search(folded):
+        return False
+    if folded.startswith("#"):
+        return True
+    keys = "|".join(data["unvalidated_metadata_keys"])
+    meta = re.match(rf"^(?:[-*]\s+)?(?:\*\*)?(?:{keys})(?:\*\*)?\s*:\s*(?P<value>.*)$", folded)
+    if meta and has_term.search(meta.group("value")):
+        return True
+    if re.fullmatch(term, " ".join(re.sub(r"[\W_]+", " ", folded).split())):
+        return True
+    subject = "(?:" + "|".join(data["unvalidated_self_subjects"]) + ")"
+    verbs = "(?:" + "|".join(data["unvalidated_self_verbs"]) + ")"
+    phrases = "(?:" + "|".join(data["unvalidated_self_phrases"]) + ")"
+    if re.search(rf"\b{subject}\s+{verbs}\s+(?:(?:un|a)\s+)?{term}\b", folded):
+        return True
+    return bool(re.search(rf"\b{subject}\b", folded) and re.search(rf"\b{phrases}\b", folded))
+
+
 def declares_unvalidated(text: str) -> bool:
     data = _data()
     head = [line for _, line in _citable_lines(text)][: int(data["unvalidated_header_lines"])]
-    return bool(re.search(data["unvalidated_pattern"], _fold("\n".join(head))))
+    folded = [_fold(line) for line in head]
+    if re.search(data["unvalidated_pattern"], "\n".join(folded)):
+        return True
+    return any(_declares_draft(line, data) for line in folded)
 
 
 def new_technical_names(line: str, corpus: str) -> list[str]:
