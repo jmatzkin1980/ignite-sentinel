@@ -204,8 +204,8 @@ class ChangeAffectedStories(SnapshotWorkspaceCase):
         phases = build_phases(build_story_rows(stories, {"stories": []}))
         waved = [item["story_id"] for wave in phases["implementation_waves"] for item in wave["stories"]]
         self.assertEqual(sorted(waved), ["US-010", "US-011"])
-        token = slicing.ENABLER_CANDIDATES[0]["tokens"][0]
-        with patch.object(slicing, "cross_cutting_enabler_evidence", lambda project_id: token):
+        enabler_word = slicing.ENABLER_CANDIDATES[0]["tokens"][0]
+        with patch.object(slicing, "cross_cutting_enabler_evidence", lambda project_id: enabler_word):
             specs = build_cross_cutting_enabler_specs("MIX", [{"id": "US-010", "type": "change_request"}], {})
         self.assertTrue(specs)
         self.assertEqual(specs[0]["enables"], ["US-010"])
