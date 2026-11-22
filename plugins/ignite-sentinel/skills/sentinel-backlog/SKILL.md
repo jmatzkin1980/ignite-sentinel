@@ -23,6 +23,14 @@ Use this skill to generate execution-ready backlog artifacts.
 12. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /quality PROJECT_ID`.
 13. Run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /trace PROJECT_ID` and `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /health PROJECT_ID`.
 
+## Backlog Of A Change (`/backlog --change`, IMP-393)
+
+- `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /backlog PROJECT_ID --change CHG-nnn` derives the stories of one change from `03_specs/CHG-nnn/units/`: epic `04_backlog/EPIC-CHG-nnn.md`, one `US-nnn` per ADDED, MODIFIED or REMOVED unit, with `change`, `source_unit` and `delta` in the frontmatter and trace `[CHG-nnn, SPEC-U-nnn, REQ-EARS-nnn]`. Story ids come from the shared registry and are never reused. It writes `08_context_packs/CHG-nnn/backlog_generation.json` and `backlog_report.json`, and merges the stories' readiness items into `implementation_readiness.json` without touching the project's EPIC-001, its stories or its phase.
+- Each UNCHANGED row of the change becomes a pass-to-pass criterion (`AC-NNN-06` onward) of every story of that change: the behavior the change must preserve.
+- Gate (change-scoped): it refuses without `03_specs/CHG-nnn/`, with blocking gaps open, or when the specs are not current with the REQ-EARS rows (run `/specs --change` again) → exit 4. `--change` with `--release` → exit 3. A plain `/backlog` in a workspace that only has changes → exit 4, naming the change.
+- Affected stories: the `Afecta` of each MODIFIED/REMOVED row (see sentinel-gap-response) names the existing stories. Draft/Ready/Blocked become `Stale`; In Progress/In Review stay as they are, and the new story is a change request plus a warning to coordinate with whoever implements it; Done stay Done (the original gets `modificada_por`) and the new story is a change request. A change request has `type: change_request`, `modifica: [US-ids]` and the graph edge `modifies`. A REMOVED row whose stories are all not implemented makes no story, only Stale. Report `stale`, `change_requests` and `warnings` to the BA; never edit stories or lifecycle by hand.
+- The project `/backlog` keeps the stories of changes and carries their `modificada_por`.
+
 ## Rules — Generating The Backlog (`/backlog`)
 
 - Generate vertical, value-oriented stories. Avoid layer-only frontend/backend/data stories unless the item is explicitly framed as a spike or a valid cross-cutting enabler.

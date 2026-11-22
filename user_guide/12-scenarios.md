@@ -2162,23 +2162,124 @@ The normal submit has to keep working as today. The existing system is already i
     units: SPEC-U-001, SPEC-U-002, SPEC-U-003
     preserved: REQ-EARS-001
     by_delta: ADDED 3
-    next_step: Review 03_specs/CHG-001/specs.md. The change backlog arrives in a later increment.
+    next_step: Review 03_specs/CHG-001/specs.md; then /backlog --change derives the stories.
     ```
 
     The units are in `03_specs/CHG-001/units/` and the report in `change_specs_report.json` next to `specs.md`. Without `--change`, `/specs` keeps writing the PRD and specs of the project.
     </details>
 
+11. **Derive the stories of the change.** With the specs written and the units current, the change can become backlog.
+
+    **Tell the assistant:** "Generate the backlog of CHG-001 for COMPRAS_PORTAL."
+
+    **You'll see:** An epic of its own, `EPIC-CHG-001`, and three stories, `US-001` to `US-003`, one per unit. Each story traces to the change, its unit and its requirement, and carries one extra acceptance criterion, `AC-NNN-06`, classified pass-to-pass: the `UNCHANGED` requirement (the full submit keeps validating all the mandatory fields), as behavior the story must not break. In the sample the project has no stories yet, so the change affects none: no change request and nothing marked stale.
+
+    **What it means:** A change gets its own epic and stories, next to the project's and apart from them: the project's epic, stories and phase are not touched. Each story says in its frontmatter which change, which unit and which Delta it comes from. Sentinel refuses if the change has no specs, if a blocking question is open, or if the requirements changed after `/specs --change` (run it again). The story numbers come from the same registry as the project's, so they are never reused. `/backlog` without `--change` is refused in a workspace that only has changes, and names the change to use.
+
+    <details><summary>In a terminal</summary>
+
+    ```text
+    /backlog COMPRAS_PORTAL --change CHG-001
+    ```
+
+    ```text
+    change_id: CHG-001
+    epic: EPIC-CHG-001
+    path: 04_backlog/EPIC-CHG-001.md
+    stories: US-001, US-002, US-003
+    change_requests: []
+    stale: []
+    warnings: []
+    pass_to_pass: REQ-EARS-001
+    next_step: Review the board 04_backlog/BACKLOG.md and the stories of CHG-001 in 04_backlog/EPIC-CHG-001.md.
+    ```
+
+    The stories are in `04_backlog/US-NNN.md`, the readiness items in `08_context_packs/implementation_readiness.json`, and the report in `08_context_packs/CHG-001/backlog_report.json` next to `backlog_generation.json`. `--change` does not combine with `--release` (exit 3).
+    </details>
+
+### Variant: the project already has stories
+
+Say the supplier backoffice was itself built with Sentinel, and its backlog exists. The change then touches stories that are already there, and the answer to a `MODIFIED` or `REMOVED` requirement has to say which. In this variant the project's `US-001` ("when the analyst submits a complete registration, the system shall create the supplier") is `Done`, and the change modifies that submit so that it also deletes the draft it came from. The ids differ from the walkthrough above, because the project's own answers took the first numbers: here the change is `CHG-003`.
+
+1. **Answer a modified requirement without saying what it affects.**
+
+   **Tell the assistant:** "Process the answers in input/change-answers.md for change CHG-003 of COMPRAS_PORTAL." The answer to `GAP-BUSINESS-RULES` has `- Delta: MODIFIED` and no `Afecta` line.
+
+   **You'll see:** The other four answers close; this one stays answered, with a message: `Affects is missing (US-nnn stories or `none`) for a MODIFIED Delta; candidates: none`. When the evidence of the answer mentions an existing story, it is listed as a candidate.
+
+   **What it means:** Once a workspace has stories, a `MODIFIED` or `REMOVED` requirement must say which stories it affects, with `- Afecta: US-001, US-007` (`- Affects:` works too in English files) or `- Afecta: ninguna` when it affects none. Sentinel proposes candidates but never fills the line in: you decide. On `ADDED` and `UNCHANGED` the line is ignored.
+
+2. **Say what it affects.** Answer again, same sentence, with `- Affects: US-001`.
+
+   **You'll see:** `GAP-BUSINESS-RULES` closed, and the requirement `REQ-EARS-005` written with its `Afecta` column.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /resolve-gaps COMPRAS_PORTAL --source input/change-answers.md --change CHG-003
+   /resolve-gaps COMPRAS_PORTAL --source input/affects.md --change CHG-003
+   ```
+
+   ```text
+   closed: GAP-OBJECTIVE, GAP-USERS, GAP-PRODUCT-ASIS-TOBE, GAP-ACCEPTANCE
+   answered: GAP-BUSINESS-RULES
+   affects_findings: GAP-BUSINESS-RULES: Affects is missing (US-nnn stories or `none`) for a MODIFIED Delta; candidates: none
+   ```
+
+   ```text
+   closed: GAP-BUSINESS-RULES
+   ears_rows: REQ-EARS-005
+   gap_counts: open 13, closed 6, blocking_open 0, total 19
+   ```
+   </details>
+
+3. **Compile the brief, write the specs and the backlog of the change.**
+
+   **Tell the assistant:** "Compile the brief of CHG-003, generate its specs and then its backlog."
+
+   **You'll see:** Two units (`SPEC-U-003` added, `SPEC-U-004` modified) and two stories: `US-003` (new behavior) and `US-004`, which is a *change request* on `US-001`. `US-001` stays `Done`; it only gains `modificada_por: US-004`, so whoever reads it knows it has a pending change. `stale` is empty, because the story the change affects was already implemented.
+
+   **What it means:** What happens to an affected story depends on how far it got. `Draft`, `Ready` and `Blocked` stories become `Stale`: nothing was built, so they are regenerated. `In Progress` and `In Review` stories stay as they are, the new story is a change request, and the output carries a warning to coordinate with whoever is implementing it. `Done` stories stay `Done`, and the new story is a change request. A change request has `type: change_request` and `modifica: [US-001]` in its frontmatter, and the traceability graph has a `modifies` edge from it to the original. A `REMOVED` requirement whose stories are all not implemented makes no story: the stories are marked `Stale` and nothing else. The project's `/backlog` keeps these stories when it runs again, and keeps `modificada_por`.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /brief COMPRAS_PORTAL --change CHG-003
+   /specs COMPRAS_PORTAL --change CHG-003
+   /backlog COMPRAS_PORTAL --change CHG-003
+   ```
+
+   ```text
+   units: SPEC-U-003, SPEC-U-004
+   preserved: REQ-EARS-003
+   by_delta: ADDED 1, MODIFIED 1
+   ```
+
+   ```text
+   change_id: CHG-003
+   epic: EPIC-CHG-003
+   path: 04_backlog/EPIC-CHG-003.md
+   stories: US-003, US-004
+   change_requests: US-004
+   stale: []
+   warnings: []
+   pass_to_pass: REQ-EARS-003
+   ```
+
+   `04_backlog/US-004.md` has `type: change_request`, `change: CHG-003`, `delta: MODIFIED` and `modifica: US-001`.
+   </details>
+
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart. The project itself is exactly as it was.
+A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion. The project's own epic and stories are exactly as they were.
 
-**What this does not do yet.** A change has its questions, its brief, its requirements and its specs, but no backlog yet; it comes in a later increment. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
+**What this does not do yet.** The stories of a change are derived and traced, but nothing marks them as built: their status moves with `/story-status`, like any other story. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
 **Decision points.** If the request is a new product, or the existing system is not involved, it is a project: scenario 1. If the client changes a rule of a project whose backlog is already built, it is scenario 9.
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/backlog`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
