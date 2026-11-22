@@ -2083,7 +2083,7 @@ The normal submit has to keep working as today. The existing system is already i
    The last command is refused (exit 4): `/export --final refused: 3 pending marks remain in the brief (8 deferred domain marks do not block)`. `--artifact gaps --change CHG-001 --format interview` exports the open questions of the change to send to the client. Both commands accept only `brief` and `gaps` with `--change`.
    </details>
 
-9. **Answer the blocking questions with requirements, and say what each one does to the system.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is). Save this as input/ears.md (the objective and the users are plain prose and need no Delta):
+9. **Answer the blocking questions with requirements, and say what each one does to the system and where.** The functional questions (acceptance, business rules, as-is to to-be) are best answered with EARS sentences ("When ..., the system shall ..."; "If ..., the system shall ..."). In a change, each one of those answers also carries a `Delta` line: `ADDED` (new behavior), `MODIFIED` (existing behavior that changes), `REMOVED` (existing behavior that goes away) or `UNCHANGED` (existing behavior that must stay as it is), and a `Superficie` line: the surface or surfaces of the border it touches, by the names you gave in step 3, separated by `;`. Save this as input/ears.md (the objective and the users are plain prose and need no Delta):
 
    ```markdown
    ### GAP-OBJECTIVE
@@ -2103,6 +2103,7 @@ The normal submit has to keep working as today. The existing system is already i
    - Owner / source: Head of Purchasing
    - Evidence or reference: purchasing workshop notes, 2026-11-18
    - Delta: ADDED
+   - Superficie: Save draft button on the supplier registration form; My drafts list
    - Decision status: confirmed
 
    ### GAP-BUSINESS-RULES
@@ -2110,6 +2111,7 @@ The normal submit has to keep working as today. The existing system is already i
    - Owner / source: Head of Purchasing
    - Evidence or reference: purchasing workshop notes, 2026-11-18
    - Delta: ADDED
+   - Superficie: Suppliers table
    - Decision status: confirmed
 
    ### GAP-PRODUCT-ASIS-TOBE
@@ -2117,6 +2119,7 @@ The normal submit has to keep working as today. The existing system is already i
    - Owner / source: Head of Purchasing
    - Evidence or reference: purchasing workshop notes, 2026-11-18
    - Delta: UNCHANGED
+   - Superficie: Current submit of the supplier registration
    - Decision status: confirmed
    ```
 
@@ -2124,7 +2127,7 @@ The normal submit has to keep working as today. The existing system is already i
 
    **You'll see:** The objective, the users, acceptance, business rules and the as-is to to-be question closed, no blocking question left, and four requirements written down for the change, each with its Delta: three `ADDED` and one `UNCHANGED`. The brief of the change, compiled again, shows 6 pending questions and none of them blocking.
 
-   **What it means:** The Delta is yours: Sentinel can propose a value from the wording but never fixes it. An EARS answer of a change with no Delta, or with a value outside the four, does not close the question; it stays answered with a message saying why. Any answer phrased as EARS ("el sistema debe" or "the system shall") needs a Delta, except the scope question (`GAP-SCOPE`); plain prose (objective, users) needs none. If you answer a question again, the same sentence keeps its requirement and takes the new Delta; a reworded sentence replaces the old requirement, which moves to a "Superseded requirements" table. One answer with several sentences becomes one requirement per sentence.
+   **What it means:** The Delta and the surfaces are yours: Sentinel can propose a value from the wording but never fixes it, and it checks each surface name against the border (a name outside the border keeps the answer open, with `surface_findings` and the candidates). The surfaces travel into the requirements, the units and the stories. An EARS answer of a change with no Delta, or with a value outside the four, does not close the question; it stays answered with a message saying why. Any answer phrased as EARS ("el sistema debe" or "the system shall") needs a Delta and a `Superficie`, except the scope question (`GAP-SCOPE`); plain prose (objective, users) needs none. If you answer a question again, the same sentence keeps its requirement and takes the new Delta; a reworded sentence replaces the old requirement, which moves to a "Superseded requirements" table. One answer with several sentences becomes one requirement per sentence.
 
    <details><summary>In a terminal</summary>
 
@@ -2140,7 +2143,7 @@ The normal submit has to keep working as today. The existing system is already i
    summary: pending 6, blocking_open 0
    ```
 
-   The requirements are in `02_requirements/CHG-001/requirements.md`, a table with pattern, Delta, statement and the question each came from. Spanish answers use "Cuando ..., el sistema debe ..." and "Si ..., el sistema debe ...". The counts above include the baseline closures of step 5.
+   The requirements are in `02_requirements/CHG-001/requirements.md`, a table with pattern, Delta, statement, the question each came from, `Afecta` and `Superficie`. Spanish answers use "Cuando ..., el sistema debe ..." and "Si ..., el sistema debe ...". The counts above include the baseline closures of step 5.
    </details>
 
 10. **Write the specs of the change.** With the brief written and no blocking question left, the change can be turned into execution units.
@@ -2196,6 +2199,74 @@ The normal submit has to keep working as today. The existing system is already i
 
     The stories are in `04_backlog/US-NNN.md`, the readiness items in `08_context_packs/implementation_readiness.json`, and the report in `08_context_packs/CHG-001/backlog_report.json` next to `backlog_generation.json`. `--change` does not combine with `--release` (exit 3).
     </details>
+
+12. **Validate the change and ask what is next.** With the stories derived, check that everything the change wrote stays inside its border.
+
+    **Tell the assistant:** "Validate CHG-001 for COMPRAS_PORTAL and tell me what is next."
+
+    **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command: nothing is pending. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
+
+    **What it means:** The checks are: every unit cites its requirement and the border surface (`unit_citations`); every `UNCHANGED` requirement is a pass-to-pass criterion in the stories (`preserved_pass_to_pass`); every requirement names surfaces of the border (`rows_have_surfaces`); and every story stays inside the border (`stories_inside_border`). A finding makes the verdict `INVALID` and the command exits 5, with each finding naming what to fix. `/validate` does not rewrite anything.
+
+    <details><summary>In a terminal</summary>
+
+    ```text
+    /validate COMPRAS_PORTAL --change CHG-001
+    /next COMPRAS_PORTAL --change CHG-001
+    ```
+
+    ```text
+    change_id: CHG-001
+    verdict: VALID
+    checks: unit_citations PASS, preserved_pass_to_pass PASS, rows_have_surfaces PASS, stories_inside_border PASS
+    warnings: []
+    ```
+
+    ```text
+    change_id: CHG-001
+    key: done
+    title: Change up to date
+    text: CHG-001 has no pending step: review the board 04_backlog/BACKLOG.md and the stories of EPIC-CHG-001.
+    command:
+    warnings: []
+    ```
+
+    `/status COMPRAS_PORTAL --change CHG-001` shows the same step under `next_action`, with the round and the gap counts. The sequence of a change is scope, lenses, brief, requirements, specs, backlog, validate, done; it never asks for a PRD. Without `--change`, `/next` and `/status` list each change under `changes` and, in a workspace that only has changes, show the first pending one. `/validate` without `--change` in a workspace that only has changes is refused (exit 4) and names the change to use. `--change` does not combine with `--release` (exit 3).
+    </details>
+
+### Escalation warnings: when the change looks too big
+
+Some borders say the change is bigger than a change. Sentinel warns, but never blocks and never decides: you do. The warnings are computed from the confirmed border and the requirements, and shown by `/next`, `/status` and `/validate --change`. They are:
+
+| Warning | When |
+|---|---|
+| `several_processes` | The border has two or more processes, or a new or adjacent integration. |
+| `new_actors` | The border adds a role in the `nuevo` zone. |
+| `third_party_contract` | A `MODIFIED` or `REMOVED` requirement touches an adjacent endpoint or integration, a contract others rely on. |
+
+In the sample, say the head of Purchasing also wants a new role who approves the drafts, so the scope answer has `- nuevo | rol | Draft approver` instead of the drafts list.
+
+**Tell the assistant:** "What is next for CHG-001?"
+
+**You'll see:** The usual next step (the blocking questions), and with it one warning that names the new role.
+
+<details><summary>In a terminal</summary>
+
+```text
+/next COMPRAS_PORTAL --change CHG-001
+```
+
+```text
+change_id: CHG-001
+key: lenses
+title: Close the change's blocking questions
+text: CHG-001 has 3 blocking gap(s) open: answer them in 01_discovery/CHG-001/gaps.md and run /resolve-gaps.
+command: /resolve-gaps COMPRAS_PORTAL --source PATH --change CHG-001
+warnings: new_actors: The change border adds new roles: Draft approver. The BA decides: split the change or move to the project path
+```
+
+The warning does not stop any command. Splitting the change (one for the base flow, another for the approval) or moving to the project path (scenario 1) is your call; the warning stays visible while the border says it.
+</details>
 
 ### Variant: the project already has stories
 
@@ -2271,7 +2342,7 @@ Say the supplier backoffice was itself built with Sentinel, and its backlog exis
 
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border, a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion. The project's own epic and stories are exactly as they were.
+A change, `CHG-001`, with its own questions, a confirmed border (and a warning if it looks too big), a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion, a `VALID` verdict from `/validate --change` and `done` as the next step. Every requirement, unit and story names the border surfaces it touches. The project's own epic and stories are exactly as they were.
 
 **What this does not do yet.** The stories of a change are derived and traced, but nothing marks them as built: their status moves with `/story-status`, like any other story. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
@@ -2279,7 +2350,7 @@ A change, `CHG-001`, with its own questions, a confirmed border, a review round 
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/backlog`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---

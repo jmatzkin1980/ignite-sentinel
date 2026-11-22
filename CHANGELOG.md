@@ -6,6 +6,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 5 (IMP-396).** A change is validated against its border, warns when it may be too big, and has its own next step.
+  - Every confirmed EARS answer of a change except `GAP-SCOPE` carries `- Superficie: <border name>[; <name>]` (`Surface` in English files). The runtime proposes candidates and validates each name against the border (`surface_findings`); the BA decides. The surfaces travel into the requirement rows, the units and the stories.
+  - Escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed on the fly from the border and the rows. They never block: the BA decides whether to split the change or move to the project path. They show in `/next`, `/status` and `/validate --change`.
+  - `/validate PROJECT --change CHG-nnn` runs four checks (`unit_citations`, `preserved_pass_to_pass`, `rows_have_surfaces`, `stories_inside_border`), each of which can `SKIP`, and gives `VALID` or `INVALID` (exit 5). A plain `/validate` in a workspace that only has changes exits 4 and names the change.
+  - `/next` and `/status` know about changes: a `changes` list when they exist, the first pending change in a change-only workspace, and `--change CHG-nnn` for one. The sequence is scope, lenses, brief, requirements, specs, backlog, validate, done; it never reaches the PRD, and `--change` with `--release` exits 3.
+  - On the "save draft" fixture, the finished change validates `VALID`, `/next --change` answers `done` and there are no warnings; a border with a new `rol` raises `new_actors`. Scenario 11 (step 12 and an escalation example), the command reference and the skills cover it.
+
 ## [0.21.0] — 2026-11-22
 
 ### Added

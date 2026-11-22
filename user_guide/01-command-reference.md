@@ -717,7 +717,7 @@ python -m sentinel /resolve-gaps ACME_PORTAL --source input/client-gap-response.
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The answered gaps. Field labels in the project language are accepted. |
-| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. In a change, `Closure reason: by_baseline` (`Motivo de cierre`) closes a gap only when the answer is confirmed and `Evidence or reference` holds a backticked `00_raw/` path followed by a quote of 20 or more characters that appears literally in that file; a change note never counts. Otherwise the gap stays `ANSWERED` with a finding. In a change, an answer phrased as EARS ("the system shall", "el sistema debe") also carries `- Delta: ADDED | MODIFIED | REMOVED | UNCHANGED` (`GAP-SCOPE` is exempt; plain prose needs none): without a valid Delta it does not close and stays `ANSWERED` with a proposal (`delta_findings`). Closed EARS answers become `REQ-EARS-nnn` rows in `02_requirements/CHG-nnn/requirements.md`; answering a gap again updates the Delta of a row in place (`delta_updated`) and moves rows whose wording is gone to a `Superseded requirements` table (`superseded_rows`), whose ids are never reused. When the workspace already has stories in `04_backlog/`, a confirmed `MODIFIED` or `REMOVED` answer also carries `- Afecta: US-001, US-007` or `- Afecta: ninguna` (`Affects` / `none`): without it, or naming a story that does not exist, it does not close and stays `ANSWERED` with `affects_findings` and candidate stories. It is ignored on `ADDED` and `UNCHANGED`, and optional in a workspace with no stories. |
+| `--change` | `CHG-nnn` | none | Apply the answers to that change's gaps. When `GAP-SCOPE` closes with a valid `Borde:` block (one line per surface: zone, type and name separated by bars), the border is confirmed and the lens round opens, scoped by the surface types; one bad line rejects the file and nothing is written. In a change, `Closure reason: by_baseline` (`Motivo de cierre`) closes a gap only when the answer is confirmed and `Evidence or reference` holds a backticked `00_raw/` path followed by a quote of 20 or more characters that appears literally in that file; a change note never counts. Otherwise the gap stays `ANSWERED` with a finding. In a change, an answer phrased as EARS ("the system shall", "el sistema debe") also carries `- Delta: ADDED | MODIFIED | REMOVED | UNCHANGED` (`GAP-SCOPE` is exempt; plain prose needs none): without a valid Delta it does not close and stays `ANSWERED` with a proposal (`delta_findings`). Closed EARS answers become `REQ-EARS-nnn` rows in `02_requirements/CHG-nnn/requirements.md`; answering a gap again updates the Delta of a row in place (`delta_updated`) and moves rows whose wording is gone to a `Superseded requirements` table (`superseded_rows`), whose ids are never reused. When the workspace already has stories in `04_backlog/`, a confirmed `MODIFIED` or `REMOVED` answer also carries `- Afecta: US-001, US-007` or `- Afecta: ninguna` (`Affects` / `none`): without it, or naming a story that does not exist, it does not close and stays `ANSWERED` with `affects_findings` and candidate stories. It is ignored on `ADDED` and `UNCHANGED`, and optional in a workspace with no stories. Every confirmed EARS answer of a change except `GAP-SCOPE` also carries `- Superficie: <border name>[; <name>]` (`Surface` in English files), naming the surfaces of the confirmed border it touches; a missing line or a name outside the border keeps the answer `ANSWERED` with `surface_findings` and candidate surfaces. The surfaces travel into the requirement rows, the units and the stories. |
 
 A gap closes when the answer is substantive and the decision status is confirmed or not applicable. A substantive answer marked pending becomes `ANSWERED` (awaiting confirmation, still blocking when severe); a vague answer or one with no recognizable status becomes `PARTIALLY_CLOSED`. The answer may be one line or indented bullets under `- Answer:`. A confirmed answer without `Evidence or reference` still closes, and the stored report lists it under `## Findings` ("closed without a citation"); an answer under an id that is not in `gaps.md` is not applied and is reported in `unknown_gap_ids`. A confirmed answer that holds two or more EARS sentences ("When ..., the system shall ...") gives one `REQ-EARS-*` row per sentence; a sentence that is not EARS stays with the EARS sentence before it. A gap answered in two `### GAP-...` sections of one file gets both answers, merged, and a finding ("answered in 2 sections; the answers were merged into one."); when the sections give different decision statuses, the gap does not close and the finding says so. Closure reasons, example-data rules and EARS normalization are explained in [Workflows: client answers arrive](03-workflows.md).
 
@@ -1682,7 +1682,7 @@ A hand-edit warning means: revert the edit, or carry the change through the owni
 
 **What it does.** Validates workspace structure and graph integrity: required files, id prefixes and duplicates, missing paths and edges, expected sections, structured citations, and on a brief v2 its marks, forbidden values, anchors and cross-consistency. It also reports non-blocking quality signals (requirement quality, semantic quality, cross-artifact consistency, ISO 29148 coverage) that never change the verdict.
 
-**Type.** Read-only. Takes `--release`.
+**Type.** Read-only. Takes `--release` or `--change`.
 
 **Use it when.** Before a handoff or a release review.
 
@@ -1692,6 +1692,7 @@ A hand-edit warning means: revert the edit, or carry the change through the owni
 /validate ACME_PORTAL
 /validate ACME_PORTAL --release r1
 /validate ACME_PORTAL --override override.json
+/validate ACME_PORTAL --change CHG-001
 ```
 
 **Options.**
@@ -1701,6 +1702,7 @@ A hand-edit warning means: revert the edit, or carry the change through the owni
 | `PROJECT_ID` | id | required | The workspace. |
 | `--override` | a JSON file | none | Cited `DEC-*` decisions to proceed despite an `INVALID` verdict or warnings. Recorded under `06_traceability/gate_overrides/`; the verdict stays as it is. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | One release of a confirmed series. |
+| `--change` | `CHG-NNN` | none | Validate that change only, with four checks: `unit_citations` (each unit cites its requirement row and the border surface), `preserved_pass_to_pass` (each `UNCHANGED` row is a pass-to-pass criterion in the stories), `rows_have_surfaces` (every row names surfaces of the border) and `stories_inside_border` (each story stays inside the border). A check whose artifact does not exist yet shows `SKIP`. The result has `verdict` (`VALID` or `INVALID`), `findings`, `checks` and the escalation `warnings`. It does not combine with `--release` (exit 3). |
 
 On a project with a series, a plain `/validate` also reports the series' sync findings and each release's integrity.
 
@@ -1708,7 +1710,7 @@ On a project with a series, a plain `/validate` also reports the series' sync fi
 
 **Writes.** Nothing, except `06_traceability/gate_overrides/` and a traceability refresh with `--override`.
 
-**Refuses when.** Verdict not `VALID` → exit 5 (the result is still printed). `--override` with nothing to override → exit 3.
+**Refuses when.** Verdict not `VALID` → exit 5 (the result is still printed). `--override` with nothing to override → exit 3. With `--change`: `INVALID` → exit 5; an unknown change → exit 4; a plain `/validate` in a workspace that only has changes → exit 4, naming the change to use.
 
 **You get.** `verdict` (`VALID` or `INVALID`), `findings`, `warnings` and the quality blocks. In `semantic_quality`, `pending_markers` is the number of blocking marks and `deferred_markers` the number of domain marks. They are counted as `/export --final` counts them (see [`export`](#export)).
 
@@ -1722,7 +1724,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **What it does.** Says whether the workspace is ready to build and what to do next.
 
-**Type.** Read-only. Takes `--release`.
+**Type.** Read-only. Takes `--release` or `--change`.
 
 **Use it when.** Any time you want to know where the project stands.
 
@@ -1732,6 +1734,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 /status ACME_PORTAL
 /status ACME_PORTAL --full
 /status ACME_PORTAL --release r1
+/status ACME_PORTAL --change CHG-001
 ```
 
 **Options.**
@@ -1741,6 +1744,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `PROJECT_ID` | id | required | The workspace. |
 | `--full` | flag | off | Add the detailed dump: maturity metrics, development readiness, assumptions, knowledge ledger, story gates, backlog rollup, last change ids. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The verdict for one release. A release that depends on an unclosed release is `NOT_READY`, with the dependency named. |
+| `--change` | `CHG-NNN` | none | Show only that change: its round, border, gap counts, `next_action` and escalation `warnings`. It does not combine with `--release` (exit 3). |
 
 **Reads.** `state.json` and the workspace artifacts.
 
@@ -1754,6 +1758,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 - `ready_to_build`: the brief v2's own "Ready to build" line and whether it says yes (`null` for a v1 brief). The verdict never says ready while the brief says no.
 - `gap_counts`, `maturity_score`, the `sources` summary.
 - `next_step` and `next_action` (`key`, `title`, `text`, `command`).
+- `changes`, when the workspace has changes: one entry per change with its own `next_step` and its escalation `warnings`. In a workspace that only has changes, `next_action` is the first pending change's step.
 
 **Next step.** Run the command in `next_action`. On a brief v2 project whose settings are not confirmed, it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 
@@ -1763,7 +1768,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **What it does.** Prints only the next step: the same decision as `next_action` in `/status`, so the two never disagree.
 
-**Type.** Read-only. Takes `--release`.
+**Type.** Read-only. Takes `--release` or `--change`.
 
 **Use it when.** You do not know what to do now.
 
@@ -1772,6 +1777,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 ```text
 /next ACME_PORTAL
 /next ACME_PORTAL --release r1
+/next ACME_PORTAL --change CHG-001
 ```
 
 **Options.**
@@ -1780,6 +1786,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The next step for one release. |
+| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `lenses`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `done` (`done` has an empty `command`); it never reaches the PRD. It does not combine with `--release` (exit 3). |
 
 **Reads.** The same as `/status`.
 
@@ -1801,6 +1808,8 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `backlog` / `quality` / `handoff` | No stories yet / stories not checked / quality done | `/backlog` / `/quality` / `/validate`, then `/export` and `/story-status` |
 | `resolve_gaps` | Only non-blocking gaps left | `/resolve-gaps`, or move on with `/brief` then `/specs` |
 | `brief` | No gap left open and no brief yet | `/brief` |
+
+With `--change`, the keys are the steps of that sequence instead; the result also has `change_id` and `warnings`. Without it, a workspace with changes adds a `changes` list, one entry per change with its own next step, and a workspace that only has changes shows the first pending one. The escalation warnings (`several_processes`, `new_actors`, `third_party_contract`) are computed from the border and the rows; the BA decides whether to split the change or move to the project path, and nothing blocks.
 
 **Next step.** Run that command. On a brief v2 project with unconfirmed settings it is *Confirm the brief settings*, with a suggested `/brief PROJECT_ID --profile ... --genesis ...` whose values come from the raw input (check them first).
 
