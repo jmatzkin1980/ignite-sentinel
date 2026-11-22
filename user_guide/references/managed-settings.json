@@ -1,10 +1,10 @@
 {
   "strictKnownMarketplaces": [
-    { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.20.0" }
+    { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.20.1" }
   ],
   "extraKnownMarketplaces": {
     "ignite-sentinel": {
-      "source": { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.20.0" },
+      "source": { "source": "github", "repo": "jmatzkin1980/ignite-sentinel", "ref": "v0.20.1" },
       "autoUpdate": false
     }
   },
