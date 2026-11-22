@@ -91,6 +91,12 @@ class ChangeAffects(SnapshotWorkspaceCase):
         self.assertEqual(finding["candidates"], ["US-002"])
         self.assertIn("US-002", finding["note"])
 
+    def test_only_the_changes_own_stories_do_not_make_affects_mandatory(self):
+        write_story("BORR", 1, change=self.cid)
+        res = self.resolve("a.md", answer("MODIFIED", None))
+        self.assertIn("GAP-ACCEPTANCE", res["closed"])
+        self.assertEqual(res["affects_findings"], [])
+
     def test_unknown_story_in_affects_stays_open(self):
         write_story("BORR", 1)
         res = self.resolve("a.md", answer("REMOVED", "US-099"))

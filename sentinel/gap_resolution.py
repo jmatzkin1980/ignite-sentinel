@@ -269,7 +269,12 @@ def _flag_affects(project_id: str, change_id: str, responses: dict[str, dict[str
     """
     from .change_requirements import _AFFECTING_DELTAS, parse_affects, parse_delta, story_candidates, story_files
 
-    known = set(story_files(workspace_path(project_id)))
+    from .core.markdown import parse_frontmatter
+
+    known = {
+        sid for sid, path in story_files(workspace_path(project_id)).items()
+        if str(parse_frontmatter(path.read_text(encoding="utf-8")).get("change", "")).strip() != change_id
+    }
     findings: list[dict[str, object]] = []
     for gap_id, response in responses.items():
         if gap_id == "GAP-SCOPE" or response.get("delta_error"):

@@ -512,7 +512,10 @@ def _run_project_command(args) -> int:
                 from .compilers.change_backlog import compile_change_backlog
 
                 get_change(args.project_id, args.change)
-                result = compile_change_backlog(args.project_id, args.change)
+                result = compile_change_backlog(
+                    args.project_id, args.change,
+                    story_format=args.story_format, with_task_seeds=bool(args.with_task_seeds),
+                )
             else:
                 from .generation import generate_backlog
 

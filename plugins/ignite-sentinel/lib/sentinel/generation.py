@@ -682,6 +682,7 @@ def build_implementation_readiness_pack(
     }
     # IMP-393: the change stories' items are not the project's to drop
     current_ids = {str(item["story_id"]) for item in readiness_items}
+    own_count = len(readiness_items)
     previous = read_json(workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json", {})
     for old in previous.get("stories", []) if id_registry.registry_active(project_id) and isinstance(previous, dict) else []:
         old_id = str(old.get("story_id", "")) if isinstance(old, dict) else ""
@@ -689,6 +690,10 @@ def build_implementation_readiness_pack(
             workspace_path(project_id) / "04_backlog" / f"{old_id}.md"
         ):
             pack["stories"].append(old)
+    if len(pack["stories"]) != own_count:
+        from .compilers.change_backlog import _readiness_summary
+
+        pack["verdict"], pack["summary"] = _readiness_summary(pack["stories"])
     state = read_json(state_path(project_id), {})
     pack["stale_spec_units"] = state.get("stale_spec_units", [])
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"

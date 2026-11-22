@@ -154,6 +154,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     unit_ids = [unit["id"] for unit in units]
     preserved = [row["id"] for row in preserved_rows]
     report = {"change_id": change_id, "units": unit_ids, "ears": [row["id"] for row in unit_rows],
+              "deltas": {row["id"]: parse_delta(row["delta"]) for row in unit_rows},
               "preserved": preserved, "by_delta": by_delta}
     write_json(folder / "change_specs_report.json", report)
 
