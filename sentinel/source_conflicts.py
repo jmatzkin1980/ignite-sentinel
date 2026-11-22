@@ -164,16 +164,18 @@ def _declares_draft(folded: str, data: dict[str, Any], position: int) -> bool:
         return False
     if folded.startswith("#"):
         return bool(has_term.search(folded))
-    # Title mark: first lines only, the term at the very start or end (a version suffix is ok).
+    # Title mark: first lines only, the term as its own segment (start or end, set off by a separator or brackets).
     # Quoted, table and list-item text (answer fields) is content, not a title.
     if (
         position < int(data["unvalidated_title_lines"])
         and "|" not in folded and '"' not in folded
         and not re.match(r"^(?:[-*+]|\d+[.)])\s", folded)
     ):
-        words = " ".join(re.sub(r"[\W_]+", " ", folded).split())
-        version = r"(?: v?\d+(?: \d+)*)?"
-        if re.match(rf"{term}{version}(?: |$)", words) or re.search(rf"(?:^| ){term}{version}$", words):
+        version = r"(?:\s+v?\d+(?:\.\d+)*)?"
+        close = r"[\s\])*_.]*"
+        start = rf"^[\s*_(\[]*{term}(?={close}$|\s*[-—–:|(\[,]|\s+v?\d+(?:\.\d+)*\b)"
+        end = rf"(?:[(\[]|[-—–:,])\s*[*_]*{term}{version}{close}$"
+        if re.search(start, folded) or re.search(end, folded):
             return True
     keys = _alt(sorted(data["unvalidated_metadata_keys"], key=len, reverse=True))
     meta = re.match(rf"^(?:[-*]\s+)?(?:\*\*)?{keys}(?:\*\*)?\s*:(?:\*\*)?\s*(?P<value>.*)$", folded)
