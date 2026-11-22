@@ -72,18 +72,23 @@ def is_framework_root(root: Path) -> bool:
 
 # IMP-317: `pip install -e .[extra]` installs the clone's own project. Outside a clone there is
 # none, so the runtime doctor names the packages of each extra (pyproject.toml) instead.
-_RUNTIME_INSTALLS = (
-    ("python -m pip install -e .[memory-semantic]", "python -m pip install model2vec sentence-transformers"),
-    ("python -m pip install -e .[memory]", "python -m pip install lancedb"),
-    ("python -m pip install -e .[mcp]", 'python -m pip install "mcp>=1.2,<3"'),
-)
+def _runtime_installs() -> tuple[tuple[str, str], ...]:
+    # IMP-398: `python` may not be on PATH (plugin installs); name the interpreter Sentinel runs with.
+    exe = sys.executable or "python"
+    # PowerShell (the docs' shell on Windows) needs the call operator before a quoted path
+    pip = (f'& "{exe}"' if os.name == "nt" else f'"{exe}"') + " -m pip install"
+    return (
+        ("python -m pip install -e .[memory-semantic]", f"{pip} model2vec sentence-transformers"),
+        ("python -m pip install -e .[memory]", f"{pip} lancedb"),
+        ("python -m pip install -e .[mcp]", f'{pip} "mcp>=1.2,<3"'),
+    )
 
 
 def runtime_hint(check: dict[str, str]) -> dict[str, str]:
     detail = check.get("detail", "")
     if "-e ." not in detail:
         return check
-    for clone_form, package_form in _RUNTIME_INSTALLS:
+    for clone_form, package_form in _runtime_installs():
         detail = detail.replace(clone_form, package_form)
     detail += " Install with the same Python that runs Sentinel."
     return {**check, "detail": detail}

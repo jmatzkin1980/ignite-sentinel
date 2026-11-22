@@ -28,7 +28,7 @@ def _language(project_id: str, change_id: str | None = None) -> str:
 def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str | None = None,
                     final: bool = False, change_id: str | None = None) -> dict[str, str]:
     from .deliverables import gate
-    from .pending_marks import compile_report_for
+    from .pending_marks import change_extraction_pending, compile_report_for
 
     fmt = fmt.lower()
     base = workspace_path(project_id)
@@ -47,8 +47,9 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
         raise InputError(f"Export source not found: {source}")
     # IMP-272: a deliverable has zero pending marks or says it is a draft
     # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
+    extraction = change_extraction_pending(base, change_id) if change_id and artifact.lower() == "brief" else []
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
-                   report=compile_report_for(source))
+                   report=compile_report_for(source), extraction=extraction, language=_language(project_id, change_id))
     result = _export(project_id, artifact, fmt, source, verdict, change_id)
     return {**result, **verdict}
 
@@ -71,7 +72,8 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     target = export_dir / (f"{change_id}-{source.name}" if change_id else source.name)
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     if verdict["deliverable"] == "draft":
-        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id)))
+        write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id),
+                                                         list(verdict.get("extraction_pending") or [])))
     else:
         copy_file(source, target)
     update_state(project_id, last_export=workspace_relative(project_id, target))

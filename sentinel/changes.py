@@ -7,6 +7,7 @@ requirement, gaps and artifacts are never touched by it.
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 from .core.graph import add_node
@@ -149,6 +150,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "border": [],
         "border_confirmed_at": None,
         "responses": [],
+        "gap_counts": count_gaps(gaps),
     }
     update_state(project_id, changes=changes)
     return {
@@ -163,6 +165,53 @@ def ingest_change(project_id: str, source: Path) -> dict:
 BORDER_ZONES: tuple[str, ...] = ("nuevo", "adyacente", "preservado")
 _BORDER_TYPE_ALIASES = {"integración": "integracion"}
 _BORDER_FIELD = re.compile(r"^([ 	]*)-[ 	]*Borde[ 	]*:[ 	]*(.*)$", re.I | re.M)
+
+
+ALIAS_MAX = 40
+
+
+def _alias_error(alias: str, name: str, problem: str, language: str) -> InputError:
+    es = language == "es"
+    return InputError(
+        (f"El alias «{alias}» de la superficie «{name}» {problem}." if es
+         else f"The alias «{alias}» of the surface «{name}» {problem}."),
+        next_step=("Corregí el alias (corto, sin `;` ni `|`, sin tildes, único) y volvé a correr /resolve-gaps con el mismo archivo." if es
+                   else "Fix the alias (short, no `;` or `|`, no accents, unique) and run /resolve-gaps again with the same file."),
+    )
+
+
+def _check_alias(alias: str, name: str, language: str) -> str:
+    """IMP-398: a short alias: no `;` or `|`, at most 40 characters, no accents (uniqueness is checked over the whole border)."""
+    es = language == "es"
+    problem = None
+    if not alias:
+        problem = "está vacío" if es else "is empty"
+    elif ";" in alias or "|" in alias:
+        problem = "no puede llevar `;` ni `|`" if es else "cannot contain `;` or `|`"
+    elif len(alias) > ALIAS_MAX:
+        problem = f"tiene más de {ALIAS_MAX} caracteres" if es else f"is longer than {ALIAS_MAX} characters"
+    elif unicodedata.normalize("NFD", alias) != alias:
+        problem = "no puede llevar tildes" if es else "cannot contain accents"
+    if problem:
+        raise _alias_error(alias, name, problem, language)
+    return alias
+
+
+def _check_alias_collisions(border: list[dict[str, str]], language: str) -> None:
+    """IMP-398: with the same fold `Superficie` uses, no alias may equal another surface's alias or name (its own name is fine)."""
+    from .change_requirements import _fold_name
+
+    for i, item in enumerate(border):
+        alias = item.get("alias")
+        if not alias:
+            continue
+        key = _fold_name(alias)
+        for j, other in enumerate(border):
+            if i == j:
+                continue
+            if key in (_fold_name(other["name"]), _fold_name(other.get("alias", "")) if other.get("alias") else None):
+                raise _alias_error(alias, item["name"], (
+                    "ya lo usa otra superficie del borde" if language == "es" else "is already used by another border surface"), language)
 
 
 def parse_border(response_block: str, cite: str, language: str = "es") -> list[dict[str, str]]:
@@ -186,10 +235,10 @@ def parse_border(response_block: str, cite: str, language: str = "es") -> list[d
     border: list[dict[str, str]] = []
     for raw in lines:
         text = raw.lstrip("-*").strip()
-        parts = [part.strip() for part in text.split("|", 2)]
-        if len(parts) != 3 or not all(parts):
+        parts = [part.strip() for part in text.split("|", 3)]
+        if len(parts) not in (3, 4) or not all(parts[:3]):
             raise InputError(
-                f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre` "
+                f"Línea de borde inválida: «{text}». El formato es `zona | tipo | nombre [| alias]` (alias opcional) "
                 f"(zonas válidas: {', '.join(BORDER_ZONES)}; tipos válidos: {', '.join(SURFACE_TYPES)}).",
                 next_step="Corregí la línea y volvé a correr /resolve-gaps con el mismo archivo.",
             )
@@ -213,7 +262,11 @@ def parse_border(response_block: str, cite: str, language: str = "es") -> list[d
                 next_step=("Sacá el `;` del nombre y volvé a correr /resolve-gaps con el mismo archivo." if language == "es"
                            else "Remove the `;` from the name and run /resolve-gaps again with the same file."),
             )
-        border.append({"zone": zone, "type": kind, "name": name, "cite": cite})
+        item = {"zone": zone, "type": kind, "name": name, "cite": cite}
+        if len(parts) == 4:
+            item["alias"] = _check_alias(parts[3], name, language)
+        border.append(item)
+    _check_alias_collisions(border, language)
     if not border:
         raise InputError(
             "El bloque `Borde:` de GAP-SCOPE no tiene ninguna línea "

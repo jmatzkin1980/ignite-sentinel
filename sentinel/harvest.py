@@ -126,7 +126,7 @@ def parse_harvest(text: str, known_repos: tuple[str, ...] | list[str] = (),
     return {"repos": repos, "docs": docs, "entries": entries, "errors": errors, "coverage": coverage}
 
 
-def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
+def _gap(entry: dict[str, str], language: str, change: bool = False) -> dict[str, str] | None:
     digest = hashlib.sha256(f"{entry['kind']}|{entry['ref']}|{entry['text']}".encode("utf-8")).hexdigest()[:8].upper()
     es = language == "es"
     if entry["kind"] == "out_of_code":
@@ -135,9 +135,17 @@ def _gap(entry: dict[str, str], language: str) -> dict[str, str] | None:
                 "question": (f"¿Quién confirma: {entry['text']}?" if es else f"Who confirms: {entry['text']}?"),
                 "evidence_mention": f"harvest {entry['block']}", "origin": "harvest", "resolution_note": ""}
     if entry["kind"] == "divergence":
+        if change:  # IMP-398: the change harvest speaks the change language and offers "build or fix it in this change"
+            description = (f"⚠ Divergencia entre lo documentado y lo construido ({entry['ref']}): {entry['text']}" if es
+                           else f"⚠ Divergence between what is documented and what is built ({entry['ref']}): {entry['text']}")
+            question = ("¿Qué rige: lo construido, lo que dice el pedido, o hay que construirlo o corregirlo en este cambio?" if es
+                        else "Which governs: what is built, what the request says, or does it have to be built or fixed in this change?")
+        else:
+            description = f"⚠ README vs code divergence ({entry['ref']}): {entry['text']}"
+            question = "¿Cuál rige: lo documentado o lo construido?" if es else "Which governs: what is documented or what is built?"
         return {"id": f"GAP-HRV-{digest}", "lens": "technical", "severity": "high", "status": "OPEN",
-                "description": f"⚠ README vs code divergence ({entry['ref']}): {entry['text']}"[:240],
-                "question": ("¿Cuál rige: lo documentado o lo construido?" if es else "Which governs: what is documented or what is built?"),
+                "description": description[:240],
+                "question": question,
                 "evidence_mention": entry["ref"], "origin": "harvest", "resolution_note": ""}
     return None
 
@@ -211,7 +219,7 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
         from .changes import change_language
 
         language = change_language(project_id, change)
-    gaps = [g for g in (_gap(e, language) for e in parsed["entries"]) if g]
+    gaps = [g for g in (_gap(e, language, change is not None) for e in parsed["entries"]) if g]
     gaps_path = base / "01_discovery" / "gaps.md"
     opened: list[str] = []
     if change is not None:

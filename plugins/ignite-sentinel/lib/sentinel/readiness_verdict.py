@@ -23,6 +23,7 @@ from .drift import derived_drift_warnings
 from .source_registry import registry_warnings
 from .sources import source_registry_summary
 from .gaps import BLOCKING_GAP_STATUSES, blocking_severities, count_gaps, is_blocking, parse_gap_table
+from .pending_marks import change_extraction_pending as _extraction_pending
 from .workspace import load_config, workspace_path
 
 VERDICTS = ("READY", "READY_WITH_WARNINGS", "NOT_READY")
@@ -43,12 +44,22 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     blockers: list[str] = []
     warnings: list[str] = []
     partial: list[dict[str, str]] = []
-    if not discovered:
+    # IMP-398: a workspace that only holds changes has no project discovery to run; its changes answer for it.
+    overview: list[dict[str, Any]] | None = None
+    if state.get("changes") and (release if release is not None else _active_release()) is None:
+        overview = changes_overview(project_id)
+    change_only = overview is not None and not (base / "02_requirements" / "requirements.md").exists()
+    if not discovered and not change_only:
         blockers.append("Discovery has not run: there is no 01_discovery/gaps.md.")
     if blocking_open:
         blockers.append(f"{len(blocking_open)} blocking gap(s) open: {', '.join(blocking_open)}.")
 
-    gate_matrix = [{"gate": "gaps", "state": "BLOCKING_OPEN" if blocking_open else ("CLEAR" if discovered else "NOT_RUN"), "blocks": bool(blocking_open) or not discovered}]
+    if change_only and not discovered:
+        # no project discovery to run: the changes' own steps answer for it, so this gate does not apply (and does not block)
+        gaps_gate = {"gate": "gaps", "state": "NOT_APPLICABLE", "blocks": False}
+    else:
+        gaps_gate = {"gate": "gaps", "state": "BLOCKING_OPEN" if blocking_open else ("CLEAR" if discovered else "NOT_RUN"), "blocks": bool(blocking_open) or not discovered}
+    gate_matrix = [gaps_gate]
 
     stage = str(state.get("readiness_stage", "DISCOVERY_RAW"))
     brief_exists = (base / "02_requirements" / "project-brief.md").exists()
@@ -127,6 +138,13 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
     elif release is not None and release != scoped:
         partial.append({"check": "release", "reason": f"Release {release} was named outside its scope; run the command with --release {release} for a verdict over that release's brief and backlog. This verdict covers the whole workspace."})
 
+    if change_only and overview is not None:
+        pending = [item for item in overview if item["next_step"]["key"] != "done"]
+        blockers[:0] = [_change_blocker(project_id, item) for item in pending]
+        if not pending:
+            # existing value on purpose (views switch on it): the pieces are up to date, the request coverage is not measured
+            warnings.append(COVERAGE_NOT_MEASURED)
+
     if blockers:
         verdict = "NOT_READY"
     elif warnings or partial:
@@ -157,12 +175,34 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
                                     assumed_blocking=assumed_blocking)
     # IMP-396: only a workspace with changes grows the key (path A stays as it was), and never inside a
     # release scope: changes are project-level, a release verdict covers the release only.
-    if state.get("changes") and release is None:
-        result["changes"] = changes_overview(project_id)
+    if overview is not None and release is None:
+        result["changes"] = overview
         if not (base / "02_requirements" / "requirements.md").exists():
             # a change-only workspace has no project to ingest or write a PRD for: the next step is the change's
             result["next_step"] = _first_change_step(result["changes"])
     return result
+
+
+COVERAGE_NOT_MEASURED = ("Request coverage is not measured yet: the registered pieces of the changes are up to date, "
+                         "but Sentinel does not check that each rule and criterion of the request has its requirement or its discard.")
+
+
+def _active_release() -> str | None:
+    from .release_scope import active_release
+
+    return active_release()
+
+
+def _change_blocker(project_id: str, item: dict[str, Any]) -> str:
+    """IMP-398: one blocker per pending change, in the change's language: its id, pending step and (lenses) blocking count."""
+    from .changes import change_language, get_change
+
+    step = item["next_step"]
+    change = get_change(project_id, item["change_id"])
+    n = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    es = change_language(project_id, change) == "es"
+    detail = f" ({n} bloqueante/s)" if es and step["key"] == "lenses" else (f" ({n} blocking)" if step["key"] == "lenses" else "")
+    return f"{item['change_id']}: {step['key']}{detail}. {step['title']}."
 
 
 _READY_LINE_PREFIXES = ("Ready to build:", "Listo para construir:")
@@ -312,33 +352,53 @@ CHANGE_TEXT = {
         "scope": ("Cerrar el borde del cambio",
                   "Respondé GAP-SCOPE con el borde del cambio (una línea por superficie: zona | tipo | nombre) y corré /resolve-gaps."),
         "lenses": ("Cerrar las preguntas bloqueantes del cambio",
-                   "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en {path} y corré /resolve-gaps."),
+                   "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en un archivo de respuestas "
+                   "(no en gaps.md, que lo genera Sentinel) y corré /resolve-gaps --change {cid}."),
         "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
         "brief_stale": ("Recompilar el brief del cambio",
                         "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
         "requirements": ("Responder los requisitos del cambio",
-                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé en EARS con Delta y Superficie y corré /resolve-gaps."),
+                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps."),
+        "requirements_none": ("Responder los requisitos del cambio",
+                              "{cid} no tiene ninguna pregunta funcional abierta donde responder los requisitos; el pedido los trae "
+                              "pero Sentinel todavía no los extrae solo (llega en un próximo incremento). Mientras tanto el cambio se queda en este paso y el BA revisa el pedido a mano."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
-        "done": ("Cambio al día",
-                 "{cid} no tiene pasos pendientes: revisá el tablero 04_backlog/BACKLOG.md y las historias de EPIC-{cid}."),
+        "pending_extraction": ("Pasar el contenido del pedido al brief",
+                               "{cid}: el brief no tiene todavía el contenido del pedido en {sections}. Sentinel todavía no lo extrae solo "
+                               "(llega en un próximo incremento). La marca se limpia solo cuando se responde una pregunta de esa sección; "
+                               "si el cambio no tiene ninguna abierta, la marca queda hasta el incremento de extracción, el cambio sigue "
+                               "en este paso, /export --final se rechaza y el BA revisa el pedido a mano."),
+        "done": ("Piezas del cambio al día",
+                 "Las piezas registradas de {cid} están al día. Sentinel todavía no mide qué parte del pedido quedó cubierta: "
+                 "verificá que cada regla y criterio del pedido tenga su requisito o su descarte."),
     },
     "en": {
         "scope": ("Close the change border",
                   "Answer GAP-SCOPE with the change border (one line per surface: zone | type | name) and run /resolve-gaps."),
         "lenses": ("Close the change's blocking questions",
-                   "{cid} has {n} blocking gap(s) open: answer them in {path} and run /resolve-gaps."),
+                   "{cid} has {n} blocking gap(s) open: answer them in a responses file "
+                   "(not in gaps.md, which Sentinel generates) and run /resolve-gaps --change {cid}."),
         "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
         "brief_stale": ("Recompile the change brief",
                         "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
         "requirements": ("Answer the change requirements",
-                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer in EARS with Delta and Superficie and run /resolve-gaps."),
+                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps."),
+        "requirements_none": ("Answer the change requirements",
+                              "{cid} has no open functional question where the requirements can be answered; the request brings them "
+                              "but Sentinel does not extract them on its own yet (coming in a later increment). Meanwhile the change stays at this step and the BA checks the request by hand."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
-        "done": ("Change up to date",
-                 "{cid} has no pending step: review the board 04_backlog/BACKLOG.md and the stories of EPIC-{cid}."),
+        "pending_extraction": ("Move the request content into the brief",
+                               "{cid}: the brief does not hold the request content yet in {sections}. Sentinel does not extract it on its own "
+                               "yet (coming in a later increment). The mark clears only when a question of that section is answered; "
+                               "if the change has no such open question, the mark stays until the extraction increment, the change stays "
+                               "at this step, /export --final is refused and the BA checks the request by hand."),
+        "done": ("Change pieces up to date",
+                 "The registered pieces of {cid} are up to date. Sentinel does not yet measure how much of the request is covered: "
+                 "check that each rule and criterion of the request has its requirement or its discard."),
     },
 }
 CHANGE_COMMANDS = {
@@ -349,6 +409,7 @@ CHANGE_COMMANDS = {
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
+    "pending_extraction": "",
     "done": "",
 }
 
@@ -377,7 +438,23 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "backlog"
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
+    if _extraction_pending(base, change_id):
+        return "pending_extraction"
     return "done"
+
+
+def _open_ears_gaps(base: Path, change_id: str) -> list[str]:
+    """IMP-398: the open gaps of the change where EARS requirements can be answered (only ones that exist)."""
+    from .changes import change_gaps_path
+    from .gap_resolution import EARS_ELIGIBLE_GAP_IDS
+    from .gaps import parse_gap_rows
+
+    path = change_gaps_path(base, change_id)
+    if not path.exists():
+        return []
+    rows = parse_gap_rows(path.read_text(encoding="utf-8"))
+    return [row["id"] for row in rows
+            if row["id"] in EARS_ELIGIBLE_GAP_IDS and str(row.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
 
 
 def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
@@ -420,11 +497,18 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     key = _change_step_key(project_id, change_id, change)
     texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
     stale = key == "brief" and (workspace_path(project_id) / "02_requirements" / change_id / "project-brief.md").is_file()
-    title, text = texts["brief_stale" if stale else key]
+    base = workspace_path(project_id)
+    ears_gaps = _open_ears_gaps(base, change_id) if key == "requirements" else []
+    text_key = "brief_stale" if stale else key
+    if key == "requirements" and not ears_gaps:
+        text_key = "requirements_none"
+    title, text = texts[text_key]
     ctx = {
         "cid": change_id, "pid": project_id,
+        "ids": ", ".join(ears_gaps),
+        "sections": ", ".join(f"§{n}" for n in _extraction_pending(base, change_id)),
         "n": int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0),
-        "path": f"01_discovery/{change_id}/gaps.md" if key == "lenses" else f"02_requirements/{change_id}/project-brief.md",
+        "path": f"02_requirements/{change_id}/project-brief.md",
     }
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[key].format(**ctx)}

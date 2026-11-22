@@ -9,7 +9,8 @@ The rule:
 - **Brief v2** (marker `<!-- sentinel-artifact: v2 -->`). A mark is
   `⏳ PENDING (GAP-X)` / `⏳ PENDIENTE (GAP-X)` (the client owes it: it *blocks*)
   or `⏳ PENDING DOMAIN (GAP-X)` / `⏳ PENDIENTE DOMINIO (GAP-X)` (domain context
-  owes it: it is *deferred*). When the compile report
+  owes it: it is *deferred*) or `⏳ PENDING EXTRACTION` / `⏳ PENDIENTE DE EXTRACCIÓN`
+  (IMP-398: the request covers the topic and a later extraction owes it: *deferred* too). When the compile report
   (`02_requirements/brief_compile_report.json`) is available its `fill_sites` are
   the count, one per place, by class: that is the number the brief's own
   "Ready to build" line states. Without the report the body is read, leaving out
@@ -57,7 +58,7 @@ def count_pending_marks(text: str, report: dict[str, Any] | None = None) -> Pend
 
 
 def _count_v2_text(text: str) -> PendingMarks:
-    from .brief_model import V2_PENDING_RE, parse_brief
+    from .brief_model import V2_PENDING_RE, is_deferred_mark, parse_brief
 
     model = parse_brief(text)
     blocking = deferred = 0
@@ -72,7 +73,7 @@ def _count_v2_text(text: str) -> PendingMarks:
         if model.section_id_at_line(number).startswith("0.1"):
             continue  # the legend names the vocabulary, it does not use it
         for match in V2_PENDING_RE.finditer(line):
-            if "DOM" in match.group("domain"):
+            if is_deferred_mark(match.group("domain")):
                 deferred += 1
             else:
                 blocking += 1
@@ -88,3 +89,12 @@ def compile_report_for(source: Path) -> dict[str, Any] | None:
     path = source.parent / REPORT_NAME
     report = read_json(path, None) if path.exists() else None
     return report if isinstance(report, dict) else None
+
+
+def change_extraction_pending(base: Path, change_id: str) -> list[str]:
+    """IMP-398: the sections of the change brief the request covers and the brief does not hold yet."""
+    from .core.io import read_json
+
+    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
+    pending = report.get("extraction_pending") if isinstance(report, dict) else None
+    return [str(item) for item in pending] if isinstance(pending, list) else []

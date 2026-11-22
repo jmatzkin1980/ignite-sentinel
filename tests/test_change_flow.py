@@ -139,8 +139,13 @@ class ChangeFlow(SnapshotWorkspaceCase):
             "rows_have_surfaces": "PASS", "stories_inside_border": "PASS"})
         self.assertEqual(validate_out["warnings"], [])
         next_out = json.loads(run_ok(["next", "BORR", "--change", cid]))
+        # IMP-398: `done` says the registered pieces are up to date, not that the request is covered; the fixture's
+        # brief holds no pending-extraction mark, so the step before it (`pending_extraction`) is not shown.
         self.assertEqual(next_out["key"], "done")
+        self.assertIn("todavía no mide", next_out["text"])
         self.assertEqual(next_out["warnings"], [])
+        final_brief = (workspace_path("BORR") / "02_requirements" / cid / "project-brief.md").read_text(encoding="utf-8")
+        self.assertNotIn("PENDIENTE DE EXTRACCIÓN", final_brief)
         self.assertIn(json.loads(run_ok(["doctor"]))["verdict"], {"PASS", "WARN"})
         status = json.loads(run_ok(["status", "BORR"]))
         self.assertEqual(status["project_id"], "BORR")

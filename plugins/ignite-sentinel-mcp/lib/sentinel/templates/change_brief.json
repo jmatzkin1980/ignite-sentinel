@@ -38,6 +38,11 @@
     "dato": ["B2", "B3", "B4"],
     "integracion": ["B2", "B3", "B4"]
   },
+  "transversal": {
+    "surfaces": ["endpoint", "dato", "integracion", "proceso"],
+    "context": ["B1"],
+    "technical": ["B5"]
+  },
   "na_reason": {"es": "el borde no toca {lens}", "en": "the border does not touch {lens}"},
   "na_condition": {"es": "el borde suma una superficie de {lens}", "en": "the border adds a {lens} surface"},
   "copy": {
@@ -49,6 +54,7 @@
       "repo": "Repositorio",
       "doc": "Documento",
       "already": "Ya existe",
+      "baseline_support": "Respaldo en la línea de base",
       "zones": {"nuevo": "Nuevo", "adyacente": "Adyacente", "preservado": "Preservado"},
       "scope_answer": "Alcance (respuesta del cliente)",
       "no_adjacent": "Sin superficies adyacentes en el borde ({cite})",
@@ -56,7 +62,8 @@
       "after_border": "Se define al confirmar el borde ({cite})",
       "lenses_after_border": "Las lentes se abren al confirmar el borde ({cite})",
       "lenses_not_open": "Se abre con la ronda de lentes ({ids})",
-      "note_covers": "Sin pregunta abierta: la nota del cambio lo cubre (ver §1) (`{cite}`)",
+      "note_covers": "⏳ PENDIENTE DE EXTRACCIÓN: el pedido trata este tema y todavía no está en el brief (`{cite}`)",
+      "extraction_summary": "extracción pendiente: {sections}",
       "see_sections": "Ver {sections}",
       "surfaces_of_lens": "Superficies del borde de esta lente",
       "table": ["Gap", "Lente", "Severidad", "Bloquea"],
@@ -73,6 +80,7 @@
       "repo": "Repository",
       "doc": "Document",
       "already": "Already exists",
+      "baseline_support": "Baseline support",
       "zones": {"nuevo": "New", "adyacente": "Adjacent", "preservado": "Preserved"},
       "scope_answer": "Scope (client answer)",
       "no_adjacent": "No adjacent surfaces in the border ({cite})",
@@ -80,7 +88,8 @@
       "after_border": "Defined once the border is confirmed ({cite})",
       "lenses_after_border": "The lenses open once the border is confirmed ({cite})",
       "lenses_not_open": "Opens with the lens round ({ids})",
-      "note_covers": "No open question: the change note covers it (see §1) (`{cite}`)",
+      "note_covers": "⏳ PENDING EXTRACTION: the request covers this and it is not in the brief yet (`{cite}`)",
+      "extraction_summary": "extraction pending: {sections}",
       "see_sections": "See {sections}",
       "surfaces_of_lens": "Border surfaces of this lens",
       "table": ["Gap", "Lens", "Severity", "Blocks"],

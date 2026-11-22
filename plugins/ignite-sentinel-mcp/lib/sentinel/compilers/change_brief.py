@@ -167,6 +167,12 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         gap = by_id.get(gap_id, {})
         return gap_id.startswith("GAP-HRV-") and str(gap.get("kind", "")).strip("`").lower() == "domain"
 
+    def is_divergence(gap_id: str) -> bool:
+        # A harvest gap that is not a question for the domain (out of code) is a divergence.
+        gap = by_id.get(gap_id, {})
+        return (gap_id.startswith("GAP-HRV-") and not is_out_of_code(gap_id)
+                and str(gap.get("origin", "harvest")).strip("`").lower() == "harvest")
+
     def section_of(gap_id: str) -> int | None:
         if is_out_of_code(gap_id):
             return None
@@ -188,6 +194,12 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             quote = _CITE_QUOTE.search(gap.get("evidence", ""))
             if path and quote:
                 text = quote.group(1) if quote.group(1) is not None else quote.group(2)
+                if is_divergence(gap_id):
+                    # IMP-398: the quote of a divergence may say that something does not exist, so
+                    # "already exists" would read backwards: answer first, the baseline as support.
+                    section.fill(f"{answer or copy['no_text']} — {copy['baseline_support']}: «{text.strip()}» "
+                                 f"(`{path.group(1).strip()}`, {gap_id})")
+                    return
                 section.fill(f"{copy['already']}: «{text.strip()}» (`{path.group(1).strip()}`, {gap_id})")
                 return
         section.fill(f"{answer or copy['no_text']} ({gap_id})")
@@ -198,11 +210,19 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     def routed_gaps(number: int) -> list[dict]:
         return [gap for gap in gaps if section_of(gap["id"]) == number]
 
+    extraction_pending: list[int] = []
+
     def empty_note(section: _Section, number: int) -> None:
         ids = ", ".join(gap_id for gap_id, n in routed.items() if n == number)
         key = "note_covers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
         if not section.lines:
-            section.info(copy[key].format(ids=ids, cite=gaps_cite))
+            if key == "note_covers":
+                # IMP-398: the request covers the topic and the brief does not hold it yet. It is a
+                # deferred mark (extraction owes it), never "no open question".
+                section.mark(copy[key].format(ids=ids, cite=gaps_cite))
+                extraction_pending.append(number)
+            else:
+                section.info(copy[key].format(ids=ids, cite=gaps_cite))
 
     # Harvest facts, each shown once: section 4 claims the flows (B7) before the lenses do.
     facts = [e for e in harvest.get("entries", []) if e.get("kind") == "fact"]
@@ -224,6 +244,10 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     for item in border:
         border_blocks |= set(template["surface_blocks"].get(item.get("type"), []))
 
+    # IMP-398: the cross-cutting blocks (architecture, operations) belong to any technical border.
+    transversal = template.get("transversal", {})
+    cross = bool({item.get("type") for item in border} & set(transversal.get("surfaces", [])))
+
     # 1 Context and baseline
     s1 = sec[1]
     source = str(change.get("source", ""))
@@ -240,6 +264,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         s1.fill(f"{copy['repo']}: {repo} (`{HARVEST_CITE}`)")
     for doc in harvest.get("docs", []):
         s1.fill(f"{copy['doc']}: {doc} (`{HARVEST_CITE}`)")
+    if cross:
+        for entry in facts_of(set(transversal.get("context", []))):
+            s1.fill(fact_line(entry))
 
     # 2, 4, 7: the answers of their gaps (4 adds the harvest flows)
     for number in (2, 4, 7):
@@ -303,6 +330,8 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             blocks: set[str] = set()
             for kind in kinds:
                 blocks |= set(template["surface_blocks"].get(kind, []))
+            if cross and lens == "technical":
+                blocks |= set(transversal.get("technical", []))
             body = _Section()
             for gap in lens_gaps.get(lens, []):
                 gap_line(body, gap)
@@ -343,6 +372,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s9.raw(f"| {gap['id']} | {gap.get('lens', '')} | {gap.get('severity', '')} | {verdict} |")
     else:
         s9.info(copy["no_open"].format(cite=gaps_cite))
+    if extraction_pending:
+        s9.raw("")
+        s9.info(copy["extraction_summary"].format(sections=", ".join(f"§{n}" for n in extraction_pending)))
 
     heading = copy["heading"].format(change_id=change_id, title=inputs.get("note_title", ""))
     out = [v2_marker, "", f"# {heading}", "", f"{copy['project']}: {inputs.get('project_id', '')}", ""]
@@ -366,6 +398,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             for number, section in sec.items()
         },
         "pending_gaps": pending_gaps,
+        "extraction_pending": [str(number) for number in extraction_pending],
         "blocking_open": count_pending_marks(text).blocking,
     }
     return text, report

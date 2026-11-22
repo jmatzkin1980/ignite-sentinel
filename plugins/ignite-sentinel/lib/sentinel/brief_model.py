@@ -46,9 +46,17 @@ V2_LENS_MAP: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "6": (("5.11", "6"), ()),
 }
 
+# IMP-398: a mark that is owed by a later extraction, not by the client: deferred, never blocking.
+DEFERRED_MARK_WORDS = ("DOM", "EXTRACCI", "EXTRACTION")
+
+
+def is_deferred_mark(word: str) -> bool:
+    return any(part in word for part in DEFERRED_MARK_WORDS)
+
+
 V1_SECTION_RE = re.compile(r"^## (\d+)\.", re.M)
 V1_PENDING_MARKERS = ("[PENDING INPUT]", "TBD", "PENDING DOMAIN", "No structured evidence", "Documentar el", "Documentar la")
-V2_PENDING_RE = re.compile(r"⏳\s*(?P<domain>PENDIENTE DOMINIO|PENDING DOMAIN|PENDIENTE|PENDING)\b(?:\s*\((?P<gap>[^)]*)\))?")
+V2_PENDING_RE = re.compile(r"⏳\s*(?P<domain>PENDIENTE DE EXTRACCIÓN|PENDING EXTRACTION|PENDIENTE DOMINIO|PENDING DOMAIN|PENDIENTE|PENDING)\b(?:\s*\((?P<gap>[^)]*)\))?")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 
 # v1 heading terms the retrieval plans ask for -> the v2 section that holds them.
@@ -208,7 +216,7 @@ def _parse_v2(text: str) -> BriefModel:
         model.lens_bodies[lens] = "\n".join(lines[i] for i in sorted(covered))
     for number, line in enumerate(lines, start=1):
         for match in V2_PENDING_RE.finditer(line):
-            domain = "DOM" in match.group("domain")
+            domain = is_deferred_mark(match.group("domain"))
             model.markers.append({
                 "kind": "pending_domain" if domain else "pending",
                 "class": "domain" if domain else "client",

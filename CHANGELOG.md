@@ -6,6 +6,24 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Honest signals on the change path, and spot defects (IMP-398).** The change path stops promising what Sentinel does not measure.
+  - The brief of a change no longer says "the change note covers it". A topic the request covers and the brief does not hold shows `⏳ PENDING EXTRACTION` (`⏳ PENDIENTE DE EXTRACCIÓN`), a deferred mark. `/export --final` refuses while any exists and the draft banner and `extraction_pending` list the sections.
+  - `/next` for a change gets a `pending_extraction` step before `done`. The text of `done` says that coverage of the request is not measured; the texts of `lenses` and `requirements` no longer send the BA to `gaps.md` or to a gap that does not exist.
+  - A mature request cannot produce a final change-brief export until the extraction increment: the `⏳ PENDING EXTRACTION` mark clears only when a question of that section is answered, and a change with no such open question stays at its step (`requirements` or `pending_extraction`) with `--final` refused; the BA checks the request by hand. In a draft export `pending_marks` stays the blocking count, extraction sections are reported apart (`extraction_pending`), and the change-only verdict's `gaps` gate is `NOT_APPLICABLE` (non-blocking).
+  - The verdict of a workspace that only has changes lists each change's blockers and never "Discovery has not run". When every change is done it is `READY_WITH_WARNINGS`, with a request-coverage warning.
+  - A divergence closed by the baseline shows the answer and "Baseline support: «quote»" in the change brief. The harvest's B1 facts go to §1 and B5 to §5 (technical). In a change harvest, the divergence description and question speak the change's language and offer "build or fix it in this change"; harvests of the project keep their wording.
+  - `/gaps --change` guide explains that answers go in a separate file, processed with `/resolve-gaps --change`.
+  - Deliberate changes that also reach the project path:
+    1. Injection detection (`sentinel/injection.py`): Spanish phrases such as "omite reglas vigentes" are no longer flagged; post-nominal instruction phrases ("las instrucciones del sistema") and usted/ustedes imperatives are now flagged. It is an advisory signal and may flag some narrative text.
+    2. `/doctor` install hints for a missing runtime dependency use the interpreter that is running (`& "<python>" -m pip install ...` on Windows, `"<python>" -m pip install ...` elsewhere), not a bare `python`.
+    3. The `/export --final` refusal wording says "deferred marks" instead of "deferred domain marks" (it now also counts the pending-extraction marks of a change).
+
+### Added
+
+- **Optional alias for a border surface (IMP-398).** A border line may be `zone | type | name | alias` (up to 40 characters, no `;` or `|`, no accents, unique in the border). `Superficie` accepts the name or the alias and always stores the canonical name. Scenario 11 (the request that already says everything, and the new marks and steps), the command reference, the router and the harvest skill cover it; the harvest skill now also covers verifying a request or brief against what is built inside a change.
+
 ## [0.22.0] — 2026-11-22
 
 ### Added
