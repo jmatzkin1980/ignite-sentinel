@@ -149,6 +149,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "border": [],
         "border_confirmed_at": None,
         "responses": [],
+        "gap_counts": count_gaps(gaps),
     }
     update_state(project_id, changes=changes)
     return {

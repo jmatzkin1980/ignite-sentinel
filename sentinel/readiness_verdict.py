@@ -312,33 +312,51 @@ CHANGE_TEXT = {
         "scope": ("Cerrar el borde del cambio",
                   "Respondé GAP-SCOPE con el borde del cambio (una línea por superficie: zona | tipo | nombre) y corré /resolve-gaps."),
         "lenses": ("Cerrar las preguntas bloqueantes del cambio",
-                   "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en {path} y corré /resolve-gaps."),
+                   "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): respondelos en un archivo de respuestas "
+                   "(no en gaps.md, que lo genera Sentinel) y corré /resolve-gaps --change {cid}."),
         "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
         "brief_stale": ("Recompilar el brief del cambio",
                         "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
         "requirements": ("Responder los requisitos del cambio",
-                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé en EARS con Delta y Superficie y corré /resolve-gaps."),
+                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps."),
+        "requirements_none": ("Responder los requisitos del cambio",
+                              "{cid} no tiene ninguna pregunta funcional abierta donde responder los requisitos; el pedido los trae "
+                              "pero Sentinel todavía no los extrae solo (llega en un próximo incremento)."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
-        "done": ("Cambio al día",
-                 "{cid} no tiene pasos pendientes: revisá el tablero 04_backlog/BACKLOG.md y las historias de EPIC-{cid}."),
+        "pending_extraction": ("Pasar el contenido del pedido al brief",
+                               "{cid}: el brief no tiene todavía el contenido del pedido en {sections}. Sentinel todavía no lo extrae solo "
+                               "(llega en un próximo incremento): mientras tanto, cada regla y criterio del pedido se carga respondiendo "
+                               "en EARS, con Delta y Superficie, una pregunta del cambio."),
+        "done": ("Piezas del cambio al día",
+                 "Las piezas registradas de {cid} están al día. Sentinel todavía no mide qué parte del pedido quedó cubierta: "
+                 "verificá que cada regla y criterio del pedido tenga su requisito o su descarte."),
     },
     "en": {
         "scope": ("Close the change border",
                   "Answer GAP-SCOPE with the change border (one line per surface: zone | type | name) and run /resolve-gaps."),
         "lenses": ("Close the change's blocking questions",
-                   "{cid} has {n} blocking gap(s) open: answer them in {path} and run /resolve-gaps."),
+                   "{cid} has {n} blocking gap(s) open: answer them in a responses file "
+                   "(not in gaps.md, which Sentinel generates) and run /resolve-gaps --change {cid}."),
         "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
         "brief_stale": ("Recompile the change brief",
                         "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
         "requirements": ("Answer the change requirements",
-                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer in EARS with Delta and Superficie and run /resolve-gaps."),
+                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps."),
+        "requirements_none": ("Answer the change requirements",
+                              "{cid} has no open functional question where the requirements can be answered; the request brings them "
+                              "but Sentinel does not extract them on its own yet (coming in a later increment)."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
-        "done": ("Change up to date",
-                 "{cid} has no pending step: review the board 04_backlog/BACKLOG.md and the stories of EPIC-{cid}."),
+        "pending_extraction": ("Move the request content into the brief",
+                               "{cid}: the brief does not hold the request content yet in {sections}. Sentinel does not extract it on its own "
+                               "yet (coming in a later increment): meanwhile, each rule and criterion of the request is loaded by answering "
+                               "one question of the change in EARS, with Delta and Superficie."),
+        "done": ("Change pieces up to date",
+                 "The registered pieces of {cid} are up to date. Sentinel does not yet measure how much of the request is covered: "
+                 "check that each rule and criterion of the request has its requirement or its discard."),
     },
 }
 CHANGE_COMMANDS = {
@@ -349,6 +367,7 @@ CHANGE_COMMANDS = {
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
+    "pending_extraction": "",
     "done": "",
 }
 
@@ -377,7 +396,32 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "backlog"
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
+    if _extraction_pending(base, change_id):
+        return "pending_extraction"
     return "done"
+
+
+def _extraction_pending(base: Path, change_id: str) -> list[str]:
+    """IMP-398: the sections of the change brief that still say "the request covers this, the brief does not hold it"."""
+    from .core.io import read_json
+
+    report = read_json(base / "02_requirements" / change_id / "change_brief_report.json", None)
+    pending = report.get("extraction_pending") if isinstance(report, dict) else None
+    return [str(item) for item in pending] if isinstance(pending, list) else []
+
+
+def _open_ears_gaps(base: Path, change_id: str) -> list[str]:
+    """IMP-398: the open gaps of the change where EARS requirements can be answered (only ones that exist)."""
+    from .changes import change_gaps_path
+    from .gap_resolution import EARS_ELIGIBLE_GAP_IDS
+    from .gaps import parse_gap_rows
+
+    path = change_gaps_path(base, change_id)
+    if not path.exists():
+        return []
+    rows = parse_gap_rows(path.read_text(encoding="utf-8"))
+    return [row["id"] for row in rows
+            if row["id"] in EARS_ELIGIBLE_GAP_IDS and str(row.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
 
 
 def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
@@ -420,11 +464,18 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     key = _change_step_key(project_id, change_id, change)
     texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
     stale = key == "brief" and (workspace_path(project_id) / "02_requirements" / change_id / "project-brief.md").is_file()
-    title, text = texts["brief_stale" if stale else key]
+    base = workspace_path(project_id)
+    ears_gaps = _open_ears_gaps(base, change_id) if key == "requirements" else []
+    text_key = "brief_stale" if stale else key
+    if key == "requirements" and not ears_gaps:
+        text_key = "requirements_none"
+    title, text = texts[text_key]
     ctx = {
         "cid": change_id, "pid": project_id,
+        "ids": ", ".join(ears_gaps),
+        "sections": ", ".join(f"§{n}" for n in _extraction_pending(base, change_id)),
         "n": int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0),
-        "path": f"01_discovery/{change_id}/gaps.md" if key == "lenses" else f"02_requirements/{change_id}/project-brief.md",
+        "path": f"02_requirements/{change_id}/project-brief.md",
     }
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[key].format(**ctx)}

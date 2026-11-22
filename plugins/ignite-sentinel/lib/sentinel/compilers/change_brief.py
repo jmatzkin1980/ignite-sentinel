@@ -198,11 +198,19 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     def routed_gaps(number: int) -> list[dict]:
         return [gap for gap in gaps if section_of(gap["id"]) == number]
 
+    extraction_pending: list[int] = []
+
     def empty_note(section: _Section, number: int) -> None:
         ids = ", ".join(gap_id for gap_id, n in routed.items() if n == number)
         key = "note_covers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
         if not section.lines:
-            section.info(copy[key].format(ids=ids, cite=gaps_cite))
+            if key == "note_covers":
+                # IMP-398: the request covers the topic and the brief does not hold it yet. It is a
+                # deferred mark (extraction owes it), never "no open question".
+                section.mark(copy[key].format(ids=ids, cite=gaps_cite))
+                extraction_pending.append(number)
+            else:
+                section.info(copy[key].format(ids=ids, cite=gaps_cite))
 
     # Harvest facts, each shown once: section 4 claims the flows (B7) before the lenses do.
     facts = [e for e in harvest.get("entries", []) if e.get("kind") == "fact"]
@@ -343,6 +351,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s9.raw(f"| {gap['id']} | {gap.get('lens', '')} | {gap.get('severity', '')} | {verdict} |")
     else:
         s9.info(copy["no_open"].format(cite=gaps_cite))
+    if extraction_pending:
+        s9.raw("")
+        s9.info(copy["extraction_summary"].format(sections=", ".join(f"§{n}" for n in extraction_pending)))
 
     heading = copy["heading"].format(change_id=change_id, title=inputs.get("note_title", ""))
     out = [v2_marker, "", f"# {heading}", "", f"{copy['project']}: {inputs.get('project_id', '')}", ""]
@@ -366,6 +377,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             for number, section in sec.items()
         },
         "pending_gaps": pending_gaps,
+        "extraction_pending": [str(number) for number in extraction_pending],
         "blocking_open": count_pending_marks(text).blocking,
     }
     return text, report
