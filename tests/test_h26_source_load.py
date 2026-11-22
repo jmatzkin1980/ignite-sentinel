@@ -174,6 +174,15 @@ class SourceLoad(SnapshotWorkspaceCase):
             ["sources", "P", "--load", "sad.md", "--role", "linea_de_base", "--change", "CHG-001"], captured[0]
         )
 
+    def test_mcp_sources_no_baseline(self):
+        captured: list[list[str]] = []
+        with patch.object(sentinel_mcp, "run_cli", lambda arguments: captured.append(arguments) or {"exit_code": 0}):
+            _tools()["sentinel_sources"](project_id="P", change="CHG-001", no_baseline=True, reason="Sistema nuevo")
+        argv = captured[0]
+        self.assertIn("--no-baseline", argv)
+        self.assertEqual(argv[argv.index("--change") + 1], "CHG-001")
+        self.assertEqual(argv[argv.index("--reason") + 1], "Sistema nuevo")
+
 
 if __name__ == "__main__":
     unittest.main()
