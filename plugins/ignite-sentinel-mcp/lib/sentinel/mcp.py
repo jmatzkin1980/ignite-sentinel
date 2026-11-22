@@ -547,8 +547,8 @@ def build_server():
         return run_cli(["health", project_id])
 
     @tool(name="sentinel_validate", description=TOOL_DESCRIPTIONS["validate"])
-    def sentinel_validate(project_id: str, release: str = "", override: str = "") -> dict:
-        return run_cli(["validate", project_id, *override_arguments(override), *release_arguments(release)])
+    def sentinel_validate(project_id: str, release: str = "", override: str = "", change: str = "") -> dict:
+        return run_cli(["validate", project_id, *override_arguments(override), *release_arguments(release), *(["--change", change] if change else [])])
 
     @tool(name="sentinel_view", description=TOOL_DESCRIPTIONS["view"])
     def sentinel_view(project_id: str, artifact: str, open_browser: bool = False, theme: str = "", release: str = "", change: str = "") -> dict:

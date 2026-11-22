@@ -202,7 +202,7 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
-    if command in {"specs", "backlog"} and not change:
+    if command in {"specs", "backlog", "validate"} and not change:
         from .changes import refuse_change_only_specs
 
         refuse_change_only_specs(project_id, command)  # IMP-388: before the phase gate, which a change-only workspace trips

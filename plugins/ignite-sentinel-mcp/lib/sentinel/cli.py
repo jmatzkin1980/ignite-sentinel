@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command in {"specs", "backlog"} and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"specs", "backlog", "validate"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -559,9 +559,16 @@ def _run_project_command(args) -> int:
             result = {"graph": load_graph(args.project_id), "matrix": str(matrix), "mermaid": str(mermaid)}
             print_json(result)
         elif args.command == "validate":
-            from .validation import validate_project
+            if args.change:
+                from .change_validation import validate_change
+                from .changes import get_change
 
-            result = validate_project(args.project_id, override_source=Path(args.override) if args.override else None)
+                get_change(args.project_id, args.change)
+                result = validate_change(args.project_id, args.change)
+            else:
+                from .validation import validate_project
+
+                result = validate_project(args.project_id, override_source=Path(args.override) if args.override else None)
             print_json(result)
             postflight_command(args.command, project_id, result)
             return EXIT_OK if result["verdict"] == "VALID" else EXIT_VERDICT

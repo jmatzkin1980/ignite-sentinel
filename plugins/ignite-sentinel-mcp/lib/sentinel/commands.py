@@ -273,6 +273,12 @@ def _specs(p: argparse.ArgumentParser) -> None:
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-388: build this change's spec units instead of the project's")
 
 
+def _validate(p: argparse.ArgumentParser) -> None:
+    p.add_argument("project_id")
+    p.add_argument("--override")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-396: validate this change's artifacts instead of the project's")
+
+
 def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition on a gap an agentic channel raised
     p.add_argument("project_id")
     p.add_argument("--id", dest="gap_id")
@@ -339,7 +345,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("health", READ_ONLY, _project),
     # IMP-306: /trace rewrites the traceability matrix and graph.
     Command("trace", MUTATING, _trace, release=True),
-    Command("validate", READ_ONLY, _project_override, release=True),
+    Command("validate", READ_ONLY, _validate, release=True),
     Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}),
     Command("brief", MUTATING, _brief),
     Command("status", READ_ONLY, _status, release=True),
