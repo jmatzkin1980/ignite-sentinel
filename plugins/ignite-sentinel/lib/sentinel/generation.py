@@ -452,7 +452,11 @@ def _generate_backlog(
         story_paths.append(story_path)
         write_text(story_path, render_story(project_id, epic_id, story_spec, effective_story_format))
         active_story_paths.add(story_path)
-        story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+        story_id = (
+            upsert_node(project_id, story_spec["id"], "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+            if stable_ids
+            else add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+        )
         story_ids.append(story_id)
         add_edge(project_id, epic_id, story_id, "contains")
         for spec in specs:
@@ -485,7 +489,11 @@ def _generate_backlog(
             story_paths.append(story_path)
             write_text(story_path, render_story(project_id, enabler_epic_id, enabler_spec, effective_story_format))
             active_story_paths.add(story_path)
-            story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
+            story_id = (
+                upsert_node(project_id, enabler_spec["id"], "user_story", story_path, enabler_spec["title"], domain="technical")
+                if stable_ids
+                else add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
+            )
             story_ids.append(story_id)
             add_edge(project_id, enabler_epic_id, story_id, "contains")
             for enabled in enabler_spec["enables"]:
@@ -675,7 +683,7 @@ def build_implementation_readiness_pack(
     # IMP-393: the change stories' items are not the project's to drop
     current_ids = {str(item["story_id"]) for item in readiness_items}
     previous = read_json(workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json", {})
-    for old in previous.get("stories", []) if isinstance(previous, dict) else []:
+    for old in previous.get("stories", []) if id_registry.registry_active(project_id) and isinstance(previous, dict) else []:
         old_id = str(old.get("story_id", "")) if isinstance(old, dict) else ""
         if old_id and old_id not in current_ids and is_change_story(
             workspace_path(project_id) / "04_backlog" / f"{old_id}.md"

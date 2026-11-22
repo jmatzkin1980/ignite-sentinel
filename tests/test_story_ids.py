@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
 from sentinel.id_registry import registry_path  # noqa: E402
+from sentinel.traceability import load_graph  # noqa: E402
 from sentinel.story_ids import ensure_story_ids_seeded, is_change_story  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 
@@ -71,7 +72,7 @@ class StoryIds(SnapshotWorkspaceCase):
     def build_workspace(cls):
         build_matured_workspace(PID, RAW, gap_acceptance_answer(EARS), backlog=False)
 
-    def test_no_changes_backlog_is_byte_identical(self):
+    def test_no_changes_keeps_positional_files_and_no_registry(self):
         run_ok(["backlog", PID])
         first = snapshot_stories()
         self.assertEqual(sorted(n for n in first if n.startswith("US-")), ["US-001.md", "US-002.md"])
@@ -122,6 +123,36 @@ class StoryIds(SnapshotWorkspaceCase):
         self.assertEqual(stories["US-005.md"], CHANGE_STORY)
         self.assertIn("SPEC-U-009", stories["US-006.md"])
         self.assertIn("SPEC-U-001", stories["US-001.md"])
+
+    def test_graph_ids_equal_registry_ids_with_a_gap(self):
+        run_ok(["backlog", PID])
+        open_change()
+        add_change_story()  # US-005 held by the change: the next project story is US-006, graph has no US-005 node
+        units = workspace_path(PID) / "03_specs" / "units"
+        text = (units / "SPEC-U-002.md").read_text(encoding="utf-8").replace("SPEC-U-002", "SPEC-U-009")
+        (units / "SPEC-U-009.md").write_text(text, encoding="utf-8")
+        run_ok(["backlog", PID])
+        graph = load_graph(PID)
+        nodes = {n["id"]: n for n in graph["nodes"] if n["type"] == "user_story"}
+        self.assertEqual(sorted(nodes), ["US-001", "US-002", "US-006"])
+        for sid, node in nodes.items():
+            self.assertTrue(node["path"].endswith(f"04_backlog/{sid}.md"))
+            self.assertIn({"from": "EPIC-001", "to": sid, "relation": "contains"}, graph["edges"])
+            acs = [e["to"] for e in graph["edges"] if e["from"] == sid and e["relation"] == "validated_by"]
+            self.assertEqual(len(acs), 1)
+            ac = next(n for n in graph["nodes"] if n["id"] == acs[0])
+            self.assertTrue(ac["path"].endswith(f"04_backlog/{sid}.md"))
+
+    def test_seed_prefers_readiness_source_unit_over_trace_order(self):
+        run_ok(["backlog", PID])
+        path = backlog_dir() / "US-001.md"
+        marker = "trace:" + chr(10)
+        text = path.read_text(encoding="utf-8").replace(marker, marker + "  - SPEC-U-077" + chr(10), 1)
+        path.write_text(text, encoding="utf-8")
+        ensure_story_ids_seeded(PID, workspace_path(PID))
+        data = json.loads(registry_path(PID).read_text(encoding="utf-8"))["families"]["US"]["issued"]
+        self.assertEqual(data["SPEC-U-001"], "US-001")
+        self.assertNotIn("SPEC-U-077", data)
 
     def test_seed_from_existing_stories(self):
         run_ok(["backlog", PID])

@@ -47,9 +47,9 @@ def ensure_story_ids_seeded(project_id: str, base: Path) -> None:
             continue
         unit = str(front.get("source_unit", "")).strip()
         if not _SPEC_UNIT.match(unit):
-            unit = next((str(t) for t in front.get("trace", []) or [] if _SPEC_UNIT.match(str(t))), "")
-        if not _SPEC_UNIT.match(unit):
             unit = units_by_story.get(story_id, "")
+        if not _SPEC_UNIT.match(unit):
+            unit = next((str(t) for t in front.get("trace", []) or [] if _SPEC_UNIT.match(str(t))), "")
         if _SPEC_UNIT.match(unit):
             issued.setdefault(unit, story_id)
     id_registry.seed_family(project_id, "US", issued)
