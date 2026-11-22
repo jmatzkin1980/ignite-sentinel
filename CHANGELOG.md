@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-11-22
+
 ### Fixed
 
 - **Honest signals on the change path, and spot defects (IMP-398).** The change path stops promising what Sentinel does not measure.
