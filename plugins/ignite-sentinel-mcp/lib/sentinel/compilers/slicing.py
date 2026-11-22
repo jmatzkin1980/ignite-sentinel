@@ -285,14 +285,18 @@ def strip_ears_lead(statement: str) -> str:
 
 
 def build_backlog_story_specs(
-    project_id: str, backlog_context: dict[str, Any], language: str | None = None
+    project_id: str,
+    backlog_context: dict[str, Any],
+    language: str | None = None,
+    units: list[dict[str, Any]] | None = None,
+    ids: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
     text = STORY_TEXT[language]
     specs: list[dict[str, Any]] = []
     global_domain_coverage = build_domain_context_coverage(backlog_context)
     backlog_context["domain_context_coverage"] = global_domain_coverage
-    spec_units = read_spec_units(project_id)
+    spec_units = read_spec_units(project_id) if units is None else units
     slicing_model = load_slicing_model()
     if not spec_units:
         story = pending_backlog_story(global_domain_coverage, backlog_context, slicing_model, language)
@@ -301,7 +305,7 @@ def build_backlog_story_specs(
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, global_domain_coverage)
         return [story]
     for index, unit in enumerate(spec_units, start=1):
-        story_id = f"US-{index:03d}"
+        story_id = ids[str(unit.get("id", ""))] if ids is not None else f"US-{index:03d}"
         story_context = build_story_backlog_context(project_id, story_id, unit, backlog_context)
         domain_coverage = build_domain_context_coverage(story_context)
         backlog_context.setdefault("per_story", {})[story_id] = story_context
@@ -334,6 +338,9 @@ def build_backlog_story_specs(
             "acceptance": acceptance_criteria_for_spec_unit_story(story_id, unit, statement, language),
             "source_unit": str(unit.get("id", "")),
         }
+        if unit.get("change"):
+            story["change"] = str(unit["change"])
+            story["delta"] = str(unit.get("delta", ""))
         story["execution_contract"] = build_agent_execution_contract(story, story_context, domain_coverage)
         specs.append(story)
     return specs
@@ -544,7 +551,10 @@ def context_row_for_spec_unit(unit: dict[str, Any]) -> dict[str, str]:
 
 
 def trace_ids_for_spec_unit(unit: dict[str, Any]) -> list[str]:
-    trace = ["REQ-001", "PRD-001", "SPEC-001", str(unit.get("id", "SPEC-U-PENDING"))]
+    if unit.get("change"):  # IMP-393: a change's unit traces to its CHG and REQ-EARS, never to the project's REQ/PRD/SPEC
+        trace = [str(unit["change"]), str(unit.get("id", "SPEC-U-PENDING"))]
+    else:
+        trace = ["REQ-001", "PRD-001", "SPEC-001", str(unit.get("id", "SPEC-U-PENDING"))]
     trace.extend(str(item) for item in unit.get("trace_ids", []) if str(item).strip())
     trace.extend(str(item) for item in unit.get("ears", []) if str(item).strip())
     seen: set[str] = set()
@@ -561,9 +571,11 @@ def build_cross_cutting_enabler_specs(
     value_stories: list[dict[str, Any]],
     backlog_context: dict[str, Any],
     language: str | None = None,
+    stable_ids: bool = False,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
-    enabled_value_stories = [story for story in value_stories if story.get("type") == "value_story"]
+    # IMP-393: a change request is a value story too (it delivers a change to something already built).
+    enabled_value_stories = [story for story in value_stories if story.get("type") in ("value_story", "change_request")]
     if not enabled_value_stories:
         return []
     evidence = cross_cutting_enabler_evidence(project_id)
@@ -576,12 +588,19 @@ def build_cross_cutting_enabler_specs(
     for candidate in ENABLER_CANDIDATES:
         if not any(token in evidence for token in candidate["tokens"]):
             continue
-        story_id = f"US-{start + len(specs):03d}"
         trace = ["REQ-001", *ears_ids, "PRD-001", "SPEC-001", candidate["fr"], candidate["jtbd"]]
         if language == "es":
             title, description, goal, benefit = (candidate[key] for key in ("title", "description", "goal", "benefit"))
         else:
             title, description, goal, benefit = ENABLER_TEXT_EN[candidate["key"]]
+        if stable_ids:
+            from .. import id_registry
+            from ..story_ids import enabler_key
+
+            key = enabler_key(title)
+            story_id = id_registry.assign_ids(project_id, "US", [key])[key]
+        else:
+            story_id = f"US-{start + len(specs):03d}"
         story = {
             "id": story_id,
             "type": "cross_cutting_enabler",
@@ -671,6 +690,19 @@ def context_row_for_story(seed: dict[str, str], backlog_context: dict[str, Any])
     }
 
 
+PRESERVED_AC_TEXT = {
+    "es": (
+        "el cambio {change} está aplicado",
+        "se ejercita el comportamiento existente que el cambio no modifica",
+        "el comportamiento preservado sigue igual: {statement} ({ears})",
+    ),
+    "en": (
+        "the change {change} is applied",
+        "the existing behavior that the change does not modify is exercised",
+        "the preserved behavior stays the same: {statement} ({ears})",
+    ),
+}
+
 _SPEC_UNIT_AC_META = (
     ("Spec Unit Happy Path", "fail-to-pass"),
     ("Spec Unit Validation Path", "fail-to-pass"),
@@ -698,7 +730,7 @@ def acceptance_criteria_for_spec_unit_story(
     texts = SPEC_UNIT_AC_TEXT.get(language, SPEC_UNIT_AC_TEXT["en"])
     behavior = strip_ears_lead(statement) if statement else STORY_TEXT.get(language, STORY_TEXT["en"])["behavior_fallback"].format(unit=unit_id)
     values = {"unit": unit_id, "behavior": behavior, "ears": ears_ids}
-    return [
+    criteria = [
         {
             "id": f"{base}-{index:02d}",
             "name": name,
@@ -709,6 +741,25 @@ def acceptance_criteria_for_spec_unit_story(
         }
         for index, ((name, classification), (given, when, then)) in enumerate(zip(_SPEC_UNIT_AC_META, texts), start=1)
     ]
+    if unit.get("change"):  # IMP-393: the evidence criterion cites the change, not the project's REQ/PRD/SPEC
+        for criterion in criteria:
+            criterion["then"] = criterion["then"].replace(", REQ-001, PRD-001, SPEC-001", f", {unit['change']}")
+    # IMP-393: each UNCHANGED row of the change is behavior this story must not break (pass-to-pass).
+    given, when, then = PRESERVED_AC_TEXT.get(language, PRESERVED_AC_TEXT["en"])
+    for offset, row in enumerate(unit.get("preserved", []) or [], start=len(criteria) + 1):
+        statement_text = " ".join(str(row.get("statement", "")).split()).rstrip(".").replace("|", "\\|")
+        row_values = {"change": unit.get("change", ""), "statement": statement_text, "ears": row.get("id", "")}
+        criteria.append(
+            {
+                "id": f"{base}-{offset:02d}",
+                "name": "Preserved Behavior",
+                "classification": "pass-to-pass",
+                "given": given.format(**row_values),
+                "when": when.format(**row_values),
+                "then": then.format(**row_values),
+            }
+        )
+    return criteria
 
 
 def acceptance_criteria_for_pending_story(story_id: str, language: str = "en") -> list[dict[str, str]]:

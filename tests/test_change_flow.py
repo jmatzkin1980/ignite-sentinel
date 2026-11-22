@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.changes import change_gaps_path, get_change  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
 from sentinel.workspace import read_state, workspace_path  # noqa: E402
@@ -33,6 +34,8 @@ SCOPE_ANSWER = "\n".join([
 SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 20, 3
 # answers_ears.md: 2 event + 1 unwanted ADDED statements become units; 1 UNCHANGED statement is preserved.
 SPEC_UNITS, SPEC_PRESERVED, SPEC_BY_DELTA = 3, 1, {"ADDED": 3}
+# /backlog --change: one story per unit under the change's epic; the UNCHANGED row is each story's pass-to-pass criterion.
+BACKLOG_STORIES, BACKLOG_EPIC, BACKLOG_PASS_TO_PASS = ["US-001", "US-002", "US-003"], "EPIC-CHG-001", "REQ-EARS-001"
 # Seven lens gaps have a citable phrase in the synthetic baseline.
 BASELINE_CLOSED = {
     "GAP-DELIVERY-READINESS",
@@ -111,6 +114,22 @@ class ChangeFlow(SnapshotWorkspaceCase):
         self.assertRegex(reqs, r"\| REQ-EARS-001 \| event \| UNCHANGED \| Cuando el usuario envía un alta completa, el sistema debe continuar validando todos los campos obligatorios\.")
         specs_md = (workspace_path("BORR") / "03_specs" / cid / "specs.md").read_text(encoding="utf-8")
         self.assertIn("continuar validando todos los campos obligatorios", specs_md.split("Comportamiento preservado", 1)[1])
+        self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
+        # /backlog --change: three stories under EPIC-CHG-001; no project stories, so no change requests and nothing Stale.
+        backlog_out = json.loads(run_ok(["backlog", "BORR", "--change", cid]))
+        self.assertEqual(backlog_out["stories"], BACKLOG_STORIES)
+        self.assertEqual(backlog_out["epic"], BACKLOG_EPIC)
+        self.assertEqual(backlog_out["change_requests"], [])
+        self.assertEqual(backlog_out["stale"], [])
+        self.assertEqual(backlog_out["report"]["pass_to_pass"], [BACKLOG_PASS_TO_PASS])
+        backlog_dir = workspace_path("BORR") / "04_backlog"
+        self.assertTrue((backlog_dir / f"{BACKLOG_EPIC}.md").exists())
+        for story_id, unit in zip(BACKLOG_STORIES, specs_out["units"]):
+            story_text = (backlog_dir / f"{story_id}.md").read_text(encoding="utf-8")
+            self.assertEqual(parse_frontmatter(story_text)["source_unit"], unit)
+            pass_to_pass = re.findall(r"^\| AC-\d+-06 \| pass-to-pass \|.*$", story_text, flags=re.M)
+            self.assertEqual(len(pass_to_pass), 1)
+            self.assertIn(BACKLOG_PASS_TO_PASS, pass_to_pass[0])
         self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
         self.assertIn(json.loads(run_ok(["doctor"]))["verdict"], {"PASS", "WARN"})
         status = json.loads(run_ok(["status", "BORR"]))

@@ -6,6 +6,13 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to an existing system, increment 4b (IMP-393).** A change gets its backlog, and what it affects in the backlog that already exists is traced.
+  - `/backlog PROJECT --change CHG-nnn` writes the epic `04_backlog/EPIC-CHG-nnn.md` and one story per ADDED, MODIFIED or REMOVED unit (`change`, `source_unit` and `delta` in the frontmatter; trace CHG, SPEC-U, REQ-EARS), plus `08_context_packs/CHG-nnn/backlog_generation.json` and `backlog_report.json`. Each UNCHANGED row is a pass-to-pass criterion (`AC-NNN-06` onward) of every story. The gate is scoped to the change: no blocking gaps and specs current with the REQ-EARS rows (exit 4); `--change` with `--release` exits 3; a plain `/backlog` in a workspace that only has changes exits 4. The project's epic, stories and phase are not touched, and the project `/backlog` keeps the stories of changes.
+  - The answer of a MODIFIED or REMOVED requirement names the stories it affects with `- Afecta: US-nnn | ninguna` (`Affects` / `none`), required when the workspace already has stories; candidates are proposed. Draft, Ready and Blocked stories become Stale; In Progress and In Review stay and get a warning; Done stories stay Done with `modificada_por`. The new story of a change over a Done or in-progress story is a change request (`type: change_request`, `modifica`, graph edge `modifies`). A REMOVED row over stories that are all not implemented makes no story.
+  - Story ids stay stable once a workspace has changes. On the "save draft" fixture, `/backlog --change` gives 3 stories (`US-001` to `US-003`) under `EPIC-CHG-001`, each with one pass-to-pass criterion, no change request and nothing Stale. Scenario 11 (step 11 and a mixed-workspace variant) and the command reference cover it. The `next_step` of `/specs --change` now points to `/backlog --change`.
+
 ## [0.20.1] — 2026-11-22
 
 ### Fixed

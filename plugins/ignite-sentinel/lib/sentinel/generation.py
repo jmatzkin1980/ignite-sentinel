@@ -8,6 +8,8 @@ from typing import Any
 
 from .core.markdown import table_cell
 from .memory import apply_pack_disclosure_budget, get_multi_domain_context, shared_broker, shared_brokers
+from . import id_registry
+from .story_ids import carry_modificada_por, ensure_story_ids_seeded, is_change_story
 from .backlog.hooks import assert_backlog_privacy_clean
 from .backlog.status import apply_lifecycle_to_stories, audit_acceptance_criteria_freezes
 from .backlog.gates import evaluate_story_gates, update_story_gate_state
@@ -405,8 +407,17 @@ def _generate_backlog(
     spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
     prd_text = prd_path.read_text(encoding="utf-8") if prd_path.exists() else ""
     backlog_context = build_backlog_generation_context(project_id, spec_text, prd_text)
-    story_specs = build_backlog_story_specs(project_id, backlog_context)
-    enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context)
+    stable_ids = id_registry.registry_active(project_id)
+    story_unit_ids: dict[str, str] | None = None
+    if stable_ids:
+        # IMP-393: once the workspace has changes, story ids come from the registry, not from position.
+        ensure_story_ids_seeded(project_id, base)
+        story_units = read_spec_units(project_id)
+        story_unit_ids = id_registry.assign_ids(project_id, "US", [str(unit["id"]) for unit in story_units])
+        story_specs = build_backlog_story_specs(project_id, backlog_context, units=story_units, ids=story_unit_ids)
+    else:
+        story_specs = build_backlog_story_specs(project_id, backlog_context)
+    enabler_specs = build_cross_cutting_enabler_specs(project_id, story_specs, backlog_context, stable_ids=stable_ids)
     all_story_specs = [*story_specs, *enabler_specs]
     apply_lifecycle_to_stories(project_id, all_story_specs)
     audit_acceptance_criteria_freezes(project_id, all_story_specs)
@@ -435,11 +446,17 @@ def _generate_backlog(
     story_ids: list[str] = []
     acceptance_ids: list[str] = []
     active_story_paths: set[Path] = set()
+    story_paths: list[Path] = []
     for index, story_spec in enumerate(story_specs, start=1):
-        story_path = base / "04_backlog" / f"US-{index:03d}.md"
-        write_text(story_path, render_story(project_id, epic_id, story_spec, effective_story_format))
+        story_path = base / "04_backlog" / (f"{story_spec['id']}.md" if stable_ids else f"US-{index:03d}.md")
+        story_paths.append(story_path)
+        write_text(story_path, carry_modificada_por(story_path, render_story(project_id, epic_id, story_spec, effective_story_format)))
         active_story_paths.add(story_path)
-        story_id = add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+        story_id = (
+            upsert_node(project_id, story_spec["id"], "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+            if stable_ids
+            else add_node(project_id, "US", "user_story", story_path, story_spec["title"], domain=story_spec["domain"])
+        )
         story_ids.append(story_id)
         add_edge(project_id, epic_id, story_id, "contains")
         for spec in specs:
@@ -468,10 +485,15 @@ def _generate_backlog(
         for spec in specs:
             add_edge(project_id, spec["id"], enabler_epic_id, "decomposes_to")
         for index, enabler_spec in enumerate(enabler_specs, start=len(story_specs) + 1):
-            story_path = base / "04_backlog" / f"US-{index:03d}.md"
+            story_path = base / "04_backlog" / (f"{enabler_spec['id']}.md" if stable_ids else f"US-{index:03d}.md")
+            story_paths.append(story_path)
             write_text(story_path, render_story(project_id, enabler_epic_id, enabler_spec, effective_story_format))
             active_story_paths.add(story_path)
-            story_id = add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
+            story_id = (
+                upsert_node(project_id, enabler_spec["id"], "user_story", story_path, enabler_spec["title"], domain="technical")
+                if stable_ids
+                else add_node(project_id, "US", "user_story", story_path, enabler_spec["title"], domain="technical")
+            )
             story_ids.append(story_id)
             add_edge(project_id, enabler_epic_id, story_id, "contains")
             for enabled in enabler_spec["enables"]:
@@ -491,15 +513,15 @@ def _generate_backlog(
         )
 
     for stale_story_path in (base / "04_backlog").glob("US-*.md"):
-        if stale_story_path not in active_story_paths:
+        if stale_story_path not in active_story_paths and not is_change_story(stale_story_path):
             remove(stale_story_path)
 
     assert_backlog_privacy_clean(project_id)
 
     broker = shared_broker(project_id)
     broker.index_artifact(epic_id, "epic", epic_path, epic_path.read_text(encoding="utf-8"), trace_ids=[epic_id, *story_ids])
-    for story_id, ac_id, story_spec in zip(story_ids, acceptance_ids, all_story_specs):
-        story_path = base / "04_backlog" / f"{story_id}.md"
+    for story_id, ac_id, story_spec, recorded_path in zip(story_ids, acceptance_ids, all_story_specs, story_paths):
+        story_path = recorded_path if stable_ids else base / "04_backlog" / f"{story_id}.md"
         if not story_path.exists():
             numeric = int(story_id.split("-", 1)[1])
             story_path = base / "04_backlog" / f"US-{numeric:03d}.md"
@@ -658,6 +680,20 @@ def build_implementation_readiness_pack(
         },
         "stories": readiness_items,
     }
+    # IMP-393: the change stories' items are not the project's to drop
+    current_ids = {str(item["story_id"]) for item in readiness_items}
+    own_count = len(readiness_items)
+    previous = read_json(workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json", {})
+    for old in previous.get("stories", []) if id_registry.registry_active(project_id) and isinstance(previous, dict) else []:
+        old_id = str(old.get("story_id", "")) if isinstance(old, dict) else ""
+        if old_id and old_id not in current_ids and is_change_story(
+            workspace_path(project_id) / "04_backlog" / f"{old_id}.md"
+        ):
+            pack["stories"].append(old)
+    if len(pack["stories"]) != own_count:
+        from .compilers.change_backlog import _readiness_summary
+
+        pack["verdict"], pack["summary"] = _readiness_summary(pack["stories"])
     state = read_json(state_path(project_id), {})
     pack["stale_spec_units"] = state.get("stale_spec_units", [])
     path = workspace_path(project_id) / "08_context_packs" / "implementation_readiness.json"

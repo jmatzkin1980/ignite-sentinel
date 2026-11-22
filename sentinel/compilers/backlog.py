@@ -706,6 +706,17 @@ def render_story(project_id: str, epic_id: str, story: dict[str, Any], story_for
     normalized_req_text = ", ".join(f"`{item}`" for item in normalized_reqs) or "`N/A`"
     dor = story.get("dor", {})
     dod = story.get("dod", {})
+    # IMP-393: a change's story names its change and unit; a project story renders exactly as before.
+    change_front = ""
+    if story.get("change"):
+        change_front = f"change: {story['change']}\nsource_unit: {story.get('source_unit', '')}\n"
+        if story.get("delta"):
+            change_front += f"delta: {story['delta']}\n"
+        if story.get("modifica"):
+            change_front += f"modifica:\n{frontmatter_list(list(story['modifica']))}\n"
+        product_requirement = f"`{story['change']}`, `{story['fr']}`, `{story['jtbd']}`"
+    else:
+        product_requirement = f"`REQ-001`, `PRD-001`, `SPEC-001`, `{story['fr']}`, `{story['jtbd']}`"
     return f"""---
 id: {story['id']}
 project: {project_id}
@@ -714,7 +725,7 @@ status: {story.get('status', 'Draft')}
 owner: "{story.get('owner', '')}"
 label: {story['label']}
 type: {story['type']}
-trace:
+{change_front}trace:
 {frontmatter_list(story['trace'])}
 ---
 
@@ -730,9 +741,9 @@ This file mirrors the story embedded in its parent epic so quality and traceabil
 
 | Context Type | Source |
 | --- | --- |
-| Product requirement | `REQ-001`, `PRD-001`, `SPEC-001`, `{story['fr']}`, `{story['jtbd']}` |
+| Product requirement | {product_requirement} |
 | Normalized EARS requirements | {normalized_req_text} |
-| Backlog context pack | `08_context_packs/backlog_generation.json` |
+| Backlog context pack | `{story.get('context_pack', '08_context_packs/backlog_generation.json')}` |
 | Retrieved signal | `{story['context']['artifact_id']}` ({story['context']['artifact_type']}) |
 
 ## Domain Context Coverage

@@ -111,6 +111,52 @@ def mark_stale_stories_for_spec_units(
     return {"stale_spec_units": units, "stale_stories": stale_story_ids}
 
 
+def mark_stories_stale(project_id: str, story_ids: list[str], reason: str, change_id: str) -> list[str]:
+    """IMP-393: mark these stories Stale because a change affects them. Only the ones given, by id.
+
+    The caller passes the stories that are not implemented (Draft, Ready, Blocked); a story that is
+    already Stale is left as it is. Callers must pass only not-implemented ids: a Done or in-progress story is
+    never staled by a change (it gets a change request instead). Returns the ids this call marked.
+    """
+    base, readiness_path, readiness, items = _readiness_story_pack(project_id)
+    by_id = {str(item.get("story_id", "")): item for item in items}
+    lifecycle = story_lifecycle_state(project_id)
+    timestamp = utc_now()
+    marked: list[str] = []
+    for story_id in dict.fromkeys(story_ids):
+        previous = lifecycle.get(story_id, {})
+        previous_status = str(previous.get("status", "Draft"))
+        if previous_status == "Stale":
+            continue
+        _apply_story_staleness(
+            project_id,
+            base=base,
+            lifecycle=lifecycle,
+            story_id=story_id,
+            previous_status=previous_status,
+            owner=str(previous.get("owner", "")).strip(),
+            reason=reason,
+            detail={"change_id": change_id},
+            readiness_item=by_id.setdefault(story_id, {}),
+            change_message=f"{story_id} marked Stale by change {change_id}",
+            timestamp=timestamp,
+            change_id=change_id,
+        )
+        marked.append(story_id)
+    if not marked:
+        return []
+    update_state(
+        project_id,
+        story_lifecycle=lifecycle,
+        last_story_staleness_update=timestamp,
+        stale_stories={"reason": reason, "change_id": change_id, "stories": marked, "updated_at": timestamp},
+    )
+    if isinstance(readiness, dict):
+        write_json(readiness_path, readiness)
+    backlog_status(project_id)
+    return marked
+
+
 def story_spec_units(item: dict[str, Any]) -> set[str]:
     units: set[str] = set()
     for value in (item.get("source_unit"), *item.get("trace", [])):

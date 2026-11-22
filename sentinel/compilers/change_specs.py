@@ -32,8 +32,8 @@ TEXT = {
         "no_preserved": "_Sin filas UNCHANGED._",
         "header": ["Unidad", "Delta", "REQ-EARS", "Enunciado"],
         "preserved_header": ["REQ-EARS", "Enunciado"],
-        "note": "El backlog del cambio llega en un incremento posterior.",
-        "next": "Revisá {path}. El backlog del cambio llega en un incremento posterior.",
+        "note": "Las historias del cambio salen de estas unidades con /backlog --change.",
+        "next": "Revisá {path}; después /backlog --change deriva las historias.",
         "no_brief": "{cid} no tiene brief: /specs --change parte de {brief}",
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s)",
         "no_rows": "{cid} no tiene filas ADDED, MODIFIED ni REMOVED: no hay unidades para especificar",
@@ -48,8 +48,8 @@ TEXT = {
         "no_preserved": "_No UNCHANGED rows._",
         "header": ["Unit", "Delta", "REQ-EARS", "Statement"],
         "preserved_header": ["REQ-EARS", "Statement"],
-        "note": "The change backlog arrives in a later increment.",
-        "next": "Review {path}. The change backlog arrives in a later increment.",
+        "note": "The stories of the change come from these units with /backlog --change.",
+        "next": "Review {path}; then /backlog --change derives the stories.",
         "no_brief": "{cid} has no brief: /specs --change starts from {brief}",
         "blocking": "{cid} has {n} blocking gap(s) open",
         "no_rows": "{cid} has no ADDED, MODIFIED or REMOVED rows: there are no units to specify",
@@ -153,7 +153,9 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
         by_delta[unit["delta"]] = by_delta.get(unit["delta"], 0) + 1
     unit_ids = [unit["id"] for unit in units]
     preserved = [row["id"] for row in preserved_rows]
-    report = {"change_id": change_id, "units": unit_ids, "preserved": preserved, "by_delta": by_delta}
+    report = {"change_id": change_id, "units": unit_ids, "ears": [row["id"] for row in unit_rows],
+              "deltas": {row["id"]: parse_delta(row["delta"]) for row in unit_rows},
+              "preserved": preserved, "by_delta": by_delta}
     write_json(folder / "change_specs_report.json", report)
 
     requirements_path = base / EARS_ANCHOR.format(cid=change_id).split("#")[0]

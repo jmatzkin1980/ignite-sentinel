@@ -13,8 +13,15 @@ _UNCHANGED_HINT = re.compile(
     r"\b(continue to|continuar\w*|seguir\w*|sigue|keep\w*|still|manten\w*|mantien\w*)\b", re.I
 )
 SUPERSEDED_HEADINGS = ("## Superseded requirements", "## Requisitos reemplazados")
-TABLE_HEADER = ["| ID | Pattern | Delta | Statement | Source |", "| --- | --- | --- | --- | --- |"]
+TABLE_HEADER = [
+    "| ID | Pattern | Delta | Statement | Source | Afecta |", "| --- | --- | --- | --- | --- | --- |",
+]
+_STORY_ID = re.compile(r"\bUS-\d{3}\b")
+_NO_AFFECTS = ("ninguna", "ninguno", "none")
+_SPEC_UNIT = re.compile(r"\bSPEC-U-\d+\b")
+_AFFECTING_DELTAS = ("MODIFIED", "REMOVED")
 _EARS_ID = re.compile(r"REQ-EARS-(\d+)")
+_EARS_FULL = re.compile(r"\bREQ-EARS-\d+\b")
 _ESCAPED_PIPE = "\\|"
 _CELL_SPLIT = re.compile(r"(?<!\\)\|")
 _SOURCE = re.compile(r"`([^`]+)`")
@@ -24,6 +31,59 @@ def parse_delta(value: str) -> str | None:
     """One of the four deltas (any case), or None when missing or anything else (no aliases)."""
     candidate = str(value or "").strip().strip("`").strip().upper()
     return candidate if candidate in DELTA_VALUES else None
+
+
+def parse_affects(value: str) -> list[str] | None:
+    """IMP-393: the story ids a MODIFIED/REMOVED requirement affects; [] for `ninguna`; None when missing or unreadable."""
+    text = str(value or "").strip().strip("`").strip()
+    if text.lower() in _NO_AFFECTS:
+        return []
+    ids = list(dict.fromkeys(_STORY_ID.findall(text.upper())))
+    return ids or None
+
+
+def _affects_cell(ids: list[str]) -> str:
+    return ", ".join(ids) if ids else "-"
+
+
+def _padded(cells: list[str]) -> list[str]:
+    """A 0.20.0 row (5 columns) gets the Afecta column."""
+    return cells if len(cells) >= 6 else [*cells, "-"]
+
+
+def story_files(base: Path) -> dict[str, Path]:
+    return {path.stem: path for path in sorted((base / "04_backlog").glob("US-*.md")) if _STORY_ID.fullmatch(path.stem)}
+
+
+def story_candidates(project_id: str, change_id: str, evidence: str) -> list[str]:
+    """IMP-393: the stories (not the change's own) that the evidence or an adjacent/preserved border surface points at."""
+    from .changes import get_change
+    from .core.io import read_json
+    from .core.markdown import parse_frontmatter
+
+    base = workspace_path(project_id)
+    text = str(evidence or "")
+    for surface in get_change(project_id, change_id).get("border", []) or []:
+        if surface.get("zone") in ("adyacente", "preservado"):
+            text += f" {surface.get('name', '')} {surface.get('cite', '')}"
+    mentioned = set(_STORY_ID.findall(text))
+    units = set(_SPEC_UNIT.findall(text)) | set(_EARS_FULL.findall(text))
+    readiness = read_json(base / "08_context_packs" / "implementation_readiness.json", {})
+    by_story = {
+        str(item.get("story_id")): item for item in (readiness.get("stories", []) if isinstance(readiness, dict) else [])
+        if isinstance(item, dict)
+    }
+    found: list[str] = []
+    for story_id, path in story_files(base).items():
+        front = parse_frontmatter(path.read_text(encoding="utf-8"))
+        if str(front.get("change", "")).strip() == change_id:
+            continue
+        item = by_story.get(story_id, {})
+        front_trace = front.get("trace") if isinstance(front.get("trace"), list) else []
+        refs = {str(item.get("source_unit", "")), *map(str, item.get("trace", []) or []), *map(str, front_trace)}
+        if story_id in mentioned or refs & units:
+            found.append(story_id)
+    return found
 
 
 def propose_delta(statement: str) -> str:
@@ -68,6 +128,7 @@ def load_change_ears(project_id: str, change_id: str) -> list[dict]:
         rows.append({
             "id": cells[0], "pattern": cells[1], "delta": cells[2],
             "statement": cells[3].replace(_ESCAPED_PIPE, "|"), "source": cells[4],
+            "affects": _STORY_ID.findall(cells[5]) if len(cells) >= 6 else [],
         })
     return rows
 
@@ -115,7 +176,7 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
     original = path.read_text(encoding="utf-8") if exists else ""
     head, active, old = _split_file(original) if exists else ([], [], [])
     next_index = next_ears_index(base)
-    new_rows: list[tuple[str, dict, str, str, str]] = []
+    new_rows: list[tuple[str, dict, str, str, str, str]] = []
     for gap in closed:
         if gap["id"] == "GAP-SCOPE":
             continue
@@ -124,6 +185,9 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
         delta = parse_delta(str(responses.get(gap["id"], {}).get("delta", "")))
         if statements and not delta:
             continue
+        affects = _affects_cell(
+            (parse_affects(str(responses.get(gap["id"], {}).get("affects", ""))) or []) if delta in _AFFECTING_DELTAS else []
+        )
         produced: dict[str, tuple[str, str]] = {}
         for statement, pattern in statements:
             produced.setdefault(_cell(statement), (statement, pattern))
@@ -131,12 +195,13 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
         for position, line in enumerate(active):
             if _row_gap(line) != gap["id"]:
                 continue
-            cells = _row_cells(line)
+            cells = _padded(_row_cells(line))
             key = _cell(cells[3].replace(_ESCAPED_PIPE, "|"))
             if key in produced and key not in matched:
                 matched.add(key)
-                if cells[2] != delta:
+                if cells[2] != delta or cells[5] != affects:
                     cells[2] = delta or cells[2]
+                    cells[5] = affects
                     active[position] = "| " + " | ".join(cells) + " |"
                     result["delta_updated"].append(cells[0])
             else:
@@ -145,11 +210,11 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
                 result["superseded"].append(cells[0])
         for key, (statement, pattern) in produced.items():
             if key not in matched:
-                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta)))
+                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta), affects))
                 next_index += 1
     active = [line for line in active if line]
-    for req_id, gap, statement, pattern, delta in new_rows:
-        active.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` |")
+    for req_id, gap, statement, pattern, delta, affects in new_rows:
+        active.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` | {affects} |")
         node_id = add_node(
             project_id, "REQ", "ears_requirement", path, f"{req_id} ({pattern}, {delta}) from {gap['id']}",
             status="confirmed", domain=gap.get("lens", "product"),
@@ -163,6 +228,11 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
         f"# Requisitos del cambio {change_id}" if language == "es" else f"# Change requirements {change_id}"
     )
     spanish = title.startswith("# Requisitos")
+    def full(line: str) -> str:
+        return line if len(_row_cells(line)) >= 6 else "| " + " | ".join(_padded(_row_cells(line))) + " |"
+
+    active = [full(line) for line in active]
+    old = [full(line) for line in old]
     lines = [title, "", "## Normalized Requirements (EARS)", "", *TABLE_HEADER, *active, ""]
     if old:
         lines += [SUPERSEDED_HEADINGS[1 if spanish else 0], "", *TABLE_HEADER, *old, ""]

@@ -1375,7 +1375,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
-**If something goes wrong.** `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); the change's specs are built with `/specs --change CHG-001`; a change backlog does not exist yet.
+**If something goes wrong.** `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); the change's specs are built with `/specs --change CHG-001`, and its stories with `/backlog --change CHG-001`: one story per unit under an epic of its own, with the preserved behavior as pass-to-pass criteria. If the project already has stories, the answer of each modified or removed requirement says which ones it affects (`Afecta`); those become `Stale`, or get a change request when they are already implemented. `/backlog` without `--change` is refused in a workspace that only has changes.
 
 <a id="backlog-refinement-and-story-status"></a>
 
