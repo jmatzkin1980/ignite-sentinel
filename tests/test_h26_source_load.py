@@ -13,8 +13,8 @@ from helpers import SnapshotWorkspaceCase, run_cli, run_ok  # noqa: E402
 
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.changes import list_changes  # noqa: E402
-from sentinel.errors import InputError  # noqa: E402
-from sentinel.sources import load_source, source_log_path, source_manifest_path  # noqa: E402
+from sentinel.errors import GateRefusal, InputError  # noqa: E402
+from sentinel.sources import _language, load_source, source_log_path, source_manifest_path  # noqa: E402
 from sentinel.workspace import read_state, workspace_path  # noqa: E402
 from tests.test_mcp_parity import _tools  # noqa: E402
 
@@ -53,8 +53,8 @@ class SourceLoad(SnapshotWorkspaceCase):
         self.assertEqual(row["role"], "linea_de_base")
         self.assertEqual(row["authority"], "built")
         self.assertIn(result["source_id"], list_changes("BORR")["CHG-001"]["sources"])
-        log = source_log_path("BORR").read_text(encoding="utf-8")  # the log follows project_language (auto -> en)
-        self.assertTrue("rol: linea_de_base" in log or "role: linea_de_base" in log)
+        log = source_log_path("BORR").read_text(encoding="utf-8")  # the log follows the project language
+        self.assertIn("rol: linea_de_base" if _language("BORR") == "es" else "role: linea_de_base", log)
 
     def test_load_in_place_registers_hand_copied_file(self):
         folder = workspace_path("BORR") / "00_raw" / "02_technology_context"
@@ -91,6 +91,25 @@ class SourceLoad(SnapshotWorkspaceCase):
         self.assertEqual(sources.count(first["source_id"]), 1)
         self.assertFalse((workspace_path("BORR") / "00_raw" / "06_baseline" / "otro-nombre.md").exists())
 
+    def test_load_in_place_reused_content_attaches_path(self):
+        first = load("BORR", SAD, "linea_de_base", "CHG-001")
+        folder = workspace_path("BORR") / "00_raw" / "02_technology_context"
+        folder.mkdir(parents=True, exist_ok=True)
+        hand = folder / "sad-a-mano.md"
+        shutil.copy(SAD, hand)
+        second = load("BORR", hand, "linea_de_base", "CHG-001")
+        self.assertTrue(second["reused"])
+        self.assertTrue(second["in_place"])
+        self.assertEqual(first["source_id"], second["source_id"])
+        row = next(r for r in _rows("BORR") if r["id"] == first["source_id"])
+        self.assertTrue(any(p.endswith("02_technology_context/sad-a-mano.md") for p in row["paths"] + row["copies"]))
+
+    def test_harvest_rule_is_the_workspace_folder_only(self):
+        other = Path.cwd() / "harvest" / "sad.md"
+        other.parent.mkdir()
+        shutil.copy(SAD, other)
+        self.assertFalse(load("BORR", other, "linea_de_base", "CHG-001")["in_place"])
+
     def test_load_conflicting_declared_role_refused(self):
         first = load("BORR", SAD, "linea_de_base", "CHG-001")
         with self.assertRaises(InputError) as ctx:
@@ -113,7 +132,7 @@ class SourceLoad(SnapshotWorkspaceCase):
         with self.assertRaises(InputError) as ctx:
             load_source("BORR", FIXTURES / "change_request.md", "pedido")
         self.assertIn("/ingest", str(ctx.exception))
-        with self.assertRaises(Exception):
+        with self.assertRaises(GateRefusal):
             load_source("BORR", FIXTURES / "change_request.md", "pedido", "CHG-099")
 
     def test_load_unknown_role_lists_roles(self):
@@ -130,6 +149,9 @@ class SourceLoad(SnapshotWorkspaceCase):
     def test_role_fix_with_id(self):
         first = load("BORR", SAD, "linea_de_base", "CHG-001")
         run_ok(["sources", "BORR", "--id", first["source_id"], "--role", "plan_previo"])
+        log = source_log_path("BORR").read_text(encoding="utf-8")
+        self.assertIn("rol: plan_previo" if _language("BORR") == "es" else "role: plan_previo", log)
+        self.assertNotIn("linea_de_base", log)
         row = next(r for r in _rows("BORR") if r["id"] == first["source_id"])
         self.assertEqual(row["role"], "plan_previo")
         code, _ = run_cli(["sources", "BORR", "--id", first["source_id"], "--role", "otro"])

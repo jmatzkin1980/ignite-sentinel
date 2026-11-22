@@ -226,7 +226,7 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
     resolved = source.resolve()
     own = {str(Path(item).resolve()) for item in _sentinel_output_paths(project_id)}
     if (
-        "harvest" in resolved.parts
+        _inside(source, base / "00_raw" / "02_technology_context" / "harvest")
         or str(resolved) in own
         or default_authority(source_kind(key), key) == "own_artifact"
         or source.name.endswith(SENTINEL_OUTPUT_SUFFIXES)
@@ -271,6 +271,8 @@ def load_source(project_id: str, source: Path, role: str, change_id: str | None 
     if reused:
         source_id = str(existing["id"])
         target = source if in_place else None
+        if in_place:  # the hand-copied path joins the row it duplicates
+            mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
         if target is None:  # the content already has a copy in the workspace: no second one
             for candidate in [*existing.get("copies", []), *existing.get("paths", [])]:
                 found = Path(candidate) if Path(candidate).is_absolute() else Path.cwd() / candidate
