@@ -415,6 +415,11 @@ def _baseline_row_finding(project_id: str, change_id: str, rel: str, target: Pat
                 f"by_baseline: `{rel}` es la lectura de Sentinel (harvest), no la línea de base: citá el documento que la respalda.",
                 f"by_baseline: `{rel}` is Sentinel's reading (harvest), not the baseline: cite the document that backs it.",
             )
+    if role is None:
+        return msg(
+            f"by_baseline: `{rel}` ({sid}) no está registrada como línea de base (tipo {row.get('kind')}). Registrala con /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+            f"by_baseline: `{rel}` ({sid}) is not registered as the baseline (kind {row.get('kind')}). Register it with /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+        )
     if role != "linea_de_base":
         return msg(
             f"by_baseline: `{rel}` ({sid}) está registrada como {role}: sólo la línea de base prueba que algo ya existe.",

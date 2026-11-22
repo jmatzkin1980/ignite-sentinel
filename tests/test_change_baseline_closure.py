@@ -75,8 +75,9 @@ class Base(SnapshotWorkspaceCase):
         (folder / name).write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
         run_ok(["sources", self.project, "--load", str(folder / name), "--role", "linea_de_base", "--change", "CHG-001"])
 
-    def resolve_and_row(self, gap: str, text: str) -> dict:
-        self.load_baseline()
+    def resolve_and_row(self, gap: str, text: str, load: bool = True) -> dict:
+        if load:
+            self.load_baseline()
         Path("resp.md").write_text(text, encoding="utf-8")
         out = json.loads(run_ok(["resolve-gaps", self.project, "--source", "resp.md", "--change", "CHG-001"]))
         self.findings = out["closure_findings"]
@@ -129,10 +130,10 @@ class ByBaseline(Base):
                 if name == "bin.md":
                     self.load_baseline(name, data)  # registered, so the finding is about the content
                     path, needle = f"00_raw/06_baseline/{name}", "binario"
-                else:  # /sources --load refuses non-UTF-8 text, so a hand copy is all there can be
+                else:  # /sources --load refuses non-UTF-8 text, and a registered one makes resolve-gaps raise
                     self.put(f"00_raw/{name}", data)
                     path, needle = f"00_raw/{name}", ""
-                row = self.resolve_and_row("GAP-TECH-NFR", answer(cite(path)))
+                row = self.resolve_and_row("GAP-TECH-NFR", answer(cite(path)), load=(name != "bin.md"))
                 self.assertStays(row, needle)
 
     def test_missing_file_and_missing_parts_stay_answered(self):

@@ -81,7 +81,9 @@ class BaselineRole(SnapshotWorkspaceCase):
         copies = sorted(p for p in folder.iterdir() if p.is_file())
         self.assertTrue(copies)
         rel = f"00_raw/02_technology_context/harvest/{copies[0].name}"
-        self.assertRejected(f'`{rel}` "responde en menos de dos segundos al percentil 95"', "harvest")
+        self.assertRejected(f'`{rel}` "responde en menos de dos segundos al percentil 95"', "lectura de Sentinel")
+        row, findings = self.resolve(f'`{rel}` "responde en menos de dos segundos al percentil 95"')
+        self.assertNotIn("--load", " ".join(findings))
 
     def test_rejects_plan_previo(self):
         self.load("plan-previo.md", "plan_previo")
@@ -107,6 +109,17 @@ class BaselineRole(SnapshotWorkspaceCase):
         self.assertNotIn("role", row)
         row_, findings = self.resolve(cite("00_raw/02_technology_context/sad-registrada.md"))
         self.assertEqual(row_["status"], "CLOSED", findings)
+
+    def test_rejects_registered_row_without_a_role(self):
+        folder = workspace_path(PROJECT) / "00_raw" / "04_quality_context"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "calidad.md").write_text(SAD_TEXT, encoding="utf-8")
+        open_source_row(PROJECT, folder / "calidad.md", "synced")
+        row, findings = self.resolve(cite("00_raw/04_quality_context/calidad.md"))
+        self.assertEqual(row["status"], "ANSWERED")
+        text = " ".join(findings)
+        self.assertNotIn("None", text)
+        self.assertIn("no está registrada como línea de base", text)
 
     def test_guide_mentions_role(self):
         text = change_gaps_path(workspace_path(PROJECT), "CHG-001").read_text(encoding="utf-8")
