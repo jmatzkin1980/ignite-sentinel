@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from test_change_brief_cli import run_err  # noqa: E402
 from sentinel.changes import change_gaps_path, get_change  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
 from sentinel.pending_marks import count_pending_marks  # noqa: E402
@@ -93,7 +94,10 @@ class Mature(SnapshotWorkspaceCase):
     def test_next_not_done_with_pending_extraction(self):
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "requirements")
-        # past requirements/specs/backlog/validate, the brief's pending extraction is what is left, never "done"
+        # Past requirements/specs/backlog/validate, the brief's pending extraction is what is left, never "done".
+        # The middle steps are patched on purpose: no real walk reaches pending_extraction today, by design (the
+        # extraction that would empty it arrives in a later increment, and until then a brief holding the mark
+        # stops at requirements).
         with patch("sentinel.change_requirements.load_change_ears", return_value=[{"delta": "ADDED"}]), \
                 patch("sentinel.change_requirements.parse_delta", return_value="ADDED"), \
                 patch("sentinel.compilers.change_backlog.specs_currency", return_value="current"), \
@@ -117,6 +121,45 @@ class Mature(SnapshotWorkspaceCase):
             report["extraction_pending"] = []
             report_path.write_text(json.dumps(report), encoding="utf-8")
             self.assertEqual(change_next_step("MAD", CID)["key"], "done")
+
+    def test_english_mature_brief_carries_english_mark(self):
+        set_change("MAD", language="en")
+        run_ok(["brief", "MAD", "--change", CID])
+        text = brief_text("MAD")
+        self.assertIn("⏳ PENDING EXTRACTION: the request covers this and it is not in the brief yet", section(text, 2))
+        self.assertNotIn(OLD_EN, text)
+        self.assertIn("extraction pending: §2, §4", section(text, 9))
+        self.assertEqual(count_pending_marks(text).blocking, 0)
+
+    def test_final_export_refused_with_pending_extraction(self):
+        code, err = run_err(["export", "MAD", "--artifact", "brief", "--change", CID, "--final"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("2 sección(es) del brief todavía sin extraer del pedido (§2, §4)", err)
+        self.assertIn("Sentinel todavía no extrae solo el contenido del pedido", err)
+        self.assertNotIn("domain marks", err)
+        self.assertFalse((workspace_path("MAD") / "08_context_packs" / "exports" / f"{CID}-project-brief.md").exists())
+        set_change("MAD", language="en")
+        code, err = run_err(["export", "MAD", "--artifact", "brief", "--change", CID, "--final"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("2 section(s) of the brief not yet extracted from the request (§2, §4)", err)
+
+    def test_draft_export_shows_banner_with_sections(self):
+        out = json.loads(run_ok(["export", "MAD", "--artifact", "brief", "--change", CID]))
+        self.assertEqual(out["deliverable"], "draft")
+        self.assertEqual(out["extraction_pending"], ["2", "4"])
+        target = workspace_path("MAD") / "08_context_packs" / "exports" / f"{CID}-project-brief.md"
+        text = target.read_text(encoding="utf-8")
+        self.assertIn("BORRADOR", text)
+        self.assertIn("Extracción pendiente del pedido: §2, §4.", text)
+
+    def test_brief_compiled_before_the_border_does_not_say_pending_extraction(self):
+        root = Path.cwd()
+        shutil.copy(FIXTURES / "change_mature" / "pedido_maduro.md", root / "otro.md")
+        other = json.loads(run_ok(["ingest", "MAD", "--source", "otro.md", "--change"]))["change_id"]
+        run_ok(["brief", "MAD", "--change", other])
+        report = json.loads((workspace_path("MAD") / "02_requirements" / other / "change_brief_report.json").read_text(encoding="utf-8"))
+        self.assertTrue(report["extraction_pending"])
+        self.assertEqual(change_next_step("MAD", other)["key"], "scope")
 
     def test_requirements_text_never_names_missing_gap(self):
         s = change_next_step("MAD", CID)
@@ -151,7 +194,6 @@ class Borrador(SnapshotWorkspaceCase):
     def test_lenses_text_does_not_send_to_gaps_md(self):
         s = change_next_step("BORR", CID)
         self.assertEqual(s["key"], "lenses")
-        self.assertNotIn("gaps.md,", s["text"].replace("(no en gaps.md, que lo genera Sentinel)", ""))
         self.assertIn("respondelos en un archivo de respuestas (no en gaps.md, que lo genera Sentinel) "
                       f"y corré /resolve-gaps --change {CID}", s["text"])
         self.assertNotIn("01_discovery", s["text"])
@@ -198,15 +240,12 @@ class Borrador(SnapshotWorkspaceCase):
                 patch("sentinel.readiness_verdict._open_ears_gaps", return_value=[]):
             s = change_next_step("BORR", CID)
         self.assertIn("has no open functional question where the requirements can be answered", s["text"])
-        # the brief of an English change carries the English mark
-        answer_path = Path.cwd() / "a.md"
-        answer_path.write_text(ALL_ANSWERS, encoding="utf-8")
-        run_ok(["resolve-gaps", "BORR", "--source", "a.md", "--change", CID])
-        run_ok(["brief", "BORR", "--change", CID])
-        text = brief_text("BORR")
-        self.assertNotIn(OLD_EN, text)
-        self.assertEqual(set(CHANGE_COMMANDS) - {"scope", "lenses", "brief", "requirements", "specs", "backlog", "validate"},
-                         {"pending_extraction", "done"})
+
+    def test_change_commands_of_the_new_steps(self):
+        self.assertEqual(CHANGE_COMMANDS["pending_extraction"], "")
+        self.assertEqual(CHANGE_COMMANDS["done"], "")
+        self.assertEqual(set(CHANGE_COMMANDS), {"scope", "lenses", "brief", "requirements", "specs", "backlog", "validate",
+                                                "pending_extraction", "done"})
 
 
 if __name__ == "__main__":

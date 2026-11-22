@@ -43,41 +43,66 @@ def pending_count(text: str, report: dict | None = None) -> int:
     return count_pending_marks(text, report).blocking
 
 
-def banner(count: int, language: str) -> str:
+def banner(count: int, language: str, extraction: list[str] | None = None) -> str:
+    sections = ", ".join(f"§{n}" for n in (extraction or []))
     if language == "es":
-        return (f"> **BORRADOR** — quedan {count} marcas pendientes: es un documento de trabajo, no un entregable. "
+        text = (f"> **BORRADOR** — quedan {count} marcas pendientes: es un documento de trabajo, no un entregable. "
                 "Cuando no quede ninguna, regeneralo con `/export --final`.")
-    return (f"> **DRAFT** — {count} pending marks remain: this is a working document, not a deliverable. "
+        return text + (f" Extracción pendiente del pedido: {sections}." if sections else "")
+    text = (f"> **DRAFT** — {count} pending marks remain: this is a working document, not a deliverable. "
             "Once none remain, regenerate it with `/export --final`.")
+    return text + (f" Extraction pending from the request: {sections}." if sections else "")
 
 
-def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None = None) -> dict[str, object]:
+EXTRACTION_TEXT = {
+    "es": ("{n} sección(es) del brief todavía sin extraer del pedido ({sections})",
+           "Sentinel todavía no extrae solo el contenido del pedido (llega en un próximo incremento): cargá cada regla y criterio "
+           "respondiendo en EARS, con Delta y Superficie, una pregunta del cambio, o exportá sin --final para obtener un borrador marcado."),
+    "en": ("{n} section(s) of the brief not yet extracted from the request ({sections})",
+           "Sentinel does not extract the request content on its own yet (coming in a later increment): load each rule and criterion "
+           "by answering one question of the change in EARS, with Delta and Superficie, or export without --final to get a marked draft."),
+}
+
+
+def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None = None,
+         extraction: list[str] | None = None, language: str = "es") -> dict[str, object]:
     """Decide what an export is. Raises when `final` is asked for and blocking marks remain.
 
     `report` is the brief v2 compile report, when there is one (IMP-334): the count is
     then the brief's own "Ready to build" count. Deferred (domain) marks are reported
     as `deferred_marks` and do not block.
+
+    IMP-398 `extraction`: the sections of a change brief still pending extraction from the request. They are
+    deferred for `/validate` but a deliverable is never final with them: `final` refuses, a draft lists them.
     """
     marks = count_pending_marks(text, report)
     extra = {"deferred_marks": marks.deferred} if marks.deferred else {}
     if artifact in WORKING_ARTIFACTS or fmt in WORKING_FORMATS:
         return {"deliverable": "working", "pending_marks": marks.blocking, **extra}
     count = marks.blocking
+    sections = [str(n) for n in (extraction or [])]
+    if final and sections:
+        message, next_step = EXTRACTION_TEXT["es" if language == "es" else "en"]
+        raise DeliverableNotReady(
+            "/export --final refused: " + message.format(n=len(sections), sections=", ".join(f"§{n}" for n in sections)) + ".",
+            next_step)
     if final and count:
-        deferred = f" ({marks.deferred} deferred domain marks do not block)" if marks.deferred else ""
+        deferred = f" ({marks.deferred} deferred marks do not block)" if marks.deferred else ""
         raise DeliverableNotReady(
             f"/export --final refused: {count} pending marks remain in the {artifact}{deferred}. "
             "Close them (or export without --final to get a marked draft).")
+    if sections:
+        return {"deliverable": "draft", "pending_marks": count + len(sections), "extraction_pending": sections, **extra}
     return {"deliverable": "draft" if count else "final", "pending_marks": count, **extra}
 
 
-def with_banner(text: str, count: int, language: str) -> str:
+def with_banner(text: str, count: int, language: str, extraction: list[str] | None = None) -> str:
     """Put the draft banner right under the first heading (after a v2 marker, if any)."""
     lines = text.splitlines()
     index = next((i for i, line in enumerate(lines) if line.startswith("# ")), -1)
-    stamp = ["", banner(count, language)]
+    stamp = ["", banner(count, language, extraction)]
     if index < 0:
-        return "\n".join([banner(count, language), ""] + lines) + ("\n" if text.endswith("\n") else "")
+        return "\n".join([banner(count, language, extraction), ""] + lines) + ("\n" if text.endswith("\n") else "")
     return "\n".join(lines[:index + 1] + stamp + lines[index + 1:]) + ("\n" if text.endswith("\n") else "")
 
 
