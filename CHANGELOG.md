@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-11-21
+
 ### Added
 
 - **Changes to an existing system, increment 4a (IMP-388).** A change gets its requirements and its specification units, without a PRD.
