@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok, waive_crosses  # noqa: E402
 from test_change_brief_cli import run_err  # noqa: E402
 from sentinel.changes import change_gaps_path, get_change  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
@@ -55,6 +55,7 @@ class Mature(SnapshotWorkspaceCase):
         run_ok(["ingest", "MAD", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "MAD", "--source", "scope.md", "--change", CID])
         load_baseline("MAD")
+        waive_crosses("MAD", CID)
         run_ok(["brief", "MAD", "--change", CID])
 
     def test_mature_request_brief_shows_pending_extraction_not_note_covers(self):
@@ -189,6 +190,7 @@ class Walk(SnapshotWorkspaceCase):
         run_ok(["ingest", "WLK", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "WLK", "--source", "scope.md", "--change", CID])
         load_baseline("WLK")
+        waive_crosses("WLK", CID)
         run_ok(["resolve-gaps", "WLK", "--source", "acc.md", "--change", CID])
         for command in ("brief", "specs", "backlog", "validate"):
             run_ok([command, "WLK", "--change", CID])
@@ -214,6 +216,7 @@ class Borrador(SnapshotWorkspaceCase):
         run_ok(["ingest", "BORR", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
         load_baseline("BORR")
+        waive_crosses("BORR", CID)
 
     def test_lenses_text_does_not_send_to_gaps_md(self):
         s = change_next_step("BORR", CID)
@@ -271,7 +274,7 @@ class Borrador(SnapshotWorkspaceCase):
     def test_change_commands_of_the_new_steps(self):
         self.assertEqual(CHANGE_COMMANDS["done"], "")
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
 

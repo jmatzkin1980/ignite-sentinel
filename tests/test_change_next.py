@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import (  # noqa: E402
-    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_cli, run_ok,
+    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_cli, run_ok, waive_crosses,
 )
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
@@ -66,6 +66,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
 
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        waive_crosses("BORR", CID)
         s = step()
         self.assertEqual((s["key"], s["command"]), (
             "baseline", f"/sources BORR --load PATH --role linea_de_base --change {CID}"))
@@ -108,6 +109,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         # The brief was compiled with the 3 blocking gaps open; closing them leaves it stale.
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        waive_crosses("BORR", CID)
         load_baseline("BORR")
         run_ok(["brief", "BORR", "--change", CID])
         report = workspace_path("BORR") / "02_requirements" / CID / "change_brief_report.json"
@@ -250,6 +252,7 @@ class ChangeNextWarnings(SnapshotWorkspaceCase):
     def test_warnings_in_next_and_status(self):
         self.assertEqual(changes_overview("BORR")[0]["warnings"], [])
         load_baseline("BORR")  # no baseline would add its own warning: this test is about the escalation ones
+        waive_crosses("BORR", CID)
         border = read_json(workspace_path("BORR") / "state.json", {})["changes"][CID]["border"]
         set_change("BORR", border=[*border, {"zone": "nuevo", "type": "rol", "name": "Auditor"}])
         (overview,) = changes_overview("BORR")

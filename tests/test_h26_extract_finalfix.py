@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import complete_extraction, run_ok  # noqa: E402
+from helpers import complete_extraction, run_ok, waive_crosses  # noqa: E402
 from test_h26_extract_proposals import CID, EXAMPLE, PID, ProposalsCase  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
@@ -50,6 +50,7 @@ class Finalfix(ProposalsCase):
 
     def waive_baseline(self) -> None:
         run_ok(["sources", PID, "--change", CID, "--no-baseline", "--reason", "Sistema nuevo"])
+        waive_crosses(PID, CID)
 
     # item 2: orphans
     def test_orphan_rows_step_and_reject(self):

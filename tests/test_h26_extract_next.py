@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok, waive_crosses  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import load_baseline, set_change  # noqa: E402
 from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
@@ -56,6 +56,7 @@ class MatureNext(SnapshotWorkspaceCase):
         run_ok(["init", "MAD"])
         run_ok(["ingest", "MAD", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "MAD", "--source", "scope.md", "--change", CID])
+        waive_crosses("MAD", CID)
         load_baseline("MAD")
 
     def setUp(self):
@@ -164,7 +165,7 @@ class BorradorDone(SnapshotWorkspaceCase):
 class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
