@@ -145,7 +145,8 @@ class BorradorDone(SnapshotWorkspaceCase):
 class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "extract_inventory", "extract_proposals", "extract_confirm", "preserved",
+            "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])

@@ -28,15 +28,21 @@ def sections_path(base: Path, change_id: str) -> Path:
     return extraction_dir(base, change_id) / "sections.json"
 
 
-def _context(project_id: str, change_id: str) -> tuple[Path, dict, dict[str, dict], dict, str]:
+def _context(
+    project_id: str, change_id: str, allow_stale: bool = False,
+) -> tuple[Path, dict, dict[str, dict], dict, str]:
     change = get_change(project_id, change_id)
     language = change_language(project_id, change)
-    if inventory_state(project_id, change_id) == "missing":
-        raise GateRefusal(
-            f"Corré /extract {project_id} --change {change_id} antes de confirmar: el inventario falta" if language == "es"
-            else f"Run /extract {project_id} --change {change_id} before confirming: the inventory is missing",
-            next_step=f"/extract {project_id} --change {change_id}",
-        )
+    state = inventory_state(project_id, change_id)
+    if state == "missing" or (state == "stale" and not allow_stale):
+        # a stale inventory may point at lines that moved: confirming against it would cite the wrong text
+        if language == "es":
+            message = f"Corré /extract {project_id} --change {change_id} antes de confirmar: el inventario " + (
+                "falta" if state == "missing" else "quedó viejo")
+        else:
+            message = f"Run /extract {project_id} --change {change_id} before confirming: the inventory is " + (
+                "missing" if state == "missing" else "out of date")
+        raise GateRefusal(message, next_step=f"/extract {project_id} --change {change_id}")
     base = workspace_path(project_id)
     inventory = load_inventory(base, change_id) or {}
     return base, inventory, {e["id"]: e for e in inventory.get("elements", [])}, change, language
@@ -209,19 +215,22 @@ def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
 
 
 def reject_item(project_id: str, change_id: str, element_id: str, reason: str) -> dict:
-    """Take an item out (back to pending), keep the reason, and supersede the rows it had."""
-    base, _, _, _, language = _context(project_id, change_id)
+    """Take an item out (back to pending), keep the reason, and supersede the rows it had.
+
+    It also takes out an orphan: an element no longer in the inventory whose rows still stand."""
+    base, _, _, _, language = _context(project_id, change_id, allow_stale=True)
     if not str(reason or "").strip():
         raise InputError(
             "Rechazar necesita un motivo (--reason)" if language == "es" else "Rejecting needs a reason (--reason)"
         )
     store = load_proposals(base, change_id)
     item = store["items"].get(element_id)
-    if item is None:
+    standing = _element_rows(project_id, change_id, element_id)
+    if item is None and not standing:
         raise _no_pending(element_id, language)
     result = _empty_result("reject")
-    if item.get("rows"):
+    if standing or (item or {}).get("rows"):
         _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, [], "", language))
-    del store["items"][element_id]
+    store["items"].pop(element_id, None)
     store["rejections"].append({"id": element_id, "reason": str(reason).strip(), "at": _now()})
     return _finish(project_id, change_id, base, store, result)

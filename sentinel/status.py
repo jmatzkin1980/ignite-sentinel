@@ -127,6 +127,16 @@ def _extraction_warnings(
         warnings.append({"trigger": "extraction_incomplete", "message": (
             f"{change_id}: la extracción cubre {extraction['text']}" if es
             else f"{change_id}: the extraction covers {extraction['text']}")})
+    if extraction.get("unreadable"):
+        names = ", ".join(extraction["unreadable"])
+        warnings.append({"trigger": "extraction_unreadable", "message": (
+            f"{change_id}: Sentinel no pudo leer el pedido {names}; cargá una copia legible" if es
+            else f"{change_id}: Sentinel could not read the request {names}; load a readable copy")})
+    if extraction.get("orphans"):
+        names = ", ".join(o["id"] for o in extraction["orphans"])
+        warnings.append({"trigger": "extraction_orphans", "message": (
+            f"{change_id}: elementos que ya no están en el pedido conservan filas EARS: {names} ({run} --reject-item ID --reason \"…\")" if es
+            else f"{change_id}: elements no longer in the request keep EARS rows: {names} ({run} --reject-item ID --reason \"…\")")})
     if preserved["missing"]:
         names = ", ".join(preserved["missing"])
         warnings.append({"trigger": "preserved_missing", "message": (

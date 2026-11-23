@@ -8,16 +8,15 @@ confirmed here: "transcribe, don't draft".
 from __future__ import annotations
 
 import re
-import shutil
 import unicodedata
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..change_requirements import parse_affects, parse_delta, parse_surfaces
+from ..change_requirements import load_change_ears, parse_affects, parse_delta, parse_surfaces
 from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, get_change
-from ..core.io import read_json, write_json, write_text
+from ..core.io import copy_file, read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..core.text import unique_path
 from ..ears import classify_ears
@@ -59,6 +58,8 @@ _FIELD_NAMES = {"delta": "Delta", "surface": "Superficie", "affects": "Afecta"}
 _HEADING = re.compile(r"^###\s+(.+?)\s*$")
 _FIELD = re.compile(r"^\s*[-*]\s*([^\W\d_]+)\s*:\s*(.*?)\s*$")
 _FLAG_SPLIT = re.compile(r" — |:| - ")
+_CONTINUED = ("text", "reason", "quote")  # an indented line under these fields continues their value
+_EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
 
 
 def _fold(text: str) -> str:
@@ -84,6 +85,8 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
     blocks: dict[str, dict] = {}
     warnings: list[str] = []
     current: dict[str, Any] | None = None
+    last_key: str | None = None
+    raw_quote = ""
     in_comment = False
     for line in text.splitlines():
         stripped = line.strip()
@@ -102,16 +105,24 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
                 warnings.append(current_id)
             current = _new_block()
             blocks[current_id] = current
+            last_key = None
             continue
         if current is None:
             continue
         field = _FIELD.match(line)
-        if not field:
-            continue
-        key = _LABELS.get(field.group(1).lower())
-        value = field.group(2)
+        key = _LABELS.get(field.group(1).lower()) if field else None
         if key is None:
+            if last_key in _CONTINUED and not field and stripped and line[:1].isspace():
+                if last_key == "quote":
+                    raw_quote = f"{raw_quote} {stripped}"
+                    current["quote"] = _unquote(raw_quote)
+                else:
+                    current[last_key] = f"{current[last_key]} {stripped}".strip()
+                continue
+            last_key = None
             continue
+        value = field.group(2)
+        last_key = key
         if key == "statement":
             current["statements"].append({"text": value, "delta": "", "surface": "", "affects": ""})
         elif key in ("delta", "surface", "affects"):
@@ -120,6 +131,7 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
             elif value:
                 current["errors"].append({"code": "orphan_field", "field": _FIELD_NAMES[key]})
         elif key == "quote":
+            raw_quote = value
             current["quote"] = _unquote(value)
         elif key == "flag":
             found = _FLAG_SPLIT.search(value)
@@ -408,7 +420,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     folder = extraction_dir(base, change_id) / "submitted"
     folder.mkdir(parents=True, exist_ok=True)
     copy = _next_submitted(folder, Path(source).name)
-    shutil.copyfile(source, copy)
+    copy_file(source, copy)
     submitted = copy.relative_to(base).as_posix()
 
     elements = {e["id"]: e for e in inventory.get("elements", [])}
@@ -422,6 +434,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     ]
     cache: dict[str, list[str] | None] = {}
     recorded: list[str] = []
+    unchanged: list[str] = []
     skipped: list[str] = []
     flagged: list[str] = []
     rejected: dict[str, list[str]] = {}
@@ -446,6 +459,10 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
             element_id, element_body or "", item["quote"], item["flags"], open_gaps, harvest_entries,
         )
         previous = items.get(element_id) or {}
+        if previous.get("status") == "confirmed" and _same_proposal(previous, item):
+            # re-submitted as it was confirmed: it stays confirmed
+            unchanged.append(element_id)
+            continue
         entry = dict(item)
         entry.update({
             "status": "proposed", "proposed_at": now, "confirmed_at": None,
@@ -466,6 +483,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         "change_id": change_id,
         "action": "proposals",
         "recorded": recorded,
+        "unchanged": unchanged,
         "skipped": skipped,
         "rejected": rejected,
         "flagged": flagged,
@@ -473,6 +491,32 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         "submitted": submitted,
         "review_path": str(review),
     }
+
+
+def _agent_flags(item: dict) -> list[tuple[str, str]]:
+    return [(str(f.get("kind", "")), str(f.get("note", ""))) for f in item.get("flags", []) or [] if f.get("origin") == "agent"]
+
+
+def _same_proposal(stored: dict, item: dict) -> bool:
+    """The normalized proposal says exactly what the stored one says (statements, deltas, surfaces, flag, text…)."""
+    keys = ("element_sha", "treatment", "quote", "section", "brief_section", "text", "reason")
+    if any(stored.get(key) != item.get(key) for key in keys):
+        return False
+    statement_keys = ("text", "delta", "surfaces", "affects")
+    mine = [{k: s.get(k) or ([] if k in ("surfaces", "affects") else "") for k in statement_keys} for s in stored.get("statements") or []]
+    theirs = [{k: s.get(k) or ([] if k in ("surfaces", "affects") else "") for k in statement_keys} for s in item.get("statements") or []]
+    return mine == theirs and _agent_flags(stored) == _agent_flags(item)
+
+
+def extraction_orphans(project_id: str, change_id: str, elements: list[dict]) -> list[dict]:
+    """The elements no longer in the inventory whose EARS rows still stand: [{id, rows}], in row order."""
+    present = {str(e.get("id")) for e in elements}
+    orphans: dict[str, list[str]] = {}
+    for row in load_change_ears(project_id, change_id):
+        found = _EXT_SOURCE.match(str(row.get("source", "")))
+        if found and found.group(1) not in present:
+            orphans.setdefault(found.group(1), []).append(row["id"])
+    return [{"id": element_id, "rows": rows} for element_id, rows in orphans.items()]
 
 
 def write_review(project_id: str, change_id: str) -> Path:
@@ -514,6 +558,15 @@ def write_review(project_id: str, change_id: str) -> Path:
         note = f" — {flag.get('note')}" if flag.get("note") else ""
         lines.append(f"- {element_id} — {flag.get('origin')}: {flag.get('kind')}{note}")
     lines.append("")
+    orphans = extraction_orphans(project_id, change_id, inventory.get("elements", []))
+    if orphans:
+        lines.append(
+            "## Huérfanas (ya no están en el pedido; se sacan con --reject-item ID --reason TEXTO)" if es
+            else "## Orphans (no longer in the request; take them out with --reject-item ID --reason TEXT)"
+        )
+        for orphan in orphans:
+            lines.append(f"- {orphan['id']} — {', '.join(orphan['rows'])}")
+        lines.append("")
     path = extraction_dir(base, change_id) / "review.md"
     write_text(path, "\n".join(lines))
     return path

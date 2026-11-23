@@ -151,9 +151,26 @@ def _split_lines(text: str) -> list[str]:
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
 
+def _h1_count(lines: list[str]) -> int:
+    count, in_fence = 0, False
+    for raw in lines:
+        if _FENCE.match(raw):
+            in_fence = not in_fence
+        elif not in_fence:
+            heading = _HEADING.match(raw)
+            count += bool(heading and len(heading.group(1)) == 1)
+    return count
+
+
+def _indent(raw: str) -> int:
+    return len(raw) - len(raw.lstrip(" "))
+
+
 def _segments(lines: list[str]) -> list[dict[str, Any]]:
     """Cut the text into sections: the intro, then one per `##`-`######` heading."""
     segments: list[dict[str, Any]] = [{"heading": "", "intro": True, "hline": None, "lines": []}]
+    # one `#` heading is the document title; more than one are the document's sections
+    titles_are_sections = _h1_count(lines) > 1
     in_fence = False
     for number, raw in enumerate(lines, start=1):
         if _FENCE.match(raw):
@@ -165,7 +182,7 @@ def _segments(lines: list[str]) -> list[dict[str, Any]]:
             continue
         heading = _HEADING.match(raw)
         if heading:
-            if len(heading.group(1)) == 1:
+            if len(heading.group(1)) == 1 and not titles_are_sections:
                 continue  # the document title is neither a section nor text
             segments.append({"heading": heading.group(2), "intro": False, "hline": number, "lines": []})
             continue
@@ -207,11 +224,36 @@ def _blocks(seg_lines: list[tuple[int, str, bool]]) -> list[dict[str, Any]]:
             blocks.append({"type": "table", "skeleton": skeleton, "rows": body})
             continue
         if _LIST_ITEM.match(raw):
+            # lines indented two or more under the marker (nested items too) continue the item, also after a blank line
+            nested = _indent(raw) + 2
             last = number
             index += 1
             while index < total:
                 n2, r2, f2 = seg_lines[index]
-                if not r2.strip() or f2 or _FENCE.match(r2) or _LIST_ITEM.match(r2) or is_table_row(r2):
+                if f2 or _FENCE.match(r2):
+                    break
+                if not r2.strip():
+                    ahead = index + 1
+                    while ahead < total and not seg_lines[ahead][1].strip() and not seg_lines[ahead][2]:
+                        ahead += 1
+                    if ahead < total and not seg_lines[ahead][2] and _indent(seg_lines[ahead][1]) >= nested:
+                        index = ahead
+                        continue
+                    break
+                if _indent(r2) < nested and (_LIST_ITEM.match(r2) or is_table_row(r2) or match_element_id(r2)):
+                    break
+                last = n2
+                index += 1
+            blocks.append({"type": "item", "first": number, "last": last})
+            continue
+        if match_element_id(raw):
+            # a paragraph that starts with an element id (`RN-01: ...`, `**RN-03.** ...`) is a candidate too
+            last = number
+            index += 1
+            while index < total:
+                n2, r2, f2 = seg_lines[index]
+                if (not r2.strip() or f2 or _FENCE.match(r2) or _LIST_ITEM.match(r2) or is_table_row(r2)
+                        or match_element_id(r2)):
                     break
                 last = n2
                 index += 1
@@ -259,9 +301,23 @@ def _parse(text: str, source_id: str, path: str) -> list[dict[str, Any]]:
         if not segment["intro"]:
             head_id = match_element_id(heading)
             if head_id:
-                # a heading that starts with an id is one element, up to the next heading
-                span = _nonblank_span(lines, segment["hline"], segment["lines"][-1][0] if segment["lines"] else segment["hline"])
-                found.append(_element(head_id[0], head_id[1], heading, source_id, path, [span], lines))
+                # a heading that starts with an id is one element, up to the next heading; items inside it that
+                # start with an id of another kind (the criteria of a story) are elements of their own
+                end = segment["lines"][-1][0] if segment["lines"] else segment["hline"]
+                inner, taken = _inner_elements(segment, head_id[1], heading, source_id, path, lines)
+                if not inner:
+                    spans = [_nonblank_span(lines, segment["hline"], end)]
+                else:
+                    runs: list[list[int]] = [[]]
+                    for number in range(segment["hline"], end + 1):
+                        if number in taken:
+                            if runs[-1]:
+                                runs.append([])
+                            continue
+                        runs[-1].append(number)
+                    spans = [s for s in (_run_span(lines, run) for run in runs) if s]
+                found.append(_element(head_id[0], head_id[1], heading, source_id, path, spans, lines))
+                found.extend(inner)
                 continue
         itemized = _itemized(heading) if heading else None
         text_runs: list[list[int]] = [[]]
@@ -312,6 +368,31 @@ def _parse(text: str, source_id: str, path: str) -> list[dict[str, Any]]:
     return found
 
 
+def _inner_elements(
+    segment: dict[str, Any], head_kind: str, heading: str, source_id: str, path: str, lines: list[str],
+) -> tuple[list[dict[str, Any]], set[int]]:
+    """The id-led items and table rows of another kind inside a heading element, and the lines they take."""
+    inner: list[dict[str, Any]] = []
+    taken: set[int] = set()
+    for block in _blocks(segment["lines"]):
+        if block["type"] == "item":
+            candidates = [(block["first"], block["last"])]
+        elif block["type"] == "table":
+            candidates = [(n, n) for n, _ in block["rows"]]
+        else:
+            continue
+        made = False
+        for first, last in candidates:
+            matched = match_element_id(lines[first - 1])
+            if matched and matched[1] != head_kind:
+                inner.append(_element(matched[0], matched[1], heading, source_id, path, [[first, last]], lines))
+                taken.update(range(first, last + 1))
+                made = True
+        if made and block["type"] == "table":
+            taken.update(block["skeleton"])
+    return inner, taken
+
+
 def _run_span(lines: list[str], run: list[int]) -> list[int] | None:
     numbers = sorted(n for n in run if lines[n - 1].strip())
     if not numbers:
@@ -346,7 +427,8 @@ def pedido_rows(project_id: str, change_id: str) -> list[dict]:
     rows: list[dict] = []
     for source_id in change.get("sources", []) or []:
         row = registry.get(source_id)
-        if row is not None and row_role(row) == "pedido":
+        # a superseded or retired version of the request is not the request any more
+        if row is not None and row_role(row) == "pedido" and row.get("validity", "current") == "current":
             rows.append(row)
     return rows
 
@@ -520,7 +602,8 @@ def build_inventory(project_id: str, change_id: str) -> dict:
     by_kind = _by_kind(elements)
     inv_path = inventory_path(base, change_id)
     sheet_path = worksheet_path(base, change_id)
-    if changed or previous is None or previous.get("sources") != sources or not sheet_path.exists():
+    if (changed or previous is None or previous.get("sources") != sources or not sheet_path.exists()
+            or (previous.get("unreadable") or []) != unreadable):
         language = change_language(project_id, change, first_text)
         write_json(inv_path, {
             "schema_version": 1,
@@ -528,6 +611,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
             "version": version,
             "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "sources": sources,
+            "unreadable": unreadable,
             "elements": elements,
             "total": len(elements),
             "by_kind": by_kind,

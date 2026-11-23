@@ -16,7 +16,7 @@ from ..core.io import read_json
 from ..core.paths import workspace_path
 from . import extraction_dir
 from .inventory import KINDS, _fold, inventory_state, load_inventory
-from .proposals import load_proposals
+from .proposals import extraction_orphans, load_proposals
 
 _EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
 
@@ -37,6 +37,7 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
     by_id = {e["id"]: e for e in elements}
     by_kind = {kind: {"total": 0, "covered": 0} for kind in KINDS}
     covered = proposed = flagged = 0
+    flagged_ids: list[str] = []
     for element in elements:
         kind = element.get("kind")
         if kind in by_kind:
@@ -52,11 +53,15 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
             proposed += 1
             if item.get("flags"):
                 flagged += 1
+                flagged_ids.append(element["id"])
     stale = [
         element_id for element_id, item in items.items()
         if isinstance(item, dict) and (element_id not in by_id or item.get("element_sha") != by_id[element_id].get("sha"))
     ]
     total = len(elements)
+    # a pedido source Sentinel could not read leaves part of the request out of the inventory
+    unreadable = [str(s) for s in inventory.get("unreadable", []) or []] if state != "missing" else []
+    orphans = extraction_orphans(project_id, change_id, elements) if state != "missing" else []
     if state == "missing":
         text = "sin inventario" if lang == "es" else "no inventory"
     else:
@@ -67,9 +72,10 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
         text = f"{covered} {joiner} {total}" + (f" ({parts})" if parts else "")
     return {
         "state": state, "total": total, "covered": covered, "pending": total - covered - proposed,
-        "proposed": proposed, "flagged": flagged, "stale_items": stale,
+        "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "stale_items": stale,
+        "unreadable": unreadable, "orphans": orphans,
         "by_kind": {kind: c for kind, c in by_kind.items() if c["total"]},
-        "complete": state in ("current", "empty") and covered == total, "text": text,
+        "complete": state in ("current", "empty") and covered == total and not unreadable, "text": text,
     }
 
 
@@ -138,7 +144,10 @@ def extraction_view(project_id: str, change_id: str) -> dict[str, Any]:
     if state != "missing":
         for row in load_change_ears(project_id, change_id):
             found = _EXT_SOURCE.match(str(row.get("source", "")))
-            if found and found.group(1) in by_id:
+            element = by_id.get(found.group(1)) if found else None
+            item = items.get(found.group(1)) if found else None
+            if element and isinstance(item, dict) and item.get("status") == "confirmed" \
+                    and item.get("element_sha") == element.get("sha"):
                 rows.setdefault(found.group(1), []).append(
                     {"id": row["id"], "statement": row["statement"], "delta": row["delta"]}
                 )

@@ -2206,7 +2206,7 @@ The normal submit has to keep working as today. The existing system is already i
 
     **Tell the assistant:** "Validate CHG-001 for COMPRAS_PORTAL and tell me what is next."
 
-    **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command, and its text says what `done` means and what it does not: the pieces Sentinel registered are up to date, but Sentinel does not measure how much of the request they cover. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
+    **You'll see:** The verdict `VALID` with four checks, all `PASS`, and no warnings. The next step of the change is `done`, with no command, and its text says what `done` means: the pieces Sentinel registered are up to date, the extraction covers every element of the request (`N of N`), and each preserved surface has its UNCHANGED row. If an artifact did not exist yet, its check would say `SKIP` and the next step would be the command that makes it.
 
     **What it means:** The checks are: every unit cites the change brief and points at a current requirement (`unit_citations`); every `UNCHANGED` requirement is a pass-to-pass criterion in the stories (`preserved_pass_to_pass`); every requirement names surfaces of the border (`rows_have_surfaces`); and every story stays inside the border (`stories_inside_border`). A finding makes the verdict `INVALID` and the command exits 5, with each finding naming what to fix. `/validate` does not rewrite anything.
 
@@ -2227,13 +2227,13 @@ The normal submit has to keep working as today. The existing system is already i
     ```text
     change_id: CHG-001
     key: done
-    title: Change pieces up to date
-    text: The registered pieces of CHG-001 are up to date. Sentinel does not yet measure how much of the request is covered: check that each rule and criterion of the request has its requirement or its discard.
+    title: Change up to date: request covered
+    text: The pieces of CHG-001 are up to date. The extraction covers 9 of 9 (Rules 3 of 3, Criteria 2 of 2, Sections 4 of 4) and each preserved surface has its UNCHANGED row.
     command:
     warnings: []
     ```
 
-    `/status COMPRAS_PORTAL --change CHG-001` shows the same step under `next_action`, with the round and the gap counts. The sequence of a change is scope, baseline, lenses, the extraction steps (inventory, proposals, confirmation, what is preserved), brief, requirements, specs, backlog, validate, done; it never asks for a PRD. The extraction steps come from the coverage of the request (`/extract`): `done` needs every element of the request confirmed and every preserved surface covered by an UNCHANGED row, and `--final` is refused while the request is not fully extracted. Without `--change`, `/next` and `/status` list each change under `changes` and, in a workspace that only has changes, show the first pending one. In a workspace that only has changes, `/status` gives the verdict `READY_WITH_WARNINGS` once every change is done, with the warning "Request coverage is not measured yet"; while a change is pending it is `NOT_READY` and lists that change's blockers, never "Discovery has not run". `/validate` without `--change` in a workspace that only has changes is refused (exit 4) and names the change to use. `--change` does not combine with `--release` (exit 3).
+    `/status COMPRAS_PORTAL --change CHG-001` shows the same step under `next_action`, with the round and the gap counts. The sequence of a change is scope, baseline, lenses, the extraction steps (inventory, proposals, confirmation, what is preserved), brief, requirements, specs, backlog, validate, done; it never asks for a PRD. The extraction steps come from the coverage of the request (`/extract`): `done` needs every element of the request confirmed and every preserved surface covered by an UNCHANGED row, and `--final` is refused while the request is not fully extracted. Without `--change`, `/next` and `/status` list each change under `changes` and, in a workspace that only has changes, show the first pending one. In a workspace that only has changes, a change that is done adds no warning to the `/status` verdict (its coverage is measured in its step); while a change is pending the verdict is `NOT_READY` and lists that change's blockers, never "Discovery has not run". `/validate` without `--change` in a workspace that only has changes is refused (exit 4) and names the change to use. `--change` does not combine with `--release` (exit 3).
     </details>
 
 ### Escalation warnings: when the change looks too big
@@ -2348,9 +2348,9 @@ Sometimes the request is not a note but a finished document: objective, users, p
 
 **Tell the assistant:** "Open this request as a change for COMPRAS_ALTAS, record its scope, and compile the brief."
 
-**You'll see:** After the scope round, no question asks for the rules or the acceptance criteria: the request already gives them. The brief has two sections with `⏳ PENDING EXTRACTION: the request covers this and it is not in the brief yet`, section 2 (problem and result) and section 7 (rules and acceptance), and section 9 adds `extraction pending: §2, §7`. The marks block nothing by themselves, but they stop the final export. The next step is `requirements`, and its text says there is no open functional question to answer them in.
+**You'll see:** After the scope round, no question asks for the rules or the acceptance criteria: the request already gives them (an itemized "Acceptance criteria" heading, or CA-/AC- ids, count as the acceptance signal). Compiled before the extraction, the brief has two sections with `⏳ PENDING EXTRACTION: the request covers this and it is not in the brief yet`, section 2 (problem and result) and section 4 (process), and section 9 adds `extraction pending: §2, §4`. The marks block nothing by themselves, but they stop the final export. The next step is `extract_inventory`.
 
-**What it means:** Sentinel does not write the rules of the request into the brief on its own and does not invent a question to ask for them: the BA transcribes them through `/extract` (inventory, cited proposals, confirmation by section). Until the request is extracted the marks stay and `--final` is refused: a mature request cannot produce a final change-brief export before then. A draft export is allowed and lists the sections. Once the extraction is confirmed, the sections are filled and the marks clear; the step after the brief is `requirements` only while no row carries ADDED, MODIFIED or REMOVED.
+**What it means:** Sentinel does not write the rules of the request into the brief on its own and does not invent a question to ask for them: the BA transcribes them through `/extract` (inventory, cited proposals, confirmation by section). Until the request is extracted the marks stay and `--final` is refused: a mature request cannot produce a final change-brief export before then. A draft export is allowed and lists the sections. Once the extraction is confirmed, the sections are filled and the marks clear: a section whose elements were all discarded says so and points to section 9, where each discard keeps its reason. After the brief, the step is `requirements` only while no row carries ADDED, MODIFIED or REMOVED.
 
 <details><summary>In a terminal</summary>
 
@@ -2364,30 +2364,32 @@ Sometimes the request is not a note but a finished document: objective, users, p
 ```
 
 ```text
-extraction_pending: 2, 7
+extraction_pending: 2, 4
 ```
 
 ```text
 deliverable: draft
 pending_marks: 0
-extraction_pending: 2, 7
-deferred_marks: 10
+extraction_pending: 2, 4
+deferred_marks: 12
 ```
 
-`pending_marks` is the blocking count only; the extraction sections are reported apart. The draft banner reads "DRAFT — this is a working document, not a deliverable. Also, the request content is not yet extracted in §2, §7." The final export is refused (exit 4): `/export --final refused: 2 section(s) of the brief not yet extracted from the request (§2, §7).` with the next step "Sentinel does not extract the request content on its own yet (coming in a later increment). The mark clears only when a question of that section is answered; if the change has no such open question, it stays until the extraction increment and the BA checks the request by hand. Export without --final to get a marked draft."
+`pending_marks` is the blocking count only; the extraction sections are reported apart. The draft banner reads "DRAFT — this is a working document, not a deliverable. Also, the request content is not yet extracted in §2, §4." The final export is refused (exit 4): `/export --final refused: 2 section(s) of the brief not yet extracted from the request (§2, §4).` Export without `--final` to get a marked draft.
 
 ```text
 change_id: CHG-001
-key: requirements
-title: Answer the change requirements
-text: CHG-001 has no open functional question where the requirements can be answered; the request brings them but Sentinel does not extract them on its own yet (coming in a later increment). Meanwhile the change stays at this step and the BA checks the request by hand.
-command: /resolve-gaps COMPRAS_ALTAS --source PATH --change CHG-001
+key: extract_inventory
+title: Inventory the request
+text: Run /extract COMPRAS_ALTAS --change CHG-001: Sentinel lists each rule, criterion, story, decision and section of the request of CHG-001; that inventory is the denominator of the coverage.
+command: /extract COMPRAS_ALTAS --change CHG-001
 ```
+
+From there the steps follow the extraction: `extract_proposals` (fill the worksheet, `/extract … --proposals FILE`), `extract_confirm` (`--confirm SECTION` or `--confirm all`; a flagged element is confirmed with `--confirm-item ID`), `extract_orphans` when an element left the request but its rows still stand (`--reject-item ID --reason "…"`), and `preserved` until each preserved surface has its UNCHANGED row. If Sentinel cannot read a registered request file, the step is `extract_unreadable`: load a readable copy with `/sources … --load FILE --role pedido --change CHG-001` and mark the unreadable one as superseded.
 </details>
 
 ### What you have now
 
-A change, `CHG-001`, with its own questions, a confirmed border (and a warning if it looks too big), a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion, a `VALID` verdict from `/validate --change` and `done` as the next step (`done` means the registered pieces are up to date; it does not measure how much of the request they cover). Every requirement, unit and story names the border surfaces it touches. The project's own epic and stories are exactly as they were.
+A change, `CHG-001`, with its own questions, a confirmed border (and a warning if it looks too big), a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion, a `VALID` verdict from `/validate --change` and `done` as the next step (`done` means the registered pieces are up to date, every element of the request is extracted and every preserved surface has its UNCHANGED row). Every requirement, unit and story names the border surfaces it touches. The project's own epic and stories are exactly as they were.
 
 **What this does not do yet.** The stories of a change are derived and traced, but nothing marks them as built: their status moves with `/story-status`, like any other story. Seven checks that only make sense for a whole project (the PRD ones and the one about backlog enablers) never apply to a change.
 
@@ -2395,7 +2397,7 @@ A change, `CHG-001`, with its own questions, a confirmed border (and a warning i
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/sources`, `/extract`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
@@ -2585,7 +2587,7 @@ Use `/resolve-gaps` for `### GAP-...` sections that someone answered. Use `/sync
 
 <details><summary>Command coverage map</summary>
 
-Where each of the 37 commands appears. "S" is the smaller situations. For flags, gates and outputs see the [command reference](01-command-reference.md).
+Where each of the 38 commands appears. "S" is the smaller situations. For flags, gates and outputs see the [command reference](01-command-reference.md).
 
 | Command | Scenario | Command | Scenario |
 | --- | --- | --- | --- |
@@ -2607,7 +2609,7 @@ Where each of the 37 commands appears. "S" is the smaller situations. For flags,
 | `/retrieve` | 3, S | `/validate` | 1, 4, 5 |
 | `/reindex` | 4, S | `/status` | 1, 2, 4, 5, 9 |
 | `/view` | 1, 5, 6 | `/next` | 1, 4, 9, 10 |
-| `/dashboard` | 8, S | | |
+| `/dashboard` | 8, S | `/extract` | 11 |
 
 Modes and flags, and where they appear: `/gaps --top` and `--disposition` (2, 9); `/scrutinize --lens` and `--mode anchors` (7); `/self-review --sufficiency` (2) and `--crosses` (S); `/sync --digest` (3) and `--analysis` (9); `/export --format interview` (1, 2) and `--final` (S); `--release rN` (5); `/prototype --inventory|--trace|--manual` (6); `/split --assess|--propose|--confirm|--move|--close` (5); `/context-request --id --status` (7, S); `/ingest --replace` (5); `/trace --reviewed` (4).
 

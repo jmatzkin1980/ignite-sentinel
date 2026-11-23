@@ -257,7 +257,15 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             section.mark(copy["extraction_left"].format(n=len(left), ids=ids, cite=inventory_cite))
             extraction_pending.append(number)
         elif not section.lines:
-            section.info(copy["extraction_none"].format(cite=inventory_cite))
+            home = [e["id"] for e in ext_elements if e.get("home") == number]
+            if not home:
+                section.info(copy["extraction_none"].format(cite=inventory_cite))
+            else:
+                # every element of this section is confirmed, none landed here: say where they went
+                discarded = all((ext_items.get(i) or {}).get("treatment") == "descarte" for i in home)
+                ids = ", ".join(home[:5]) + (", …" if len(home) > 5 else "")
+                section.info(copy["extraction_discarded" if discarded else "extraction_elsewhere"].format(
+                    n=len(home), ids=ids, cite=inventory_cite))
 
     def empty_note(section: _Section, number: int) -> None:
         if has_inventory:

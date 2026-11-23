@@ -21,7 +21,7 @@ from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
 from sentinel.pending_marks import count_pending_marks  # noqa: E402
 from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
-from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
+from sentinel.workspace import workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import load_baseline, set_change  # noqa: E402
 
@@ -92,22 +92,15 @@ class Mature(SnapshotWorkspaceCase):
         out = json.loads(run_ok(["export", "MAD", "--artifact", "brief", "--change", CID]))
         self.assertGreaterEqual(out["deferred_marks"], 2)
 
-    def test_next_not_done_with_pending_extraction(self):
-        # The request is not inventoried yet: whatever the later steps hold, the change is never "done" (IMP-402).
+    def test_lenses_done_next_is_an_extract_step(self):
+        # IMP-402: with the lenses closed the next steps are the extraction's, in order, never brief or done.
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "extract_inventory")
         self.assertEqual(s["command"], f"/extract MAD --change {CID}")
-        with patch("sentinel.change_requirements.load_change_ears", return_value=[{"delta": "ADDED"}]), \
-                patch("sentinel.change_requirements.parse_delta", return_value="ADDED"), \
-                patch("sentinel.compilers.change_backlog.specs_currency", return_value="current"), \
-                patch("sentinel.readiness_verdict._backlog_behind", return_value=False), \
-                patch("sentinel.change_validation.validate_change", return_value={"verdict": "VALID"}):
-            changes = read_json(workspace_path("MAD") / "state.json", {})["changes"]
-            changes[CID].update(specs={"x": 1}, backlog={"dropped_units": []})
-            update_state("MAD", changes=changes)
-            (workspace_path("MAD") / "03_specs" / CID).mkdir(parents=True, exist_ok=True)
-            (workspace_path("MAD") / "03_specs" / CID / "specs.md").write_text("x", encoding="utf-8")
-            self.assertEqual(change_next_step("MAD", CID)["key"], "extract_inventory")
+        run_ok(["extract", "MAD", "--change", CID])
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_proposals")
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --proposals PATH")
 
     def test_english_mature_brief_carries_english_mark(self):
         set_change("MAD", language="en")
@@ -276,7 +269,8 @@ class Borrador(SnapshotWorkspaceCase):
     def test_change_commands_of_the_new_steps(self):
         self.assertEqual(CHANGE_COMMANDS["done"], "")
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "extract_inventory", "extract_proposals", "extract_confirm", "preserved",
+            "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
 
 

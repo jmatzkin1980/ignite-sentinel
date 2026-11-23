@@ -104,6 +104,73 @@ class Parsing(unittest.TestCase):
         self.assertEqual([e["id"] for e in elements], ["SEC-intro"])
         self.assertEqual(elements[0]["spans"], [[3, 7]])
 
+    def test_indented_lines_continue_the_item(self):
+        text = (
+            "## Reglas de negocio\n"
+            "- RN-01: el CUIT del proveedor debe ser único.\n"
+            "  - un CUIT duplicado se rechaza.\n"
+            "  - el mensaje nombra al proveedor existente.\n"
+            "\n"
+            "    Aplica también a las altas importadas.\n"
+            "- RN-02: un alta rechazada conserva su motivo.\n"
+        )
+        elements = parse_request_elements(text, "F-01", "p.md")
+        self.assertEqual([e["id"] for e in elements], ["RN-01", "RN-02"])
+        self.assertEqual(elements[0]["spans"], [[2, 6]])
+        self.assertIn("altas importadas", elements[0]["excerpt"])
+
+    def test_paragraph_led_by_an_id_is_an_element(self):
+        text = (
+            "## Reglas de negocio\n"
+            "RN-01: el CUIT del proveedor debe ser único.\n"
+            "Un CUIT duplicado se rechaza.\n"
+            "\n"
+            "**RN-03.** Un alta rechazada conserva su motivo.\n"
+            "\n"
+            "Texto suelto de la sección.\n"
+        )
+        elements = parse_request_elements(text, "F-01", "p.md")
+        by_id = {e["id"]: e for e in elements}
+        self.assertEqual(sorted(by_id), ["RN-01", "RN-03", "SEC-reglas-de-negocio"])
+        self.assertEqual(by_id["RN-01"]["spans"], [[2, 3]])
+        self.assertEqual(by_id["RN-03"]["kind"], "rule")
+        self.assertEqual(by_id["SEC-reglas-de-negocio"]["spans"], [[7, 7]])
+
+    def test_several_h1_are_sections(self):
+        text = (
+            "# Reglas de negocio\n"
+            "- El CUIT del proveedor debe ser único.\n"
+            "- Un alta rechazada conserva su motivo.\n"
+            "# Criterios de aceptación\n"
+            "- Dado un CUIT registrado, cuando se envía el alta, entonces se rechaza.\n"
+        )
+        elements = parse_request_elements(text, "F-01", "p.md")
+        self.assertEqual([e["id"] for e in elements], ["REGLAS-1", "REGLAS-2", "CRITERIOS-1"])
+        self.assertEqual(elements[0]["section"], "Reglas de negocio")
+        # one H1 is still the title, neither a section nor text
+        single = parse_request_elements("# Pedido\n## Reglas\n- uno\n", "F-01", "p.md")
+        self.assertEqual([e["id"] for e in single], ["REGLAS-1"])
+
+    def test_criteria_inside_a_story_heading(self):
+        text = (
+            "### HU-01 Enviar un alta a aprobación\n"
+            "Como analista quiero enviar un alta a aprobación.\n"
+            "- CA-01: Dado un alta completa, cuando la envío, entonces queda pendiente.\n"
+            "- CA-02: Dado un alta incompleta, cuando la envío, entonces se rechaza.\n"
+            "- Nota sin id que sigue en la historia.\n"
+            "- HU-09 referencia del mismo tipo, no es aparte.\n"
+        )
+        elements = parse_request_elements(text, "F-01", "p.md")
+        by_id = {e["id"]: e for e in elements}
+        self.assertEqual(sorted(by_id), ["CA-01", "CA-02", "HU-01"])
+        self.assertEqual(by_id["CA-01"]["kind"], "criterion")
+        self.assertEqual(by_id["CA-02"]["spans"], [[4, 4]])
+        self.assertEqual(by_id["HU-01"]["spans"], [[1, 2], [5, 6]])
+        self.assertNotIn("Dado un alta", by_id["HU-01"]["excerpt"])
+        # without inner items of another kind the heading element is one span, as before
+        plain = parse_request_elements("### HU-03 Consultar\nComo auditor quiero consultar.\n\n", "F-01", "p.md")
+        self.assertEqual(plain[0]["spans"], [[1, 2]])
+
     def test_duplicate_ids(self):
         text = "## Reglas\n- RN-01: uno\n- RN-01: dos\n"
         self.assertEqual([e["id"] for e in parse_request_elements(text, "F-01", "p.md")], ["RN-01", "RN-01#2"])

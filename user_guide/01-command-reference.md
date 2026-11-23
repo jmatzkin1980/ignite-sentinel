@@ -182,7 +182,7 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 
 ## Command index
 
-All 37 commands, grouped by lifecycle stage. **Type** is from the command registry. **Release** means the command takes `--release rN`.
+All 38 commands, grouped by lifecycle stage. **Type** is from the command registry. **Release** means the command takes `--release rN`.
 
 | Stage | Command | Type | Release | What it does |
 |---|---|---|---|---|
@@ -1842,7 +1842,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 
 **You get.**
 
-- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, a strict gate blocks, or the brief v2 says "Ready to build: no"), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`. In a workspace that only has changes, the blockers list each pending change with its step (for example `CHG-001: scope. Cerrar el borde del cambio.`; never "Discovery has not run"), and when every change is done the verdict is `READY_WITH_WARNINGS` with the warning "Request coverage is not measured yet": Sentinel does not check that each rule and criterion of the request has its requirement.
+- `verdict`: `READY` (nothing blocks and every check ran), `READY_WITH_WARNINGS` (nothing blocks, but there are warnings or checks that could not run) or `NOT_READY` (a blocking gap is open, discovery has not run, a strict gate blocks, or the brief v2 says "Ready to build: no"), with `blockers`, `warnings`, `partial_coverage` and `gate_matrix`. In a workspace that only has changes, the blockers list each pending change with its step (for example `CHG-001: scope. Cerrar el borde del cambio.`; never "Discovery has not run"), and a change that is done adds no warning: `done` already means every element of the request is extracted (its coverage, "N of N", is in the change's step) and every preserved surface has its UNCHANGED row.
 - `ready_to_build`: the brief v2's own "Ready to build" line and whether it says yes (`null` for a v1 brief). The verdict never says ready while the brief says no.
 - `gap_counts`, `maturity_score`, the `sources` summary.
 - `next_step` and `next_action` (`key`, `title`, `text`, `command`).

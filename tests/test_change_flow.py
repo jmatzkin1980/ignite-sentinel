@@ -35,7 +35,8 @@ SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 20, 3
 # answers_ears.md: 2 event + 1 unwanted ADDED statements become units; 1 UNCHANGED statement is preserved, plus the
 # extraction's UNCHANGED row for the preserved surface (IMP-402).
 SPEC_UNITS, SPEC_PRESERVED, SPEC_BY_DELTA = 3, 2, {"ADDED": 3}
-# /backlog --change: one story per unit under the change's epic; the UNCHANGED rows are each story'sAC-d+-0[67] | pass-to-pass criteria.
+# /backlog --change: one story per unit under the change's epic; the UNCHANGED rows are each story's pass-to-pass criteria
+# (AC-NNN-06 the answer's row, AC-NNN-07 the extraction's).
 BACKLOG_STORIES, BACKLOG_EPIC, BACKLOG_PASS_TO_PASS = ["US-001", "US-002", "US-003"], "EPIC-CHG-001", ["REQ-EARS-001", "REQ-EARS-005"]
 # Seven lens gaps have a citable phrase in the synthetic baseline.
 BASELINE_CLOSED = {
@@ -129,10 +130,10 @@ class ChangeFlow(SnapshotWorkspaceCase):
         for story_id, unit in zip(BACKLOG_STORIES, specs_out["units"]):
             story_text = (backlog_dir / f"{story_id}.md").read_text(encoding="utf-8")
             self.assertEqual(parse_frontmatter(story_text)["source_unit"], unit)
-            pass_to_pass = re.findall(r"^\| AC-\d+-0[67] \| pass-to-pass \|.*$", story_text, flags=re.M)
-            self.assertEqual(len(pass_to_pass), len(BACKLOG_PASS_TO_PASS))
-            for row_id, row in zip(BACKLOG_PASS_TO_PASS, pass_to_pass):
-                self.assertIn(row_id, row)
+            pass_to_pass = dict(re.findall(r"^\| AC-\d+-(0[67]) \| pass-to-pass \|(.*)$", story_text, flags=re.M))
+            self.assertEqual(sorted(pass_to_pass), ["06", "07"])
+            self.assertIn("REQ-EARS-001", pass_to_pass["06"])  # the answer's UNCHANGED row
+            self.assertIn("REQ-EARS-005", pass_to_pass["07"])  # the extraction's UNCHANGED row
         self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
         # IMP-396: the finished change validates, has no pending step and raises no escalation warning.
         validate_out = json.loads(run_ok(["validate", "BORR", "--change", cid]))
@@ -148,6 +149,9 @@ class ChangeFlow(SnapshotWorkspaceCase):
         self.assertEqual(next_out["warnings"], [])
         final_brief = (workspace_path("BORR") / "02_requirements" / cid / "project-brief.md").read_text(encoding="utf-8")
         self.assertNotIn("PENDIENTE DE EXTRACCIÓN", final_brief)
+        # at `done` the compiled brief owes nothing to the extraction
+        report = json.loads((workspace_path("BORR") / "02_requirements" / cid / "change_brief_report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["extraction_pending"], [])
         self.assertIn(json.loads(run_ok(["doctor"]))["verdict"], {"PASS", "WARN"})
         status = json.loads(run_ok(["status", "BORR"]))
         self.assertEqual(status["project_id"], "BORR")

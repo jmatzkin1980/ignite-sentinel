@@ -12,14 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import IDS_SCOPE_ANSWER, run_ok  # noqa: E402
 
+from sentinel.change_requirements import load_change_ears  # noqa: E402
+
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 EXTRACTION = FIXTURES / "change_extraction"
 PID = "WALK"
 CID = "CHG-001"
-ACCEPTANCE_HEADING = "## Criterios de aceptación\n"
-# The lens round reads the body of the request, not its headings: one line under the heading keeps GAP-ACCEPTANCE closed
-# by the request itself, so the ids fixture (shared with the other extraction tests) stays untouched.
-ACCEPTANCE_LINE = "Criterios de aceptación del cambio, por cada regla:\n"
 
 
 def cli(*argv: str) -> dict:
@@ -34,6 +32,14 @@ def next_step() -> dict:
     return cli("next", PID, "--change", CID)
 
 
+def brief_section(brief: str, number: int) -> str:
+    """The text of one numbered section of the change brief, up to the next `## ` heading."""
+    lines = brief.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(f"## {number}."))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return "\n".join(lines[start:end])
+
+
 class ExtractionWalk(unittest.TestCase):
     def setUp(self):
         self.old = Path.cwd()
@@ -46,9 +52,7 @@ class ExtractionWalk(unittest.TestCase):
 
     def test_walk(self):
         root = Path(self.folder)
-        pedido = (EXTRACTION / "pedido_ids.md").read_text(encoding="utf-8")
-        self.assertIn(ACCEPTANCE_HEADING, pedido)
-        (root / "pedido.md").write_text(pedido.replace(ACCEPTANCE_HEADING, ACCEPTANCE_HEADING + ACCEPTANCE_LINE), encoding="utf-8")
+        shutil.copy(EXTRACTION / "pedido_ids.md", root / "pedido.md")
         (root / "scope.md").write_text(IDS_SCOPE_ANSWER, encoding="utf-8")
 
         # 1. a mature request: scope answered, baseline loaded, no blocking gap left
@@ -57,6 +61,10 @@ class ExtractionWalk(unittest.TestCase):
         run_ok(["resolve-gaps", PID, "--source", "scope.md", "--change", CID])
         run_ok(["sources", PID, "--load", str(FIXTURES / "change_baseline" / "sad-compras.md"),
                 "--role", "linea_de_base", "--change", CID])
+
+        # the request itemizes its acceptance criteria: the lens round does not ask for them
+        gaps = next((Path("workspaces") / PID).rglob(f"{CID}/gaps.md")).read_text(encoding="utf-8")
+        self.assertNotIn("GAP-ACCEPTANCE", gaps)
 
         # 2. inventory is the next step
         self.assertEqual(next_step()["key"], "extract_inventory")
@@ -74,7 +82,7 @@ class ExtractionWalk(unittest.TestCase):
         self.assertEqual(len(result["recorded"]), 20)
         self.assertNotIn("CA-05", result["recorded"])
         self.assertNotIn("RN-01", result["recorded"])
-        self.assertIn("CA-05", json.dumps(result["rejected"]))
+        self.assertIn("CA-05", result["rejected"])
         self.assertIn("la cita no aparece literal", json.dumps(result["rejected"], ensure_ascii=False))  # quote_not_found
         self.assertEqual(result["flagged"], ["RN-04"])
         step = next_step()
@@ -126,7 +134,9 @@ class ExtractionWalk(unittest.TestCase):
         run_ok(["brief", PID, "--change", CID])
         base = Path("workspaces") / PID
         brief = next(base.rglob("project-brief.md")).read_text(encoding="utf-8")
-        self.assertIn("la jefatura aprueba las altas de monto alto dentro del sistema", brief)
+        self.assertIn("la jefatura aprueba las altas de monto alto dentro del sistema", brief_section(brief, 2))
+        self.assertIn("RN-04", brief_section(brief, 9))
+        self.assertIn("la jefa de Compras lo resuelve fuera de este cambio", brief_section(brief, 9))
         self.assertNotIn("PENDIENTE DE EXTRACCIÓN", brief)
         self.assertIn("Cobertura de la extracción: 22 de 22", brief)
         report = json.loads(next(base.rglob("change_brief_report.json")).read_text(encoding="utf-8"))
@@ -139,18 +149,19 @@ class ExtractionWalk(unittest.TestCase):
         self.assertEqual(len(rows), 9, requirements)
         self.assertEqual(sum("UNCHANGED" in r for r in rows), 2)
         self.assertEqual(sum("UNCHANGED" not in r for r in rows), 7)
-        rn02 = [r for r in rows if "EXT:RN-02" in r]
+        rn02 = [r for r in load_change_ears(PID, CID) if "EXT:RN-02" in r["source"]]
         self.assertEqual(len(rn02), 2)
-        self.assertNotEqual(rn02[0], rn02[1])
+        self.assertEqual([len(r["surfaces"]) for r in rn02], [1, 1])
+        self.assertEqual({r["surfaces"][0] for r in rn02}, {"Aprobación por monto", "Tabla de proveedores"})
 
         # 12. specs and backlog carry the preserved rows as pass-to-pass
         run_ok(["specs", PID, "--change", CID])
         run_ok(["backlog", PID, "--change", CID])
-        validation = run_ok(["validate", PID, "--change", CID])
-        self.assertIn("VALID", validation)
+        validation = cli("validate", PID, "--change", CID)
+        self.assertEqual(validation["verdict"], "VALID")
         unchanged_ids = [r.split("|")[1].strip() for r in rows if "UNCHANGED" in r]
         self.assertEqual(len(unchanged_ids), 2)
-        stories = sorted(base.rglob("US-*.md")) or sorted(p for p in base.rglob("*.md") if "backlog" in str(p).lower())
+        stories = sorted((base / "04_backlog").glob("US-*.md"))
         self.assertTrue(stories)
         for story in stories:
             p2p = [line for line in story.read_text(encoding="utf-8").splitlines()

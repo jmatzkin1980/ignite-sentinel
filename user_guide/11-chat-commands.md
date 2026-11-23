@@ -24,7 +24,7 @@ When something is waiting on you, the agent closes with one question and a few o
 | Terminal | `python -m sentinel /init ACME_PORTAL` | The Python package | `.\installers\sentinel.ps1 /init ACME_PORTAL` or `sh installers/sentinel.sh /init ACME_PORTAL` when `python` is missing | [Install](06-installation-vscode.md#path-e-terminal-only-no-agent) |
 | MCP client | Call the tool `sentinel_init` with `project_id` | `python -m sentinel.mcp` (clone, needs `.[mcp]`) or the `ignite-sentinel-mcp` plugin | Not applicable | [MCP](#mcp) below |
 
-All surfaces run the same 37 commands. The full list with flags is in the [command reference](01-command-reference.md).
+All surfaces run the same 38 commands. The full list with flags is in the [command reference](01-command-reference.md).
 
 ## Claude Code
 

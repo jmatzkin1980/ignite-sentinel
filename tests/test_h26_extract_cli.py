@@ -30,8 +30,21 @@ class ExtractCli(ProposalsCase):
             self.assertNotIn("\n", result["message"])
         self.assertIn("elementos inventariados", inventory["message"])
         self.assertIn("propuesta(s) registrada(s)", proposals["message"])
+        self.assertIn("0 sin cambios (siguen confirmadas), 0 sin tratamiento", proposals["message"])
         self.assertIn("retenida(s) por marca", confirmed["message"])
         self.assertEqual(rejected["message"], f"{CID}: HU-01 volvió a pendiente")
+
+    def test_cli_confirm_item_on_a_held_item(self):
+        run_ok(["extract", PID, "--change", CID, "--proposals", str(EXAMPLE)])
+        bulk = json.loads(run_ok(["extract", PID, "--change", CID, "--confirm", "all"]))
+        self.assertEqual(bulk["held"], ["RN-04"])
+        self.assertIn("0 ya no válida(s)", bulk["message"])
+        single = json.loads(run_ok(["extract", PID, "--change", CID, "--confirm-item", "RN-04"]))
+        self.assertEqual(single["action"], "confirm")
+        self.assertEqual((single["confirmed"], single["held"]), (["RN-04"], []))
+        self.assertTrue(single["rows_added"])
+        self.assertIn(f"{CID}: 1 confirmada(s), 0 retenida(s) por marca", single["message"])
+        self.assertEqual(single["coverage"]["proposed"], 0)
 
     def test_cli_rejects_combinations(self):
         for argv in (

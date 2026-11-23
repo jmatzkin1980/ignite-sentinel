@@ -43,6 +43,11 @@ def run_extract(
         result = _reject_item(project_id, change_id, reject_item, reason or "")
     else:
         result = build_inventory(project_id, change_id)
+        from ..core.paths import workspace_path
+        from .proposals import _proposals_path, write_review
+
+        if _proposals_path(workspace_path(project_id), change_id).exists():
+            write_review(project_id, change_id)  # stale and orphan elements show up in the review at once
     coverage = extraction_coverage(project_id, change_id)
     action = result.get("action")
     if action == "inventory":
@@ -56,18 +61,23 @@ def run_extract(
         )
     elif action == "proposals":
         n, r, f = len(result["recorded"]), len(result["rejected"]), len(result["flagged"])
+        u, s = len(result.get("unchanged", [])), len(result.get("skipped", []))
         message = (
-            f"{change_id}: {n} propuesta(s) registrada(s), {r} rechazada(s), {f} marcada(s)" if es
-            else f"{change_id}: {n} proposal(s) recorded, {r} rejected, {f} flagged"
+            f"{change_id}: {n} propuesta(s) registrada(s), {r} rechazada(s), {f} marcada(s), "
+            f"{u} sin cambios (siguen confirmadas), {s} sin tratamiento" if es
+            else f"{change_id}: {n} proposal(s) recorded, {r} rejected, {f} flagged, "
+            f"{u} unchanged (still confirmed), {s} without treatment"
         )
     elif action == "confirm":
-        n, h = len(result["confirmed"]), len(result["held"])
+        n, h, i = len(result["confirmed"]), len(result["held"]), len(result.get("invalid", {}))
         message = (
-            f"{change_id}: {n} confirmada(s), {h} retenida(s) por marca; cobertura {coverage['text']}" if es
-            else f"{change_id}: {n} confirmed, {h} held by flag; coverage {coverage['text']}"
+            f"{change_id}: {n} confirmada(s), {h} retenida(s) por marca, {i} ya no válida(s); cobertura {coverage['text']}" if es
+            else f"{change_id}: {n} confirmed, {h} held by flag, {i} no longer valid; coverage {coverage['text']}"
         )
-    else:
+    elif action == "reject":
         message = f"{change_id}: {reject_item} volvió a pendiente" if es else f"{change_id}: {reject_item} back to pending"
+    else:
+        message = f"{change_id}: {action}"
     result["coverage"] = coverage
     result["next_step"] = change_next_step(project_id, change_id)
     result["message"] = message

@@ -138,11 +138,10 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         partial.append({"check": "release", "reason": f"Release {release} was named outside its scope; run the command with --release {release} for a verdict over that release's brief and backlog. This verdict covers the whole workspace."})
 
     if change_only and overview is not None:
+        # IMP-402: `done` means the request is fully extracted (its coverage is in the change's step), so a done
+        # change adds no warning; a pending one blocks with its step
         pending = [item for item in overview if item["next_step"]["key"] != "done"]
         blockers[:0] = [_change_blocker(project_id, item) for item in pending]
-        if not pending:
-            # existing value on purpose (views switch on it): the pieces are up to date, the request coverage is not measured
-            warnings.append(COVERAGE_NOT_MEASURED)
 
     if blockers:
         verdict = "NOT_READY"
@@ -180,10 +179,6 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
             # a change-only workspace has no project to ingest or write a PRD for: the next step is the change's
             result["next_step"] = _first_change_step(result["changes"])
     return result
-
-
-COVERAGE_NOT_MEASURED = ("Request coverage is not measured yet: the registered pieces of the changes are up to date, "
-                         "but Sentinel does not check that each rule and criterion of the request has its requirement or its discard.")
 
 
 def _active_release() -> str | None:
@@ -366,6 +361,11 @@ CHANGE_TEXT = {
         "extract_inventory_stale": ("Reinventariar el pedido",
                                     "El pedido de {cid} cambió desde el inventario: corré /extract {pid} --change {cid}. "
                                     "Los elementos que no cambiaron conservan su propuesta; los que cambiaron quedan para volver a proponer."),
+        "extract_unreadable": ("Cargar una copia legible del pedido",
+                               "Sentinel no pudo leer {unreadable} (pedido de {cid}): sin su texto no hay inventario ni cobertura de esa parte. "
+                               "Cargá una copia legible (Markdown o texto) con /sources {pid} --load ARCHIVO --role pedido --change {cid}, "
+                               "marcá la ilegible como superada (/sources {pid} --id {first_unreadable} --superseded-by F-NN --reason \"…\") "
+                               "y corré /extract {pid} --change {cid}."),
         "extract_proposals": ("Proponer el tratamiento de cada elemento",
                               "{pending} de {total} elementos del pedido de {cid} no tienen propuesta. Copiá "
                               "`02_requirements/{cid}/extraction/proposals_template.md` fuera de 02_requirements, completá por elemento "
@@ -376,10 +376,21 @@ CHANGE_TEXT = {
                             "`02_requirements/{cid}/extraction/review.md`; confirmá por sección con /extract {pid} --change {cid} "
                             "--confirm SECCION, o todo lo no marcado con --confirm all. Lo marcado se confirma uno por uno con "
                             "--confirm-item ID o se rechaza con --reject-item ID --reason TEXTO."),
+        "extract_confirm_flagged": ("Confirmar una por una lo marcado",
+                                    "Las {proposed} propuesta(s) que quedan en {cid} están marcadas ({items}) y --confirm no las toma en bloque. "
+                                    "Revisá `02_requirements/{cid}/extraction/review.md` y confirmá cada una con /extract {pid} --change {cid} "
+                                    "--confirm-item ID, o rechazala con --reject-item ID --reason TEXTO."),
+        "extract_orphans": ("Sacar los elementos huérfanos",
+                            "Estos elementos ya no están en el pedido de {cid} pero sus filas EARS siguen en pie: {orphans}. "
+                            "Sacá cada uno con /extract {pid} --change {cid} --reject-item ID --reason \"…\": sus filas quedan reemplazadas."),
         "preserved": ("Cubrir lo preservado",
                       "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. Cada una necesita al menos un "
                       "requisito UNCHANGED, que pasa a ser un criterio pass-to-pass: proponelo en la extracción o respondelo en una "
                       "pregunta con Delta UNCHANGED y Superficie."),
+        "preserved_answer": ("Cubrir lo preservado",
+                             "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. El pedido no trae elementos "
+                             "que citar, así que respondé una pregunta EARS del cambio ({ids}) con un requisito Delta UNCHANGED y su "
+                             "Superficie, y corré /resolve-gaps {pid} --source ARCHIVO --change {cid}."),
         "requirements": ("Responder los requisitos del cambio",
                          "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps "
                          "o proponé los requisitos desde la extracción (/extract {pid} --change {cid} --proposals ARCHIVO)."),
@@ -411,6 +422,11 @@ CHANGE_TEXT = {
         "extract_inventory_stale": ("Re-inventory the request",
                                     "The request of {cid} changed since the inventory: run /extract {pid} --change {cid}. "
                                     "Elements that did not change keep their proposal; the ones that changed are left to propose again."),
+        "extract_unreadable": ("Load a readable copy of the request",
+                               "Sentinel could not read {unreadable} (request of {cid}): without its text that part has no inventory and no coverage. "
+                               "Load a readable copy (Markdown or text) with /sources {pid} --load FILE --role pedido --change {cid}, "
+                               "mark the unreadable one as superseded (/sources {pid} --id {first_unreadable} --superseded-by F-NN --reason \"…\") "
+                               "and run /extract {pid} --change {cid}."),
         "extract_proposals": ("Propose the treatment of each element",
                               "{pending} of {total} request elements of {cid} have no proposal. Copy "
                               "`02_requirements/{cid}/extraction/proposals_template.md` outside 02_requirements, fill in per element "
@@ -421,10 +437,21 @@ CHANGE_TEXT = {
                             "`02_requirements/{cid}/extraction/review.md`; confirm by section with /extract {pid} --change {cid} "
                             "--confirm SECTION, or everything not flagged with --confirm all. Flagged ones are confirmed one by one with "
                             "--confirm-item ID or rejected with --reject-item ID --reason TEXT."),
+        "extract_confirm_flagged": ("Confirm the flagged ones one by one",
+                                    "The {proposed} proposal(s) left in {cid} are flagged ({items}) and --confirm does not take them in bulk. "
+                                    "Review `02_requirements/{cid}/extraction/review.md` and confirm each one with /extract {pid} --change {cid} "
+                                    "--confirm-item ID, or reject it with --reject-item ID --reason TEXT."),
+        "extract_orphans": ("Take out the orphan elements",
+                            "These elements are no longer in the request of {cid} but their EARS rows still stand: {orphans}. "
+                            "Take each one out with /extract {pid} --change {cid} --reject-item ID --reason \"…\": its rows are superseded."),
         "preserved": ("Cover what is preserved",
                       "These preserved surfaces of {cid} have no UNCHANGED row: {names}. Each needs at least one UNCHANGED "
                       "requirement, which becomes a pass-to-pass criterion: propose it in the extraction or answer it in a "
                       "question with Delta UNCHANGED and Surface."),
+        "preserved_answer": ("Cover what is preserved",
+                             "These preserved surfaces of {cid} have no UNCHANGED row: {names}. The request brings no elements to "
+                             "quote, so answer an EARS question of the change ({ids}) with a Delta UNCHANGED requirement and its "
+                             "Surface, and run /resolve-gaps {pid} --source FILE --change {cid}."),
         "requirements": ("Answer the change requirements",
                          "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps "
                          "or propose the requirements from the extraction (/extract {pid} --change {cid} --proposals FILE)."),
@@ -443,9 +470,13 @@ CHANGE_COMMANDS = {
     "baseline": "/sources {pid} --load PATH --role linea_de_base --change {cid}",
     "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
     "extract_inventory": "/extract {pid} --change {cid}",
+    "extract_unreadable": "/sources {pid} --load PATH --role pedido --change {cid}",
     "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
     "extract_confirm": "/extract {pid} --change {cid} --confirm all",
+    "extract_confirm_flagged": "/extract {pid} --change {cid} --confirm-item {first_flagged}",
+    "extract_orphans": "/extract {pid} --change {cid} --reject-item {first_orphan} --reason \"...\"",
     "preserved": "/extract {pid} --change {cid} --proposals PATH",
+    "preserved_answer": "/resolve-gaps {pid} --source PATH --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
     "specs": "/specs {pid} --change {cid}",
@@ -474,10 +505,14 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     cover = extraction_coverage(project_id, change_id)
     if cover["state"] in ("missing", "stale"):
         return "extract_inventory"
+    if cover.get("unreadable"):
+        return "extract_unreadable"
     if cover["pending"] > 0:
         return "extract_proposals"
     if cover["proposed"] > 0:
         return "extract_confirm"
+    if cover.get("orphans"):
+        return "extract_orphans"
     if preserved_coverage(project_id, change_id)["missing"]:
         return "preserved"
     if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
@@ -565,14 +600,19 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
     base = workspace_path(project_id)
     stale = key == "brief" and (base / "02_requirements" / change_id / "project-brief.md").is_file()
-    ears_gaps = _open_ears_gaps(base, change_id) if key == "requirements" else []
+    ears_gaps = _open_ears_gaps(base, change_id) if key in ("requirements", "preserved") else []
     text_key = "brief_stale" if stale else key
     if key == "requirements" and not ears_gaps:
         text_key = "requirements_none"
     cover = extraction_coverage(project_id, change_id)
     if key == "extract_inventory" and cover["state"] == "stale":
         text_key = "extract_inventory_stale"
+    if key == "extract_confirm" and cover["proposed"] == cover["flagged"]:
+        text_key = "extract_confirm_flagged"  # `--confirm all` would hold every one of them again
+    if key == "preserved" and cover["total"] == 0:
+        text_key = "preserved_answer"  # nothing in the request to quote: the UNCHANGED row comes from an answer
     title, text = texts[text_key]
+    orphans = cover.get("orphans", []) if key == "extract_orphans" else []
     ctx = {
         "cid": change_id, "pid": project_id,
         "ids": ", ".join(ears_gaps),
@@ -581,8 +621,15 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "total": cover["total"], "pending": cover["pending"], "proposed": cover["proposed"],
         "flagged": cover["flagged"], "coverage": cover["text"],
         "names": ", ".join(preserved_coverage(project_id, change_id)["missing"]) if key == "preserved" else "",
+        "unreadable": ", ".join(cover.get("unreadable", [])), "first_unreadable": (cover.get("unreadable") or ["F-NN"])[0],
+        "items": ", ".join(cover.get("flagged_ids", [])), "first_flagged": (cover.get("flagged_ids") or ["ID"])[0],
+        "orphans": "; ".join(f"{o['id']} ({', '.join(o['rows'])})" for o in orphans),
+        "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
-    command_key = "extract_proposals" if text_key == "requirements_none" else key
+    if text_key == "preserved_answer":
+        ctx["ids"] = ", ".join(ears_gaps) or "GAP-ACCEPTANCE"
+    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer") else key
+    command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}
 

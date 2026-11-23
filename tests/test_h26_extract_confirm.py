@@ -167,7 +167,12 @@ class Confirming(ProposalsCase):
         self.assertEqual((result["rows_added"], len(self.rows())), ([], before))
         self.assertEqual(self.items()["RN-04"]["status"], "proposed")
 
+    def open_acceptance(self) -> None:
+        """The request itemizes its criteria, so the lens round does not open GAP-ACCEPTANCE: open it by hand."""
+        self.open_gap("GAP-ACCEPTANCE", "Falta el criterio del alta guardada incompleta")
+
     def test_gap_rows_untouched(self):
+        self.open_acceptance()
         self.resolve("acceptance.md", ACCEPTANCE_ANSWER)
         before = self.rows()
         self.assertEqual(len(before), 1)
@@ -187,6 +192,7 @@ class Confirming(ProposalsCase):
         self.assertNotIn("/resolve-gaps", detail)
 
     def test_validate_keeps_gap_rows_on_resolve_gaps(self):
+        self.open_acceptance()
         self.resolve("acceptance.md", ACCEPTANCE_ANSWER)
         self.resolve("scope2.md", SCOPE_WITHOUT_RULE.replace("  - adyacente | dato | Tabla de proveedores\n", ""))
         detail = next(c["detail"] for c in validate_change(PID, CID)["checks"] if c["id"] == "rows_have_surfaces")

@@ -19,7 +19,8 @@ def element_flags(
 ) -> list[dict]:
     flags: list[dict] = [dict(flag) for flag in agent_flags]
     squashed_quote = _squash(quote or "")
-    token = re.compile(r"(?<![\w-])" + re.escape(element_id) + r"(?![\w-])")
+    # `RN-1` is not inside `RN-1.2` (a dot followed by a word character continues the id)
+    token = re.compile(r"(?<![\w-])" + re.escape(element_id) + r"(?![\w-])(?!\.\w)")
     for gap in open_gaps:
         if str(gap.get("status", "OPEN")).strip().upper() == "CLOSED":
             continue
