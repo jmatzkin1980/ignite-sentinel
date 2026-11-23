@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-11-22
+
 ### Added
 
 - **Sources by role in a change (IMP-400).** `/sources PROJECT_ID --load PATH --role pedido|linea_de_base|plan_previo|diseno_nuevo [--change CHG-NNN]` registers a document with the role it plays (folders `00_raw/06_baseline`, `07_prior_plan`, `08_new_design`, `09_request`); `--id F-NN --role ROLE` corrects a role and `--change CHG-NNN --no-baseline --reason TEXT` waives the baseline. The MCP tool `sentinel_sources` takes `load`, `role`, `change` and `no_baseline`.
