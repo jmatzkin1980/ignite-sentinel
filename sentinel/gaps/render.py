@@ -257,9 +257,13 @@ This table is kept for Sentinel traceability and automated processing.
 """
 
 
+# IMP-404: the gaps a cross-read opens carry their own question with its options.
+CROSS_GAP_PREFIXES = ("GAP-DIS-", "GAP-SRD-", "GAP-SED-", "GAP-CON-")
+
+
 def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
     mention = str(gap.get("evidence_mention", "")).strip()
-    if not mention:
+    if not mention or str(gap.get("id", "")).startswith(CROSS_GAP_PREFIXES):
         return ""
     if language == "es":
         notes = {
@@ -290,7 +294,7 @@ def evidence_note_for_gap(gap: dict[str, str], language: str = "en") -> str:
 
 def candidate_options_for_gap(gap: dict[str, str], language: str = "en") -> list[dict[str, str]]:
     """Return cited, non-selected answer candidates for gaps with local evidence."""
-    if gap.get("status", "OPEN") == "CLOSED":
+    if gap.get("status", "OPEN") == "CLOSED" or str(gap.get("id", "")).startswith(CROSS_GAP_PREFIXES):
         return []
     mention = str(gap.get("evidence_mention", "")).strip()
     if not mention or mention.upper() == "N/A":

@@ -13,6 +13,15 @@ from ..gaps import parse_gap_rows
 from ..harvest import load_harvest
 
 
+# IMP-404: the gaps a cross-read opens quote the request: the element that holds the quote is flagged.
+CROSS_FLAG_PREFIXES = {"GAP-DIS-": "divergencia", "GAP-SRD-": "sin_respaldo", "GAP-CON-": "contradiccion"}
+MIN_CROSS_MENTION = 20
+
+
+def _cross_kind(gap_id: str) -> str | None:
+    return next((kind for prefix, kind in CROSS_FLAG_PREFIXES.items() if gap_id.startswith(prefix)), None)
+
+
 def element_flags(
     element_id: str, element_text: str, quote: str, agent_flags: list[dict],
     open_gaps: list[dict], harvest_entries: list[dict],
@@ -21,15 +30,21 @@ def element_flags(
     squashed_quote = _squash(quote or "")
     # `RN-1` is not inside `RN-1.2` (a dot followed by a word character continues the id)
     token = re.compile(r"(?<![\w-])" + re.escape(element_id) + r"(?![\w-])(?!\.\w)")
+    flat_element = _squash(element_text or "")
     for gap in open_gaps:
         if str(gap.get("status", "OPEN")).strip().upper() == "CLOSED":
             continue
         description = str(gap.get("description", ""))
+        gap_id = str(gap.get("id", ""))
+        cross_kind = _cross_kind(gap_id)
         if token.search(description) or (squashed_quote and squashed_quote in _squash(description)):
-            gap_id = str(gap.get("id", ""))
-            kind = "divergencia" if gap_id.startswith(("GAP-HRV-", "GAP-VER-")) else "pregunta_abierta"
+            kind = cross_kind or ("divergencia" if gap_id.startswith(("GAP-HRV-", "GAP-VER-")) else "pregunta_abierta")
             flags.append({"origin": "gap", "kind": kind, "ref": gap_id, "note": ""})
-    flat_element = _squash(element_text or "")
+        elif cross_kind:
+            mention = str(gap.get("evidence_mention", ""))
+            pieces = [_squash(piece) for piece in [*mention.split(" // "), mention]]
+            if any(len(piece) >= MIN_CROSS_MENTION and piece in flat_element for piece in pieces):
+                flags.append({"origin": "gap", "kind": cross_kind, "ref": gap_id, "note": ""})
     for entry in harvest_entries:
         if entry.get("kind") != "divergence":
             continue
