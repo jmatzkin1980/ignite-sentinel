@@ -1,6 +1,6 @@
 ---
 name: sentinel-command-router
-description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal. Also use it when the user hands over a document of a change and says what it is, so you load it with its role: "tengo el SAD y el relevamiento de lo construido" (línea de base), "este es el prototipo de lo nuevo" (diseño nuevo), "este es el brief del release anterior" (plan previo), "este es el pedido" (pedido). Not for interpreting a stage's results: the skill of that stage does it (for example sentinel-maturity or sentinel-views)."
+description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal. Also use it when the user hands over a document of a change and says what it is, so you load it with its role: 'tengo el SAD y el relevamiento de lo construido' (línea de base), 'este es el prototipo de lo nuevo' (diseño nuevo), 'este es el brief del release anterior' (plan previo), 'este es el pedido' (pedido). Not for interpreting a stage's results: the skill of that stage does it (for example sentinel-maturity or sentinel-views)."
 ---
 
 # Sentinel Command Router

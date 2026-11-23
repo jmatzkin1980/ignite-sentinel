@@ -11,9 +11,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
 
-from sentinel.changes import change_gaps_path  # noqa: E402
+from sentinel.changes import change_gaps_path, list_changes  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
-from sentinel.readiness_verdict import change_next_step  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 
@@ -52,6 +51,12 @@ class SourceRolesWalk(SnapshotWorkspaceCase):
         out = json.loads(run_ok(["resolve-gaps", PROJECT, "--source", name, "--change", CID]))
         return out["closure_findings"]
 
+    def next_key(self) -> str:
+        return json.loads(run_ok(["next", PROJECT, "--change", CID]))["key"]
+
+    def blocking_open(self) -> int:
+        return list_changes(PROJECT)[CID]["gap_counts"]["blocking_open"]
+
     def test_walk(self):
         # 1. The request, with its citations, opens the change.
         out = json.loads(run_ok(["ingest", PROJECT, "--source", "pedido.md", "--change"]))
@@ -62,7 +67,8 @@ class SourceRolesWalk(SnapshotWorkspaceCase):
         self.assertEqual(self.rows()["GAP-SCOPE"]["status"], "CLOSED")
 
         # 3. /next asks for the baseline before the lenses.
-        self.assertEqual(change_next_step(PROJECT, CID)["key"], "baseline")
+        self.assertEqual(self.next_key(), "baseline")
+        blocking_before = self.blocking_open()
 
         # 4. The loaded baseline is another version than the one the request cites: GAP-VER opens.
         loaded = json.loads(run_ok(["sources", PROJECT, "--load", str(VERSIONS / "sad-compras-v2.md"),
@@ -72,7 +78,8 @@ class SourceRolesWalk(SnapshotWorkspaceCase):
         ver_id = loaded["version_gaps"][0]
         self.assertTrue(re.fullmatch(r"GAP-VER-[0-9A-F]{6}", ver_id))
         self.assertEqual(self.rows()[ver_id]["status"], "OPEN")
-        self.assertNotEqual(change_next_step(PROJECT, CID)["key"], "baseline")
+        self.assertEqual(self.blocking_open(), blocking_before + 1)  # the GAP-VER blocks
+        self.assertNotEqual(self.next_key(), "baseline")
 
         # 5. The synthetic prototype is the design of what is new.
         proto = json.loads(run_ok(["sources", PROJECT, "--load", str(VERSIONS / "prototipo-alta.md"),
