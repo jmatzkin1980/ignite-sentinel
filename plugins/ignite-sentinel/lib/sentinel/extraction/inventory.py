@@ -399,7 +399,7 @@ def _stale_proposals(base: Path, change_id: str, elements: list[dict]) -> list[s
     data = read_json(path, None)
     if not isinstance(data, dict):
         return []
-    items = data.get("proposals", data)
+    items = data.get("items", data.get("proposals", data))  # proposals.json: {"items": {id: item}}
     if not isinstance(items, dict):
         return []
     by_id = {e["id"]: e["sha"] for e in elements}

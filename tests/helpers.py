@@ -35,6 +35,22 @@ def run_ok(argv: list[str]) -> str:
     return out
 
 
+IDS_SCOPE_ANSWER = "\n".join([
+    "### GAP-SCOPE",
+    "- Respuesta: El alta de proveedores con aprobación por monto.",
+    "- Borde:",
+    "  - nuevo | pantalla | Bandeja de aprobaciones",
+    "  - nuevo | regla | Aprobación por monto",
+    "  - adyacente | endpoint | Alta de proveedores",
+    "  - adyacente | dato | Tabla de proveedores",
+    "  - preservado | proceso | Alta de monto bajo",
+    "  - preservado | regla | Validación de CUIT",
+    "- Owner / fuente: Jefa de Compras",
+    "- Estado de decisión: confirmado",
+    "",
+])
+
+
 def gap_acceptance_answer(ears: str, evidence_label: str = "Evidence or reference") -> str:
     """A confirmed answer to GAP-ACCEPTANCE carrying the given EARS statement(s)."""
     return (
