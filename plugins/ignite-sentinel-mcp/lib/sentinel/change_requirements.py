@@ -203,16 +203,18 @@ def _split_file(text: str) -> tuple[list[str], list[str], list[str]]:
     return head, active, old
 
 
-def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,
-                          language: str = "es", record_id: str | None = None) -> dict[str, list[str]]:
-    """Reconcile the REQ-EARS rows of each (re)closed answer of a change.
+Statement = tuple[str, str, str, str, str]  # (statement, pattern, delta, affects cell, surface cell)
+Group = tuple[str, str, list[Statement]]  # (key `_row_gap` returns, Source cell, statements)
 
-    A row whose (gap, statement) is still produced keeps its id and takes the declared Delta in place;
-    a statement no longer produced moves to the Superseded table (its id is never reused); a new one
-    takes the next id. GAP-SCOPE (the border) is exempt.
+
+def _reconcile_groups(project_id: str, change_id: str, groups: list[Group], language: str = "es",
+                      record_id: str | None = None, lenses: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """Reconcile the REQ-EARS rows of each group (a gap, or an extracted element) of a change.
+
+    A row whose (key, statement) is still produced keeps its id and takes the declared Delta, Afecta and
+    Superficie in place; a statement no longer produced moves to the Superseded table (its id is never
+    reused); a new one takes the next id. An empty group supersedes every row of its key.
     """
-    from .gap_resolution import ears_statements
-
     base = workspace_path(project_id)
     path = change_requirements_path(base, change_id)
     result: dict[str, list[str]] = {"added": [], "delta_updated": [], "superseded": []}
@@ -220,33 +222,20 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
     original = path.read_text(encoding="utf-8") if exists else ""
     head, active, old = _split_file(original) if exists else ([], [], [])
     next_index = next_ears_index(base)
-    from .changes import get_change
-
-    border = get_change(project_id, change_id).get("border", []) or []
-    new_rows: list[tuple[str, dict, str, str, str, str, str]] = []
-    for gap in closed:
-        if gap["id"] == "GAP-SCOPE":
-            continue
-        answer = (gap.get("answer") or "").strip()
-        statements = ears_statements(answer)
-        delta = parse_delta(str(responses.get(gap["id"], {}).get("delta", "")))
-        if statements and not delta:
-            continue
-        affects = _affects_cell(
-            (parse_affects(str(responses.get(gap["id"], {}).get("affects", ""))) or []) if delta in _AFFECTING_DELTAS else []
-        )
-        surfaces = _surfaces_cell(parse_surfaces(str(responses.get(gap["id"], {}).get("surface", "")), border)[0])
-        produced: dict[str, tuple[str, str]] = {}
-        for statement, pattern in statements:
-            produced.setdefault(_cell(statement), (statement, pattern))
+    new_rows: list[tuple[str, str, str, str, str, str, str, str]] = []
+    for key_id, source_cell, statements in groups:
+        produced: dict[str, Statement] = {}
+        for entry in statements:
+            produced.setdefault(_cell(entry[0]), entry)
         matched: set[str] = set()
         for position, line in enumerate(active):
-            if _row_gap(line) != gap["id"]:
+            if _row_gap(line) != key_id:
                 continue
             cells = _padded(_row_cells(line))
             key = _cell(cells[3].replace(_ESCAPED_PIPE, "|"))
             if key in produced and key not in matched:
                 matched.add(key)
+                _, _, delta, affects, surfaces = produced[key]
                 if cells[2] != delta or cells[5] != affects or cells[6] != surfaces:
                     cells[2] = delta or cells[2]
                     cells[5] = affects
@@ -257,18 +246,16 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
                 active[position] = ""
                 old.append(line)
                 result["superseded"].append(cells[0])
-        for key, (statement, pattern) in produced.items():
+        for key, (statement, pattern, delta, affects, surfaces) in produced.items():
             if key not in matched:
-                new_rows.append((f"REQ-EARS-{next_index:03d}", gap, statement, pattern, str(delta), affects, surfaces))
+                new_rows.append((f"REQ-EARS-{next_index:03d}", key_id, source_cell, statement, pattern, delta, affects, surfaces))
                 next_index += 1
     active = [line for line in active if line]
-    for req_id, gap, statement, pattern, delta, affects, surfaces in new_rows:
-        active.append(
-            f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | `{gap['id']}` / `{change_id}` | {affects} | {_cell(surfaces)} |"
-        )
+    for req_id, key_id, source_cell, statement, pattern, delta, affects, surfaces in new_rows:
+        active.append(f"| {req_id} | {pattern} | {delta} | {_cell(statement)} | {source_cell} | {affects} | {_cell(surfaces)} |")
         node_id = add_node(
-            project_id, "REQ", "ears_requirement", path, f"{req_id} ({pattern}, {delta}) from {gap['id']}",
-            status="confirmed", domain=gap.get("lens", "product"),
+            project_id, "REQ", "ears_requirement", path, f"{req_id} ({pattern}, {delta}) from {key_id}",
+            status="confirmed", domain=(lenses or {}).get(key_id, "product"),
         )
         if record_id:
             add_edge(project_id, record_id, node_id, "normalizes")
@@ -290,6 +277,55 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
     path.parent.mkdir(parents=True, exist_ok=True)
     write_text(path, chr(10).join(lines))
     return result
+
+
+def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,
+                          language: str = "es", record_id: str | None = None) -> dict[str, list[str]]:
+    """Reconcile the REQ-EARS rows of each (re)closed answer of a change.
+
+    A row whose (gap, statement) is still produced keeps its id and takes the declared Delta in place;
+    a statement no longer produced moves to the Superseded table (its id is never reused); a new one
+    takes the next id. GAP-SCOPE (the border) is exempt.
+    """
+    from .changes import get_change
+    from .gap_resolution import ears_statements
+
+    border = get_change(project_id, change_id).get("border", []) or []
+    groups: list[Group] = []
+    lenses: dict[str, str] = {}
+    for gap in closed:
+        if gap["id"] == "GAP-SCOPE":
+            continue
+        answer = (gap.get("answer") or "").strip()
+        statements = ears_statements(answer)
+        delta = parse_delta(str(responses.get(gap["id"], {}).get("delta", "")))
+        if statements and not delta:
+            continue
+        affects = _affects_cell(
+            (parse_affects(str(responses.get(gap["id"], {}).get("affects", ""))) or []) if delta in _AFFECTING_DELTAS else []
+        )
+        surfaces = _surfaces_cell(parse_surfaces(str(responses.get(gap["id"], {}).get("surface", "")), border)[0])
+        groups.append((
+            gap["id"], f"`{gap['id']}` / `{change_id}`",
+            [(statement, pattern, str(delta), affects, surfaces) for statement, pattern in statements],
+        ))
+        lenses[gap["id"]] = gap.get("lens", "product")
+    return _reconcile_groups(project_id, change_id, groups, language, record_id, lenses)
+
+
+def reconcile_extraction_ears(project_id: str, change_id: str, element_id: str, statements: list[dict], cite: str,
+                              language: str = "es") -> dict[str, list[str]]:
+    """IMP-402: the rows of one extracted element; each statement carries its own Delta, Afecta and Superficie."""
+    entries: list[Statement] = [
+        (
+            str(s["text"]), str(s["pattern"]), str(s["delta"]),
+            _affects_cell(list(s.get("affects") or []) if s["delta"] in _AFFECTING_DELTAS else []),
+            _surfaces_cell(list(s.get("surfaces") or [])),
+        )
+        for s in statements
+    ]
+    group: Group = (f"EXT:{element_id}", f"`EXT:{element_id}` / `{cite}` / `{change_id}`", entries)
+    return _reconcile_groups(project_id, change_id, [group], language)
 
 
 def materialize_change_ears(project_id: str, change_id: str, closed: list[dict], responses: dict,

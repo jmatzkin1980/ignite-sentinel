@@ -1,0 +1,227 @@
+"""IMP-402 task 4: confirmation of proposals and materialization of what was confirmed.
+
+A proposal becomes real only here, by the BA's command: a requirement turns into EARS rows
+of the change (each statement with its own Delta, Surface and Affects), a section is kept in
+`extraction/sections.json` for the brief, a discard only changes state. A flagged element is
+held in bulk and confirmed one by one.
+"""
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import Any
+
+from ..change_requirements import load_change_ears, reconcile_extraction_ears
+from ..changes import change_language, get_change
+from ..core.io import write_json
+from ..core.paths import workspace_path
+from ..errors import GateRefusal, InputError
+from . import extraction_dir
+from .flags import refresh_flags
+from .inventory import _fold, element_text, inventory_state, load_inventory, section_slug
+from .proposals import _msg, _now, _proposals_path, load_proposals, validate_proposal, write_review
+
+_EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
+
+
+def sections_path(base: Path, change_id: str) -> Path:
+    return extraction_dir(base, change_id) / "sections.json"
+
+
+def _context(project_id: str, change_id: str) -> tuple[Path, dict, dict[str, dict], dict, str]:
+    change = get_change(project_id, change_id)
+    language = change_language(project_id, change)
+    if inventory_state(project_id, change_id) == "missing":
+        raise GateRefusal(
+            f"Corré /extract {project_id} --change {change_id} antes de confirmar: el inventario falta" if language == "es"
+            else f"Run /extract {project_id} --change {change_id} before confirming: the inventory is missing",
+            next_step=f"/extract {project_id} --change {change_id}",
+        )
+    base = workspace_path(project_id)
+    inventory = load_inventory(base, change_id) or {}
+    return base, inventory, {e["id"]: e for e in inventory.get("elements", [])}, change, language
+
+
+def _empty_result(action: str) -> dict[str, Any]:
+    return {
+        "action": action, "confirmed": [], "held": [], "invalid": {},
+        "rows_added": [], "rows_updated": [], "rows_superseded": [],
+    }
+
+
+def _no_pending(element_id: str, language: str) -> InputError:
+    return InputError(
+        f"{element_id} no tiene una propuesta pendiente de confirmar" if language == "es"
+        else f"{element_id} has no pending proposal to confirm"
+    )
+
+
+def _raw(item: dict) -> dict:
+    """The stored item as the block it came from, so `validate_proposal` can check it again."""
+    return {
+        "treatment": item.get("treatment", ""),
+        "quote": item.get("quote", ""),
+        "statements": [
+            {
+                "text": s.get("text", ""), "delta": s.get("delta") or "",
+                "surface": "; ".join(s.get("surfaces") or []), "affects": ", ".join(s.get("affects") or []),
+            }
+            for s in item.get("statements", []) or []
+        ],
+        "section": item.get("section") or "",
+        "text": item.get("text") or "",
+        "reason": item.get("reason") or "",
+        "flag": "", "flag_note": "", "errors": [],
+    }
+
+
+def _element_rows(project_id: str, change_id: str, element_id: str) -> list[str]:
+    rows = []
+    for row in load_change_ears(project_id, change_id):
+        found = _EXT_SOURCE.match(str(row.get("source", "")))
+        if found and found.group(1) == element_id:
+            rows.append(row["id"])
+    return rows
+
+
+def _merge(result: dict, rows: dict[str, list[str]]) -> None:
+    result["rows_added"].extend(rows.get("added", []))
+    result["rows_updated"].extend(rows.get("delta_updated", []))
+    result["rows_superseded"].extend(rows.get("superseded", []))
+
+
+def _try_confirm(
+    project_id: str, change_id: str, element: dict, item: dict, border: list[dict], language: str,
+    result: dict, force: bool,
+) -> None:
+    """Confirm one proposed item, or leave it held (flagged) or invalid (no longer valid)."""
+    element_id = element["id"]
+    base = workspace_path(project_id)
+    flags = refresh_flags(project_id, change_id, element_id, item)
+    item["flags"] = flags
+    if flags and not force:
+        result["held"].append(element_id)
+        return
+    body = element_text(base, element)
+    ctx = {"pid": project_id, "cid": change_id}
+    if item.get("element_sha") != element.get("sha"):
+        normalized, errors = None, [_msg("stale_element", language, id=element_id, **ctx)]
+    else:
+        normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx)
+    if normalized is None:
+        result["invalid"][element_id] = errors or [_msg("stale_element", language, id=element_id, **ctx)]
+        return
+    treatment = normalized["treatment"]
+    if treatment == "requisito":
+        statements = normalized["statements"]
+        item["statements"] = statements
+        cite = f"{element['source_id']}:{element['line']}"
+        _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, statements, cite, language))
+        item["rows"] = _element_rows(project_id, change_id, element_id)
+    else:
+        if treatment == "seccion":
+            item["section"], item["brief_section"] = normalized["section"], normalized["brief_section"]
+        if item.get("rows"):
+            # corrected from requirement to section or discard: its rows no longer stand
+            _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, [], "", language))
+            item["rows"] = []
+    item["status"] = "confirmed"
+    item["confirmed_at"] = _now()
+    result["confirmed"].append(element_id)
+
+
+def write_sections(project_id: str, change_id: str) -> Path:
+    """`extraction/sections.json` from the confirmed section items, in inventory order."""
+    base = workspace_path(project_id)
+    inventory = load_inventory(base, change_id) or {}
+    items = load_proposals(base, change_id)["items"]
+    entries = []
+    for element in inventory.get("elements", []):
+        item = items.get(element["id"])
+        if not item or item.get("status") != "confirmed" or item.get("treatment") != "seccion":
+            continue
+        entries.append({
+            "element": element["id"], "section": item.get("section"), "brief_section": item.get("brief_section"),
+            "text": item.get("text"), "quote": item.get("quote"), "path": element.get("path"),
+            "line": element.get("line"), "source_id": element.get("source_id"),
+        })
+    path = sections_path(base, change_id)
+    write_json(path, {"schema_version": 1, "change_id": change_id, "entries": entries})
+    return path
+
+
+def _finish(project_id: str, change_id: str, base: Path, store: dict, result: dict) -> dict:
+    write_json(_proposals_path(base, change_id), store)
+    if sections_path(base, change_id).exists() or any(
+        i.get("status") == "confirmed" and i.get("treatment") == "seccion" for i in store["items"].values()
+    ):
+        write_sections(project_id, change_id)
+    result["project_id"], result["change_id"] = project_id, change_id
+    result["review_path"] = str(write_review(project_id, change_id))
+    return result
+
+
+def _select(inventory: dict, section: str, language: str) -> list[dict]:
+    elements = inventory.get("elements", [])
+    wanted = str(section or "").strip()
+    if wanted.lower() == "all":
+        return list(elements)
+    headings = {e["section_slug"]: e["section"] for e in elements}
+    folded = _fold(wanted)
+    slug = next(
+        (s for s, heading in headings.items() if s == wanted or s == folded or _fold(heading) == folded or s == section_slug(wanted)),
+        None,
+    )
+    if slug is None:
+        listing = ", ".join(headings) or "—"
+        raise InputError(
+            f"Sección desconocida «{section}». Secciones del inventario: {listing} (o all)" if language == "es"
+            else f"Unknown section «{section}». Inventory sections: {listing} (or all)"
+        )
+    return [e for e in elements if e["section_slug"] == slug]
+
+
+def confirm_proposals(project_id: str, change_id: str, section: str) -> dict:
+    """Confirm every proposed item of a section (or `all`); flagged ones are held, invalid ones reported."""
+    base, inventory, _, change, language = _context(project_id, change_id)
+    selected = _select(inventory, section, language)
+    store = load_proposals(base, change_id)
+    result = _empty_result("confirm")
+    border = change.get("border", []) or []
+    for element in selected:
+        item = store["items"].get(element["id"])
+        if item and item.get("status") == "proposed":
+            _try_confirm(project_id, change_id, element, item, border, language, result, force=False)
+    return _finish(project_id, change_id, base, store, result)
+
+
+def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
+    """Confirm one proposed item, flagged or not."""
+    base, _, elements, change, language = _context(project_id, change_id)
+    store = load_proposals(base, change_id)
+    item = store["items"].get(element_id)
+    element = elements.get(element_id)
+    if item is None or element is None or item.get("status") != "proposed":
+        raise _no_pending(element_id, language)
+    result = _empty_result("confirm")
+    _try_confirm(project_id, change_id, element, item, change.get("border", []) or [], language, result, force=True)
+    return _finish(project_id, change_id, base, store, result)
+
+
+def reject_item(project_id: str, change_id: str, element_id: str, reason: str) -> dict:
+    """Take an item out (back to pending), keep the reason, and supersede the rows it had."""
+    base, _, _, _, language = _context(project_id, change_id)
+    if not str(reason or "").strip():
+        raise InputError(
+            "Rechazar necesita un motivo (--reason)" if language == "es" else "Rejecting needs a reason (--reason)"
+        )
+    store = load_proposals(base, change_id)
+    item = store["items"].get(element_id)
+    if item is None:
+        raise _no_pending(element_id, language)
+    result = _empty_result("reject")
+    if item.get("rows"):
+        _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, [], "", language))
+    del store["items"][element_id]
+    store["rejections"].append({"id": element_id, "reason": str(reason).strip(), "at": _now()})
+    return _finish(project_id, change_id, base, store, result)

@@ -22,6 +22,7 @@ TEXT = {
         "row_no_surface": "La fila {row} no declara superficie.",
         "row_unknown_surface": "La fila {row} nombra la superficie {surface}, que no está en el borde del cambio.",
         "rows_next": "/resolve-gaps {project} --source <respuestas> --change {change} — re-respondé {gap} con Superficie (una del borde).",
+        "rows_next_ext": "/extract {project} --change {change} --proposals <propuestas> — re-proponé {gap} con Superficie (una del borde).",
         "artifact_no_surface": "{artifact} no declara superficies.",
         "artifact_unknown_surface": "{artifact} nombra la superficie {surface}, que no está en el borde del cambio.",
         "border_next": "Corré /specs {project} --change {change} y /backlog {project} --change {change} para regenerarlos desde las filas.",
@@ -40,6 +41,7 @@ TEXT = {
         "row_no_surface": "Row {row} declares no surface.",
         "row_unknown_surface": "Row {row} names the surface {surface}, which is not in the change border.",
         "rows_next": "/resolve-gaps {project} --source <answers> --change {change} — answer {gap} again with a Surface (one of the border).",
+        "rows_next_ext": "/extract {project} --change {change} --proposals <proposals> — propose {gap} again with a Surface (one of the border).",
         "artifact_no_surface": "{artifact} declares no surfaces.",
         "artifact_unknown_surface": "{artifact} names the surface {surface}, which is not in the change border.",
         "border_next": "Run /specs {project} --change {change} and /backlog {project} --change {change} to regenerate them from the rows.",
@@ -70,8 +72,14 @@ def _change_stories(project_id: str, change_id: str) -> list[dict]:
     return stories
 
 
+_EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
+
+
 def _source_gap(row: dict) -> str:
-    """The gap a row came from (its Fuente cell carries `GAP-X`, or `file#GAP-X`)."""
+    """The gap a row came from (its Fuente cell carries `GAP-X`, or `file#GAP-X`); an `EXT:` row names its element."""
+    ext = _EXT_SOURCE.match(str(row.get("source", "")))
+    if ext:
+        return ext.group(1)
     found = re.search(r"GAP-[A-Z0-9-]+", str(row.get("source", "")))
     return found.group(0) if found else str(row["id"])
 
@@ -92,10 +100,10 @@ def validate_change(project_id: str, change_id: str) -> dict:
     checks: list[dict] = []
 
     def record(check_id: str, found: list, next_key: str) -> None:
-        # an item is a message, or (message, source gap) when the next step names the gap
+        # an item is a message, or (message, source gap, is an extraction row) when the next step names the gap
         found = [
-            f"{message} {text['next']}: {text[next_key].format(**ctx, gap=gap)}"
-            for message, gap in ((i, "") if isinstance(i, str) else i for i in found)
+            f"{message} {text['next']}: {text[next_key + '_ext' if ext else next_key].format(**ctx, gap=gap)}"
+            for message, gap, ext in ((i, "", False) if isinstance(i, str) else (i if len(i) == 3 else (*i, False)) for i in found)
         ]
         findings.extend(found)
         checks.append({"id": check_id, "status": "FAIL" if found else "PASS", "detail": "; ".join(found) or text["ok"]})
@@ -139,11 +147,12 @@ def validate_change(project_id: str, change_id: str) -> dict:
         for row in rows:
             surfaces = row.get("surfaces", [])
             gap = _source_gap(row)
+            ext = bool(_EXT_SOURCE.match(str(row.get("source", ""))))
             if not surfaces:
-                found.append((text["row_no_surface"].format(row=row["id"]), gap))
+                found.append((text["row_no_surface"].format(row=row["id"]), gap, ext))
             for surface in surfaces:
                 if parse_surfaces(surface, border)[1]:
-                    found.append((text["row_unknown_surface"].format(row=row["id"], surface=surface), gap))
+                    found.append((text["row_unknown_surface"].format(row=row["id"], surface=surface), gap, ext))
         record("rows_have_surfaces", found, "rows_next")
 
     # 4. stories_inside_border
