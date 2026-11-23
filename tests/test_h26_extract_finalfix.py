@@ -122,6 +122,7 @@ class Finalfix(ProposalsCase):
         readable.write_text("## Reglas\n- RN-01: El CUIT del proveedor debe ser único en el padrón.\n", encoding="utf-8")
         run_ok(["sources", PID, "--load", str(readable), "--role", "pedido", "--change", CID])
         run_ok(["sources", PID, "--id", "F-01", "--superseded-by", "F-02", "--reason", "copia ilegible"])
+        waive_crosses(PID, CID)  # a new request source makes the waived cross-reads stale (IMP-404)
         build_inventory(PID, CID)
         cover = extraction_coverage(PID, CID)
         self.assertEqual((cover["unreadable"], cover["total"]), ([], 1))

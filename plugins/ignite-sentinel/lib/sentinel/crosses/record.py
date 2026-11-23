@@ -6,6 +6,7 @@ A resubmission keeps the ids of the questions it repeats (exact id, never by top
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from ..errors import InputError
 from ..gaps import count_gaps, parse_gap_rows, render_gaps
 from ..workspace import update_state, workspace_path
 from . import cross_path, crosses_dir, normalize_kind
-from .claims import TAG_NAMES, parse_claims, validate_claims
+from .claims import TAG_NAMES, cross_sources, parse_claims, validate_claims
 from .state import write_cross_report
 
 
@@ -77,10 +78,10 @@ def _gap_texts(tag: str, claim: dict, es: bool) -> tuple[str, str]:
         qd = diseno[0]
         if es:
             return (f"Sólo en el diseño nuevo: el prototipo muestra {q(qd)} ({qd['source_id']}) y el pedido no lo menciona. {text}",
-                    "¿Entra en este cambio? Opciones: (A) entra: sumalo al borde y al pedido; "
+                    "¿Entra en este cambio? Opciones: (A) entra: sumalo al borde con /cross --accept-new este id --type TIPO --name NOMBRE y al pedido; "
                     "(B) no entra: el prototipo se adelanta; (C) ya existe en lo construido.")
         return (f"Only in the new design: the prototype shows {q(qd)} ({qd['source_id']}) and the request does not mention it. {text}",
-                "Does it belong in this change? Options: (A) it does: add it to the border and the request; "
+                "Does it belong in this change? Options: (A) it does: add it to the border with /cross --accept-new this id --type TYPE --name NAME, and to the request; "
                 "(B) it does not: the prototype is ahead; (C) it already exists in what is built.")
     first, second = pedido[0], pedido[1]
     if es:
@@ -132,6 +133,40 @@ def add_change_gaps(project_id: str, change_id: str, gaps: list[dict]) -> list[s
     return [g["id"] for g in added]
 
 
+def source_basis(project_id: str, change_id: str) -> dict[str, list[str]]:
+    """The current sources a cross-read had in front of it: the change's requests and the new-design prototypes."""
+    found = cross_sources(project_id, change_id)
+    return {side: sorted(found[side]) for side in ("pedido", "diseno")}
+
+
+def claims_hash(claims: list[dict], reason: str = "") -> str:
+    """What a delivery decided, apart from where it was filed: its tags, quotes and questions (and a waiver's reason)."""
+    shape = [[c["tag"], _squash(c["text"]), c.get("gap", ""),
+              [[x["side"], x["source_id"], _squash(x["quote"])] for x in c["citations"]]] for c in claims]
+    payload = json.dumps([shape, reason.strip()], ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def close_change_gap(project_id: str, change_id: str, gap_id: str, note: str) -> bool:
+    """Close one question of the change by its exact id, with the way it was settled."""
+    base = workspace_path(project_id)
+    path = change_gaps_path(base, change_id)
+    if not path.exists():
+        return False
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"]
+    hit = [g for g in rows if g.get("id") == gap_id]
+    if not hit:
+        return False
+    hit[0]["status"] = "CLOSED"
+    hit[0]["resolution_note"] = note
+    language = change_language(project_id, get_change(project_id, change_id))
+    write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
+    updated = {k: dict(v) for k, v in list_changes(project_id).items()}
+    updated[change_id]["gap_counts"] = count_gaps(rows)
+    update_state(project_id, changes=updated)
+    return True
+
+
 def load_cross(base: Path, change_id: str, kind: str) -> dict | None:
     data = read_json(cross_path(base, change_id, kind), None)
     return data if isinstance(data, dict) else None
@@ -163,7 +198,11 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
     claims_path = Path(claims_path)
     if not claims_path.is_file():
         raise CrossError(f"No existe el archivo de cruce: {claims_path}" if es else f"The cross-read file does not exist: {claims_path}")
-    raw = claims_path.read_text(encoding="utf-8")
+    try:
+        raw = claims_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise CrossError(f"El archivo de cruce no está en UTF-8 ({claims_path.name}): guardalo como UTF-8" if es
+                         else f"The cross-read file is not UTF-8 ({claims_path.name}): save it as UTF-8") from exc
     claims, errors = parse_claims(raw, language)
     if not errors:
         claims, errors = validate_claims(project_id, change_id, kind, claims)
@@ -201,7 +240,8 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
         "source_id": source_id, "submitted": target.relative_to(base).as_posix(),
         "claims": [{"n": index, "line": c["line"], "tag": c["tag"], "text": c["text"], "citations": c["citations"],
                     **({"gap": c["gap"]} if c.get("gap") else {})} for index, c in enumerate(claims, start=1)],
-        "counts": counts, "gaps": gap_ids,
+        "counts": counts, "gaps": gap_ids, "basis": source_basis(project_id, change_id),
+        "claims_hash": claims_hash(claims, reason=""),
         **({"dropped_gaps": list(dict.fromkeys(carried))} if carried else {}),
     }
     write_json(path, record)
@@ -223,14 +263,21 @@ def skip_cross(project_id: str, change_id: str, kind: str, reason: str) -> dict[
             "--skip necesita --reason con el porqué: sin motivo no hay descarte" if es
             else "--skip needs --reason with the why: no reason, no waiver",
             next_step=f'/cross {project_id} --change {change_id} --kind {kind} --skip --reason "…"')
+    from .state import cross_status
+
     base = workspace_path(project_id)
-    existing = load_cross(base, change_id, kind)
-    if (existing or {}).get("status") == "done" or (kind == "linea_de_base" and change.get("harvests")):
+    existing = load_cross(base, change_id, kind) or {}
+    current_done = existing.get("status") == "done" and cross_status(project_id, change_id)["kinds"][kind]["state"] != "stale"
+    if current_done or (kind == "linea_de_base" and change.get("harvests")):
         raise InputError(f"El cruce {kind} de {change_id} ya está hecho: no se descarta" if es
                          else f"The {kind} cross-read of {change_id} is already done: it is not waived")
     path = cross_path(base, change_id, kind)
+    # a stale cross that is waived keeps the questions it opened: they stay open until the BA closes them
+    earlier = [*(existing.get("gaps") or []), *(existing.get("dropped_gaps") or [])] if existing else []
     write_json(path, {"schema_version": 1, "change_id": change_id, "kind": kind, "status": "waived",
-                      "reason": reason.strip(), "waived_at": utc_now()})
+                      "reason": reason.strip(), "waived_at": utc_now(), "basis": source_basis(project_id, change_id),
+                      "claims_hash": claims_hash([], reason=reason),
+                      **({"dropped_gaps": list(dict.fromkeys(earlier))} if earlier else {})})
     report = write_cross_report(project_id, change_id)
     return {"project_id": project_id, "change_id": change_id, "action": "skip", "kind": kind,
             "reason": reason.strip(), "path": path.as_posix(), "report_path": report.as_posix()}

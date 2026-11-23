@@ -29,6 +29,8 @@ TAGS = {
     "CONTRADICCIÓN": "contradiccion",
     "CONTRADICCION": "contradiccion",
     "CONTRADICTION": "contradiccion",
+    "SIN HALLAZGOS": "sin_hallazgos",
+    "NOTHING FOUND": "sin_hallazgos",
 }
 
 TAG_NAMES = {
@@ -38,6 +40,7 @@ TAG_NAMES = {
         "solo_en_diseno": "SOLO EN DISEÑO",
         "divergencia": "DIVERGENCIA",
         "contradiccion": "CONTRADICCIÓN",
+        "sin_hallazgos": "SIN HALLAZGOS",
     },
     "en": {
         "respaldado": "BACKED",
@@ -45,12 +48,13 @@ TAG_NAMES = {
         "solo_en_diseno": "ONLY IN DESIGN",
         "divergencia": "DIVERGENCE",
         "contradiccion": "CONTRADICTION",
+        "sin_hallazgos": "NOTHING FOUND",
     },
 }
 
 KIND_TAGS = {
-    "diseno": ("respaldado", "sin_respaldo", "solo_en_diseno", "divergencia"),
-    "contradicciones": ("contradiccion",),
+    "diseno": ("respaldado", "sin_respaldo", "solo_en_diseno", "divergencia", "sin_hallazgos"),
+    "contradicciones": ("contradiccion", "sin_hallazgos"),
 }
 
 # tag -> (min pedido, max pedido, min diseno, max diseno); None = no cap
@@ -60,6 +64,7 @@ CITATION_RULES: dict[str, tuple[int, int | None, int, int | None]] = {
     "solo_en_diseno": (0, 0, 1, None),
     "divergencia": (1, 1, 1, 1),
     "contradiccion": (2, 2, 0, 0),
+    "sin_hallazgos": (0, 0, 0, 0),
 }
 
 _RULE_TEXT = {
@@ -69,6 +74,7 @@ _RULE_TEXT = {
         "solo_en_diseno": "al menos una cita Diseño y ninguna Pedido",
         "divergencia": "una cita Pedido y una Diseño",
         "contradiccion": "dos citas Pedido y ninguna Diseño",
+        "sin_hallazgos": "ninguna cita",
     },
     "en": {
         "respaldado": "one Request quote and at least one Design quote",
@@ -76,6 +82,7 @@ _RULE_TEXT = {
         "solo_en_diseno": "at least one Design quote and no Request quote",
         "divergencia": "one Request quote and one Design quote",
         "contradiccion": "two Request quotes and no Design quote",
+        "sin_hallazgos": "no quote",
     },
 }
 
@@ -86,10 +93,13 @@ MIN_REQUEST_QUOTE = MIN_BASELINE_QUOTE
 MIN_DESIGN_QUOTE = 8
 CONTEXT_LINES = 10
 
-_CLAIM_RE = re.compile(r"^ ?[-*]\s*\[(?P<tag>[^\]]+)\]\s*(?P<text>.+?)\s*$")
+_CLAIM_RE = re.compile(r"^ ?[-*]\s*(?:\*\*)?\[(?P<tag>[^\]]+)\](?:\*\*)?\s*(?P<text>.+?)\s*$")
+# a line that opens like a claim (bullet or number, then a bracket) but did not match the format above
+_CLAIMISH_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s*(?:\*\*)?\s*\[")
 _SIDE_WORDS = "Pedido|Request|Diseño|Diseno|Design"
 _CITE_RE = re.compile(
-    rf"^\s+[-*]\s*(?P<side>{_SIDE_WORDS})\s*:\s*(?P<source>F-\d+)\s+(?P<quote>\"[^\"]+\"|“[^”]+”)\s*$",
+    rf"^\s+[-*]\s*(?P<side>{_SIDE_WORDS})\s*:\s*(?P<source>F-\d+)\s+"
+    r"(?P<quote>\".+\"|“.+”|«.+»)\s*$",
     re.I,
 )
 _CITE_SHAPE_RE = re.compile(rf"^\s+[-*]\s*(?:{_SIDE_WORDS})\s*:", re.I)
@@ -98,6 +108,10 @@ _INDENTED = re.compile(r"^(?: {2,}|\t)")
 
 def _prefix(number: int, es: bool) -> str:
     return f"línea {number}: " if es else f"line {number}: "
+
+
+def _tag_list(es: bool) -> str:
+    return ", ".join(TAG_NAMES["es" if es else "en"].values())
 
 
 def parse_claims(text: str, language: str = "es") -> tuple[list[dict], list[str]]:
@@ -127,14 +141,21 @@ def parse_claims(text: str, language: str = "es") -> tuple[list[dict], list[str]
             continue
         if indented and _CITE_SHAPE_RE.match(line):
             errors.append(head + ("cita mal escrita: falta F-NN o la cita entre comillas" if es
-                                  else "malformed quote line: the F-NN or the quoted text is missing"))
+                                  else "malformed quote line: the F-NN or the quoted text is missing")
+                          + (" (comillas válidas: \"…\", “…” o «…»)" if es else " (valid quotes: \"…\", “…” or «…»)"))
             continue
         claim = None if indented else _CLAIM_RE.match(line)
+        if claim is None and _CLAIMISH_RE.match(line):
+            errors.append(head + (f"afirmación mal escrita: usá «- [ETIQUETA] texto» (etiquetas: {_tag_list(es)}): {line.strip()[:60]}" if es
+                                  else f"malformed claim: use «- [TAG] text» (tags: {_tag_list(es)}): {line.strip()[:60]}"))
+            invalid = True  # its quotes are not the previous claim's
+            continue
         if claim:
             tag_text = " ".join(claim.group("tag").split())
             tag = TAGS.get(tag_text.upper())
             if tag is None:
-                errors.append(head + (f"etiqueta desconocida [{tag_text}]" if es else f"unknown tag [{tag_text}]"))
+                errors.append(head + (f"etiqueta desconocida [{tag_text}]; etiquetas: {_tag_list(es)}" if es
+                                  else f"unknown tag [{tag_text}]; tags: {_tag_list(es)}"))
                 invalid = True
                 continue
             invalid = False
@@ -146,13 +167,27 @@ def parse_claims(text: str, language: str = "es") -> tuple[list[dict], list[str]
 
 _HIDDEN = re.compile(r"<script\b.*?</script\s*>|<style\b.*?</style\s*>|<!--.*?-->", re.I | re.S)
 _TAG = re.compile(r"<[^>]*>")
+_INLINE_TAG = re.compile(
+    r"</?(?:a|abbr|b|big|cite|code|em|font|i|kbd|mark|small|span|strong|sub|sup|u)\b[^>]*>", re.I)
+_ATTRIBUTE_TEXT = re.compile(
+    r"""\b(?:placeholder|alt|title|aria-label|value)\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+
+
+def visible_variants(text: str, suffix: str) -> list[str]:
+    """What a reader sees of an HTML file, in the readings a BA may copy it in: scripts, styles and comments gone,
+    attribute text (placeholder, alt, title, aria-label, value) added, and tags as spaces or, for inline tags, nothing."""
+    if suffix.lower() not in (".html", ".htm"):
+        return [text]
+    shown = _HIDDEN.sub(" ", text)
+    attributes = " ".join(a or b for a, b in _ATTRIBUTE_TEXT.findall(shown))
+    spaced = _TAG.sub(" ", shown)
+    joined = _TAG.sub(" ", _INLINE_TAG.sub("", shown))
+    return [html.unescape(f"{body} {attributes}") for body in (spaced, joined)]
 
 
 def visible_text(text: str, suffix: str) -> str:
     """What a reader sees: an HTML file without scripts, styles, comments and tags; other text as is."""
-    if suffix.lower() not in (".html", ".htm"):
-        return text
-    return html.unescape(_TAG.sub(" ", _HIDDEN.sub(" ", text)))
+    return visible_variants(text, suffix)[0]
 
 
 def locate_quote(text: str, suffix: str, quote: str) -> dict | None:
@@ -160,10 +195,15 @@ def locate_quote(text: str, suffix: str, quote: str) -> dict | None:
     needle = _squash(quote)
     if not needle:
         return None
-    start = _squash(visible_text(text, suffix)).find(needle)
+    start = -1
+    for variant in visible_variants(text, suffix):
+        start = _squash(variant).find(needle)
+        if start >= 0:
+            break
     if start < 0:
         return None
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
 
     def window(first: int, size: int) -> str:
         return _squash(" ".join(lines[first : first + size]))
@@ -199,6 +239,11 @@ def validate_claims(project_id: str, change_id: str, kind: str, claims: list[dic
     result: list[dict] = []
     names = TAG_NAMES["es" if es else "en"]
     allowed = KIND_TAGS.get(kind, ())
+    if len(claims) > 1 and any(c["tag"] == "sin_hallazgos" for c in claims):
+        first = next(c for c in claims if c["tag"] == "sin_hallazgos")
+        return [], [_prefix(int(first["line"]), es) + (
+            f"[{names['sin_hallazgos']}] va solo: un cruce sin hallazgos no trae otras afirmaciones" if es
+            else f"[{names['sin_hallazgos']}] stands alone: a cross-read with nothing found has no other claims")]
 
     for claim in claims:
         tag = claim["tag"]

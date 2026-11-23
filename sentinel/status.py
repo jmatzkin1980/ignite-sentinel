@@ -153,7 +153,9 @@ def _extraction_warnings(
         warnings.append({"trigger": "extraction_stale", "message": (
             f"{change_id}: el pedido cambió desde el inventario; corré {run}" if es
             else f"{change_id}: the request changed since the inventory; run {run}")})
-    elif not extraction["complete"]:
+    elif not extraction["complete"] and not (
+        extraction.get("orphans") and extraction["covered"] == extraction["total"] and not extraction.get("unreadable")
+    ):  # orphans alone have their own warning below: "covers N of N" would be a false report
         warnings.append({"trigger": "extraction_incomplete", "message": (
             f"{change_id}: la extracción cubre {extraction['text']}" if es
             else f"{change_id}: the extraction covers {extraction['text']}")})

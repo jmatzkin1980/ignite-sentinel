@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..changes import change_gaps_path, change_language, get_change
+from ..changes import _squash, change_gaps_path, change_language, get_change
 from ..core.io import read_json, write_text
 from ..gaps import parse_gap_rows
 from ..harvest import load_harvest
@@ -27,13 +27,16 @@ KIND_LABELS = {
     "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions"},
 }
 STATE_LABELS = {
-    "es": {"done": "hecho", "waived": "descartado", "missing": "falta", "stale": "desactualizado"},
-    "en": {"done": "done", "waived": "waived", "missing": "missing", "stale": "stale"},
+    "es": {"done": "hecho", "waived": "descartado", "missing": "falta", "stale": "desactualizado",
+           "no_aplica": "no aplica"},
+    "en": {"done": "done", "waived": "waived", "missing": "missing", "stale": "stale",
+           "no_aplica": "not applicable"},
 }
 
 
 def _empty(state: str) -> dict[str, Any]:
-    return {"state": state, "source_id": None, "counts": {}, "gaps": [], "reason": None, "stale_sources": []}
+    return {"state": state, "source_id": None, "counts": {}, "gaps": [], "reason": None, "stale_sources": [], "new_sources": [],
+            "claims_hash": ""}
 
 
 def _load(base: Path, change_id: str, kind: str) -> dict | None:
@@ -68,19 +71,27 @@ def cross_status(project_id: str, change_id: str) -> dict[str, Any]:
     kinds: dict[str, dict[str, Any]] = {
         "linea_de_base": _baseline_state(base, change, _load(base, change_id, "linea_de_base"))
     }
+    sources = cross_sources(project_id, change_id)
     for kind in ("diseno", "contradicciones"):
         record = _load(base, change_id, kind)
         if record is None:
-            kinds[kind] = _empty("missing")
-        elif record.get("status") == "waived":
-            kinds[kind] = {**_empty("waived"), "reason": str(record.get("reason") or "")}
+            # no prototype loaded and nothing recorded: there is no design to cross the request with
+            kinds[kind] = _empty("no_aplica" if kind == "diseno" and not sources["diseno"] else "missing")
+            continue
+        basis = record.get("basis") if isinstance(record.get("basis"), dict) else None
+        added = [] if basis is None else [
+            i for side in ("pedido", "diseno") for i in sources[side] if i not in [str(b) for b in basis.get(side) or []]]
+        if record.get("status") == "waived":
+            kinds[kind] = {**_empty("stale" if added else "waived"), "reason": str(record.get("reason") or ""),
+                           "new_sources": added, "claims_hash": str(record.get("claims_hash") or "")}
         else:
             cited = [str(c.get("source_id")) for claim in record.get("claims", []) for c in claim.get("citations", [])]
             stale = list(dict.fromkeys(i for i in cited if i not in current))
             kinds[kind] = {
-                "state": "stale" if stale else "done", "source_id": record.get("source_id"),
+                "state": "stale" if stale or added else "done", "source_id": record.get("source_id"),
                 "counts": dict(record.get("counts") or {}), "gaps": list(record.get("gaps") or []),
-                "reason": None, "stale_sources": stale,
+                "reason": None, "stale_sources": stale, "new_sources": added,
+                "claims_hash": str(record.get("claims_hash") or ""),
             }
     missing = [kind for kind in CROSS_KINDS if kinds[kind]["state"] in ("missing", "stale")]
     status: dict[str, Any] = {
@@ -120,7 +131,8 @@ def crosses_fingerprint(project_id: str, change_id: str) -> str:
     kinds = {}
     for kind in CROSS_KINDS:
         info = status["kinds"][kind]
-        kinds[kind] = [info["state"], info["counts"], info["source_ids"] if kind == "linea_de_base" else info["source_id"]]
+        kinds[kind] = [info["state"], info["counts"],
+                       info["source_ids"] if kind == "linea_de_base" else info.get("claims_hash") or info["source_id"]]
     decisions = {
         str(key): [str(v.get("decision", "")), str(v.get("type", "")), str(v.get("name", "")), str(v.get("reason", ""))]
         for key, v in surfaces.items() if isinstance(v, dict)
@@ -135,7 +147,7 @@ def _cite_text(cite: dict, lang: str) -> str:
         side = "Diseño" if lang == "es" else "Design"
     where = f":{cite['line']}" if cite["side"] == "pedido" and cite.get("line") else ""
     opening, closing = ("«", "»") if lang == "es" else ("“", "”")
-    return f"{side} {cite['source_id']}{where} {opening}{cite['quote']}{closing}"
+    return f"{side} {cite['source_id']}{where} {opening}{_squash(cite['quote'])}{closing}"
 
 
 def write_cross_report(project_id: str, change_id: str) -> Path:
@@ -162,6 +174,9 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
         if info["stale_sources"]:
             note = "Fuentes citadas que ya no están vigentes" if lang == "es" else "Cited sources no longer current"
             lines.append(f"{note}: {', '.join(info['stale_sources'])}")
+        if info.get("new_sources"):
+            note = "Fuentes vigentes que el cruce no leyó" if lang == "es" else "Current sources the cross-read did not read"
+            lines.append(f"{note}: {', '.join(info['new_sources'])}")
         record = _load(base, change_id, kind)
         if record and record.get("status") == "done":
             lines.append("")
@@ -169,7 +184,9 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
             for claim in record.get("claims", []):
                 cites = "; ".join(_cite_text(c, lang) for c in claim.get("citations", []))
                 arrow = f" → {claim['gap']}" if claim.get("gap") else ""
-                lines.append(f"- [{names[claim['tag']]}] {claim['text']} — {cites}{arrow}")
+                tail = f" — {cites}{arrow}" if cites or arrow else ""
+                lines.append(f"- [{names[claim['tag']]}] {_squash(claim['text'])}{tail}")
+        if record and record.get("status") in ("done", "waived"):
             dropped = [g for g in record.get("dropped_gaps", []) if g in open_ids]
             if dropped:
                 lead = ("Preguntas de entregas anteriores que esta entrega no repite (siguen abiertas hasta que el BA las cierre): "

@@ -1306,7 +1306,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 ## `cross`
 
-**What it does.** Records the cross-reads of a change request: the request against the new design and the request against itself. The BA (or the agent, with the BA) writes a claims file; every claim carries verbatim quotes, and each quote is checked word for word against the registered sources of its role. Divergences and contradictions open blocking questions in the change; what has no support in the design, and what is only in the design, flags its element in the extraction. A cross-read can be waived with a reason, and the same command decides the new surfaces that the baseline cross-read could not find.
+**What it does.** Records the cross-reads of a change request: the request against the new design and the request against itself. The BA (or the agent, with the BA) writes a claims file; every claim carries verbatim quotes, and each quote is checked word for word against the registered sources of its role. Divergences and contradictions open blocking questions in the change; what has no support in the design, and what is only in the design, flags its element in the extraction. A cross-read can be waived with a reason, or recorded as read with nothing found, and the same command decides the new surfaces that the baseline cross-read could not find.
 
 **Type.** Mutating. Always with `--change`.
 
@@ -1330,9 +1330,9 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 | `--change` | `CHG-NNN` | required | The change whose request is cross-read. An unknown change is refused. |
 | `--kind` | `diseno`, `contradicciones`, `linea_de_base` | none | Which cross-read. Goes with `--claims` or `--skip`. `linea_de_base` can only be waived: recording it is `/harvest --change`. |
 | `--claims` | path | none | Record the cross-read written in this file. |
-| `--skip` | flag | off | Waive the cross-read of `--kind`. Needs `--reason`. |
+| `--skip` | flag | off | Waive the cross-read of `--kind`. Needs `--reason`. Also accepted on a stale cross-read; refused on a current one that is done. |
 | `--reason` | text | none | Why the cross-read is waived or the candidate declined. Only with `--skip` or `--decline-new`. |
-| `--accept-new` | candidate id | none | Take a candidate surface of the harvest (a `NO ENCONTRADO` of the change) into the border as a new surface. Needs `--type` and `--name`. |
+| `--accept-new` | candidate id | none | Take a candidate surface of the harvest (a `NEW-…` id, from a `NO ENCONTRADO` of the change), or the `GAP-SED-…` question of a `SOLO EN DISEÑO` claim (which it also closes), into the border as a new surface. Needs `--type` and `--name`. |
 | `--type` | surface type | none | The type of the new surface (`pantalla`, `regla`, `endpoint`, `dato`, ...). Only with `--accept-new`. |
 | `--name` | text | none | The name of the new surface. Only with `--accept-new`. |
 | `--decline-new` | candidate id | none | Rule out a candidate. Needs `--reason`. |
@@ -1359,7 +1359,7 @@ With no action it only reports where each cross-read stands. `--claims`, `--skip
   - Diseño: F-05 "Umbral de aprobación: 1.000.000"
 ```
 
-A request quote must be in a source with the role `pedido`, a design quote in one with the role `diseno_nuevo`. A claim whose quote is not found, or whose number of quotes does not fit its tag, rejects the whole file and nothing is recorded. Recording the file again replaces the previous cross-read of that kind. The `contradicciones` kind uses only `CONTRADICCIÓN`, with two `Pedido` quotes.
+A request quote must be in a source with the role `pedido`, a design quote in one with the role `diseno_nuevo`. A claim whose quote is not found, or whose number of quotes does not fit its tag, rejects the whole file and nothing is recorded. Recording the file again replaces the previous cross-read of that kind. The `contradicciones` kind uses only `CONTRADICCIÓN`, with two `Pedido` quotes. A quote may be written between `"…"` (it can hold inner double quotes), `“…”` or `«…»`; a line that opens like a claim but does not follow `- [TAG] sentence` (a numbered one, a bad bracket) rejects the file with its line number. A cross-read in which nothing was found has a single claim `- [SIN HALLAZGOS] what was read` and no quotes. A cross-read goes stale when a cited source is replaced or a new request or prototype is registered after it was recorded; record it again, or waive it.
 
 | Spanish | English | Quotes | Consequence | Severity |
 |---|---|---|---|---|
@@ -1368,10 +1368,11 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 | `SOLO EN DISEÑO` | `ONLY IN DESIGN` | one or more design | question; flags the element in the extraction | non-blocking |
 | `DIVERGENCIA` | `DIVERGENCE` | one request, one design | question | blocking |
 | `CONTRADICCIÓN` | `CONTRADICTION` | two request | question | blocking |
+| `SIN HALLAZGOS` | `NOTHING FOUND` | none, alone in the file | none; the cross-read is done | none |
 
 **The baseline cross-read is `/harvest --change`.** The request against the existing system is the harvest of the change; `/cross` does not record it (`--kind linea_de_base --claims` is refused and points to `/harvest`). It can be waived with `--skip --reason`.
 
-**New surfaces.** The `NO ENCONTRADO` claims of the change's harvest are candidates for new surfaces (zone `nuevo`). `--accept-new` takes one into the border, with a type and a name the BA chooses; `--decline-new` rules it out with a reason. `/next --change` asks for those decisions before the request is inventoried.
+**New surfaces.** The `NO ENCONTRADO` claims of the change's harvest are candidates for new surfaces (zone `nuevo`). `--accept-new` takes one into the border, with a type and a name the BA chooses; `--decline-new` rules it out with a reason (declining one that was accepted takes it out of the border again, and with it the questions only its type raised). `/next --change` asks for those decisions before the request is inventoried.
 
 **You get.** `action` (`claims`, `skip`, `accept_new`, `decline_new` or `status`), `crosses` (the state of the three cross-reads), `new_surface_candidates`, `next_step` and a one-line `message`. Recording also lists the `counts` per tag, the questions opened (`gaps`, `gaps_opened`) and the ones a re-recording dropped.
 

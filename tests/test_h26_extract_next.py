@@ -92,6 +92,7 @@ class MatureNext(SnapshotWorkspaceCase):
         pedido = workspace_path("MAD").parent / "otro_pedido.md"
         pedido.write_text("# Otro pedido\n\n- Regla 1: algo distinto que el inventario no conoce todavía.\n", encoding="utf-8")
         run_ok(["sources", "MAD", "--load", str(pedido), "--role", "pedido", "--change", CID])
+        waive_crosses("MAD", CID)  # a new request source makes the waived cross-reads stale (IMP-404)
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "extract_inventory")
         self.assertEqual(s["title"], "Reinventariar el pedido")

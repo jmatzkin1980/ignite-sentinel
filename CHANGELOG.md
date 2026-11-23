@@ -8,7 +8,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Added
 
-- **`/cross --change` (IMP-404).** Cross-reads of the request against the new design and against itself, with a verbatim quote validated by role; divergences and contradictions open blocking questions; what has no support flags its element of the extraction; candidates for a `nuevo` surface from the `NO ENCONTRADO` of the change's harvest (`--accept-new`, `--decline-new`); a `crosses` block in `/status --change` and a "Cruces" line in the brief.
+- **`/cross --change` (IMP-404).** Cross-reads of the request against the new design and against itself, with a verbatim quote validated by role; divergences and contradictions open blocking questions; what has no support flags its element of the extraction; candidates for a `nuevo` surface from the `NO ENCONTRADO` of the change's harvest (`--accept-new`, `--decline-new`); a `crosses` block in `/status --change` and a "Cruces" line in the brief. A cross-read with nothing found is one `[SIN HALLAZGOS]` claim; `--skip` also waives a stale cross-read; a cross-read goes stale when a request or prototype is added after it; `--accept-new` also takes a `GAP-SED-…` question ("only in the design"); a claim line that does not follow the format is an error, not ignored; quotes accept `«…»` and inner `"`, and HTML prototypes match inline tags and attribute text (`placeholder`, `title`, ...); with no prototype the design cross-read does not apply.
 
 ### Changed
 

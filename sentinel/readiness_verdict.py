@@ -357,7 +357,8 @@ CHANGE_TEXT = {
                         "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
         "crosses": ("Registrar los cruces del pedido",
                     "Faltan {n} cruce(s) de {cid}: {missing}. El agente escribe cada cruce con citas literales y Sentinel las valida y abre las "
-                    "preguntas que salgan; si un cruce no aplica, descartalo con /cross {pid} --change {cid} --kind TIPO --skip --reason \"…\". "
+                    "preguntas que salgan; si un cruce no aplica, descartalo con /cross {pid} --change {cid} --kind TIPO --skip --reason \"…\"; "
+                    "si lo leíste y no hay nada, registralo con una sola afirmación «- [SIN HALLAZGOS] qué leíste». "
                     "La extracción viene después, corregida con lo que salga de los cruces."),
         "cross_new_surfaces": ("Decidir las superficies nuevas",
                                "El harvest de {cid} no encontró en lo construido {n} cosa(s): {items}. Si hay que construirla en este cambio, "
@@ -432,7 +433,8 @@ CHANGE_TEXT = {
         "crosses": ("Record the cross-reads of the request",
                     "{n} cross-read(s) of {cid} are missing: {missing}. The agent writes each cross-read with verbatim quotes and Sentinel "
                     "validates them and opens the questions that come out; if a cross-read does not apply, waive it with "
-                    "/cross {pid} --change {cid} --kind KIND --skip --reason \"…\". The extraction comes after, corrected with what the "
+                    "/cross {pid} --change {cid} --kind KIND --skip --reason \"…\"; if you read it and found nothing, record it with a single "
+                    "claim «- [NOTHING FOUND] what you read». The extraction comes after, corrected with what the "
                     "cross-reads bring."),
         "cross_new_surfaces": ("Decide the new surfaces",
                                "The harvest of {cid} found {n} thing(s) not in what is built: {items}. If it has to be built in this change, "
@@ -634,11 +636,13 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dro
 
 CROSS_MISSING = {
     "es": {"linea_de_base": "línea de base", "diseno": "diseño nuevo", "contradicciones": "contradicciones internas del pedido",
-           "no_design": " — no hay prototipo cargado: /sources {pid} --load ARCHIVO --role diseno_nuevo --change {cid}",
-           "stale": " — las fuentes citadas cambiaron: {sources}"},
+           "no_design": " — ya no hay un prototipo vigente: si no aplica, descartalo con /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
+           "stale": " — las fuentes citadas cambiaron: {sources}",
+           "new": " — fuentes vigentes que el cruce no leyó: {sources}"},
     "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions of the request",
-           "no_design": " — no prototype is loaded: /sources {pid} --load FILE --role diseno_nuevo --change {cid}",
-           "stale": " — the cited sources changed: {sources}"},
+           "no_design": " — there is no current prototype any more: if it does not apply, waive it with /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
+           "stale": " — the cited sources changed: {sources}",
+           "new": " — current sources the cross-read did not read: {sources}"},
 }
 
 
@@ -663,10 +667,13 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
         if no_design:
             part += labels["no_design"].format(pid=pid, cid=cid)
         if info["state"] == "stale":
-            part += labels["stale"].format(sources=", ".join(info["stale_sources"]))
+            if info["stale_sources"]:
+                part += labels["stale"].format(sources=", ".join(info["stale_sources"]))
+            if info.get("new_sources"):
+                part += labels["new"].format(sources=", ".join(info["new_sources"]))
         parts.append(part)
         if not first:
-            first = (f"/sources {pid} --load PATH --role diseno_nuevo --change {cid}" if no_design
+            first = (f"/cross {pid} --change {cid} --kind diseno --skip --reason \"…\"" if no_design
                      else commands[kind].replace("ARCHIVO", "PATH"))
     return {"missing": "; ".join(parts), "n_missing": str(len(parts)), "cross_command": first}
 

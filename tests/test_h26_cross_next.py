@@ -90,21 +90,25 @@ class Crosses(NextCase):
     def test_crosses_step_lists_the_three(self):
         step = self.step()
         self.assertEqual(step["key"], "crosses")
-        for text in ("/harvest", "--kind diseno", "--kind contradicciones", "no hay prototipo cargado"):
+        for text in ("/harvest", "--kind contradicciones"):
             self.assertIn(text, step["text"])
-        self.assertTrue(step["text"].startswith("Faltan 3 cruce(s) de CHG-001:"))
+        # I6: with no prototype loaded the design cross-read does not apply, so it is not asked for
+        self.assertNotIn("--kind diseno", step["text"])
+        self.assertNotIn("diseño nuevo", step["text"])
+        self.assertTrue(step["text"].startswith("Faltan 2 cruce(s) de CHG-001:"))
+        self.assertEqual(cross_status(PID, CID)["kinds"]["diseno"]["state"], "no_aplica")
         self.assertEqual(step["command"], f"/harvest {PID} --source PATH --change {CID}")
 
     def test_design_source_changes_the_hint(self):
         self.load_design()
         step = self.step()
         self.assertEqual(step["key"], "crosses")
-        self.assertNotIn("no hay prototipo cargado", step["text"])
+        self.assertIn("--kind diseno", step["text"])
+        self.assertTrue(step["text"].startswith("Faltan 3 cruce(s) de CHG-001:"))
 
     def test_command_of_the_design_cross(self):
         run_ok(["harvest", PID, "--source", "harvest_compras.md", "--change", CID])
-        self.assertEqual(self.step()["command"],
-                         f"/sources {PID} --load PATH --role diseno_nuevo --change {CID}")
+        self.assertEqual(self.step()["command"], f"/cross {PID} --change {CID} --kind contradicciones --claims PATH")
         self.load_design()
         self.assertEqual(self.step()["command"], f"/cross {PID} --change {CID} --kind diseno --claims PATH")
 
@@ -134,6 +138,7 @@ class Crosses(NextCase):
         step = self.step()
         self.assertEqual(step["key"], "crosses")
         self.assertIn(f"las fuentes citadas cambiaron: {ids['diseno']}", step["text"])
+        self.assertIn(f"fuentes vigentes que el cruce no leyó: {loaded['source_id']}", step["text"])
 
     def test_waived_baseline_needs_no_harvest(self):
         shutil.copy(CROSSES / "pedido_contradiccion.md", Path.cwd() / "otro.md")
@@ -150,6 +155,7 @@ class Crosses(NextCase):
 
     def test_english_texts(self):
         set_language(PID, "en")
+        self.load_design()
         step = self.step()
         self.assertEqual(step["key"], "crosses")
         self.assertTrue(step["text"].startswith("3 cross-read(s) of CHG-001 are missing:"))
@@ -192,7 +198,8 @@ class Status(NextCase):
         self.assertEqual(len(status["new_surface_candidates"]), 2)
         triggers = {w["trigger"]: w["message"] for w in status["warnings"]}
         self.assertIn("crosses_missing", triggers)
-        self.assertIn("diseño nuevo", triggers["crosses_missing"])
+        self.assertIn("contradicciones internas", triggers["crosses_missing"])
+        self.assertNotIn("diseño nuevo", triggers["crosses_missing"])
         self.assertIn("new_surfaces_pending", triggers)
         self.assertIn("2 candidata(s)", triggers["new_surfaces_pending"])
         code, out = run_cli(["status", PID])
