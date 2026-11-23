@@ -149,6 +149,7 @@ def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
     from sentinel.extraction.proposals import record_proposals
     from sentinel.workspace import workspace_path
 
+    waive_crosses(project_id, change_id)
     build_inventory(project_id, change_id)
     base = workspace_path(project_id)
     elements = (load_inventory(base, change_id) or {}).get("elements", [])
@@ -173,3 +174,14 @@ def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
     if result.get("rejected"):
         raise AssertionError(f"complete_extraction: rejected {result['rejected']}")
     confirm_proposals(project_id, change_id, "all")
+
+
+def waive_crosses(project_id: str, change_id: str = "CHG-001", reason: str = "fuera del alcance de esta prueba") -> None:
+    """IMP-404: waive every cross-read of the change that is still missing, so a test of a later step gets past `crosses`."""
+    from sentinel.core.io import forget_read_snapshots
+    from sentinel.crosses.record import skip_cross
+    from sentinel.crosses.state import cross_status
+
+    forget_read_snapshots()
+    for kind in cross_status(project_id, change_id)["missing"]:
+        skip_cross(project_id, change_id, kind, reason)

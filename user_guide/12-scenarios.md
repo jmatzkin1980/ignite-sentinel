@@ -2036,6 +2036,14 @@ The normal submit has to keep working as today. The existing system is already i
    The file starts with `## B0 Inventory` and a line `- doc: manual-compras — 00_raw/06_baseline/manual-compras.md`; each claim cites `[HECHO manual-compras:manual-compras.md]`. Without `--change`: `COMPRAS_PORTAL only has changes: the harvest gaps need a change` (in Spanish, `COMPRAS_PORTAL sólo tiene cambios: los gaps del harvest necesitan un cambio`), exit 4.
    </details>
 
+   **Cross the request with the design and with itself.** The change asks for the cross-read of the request against itself, and, if a prototype or design for the change is loaded (`/sources ... --role diseno_nuevo --change CHG-001`), for the one against the design; with no prototype loaded the design cross-read does not apply and `/next` does not ask for it. A cross-read in which you found nothing is recorded with one claim `- [SIN HALLAZGOS] what you read`, and one that does not apply is waived with `--skip --reason`; both also work when a cross-read went stale.
+
+   **Tell the assistant:** "Cruzá el pedido con el prototipo."
+
+   **You'll see:** The cross-read recorded with its count per tag, and a blocking question for every divergence or contradiction; what the design does not back, or only the design has, is a non-blocking question that flags its element in the extraction.
+
+   **What it means:** Every claim cites the request and the design word for word, and each quote is checked against its source. The cross-read with the existing system is the harvest of step 6. `/next --change` asks for them (or a waiver with its reason) before the request is inventoried; a cross-read also goes stale when a new request or prototype is loaded after it was recorded.
+
 7. **Compile the brief of the change.** With the border confirmed and the baseline read, the change has enough to be written down as one document.
 
    **Tell the assistant:** "Compile the brief of CHG-001 for COMPRAS_PORTAL and tell me what is still open."
@@ -2397,7 +2405,7 @@ A change, `CHG-001`, with its own questions, a confirmed border (and a warning i
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/sources`, `/extract`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/sources`, `/extract`, `/cross`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---
@@ -2587,7 +2595,7 @@ Use `/resolve-gaps` for `### GAP-...` sections that someone answered. Use `/sync
 
 <details><summary>Command coverage map</summary>
 
-Where each of the 38 commands appears. "S" is the smaller situations. For flags, gates and outputs see the [command reference](01-command-reference.md).
+Where each of the 39 commands appears. "S" is the smaller situations. For flags, gates and outputs see the [command reference](01-command-reference.md).
 
 | Command | Scenario | Command | Scenario |
 | --- | --- | --- | --- |
@@ -2610,6 +2618,7 @@ Where each of the 38 commands appears. "S" is the smaller situations. For flags,
 | `/reindex` | 4, S | `/status` | 1, 2, 4, 5, 9 |
 | `/view` | 1, 5, 6 | `/next` | 1, 4, 9, 10 |
 | `/dashboard` | 8, S | `/extract` | 11 |
+| `/cross` | 11 | | |
 
 Modes and flags, and where they appear: `/gaps --top` and `--disposition` (2, 9); `/scrutinize --lens` and `--mode anchors` (7); `/self-review --sufficiency` (2) and `--crosses` (S); `/sync --digest` (3) and `--analysis` (9); `/export --format interview` (1, 2) and `--final` (S); `--release rN` (5); `/prototype --inventory|--trace|--manual` (6); `/split --assess|--propose|--confirm|--move|--close` (5); `/context-request --id --status` (7, S); `/ingest --replace` (5); `/trace --reviewed` (4).
 

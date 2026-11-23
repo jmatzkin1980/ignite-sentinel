@@ -90,7 +90,7 @@ class McpVersionTests(unittest.TestCase):
         v2 = self._build(_modules_v2("mcpserver"))
         v1 = self._build(_modules_v1())
         self.assertEqual(sorted(v2.tools), sorted(v1.tools))
-        self.assertEqual(len(v2.tools), 39)  # IMP-402 sentinel_extract, IMP-262 sentinel_harvest, IMP-263 sentinel_split, IMP-274 sentinel_prototype
+        self.assertEqual(len(v2.tools), 40)  # IMP-404 sentinel_cross, IMP-402 sentinel_extract, IMP-262 sentinel_harvest, IMP-263 sentinel_split, IMP-274 sentinel_prototype
 
     def test_missing_dependency_message(self) -> None:
         from sentinel import mcp as sentinel_mcp

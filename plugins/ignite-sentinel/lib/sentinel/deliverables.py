@@ -62,18 +62,17 @@ def banner(count: int, language: str, extraction: list[str] | None = None) -> st
 
 EXTRACTION_TEXT = {
     "es": ("{n} sección(es) del brief todavía sin extraer del pedido ({sections})",
-           "Sentinel todavía no extrae solo el contenido del pedido (llega en un próximo incremento). La marca se limpia solo "
-           "cuando se responde una pregunta de esa sección; si el cambio no tiene ninguna abierta, queda hasta el incremento de "
-           "extracción y el BA revisa el pedido a mano. Exportá sin --final para obtener un borrador marcado."),
+           "Corré /extract {pid} --change {cid} y seguí /next {pid} --change {cid}: la marca de una sección se limpia cuando "
+           "la extracción confirma un elemento que va ahí. Exportá sin --final para obtener un borrador marcado."),
     "en": ("{n} section(s) of the brief not yet extracted from the request ({sections})",
-           "Sentinel does not extract the request content on its own yet (coming in a later increment). The mark clears only when "
-           "a question of that section is answered; if the change has no such open question, it stays until the extraction "
-           "increment and the BA checks the request by hand. Export without --final to get a marked draft."),
+           "Run /extract {pid} --change {cid} and follow /next {pid} --change {cid}: a section's mark clears when the "
+           "extraction confirms an element that belongs there. Export without --final to get a marked draft."),
 }
 
 
 def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None = None,
-         extraction: list[str] | None = None, language: str = "es") -> dict[str, object]:
+         extraction: list[str] | None = None, language: str = "es", project_id: str = "",
+         change_id: str = "") -> dict[str, object]:
     """Decide what an export is. Raises when `final` is asked for and blocking marks remain.
 
     `report` is the brief v2 compile report, when there is one (IMP-334): the count is
@@ -93,7 +92,7 @@ def gate(text: str, *, artifact: str, fmt: str, final: bool, report: dict | None
         message, next_step = EXTRACTION_TEXT["es" if language == "es" else "en"]
         raise DeliverableNotReady(
             "/export --final refused: " + message.format(n=len(sections), sections=", ".join(f"§{n}" for n in sections)) + ".",
-            next_step)
+            next_step.format(pid=project_id, cid=change_id))
     if final and count:
         deferred = f" ({marks.deferred} deferred marks do not block)" if marks.deferred else ""
         raise DeliverableNotReady(

@@ -79,7 +79,7 @@ Claude uses the same local memory as the other surfaces: `/ingest`, `/sync` and 
 
 ## Local MCP server (optional)
 
-Sentinel can expose its lifecycle as 38 MCP tools over a local stdio channel, so any MCP client can call them without parsing chat. It makes no network calls and applies the same gates. A failed command returns an error result with the exit `code`, an `error` and a `next_step`.
+Sentinel can expose its lifecycle as 39 MCP tools over a local stdio channel, so any MCP client can call them without parsing chat. It makes no network calls and applies the same gates. A failed command returns an error result with the exit `code`, an `error` and a `next_step`.
 
 In a clone: install the extra (`python -m pip install --require-hashes -r constraints/mcp.txt`, then `python -m pip install --no-deps -e .`), list the tools with `python -m sentinel.mcp --describe`, and start the server with `python -m sentinel.mcp`. In Claude Code, the supported route is the MCP plugin. Both are in the [plugin guide](18-claude-plugin.md#mcp-server-optional).
 

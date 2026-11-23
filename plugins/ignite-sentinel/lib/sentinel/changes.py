@@ -302,7 +302,13 @@ def confirm_border(project_id: str, change_id: str, border: list[dict[str, str]]
     """Fix the confirmed border on the change and open its lens round."""
     get_change(project_id, change_id)
     changes = {key: dict(value) for key, value in list_changes(project_id).items()}
-    changes[change_id].update({"border": list(border), "border_confirmed_at": utc_now(), "round": "lenses"})
+    # IMP-404: a surface the BA accepted from a cross-read survives a re-confirmed border.
+    from .change_requirements import _fold_name
+
+    taken = {_fold_name(n) for item in border for n in (item.get("name"), item.get("alias")) if n}
+    kept = [dict(item) for item in changes[change_id].get("border") or []
+            if item.get("origin") == "cross" and _fold_name(item.get("name", "")) not in taken]
+    changes[change_id].update({"border": [*border, *kept], "border_confirmed_at": utc_now(), "round": "lenses"})
     update_state(project_id, changes=changes)
 
 
@@ -363,8 +369,10 @@ def _request_states_acceptance(base: Path, change: dict) -> bool:
     return False
 
 
-def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
-    """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
+def regenerate_change_gaps(project_id: str, change_id: str, prune: bool = False) -> dict:
+    """Re-render the change's gaps.md; in the lens round add the checks not yet there, once.
+
+    `prune` also drops the unanswered lens checks of a surface type the border no longer has."""
     from .discovery.detection import detect_gaps
     from .discovery.intake import load_domain_context
 
@@ -381,6 +389,13 @@ def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
         if _request_states_acceptance(base, change):
             found = [g for g in found if g["id"] != "GAP-ACCEPTANCE"]
         rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
+        if prune:
+            context = load_domain_context(base)
+            every = {g["id"] for g in detect_gaps(_lens_evidence(base, change), context, work="change", border_types=None)}
+            moot = every - {g["id"] for g in found}
+            rows = [r for r in rows if not (
+                r["id"] in moot and str(r.get("origin", "")).strip("`") != "cross"
+                and str(r.get("status", "OPEN")).strip("`").upper() == "OPEN")]
     write_text(gaps_path, render_gaps(project_id, rows, change_id, language, gaps_path.with_name("gap_elicitation.json")))
     counts = count_gaps(rows)
     changes = {key: dict(value) for key, value in list_changes(project_id).items()}
@@ -418,7 +433,7 @@ def _resolved_keys(row: dict) -> set[Path]:
 
 def _baseline_row_finding(project_id: str, change_id: str, rel: str, target: Path, es: bool) -> str | None:
     """IMP-400: only a registered source with the baseline role proves that something already exists."""
-    from .source_registry import row_role
+    from .source_registry import is_harvested, row_role
     from .sources import load_source_manifest
 
     def msg(spanish: str, english: str) -> str:
@@ -438,7 +453,7 @@ def _baseline_row_finding(project_id: str, change_id: str, rel: str, target: Pat
     role = row_role(row)
     sid = row.get("id", "")
     if role is None:
-        harvested = any(event.get("via") == "harvested" for event in row.get("events") or [])
+        harvested = is_harvested(row)
         if harvested:
             return msg(
                 f"by_baseline: `{rel}` es la lectura de Sentinel (harvest), no la línea de base: citá el documento que la respalda.",

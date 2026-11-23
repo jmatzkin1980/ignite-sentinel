@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, run_ok, waive_crosses  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
 
@@ -61,6 +61,7 @@ class ExtractionWalk(unittest.TestCase):
         run_ok(["resolve-gaps", PID, "--source", "scope.md", "--change", CID])
         run_ok(["sources", PID, "--load", str(FIXTURES / "change_baseline" / "sad-compras.md"),
                 "--role", "linea_de_base", "--change", CID])
+        waive_crosses(PID, CID)
 
         # the request itemizes its acceptance criteria: the lens round does not ask for them
         gaps = next((Path("workspaces") / PID).rglob(f"{CID}/gaps.md")).read_text(encoding="utf-8")

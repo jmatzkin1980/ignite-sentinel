@@ -49,7 +49,8 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     # IMP-334: counted as /validate counts them (the brief v2 compile report when there is one)
     extraction = change_extraction_pending(base, change_id) if change_id and artifact.lower() == "brief" else []
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
-                   report=compile_report_for(source), extraction=extraction, language=_language(project_id, change_id))
+                   report=compile_report_for(source), extraction=extraction, language=_language(project_id, change_id),
+                   project_id=project_id, change_id=change_id or "")
     result = _export(project_id, artifact, fmt, source, verdict, change_id)
     return {**result, **verdict}
 

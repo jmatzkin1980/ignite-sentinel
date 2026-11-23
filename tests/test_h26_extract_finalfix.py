@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import complete_extraction, run_ok  # noqa: E402
+from helpers import complete_extraction, run_ok, waive_crosses  # noqa: E402
 from test_h26_extract_proposals import CID, EXAMPLE, PID, ProposalsCase  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
@@ -50,6 +50,7 @@ class Finalfix(ProposalsCase):
 
     def waive_baseline(self) -> None:
         run_ok(["sources", PID, "--change", CID, "--no-baseline", "--reason", "Sistema nuevo"])
+        waive_crosses(PID, CID)
 
     # item 2: orphans
     def test_orphan_rows_step_and_reject(self):
@@ -64,6 +65,7 @@ class Finalfix(ProposalsCase):
         path.write_text(text[:start] + text[text.index("## Usuarios"):], encoding="utf-8")
         result = run_extract(PID, CID)
         self.assertEqual(result["coverage"]["orphans"], [{"id": "SEC-objetivo", "rows": rows}])
+        self.assertFalse(result["coverage"]["complete"])
         step = result["next_step"]
         self.assertEqual(step["key"], "extract_orphans")
         self.assertEqual(step["command"], f'/extract {PID} --change {CID} --reject-item SEC-objetivo --reason "..."')
@@ -81,6 +83,7 @@ class Finalfix(ProposalsCase):
         self.assertEqual(sorted(result["rows_superseded"]), sorted(rows))
         self.assertFalse([r for r in load_change_ears(PID, CID) if "EXT:SEC-objetivo" in r["source"]])
         self.assertEqual(extraction_coverage(PID, CID)["orphans"], [])
+        self.assertTrue(extraction_coverage(PID, CID)["complete"])
         self.assertNotEqual(change_next_step(PID, CID)["key"], "extract_orphans")
 
     # item 3: a re-submission equal to a confirmed item keeps it confirmed
@@ -119,6 +122,7 @@ class Finalfix(ProposalsCase):
         readable.write_text("## Reglas\n- RN-01: El CUIT del proveedor debe ser único en el padrón.\n", encoding="utf-8")
         run_ok(["sources", PID, "--load", str(readable), "--role", "pedido", "--change", CID])
         run_ok(["sources", PID, "--id", "F-01", "--superseded-by", "F-02", "--reason", "copia ilegible"])
+        waive_crosses(PID, CID)  # a new request source makes the waived cross-reads stale (IMP-404)
         build_inventory(PID, CID)
         cover = extraction_coverage(PID, CID)
         self.assertEqual((cover["unreadable"], cover["total"]), ([], 1))
@@ -132,7 +136,8 @@ class Finalfix(ProposalsCase):
         self.assertEqual((cover["state"], cover["unreadable"], cover["complete"]), ("empty", [], True))
         step = change_next_step(PID, CID)
         self.assertEqual(step["key"], "preserved")
-        self.assertEqual(step["command"], f"/resolve-gaps {PID} --source PATH --change {CID}")
+        # no EARS question is open here, so the way out is a request note loaded as a source (IMP-404 task 1)
+        self.assertEqual(step["command"], f"/sources {PID} --load PATH --role pedido --change {CID}")
         self.assertNotIn("--proposals", step["text"])
         self.assertIn("UNCHANGED", step["text"])
         set_language("en")

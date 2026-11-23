@@ -33,7 +33,7 @@ from .core.time import utc_now
 
 SOURCE_ID_RE = re.compile(r"^F-(\d{2,})$")
 # Commands whose `source` argument is information entering the project.
-REGISTERING_STATUSES = {"initial_ingested", "change_ingested", "synced", "gap_resolved", "harvested", "role_loaded"}  # IMP-262: a code harvest
+REGISTERING_STATUSES = {"initial_ingested", "change_ingested", "synced", "gap_resolved", "harvested", "crossed", "role_loaded"}  # IMP-262: a code harvest
 # Sentinel's verbatim copies of a registered source (redacted, so the hash may differ).
 COPY_STATUSES = {"raw_copy", "change_copy", "gap_response_copy"}
 VALIDITY_VALUES = ("current", "superseded", "retired", "expired")
@@ -89,8 +89,8 @@ def role_is_declared(row: dict[str, Any]) -> bool:
 
 
 def is_harvested(row: dict[str, Any]) -> bool:
-    """A row a code harvest registered: Sentinel's reading, never a source with a role."""
-    return any(event.get("via") == "harvested" for event in row.get("events") or [])
+    """Una lectura de Sentinel: harvest o cruce. Nunca es una fuente con rol."""
+    return any(event.get("via") in ("harvested", "crossed") for event in row.get("events") or [])
 
 
 def harvest_role_message(name: str, language: str) -> str:

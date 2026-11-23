@@ -24,7 +24,7 @@ When something is waiting on you, the agent closes with one question and a few o
 | Terminal | `python -m sentinel /init ACME_PORTAL` | The Python package | `.\installers\sentinel.ps1 /init ACME_PORTAL` or `sh installers/sentinel.sh /init ACME_PORTAL` when `python` is missing | [Install](06-installation-vscode.md#path-e-terminal-only-no-agent) |
 | MCP client | Call the tool `sentinel_init` with `project_id` | `python -m sentinel.mcp` (clone, needs `.[mcp]`) or the `ignite-sentinel-mcp` plugin | Not applicable | [MCP](#mcp) below |
 
-All surfaces run the same 38 commands. The full list with flags is in the [command reference](01-command-reference.md).
+All surfaces run the same 39 commands. The full list with flags is in the [command reference](01-command-reference.md).
 
 ## Claude Code
 
@@ -86,7 +86,7 @@ Example client configuration for a clone:
 }
 ```
 
-The server exposes 38 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it.
+The server exposes 39 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it.
 
 Each tool takes every option of its command and forwards each value you set to the CLI, so the CLI accepts or refuses the combination exactly as it does in a terminal. Nothing you pass is dropped in silence. A parameter is named like its option, without the leading `--` and with hyphens turned into underscores (`--trace-id` is `trace_id`, `--with-task-seeds` is `with_task_seeds`). These parameters have a different name or shape:
 
@@ -157,6 +157,10 @@ Use this when you know what you want but not the command. Commands are in chat f
 | "This note reverses what we confirmed" | `/sync --source NOTE --analysis FILE` → `/gaps --id GAP-CHG-x --disposition accepted\|rejected` | The agent writes the cited analysis (skill `sentinel-sync`); prose alone never reopens anything. `rejected` needs `--reason TEXT`. |
 | "Pick up whatever changed in the input folders" | `/sync` | Autonomous scan. |
 | "This is a change or new feature on something that already exists" | `/ingest --source NOTE --change` → `/resolve-gaps --source ANSWERS --change CHG-nnn` → `/gaps --change CHG-nnn` | Opens a change (`CHG-nnn`) with a short scope round and never touches the project's artifacts. Answer `GAP-SCOPE` with a `Borde:` block (one line per surface: `zona \| tipo \| nombre`) to open the review round. `/brief --change CHG-nnn` compiles the change's brief (then `/view` or `/export` with the same `--change`); specs and backlog come later. Walkthrough: [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists). |
+| "This document is the request / the system as it is today / the prototype of the new design" | `/sources --load FILE --role pedido\|linea_de_base\|plan_previo\|diseno_nuevo --change CHG-nnn` | `--id F-NN --role ROLE` corrects a role. `--change CHG-nnn --no-baseline --reason TEXT` when nothing is built yet. Only a `linea_de_base` source can close a question by the baseline. |
+| "Cross the request with the prototype" / "with itself" / "with the existing system" | `/cross --change CHG-nnn --kind diseno\|contradicciones --claims FILE`; the existing system is `/harvest --change CHG-nnn` | Every claim quotes the request and the design word for word. Divergences and contradictions open blocking questions. Nothing found: one `[SIN HALLAZGOS]` claim. Not applicable: `--skip --reason TEXT`. `/next --change` asks for all three. |
+| "The harvest lists something that does not exist yet" | `/cross --change CHG-nnn --accept-new NEW-ID --type TYPE --name NAME` or `--decline-new NEW-ID --reason TEXT` | Decides each candidate new surface. A design-only question (`GAP-SED-…`) is accepted the same way. |
+| "Go through everything the request says" | `/extract --change CHG-nnn` → `--proposals FILE` → `--confirm SECTION\|all` | Inventory, cited proposals, confirmation. What is flagged is confirmed one by one with `--confirm-item ID`. Coverage shows in `/status --change` and `/next --change`. |
 | "The new contract replaces the old one" | `/sources` → `/sources --id F-NN --superseded-by F-MM` | Ask the BA which governs; never assume the newest. |
 | "Which source wins for payment rules?" | `/sources --precedence SCOPE --between F-NN,F-MM` | `SCOPE` is one of `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule`; another value is refused (exit 3). |
 | "This source was withdrawn" | `/sources --id F-NN --retire --reason TEXT --replacement F-MM` | `--replacement` is optional. Its files leave the local memory; `/sources --id F-NN --current` brings it back. |

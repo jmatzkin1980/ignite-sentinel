@@ -1,13 +1,19 @@
 """IMP-402 (H26 inc 3) task 3: flags from the agent, open gaps and harvest divergences."""
 from __future__ import annotations
 
+import shutil
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_ok  # noqa: E402
 from test_h26_extract_proposals import CID, PID, ProposalsCase, block  # noqa: E402
 
+from sentinel.core.io import forget_read_snapshots  # noqa: E402
+from sentinel.crosses.record import record_cross  # noqa: E402
+from sentinel.extraction.inventory import build_inventory  # noqa: E402
+from sentinel.status import change_sources  # noqa: E402
 from sentinel.changes import change_gaps_path, change_language  # noqa: E402
 from sentinel.extraction.flags import element_flags, refresh_flags  # noqa: E402
 from sentinel.gaps import count_gaps, merge_gaps_by_topic, parse_gap_rows, render_gaps  # noqa: E402
@@ -82,6 +88,60 @@ class FromWorkspace(ProposalsCase):
         self.assertEqual(item["flags"][0]["ref"], "GAP-TEST-RN05")
         refreshed = refresh_flags(PID, CID, "RN-05", item)
         self.assertEqual([f["ref"] for f in refreshed], ["GAP-TEST-RN05"])
+
+
+class CrossGapFlags(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        root = Path.cwd()
+        crosses = Path(__file__).resolve().parent / "fixtures" / "change_crosses"
+        shutil.copy(crosses / "pedido_contradiccion.md", root / "pedido.md")
+        (root / "scope.md").write_text(IDS_SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["init", PID])
+        run_ok(["ingest", PID, "--source", "pedido.md", "--change"])
+        run_ok(["resolve-gaps", PID, "--source", "scope.md", "--change", CID])
+        run_ok(["sources", PID, "--load", str(crosses / "prototipo-aprobaciones.html"),
+                "--role", "diseno_nuevo", "--change", CID])
+        build_inventory(PID, CID)
+
+    def setUp(self):
+        super().setUp()
+        forget_read_snapshots()
+
+    def claims(self, name: str) -> Path:
+        found = change_sources(PID, CID)["by_role"]
+        crosses = Path(__file__).resolve().parent / "fixtures" / "change_crosses"
+        text = (crosses / name).read_text(encoding="utf-8")
+        text = text.replace("F-PED", found["pedido"][0]).replace("F-DIS", found["diseno_nuevo"][0])
+        path = Path.cwd() / name
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_cross_gaps_flag_their_elements(self):
+        record_cross(PID, CID, "diseno", self.claims("cruce_diseno.md"))
+        record_cross(PID, CID, "contradicciones", self.claims("cruce_contradicciones.md"))
+        expected = {"HU-03": "sin_respaldo", "RN-04": "contradiccion", "PD-03": "contradiccion", "RN-02": "divergencia"}
+        for element_id, kind in expected.items():
+            found = refresh_flags(PID, CID, element_id, {})
+            self.assertEqual([(f["origin"], f["kind"]) for f in found], [("gap", kind)], element_id)
+            self.assertTrue(found[0]["ref"].startswith({"sin_respaldo": "GAP-SRD-", "contradiccion": "GAP-CON-",
+                                                        "divergencia": "GAP-DIS-"}[kind]))
+        self.assertEqual(refresh_flags(PID, CID, "HU-01", {}), [])
+
+
+class CrossGapFlagsPure(unittest.TestCase):
+    def test_mention_pieces_and_single_flag(self):
+        text = "RN-09 | " + "la jefa de Compras puede aprobar las altas que cargó ella misma"
+        gap_row = {"id": "GAP-CON-AAAA1111", "status": "OPEN", "description": "otra cosa",
+                   "evidence_mention": "La jefa no puede aprobar nada de lo que cargue // " + text[8:]}
+        found = element_flags("RN-09", text, "", [], [gap_row], [])
+        self.assertEqual([(f["kind"], f["ref"]) for f in found], [("contradiccion", "GAP-CON-AAAA1111")])
+        short = {**gap_row, "evidence_mention": "aprobar las altas"}
+        self.assertEqual(element_flags("RN-09", text, "", [], [short], []), [])
+        by_id = {**gap_row, "description": "RN-09 contradice"}
+        self.assertEqual(len(element_flags("RN-09", text, "", [], [by_id], [])), 1)
+        sed = {**gap_row, "id": "GAP-SED-AAAA1111"}
+        self.assertEqual(element_flags("RN-09", text, "", [], [sed], []), [])
 
 
 if __name__ == "__main__":

@@ -355,6 +355,15 @@ CHANGE_TEXT = {
         "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
         "brief_stale": ("Recompilar el brief del cambio",
                         "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
+        "crosses": ("Registrar los cruces del pedido",
+                    "Faltan {n} cruce(s) de {cid}: {missing}. El agente escribe cada cruce con citas literales y Sentinel las valida y abre las "
+                    "preguntas que salgan; si un cruce no aplica, descartalo con /cross {pid} --change {cid} --kind TIPO --skip --reason \"…\"; "
+                    "si lo leíste y no hay nada, registralo con una sola afirmación «- [SIN HALLAZGOS] qué leíste». "
+                    "La extracción viene después, corregida con lo que salga de los cruces."),
+        "cross_new_surfaces": ("Decidir las superficies nuevas",
+                               "El harvest de {cid} no encontró en lo construido {n} cosa(s): {items}. Si hay que construirla en este cambio, "
+                               "aceptala como superficie nuevo del borde con /cross {pid} --change {cid} --accept-new ID --type TIPO --name NOMBRE; "
+                               "si no, descartala con /cross {pid} --change {cid} --decline-new ID --reason \"…\"."),
         "extract_inventory": ("Inventariar el pedido",
                               "Corré /extract {pid} --change {cid}: Sentinel lista cada regla, criterio, historia, decisión y sección del pedido de {cid}; "
                               "ese inventario es el denominador de la cobertura."),
@@ -391,6 +400,11 @@ CHANGE_TEXT = {
                              "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. El pedido no trae elementos "
                              "que citar, así que respondé una pregunta EARS del cambio ({ids}) con un requisito Delta UNCHANGED y su "
                              "Superficie, y corré /resolve-gaps {pid} --source ARCHIVO --change {cid}."),
+        "preserved_source": ("Cubrir lo preservado",
+                             "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. El pedido no trae "
+                             "elementos que citar y no queda ninguna pregunta EARS abierta: cargá una nota que diga qué se preserva con "
+                             "/sources {pid} --load ARCHIVO --role pedido --change {cid}, corré /extract {pid} --change {cid} y "
+                             "proponé un requisito UNCHANGED con su Superficie."),
         "requirements": ("Responder los requisitos del cambio",
                          "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps "
                          "o proponé los requisitos desde la extracción (/extract {pid} --change {cid} --proposals ARCHIVO)."),
@@ -416,6 +430,16 @@ CHANGE_TEXT = {
         "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
         "brief_stale": ("Recompile the change brief",
                         "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
+        "crosses": ("Record the cross-reads of the request",
+                    "{n} cross-read(s) of {cid} are missing: {missing}. The agent writes each cross-read with verbatim quotes and Sentinel "
+                    "validates them and opens the questions that come out; if a cross-read does not apply, waive it with "
+                    "/cross {pid} --change {cid} --kind KIND --skip --reason \"…\"; if you read it and found nothing, record it with a single "
+                    "claim «- [NOTHING FOUND] what you read». The extraction comes after, corrected with what the "
+                    "cross-reads bring."),
+        "cross_new_surfaces": ("Decide the new surfaces",
+                               "The harvest of {cid} found {n} thing(s) not in what is built: {items}. If it has to be built in this change, "
+                               "accept it as a new surface of the border with /cross {pid} --change {cid} --accept-new ID --type TYPE --name NAME; "
+                               "otherwise decline it with /cross {pid} --change {cid} --decline-new ID --reason \"…\"."),
         "extract_inventory": ("Inventory the request",
                               "Run /extract {pid} --change {cid}: Sentinel lists each rule, criterion, story, decision and section of the request of {cid}; "
                               "that inventory is the denominator of the coverage."),
@@ -452,6 +476,11 @@ CHANGE_TEXT = {
                              "These preserved surfaces of {cid} have no UNCHANGED row: {names}. The request brings no elements to "
                              "quote, so answer an EARS question of the change ({ids}) with a Delta UNCHANGED requirement and its "
                              "Surface, and run /resolve-gaps {pid} --source FILE --change {cid}."),
+        "preserved_source": ("Cover what is preserved",
+                             "These preserved surfaces of {cid} have no UNCHANGED row: {names}. The request brings no elements to "
+                             "quote and no EARS question is left open: load a note saying what is preserved with "
+                             "/sources {pid} --load FILE --role pedido --change {cid}, run /extract {pid} --change {cid} and "
+                             "propose an UNCHANGED requirement with its Surface."),
         "requirements": ("Answer the change requirements",
                          "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps "
                          "or propose the requirements from the extraction (/extract {pid} --change {cid} --proposals FILE)."),
@@ -469,6 +498,8 @@ CHANGE_COMMANDS = {
     "scope": "/resolve-gaps {pid} --source PATH --change {cid}",
     "baseline": "/sources {pid} --load PATH --role linea_de_base --change {cid}",
     "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "crosses": "{cross_command}",
+    "cross_new_surfaces": "/cross {pid} --change {cid} --accept-new {first_candidate} --type TIPO --name NOMBRE",
     "extract_inventory": "/extract {pid} --change {cid}",
     "extract_unreadable": "/sources {pid} --load PATH --role pedido --change {cid}",
     "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
@@ -477,6 +508,7 @@ CHANGE_COMMANDS = {
     "extract_orphans": "/extract {pid} --change {cid} --reject-item {first_orphan} --reason \"...\"",
     "preserved": "/extract {pid} --change {cid} --proposals PATH",
     "preserved_answer": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "preserved_source": "/sources {pid} --load PATH --role pedido --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
     "specs": "/specs {pid} --change {cid}",
@@ -500,6 +532,13 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "baseline"
     if int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0) > 0:
         return "lenses"
+    from .crosses.state import cross_status
+    from .crosses.surfaces import new_surface_candidates
+
+    if cross_status(project_id, change_id)["missing"]:
+        return "crosses"
+    if any(c["decision"] is None for c in new_surface_candidates(project_id, change_id)):
+        return "cross_new_surfaces"
     from .extraction.coverage import extraction_coverage, preserved_coverage
 
     cover = extraction_coverage(project_id, change_id)
@@ -569,7 +608,12 @@ def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
     # IMP-402: something was confirmed, corrected or taken out of the extraction since the brief was compiled.
     from .extraction.coverage import extraction_fingerprint
 
-    return str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, change_id)
+    if str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, change_id):
+        return True
+    # IMP-404: a cross-read was done, waived or decided (a new surface) since the brief was compiled.
+    from .crosses.state import crosses_fingerprint
+
+    return str(report.get("crosses_fingerprint", "") or "") != crosses_fingerprint(base.name, change_id)
 
 
 def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:
@@ -588,6 +632,50 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dro
         if str(front.get("change", "")).strip() == change_id:
             sources.add(str(front.get("source_unit", "")).strip())
     return sources != {unit["id"] for unit in units} - set(dropped_units)
+
+
+CROSS_MISSING = {
+    "es": {"linea_de_base": "línea de base", "diseno": "diseño nuevo", "contradicciones": "contradicciones internas del pedido",
+           "no_design": " — ya no hay un prototipo vigente: si no aplica, descartalo con /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
+           "stale": " — las fuentes citadas cambiaron: {sources}",
+           "new": " — fuentes vigentes que el cruce no leyó: {sources}"},
+    "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions of the request",
+           "no_design": " — there is no current prototype any more: if it does not apply, waive it with /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
+           "stale": " — the cited sources changed: {sources}",
+           "new": " — current sources the cross-read did not read: {sources}"},
+}
+
+
+def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[str, str]:
+    """The `{missing}` list and the first command of the `crosses` step."""
+    from .crosses.state import cross_status
+
+    labels = CROSS_MISSING["es" if language == "es" else "en"]
+    status = cross_status(project_id, change_id)
+    pid, cid = project_id, change_id
+    commands = {
+        "linea_de_base": f"/harvest {pid} --source ARCHIVO --change {cid}",
+        "diseno": f"/cross {pid} --change {cid} --kind diseno --claims ARCHIVO",
+        "contradicciones": f"/cross {pid} --change {cid} --kind contradicciones --claims ARCHIVO",
+    }
+    parts: list[str] = []
+    first = ""
+    for kind in status["missing"]:
+        info = status["kinds"][kind]
+        part = f"{labels[kind]} ({commands[kind]})"
+        no_design = kind == "diseno" and not status["design_sources"]
+        if no_design:
+            part += labels["no_design"].format(pid=pid, cid=cid)
+        if info["state"] == "stale":
+            if info["stale_sources"]:
+                part += labels["stale"].format(sources=", ".join(info["stale_sources"]))
+            if info.get("new_sources"):
+                part += labels["new"].format(sources=", ".join(info["new_sources"]))
+        parts.append(part)
+        if not first:
+            first = (f"/cross {pid} --change {cid} --kind diseno --skip --reason \"…\"" if no_design
+                     else commands[kind].replace("ARCHIVO", "PATH"))
+    return {"missing": "; ".join(parts), "n_missing": str(len(parts)), "cross_command": first}
 
 
 def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
@@ -610,7 +698,8 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     if key == "extract_confirm" and cover["proposed"] == cover["flagged"]:
         text_key = "extract_confirm_flagged"  # `--confirm all` would hold every one of them again
     if key == "preserved" and cover["total"] == 0:
-        text_key = "preserved_answer"  # nothing in the request to quote: the UNCHANGED row comes from an answer
+        # nothing in the request to quote: the UNCHANGED row comes from an answer, or from a note loaded as a source
+        text_key = "preserved_answer" if ears_gaps else "preserved_source"
     title, text = texts[text_key]
     orphans = cover.get("orphans", []) if key == "extract_orphans" else []
     ctx = {
@@ -627,8 +716,22 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
     if text_key == "preserved_answer":
-        ctx["ids"] = ", ".join(ears_gaps) or "GAP-ACCEPTANCE"
-    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer") else key
+        ctx["ids"] = ", ".join(ears_gaps)
+    ctx["missing"] = ctx["cross_command"] = ""
+    ctx["first_candidate"] = "ID"
+    language = change_language(project_id, change)
+    if key == "crosses":
+        found = _cross_step_context(project_id, change_id, language)
+        ctx.update(missing=found["missing"], cross_command=found["cross_command"], n=int(found["n_missing"]))
+    if key == "cross_new_surfaces":
+        from .crosses.surfaces import new_surface_candidates
+
+        pending = [c for c in new_surface_candidates(project_id, change_id) if c["decision"] is None]
+        shown = "; ".join(f"{c['id']} «{c['text']}»" for c in pending[:5])
+        if len(pending) > 5:
+            shown += f"; {'y' if language == 'es' else 'and'} {len(pending) - 5} {'más' if language == 'es' else 'more'}"
+        ctx.update(n=len(pending), items=shown, first_candidate=pending[0]["id"])
+    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer", "preserved_source") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}

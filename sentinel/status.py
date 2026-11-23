@@ -85,6 +85,11 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     sources = change_sources(project_id, change_id)
     extraction = extraction_coverage(project_id, change_id)
     preserved = preserved_coverage(project_id, change_id)
+    from .crosses.state import cross_status
+    from .crosses.surfaces import new_surface_candidates
+
+    crosses = cross_status(project_id, change_id)
+    candidates = new_surface_candidates(project_id, change_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -96,12 +101,37 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "sources": sources,
         "extraction": extraction,
         "preserved": preserved,
+        "crosses": crosses,
+        "new_surface_candidates": candidates,
         "warnings": [
             *escalation_warnings(project_id, change_id),
             *_source_warnings(project_id, change_id, sources),
             *_extraction_warnings(project_id, change_id, change, extraction, preserved),
+            *_cross_warnings(project_id, change_id, change, crosses, candidates),
         ],
     }
+
+
+def _cross_warnings(project_id: str, change_id: str, change: dict, crosses: dict, candidates: list) -> list[dict[str, object]]:
+    """IMP-404: the cross-reads still missing and the new-surface candidates nobody decided, same `trigger` + `message` shape."""
+    from .changes import change_language
+    from .crosses.state import KIND_LABELS
+
+    if change.get("round") == "scope":
+        return []
+    lang = "es" if change_language(project_id, change) == "es" else "en"
+    warnings: list[dict[str, object]] = []
+    if crosses["missing"]:
+        labels = ", ".join(KIND_LABELS[lang][kind] for kind in crosses["missing"])
+        warnings.append({"trigger": "crosses_missing", "message": (
+            f"{change_id}: faltan cruces: {labels}" if lang == "es" else f"{change_id}: cross-reads missing: {labels}")})
+    pending = [c["id"] for c in candidates if c["decision"] is None]
+    if pending:
+        ids = ", ".join(pending)
+        warnings.append({"trigger": "new_surfaces_pending", "message": (
+            f"{change_id}: {len(pending)} candidata(s) a superficie nueva sin decidir: {ids}" if lang == "es"
+            else f"{change_id}: {len(pending)} new-surface candidate(s) undecided: {ids}")})
+    return warnings
 
 
 def _extraction_warnings(
@@ -123,7 +153,9 @@ def _extraction_warnings(
         warnings.append({"trigger": "extraction_stale", "message": (
             f"{change_id}: el pedido cambió desde el inventario; corré {run}" if es
             else f"{change_id}: the request changed since the inventory; run {run}")})
-    elif not extraction["complete"]:
+    elif not extraction["complete"] and not (
+        extraction.get("orphans") and extraction["covered"] == extraction["total"] and not extraction.get("unreadable")
+    ):  # orphans alone have their own warning below: "covers N of N" would be a false report
         warnings.append({"trigger": "extraction_incomplete", "message": (
             f"{change_id}: la extracción cubre {extraction['text']}" if es
             else f"{change_id}: the extraction covers {extraction['text']}")})
