@@ -165,7 +165,7 @@ def parse_claims(text: str, language: str = "es") -> tuple[list[dict], list[str]
     return claims, errors
 
 
-_HIDDEN = re.compile(r"<script\b.*?</script\s*>|<style\b.*?</style\s*>|<!--.*?-->", re.I | re.S)
+_HIDDEN = re.compile(r"<script\b.*?</script\b[^>]*>|<style\b.*?</style\b[^>]*>|<!--.*?--!?>", re.I | re.S)
 _TAG = re.compile(r"<[^>]*>")
 _INLINE_TAG = re.compile(
     r"</?(?:a|abbr|b|big|cite|code|em|font|i|kbd|mark|small|span|strong|sub|sup|u)\b[^>]*>", re.I)
