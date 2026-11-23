@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,8 @@ from ..core.paths import workspace_path
 from . import extraction_dir
 from .inventory import KINDS, _fold, inventory_state, load_inventory
 from .proposals import load_proposals
+
+_EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
 
 KIND_LABELS = {
     "es": {"rule": "Reglas", "criterion": "Criterios", "story": "Historias", "decision": "Decisiones", "section": "Secciones"},
@@ -105,3 +108,50 @@ def extraction_fingerprint(base: Path, change_id: str) -> str:
     entries = sections.get("entries", []) if isinstance(sections, dict) else []
     payload = {"version": inventory.get("version", 1), "confirmed": confirmed, "sections": entries}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+
+
+def _in_workspace(base: Path, path: Any) -> str:
+    """The path as the workspace cites it (`00_raw/pedido.md`), whatever the inventory recorded."""
+    text = str(path or "")
+    for root, target in ((base, Path(text)), (base.resolve(), Path(text).resolve())):
+        try:
+            return target.relative_to(root).as_posix()
+        except ValueError:
+            continue
+    return text.replace("\\", "/")
+
+
+def extraction_view(project_id: str, change_id: str) -> dict[str, Any]:
+    """Everything the change brief needs from the extraction, read once (nothing here writes).
+
+    `sections` holds only the confirmed section entries whose element is still in the inventory with the same text.
+    """
+    base = workspace_path(project_id)
+    state = inventory_state(project_id, change_id)
+    inventory = load_inventory(base, change_id) or {}
+    elements = [{**e, "path": _in_workspace(base, e.get("path"))}
+                for e in inventory.get("elements", [])] if state != "missing" else []
+    items = load_proposals(base, change_id)["items"] if state != "missing" else {}
+    by_id = {e["id"]: e for e in elements}
+    rows: dict[str, list[dict[str, str]]] = {}
+    sections: list[dict[str, Any]] = []
+    if state != "missing":
+        for row in load_change_ears(project_id, change_id):
+            found = _EXT_SOURCE.match(str(row.get("source", "")))
+            if found and found.group(1) in by_id:
+                rows.setdefault(found.group(1), []).append(
+                    {"id": row["id"], "statement": row["statement"], "delta": row["delta"]}
+                )
+        stored = read_json(extraction_dir(base, change_id) / "sections.json", {})
+        for entry in stored.get("entries", []) if isinstance(stored, dict) else []:
+            element = by_id.get(entry.get("element"))
+            item = items.get(entry.get("element"))
+            if element and isinstance(item, dict) and item.get("status") == "confirmed" \
+                    and item.get("element_sha") == element.get("sha"):
+                sections.append({**entry, "path": element["path"]})
+    return {
+        "state": state, "elements": elements, "items": items, "rows": rows, "sections": sections,
+        "coverage": extraction_coverage(project_id, change_id),
+        "preserved": preserved_coverage(project_id, change_id),
+        "fingerprint": extraction_fingerprint(base, change_id),
+    }

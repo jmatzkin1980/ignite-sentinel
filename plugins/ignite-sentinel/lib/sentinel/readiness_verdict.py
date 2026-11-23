@@ -488,7 +488,12 @@ def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
         recorded = int(report.get("blocking_open", 0) or 0)
     except (TypeError, ValueError):
         return True
-    return recorded != int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    if recorded != int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0):
+        return True
+    # IMP-402: something was confirmed, corrected or taken out of the extraction since the brief was compiled.
+    from .extraction.coverage import extraction_fingerprint
+
+    return str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, change_id)
 
 
 def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:
