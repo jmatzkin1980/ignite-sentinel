@@ -77,11 +77,14 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     """IMP-396: `/status --change`: where one change stands, its next step and its escalation warnings."""
     from .change_escalation import escalation_warnings
     from .changes import get_change
+    from .extraction.coverage import extraction_coverage, preserved_coverage
     from .readiness_verdict import change_next_step
 
     change = get_change(project_id, change_id)
     step = change_next_step(project_id, change_id)
     sources = change_sources(project_id, change_id)
+    extraction = extraction_coverage(project_id, change_id)
+    preserved = preserved_coverage(project_id, change_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -91,8 +94,55 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "next_step": step["text"],
         "next_action": step,
         "sources": sources,
-        "warnings": [*escalation_warnings(project_id, change_id), *_source_warnings(project_id, change_id, sources)],
+        "extraction": extraction,
+        "preserved": preserved,
+        "warnings": [
+            *escalation_warnings(project_id, change_id),
+            *_source_warnings(project_id, change_id, sources),
+            *_extraction_warnings(project_id, change_id, change, extraction, preserved),
+        ],
     }
+
+
+def _extraction_warnings(
+    project_id: str, change_id: str, change: dict, extraction: dict, preserved: dict,
+) -> list[dict[str, object]]:
+    """IMP-402: the extraction of the request and the preserved surfaces, same `trigger` + `message` shape."""
+    from .changes import change_language
+
+    es = change_language(project_id, change) == "es"
+    run = f"/extract {project_id} --change {change_id}"
+    warnings: list[dict[str, object]] = []
+    state = extraction["state"]
+    if state == "missing":
+        if change.get("round") == "lenses":
+            warnings.append({"trigger": "extraction_missing", "message": (
+                f"{change_id}: el pedido no se inventarió todavía ({run})" if es
+                else f"{change_id}: the request has not been inventoried yet ({run})")})
+    elif state == "stale":
+        warnings.append({"trigger": "extraction_stale", "message": (
+            f"{change_id}: el pedido cambió desde el inventario; corré {run}" if es
+            else f"{change_id}: the request changed since the inventory; run {run}")})
+    elif not extraction["complete"]:
+        warnings.append({"trigger": "extraction_incomplete", "message": (
+            f"{change_id}: la extracción cubre {extraction['text']}" if es
+            else f"{change_id}: the extraction covers {extraction['text']}")})
+    if extraction.get("unreadable"):
+        names = ", ".join(extraction["unreadable"])
+        warnings.append({"trigger": "extraction_unreadable", "message": (
+            f"{change_id}: Sentinel no pudo leer el pedido {names}; cargá una copia legible" if es
+            else f"{change_id}: Sentinel could not read the request {names}; load a readable copy")})
+    if extraction.get("orphans"):
+        names = ", ".join(o["id"] for o in extraction["orphans"])
+        warnings.append({"trigger": "extraction_orphans", "message": (
+            f"{change_id}: elementos que ya no están en el pedido conservan filas EARS: {names} ({run} --reject-item ID --reason \"…\")" if es
+            else f"{change_id}: elements no longer in the request keep EARS rows: {names} ({run} --reject-item ID --reason \"…\")")})
+    if preserved["missing"]:
+        names = ", ".join(preserved["missing"])
+        warnings.append({"trigger": "preserved_missing", "message": (
+            f"{change_id}: superficies preservadas sin fila UNCHANGED: {names}" if es
+            else f"{change_id}: preserved surfaces without an UNCHANGED row: {names}")})
+    return warnings
 
 
 def change_sources(project_id: str, change_id: str) -> dict[str, object]:

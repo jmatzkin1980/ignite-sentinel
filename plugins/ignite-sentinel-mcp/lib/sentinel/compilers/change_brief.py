@@ -18,6 +18,7 @@ from typing import Any
 
 from ..changes import change_gaps_path, change_language, get_change
 from ..core.io import write_json, write_text
+from ..extraction.coverage import extraction_view
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
 from ..harvest import load_harvest
 from ..pending_marks import count_pending_marks
@@ -100,6 +101,7 @@ def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, An
         "gaps": gaps,
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
+        "extraction": extraction_view(project_id, change_id),
     }
 
 
@@ -212,7 +214,66 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
     extraction_pending: list[int] = []
 
+    # IMP-402: what the extraction confirmed. Without an inventory nothing below changes a byte.
+    view = inputs.get("extraction") or {}
+    has_inventory = view.get("state", "missing") != "missing"
+    ext_elements: list[dict] = list(view.get("elements", [])) if has_inventory else []
+    ext_items: dict = view.get("items", {}) if has_inventory else {}
+    ext_by_id = {element["id"]: element for element in ext_elements}
+    inventory_cite = f"02_requirements/{change_id}/extraction/inventory.json"
+
+    def is_confirmed(element: dict) -> bool:
+        item = ext_items.get(element["id"])
+        return (isinstance(item, dict) and item.get("status") == "confirmed"
+                and item.get("element_sha") == element.get("sha"))
+
+    def extracted_entries(section: _Section, number: int) -> None:
+        for entry in view.get("sections", []) if has_inventory else []:
+            if entry.get("brief_section") != number:
+                continue
+            quote = str(entry.get("quote") or "").strip()
+            text = str(entry.get("text") or "").strip()
+            fields = {"quote": quote, "path": entry.get("path", ""), "line": entry.get("line", ""),
+                      "element": entry.get("element", "")}
+            section.fill(copy["extracted" if text else "extracted_quote"].format(text=text, **fields))
+
+    def extracted_rows(section: _Section, unchanged: bool) -> None:
+        for element_id, rows in (view.get("rows", {}) if has_inventory else {}).items():
+            element = ext_by_id.get(element_id)
+            if element is None:
+                continue
+            for row in rows:
+                if (str(row.get("delta", "")).strip().upper() == "UNCHANGED") != unchanged:
+                    continue
+                section.fill(copy["extracted_row"].format(
+                    statement=row.get("statement", ""), delta=row.get("delta", ""), row=row.get("id", ""),
+                    element=element_id, path=element.get("path", ""), line=element.get("line", "")))
+
+    def extraction_marks(section: _Section, number: int) -> None:
+        """A deferred mark while elements of this section are unconfirmed; else an empty section says so."""
+        left = [e["id"] for e in ext_elements if e.get("home") == number and not is_confirmed(e)]
+        if left:
+            ids = ", ".join(left[:5]) + (", …" if len(left) > 5 else "")
+            section.mark(copy["extraction_left"].format(n=len(left), ids=ids, cite=inventory_cite))
+            extraction_pending.append(number)
+        elif not section.lines:
+            home = [e["id"] for e in ext_elements if e.get("home") == number]
+            if not home:
+                section.info(copy["extraction_none"].format(cite=inventory_cite))
+            else:
+                # every element of this section is confirmed, none landed here: say where they went
+                discarded = all((ext_items.get(i) or {}).get("treatment") == "descarte" for i in home)
+                ids = ", ".join(home[:5]) + (", …" if len(home) > 5 else "")
+                section.info(copy["extraction_discarded" if discarded else "extraction_elsewhere"].format(
+                    n=len(home), ids=ids, cite=inventory_cite))
+
     def empty_note(section: _Section, number: int) -> None:
+        if has_inventory:
+            extracted_entries(section, number)
+            if number == 7:
+                extracted_rows(section, False)
+            extraction_marks(section, number)
+            return
         ids = ", ".join(gap_id for gap_id, n in routed.items() if n == number)
         key = "note_covers" if lenses_open or number in (2, 3, 4) else "lenses_not_open"
         if not section.lines:
@@ -293,8 +354,14 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s3.raw(f"**{copy['scope_answer']}**")
             s3.fill(f"{scope['answer']} ({scope_cite})")
         preserved = [item for item in border if item.get("zone") == "preservado"]
+        unchanged_rows = (view.get("preserved") or {}).get("rows", {}) if has_inventory else {}
         for item in preserved:
-            s6.fill(surface_line(item))
+            line = surface_line(item)
+            if has_inventory:
+                found = unchanged_rows.get(item.get("name"), [])
+                line += " — " + (copy["preserved_rows"].format(rows=", ".join(found)) if found
+                                 else copy["preserved_missing"])
+            s6.fill(line)
         if not preserved:
             s6.info(copy["no_preserved"].format(cite=scope_cite))
         adjacent = [item for item in border if item.get("zone") == "adyacente"]
@@ -308,6 +375,10 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         else:
             s3.mark(mark_text(scope_cite))
         s6.info(copy["after_border"].format(cite=scope_cite))
+    if has_inventory:
+        extracted_entries(s3, 3)
+        extracted_entries(s6, 6)
+        extracted_rows(s6, True)
     for gap in routed_gaps(8):
         gap_line(s8, gap)
     if not border_confirmed and not routed_gaps(8):
@@ -372,8 +443,17 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s9.raw(f"| {gap['id']} | {gap.get('lens', '')} | {gap.get('severity', '')} | {verdict} |")
     else:
         s9.info(copy["no_open"].format(cite=gaps_cite))
-    if extraction_pending:
+    if has_inventory or extraction_pending:
         s9.raw("")
+    if has_inventory:
+        for element in ext_elements:
+            item = ext_items.get(element["id"])
+            if is_confirmed(element) and item.get("treatment") == "descarte":
+                s9.info(copy["discarded"].format(
+                    element=element["id"], reason=str(item.get("reason", "")).strip(),
+                    path=element.get("path", ""), line=element.get("line", "")))
+        s9.info(copy["coverage"].format(text=(view.get("coverage") or {}).get("text", "")))
+    if extraction_pending:
         s9.info(copy["extraction_summary"].format(sections=", ".join(f"§{n}" for n in extraction_pending)))
 
     heading = copy["heading"].format(change_id=change_id, title=inputs.get("note_title", ""))
@@ -400,6 +480,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "pending_gaps": pending_gaps,
         "extraction_pending": [str(number) for number in extraction_pending],
         "blocking_open": count_pending_marks(text).blocking,
+        "extraction": view.get("coverage") if has_inventory else None,
+        "extraction_fingerprint": view.get("fingerprint", "") if has_inventory else "",
+        "preserved_missing": list((view.get("preserved") or {}).get("missing", [])) if has_inventory else [],
     }
     return text, report
 

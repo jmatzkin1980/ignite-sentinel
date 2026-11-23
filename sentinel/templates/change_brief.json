@@ -70,7 +70,18 @@
       "yes": "sí",
       "no": "no",
       "no_open": "Sin gaps abiertos en gaps.md del cambio ({cite})",
-      "no_text": "respuesta confirmada sin texto"
+      "no_text": "respuesta confirmada sin texto",
+      "extraction_left": "⏳ PENDIENTE DE EXTRACCIÓN: {n} elemento(s) del pedido sin confirmar ({ids}) (`{cite}`)",
+      "extraction_none": "El pedido no trae elementos para esta sección (`{cite}`)",
+      "extraction_discarded": "Los {n} elemento(s) del pedido para esta sección se descartaron ({ids}); el motivo de cada uno está en §9 (`{cite}`)",
+      "extraction_elsewhere": "Los {n} elemento(s) del pedido para esta sección se confirmaron en otra sección o se descartaron ({ids}); ver §9 (`{cite}`)",
+      "extracted": "{text} — «{quote}» (`{path}`:{line}, {element})",
+      "extracted_quote": "«{quote}» (`{path}`:{line}, {element})",
+      "extracted_row": "{statement} [{delta}] ({row}, {element}, `{path}`:{line})",
+      "discarded": "Descartado {element}: {reason} (`{path}`:{line})",
+      "coverage": "Cobertura de la extracción: {text}",
+      "preserved_rows": "UNCHANGED: {rows}",
+      "preserved_missing": "sin fila UNCHANGED"
     },
     "en": {
       "heading": "Change brief {change_id} — {title}",
@@ -96,7 +107,18 @@
       "yes": "yes",
       "no": "no",
       "no_open": "No open gaps in the change's gaps.md ({cite})",
-      "no_text": "confirmed answer without text"
+      "no_text": "confirmed answer without text",
+      "extraction_left": "⏳ PENDING EXTRACTION: {n} request element(s) not confirmed ({ids}) (`{cite}`)",
+      "extraction_none": "The request brings no elements for this section (`{cite}`)",
+      "extraction_discarded": "The {n} request element(s) for this section were discarded ({ids}); the reason for each is in §9 (`{cite}`)",
+      "extraction_elsewhere": "The {n} request element(s) for this section were confirmed in another section or discarded ({ids}); see §9 (`{cite}`)",
+      "extracted": "{text} — «{quote}» (`{path}`:{line}, {element})",
+      "extracted_quote": "«{quote}» (`{path}`:{line}, {element})",
+      "extracted_row": "{statement} [{delta}] ({row}, {element}, `{path}`:{line})",
+      "discarded": "Discarded {element}: {reason} (`{path}`:{line})",
+      "coverage": "Extraction coverage: {text}",
+      "preserved_rows": "UNCHANGED: {rows}",
+      "preserved_missing": "no UNCHANGED row"
     }
   }
 }

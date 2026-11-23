@@ -13,8 +13,10 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
-from sentinel.readiness_verdict import COVERAGE_NOT_MEASURED, build_readiness_verdict  # noqa: E402
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_ok  # noqa: E402
+from sentinel.readiness_verdict import build_readiness_verdict  # noqa: E402
+
+NOT_MEASURED = "not measured"
 from test_change_next import CID, cli_json, load_baseline, set_change  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_specs import ALL_ANSWERS, PROJECT_EARS, PROJECT_RAW, answer, open_change  # noqa: E402
@@ -47,18 +49,23 @@ class ChangeOnly(SnapshotWorkspaceCase):
         (blocker,) = build_readiness_verdict("BORR")["blockers"]
         self.assertRegex(blocker, rf"^{CID}: lenses \(\d+ blocking\)\. Close the change's blocking questions\.$")
 
-    def test_all_done_reuses_an_existing_verdict_and_warns_about_coverage(self):
+    def test_all_done_has_measured_coverage_and_no_coverage_warning(self):
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
         load_baseline("BORR")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
+        complete_extraction("BORR", CID)
         for command in ("brief", "specs", "backlog"):
             run_ok([command, "BORR", "--change", CID])
         verdict = build_readiness_verdict("BORR")
         self.assertEqual(verdict["changes"][0]["next_step"]["key"], "done")
         self.assertEqual(verdict["blockers"], [])
         self.assertEqual(verdict["verdict"], "READY_WITH_WARNINGS")
-        self.assertIn(COVERAGE_NOT_MEASURED, verdict["warnings"])
+        # done means the request is fully extracted: the coverage is measured in the change's step, never "not measured"
+        self.assertFalse([w for w in verdict["warnings"] if NOT_MEASURED in w])
+        coverage = verdict["changes"][0]["next_step"]["text"]
+        self.assertRegex(coverage, r"La extracción cubre (\d+) de \1 ")
+        self.assertNotRegex(coverage, r"La extracción cubre 0 de")
         gaps_gate = next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps")
         self.assertEqual(gaps_gate, {"gate": "gaps", "state": "NOT_APPLICABLE", "blocks": False})
         self.assertFalse([w for w in verdict["warnings"] + verdict["blockers"] if DISCOVERY in w])
@@ -75,7 +82,7 @@ class WithoutChanges(SnapshotWorkspaceCase):
         self.assertEqual(verdict["verdict"], "NOT_READY")
         self.assertEqual(verdict["blockers"], ["Discovery has not run: there is no 01_discovery/gaps.md."])
         self.assertEqual(next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps"), {"gate": "gaps", "state": "NOT_RUN", "blocks": True})
-        self.assertNotIn(COVERAGE_NOT_MEASURED, verdict["warnings"])
+        self.assertFalse([w for w in verdict["warnings"] if NOT_MEASURED in w])
 
 
 class Mixed(SnapshotWorkspaceCase):
@@ -91,7 +98,7 @@ class Mixed(SnapshotWorkspaceCase):
         self.assertEqual(after.pop("changes")[0]["next_step"]["key"], "lenses")
         for key in ("verdict", "blockers", "warnings", "blocking_open", "partial_coverage", "gate_matrix", "counts", "next_step"):
             self.assertEqual(after[key], before[key], key)
-        self.assertNotIn(COVERAGE_NOT_MEASURED, after["warnings"])
+        self.assertFalse([w for w in after["warnings"] if NOT_MEASURED in w])
 
 
 if __name__ == "__main__":

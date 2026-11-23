@@ -271,6 +271,16 @@ def _next(p: argparse.ArgumentParser) -> None:
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-396: the next step of this change instead of the project's")
 
 
+def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a change request with coverage
+    p.add_argument("project_id")
+    p.add_argument("--change", metavar="CHG-NNN", required=True, help="IMP-402: the change whose request is extracted")
+    p.add_argument("--proposals", metavar="PATH", help="IMP-402: record the cited proposals in this file")
+    p.add_argument("--confirm", metavar="SECTION|all", help="IMP-402: confirm the proposals of a section (or all); flagged ones are held")
+    p.add_argument("--confirm-item", dest="confirm_item", metavar="ID", help="IMP-402: confirm one proposal, flagged or not")
+    p.add_argument("--reject-item", dest="reject_item", metavar="ID", help="IMP-402: take one element back to pending (needs --reason)")
+    p.add_argument("--reason", help="IMP-402: with --reject-item, why")
+
+
 def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms profile, genesis and validation direction
     p.add_argument("project_id")
     p.add_argument("--profile", help="comma-separated: UI,API,BAT,INT,MIG,REG,MT")
@@ -347,6 +357,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
     Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}),
+    Command("extract", MUTATING, _extract),  # IMP-402
     Command("export", MUTATING, _export),
     Command("backlog", MUTATING, _backlog, release=True),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.

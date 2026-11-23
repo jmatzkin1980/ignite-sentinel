@@ -35,6 +35,22 @@ def run_ok(argv: list[str]) -> str:
     return out
 
 
+IDS_SCOPE_ANSWER = "\n".join([
+    "### GAP-SCOPE",
+    "- Respuesta: El alta de proveedores con aprobación por monto.",
+    "- Borde:",
+    "  - nuevo | pantalla | Bandeja de aprobaciones",
+    "  - nuevo | regla | Aprobación por monto",
+    "  - adyacente | endpoint | Alta de proveedores",
+    "  - adyacente | dato | Tabla de proveedores",
+    "  - preservado | proceso | Alta de monto bajo",
+    "  - preservado | regla | Validación de CUIT",
+    "- Owner / fuente: Jefa de Compras",
+    "- Estado de decisión: confirmado",
+    "",
+])
+
+
 def gap_acceptance_answer(ears: str, evidence_label: str = "Evidence or reference") -> str:
     """A confirmed answer to GAP-ACCEPTANCE carrying the given EARS statement(s)."""
     return (
@@ -120,3 +136,40 @@ class SnapshotWorkspaceCase(unittest.TestCase):
     def tearDown(self) -> None:
         os.chdir(self.old_cwd)
         super().tearDown()
+
+
+_HOME_SECTION = {2: "objetivo", 3: "alcance", 4: "proceso", 6: "preservado", 7: "reglas"}
+
+
+def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
+    """IMP-402: inventory, propose every element as a section (or as UNCHANGED rows for the preserved surfaces) and confirm all."""
+    from sentinel.extraction.confirm import confirm_proposals
+    from sentinel.extraction.inventory import build_inventory, element_text, load_inventory
+    from sentinel.extraction.coverage import preserved_coverage
+    from sentinel.extraction.proposals import record_proposals
+    from sentinel.workspace import workspace_path
+
+    build_inventory(project_id, change_id)
+    base = workspace_path(project_id)
+    elements = (load_inventory(base, change_id) or {}).get("elements", [])
+    missing = preserved_coverage(project_id, change_id)["missing"]
+    blocks: list[str] = []
+    for index, element in enumerate(elements):
+        flat = " ".join((element_text(base, element) or "").split())
+        quote = flat[:60].strip()
+        if index == 0 and missing:
+            lines = [f"### {element['id']}", "- Tratamiento: requisito", f'- Cita: "{quote}"']
+            for surface in missing:
+                lines += [f"- Enunciado: El sistema debe continuar funcionando como hoy en {surface}.",
+                          "  - Delta: UNCHANGED", f"  - Superficie: {surface}"]
+        else:
+            section = _HOME_SECTION.get(element.get("home"), "reglas")
+            lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Seccion: {section}", f'- Cita: "{quote}"']
+        blocks.append("\n".join(lines) + "\n")
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "proposals.md"
+        path.write_text("\n".join(blocks), encoding="utf-8")
+        result = record_proposals(project_id, change_id, path)
+    if result.get("rejected"):
+        raise AssertionError(f"complete_extraction: rejected {result['rejected']}")
+    confirm_proposals(project_id, change_id, "all")

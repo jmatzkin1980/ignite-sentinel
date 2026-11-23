@@ -339,6 +339,30 @@ def _lens_evidence(base: Path, change: dict) -> str:
     return "\n\n".join(parts)
 
 
+_ACCEPTANCE_HEADINGS = ("criterios de aceptacion", "acceptance criteria")
+
+
+def _request_states_acceptance(base: Path, change: dict) -> bool:
+    """IMP-402 (change path only): the request itemizes its acceptance criteria.
+
+    The lens checks read sentences and skip headings, so a request whose criteria sit under a
+    "Criterios de aceptación" heading, or carry CA-/AC- ids, would still be asked for them."""
+    from .extraction.inventory import _heading_keyword, parse_request_elements
+
+    path = Path(change["source"])
+    path = path if path.is_absolute() else base / path
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    for element in parse_request_elements(text, "", ""):
+        if element["kind"] != "criterion":
+            continue
+        if element["id"].startswith(("CA-", "AC-")) or _heading_keyword(element["section"]).startswith(_ACCEPTANCE_HEADINGS):
+            return True
+    return False
+
+
 def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     """Re-render the change's gaps.md; in the lens round add the checks not yet there, once."""
     from .discovery.detection import detect_gaps
@@ -354,6 +378,8 @@ def regenerate_change_gaps(project_id: str, change_id: str) -> dict:
     if change.get("round") == "lenses":
         have = {row["id"] for row in existing}
         found = detect_gaps(_lens_evidence(base, change), load_domain_context(base), work="change", border_types=border_types(change))
+        if _request_states_acceptance(base, change):
+            found = [g for g in found if g["id"] != "GAP-ACCEPTANCE"]
         rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
     write_text(gaps_path, render_gaps(project_id, rows, change_id, language, gaps_path.with_name("gap_elicitation.json")))
     counts = count_gaps(rows)

@@ -1,0 +1,156 @@
+"""IMP-402 (H26 inc 3) task 7: `/next --change` walks the extraction and the preserved surfaces before the brief."""
+from __future__ import annotations
+
+import shutil
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
+from test_change_flow import SCOPE_ANSWER  # noqa: E402
+from test_change_next import load_baseline, set_change  # noqa: E402
+from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
+
+from sentinel.core.io import forget_read_snapshots  # noqa: E402
+from sentinel.extraction.confirm import confirm_item, confirm_proposals  # noqa: E402
+from sentinel.extraction.inventory import build_inventory, element_text, load_inventory  # noqa: E402
+from sentinel.extraction.proposals import record_proposals  # noqa: E402
+from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
+from sentinel.workspace import workspace_path  # noqa: E402
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+CID = "CHG-001"
+HOME_SECTION = {2: "objetivo", 3: "alcance", 4: "proceso", 6: "preservado", 7: "reglas"}
+
+
+def all_as_sections(project: str, flagged: str | None = None) -> str:
+    base = workspace_path(project)
+    blocks = []
+    for element in load_inventory(base, CID)["elements"]:
+        quote = " ".join((element_text(base, element) or "").split())[:60].strip()
+        lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Seccion: {HOME_SECTION.get(element['home'], 'reglas')}",
+                 f'- Cita: "{quote}"']
+        if element["id"] == flagged:
+            lines.append("- Marca: sin_respaldo — sin respaldo en la línea de base")
+        blocks.append("\n".join(lines) + "\n")
+    return "\n".join(blocks)
+
+
+def submit(project: str, text: str) -> None:
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "p.md"
+        path.write_text(text, encoding="utf-8")
+        result = record_proposals(project, CID, path)
+    assert not result["rejected"], result
+
+
+class MatureNext(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        root = Path.cwd()
+        shutil.copy(FIXTURES / "change_mature" / "pedido_maduro.md", root / "pedido.md")
+        (root / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["init", "MAD"])
+        run_ok(["ingest", "MAD", "--source", "pedido.md", "--change"])
+        run_ok(["resolve-gaps", "MAD", "--source", "scope.md", "--change", CID])
+        load_baseline("MAD")
+
+    def setUp(self):
+        super().setUp()
+        forget_read_snapshots()
+
+    def test_after_lenses_comes_inventory(self):
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_inventory")
+        self.assertEqual(s["command"], f"/extract MAD --change {CID}")
+        self.assertEqual(s["title"], "Inventariar el pedido")
+
+    def test_proposals_then_confirm_then_preserved(self):
+        build_inventory("MAD", CID)
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_proposals")
+        self.assertIn("13 de 13", s["text"])
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --proposals PATH")
+        submit("MAD", all_as_sections("MAD", flagged="Regla 2"))
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_confirm")
+        self.assertIn("1 marcada(s)", s["text"])
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --confirm all")
+        confirm_proposals("MAD", CID, "all")
+        confirm_item("MAD", CID, "Regla 2")
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "preserved")
+        self.assertIn("Envío completo del alta", s["text"])
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --proposals PATH")
+
+    def test_stale_inventory_step(self):
+        build_inventory("MAD", CID)
+        pedido = workspace_path("MAD").parent / "otro_pedido.md"
+        pedido.write_text("# Otro pedido\n\n- Regla 1: algo distinto que el inventario no conoce todavía.\n", encoding="utf-8")
+        run_ok(["sources", "MAD", "--load", str(pedido), "--role", "pedido", "--change", CID])
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_inventory")
+        self.assertEqual(s["title"], "Reinventariar el pedido")
+
+    def test_requirements_none_points_to_extract(self):
+        complete_extraction("MAD", CID)
+        self.assertEqual(change_next_step("MAD", CID)["key"], "brief")
+        run_ok(["brief", "MAD", "--change", CID])
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "requirements")
+        self.assertEqual(s["title"], "Proponer los requisitos del cambio")
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --proposals PATH")
+
+    def test_english_texts(self):
+        set_change("MAD", language="en")
+        build_inventory("MAD", CID)
+        s = change_next_step("MAD", CID)
+        self.assertEqual(s["key"], "extract_proposals")
+        self.assertIn("of 13 request elements", s["text"])
+
+
+class BorradorDone(SnapshotWorkspaceCase):
+    @classmethod
+    def build_workspace(cls):
+        root = Path.cwd()
+        shutil.copy(FIXTURES / "change_borrador.md", root / "pedido.md")
+        (root / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["init", "BORR"])
+        run_ok(["ingest", "BORR", "--source", "pedido.md", "--change"])
+        run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        load_baseline("BORR")
+
+    def walk(self) -> None:
+        forget_read_snapshots()
+        answer("BORR", CID, "a.md", ALL_ANSWERS)
+        complete_extraction("BORR", CID)
+        for command in ("brief", "specs", "backlog", "validate"):
+            run_ok([command, "BORR", "--change", CID])
+
+    def test_done_says_coverage(self):
+        self.walk()
+        s = change_next_step("BORR", CID)
+        self.assertEqual(s["key"], "done")
+        self.assertIn("1 de 1", s["text"])
+        self.assertEqual(s["command"], "")
+
+    def test_english_done(self):
+        self.walk()
+        set_change("BORR", language="en")
+        self.assertIn("The extraction covers", change_next_step("BORR", CID)["text"])
+
+
+class Keys(unittest.TestCase):
+    def test_step_keys(self):
+        self.assertEqual(set(CHANGE_COMMANDS), {
+            "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer",
+            "brief", "requirements", "specs", "backlog", "validate", "done"})
+        for language in ("es", "en"):
+            self.assertNotIn("pending_extraction", CHANGE_TEXT[language])
+
+
+if __name__ == "__main__":
+    unittest.main()

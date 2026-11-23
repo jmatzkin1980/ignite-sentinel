@@ -424,6 +424,20 @@ def _run_project_command(args) -> int:
             else:
                 result = generate_context_request(args.project_id, args.domain)
             print_json(result)
+        elif args.command == "extract":
+            from .extraction import run_extract
+
+            forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item)]
+            if sum(forms) > 1:
+                raise ValueError("/extract takes one of --proposals, --confirm, --confirm-item or --reject-item")
+            if args.reason and not args.reject_item:
+                raise ValueError("/extract --reason goes with --reject-item")
+            if args.reject_item and not args.reason:
+                raise ValueError("/extract --reject-item needs --reason")
+            print_json(run_extract(
+                args.project_id, args.change, proposals=args.proposals, confirm=args.confirm,
+                confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
+            ))
         elif args.command == "next":
             from .status import project_next
 

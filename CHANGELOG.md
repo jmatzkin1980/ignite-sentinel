@@ -6,6 +6,15 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/extract --change` (IMP-402).** Inventory of the request element by element, proposals with a verbatim citation, confirmation by section except what is flagged, EARS rows with Delta and Superficie per statement, the sections of the brief filled, coverage in `/status`, `/next` and the brief, and what is preserved covered with an UNCHANGED row.
+
+### Changed
+
+- **`/next --change` (IMP-402).** It replaces `pending_extraction` with the extraction steps (`extract_inventory`, `extract_proposals`, `extract_confirm`, `preserved`), and `done` requires full coverage and what is preserved covered; the `requirements` step no longer depends on an open question.
+- **Extraction review fixes (IMP-402).** The inventory keeps indented lines inside their list item, takes id-led paragraphs, treats several `#` headings as sections and splits the criteria inside a story heading. New steps `extract_unreadable` (a request file Sentinel cannot read never counts as covered), `extract_orphans` (an element that left the request but keeps EARS rows, taken out with `--reject-item`) and a `--confirm-item` step when only flagged proposals are left. A re-submitted proposal identical to its confirmed version stays confirmed (`unchanged`). The change lens round takes an itemized acceptance-criteria heading or CA-/AC- ids as the acceptance signal. The workspace-only verdict no longer warns that coverage is not measured.
+
 ## [0.24.0] — 2026-11-22
 
 ### Added
