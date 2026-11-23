@@ -12,10 +12,17 @@ from .source_registry import (
     close_row,
     SourceRegistryError,
     ensure_registry,
+    set_role,
     find_row,
+    harvest_role_message,
+    is_harvested,
     open_row,
     registry_summary,
+    ROLE_FOLDERS,
+    SOURCE_ROLES,
+    role_is_declared,
     row_for_hash,
+    source_kind,
     update_row,
     write_source_log,
 )
@@ -144,6 +151,212 @@ def open_source_row(
     return str(row["id"])
 
 
+def declare_source_role(project_id: str, source_id: str, role: str) -> None:
+    """IMP-400: persist the role a source plays in a change on its F-NN row."""
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    if row is None:
+        raise SourceRegistryError(f"fuente desconocida: {source_id}")
+    set_role(row, role)
+    save_source_manifest(project_id, manifest)
+
+
+def _load_language(project_id: str, change_id: str | None) -> str:
+    if change_id:
+        from .changes import change_language, list_changes
+
+        entry = list_changes(project_id).get(change_id)
+        if entry:
+            return change_language(project_id, entry)
+    return _language(project_id)
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    try:
+        path.resolve().relative_to(folder.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _text(language: str, es: str, en: str) -> str:
+    return es if language == "es" else en
+
+
+def load_source(project_id: str, source: Path, role: str, change_id: str | None = None) -> dict[str, Any]:
+    """IMP-400: register `source` with the role it plays in a change.
+
+    A file outside 00_raw gets a redacted copy in the role's folder; a context file already
+    inside 00_raw is registered in place. The same content reuses its F-NN row.
+    """
+    from .changes import get_change, list_changes
+    from .core.text import unique_path
+    from .errors import InputError
+    from .injection import shield_source
+    from .memory import CONTEXT_FOLDERS, _sentinel_output_paths, index_context_folders
+    from .secrets_scan import ingest_source, pii_report_enabled
+    from .source_formats import read_source, target_suffix
+    from .workspace import ensure_workspace, update_state
+
+    language = _load_language(project_id, change_id)
+    if role not in SOURCE_ROLES:
+        raise InputError(_text(
+            language,
+            f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}",
+            f"unknown role: {role}; valid roles: {', '.join(SOURCE_ROLES)}",
+        ))
+    if role == "pedido" and not change_id:
+        raise InputError(
+            _text(language, "el pedido de un proyecto entra con /ingest", "a project's request enters with /ingest"),
+            next_step=_text(
+                language,
+                f"Usá /ingest {project_id} --source NOTA (proyecto) o /ingest {project_id} --source NOTA --change (cambio); "
+                "--role pedido de /sources va con --change CHG-NNN.",
+                f"Use /ingest {project_id} --source NOTE (project) or /ingest {project_id} --source NOTE --change (change); "
+                "/sources --role pedido goes with --change CHG-NNN.",
+            ),
+        )
+    if change_id:
+        get_change(project_id, change_id)
+    if not source.is_file():
+        raise InputError(_text(language, f"--load debe ser un archivo: {source}", f"--load must be a file: {source}"))
+
+    ensure_workspace(project_id)
+    base = workspace_path(project_id)
+    raw = base / "00_raw"
+    key = source_key(source)
+    resolved = source.resolve()
+    own = {str(Path(item).resolve()) for item in _sentinel_output_paths(project_id)}
+    if (
+        _inside(source, base / "00_raw" / "02_technology_context" / "harvest")
+        or str(resolved) in own
+        or default_authority(source_kind(key), key) == "own_artifact"
+        or source.name.endswith(SENTINEL_OUTPUT_SUFFIXES)
+    ):
+        raise _harvest_refusal(source.name, language)
+
+    in_place = any(_inside(source, base / folder) for folder in CONTEXT_FOLDERS if folder.startswith("00_raw/"))
+    if in_place:
+        read_source(source)  # a file Sentinel cannot read is refused before any row exists (SourceFormatError)
+    manifest = load_source_manifest(project_id)
+    existing = row_for_hash(manifest, file_hash(source))
+    if existing is not None and is_harvested(existing):  # the same content as a harvest draft
+        raise _harvest_refusal(source.name, language)
+    if existing is not None and role_is_declared(existing) and existing["role"] != role:
+        raise InputError(
+            _text(
+                language,
+                f"{existing['id']} ya está registrada como {existing['role']}; "
+                f"para cambiarlo usá /sources {project_id} --id {existing['id']} --role {role}",
+                f"{existing['id']} is already registered as {existing['role']}; "
+                f"to change it use /sources {project_id} --id {existing['id']} --role {role}",
+            )
+        )
+
+    def make_copy(source_id_for_copy: str | None) -> tuple[Path, str]:
+        copy = unique_path(base / ROLE_FOLDERS[role] / f"{source.stem}{target_suffix(source)}")
+        config = load_config(project_id)
+        extracted = read_source(source, media_stem=copy.stem)
+        source_id = source_id_for_copy or open_source_row(project_id, source, "role_loaded")
+        text, _sanitized = ingest_source(base, source, copy, pii_report_enabled(config), extracted)
+        shield_source(base, source.name, text)
+        return copy, source_id
+
+    reused = existing is not None
+    if reused:
+        source_id = str(existing["id"])
+        target = source if in_place else None
+        if in_place:  # the hand-copied path joins the row it duplicates
+            mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
+        if target is None:  # the content already has a copy in the workspace: no second one
+            for candidate in [*existing.get("copies", []), *existing.get("paths", [])]:
+                found = Path(candidate) if Path(candidate).is_absolute() else Path.cwd() / candidate
+                if found.is_file() and _inside(found, raw):
+                    target = found
+                    break
+        if target is None:  # registered, but no copy left: make one
+            target, _ = make_copy(source_id)
+            mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
+    elif in_place:
+        target = source
+        source_id = open_source_row(project_id, source, "role_loaded")
+        mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
+    else:
+        target, source_id = make_copy(None)
+        mark_source_processed(project_id, source, "role_loaded", source_id=source_id)
+        mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
+
+    # A declared role overwrites an inferred one; the role's folder gives the row its authority
+    # (built / spec / prototype) unless a person or the routing already set one.
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    set_role(row, role, language)
+    if row_authority(row) == "unclassified":
+        by_role = default_authority(source_kind(f"{ROLE_FOLDERS[role]}/x"), "")
+        if by_role != "unclassified":
+            set_authority(row, by_role)
+    save_source_manifest(project_id, manifest)
+    if change_id:
+        changes = {k: dict(v) for k, v in list_changes(project_id).items()}
+        listed = list(changes[change_id].get("sources") or [])
+        if source_id not in listed:
+            listed.append(source_id)
+        changes[change_id]["sources"] = listed
+        update_state(project_id, changes=changes)
+    index_context_folders(project_id)
+    write_source_log(project_id, load_source_manifest(project_id), source_log_path(project_id), _language(project_id))
+    from .source_versions import check_versions_for
+
+    # IMP-400: with --change, that change; a non-request source without --change, every change.
+    version_gaps = check_versions_for(project_id, change_id) if (change_id or role != "pedido") else []
+    return {
+        "source_id": source_id,
+        "role": role,
+        "path": source_key(target),
+        "change_id": change_id,
+        "reused": reused,
+        "in_place": in_place,
+        "version_gaps": version_gaps,
+        "validity": str(row.get("validity") or "current"),
+        "replaced_by": row.get("superseded_by") or row.get("replacement"),
+    }
+
+
+def _harvest_refusal(name: str, language: str) -> Exception:
+    from .errors import InputError
+
+    return InputError(
+        harvest_role_message(name, language),
+        next_step=_text(
+            language,
+            "Cargá el documento original del cliente que Sentinel leyó.",
+            "Load the client's original document that Sentinel read.",
+        ),
+    )
+
+
+def load_message(project_id: str, result: dict[str, Any]) -> str:
+    language = _load_language(project_id, result.get("change_id"))
+    change_id = result.get("change_id")
+    where = (f", en {change_id}" if language == "es" else f", in {change_id}") if change_id else ""
+    message = _text(
+        language,
+        f"{result['source_id']} registrada como {result['role']}{where}: `{result['path']}`",
+        f"{result['source_id']} registered as {result['role']}{where}: `{result['path']}`",
+    )
+    validity = result.get("validity") or "current"
+    if validity != "current":  # reloading a dead document is not a plain success
+        newer = result.get("replaced_by")
+        message += _text(
+            language,
+            f". Atención: {result['source_id']} no está vigente ({validity})"
+            + (f"; la reemplaza {newer}." if newer else "; no tiene reemplazo registrado."),
+            f". Note: {result['source_id']} is not current ({validity})"
+            + (f"; it is replaced by {newer}." if newer else "; no replacement is registered."),
+        )
+    return message
+
+
 def mark_source_processed(
     project_id: str,
     path: Path,
@@ -240,6 +453,7 @@ def update_source(
     source_id: str,
     *,
     authority: str | None = None,
+    role: str | None = None,
     cell: str | None = None,
     mark: str | None = None,
     **changes: Any,
@@ -252,12 +466,19 @@ def update_source(
     row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
     if authority:
         set_authority(row, authority)
+    if role:
+        set_role(row, role, _language(project_id))  # IMP-400: fix the role of a row
     if changes.get("retire"):
         cascade_impact(row)  # IMP-250b: a retired source reaches every document
     if cell is not None:
         mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
     extra: dict[str, Any] = {}
+    if role:
+        from .source_versions import check_versions_for
+
+        # IMP-400: a fixed role can make a request cite another version; ask now, not at the next load.
+        extra["version_gaps"] = check_versions_for(project_id, None)
     if changes.get("retire"):
         # IMP-341: a retired source stops feeding memory. Its files stay on disk for
         # audit; `--current` brings them back on the next /reindex.
@@ -337,3 +558,23 @@ def iter_source_files(folder: Path) -> list[Path]:
             continue
         files.append(path)
     return files
+
+
+def waive_baseline(project_id: str, change_id: str, reason: str) -> dict[str, Any]:
+    """IMP-400: the change has no baseline to load; record who said so and why (the `baseline` step stops asking)."""
+    from .changes import get_change, list_changes
+    from .errors import InputError
+    from .workspace import update_state
+
+    if not (reason or "").strip():
+        language = _load_language(project_id, change_id)
+        raise InputError(
+            _text(language, "--no-baseline necesita --reason con el porqué: sin motivo no hay dispensa.",
+                  "--no-baseline needs --reason with the why: no reason, no waiver."),
+            next_step=f'/sources {project_id} --change {change_id} --no-baseline --reason "…"')
+    get_change(project_id, change_id)
+    waiver = {"reason": reason.strip(), "at": utc_now()}
+    changes = {k: dict(v) for k, v in list_changes(project_id).items()}
+    changes[change_id]["baseline_waived"] = waiver
+    update_state(project_id, changes=changes)
+    return {"project_id": project_id, "change_id": change_id, "baseline_waived": waiver}

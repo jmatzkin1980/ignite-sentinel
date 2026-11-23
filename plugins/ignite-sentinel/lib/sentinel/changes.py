@@ -20,7 +20,7 @@ from .core.text import unique_path
 from .lens_registry import SURFACE_TYPES, load_lens_checks
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
-from .sources import mark_source_processed, open_source_row
+from .sources import declare_source_role, mark_source_processed, open_source_row
 from .workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
 SCOPE_ROUND_IDS: tuple[str, ...] = ("GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE")
@@ -124,6 +124,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
     own_source = f"00_raw/{raw_target.name}"
     extracted = read_source(source, media_stem=raw_target.stem)
     source_id = open_source_row(project_id, source, "change_ingested")
+    declare_source_role(project_id, source_id, "pedido")  # IMP-400: the note is the request
     config = load_config(project_id)
     text, _sanitized = ingest_source(base, source, raw_target, pii_report_enabled(config), extracted)
     text, _injection_ids = shield_source(base, source.name, text)
@@ -151,13 +152,17 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "border_confirmed_at": None,
         "responses": [],
         "gap_counts": count_gaps(gaps),
+        "sources": [source_id],
     }
     update_state(project_id, changes=changes)
+    from .source_versions import check_change_versions
+
+    check_change_versions(project_id, change_id)  # IMP-400: a request that cites another version of a loaded source
     return {
         "project_id": project_id,
         "change_id": change_id,
         "gaps_path": str(gaps_path.as_posix()),
-        "gap_counts": count_gaps(gaps),
+        "gap_counts": list_changes(project_id)[change_id]["gap_counts"],
         "round": "scope",
     }
 
@@ -375,6 +380,74 @@ def _squash(text: str) -> str:
     return " ".join(text.split())
 
 
+def _resolved_keys(row: dict) -> set[Path]:
+    found: set[Path] = set()
+    for key in list(row.get("paths") or []) + list(row.get("copies") or []):
+        try:
+            found.add(Path(str(key)).resolve())
+        except (OSError, ValueError):
+            continue
+    return found
+
+
+def _baseline_row_finding(project_id: str, change_id: str, rel: str, target: Path, es: bool) -> str | None:
+    """IMP-400: only a registered source with the baseline role proves that something already exists."""
+    from .source_registry import row_role
+    from .sources import load_source_manifest
+
+    def msg(spanish: str, english: str) -> str:
+        return spanish if es else english
+
+    manifest = load_source_manifest(project_id)
+    rows = [row for row in manifest.get("registry", []) if target in _resolved_keys(row)]
+    if not rows:
+        return msg(
+            f"by_baseline: `{rel}` no está registrada como fuente. Registrala con /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+            f"by_baseline: `{rel}` is not registered as a source. Register it with /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+        )
+    current = [row for row in rows if row.get("validity", "current") == "current"]
+    usable = current or rows
+    # Prefer a row that is a baseline; otherwise report the first row's problem.
+    row = next((r for r in usable if row_role(r) == "linea_de_base"), usable[0])
+    role = row_role(row)
+    sid = row.get("id", "")
+    if role is None:
+        harvested = any(event.get("via") == "harvested" for event in row.get("events") or [])
+        if harvested:
+            return msg(
+                f"by_baseline: `{rel}` es la lectura de Sentinel (harvest), no la línea de base: citá el documento que la respalda.",
+                f"by_baseline: `{rel}` is Sentinel's reading (harvest), not the baseline: cite the document that backs it.",
+            )
+    if role is None:
+        return msg(
+            f"by_baseline: `{rel}` ({sid}) no está registrada como línea de base (tipo {row.get('kind')}). Registrala con /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+            f"by_baseline: `{rel}` ({sid}) is not registered as the baseline (kind {row.get('kind')}). Register it with /sources {project_id} --load {rel} --role linea_de_base --change {change_id}",
+        )
+    if role != "linea_de_base":
+        return msg(
+            f"by_baseline: `{rel}` ({sid}) está registrada como {role}: sólo la línea de base prueba que algo ya existe.",
+            f"by_baseline: `{rel}` ({sid}) is registered as {role}: only the baseline proves that something already exists.",
+        )
+    validity = row.get("validity", "current")
+    if validity != "current":
+        newer = row.get("superseded_by") or row.get("replacement")
+        if newer:
+            return msg(
+                f"by_baseline: `{rel}` ({sid}) fue reemplazada por {newer}: citá la vigente.",
+                f"by_baseline: `{rel}` ({sid}) was replaced by {newer}: cite the current one.",
+            )
+        if validity == "retired":
+            return msg(
+                f"by_baseline: `{rel}` ({sid}) fue retirada: citá la vigente.",
+                f"by_baseline: `{rel}` ({sid}) was retired: cite the current one.",
+            )
+        return msg(
+            f"by_baseline: `{rel}` ({sid}) no está vigente ({validity}): citá la vigente.",
+            f"by_baseline: `{rel}` ({sid}) is not current ({validity}): cite the current one.",
+        )
+    return None
+
+
 def validate_baseline_citation(base: Path, project_id: str, change_id: str, evidence: str) -> str | None:
     """None when the evidence cites a baseline file and quotes it literally; else the finding, in the change's language.
 
@@ -419,6 +492,9 @@ def validate_baseline_citation(base: Path, project_id: str, change_id: str, evid
             f"by_baseline: {rel!r} es la nota de un cambio, no la línea de base.",
             f"by_baseline: {rel!r} is the note of a change, not the baseline.",
         )
+    row_finding = _baseline_row_finding(project_id, change_id, rel, target, es)
+    if row_finding:
+        return row_finding
     if len(quote) < MIN_BASELINE_QUOTE:
         return msg(
             f"by_baseline: la frase citada tiene menos de {MIN_BASELINE_QUOTE} caracteres.",

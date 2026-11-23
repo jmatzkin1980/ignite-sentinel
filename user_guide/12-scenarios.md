@@ -1972,33 +1972,35 @@ The normal submit has to keep working as today. The existing system is already i
 
 4. **Answer the rest.** Keep going as in scenario 2: regenerate the change's questions, send them, process the answers with the same `--change CHG-001`.
 
-5. **Let what the system already says answer.** In the sample, right after the scope round, some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Put those files in the project's context folders (the architecture document in `00_raw/02_technology_context/`, the manual in `00_raw/01_business_context/`). Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the six):
+5. **Let what the system already says answer.** In the sample, right after the scope round, some review questions are answered by the documentation of the system that is already in production: its architecture document, its operations manual. Load each one as the baseline of the change; do not copy it into `00_raw/` by hand, because a file Sentinel did not register never closes a question. Then the answer to a question can close it by pointing at the exact sentence. Save this as input/baseline.md (one block per question; here it shows two of the six):
 
    ```markdown
    ### GAP-TECH-NFR
    - Answer: The service keeps the performance requirement already in force.
    - Owner / source: Architecture
-   - Evidence or reference: `00_raw/02_technology_context/sad-compras.md` "responde en menos de dos segundos al percentil 95 en horario pico"
+   - Evidence or reference: `00_raw/06_baseline/sad-compras.md` "responde en menos de dos segundos al percentil 95 en horario pico"
    - Decision status: confirmed
    - Closure reason: by_baseline
 
    ### GAP-QUALITY
    - Answer: The existing regression practice applies to this change.
    - Owner / source: Head of Purchasing
-   - Evidence or reference: `00_raw/01_business_context/manual-compras.md` "pruebas de regresión del alta completa antes de salir a producción"
+   - Evidence or reference: `00_raw/06_baseline/manual-compras.md` "pruebas de regresión del alta completa antes de salir a producción"
    - Decision status: confirmed
    - Closure reason: by_baseline
    ```
 
-   **Tell the assistant:** "The architecture document and the operations manual of the current system are already in the context folders. Close the review questions of CHG-001 that they answer, quoting them, and show me each quote before processing."
+   **Tell the assistant:** "Here are the architecture document and the operations manual of the current system: input/sad-compras.md and input/manual-compras.md. Load them as the baseline of CHG-001 for COMPRAS_PORTAL, then close the review questions that they answer, quoting them, and show me each quote before processing."
 
    **You'll see:** The questions the documents answer, closed with the reason `by_baseline`. In the sample, six of the 16 open review questions close (technical performance, governance constraints, glossary, delivery readiness, rollout environments and quality), leaving 10 open, 3 of them blocking. The three blocking questions left open are the objective, the users and acceptance, which no document answers.
 
-   **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, and only when the quote is a literal piece of the cited file, at least 20 characters long. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
+   **What it means:** A question closes by the baseline only inside a change, only when you confirmed the answer, only when the cited file is a current source registered as the baseline (`linea_de_base`), and only when the quote is a literal piece of that file, at least 20 characters long. A file copied by hand into `00_raw/`, the harvest (it is Sentinel's reading, not a source), a prior plan or the design of what is new is rejected, and the message says which and how to register it. The assistant asks which role a document has when you do not say. Before the lenses, `/next` asks for the baseline; if nothing is built yet, you can waive it with a reason. Copy the sentence; do not paraphrase it. The note of the change itself never counts: it is the request, not the system. If the quote is not found, the question stays answered but open, with a message saying why; nothing closes by itself. When the assistant is not sure a document really answers a question, it should ask you instead of closing it.
 
    <details><summary>In a terminal</summary>
 
    ```text
+   /sources COMPRAS_PORTAL --load input/sad-compras.md --role linea_de_base --change CHG-001
+   /sources COMPRAS_PORTAL --load input/manual-compras.md --role linea_de_base --change CHG-001
    /resolve-gaps COMPRAS_PORTAL --source input/baseline.md --change CHG-001
    ```
 
@@ -2007,7 +2009,7 @@ The normal submit has to keep working as today. The existing system is already i
    gap_counts: open 10, closed 7, blocking_open 3, total 17
    ```
 
-   The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question.
+   Each load answers with the `F-NN` and the stored path (`00_raw/06_baseline/...`); the same content loaded twice reuses its `F-NN`. If the request cites another version of a loaded document (name or sha), a blocking `GAP-VER-xxxxxx` opens in the change: answer which version governs. The format is `` `path under 00_raw/` "literal quote" ``, with `- Closure reason: by_baseline` (in Spanish files, `Motivo de cierre`). Without `--change`, `by_baseline` never closes a question. With nothing built, `/sources COMPRAS_PORTAL --change CHG-001 --no-baseline --reason "the system is new"` waives the baseline step.
    </details>
 
 6. **Optionally, read the documents for functional detail.** If the manual describes screens, flows and rules, you can have the assistant read it into a harvest and send its questions to the change.
@@ -2031,7 +2033,7 @@ The normal submit has to keep working as today. The existing system is already i
    change_id: CHG-001
    ```
 
-   The file starts with `## B0 Inventory` and a line `- doc: manual-compras — 00_raw/01_business_context/manual-compras.md`; each claim cites `[HECHO manual-compras:manual-compras.md]`. Without `--change`: `COMPRAS_PORTAL only has changes: the harvest gaps need a change` (in Spanish, `COMPRAS_PORTAL sólo tiene cambios: los gaps del harvest necesitan un cambio`), exit 4.
+   The file starts with `## B0 Inventory` and a line `- doc: manual-compras — 00_raw/06_baseline/manual-compras.md`; each claim cites `[HECHO manual-compras:manual-compras.md]`. Without `--change`: `COMPRAS_PORTAL only has changes: the harvest gaps need a change` (in Spanish, `COMPRAS_PORTAL sólo tiene cambios: los gaps del harvest necesitan un cambio`), exit 4.
    </details>
 
 7. **Compile the brief of the change.** With the border confirmed and the baseline read, the change has enough to be written down as one document.

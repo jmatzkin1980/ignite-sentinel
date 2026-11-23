@@ -22,7 +22,7 @@ from sentinel.pending_marks import count_pending_marks  # noqa: E402
 from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
-from test_change_next import set_change  # noqa: E402
+from test_change_next import load_baseline, set_change  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 CID = "CHG-001"
@@ -53,6 +53,7 @@ class Mature(SnapshotWorkspaceCase):
         run_ok(["init", "MAD"])
         run_ok(["ingest", "MAD", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "MAD", "--source", "scope.md", "--change", CID])
+        load_baseline("MAD")
         run_ok(["brief", "MAD", "--change", CID])
 
     def test_mature_request_brief_shows_pending_extraction_not_note_covers(self):
@@ -200,6 +201,7 @@ class Walk(SnapshotWorkspaceCase):
         run_ok(["init", "WLK"])
         run_ok(["ingest", "WLK", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "WLK", "--source", "scope.md", "--change", CID])
+        load_baseline("WLK")
         run_ok(["resolve-gaps", "WLK", "--source", "acc.md", "--change", CID])
         for command in ("brief", "specs", "backlog", "validate"):
             run_ok([command, "WLK", "--change", CID])
@@ -226,6 +228,7 @@ class Borrador(SnapshotWorkspaceCase):
         run_ok(["init", "BORR"])
         run_ok(["ingest", "BORR", "--source", "pedido.md", "--change"])
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        load_baseline("BORR")
 
     def test_lenses_text_does_not_send_to_gaps_md(self):
         s = change_next_step("BORR", CID)
@@ -281,7 +284,7 @@ class Borrador(SnapshotWorkspaceCase):
     def test_change_commands_of_the_new_steps(self):
         self.assertEqual(CHANGE_COMMANDS["pending_extraction"], "")
         self.assertEqual(CHANGE_COMMANDS["done"], "")
-        self.assertEqual(set(CHANGE_COMMANDS), {"scope", "lenses", "brief", "requirements", "specs", "backlog", "validate",
+        self.assertEqual(set(CHANGE_COMMANDS), {"scope", "baseline", "lenses", "brief", "requirements", "specs", "backlog", "validate",
                                                 "pending_extraction", "done"})
 
 

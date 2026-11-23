@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
 from sentinel.readiness_verdict import COVERAGE_NOT_MEASURED, build_readiness_verdict  # noqa: E402
-from test_change_next import CID, cli_json, set_change  # noqa: E402
+from test_change_next import CID, cli_json, load_baseline, set_change  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_specs import ALL_ANSWERS, PROJECT_EARS, PROJECT_RAW, answer, open_change  # noqa: E402
 
@@ -40,6 +40,7 @@ class ChangeOnly(SnapshotWorkspaceCase):
     def test_lenses_blocker_counts_in_the_change_language(self):
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        load_baseline("BORR")
         (blocker,) = build_readiness_verdict("BORR")["blockers"]
         self.assertRegex(blocker, rf"^{CID}: lenses \(\d+ bloqueante/s\)\. ")
         set_change("BORR", language="en")
@@ -49,6 +50,7 @@ class ChangeOnly(SnapshotWorkspaceCase):
     def test_all_done_reuses_an_existing_verdict_and_warns_about_coverage(self):
         (Path.cwd() / "scope.md").write_text(SCOPE_ANSWER, encoding="utf-8")
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
+        load_baseline("BORR")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
         for command in ("brief", "specs", "backlog"):
             run_ok([command, "BORR", "--change", CID])
@@ -83,7 +85,8 @@ class Mixed(SnapshotWorkspaceCase):
 
     def test_project_verdict_unchanged_by_a_change(self):
         before = build_readiness_verdict("MIX")
-        open_change("MIX")
+        cid = open_change("MIX")
+        run_ok(["sources", "MIX", "--change", cid, "--no-baseline", "--reason", "Sistema nuevo"])  # state only: keeps the project's sources untouched
         after = build_readiness_verdict("MIX")
         self.assertEqual(after.pop("changes")[0]["next_step"]["key"], "lenses")
         for key in ("verdict", "blockers", "warnings", "blocking_open", "partial_coverage", "gate_matrix", "counts", "next_step"):

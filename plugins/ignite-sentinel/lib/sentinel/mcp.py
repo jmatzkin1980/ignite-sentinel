@@ -79,7 +79,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel. With change=CHG-nnn (IMP-386) only brief and gaps (md, interview) are exported, from that change, into exports/CHG-nnn-<name>; the project's exports are not touched and a change-only workspace refuses an export without it.", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
-    ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close; authority sets the row's authority; cell DOCUMENT/SECTION with mark updated, reviewed (with reason) or pending closes an impact-matrix cell. precedence SCOPE with between F-NN,F-NN says which source governs; report writes 07_changes/closing_report.md by recipient.", ["project_id"]),
+    ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close; authority sets the row's authority; cell DOCUMENT/SECTION with mark updated, reviewed (with reason) or pending closes an impact-matrix cell. precedence SCOPE with between F-NN,F-NN says which source governs; report writes 07_changes/closing_report.md by recipient. IMP-400: load PATH with role pedido|linea_de_base|plan_previo|diseno_nuevo (and change CHG-nnn; pedido requires it) registers the file as a source with that role: a redacted copy in the role's 00_raw folder, or in place when it is already a context file of 00_raw (never the harvest); the same content reuses its row. id F-NN with role fixes the role of a registered row. change CHG-nnn with no_baseline and reason says the change has no baseline to load (the /next baseline step stops asking).", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
 
@@ -462,13 +462,18 @@ def build_server():
         precedence: str = "",
         between: str = "",
         report: bool = False,
+        load: str = "",
+        role: str = "",
+        change: str = "",
+        no_baseline: bool = False,
     ) -> dict:
         # IMP-333: every option is forwarded; the CLI refuses the combinations it does not take
         # (a change without id, report or precedence with anything else).
         return run_cli(["sources", project_id, *option_arguments(
             "sources", source_id=id, from_who=from_who, superseded_by=superseded_by, retire=retire,
             replacement=replacement, expire=expire, topic=topic, current=current, close=close, reason=reason,
-            authority=authority, cell=cell, mark=mark, precedence=precedence, between=between, report=report)])
+            authority=authority, cell=cell, mark=mark, precedence=precedence, between=between, report=report, load=load, role=role,
+            change=change, no_baseline=no_baseline)])
 
     @tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False,

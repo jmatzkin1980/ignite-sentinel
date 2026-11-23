@@ -33,7 +33,7 @@ from .core.time import utc_now
 
 SOURCE_ID_RE = re.compile(r"^F-(\d{2,})$")
 # Commands whose `source` argument is information entering the project.
-REGISTERING_STATUSES = {"initial_ingested", "change_ingested", "synced", "gap_resolved", "harvested"}  # IMP-262: a code harvest
+REGISTERING_STATUSES = {"initial_ingested", "change_ingested", "synced", "gap_resolved", "harvested", "role_loaded"}  # IMP-262: a code harvest
 # Sentinel's verbatim copies of a registered source (redacted, so the hash may differ).
 COPY_STATUSES = {"raw_copy", "change_copy", "gap_response_copy"}
 VALIDITY_VALUES = ("current", "superseded", "retired", "expired")
@@ -46,6 +46,10 @@ KIND_BY_FOLDER = {
     "03_design_context": "design_context",
     "04_quality_context": "quality_context",
     "05_interactions": "interaction",
+    "06_baseline": "baseline",
+    "07_prior_plan": "prior_plan",
+    "08_new_design": "new_design",
+    "09_request": "client_requirement",
     "00_client_responses": "client_response",
     "01_meetings": "meeting",
     "02_mail_slack": "mail_slack",
@@ -57,10 +61,68 @@ KIND_BY_FOLDER = {
     "quality_context": "quality_context",
     "interactions": "interaction",
 }
+# IMP-400: the role a source plays in a change (brownfield path). Rows of the project path
+# never carry one; the harvest is Sentinel's reading and has no role.
+SOURCE_ROLES = ("pedido", "linea_de_base", "plan_previo", "diseno_nuevo")
+ROLE_FOLDERS = {
+    "pedido": "00_raw/09_request",
+    "linea_de_base": "00_raw/06_baseline",
+    "plan_previo": "00_raw/07_prior_plan",
+    "diseno_nuevo": "00_raw/08_new_design",
+}
+_ROLE_BY_KIND = {
+    "baseline": "linea_de_base",
+    "business_context": "linea_de_base",
+    "technology_context": "linea_de_base",
+    "prior_plan": "plan_previo",
+    "new_design": "diseno_nuevo",
+    "design_context": "diseno_nuevo",
+}
 
 
 class SourceRegistryError(ValueError):
     """A `/sources` request that would leave the registry inconsistent."""
+
+
+def role_is_declared(row: dict[str, Any]) -> bool:
+    return bool(row.get("role"))
+
+
+def is_harvested(row: dict[str, Any]) -> bool:
+    """A row a code harvest registered: Sentinel's reading, never a source with a role."""
+    return any(event.get("via") == "harvested" for event in row.get("events") or [])
+
+
+def harvest_role_message(name: str, language: str) -> str:
+    if language == "es":
+        return f"{name} es una lectura de Sentinel, no una fuente: no se carga con rol."
+    return f"{name} is a reading by Sentinel, not a source: it is not loaded with a role."
+
+
+def row_role(row: dict[str, Any]) -> str | None:
+    """The declared role, else the one the row's history and kind imply (None if none).
+
+    A harvested row has no role, even if one was declared on it (IMP-400 final review).
+    """
+    if is_harvested(row):
+        return None
+    if row.get("role"):
+        return str(row["role"])
+    events = row.get("events") or []
+    if events and events[0].get("via") in ("change_ingested", "initial_ingested"):
+        return "pedido"
+    return _ROLE_BY_KIND.get(str(row.get("kind")))
+
+
+def set_role(row: dict[str, Any], role: str, language: str = "en") -> None:
+    if role not in SOURCE_ROLES:
+        raise SourceRegistryError(
+            f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}" if language == "es"
+            else f"unknown role: {role}; valid roles: {', '.join(SOURCE_ROLES)}"
+        )
+    if is_harvested(row):
+        raise SourceRegistryError(harvest_role_message(str(row.get("id") or "?"), language))
+    row["role"] = role
 
 
 def source_kind(key: str) -> str:
@@ -368,6 +430,7 @@ _COPY = {
         "candidate": "candidate new version of {id}, not confirmed",
         "copies": "copies: {n}",
         "authority": "authority: {authority}",
+        "role": "role: {role}",
         "cells": "impact cells pending: {n}",
         "missing": "original no longer present",
         "unknown": "unknown",
@@ -390,6 +453,7 @@ _COPY = {
         "candidate": "posible versión nueva de {id}, sin confirmar",
         "copies": "copias: {n}",
         "authority": "autoridad: {authority}",
+        "role": "rol: {role}",
         "cells": "celdas de impacto pendientes: {n}",
         "missing": "el original ya no está",
         "unknown": "sin dato",
@@ -424,6 +488,8 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             notes.append(copy["candidate"].format(id=row["pending_version_of"]))
         if row.get("copies"):
             notes.append(copy["copies"].format(n=len(row["copies"])))
+        if role_is_declared(row):
+            notes.append(copy["role"].format(role=row["role"]))
         if row.get("authority"):
             notes.append(copy["authority"].format(authority=row["authority"]))
         pending = sum(1 for cell in row.get("impact") or [] if cell.get("state") == "pending")
