@@ -212,6 +212,14 @@ class Recording(ProposalsCase):
         self.submit(block("RN-06", "- Tratamiento: descarte", "- Motivo: otro", EXTERIOR))
         item = load_proposals(base, CID)["items"]["RN-06"]
         self.assertEqual((item["status"], item["rows"]), ("proposed", ["REQ-1"]))
+        self.submit(block("RN-06", "- Tratamiento: descarte", "- Motivo: otra vez", EXTERIOR), name="q.md")
+        item = load_proposals(base, CID)["items"]["RN-06"]
+        self.assertEqual((item["status"], item["rows"], item["reason"]), ("proposed", ["REQ-1"], "otra vez"))
+
+    def test_bom_file_keeps_first_block(self):
+        path = Path.cwd() / "bom.md"
+        path.write_bytes(b"\xef\xbb\xbf" + block("RN-06", "- Tratamiento: descarte", "- Motivo: x", EXTERIOR).encode("utf-8"))
+        self.assertEqual(record_proposals(PID, CID, path)["recorded"], ["RN-06"])
 
     def test_empty_treatment_is_skipped(self):
         sheet = (extraction_dir(workspace_path(PID), CID) / "proposals_template.md").read_text(encoding="utf-8")

@@ -395,7 +395,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     base = workspace_path(project_id)
     inventory = load_inventory(base, change_id) or {}
     try:
-        text = Path(source).read_text(encoding="utf-8")
+        text = Path(source).read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError) as exc:
         raise InputError(f"No se pudo leer {source}: {exc}" if es else f"Could not read {source}: {exc}") from exc
     blocks, repeated = parse_proposals(text)
@@ -443,7 +443,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         entry = dict(item)
         entry.update({
             "status": "proposed", "proposed_at": now, "confirmed_at": None,
-            "rows": previous.get("rows", []) if previous.get("status") == "confirmed" else [],
+            "rows": previous.get("rows", []),
             "submitted": submitted,
         })
         items[element_id] = entry
