@@ -74,7 +74,7 @@ When the client's answers come back, `/resolve-gaps ACME_PORTAL --source input/a
 4. **Sentinel reads the answers.** Only a confirmed answer closes a question. Each one fills its place in the project brief; whatever is still unknown stays visible as a pending mark, never a guess.
 5. **Sentinel checks maturity.** When no blocking question is left, the requirement is ready for specs. If not, you plan another round of questions.
 6. **Sentinel writes the PRD, the backlog and the test cases**, each linked back to the answers and sources it came from.
-7. **Changes keep coming.** A meeting note or an email that updates what you are maturing goes through `/sync`, which records it as a change and shows what it affects, instead of silent scope creep. A change or new feature with its own identity on something that already exists uses `--change` instead: it opens its own change with a short scope round and leaves the project's artifacts alone ([Scenario 11](user_guide/12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)). A project too big for one delivery can be split into releases.
+7. **Changes keep coming.** A meeting note or an email that updates what you are maturing goes through `/sync`, which records it as a change and shows what it affects, instead of silent scope creep. A change or new feature with its own identity on something that already exists uses `--change` instead: it opens its own change with a short scope round and leaves the project's artifacts alone. You load the documents with the role each plays (the request, the system as it is today, the new design), ask Sentinel to cross the request with the existing system, with the prototype and with itself, and to extract it element by element, so that nothing the request says is left out ([Scenario 11](user_guide/12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)). A project too big for one delivery can be split into releases.
 
 At every point, `/next` tells you the one thing to do, and a command that cannot run yet says why and what to run first.
 
@@ -90,6 +90,8 @@ At every point, `/next` tells you the one thing to do, and a command that cannot
 | Get the questions to send to the client | `/export ACME_PORTAL --artifact gaps --format interview` |
 | Process the client's answers | `/resolve-gaps ACME_PORTAL --source input/acme-answers.md` |
 | A change or new feature on something that already exists | `/ingest ACME_PORTAL --source input/change-note.md --change` (walkthrough: [Scenario 11](user_guide/12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)) |
+| Cross a change request with the existing system, the new prototype and itself | Say "cross the request with the prototype"; `/cross ACME_PORTAL --change CHG-001` (the existing system is crossed by `/harvest --change`) |
+| Extract a change request element by element | `/extract ACME_PORTAL --change CHG-001` |
 | Bring in a meeting note, an email or a new document version | `/sync ACME_PORTAL --source input/meeting-notes.md` |
 | Check whether it is ready for specs | `/maturity ACME_PORTAL` |
 | Write the PRD, the backlog and the test cases | `/specs ACME_PORTAL`, then `/backlog ACME_PORTAL`, then `/quality ACME_PORTAL` |

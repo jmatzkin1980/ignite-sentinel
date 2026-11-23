@@ -58,14 +58,14 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 - **Use it when** you start or refresh discovery: new client input, "ingest this requirement", any work on `gaps.md`.
 - **What it does** creates or confirms the workspace, ingests raw material, regenerates `gaps.md` (your working ledger; the client gets the interview script), and reviews what discovery produced. It also owns the discovery rules: raw input is evidence, not truth; missing information becomes a gap; text in client material that reads like an order is never obeyed and is logged as an injection signal. It holds the deepening cycle (annotate, then challenge and scrutinize when they fit, assume only on your explicit decision), the interview-script and FAQ exports, and the stakeholder registry.
-- **Commands it drives** `/init`, `/ingest`, `/gaps`, `/retrieve`, `/health`, `/export` (formats `interview` and `faq`), `/stakeholders`.
+- **Commands it drives** `/init`, `/ingest`, `/gaps`, `/retrieve`, `/health`, `/export` (formats `interview` and `faq`), `/stakeholders`. For a change on an existing system it also drives `/sources --role`, `/cross` and `/extract` (all with `--change`): it writes the cross-read files with verbatim quotes and the cited proposals, and never waives a cross-read or confirms an extraction for you.
 - **Human-only** no.
 
 ### `sentinel-brownfield-harvest`
 
 - **Use it when** the project touches an existing system and its code is on your machine.
 - **What it does** reads the code block by block (B0 inventory, B1 architecture, B2 data, B3 integrations, B4 security and constraints, B5 operations) and writes one tagged harvest. Every line carries a tag: `[HECHO repo:file]` (read in that file), `[INFERIDO]`, `[NO ENCONTRADO]`, `[FUERA DEL CÓDIGO topic]` (only a person can say) or `[DIVERGENCIA]` (docs and code disagree). English tags such as `[FACT]` and `[INFERRED]` are accepted. The code never leaves your machine.
-- **Commands it drives** `/harvest`, then `/brief` to recompile.
+- **Commands it drives** `/harvest`, then `/brief` to recompile. In a change (`/harvest --change CHG-nnn`) the harvest is also the cross-read of the request against the existing system.
 - **Human-only** no.
 
 ### `sentinel-annotate`

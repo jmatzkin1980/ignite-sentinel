@@ -452,6 +452,7 @@ For an IT or security review, see [Secure environments](09-secure-environments.m
 | **Brief (project brief)** | The main discovery document, `02_requirements/project-brief.md`, compiled by Sentinel from cited evidence and answers, with pending marks where nothing is confirmed. |
 | **Brief settings** | The [profile](#glossary) and [genesis](#glossary) you confirm once with `/brief --profile ... --genesis ...`, which decide which parts of the brief are required. |
 | **Brief v1 / v2** | The two brief layouts: v2 (the default for new projects) has sections §0 to §9 and two annexes and is rewritten in place as answers arrive, while v1 is the older layout with 11 sections, kept for older projects or with `/init --brief-version 1`. |
+| **Cross-read** | In a change on an existing system, reading the request against another source: the system as it is today (`/harvest --change`), the new design or prototype (`/cross`) or the request itself (`/cross`). Each finding quotes both sides word for word; a divergence or a contradiction opens a blocking question. |
 | **Change (`CHG-`)** | A recorded change to the project, created by `/sync` or by processing answers, with the list of what it affects. |
 | **Context pack** | A small bundle of focused context under `08_context_packs/`, so an AI assistant reads only what one task needs. |
 | **Context request (`CTX-`)** | A request for context to a domain team (technology, design, quality, frontend, backend), made with `/context-request` and tracked as `active`, `answered`, `closed` or `obsolete`. |

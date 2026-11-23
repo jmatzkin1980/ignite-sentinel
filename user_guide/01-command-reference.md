@@ -468,7 +468,7 @@ python -m sentinel /harvest ACME_PORTAL --source harvest.md
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a Markdown file | required | The harvest, written locally with the `sentinel-brownfield-harvest` skill (blocks `## B0 Inventory` to `## B8`). B0 lists code with `- repo: name — path` and documents with `- doc: name — path`; B6 to B8 are screens, flows, and rules and roles. |
-| `--change` | `CHG-NNN` | none | Opens the harvest's gaps (GAP-HRV-*) in that change instead of the project. A workspace that only has changes refuses the harvest without it. |
+| `--change` | `CHG-NNN` | none | Opens the harvest's gaps (GAP-HRV-*) in that change instead of the project. A workspace that only has changes refuses the harvest without it. In a change, the harvest is also the cross-read of the request against the existing system (the baseline cross-read of `/cross` and `/next --change`), and its `NO ENCONTRADO` claims become candidate new surfaces. |
 
 **Reads.** The harvest file.
 
@@ -1490,7 +1490,7 @@ Every element gets a `Tratamiento` and a `Cita` copied word for word from the re
 | `--format` (alias `--fmt`) | `md`, `mdx`, `interview`, `faq` | `md` | `mdx` only for `prd`; `interview` and `faq` only for `gaps`. |
 | `--domain` | a context-request domain | none | Required with `--artifact context-request`. |
 | `--final` | flag | off | Refuse while pending marks remain. |
-| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do. A workspace that only has changes refuses an export without it. |
+| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do, and also while the extraction of the request is pending (run `/extract`). The brief shows a "Cruces" line with the cross-reads recorded or waived. A workspace that only has changes refuses an export without it. |
 
 | Format | Writes | Notes |
 |---|---|---|
@@ -1915,7 +1915,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `PROJECT_ID` | id | required | The workspace. |
 | `--full` | flag | off | Add the detailed dump: maturity metrics, development readiness, assumptions, knowledge ledger, story gates, backlog rollup, last change ids. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The verdict for one release. A release that depends on an unclosed release is `NOT_READY`, with the dependency named. |
-| `--change` | `CHG-NNN` | none | Show only that change: its round, whether the border is confirmed (`border_confirmed`), gap counts, `next_action` and escalation `warnings`. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | Show only that change: its round, whether the border is confirmed (`border_confirmed`), gap counts, `next_action`, the sources by role, the `crosses` block (for each of the three cross-reads: `done`, `waived`, `stale`, `missing` or `no_aplica`, with the counts per tag) and escalation `warnings`. It does not combine with `--release` (exit 3). |
 
 **Reads.** `state.json` and the workspace artifacts.
 
@@ -1957,7 +1957,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The next step for one release. |
-| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `baseline`, `lenses`, `extract_inventory`, `extract_proposals`, `extract_confirm`, `preserved`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `done`. The extraction steps (IMP-402) come from the coverage of the request: `extract_inventory` until `/extract` has inventoried it (or again when it changed), `extract_proposals` while elements have no proposal, `extract_confirm` while proposals wait for the BA, `preserved` while a preserved surface has no UNCHANGED row; `done` has an empty `command` and needs full coverage; it never reaches the PRD. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `baseline`, `lenses`, `crosses`, `cross_new_surfaces`, `extract_inventory`, `extract_proposals`, `extract_confirm`, `preserved`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `done`. `crosses` asks for the three cross-reads of the request (against the baseline with `/harvest --change`, against the design and against itself with `/cross`, each recorded or waived with a reason; the design one does not apply with no prototype) and stays until none is missing or stale; `cross_new_surfaces` asks for a decision (`/cross --accept-new` or `--decline-new`) on each candidate new surface. Both come before the request is inventoried. The extraction steps (IMP-402) come from the coverage of the request: `extract_inventory` until `/extract` has inventoried it (or again when it changed), `extract_proposals` while elements have no proposal, `extract_confirm` while proposals wait for the BA, `preserved` while a preserved surface has no UNCHANGED row; `done` has an empty `command` and needs full coverage; it never reaches the PRD. It does not combine with `--release` (exit 3). |
 
 **Reads.** The same as `/status`.
 

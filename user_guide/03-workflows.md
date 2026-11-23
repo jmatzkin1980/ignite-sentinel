@@ -1393,7 +1393,45 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
-**If something goes wrong.** `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); the change's specs are built with `/specs --change CHG-001`, and its stories with `/backlog --change CHG-001`: one story per unit under an epic of its own, with the preserved behavior as pass-to-pass criteria. If the project already has stories, the answer of each modified or removed requirement says which ones it affects (`Afecta`); those become `Stale`, or get a change request when they are already implemented. `/backlog` without `--change` is refused in a workspace that only has changes. Once the backlog exists, `/validate --change CHG-001` checks the change against its border (each answer names its surfaces with `Superficie`), and `/next --change CHG-001` tells you the next step of the change, ending in `done`. `/next` and `/status` also warn when the border looks too big for a change (several processes, new roles, a contract third parties use): the warning never blocks, you decide whether to split the change.
+4. Cross the request with the existing system, the prototype and itself.
+
+   **Tell the assistant:** "Compare the request of CHG-001 with the existing system" (it reads the code and the baseline), "cross the request with the prototype" and "check whether the request contradicts itself." If there is no prototype, or you read it and found nothing, say so: the cross-read is waived with a reason, or recorded as read with nothing found.
+
+   **You'll see:** For each cross-read, a count per tag: `RESPALDADO` (the design backs it), `SIN RESPALDO EN DISEÑO` (the request asks for it and the design does not show it), `SOLO EN DISEÑO` (the design shows it and the request does not mention it), `DIVERGENCIA`, `CONTRADICCIÓN` or `SIN HALLAZGOS`. Every divergence and contradiction opens a blocking question; the other two flag their element for the extraction. The not-found parts of the harvest come back as candidate new surfaces, and the assistant asks you to accept or decline each.
+
+   **What it means:** Every finding quotes the request and the design word for word, and Sentinel checks each quote against the document. The cross-read goes stale if you load a new request or prototype afterwards. Sentinel asks for all three before it inventories the request.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /harvest ACME_PORTAL --source harvest.md --change CHG-001
+   /cross ACME_PORTAL --change CHG-001 --kind diseno --claims cruce_diseno.md
+   /cross ACME_PORTAL --change CHG-001 --kind contradicciones --skip --reason "the request has no contradictions to cross"
+   /cross ACME_PORTAL --change CHG-001 --accept-new NEW-1A2B3C --type pantalla --name "Historial de aprobaciones"
+   ```
+
+   The claims file and its tags are in the [`/cross`](01-command-reference.md#cross) entry.
+   </details>
+
+5. Extract the request element by element.
+
+   **Tell the assistant:** "Go through everything the request of CHG-001 says and propose what each element becomes."
+
+   **You'll see:** The list of rules, criteria, stories and decisions of the request, a cited proposal for each, and the coverage (how many are confirmed out of the total).
+
+   **What it means:** Nothing is confirmed on your behalf. You confirm by section; what Sentinel flagged (a contradiction with the baseline, an element the design does not back) you confirm one by one. The change is `done` only with the whole request covered.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /extract ACME_PORTAL --change CHG-001
+   /extract ACME_PORTAL --change CHG-001 --proposals proposals.md
+   /extract ACME_PORTAL --change CHG-001 --confirm all
+   /extract ACME_PORTAL --change CHG-001 --confirm-item RN-04
+   ```
+   </details>
+
+**If something goes wrong.** `/next --change CHG-001` always names the step in progress (`crosses`, `cross_new_surfaces`, `extract_inventory`, ...), and `/status --change CHG-001` shows the cross-reads and the coverage. `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); the change's specs are built with `/specs --change CHG-001`, and its stories with `/backlog --change CHG-001`: one story per unit under an epic of its own, with the preserved behavior as pass-to-pass criteria. If the project already has stories, the answer of each modified or removed requirement says which ones it affects (`Afecta`); those become `Stale`, or get a change request when they are already implemented. `/backlog` without `--change` is refused in a workspace that only has changes. Once the backlog exists, `/validate --change CHG-001` checks the change against its border (each answer names its surfaces with `Superficie`), and `/next --change CHG-001` tells you the next step of the change, ending in `done`. `/next` and `/status` also warn when the border looks too big for a change (several processes, new roles, a contract third parties use): the warning never blocks, you decide whether to split the change.
 
 <a id="backlog-refinement-and-story-status"></a>
 
