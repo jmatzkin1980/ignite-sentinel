@@ -1,6 +1,7 @@
 """IMP-400 (H26 inc 2): a request that cites another version of a loaded source opens GAP-VER-*."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -13,7 +14,10 @@ from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
 
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.core.hashing import file_content_hash  # noqa: E402
-from sentinel.source_versions import check_change_versions, cited_references, version_key  # noqa: E402
+from sentinel.source_versions import (  # noqa: E402
+    check_change_versions, cited_references, same_document, version_key, version_marks,
+)
+from sentinel.sources import open_source_row  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -154,6 +158,83 @@ class VersionGaps(SnapshotWorkspaceCase):
         report = check_change_versions("OTH", "CHG-001")
         self.assertEqual(report["matched"], [])
         self.assertEqual(report["mismatched"][0]["reason"], "sha")
+
+    def _gap_line(self, project_id: str) -> str:
+        text = (workspace_path(project_id) / "01_discovery" / "CHG-001" / "gaps.md").read_text(encoding="utf-8")
+        lines = [line for line in text.splitlines() if "GAP-VER-" in line and line.lstrip().startswith("|")]
+        self.assertEqual(len(lines), 1, lines)
+        return lines[0]
+
+    def test_option_b_names_the_loaded_role(self):  # final review 2
+        proto = VERSIONS / "prototipo-alta.md"
+        self._request("DIS", "- prototipo-alta-v2.md\n")
+        run_ok(["init", "DIS"])
+        run_ok(["ingest", "DIS", "--source", "DIS.md", "--change"])
+        out = json.loads(run_ok(["sources", "DIS", "--load", str(proto), "--role", "diseno_nuevo", "--change", "CHG-001"]))
+        self.assertEqual(len(out["version_gaps"]), 1)
+        line = self._gap_line("DIS")
+        self.assertIn("--role diseno_nuevo", line)
+        self.assertNotIn("--role linea_de_base", line)
+
+    def test_raw_sha_of_a_crlf_file_matches(self):  # final review 3
+        crlf = Path.cwd() / "sad-compras-v2.md"
+        crlf.write_bytes(SAD_V2.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        raw = hashlib.sha256(crlf.read_bytes()).hexdigest()
+        self.assertNotEqual(raw, file_content_hash(crlf))
+        self._request("CRL", f"- sad-compras-v2.md (sha256: {raw[:12]})\n")
+        run_ok(["init", "CRL"])
+        run_ok(["ingest", "CRL", "--source", "CRL.md", "--change"])
+        out = json.loads(run_ok(["sources", "CRL", "--load", str(crlf), "--role", "linea_de_base", "--change", "CHG-001"]))
+        self.assertEqual(out["version_gaps"], [])
+        self.assertEqual(self._ver("CRL"), [])
+        report = check_change_versions("CRL", "CHG-001", write=False)
+        self.assertEqual([m["cited"] for m in report["matched"]], ["sad-compras-v2.md"])
+        self.assertEqual(report["mismatched"], [])
+
+    def test_same_document_in_another_format_matches(self):  # final review 5
+        self.assertTrue(same_document("SAD_Compras_v3.pdf", "sad compras v3.docx"))
+        self.assertFalse(same_document("SAD_Compras_v3.pdf", "sad compras v2.docx"))
+        self.assertEqual(version_marks("SAD_Compras_v3.1.pdf"), ("v3.1",))
+        loaded = Path.cwd() / "SAD Compras v3.md"
+        loaded.write_text(SAD_V2.read_text(encoding="utf-8"), encoding="utf-8")
+        self._request("FMT", "- SAD_Compras_v3.pdf\n")
+        run_ok(["init", "FMT"])
+        run_ok(["ingest", "FMT", "--source", "FMT.md", "--change"])
+        out = json.loads(run_ok(["sources", "FMT", "--load", str(loaded), "--role", "linea_de_base", "--change", "CHG-001"]))
+        self.assertEqual(out["version_gaps"], [])
+        report = check_change_versions("FMT", "CHG-001", write=False)
+        self.assertEqual([m["cited"] for m in report["matched"]], ["SAD_Compras_v3.pdf"])
+
+    def test_role_fix_rechecks_versions(self):  # final review 8
+        folder = workspace_path("VER") / "00_raw" / "04_quality_context"
+        folder.mkdir(parents=True, exist_ok=True)
+        shutil.copy(SAD_V2, folder / "sad-compras-v2.md")
+        # A registered row with no role (the way /sync opens it) is not compared yet.
+        source_id = open_source_row("VER", folder / "sad-compras-v2.md", "synced")
+        self.assertEqual(check_change_versions("VER", "CHG-001", write=False)["mismatched"], [])
+        out = json.loads(run_ok(["sources", "VER", "--id", source_id, "--role", "linea_de_base"]))
+        self.assertEqual(len(out["version_gaps"]), 1)
+        self.assertEqual(self._ver("VER"), out["version_gaps"])
+
+    def test_role_fix_from_plan_previo_reopens_a_missing_gap(self):  # final review 8
+        first = json.loads(run_ok(["sources", "VER", "--load", str(SAD_V2), "--role", "plan_previo", "--change", "CHG-001"]))
+        gaps = workspace_path("VER") / "01_discovery" / "CHG-001" / "gaps.md"
+        gaps.write_text("\n".join(l for l in gaps.read_text(encoding="utf-8").splitlines() if "GAP-VER-" not in l) + "\n",
+                        encoding="utf-8")
+        out = json.loads(run_ok(["sources", "VER", "--id", first["source_id"], "--role", "linea_de_base"]))
+        self.assertEqual(out["version_gaps"], first["version_gaps"])
+        self.assertIn("--role linea_de_base", self._gap_line("VER"))
+
+    def test_gap_id_ignores_the_case_of_the_cited_name(self):  # final review 11
+        v2 = Path.cwd() / "sad-v2.md"
+        v2.write_text(SAD_V2.read_text(encoding="utf-8"), encoding="utf-8")
+        self._request("CAS", "- SAD-v3.md\n- sad-v3.md\n")
+        run_ok(["init", "CAS"])
+        run_ok(["ingest", "CAS", "--source", "CAS.md", "--change"])
+        out = json.loads(run_ok(["sources", "CAS", "--load", str(v2), "--role", "linea_de_base", "--change", "CHG-001"]))
+        expected = "GAP-VER-" + hashlib.sha256("CHG-001|sad-v3.md".encode("utf-8")).hexdigest()[:6].upper()
+        self.assertEqual(out["version_gaps"], [expected])
+        self.assertEqual(self._ver("CAS"), [expected])
 
     def test_borrador_fixture_unchanged(self):
         shutil.copy(BORRADOR, Path.cwd() / "borrador.md")

@@ -10,12 +10,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_cli, run_ok  # noqa: E402
+from test_h26_baseline_role import run_err  # noqa: E402
 
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.errors import GateRefusal, InputError  # noqa: E402
-from sentinel.sources import _language, load_source, source_log_path, source_manifest_path  # noqa: E402
-from sentinel.workspace import read_state, workspace_path  # noqa: E402
+from sentinel.sources import _language, load_source, source_log_path, source_manifest_path, waive_baseline  # noqa: E402
+from sentinel.workspace import read_state, update_state, workspace_path  # noqa: E402
 from tests.test_mcp_parity import _tools  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -165,6 +166,59 @@ class SourceLoad(SnapshotWorkspaceCase):
         self.assertEqual(row["role"], "linea_de_base")
         self.assertEqual(read_state("PROJ").get("changes", {}), before)
         self.assertTrue((workspace_path("PROJ") / "00_raw" / "06_baseline" / "sad-compras.md").is_file())
+
+    def test_in_place_non_utf8_is_refused_without_a_row(self):  # final review 4
+        folder = workspace_path("BORR") / "00_raw" / "02_technology_context"
+        folder.mkdir(parents=True, exist_ok=True)
+        bad = folder / "sad-latin1.md"
+        bad.write_bytes("Línea de base de compras: proveedores dados de alta.".encode("latin-1"))
+        rows_before = len(_rows("BORR"))
+        code, err = run_err(["sources", "BORR", "--load", str(bad), "--role", "linea_de_base", "--change", "CHG-001"])
+        self.assertEqual(code, 3, err)
+        self.assertIn("not UTF-8 text", err)
+        self.assertEqual(len(_rows("BORR")), rows_before)
+        manifest = json.loads(source_manifest_path("BORR").read_text(encoding="utf-8"))
+        self.assertFalse(any(key.endswith("sad-latin1.md") for key in manifest.get("sources", {})))
+        outside = Path.cwd() / "sad-latin1.md"  # the same message as a file outside 00_raw
+        outside.write_bytes(bad.read_bytes())
+        code_out, err_out = run_err(["sources", "BORR", "--load", str(outside), "--role", "linea_de_base", "--change", "CHG-001"])
+        self.assertEqual(code_out, 3)
+        self.assertEqual(err.splitlines()[0], err_out.splitlines()[0])
+
+    def test_reload_of_retired_source_says_it_is_not_current(self):  # final review 6
+        first = load("BORR", SAD, "linea_de_base", "CHG-001")
+        other = Path.cwd() / "sad-nueva.md"
+        other.write_text(SAD.read_text(encoding="utf-8") + "\nVersion nueva.\n", encoding="utf-8")
+        newer = load("BORR", other, "linea_de_base", "CHG-001")
+        run_ok(["sources", "BORR", "--id", first["source_id"], "--retire", "--reason", "vieja",
+                "--replacement", newer["source_id"]])
+        again = load("BORR", SAD, "linea_de_base", "CHG-001")
+        self.assertTrue(again["reused"])
+        self.assertEqual(again["validity"], "retired")
+        message = again["message"]
+        self.assertTrue("no está vigente (retired)" in message or "is not current (retired)" in message, message)
+        self.assertIn(newer["source_id"], message)
+        self.assertNotIn("not current", load("BORR", other, "linea_de_base", "CHG-001")["message"])
+
+    def test_reload_of_expired_source_without_replacement(self):  # final review 6
+        first = load("BORR", SAD, "linea_de_base", "CHG-001")
+        run_ok(["sources", "BORR", "--id", first["source_id"], "--expire", "2026-01-01"])
+        message = load("BORR", SAD, "linea_de_base", "CHG-001")["message"]
+        self.assertTrue("no tiene reemplazo registrado" in message or "no replacement is registered" in message, message)
+
+    def test_waive_baseline_error_follows_english_change(self):  # final review 7
+        changes = {k: dict(v) for k, v in list_changes("BORR").items()}
+        changes["CHG-001"]["language"] = "en"
+        update_state("BORR", changes=changes)
+        with self.assertRaises(InputError) as ctx:
+            waive_baseline("BORR", "CHG-001", "  ")
+        self.assertIn("no reason, no waiver", str(ctx.exception))
+        self.assertNotIn("sin motivo", str(ctx.exception))
+        changes["CHG-001"]["language"] = "es"
+        update_state("BORR", changes=changes)
+        with self.assertRaises(InputError) as ctx:
+            waive_baseline("BORR", "CHG-001", "")
+        self.assertIn("sin motivo no hay dispensa", str(ctx.exception))
 
     def test_mcp_sources_load(self):
         captured: list[list[str]] = []

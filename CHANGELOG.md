@@ -15,6 +15,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ### Changed
 
 - **`by_baseline` needs a registered baseline (IMP-400).** A question closes `by_baseline` only when the quote is in a current source registered as `linea_de_base`; a hand copy in `00_raw/`, the harvest, a prior plan, the design of what is new or a replaced source is rejected, and the message names the cause and how to register it. The example of the change guide cites `00_raw/06_baseline/sad-compras.md`. Scenario 11, the workflows, the command reference and the skills now load the documents with `--load`. The project path is unchanged.
+  - A change created with 0.23.0 whose baseline was copied into `00_raw/` by hand and never registered now shows the "Registrar la línea de base" (`baseline`) step in `/next --change`. Remedy: `/sources PROJECT_ID --load <that path> --role linea_de_base --change CHG-NNN` (registers it in place) or `/sources PROJECT_ID --change CHG-NNN --no-baseline --reason TEXT`.
 
 ## [0.23.0] — 2026-11-22
 

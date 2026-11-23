@@ -39,6 +39,25 @@ class RowRole(unittest.TestCase):
         set_role(row, "pedido")
         self.assertEqual(row["role"], "pedido")
 
+    def test_set_role_messages_follow_the_language(self):  # final review 7
+        with self.assertRaises(SourceRegistryError) as ctx:
+            set_role({}, "otro", "en")
+        self.assertIn("unknown role: otro", str(ctx.exception))
+        self.assertNotIn("rol desconocido", str(ctx.exception))
+        with self.assertRaises(SourceRegistryError) as ctx:
+            set_role({}, "otro", "es")
+        self.assertIn("rol desconocido: otro", str(ctx.exception))
+
+    def test_harvested_row_never_has_a_role(self):  # final review 1
+        harvested = {"id": "F-03", "kind": "technology_context", "role": "linea_de_base", "events": [{"via": "harvested"}]}
+        self.assertIsNone(row_role(harvested))
+        row = {"id": "F-03", "kind": "technology_context", "events": [{"via": "harvested"}]}
+        for language, needle in (("es", "lectura de Sentinel"), ("en", "reading by Sentinel")):
+            with self.assertRaises(SourceRegistryError) as ctx:
+                set_role(row, "linea_de_base", language)
+            self.assertIn(needle, str(ctx.exception))
+        self.assertNotIn("role", row)
+
 
 class IngestRoles(SnapshotWorkspaceCase):
     @classmethod

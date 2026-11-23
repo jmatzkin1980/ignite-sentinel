@@ -831,7 +831,7 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 
 Pass one validity change at a time. The newest source never wins by default: an unsettled precedence answers `unresolved`.
 
-**Roles in a change.** Only a current source registered as `linea_de_base` can close a question `by_baseline`; a hand copy in `00_raw/`, the harvest, a `plan_previo`, a `diseno_nuevo` or a replaced source is rejected, and the message says which and how to register it. Loading a document with a different role than the one it already has is refused: correct the role with `--id F-NN --role ROLE`. If the request cites a document by name or sha and another version of it is loaded (or the sha does not match), a blocking `GAP-VER-xxxxxx` opens in the change, one per citation. A cited document that was never loaded is only a warning in `/status --change`. `/status --change` lists the `sources` by role and `/next --change` has a `baseline` step between the scope and the lenses.
+**Roles in a change.** Only a current source registered as `linea_de_base` can close a question `by_baseline`; a hand copy in `00_raw/`, the harvest, a `plan_previo`, a `diseno_nuevo` or a replaced source is rejected, and the message says which and how to register it. Loading a document with a different role than the one it already has is refused: correct the role with `--id F-NN --role ROLE` (the request citations of every change are checked again right away). Reloading a document whose row is retired, superseded or expired registers it but the message says it is not current and names its replacement. A change created with 0.23.0 whose baseline was copied into `00_raw/` by hand and never registered now shows the `baseline` step: register that file in place with `--load <that path> --role linea_de_base --change CHG-NNN`, or waive it with `--no-baseline --reason`. If the request cites a document by name or sha and another version of it is loaded (or the sha, raw or line-ending-aware, does not match; the same name in another format or spacing with the same version marks counts as the same document), a blocking `GAP-VER-xxxxxx` opens in the change, one per citation. A cited document that was never loaded is only a warning in `/status --change`. `/status --change` lists the `sources` by role and `/next --change` has a `baseline` step between the scope and the lenses.
 
 `--retire` removes the source's files from the local memory: the original path, any other path with the same content, and Sentinel's copy under `00_raw/` or `07_changes/`. `/retrieve` and context packs stop returning them, and `/reindex` skips them. The files stay on disk, and so do their graph nodes and Sentinel's own reports about the source (the impact report, for example). After `--current` (or any other validity change), the source is indexed again on the next `/reindex`.
 
@@ -846,9 +846,10 @@ Pass one validity change at a time. The newest source never wins by default: an 
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
 - `--load` without `--role`, with another option besides `--role` and `--change`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` without `--change` or `--reason`, or with another option → exit 3.
-- `--load` of a file that is the harvest, a Sentinel output or not UTF-8 text, or whose content already has another declared role → exit 3, the message says why.
+- `--load` of a file that is the harvest (or has the same content as a harvest draft), a Sentinel output or not UTF-8 text, or whose content already has another declared role → exit 3, the message says why; nothing is registered.
+- `--id F-NN --role ROLE` on a row the harvest registered → exit 3: the harvest is Sentinel's reading and has no role.
 
-**You get.** The rows, the precedence answer or the report path. With `--retire`, `memory_removed` lists the memory ids it took out.
+**You get.** The rows, the precedence answer or the report path. With `--retire`, `memory_removed` lists the memory ids it took out. With `--load` or `--id F-NN --role`, `version_gaps` lists the `GAP-VER-*` it opened.
 
 **Next step.** `/status PROJECT_ID` to see the `sources` gate clear.
 

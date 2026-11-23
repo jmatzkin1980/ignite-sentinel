@@ -88,21 +88,40 @@ def role_is_declared(row: dict[str, Any]) -> bool:
     return bool(row.get("role"))
 
 
+def is_harvested(row: dict[str, Any]) -> bool:
+    """A row a code harvest registered: Sentinel's reading, never a source with a role."""
+    return any(event.get("via") == "harvested" for event in row.get("events") or [])
+
+
+def harvest_role_message(name: str, language: str) -> str:
+    if language == "es":
+        return f"{name} es una lectura de Sentinel, no una fuente: no se carga con rol."
+    return f"{name} is a reading by Sentinel, not a source: it is not loaded with a role."
+
+
 def row_role(row: dict[str, Any]) -> str | None:
-    """The declared role, else the one the row's history and kind imply (None if none)."""
+    """The declared role, else the one the row's history and kind imply (None if none).
+
+    A harvested row has no role, even if one was declared on it (IMP-400 final review).
+    """
+    if is_harvested(row):
+        return None
     if row.get("role"):
         return str(row["role"])
     events = row.get("events") or []
-    if any(event.get("via") == "harvested" for event in events):
-        return None
     if events and events[0].get("via") in ("change_ingested", "initial_ingested"):
         return "pedido"
     return _ROLE_BY_KIND.get(str(row.get("kind")))
 
 
-def set_role(row: dict[str, Any], role: str) -> None:
+def set_role(row: dict[str, Any], role: str, language: str = "en") -> None:
     if role not in SOURCE_ROLES:
-        raise SourceRegistryError(f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}")
+        raise SourceRegistryError(
+            f"rol desconocido: {role}; roles válidos: {', '.join(SOURCE_ROLES)}" if language == "es"
+            else f"unknown role: {role}; valid roles: {', '.join(SOURCE_ROLES)}"
+        )
+    if is_harvested(row):
+        raise SourceRegistryError(harvest_role_message(str(row.get("id") or "?"), language))
     row["role"] = role
 
 

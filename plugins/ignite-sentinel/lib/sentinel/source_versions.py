@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .core.hashing import content_sha256
 from .source_registry import SOURCE_ROLES, row_role
 
 NAME_RE = re.compile(r"(?<![\w.-])([\w.-]+\.(?:md|txt|html|htm|docx|pdf|xlsx|pptx))(?!\w)", re.I)
@@ -46,6 +47,40 @@ def version_key(name: str) -> str:
     return "-".join(p for p in cleaned if p)
 
 
+def version_marks(name: str) -> tuple[str, ...]:
+    """The version marks of a name (dates and tokens like v3, rev2, final), in order."""
+    text = _EXT_RE.sub("", name.strip().lower())
+    dates = tuple(re.sub(r"[-_]", "", d) for d in _DATE_RE.findall(text))
+    tokens = tuple(p for p in re.split(r"[-_ ]+", _DATE_RE.sub(" ", text)) if p and _VERSION_TOKEN_RE.fullmatch(p))
+    return dates + tuple(t.replace("_", ".") for t in tokens)
+
+
+def same_document(cited: str, loaded: str) -> bool:
+    """Same family and the same version marks: one document in another format or spacing."""
+    key = version_key(cited)
+    return bool(key) and key == version_key(loaded) and version_marks(cited) == version_marks(loaded)
+
+
+def _row_hashes(row: dict[str, Any]) -> set[str]:
+    """The row's hash plus the raw and line-ending-aware sha256 of its original file and copies."""
+    found = {str(row.get("hash") or "")} - {""}
+    for candidate in [*(row.get("paths") or []), *(row.get("copies") or [])]:
+        path = Path(str(candidate))
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        try:
+            data = path.read_bytes()
+        except OSError:
+            continue
+        found.add(hashlib.sha256(data).hexdigest())
+        found.add(content_sha256(data))
+    return found
+
+
+def _sha_matches(row: dict[str, Any], sha: str) -> bool:
+    return any(digest.startswith(sha) for digest in _row_hashes(row))
+
+
 def _basenames(row: dict[str, Any]) -> set[str]:
     return {Path(str(p)).name.lower() for p in [*(row.get("paths") or []), *(row.get("copies") or [])]}
 
@@ -63,9 +98,11 @@ def _read_row_text(row: dict[str, Any]) -> str:
     return ""
 
 
-def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str, source_id: str) -> dict[str, str]:
+def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str, source_id: str,
+         role: str = "linea_de_base") -> dict[str, str]:
     es = language == "es"
-    digest = hashlib.sha256(f"{change_id}|{cited if cited else sha}".encode("utf-8")).hexdigest()[:6].upper()
+    # The cited name lower-cased: SAD-v3.md and sad-v3.md in one request are one question.
+    digest = hashlib.sha256(f"{change_id}|{cited.lower() if cited else sha}".encode("utf-8")).hexdigest()[:6].upper()
     shown = f"`{cited}`" if cited else f"sha {sha}"
     sha_part = f" (sha {sha})" if sha and cited else ""
     if es:
@@ -73,14 +110,14 @@ def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str
                        "¿Sobre qué versión se escribió el pedido?")
         question = ("¿Sobre qué versión se escribió el pedido? Opciones: "
                     "(A) rige la cargada (la cita del pedido está desactualizada); "
-                    "(B) cargar la versión citada (/sources … --load … --role linea_de_base); "
+                    f"(B) cargar la versión citada (/sources … --load … --role {role}); "
                     "(C) el pedido se escribió sobre otra versión: revisar lo que dependa de ella.")
     else:
         description = (f"The request cites {shown}{sha_part} and the loaded source is `{loaded}` ({source_id}). "
                        "Which version was the request written on?")
         question = ("Which version was the request written on? Options: "
                     "(A) the loaded one governs (the request's citation is out of date); "
-                    "(B) load the cited version (/sources … --load … --role linea_de_base); "
+                    f"(B) load the cited version (/sources … --load … --role {role}); "
                     "(C) the request was written on another version: review whatever depends on it.")
     return {"id": f"GAP-VER-{digest}", "lens": "technical", "severity": "high", "status": "OPEN", "kind": "client",
             "description": description, "question": question,
@@ -116,22 +153,24 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
                 continue
             seen.add(key)
             by_name = next((r for r in loaded if cited and cited.lower() in _basenames(r)), None)
+            if cited and by_name is None:  # the same document in another format or spacing counts as the name
+                by_name = next((r for r in loaded if any(same_document(cited, n) for n in _basenames(r))), None)
             by_family = None
             if cited and by_name is None and version_key(cited):
                 by_family = next((r for r in loaded if any(version_key(n) == version_key(cited) for n in _basenames(r))), None)
             report = {"cited": cited, "sha": sha, "line": ref["line"]}
             row = by_name or by_family
             if cited is None:  # a bare sha: it must prefix some loaded hash
-                hit = next((r for r in loaded if sha and str(r.get("hash", "")).startswith(sha)), None)
+                hit = next((r for r in loaded if sha and _sha_matches(r, sha)), None)
                 result["matched" if hit else "not_loaded"].append({**report, "source_id": hit["id"]} if hit else report)
             elif row is None:
                 result["not_loaded"].append(report)
-            elif sha is None and by_name is not None or (sha and str(row.get("hash", "")).startswith(sha)):
+            elif sha is None and by_name is not None or (sha and _sha_matches(row, sha)):
                 result["matched"].append({**report, "source_id": row["id"]})  # the sha counts only on the row the name points to
             else:
                 result["mismatched"].append({**report, "source_id": row["id"], "reason": "sha" if by_name is not None else "version"})
                 loaded_name = Path(str(row["paths"][0])).name if row.get("paths") else str(row["id"])
-                new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"])))
+                new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"]), row_role(row) or "linea_de_base"))
     if new_gaps and write:
         path = change_gaps_path(workspace_path(project_id), change_id)
         existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []
