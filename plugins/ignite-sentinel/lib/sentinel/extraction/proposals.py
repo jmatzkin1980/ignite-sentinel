@@ -24,6 +24,7 @@ from ..ears import classify_ears
 from ..errors import GateRefusal, InputError
 from ..gap_resolution import ears_statements
 from . import extraction_dir
+from .flags import change_flag_context, element_flags
 from .inventory import _read_text, _split_lines, inventory_state, load_inventory
 
 TREATMENTS = {
@@ -425,6 +426,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     flagged: list[str] = []
     rejected: dict[str, list[str]] = {}
     now = _now()
+    open_gaps, harvest_entries = change_flag_context(project_id, change_id)
     for element_id, raw in blocks.items():
         if not str(raw.get("treatment", "")).strip():
             skipped.append(element_id)
@@ -433,12 +435,16 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         if element is None:
             rejected[element_id] = [_msg("unknown_element", language, id=element_id, cid=change_id)]
             continue
+        element_body = _element_text_cached(base, element, cache)
         item, errors = validate_proposal(
-            element, _element_text_cached(base, element, cache), raw, change.get("border", []) or [], language, ctx,
+            element, element_body, raw, change.get("border", []) or [], language, ctx,
         )
         if item is None:
             rejected[element_id] = errors
             continue
+        item["flags"] = element_flags(
+            element_id, element_body or "", item["quote"], item["flags"], open_gaps, harvest_entries,
+        )
         previous = items.get(element_id) or {}
         entry = dict(item)
         entry.update({

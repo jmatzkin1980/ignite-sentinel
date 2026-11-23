@@ -1,0 +1,62 @@
+"""IMP-402 task 3: what is flagged on an element (agent, open gap, harvest divergence).
+
+A flagged element is confirmed one by one, never in bulk. Pure matching here; the
+context (gap rows, harvest entries) is read by `change_flag_context`.
+"""
+from __future__ import annotations
+
+import re
+
+from ..changes import _squash, change_gaps_path
+from ..core.paths import workspace_path
+from ..gaps import parse_gap_rows
+from ..harvest import load_harvest
+
+
+def element_flags(
+    element_id: str, element_text: str, quote: str, agent_flags: list[dict],
+    open_gaps: list[dict], harvest_entries: list[dict],
+) -> list[dict]:
+    flags: list[dict] = [dict(flag) for flag in agent_flags]
+    squashed_quote = _squash(quote or "")
+    token = re.compile(r"(?<![\w-])" + re.escape(element_id) + r"(?![\w-])")
+    for gap in open_gaps:
+        if str(gap.get("status", "OPEN")).strip().upper() == "CLOSED":
+            continue
+        description = str(gap.get("description", ""))
+        if token.search(description) or (squashed_quote and squashed_quote in _squash(description)):
+            gap_id = str(gap.get("id", ""))
+            kind = "divergencia" if gap_id.startswith(("GAP-HRV-", "GAP-VER-")) else "pregunta_abierta"
+            flags.append({"origin": "gap", "kind": kind, "ref": gap_id, "note": ""})
+    flat_element = _squash(element_text or "")
+    for entry in harvest_entries:
+        if entry.get("kind") != "divergence":
+            continue
+        text = _squash(str(entry.get("text", "")))
+        if not text:
+            continue
+        if (squashed_quote and squashed_quote in text) or (len(text) >= 20 and text in flat_element):
+            flags.append({"origin": "harvest", "kind": "divergencia", "ref": f"harvest:{entry.get('line', '')}", "note": ""})
+    return flags
+
+
+def change_flag_context(project_id: str, change_id: str) -> tuple[list[dict], list[dict]]:
+    base = workspace_path(project_id)
+    path = change_gaps_path(base, change_id)
+    gaps = parse_gap_rows(path.read_text(encoding="utf-8-sig")) if path.exists() else []
+    gaps = [g for g in gaps if g.get("id") != "NONE"]
+    entries = [e for e in load_harvest(base).get("entries", []) if isinstance(e, dict) and e.get("kind") == "divergence"]
+    return gaps, entries
+
+
+def refresh_flags(project_id: str, change_id: str, element_id: str, item: dict) -> list[dict]:
+    """The flags with today's gaps and harvest, keeping the item's agent flags."""
+    from .inventory import load_inventory, element_text
+
+    gaps, entries = change_flag_context(project_id, change_id)
+    base = workspace_path(project_id)
+    inventory = load_inventory(base, change_id) or {}
+    element = next((e for e in inventory.get("elements", []) if e["id"] == element_id), None)
+    text = (element_text(base, element) if element else None) or ""
+    agent = [f for f in item.get("flags", []) or [] if f.get("origin") == "agent"]
+    return element_flags(element_id, text, str(item.get("quote", "")), agent, gaps, entries)
