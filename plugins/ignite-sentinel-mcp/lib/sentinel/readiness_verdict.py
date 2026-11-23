@@ -606,7 +606,12 @@ def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
     # IMP-402: something was confirmed, corrected or taken out of the extraction since the brief was compiled.
     from .extraction.coverage import extraction_fingerprint
 
-    return str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, change_id)
+    if str(report.get("extraction_fingerprint", "") or "") != extraction_fingerprint(base, change_id):
+        return True
+    # IMP-404: a cross-read was done, waived or decided (a new surface) since the brief was compiled.
+    from .crosses.state import crosses_fingerprint
+
+    return str(report.get("crosses_fingerprint", "") or "") != crosses_fingerprint(base.name, change_id)
 
 
 def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:

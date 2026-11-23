@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..changes import change_gaps_path, change_language, get_change
+from ..crosses.state import cross_status, crosses_fingerprint
 from ..core.io import write_json, write_text
 from ..extraction.coverage import extraction_view
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
@@ -102,6 +103,8 @@ def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, An
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
         "extraction": extraction_view(project_id, change_id),
+        "crosses": cross_status(project_id, change_id),
+        "crosses_fingerprint": crosses_fingerprint(project_id, change_id),
     }
 
 
@@ -321,6 +324,9 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
                 cited.setdefault(path.group(1).strip(), []).append(gap["id"])
     for path, ids in sorted(cited.items()):
         s1.fill(f"{copy['baseline_cited']}: `{path}` ({', '.join(ids)})")
+    crosses = inputs.get("crosses") or {}
+    if any(info.get("state") in ("done", "waived") for info in (crosses.get("kinds") or {}).values()):
+        s1.raw(copy["crosses"].format(text=crosses.get("text", "")))
     for repo in harvest.get("repos", []):
         s1.fill(f"{copy['repo']}: {repo} (`{HARVEST_CITE}`)")
     for doc in harvest.get("docs", []):
@@ -482,6 +488,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "blocking_open": count_pending_marks(text).blocking,
         "extraction": view.get("coverage") if has_inventory else None,
         "extraction_fingerprint": view.get("fingerprint", "") if has_inventory else "",
+        "crosses_fingerprint": inputs.get("crosses_fingerprint", ""),
         "preserved_missing": list((view.get("preserved") or {}).get("missing", [])) if has_inventory else [],
     }
     return text, report
