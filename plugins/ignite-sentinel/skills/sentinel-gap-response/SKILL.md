@@ -1,6 +1,6 @@
 ---
 name: sentinel-gap-response
-description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', an answered interview script or gaps.md, or gap closure questions. Not for new information that does not answer an open gap (use sentinel-sync)."
+description: "Use when a client or domain owner returns answers to Ignite Sentinel discovery gaps: run /resolve-gaps, apply the governed closure rules (substantive + confirmed closes; vague or pending answers stay open), prefer EARS reformulations for functional gaps, report the knowledge metabolism the closure triggered, then re-check /maturity and /status. Trigger on 'the client answered', 'cerrá esto con lo que ya dice el SAD' (by_baseline: only from a source loaded as linea_de_base), an answered interview script or gaps.md, or gap closure questions. Not for new information that does not answer an open gap (use sentinel-sync)."
 ---
 
 # Sentinel Gap Response
@@ -71,6 +71,7 @@ The same contract holds for assumptions (IMP-182). A **test before advancing** a
   - `reopened_false_premise` reopens a closed gap.
   - `by_baseline` closes a gap from the existing system's documentation. It works **only in a change** (`--change CHG-nnn`); on the project path it never closes. Write it so the runtime can check it:
     - `Evidence or reference` holds the workspace-relative path in backticks under `00_raw/`, then a quote in `"…"` or `“…”` of **20 characters or more** that appears literally in that file (whitespace collapsed, case kept). Copy the sentence; never paraphrase it.
+    - The cited file must be a current source registered as `linea_de_base` (`/sources PROJECT_ID --load PATH --role linea_de_base --change CHG-nnn`, which stores it under `00_raw/06_baseline/`). A file copied by hand into `00_raw/`, the harvest ("lectura de Sentinel"), a `plan_previo`, a `diseno_nuevo` or a replaced source does not close: the finding names the role, or says how to register it. If the SAD is not loaded yet, load it first and then cite `00_raw/06_baseline/<file>`.
     - Never cite the note of a change as the baseline: that is the request itself, not the system.
     - Never cite an `[INFERIDO]`/`[INFERRED]` line of a harvest as `by_baseline`; cite facts or the original document.
     - The answer must be confirmed by the BA. If the quote is not literal, or you are unsure the file really answers the gap, ask the BA instead of closing: the gap stays ANSWERED with a finding.

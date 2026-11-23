@@ -6,6 +6,16 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Sources by role in a change (IMP-400).** `/sources PROJECT_ID --load PATH --role pedido|linea_de_base|plan_previo|diseno_nuevo [--change CHG-NNN]` registers a document with the role it plays (folders `00_raw/06_baseline`, `07_prior_plan`, `08_new_design`, `09_request`); `--id F-NN --role ROLE` corrects a role and `--change CHG-NNN --no-baseline --reason TEXT` waives the baseline. The MCP tool `sentinel_sources` takes `load`, `role`, `change` and `no_baseline`.
+  - A request that cites a document by name or sha while another version of it is loaded opens a blocking `GAP-VER-xxxxxx` in the change (one per citation). A cited document that was never loaded is only a warning of `/status --change`.
+  - `/status --change` shows the sources by role; `/next --change` has a `baseline` step between the scope and the lenses.
+
+### Changed
+
+- **`by_baseline` needs a registered baseline (IMP-400).** A question closes `by_baseline` only when the quote is in a current source registered as `linea_de_base`; a hand copy in `00_raw/`, the harvest, a prior plan, the design of what is new or a replaced source is rejected, and the message names the cause and how to register it. The example of the change guide cites `00_raw/06_baseline/sad-compras.md`. Scenario 11, the workflows, the command reference and the skills now load the documents with `--load`. The project path is unchanged.
+
 ## [0.23.0] — 2026-11-22
 
 ### Fixed

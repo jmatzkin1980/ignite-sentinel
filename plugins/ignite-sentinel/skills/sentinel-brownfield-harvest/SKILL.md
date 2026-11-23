@@ -1,6 +1,6 @@
 ---
 name: sentinel-brownfield-harvest
-description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it: read the code and write a tagged harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B8, from code or from documents), then run /harvest so it becomes a governed source that feeds brief v2 §5. Also use it inside a change to verify a request or brief against what is built (repo survey, data SAD). Trigger on 'harvest the existing system', 'read the current codebase for context', 'cruzá el brief con lo técnico', 'verificá qué de lo que el release da por construido existe', or brownfield technical-context needs. Not for client requirements or business context (use sentinel-discovery); it reads code, it never changes it."
+description: "Use on a brownfield project when an existing system's codebase is available locally and Ignite needs technical context about it: read the code and write a tagged harvest (HECHO/INFERIDO/NO ENCONTRADO/FUERA DEL CÓDIGO/DIVERGENCIA by blocks B0-B8, from code or from documents), then run /harvest so it becomes a governed source that feeds brief v2 §5. Also use it inside a change to verify a request or brief against what is built (repo survey, data SAD). Trigger on 'harvest the existing system', 'tengo el SAD y el relevamiento de lo construido' (the SAD itself is loaded as the baseline with /sources --load --role linea_de_base; the harvest is the reading of it), 'read the current codebase for context', 'cruzá el brief con lo técnico', 'verificá qué de lo que el release da por construido existe', or brownfield technical-context needs. Not for client requirements or business context (use sentinel-discovery); it reads code, it never changes it."
 ---
 
 # Sentinel Brownfield Harvest
@@ -11,6 +11,7 @@ Use this skill on a **brownfield** project: an existing system's repository is o
 
 - **Use** when the project touches or extends a system that exists in code and that code is local.
 - **Also use** inside a change (`--change CHG-nnn`) to verify what a request or brief takes for granted against what is built: survey the repos and the data SAD, tag what exists (`[HECHO]`), what does not (`[NO ENCONTRADO]`) and what disagrees with the request (`[DIVERGENCIA]`). In a change, the divergence question asks whether what is built governs, the request does, or it has to be built or fixed in this change; the brief of the change shows the answer with its baseline support.
+- **A harvest is not a source with a role.** It is Sentinel's reading of the system, registered as built; it never takes a role and never closes a gap `by_baseline`. The original SAD or survey of what is built is loaded with `/sources PROJECT_ID --load PATH --role linea_de_base [--change CHG-nnn]`; a harvest that quotes it does not replace it.
 - **Do not use** on a greenfield project, to interview a domain team (that is `/context-request`), or to fetch code through an external service.
 
 ## The harvest format

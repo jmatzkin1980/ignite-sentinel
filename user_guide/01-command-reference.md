@@ -798,6 +798,9 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 /sources ACME_PORTAL --id F-07 --cell specs/contracts --mark reviewed --reason "no change"
 /sources ACME_PORTAL --precedence scope --between F-03,F-07
 /sources ACME_PORTAL --report
+/sources ACME_PORTAL --load input/sad-compras.md --role linea_de_base --change CHG-001
+/sources ACME_PORTAL --id F-04 --role diseno_nuevo
+/sources ACME_PORTAL --change CHG-001 --no-baseline --reason "the system is new, nothing is built yet"
 ```
 
 **Options.**
@@ -821,8 +824,14 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 | `--precedence` | a scope: `business`, `scope`, `stack_to_be`, `behavior`, `api`, `compliance`, `legacy`, `design`, `rule` | none | Ask which row governs in this scope. Goes with `--between`. |
 | `--between` | `F-NN,F-NN` | none | The rows to compare. |
 | `--report` | flag | off | Write the closing report. Takes no other option. |
+| `--load` | path | none | Register a document with the role it plays. Needs `--role`; takes only `--role` and `--change`. A file already inside a `00_raw/` context folder is registered in place; otherwise Sentinel copies it into the folder of its role. The same content reuses its `F-NN`. The harvest folder and Sentinel's own outputs are refused. |
+| `--role` | `pedido`, `linea_de_base`, `plan_previo`, `diseno_nuevo` | none | What the document is: the request, the system as it stands (SAD, survey of what is built), the plan of an earlier release, or the design of what is new. Goes with `--load PATH` or `--id F-NN` (to correct a role). Folders: `00_raw/09_request`, `06_baseline`, `07_prior_plan`, `08_new_design`. The harvest has no role. |
+| `--change` | `CHG-NNN` | none | With `--load`: the change the document belongs to (required for `pedido`). With `--no-baseline`: the change that waives its baseline. |
+| `--no-baseline` | flag | off | The change has no baseline to load (a system with nothing built). Needs `--change` and `--reason`; takes no other option. |
 
 Pass one validity change at a time. The newest source never wins by default: an unsettled precedence answers `unresolved`.
+
+**Roles in a change.** Only a current source registered as `linea_de_base` can close a question `by_baseline`; a hand copy in `00_raw/`, the harvest, a `plan_previo`, a `diseno_nuevo` or a replaced source is rejected, and the message says which and how to register it. Loading a document with a different role than the one it already has is refused: correct the role with `--id F-NN --role ROLE`. If the request cites a document by name or sha and another version of it is loaded (or the sha does not match), a blocking `GAP-VER-xxxxxx` opens in the change, one per citation. A cited document that was never loaded is only a warning in `/status --change`. `/status --change` lists the `sources` by role and `/next --change` has a `baseline` step between the scope and the lenses.
 
 `--retire` removes the source's files from the local memory: the original path, any other path with the same content, and Sentinel's copy under `00_raw/` or `07_changes/`. `/retrieve` and context packs stop returning them, and `/reindex` skips them. The files stay on disk, and so do their graph nodes and Sentinel's own reports about the source (the impact report, for example). After `--current` (or any other validity change), the source is indexed again on the next `/reindex`.
 
@@ -836,6 +845,8 @@ Pass one validity change at a time. The newest source never wins by default: an 
 - `--precedence` without `--between`, or the reverse, or `--precedence --between` with another option → exit 3.
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
+- `--load` without `--role`, with another option besides `--role` and `--change`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` without `--change` or `--reason`, or with another option → exit 3.
+- `--load` of a file that is the harvest, a Sentinel output or not UTF-8 text, or whose content already has another declared role → exit 3, the message says why.
 
 **You get.** The rows, the precedence answer or the report path. With `--retire`, `memory_removed` lists the memory ids it took out.
 

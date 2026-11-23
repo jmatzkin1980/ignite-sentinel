@@ -1359,7 +1359,25 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
-2. Answer the scope with a border, then keep answering.
+2. Load what the system already says, saying what each document is.
+
+   **Tell the assistant:** "Here is the architecture document of the current system: input/sad.md. It is the baseline of CHG-001 for ACME_PORTAL." Other roles: "this is the prototype of the new design" (`diseno_nuevo`), "this is the brief of the previous release" (`plan_previo`).
+
+   **You'll see:** The document registered as a source with its role, and its `F-NN`. If the request cites another version of it, a blocking question opens asking which version governs.
+
+   **What it means:** Only a document registered as the baseline can close a question `by_baseline`; a file copied by hand into `00_raw/` never does. If nothing is built yet, tell the assistant to waive the baseline and give the reason.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /sources ACME_PORTAL --load input/sad.md --role linea_de_base --change CHG-001
+   /sources ACME_PORTAL --change CHG-001 --no-baseline --reason "nothing is built yet"
+   ```
+
+   The second line is the alternative when there is no baseline.
+   </details>
+
+3. Answer the scope with a border, then keep answering.
 
    **Tell the assistant:** "Process the answers in input/scope.md for change CHG-001 of ACME_PORTAL." To get the change's questions again: "Regenerate the questions of CHG-001."
 
