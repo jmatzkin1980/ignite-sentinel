@@ -250,7 +250,10 @@ class ChangeNextWarnings(SnapshotWorkspaceCase):
         self.assertEqual(cli_json(["next", "BORR"])["changes"][0]["warnings"], overview["warnings"])
         self.assertEqual(cli_json(["next", "BORR", "--change", CID])["warnings"], overview["warnings"])
         self.assertEqual(cli_json(["status", "BORR"])["changes"][0]["warnings"], overview["warnings"])
-        self.assertEqual(cli_json(["status", "BORR", "--change", CID])["warnings"], overview["warnings"])
+        # IMP-402: /status --change also carries the extraction and preserved warnings; the escalation ones are the same
+        own = [w for w in cli_json(["status", "BORR", "--change", CID])["warnings"]
+               if not w["trigger"].startswith(("extraction_", "preserved_"))]
+        self.assertEqual(own, overview["warnings"])
 
 
 class ChangeNextMixed(SnapshotWorkspaceCase):
