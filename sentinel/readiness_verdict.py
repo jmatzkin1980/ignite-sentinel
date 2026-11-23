@@ -391,6 +391,11 @@ CHANGE_TEXT = {
                              "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. El pedido no trae elementos "
                              "que citar, así que respondé una pregunta EARS del cambio ({ids}) con un requisito Delta UNCHANGED y su "
                              "Superficie, y corré /resolve-gaps {pid} --source ARCHIVO --change {cid}."),
+        "preserved_source": ("Cubrir lo preservado",
+                             "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. El pedido no trae "
+                             "elementos que citar y no queda ninguna pregunta EARS abierta: cargá una nota que diga qué se preserva con "
+                             "/sources {pid} --load ARCHIVO --role pedido --change {cid}, corré /extract {pid} --change {cid} y "
+                             "proponé un requisito UNCHANGED con su Superficie."),
         "requirements": ("Responder los requisitos del cambio",
                          "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps "
                          "o proponé los requisitos desde la extracción (/extract {pid} --change {cid} --proposals ARCHIVO)."),
@@ -452,6 +457,11 @@ CHANGE_TEXT = {
                              "These preserved surfaces of {cid} have no UNCHANGED row: {names}. The request brings no elements to "
                              "quote, so answer an EARS question of the change ({ids}) with a Delta UNCHANGED requirement and its "
                              "Surface, and run /resolve-gaps {pid} --source FILE --change {cid}."),
+        "preserved_source": ("Cover what is preserved",
+                             "These preserved surfaces of {cid} have no UNCHANGED row: {names}. The request brings no elements to "
+                             "quote and no EARS question is left open: load a note saying what is preserved with "
+                             "/sources {pid} --load FILE --role pedido --change {cid}, run /extract {pid} --change {cid} and "
+                             "propose an UNCHANGED requirement with its Surface."),
         "requirements": ("Answer the change requirements",
                          "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps "
                          "or propose the requirements from the extraction (/extract {pid} --change {cid} --proposals FILE)."),
@@ -477,6 +487,7 @@ CHANGE_COMMANDS = {
     "extract_orphans": "/extract {pid} --change {cid} --reject-item {first_orphan} --reason \"...\"",
     "preserved": "/extract {pid} --change {cid} --proposals PATH",
     "preserved_answer": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "preserved_source": "/sources {pid} --load PATH --role pedido --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
     "specs": "/specs {pid} --change {cid}",
@@ -610,7 +621,8 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     if key == "extract_confirm" and cover["proposed"] == cover["flagged"]:
         text_key = "extract_confirm_flagged"  # `--confirm all` would hold every one of them again
     if key == "preserved" and cover["total"] == 0:
-        text_key = "preserved_answer"  # nothing in the request to quote: the UNCHANGED row comes from an answer
+        # nothing in the request to quote: the UNCHANGED row comes from an answer, or from a note loaded as a source
+        text_key = "preserved_answer" if ears_gaps else "preserved_source"
     title, text = texts[text_key]
     orphans = cover.get("orphans", []) if key == "extract_orphans" else []
     ctx = {
@@ -627,8 +639,8 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
     if text_key == "preserved_answer":
-        ctx["ids"] = ", ".join(ears_gaps) or "GAP-ACCEPTANCE"
-    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer") else key
+        ctx["ids"] = ", ".join(ears_gaps)
+    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer", "preserved_source") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}

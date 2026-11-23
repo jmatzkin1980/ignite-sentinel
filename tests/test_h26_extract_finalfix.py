@@ -64,6 +64,7 @@ class Finalfix(ProposalsCase):
         path.write_text(text[:start] + text[text.index("## Usuarios"):], encoding="utf-8")
         result = run_extract(PID, CID)
         self.assertEqual(result["coverage"]["orphans"], [{"id": "SEC-objetivo", "rows": rows}])
+        self.assertFalse(result["coverage"]["complete"])
         step = result["next_step"]
         self.assertEqual(step["key"], "extract_orphans")
         self.assertEqual(step["command"], f'/extract {PID} --change {CID} --reject-item SEC-objetivo --reason "..."')
@@ -81,6 +82,7 @@ class Finalfix(ProposalsCase):
         self.assertEqual(sorted(result["rows_superseded"]), sorted(rows))
         self.assertFalse([r for r in load_change_ears(PID, CID) if "EXT:SEC-objetivo" in r["source"]])
         self.assertEqual(extraction_coverage(PID, CID)["orphans"], [])
+        self.assertTrue(extraction_coverage(PID, CID)["complete"])
         self.assertNotEqual(change_next_step(PID, CID)["key"], "extract_orphans")
 
     # item 3: a re-submission equal to a confirmed item keeps it confirmed
@@ -132,7 +134,8 @@ class Finalfix(ProposalsCase):
         self.assertEqual((cover["state"], cover["unreadable"], cover["complete"]), ("empty", [], True))
         step = change_next_step(PID, CID)
         self.assertEqual(step["key"], "preserved")
-        self.assertEqual(step["command"], f"/resolve-gaps {PID} --source PATH --change {CID}")
+        # no EARS question is open here, so the way out is a request note loaded as a source (IMP-404 task 1)
+        self.assertEqual(step["command"], f"/sources {PID} --load PATH --role pedido --change {CID}")
         self.assertNotIn("--proposals", step["text"])
         self.assertIn("UNCHANGED", step["text"])
         set_language("en")

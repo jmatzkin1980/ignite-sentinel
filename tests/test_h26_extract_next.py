@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
@@ -142,11 +143,29 @@ class BorradorDone(SnapshotWorkspaceCase):
         self.assertIn("The extraction covers", change_next_step("BORR", CID)["text"])
 
 
+    def preserved_step(self, ears_gaps):
+        from sentinel.extraction.coverage import extraction_coverage as real
+
+        def empty(*args, **kwargs):
+            return {**real(*args, **kwargs), "total": 0}
+
+        with patch("sentinel.readiness_verdict._change_step_key", return_value="preserved"),                 patch("sentinel.extraction.coverage.extraction_coverage", side_effect=empty),                 patch("sentinel.readiness_verdict._open_ears_gaps", return_value=ears_gaps),                 patch("sentinel.extraction.coverage.preserved_coverage", return_value={"missing": ["Alta"]}):
+            return change_next_step("BORR", CID)
+
+    def test_preserved_without_elements_or_questions_points_to_a_request_source(self):
+        step = self.preserved_step([])
+        self.assertEqual(step["command"], f"/sources BORR --load PATH --role pedido --change {CID}")
+        self.assertNotIn("GAP-ACCEPTANCE", step["text"])
+        step = self.preserved_step(["GAP-BUSINESS-RULES"])
+        self.assertIn("GAP-BUSINESS-RULES", step["text"])
+        self.assertEqual(step["command"], f"/resolve-gaps BORR --source PATH --change {CID}")
+
+
 class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
-            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer",
+            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])

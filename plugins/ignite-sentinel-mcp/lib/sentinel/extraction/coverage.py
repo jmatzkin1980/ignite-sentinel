@@ -75,7 +75,7 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
         "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "stale_items": stale,
         "unreadable": unreadable, "orphans": orphans,
         "by_kind": {kind: c for kind, c in by_kind.items() if c["total"]},
-        "complete": state in ("current", "empty") and covered == total and not unreadable, "text": text,
+        "complete": state in ("current", "empty") and covered == total and not unreadable and not orphans, "text": text,
     }
 
 

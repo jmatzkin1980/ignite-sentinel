@@ -115,13 +115,15 @@ class Mature(SnapshotWorkspaceCase):
         code, err = run_err(["export", "MAD", "--artifact", "brief", "--change", CID, "--final"])
         self.assertNotEqual(code, 0)
         self.assertIn("2 sección(es) del brief todavía sin extraer del pedido (§2, §4)", err)
-        self.assertIn("Sentinel todavía no extrae solo el contenido del pedido", err)
+        self.assertIn("Corré /extract MAD --change CHG-001", err)
+        self.assertNotIn("todavía no extrae", err)
         self.assertNotIn("domain marks", err)
         self.assertFalse((workspace_path("MAD") / "08_context_packs" / "exports" / f"{CID}-project-brief.md").exists())
         set_change("MAD", language="en")
         code, err = run_err(["export", "MAD", "--artifact", "brief", "--change", CID, "--final"])
         self.assertNotEqual(code, 0)
         self.assertIn("2 section(s) of the brief not yet extracted from the request (§2, §4)", err)
+        self.assertIn("Run /extract MAD --change CHG-001", err)
 
     def test_draft_export_shows_banner_with_sections(self):
         out = json.loads(run_ok(["export", "MAD", "--artifact", "brief", "--change", CID]))
@@ -270,7 +272,7 @@ class Borrador(SnapshotWorkspaceCase):
         self.assertEqual(CHANGE_COMMANDS["done"], "")
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
-            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer",
+            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
 
 
