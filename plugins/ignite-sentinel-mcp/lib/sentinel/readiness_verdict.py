@@ -23,7 +23,6 @@ from .drift import derived_drift_warnings
 from .source_registry import registry_warnings
 from .sources import source_registry_summary
 from .gaps import BLOCKING_GAP_STATUSES, blocking_severities, count_gaps, is_blocking, parse_gap_table
-from .pending_marks import change_extraction_pending as _extraction_pending
 from .workspace import load_config, workspace_path
 
 VERDICTS = ("READY", "READY_WITH_WARNINGS", "NOT_READY")
@@ -361,22 +360,37 @@ CHANGE_TEXT = {
         "brief": ("Compilar el brief del cambio", "Corré /brief --change {cid}: todavía no hay {path}."),
         "brief_stale": ("Recompilar el brief del cambio",
                         "Recompilá el brief del cambio ({cid}): cambió el estado de los gaps. Corré /brief --change {cid}."),
+        "extract_inventory": ("Inventariar el pedido",
+                              "Corré /extract {pid} --change {cid}: Sentinel lista cada regla, criterio, historia, decisión y sección del pedido de {cid}; "
+                              "ese inventario es el denominador de la cobertura."),
+        "extract_inventory_stale": ("Reinventariar el pedido",
+                                    "El pedido de {cid} cambió desde el inventario: corré /extract {pid} --change {cid}. "
+                                    "Los elementos que no cambiaron conservan su propuesta; los que cambiaron quedan para volver a proponer."),
+        "extract_proposals": ("Proponer el tratamiento de cada elemento",
+                              "{pending} de {total} elementos del pedido de {cid} no tienen propuesta. Copiá "
+                              "`02_requirements/{cid}/extraction/proposals_template.md` fuera de 02_requirements, completá por elemento "
+                              "requisito (EARS con Delta y Superficie por enunciado), sección o descarte, con una cita literal, y corré "
+                              "/extract {pid} --change {cid} --proposals ARCHIVO."),
+        "extract_confirm": ("Confirmar la extracción",
+                            "{proposed} propuesta(s) de {cid} esperan la confirmación del BA, {flagged} marcada(s). Revisá "
+                            "`02_requirements/{cid}/extraction/review.md`; confirmá por sección con /extract {pid} --change {cid} "
+                            "--confirm SECCION, o todo lo no marcado con --confirm all. Lo marcado se confirma uno por uno con "
+                            "--confirm-item ID o se rechaza con --reject-item ID --reason TEXTO."),
+        "preserved": ("Cubrir lo preservado",
+                      "Estas superficies preservadas de {cid} no tienen ninguna fila UNCHANGED: {names}. Cada una necesita al menos un "
+                      "requisito UNCHANGED, que pasa a ser un criterio pass-to-pass: proponelo en la extracción o respondelo en una "
+                      "pregunta con Delta UNCHANGED y Superficie."),
         "requirements": ("Responder los requisitos del cambio",
-                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps."),
-        "requirements_none": ("Responder los requisitos del cambio",
-                              "{cid} no tiene ninguna pregunta funcional abierta donde responder los requisitos; el pedido los trae "
-                              "pero Sentinel todavía no los extrae solo (llega en un próximo incremento). Mientras tanto el cambio se queda en este paso y el BA revisa el pedido a mano."),
+                         "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED: respondé {ids} en EARS con Delta y Superficie y corré /resolve-gaps "
+                         "o proponé los requisitos desde la extracción (/extract {pid} --change {cid} --proposals ARCHIVO)."),
+        "requirements_none": ("Proponer los requisitos del cambio",
+                              "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED. Proponelas desde la extracción "
+                              "(Tratamiento: requisito) con /extract {pid} --change {cid} --proposals ARCHIVO."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
-        "pending_extraction": ("Pasar el contenido del pedido al brief",
-                               "{cid}: el brief no tiene todavía el contenido del pedido en {sections}. Sentinel todavía no lo extrae solo "
-                               "(llega en un próximo incremento). La marca se limpia solo cuando se responde una pregunta de esa sección; "
-                               "si el cambio no tiene ninguna abierta, la marca queda hasta el incremento de extracción, el cambio sigue "
-                               "en este paso, /export --final se rechaza y el BA revisa el pedido a mano."),
-        "done": ("Piezas del cambio al día",
-                 "Las piezas registradas de {cid} están al día. Sentinel todavía no mide qué parte del pedido quedó cubierta: "
-                 "verificá que cada regla y criterio del pedido tenga su requisito o su descarte."),
+        "done": ("Cambio al día: pedido cubierto",
+                 "Las piezas de {cid} están al día. La extracción cubre {coverage} y cada superficie preservada tiene su fila UNCHANGED."),
     },
     "en": {
         "scope": ("Close the change border",
@@ -391,34 +405,52 @@ CHANGE_TEXT = {
         "brief": ("Compile the change brief", "Run /brief --change {cid}: there is no {path} yet."),
         "brief_stale": ("Recompile the change brief",
                         "Recompile the change brief ({cid}): the state of the gaps changed. Run /brief --change {cid}."),
+        "extract_inventory": ("Inventory the request",
+                              "Run /extract {pid} --change {cid}: Sentinel lists each rule, criterion, story, decision and section of the request of {cid}; "
+                              "that inventory is the denominator of the coverage."),
+        "extract_inventory_stale": ("Re-inventory the request",
+                                    "The request of {cid} changed since the inventory: run /extract {pid} --change {cid}. "
+                                    "Elements that did not change keep their proposal; the ones that changed are left to propose again."),
+        "extract_proposals": ("Propose the treatment of each element",
+                              "{pending} of {total} request elements of {cid} have no proposal. Copy "
+                              "`02_requirements/{cid}/extraction/proposals_template.md` outside 02_requirements, fill in per element "
+                              "requirement (EARS with Delta and Surface per statement), section or discard, with a verbatim quote, and run "
+                              "/extract {pid} --change {cid} --proposals FILE."),
+        "extract_confirm": ("Confirm the extraction",
+                            "{proposed} proposal(s) of {cid} await the BA's confirmation, {flagged} flagged. Review "
+                            "`02_requirements/{cid}/extraction/review.md`; confirm by section with /extract {pid} --change {cid} "
+                            "--confirm SECTION, or everything not flagged with --confirm all. Flagged ones are confirmed one by one with "
+                            "--confirm-item ID or rejected with --reject-item ID --reason TEXT."),
+        "preserved": ("Cover what is preserved",
+                      "These preserved surfaces of {cid} have no UNCHANGED row: {names}. Each needs at least one UNCHANGED "
+                      "requirement, which becomes a pass-to-pass criterion: propose it in the extraction or answer it in a "
+                      "question with Delta UNCHANGED and Surface."),
         "requirements": ("Answer the change requirements",
-                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps."),
-        "requirements_none": ("Answer the change requirements",
-                              "{cid} has no open functional question where the requirements can be answered; the request brings them "
-                              "but Sentinel does not extract them on its own yet (coming in a later increment). Meanwhile the change stays at this step and the BA checks the request by hand."),
+                         "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED: answer {ids} in EARS with Delta and Superficie and run /resolve-gaps "
+                         "or propose the requirements from the extraction (/extract {pid} --change {cid} --proposals FILE)."),
+        "requirements_none": ("Propose the change requirements",
+                              "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED. Propose them from the extraction "
+                              "(Treatment: requirement) with /extract {pid} --change {cid} --proposals FILE."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
-        "pending_extraction": ("Move the request content into the brief",
-                               "{cid}: the brief does not hold the request content yet in {sections}. Sentinel does not extract it on its own "
-                               "yet (coming in a later increment). The mark clears only when a question of that section is answered; "
-                               "if the change has no such open question, the mark stays until the extraction increment, the change stays "
-                               "at this step, /export --final is refused and the BA checks the request by hand."),
-        "done": ("Change pieces up to date",
-                 "The registered pieces of {cid} are up to date. Sentinel does not yet measure how much of the request is covered: "
-                 "check that each rule and criterion of the request has its requirement or its discard."),
+        "done": ("Change up to date: request covered",
+                 "The pieces of {cid} are up to date. The extraction covers {coverage} and each preserved surface has its UNCHANGED row."),
     },
 }
 CHANGE_COMMANDS = {
     "scope": "/resolve-gaps {pid} --source PATH --change {cid}",
     "baseline": "/sources {pid} --load PATH --role linea_de_base --change {cid}",
     "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "extract_inventory": "/extract {pid} --change {cid}",
+    "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
+    "extract_confirm": "/extract {pid} --change {cid} --confirm all",
+    "preserved": "/extract {pid} --change {cid} --proposals PATH",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
-    "pending_extraction": "",
     "done": "",
 }
 
@@ -437,6 +469,17 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "baseline"
     if int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0) > 0:
         return "lenses"
+    from .extraction.coverage import extraction_coverage, preserved_coverage
+
+    cover = extraction_coverage(project_id, change_id)
+    if cover["state"] in ("missing", "stale"):
+        return "extract_inventory"
+    if cover["pending"] > 0:
+        return "extract_proposals"
+    if cover["proposed"] > 0:
+        return "extract_confirm"
+    if preserved_coverage(project_id, change_id)["missing"]:
+        return "preserved"
     if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
         return "brief"
     if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id)):
@@ -449,8 +492,6 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "backlog"
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
-    if _extraction_pending(base, change_id):
-        return "pending_extraction"
     return "done"
 
 
@@ -517,26 +558,33 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dro
 def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     """IMP-396: the next step of one change, in the change's language."""
     from .changes import change_language, get_change
+    from .extraction.coverage import extraction_coverage, preserved_coverage
 
     change = get_change(project_id, change_id)
     key = _change_step_key(project_id, change_id, change)
     texts = CHANGE_TEXT.get(change_language(project_id, change), CHANGE_TEXT["es"])
-    stale = key == "brief" and (workspace_path(project_id) / "02_requirements" / change_id / "project-brief.md").is_file()
     base = workspace_path(project_id)
+    stale = key == "brief" and (base / "02_requirements" / change_id / "project-brief.md").is_file()
     ears_gaps = _open_ears_gaps(base, change_id) if key == "requirements" else []
     text_key = "brief_stale" if stale else key
     if key == "requirements" and not ears_gaps:
         text_key = "requirements_none"
+    cover = extraction_coverage(project_id, change_id)
+    if key == "extract_inventory" and cover["state"] == "stale":
+        text_key = "extract_inventory_stale"
     title, text = texts[text_key]
     ctx = {
         "cid": change_id, "pid": project_id,
         "ids": ", ".join(ears_gaps),
-        "sections": ", ".join(f"§{n}" for n in _extraction_pending(base, change_id)),
         "n": int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0),
         "path": f"02_requirements/{change_id}/project-brief.md",
+        "total": cover["total"], "pending": cover["pending"], "proposed": cover["proposed"],
+        "flagged": cover["flagged"], "coverage": cover["text"],
+        "names": ", ".join(preserved_coverage(project_id, change_id)["missing"]) if key == "preserved" else "",
     }
+    command_key = "extract_proposals" if text_key == "requirements_none" else key
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
-            "command": CHANGE_COMMANDS[key].format(**ctx)}
+            "command": CHANGE_COMMANDS[command_key].format(**ctx)}
 
 
 def changes_overview(project_id: str) -> list[dict[str, Any]]:

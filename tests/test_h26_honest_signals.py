@@ -14,9 +14,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
 from test_change_brief_cli import run_err  # noqa: E402
 from sentinel.changes import change_gaps_path, get_change  # noqa: E402
+from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
 from sentinel.pending_marks import count_pending_marks  # noqa: E402
 from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
@@ -92,10 +93,10 @@ class Mature(SnapshotWorkspaceCase):
         self.assertGreaterEqual(out["deferred_marks"], 2)
 
     def test_next_not_done_with_pending_extraction(self):
+        # The request is not inventoried yet: whatever the later steps hold, the change is never "done" (IMP-402).
         s = change_next_step("MAD", CID)
-        self.assertEqual(s["key"], "requirements")
-        # Past requirements/specs/backlog/validate, the brief's pending extraction is what is left, never "done".
-        # The middle steps are patched here only to pin the ordering cheaply; Walk below reaches it for real.
+        self.assertEqual(s["key"], "extract_inventory")
+        self.assertEqual(s["command"], f"/extract MAD --change {CID}")
         with patch("sentinel.change_requirements.load_change_ears", return_value=[{"delta": "ADDED"}]), \
                 patch("sentinel.change_requirements.parse_delta", return_value="ADDED"), \
                 patch("sentinel.compilers.change_backlog.specs_currency", return_value="current"), \
@@ -106,20 +107,7 @@ class Mature(SnapshotWorkspaceCase):
             update_state("MAD", changes=changes)
             (workspace_path("MAD") / "03_specs" / CID).mkdir(parents=True, exist_ok=True)
             (workspace_path("MAD") / "03_specs" / CID / "specs.md").write_text("x", encoding="utf-8")
-            s = change_next_step("MAD", CID)
-            self.assertEqual(s["key"], "pending_extraction")
-            self.assertEqual(s["command"], "")
-            self.assertEqual(s["title"], "Pasar el contenido del pedido al brief")
-            self.assertIn("el brief no tiene todavía el contenido del pedido en §2, §4", s["text"])
-            self.assertIn("La marca se limpia solo cuando se responde una pregunta de esa sección", s["text"])
-            self.assertIn("/export --final se rechaza", s["text"])
-            self.assertIn("llega en un próximo incremento", s["text"])
-            # without pending extraction the same state is done
-            report_path = workspace_path("MAD") / "02_requirements" / CID / "change_brief_report.json"
-            report = json.loads(report_path.read_text(encoding="utf-8"))
-            report["extraction_pending"] = []
-            report_path.write_text(json.dumps(report), encoding="utf-8")
-            self.assertEqual(change_next_step("MAD", CID)["key"], "done")
+            self.assertEqual(change_next_step("MAD", CID)["key"], "extract_inventory")
 
     def test_english_mature_brief_carries_english_mark(self):
         set_change("MAD", language="en")
@@ -164,10 +152,14 @@ class Mature(SnapshotWorkspaceCase):
         self.assertEqual(change_next_step("MAD", other)["key"], "scope")
 
     def test_requirements_text_never_names_missing_gap(self):
+        forget_read_snapshots()
+        complete_extraction("MAD", CID)
+        run_ok(["brief", "MAD", "--change", CID])
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "requirements")
-        self.assertIn("no tiene ninguna pregunta funcional abierta donde responder los requisitos", s["text"])
-        self.assertIn("el pedido los trae pero Sentinel todavía no los extrae solo (llega en un próximo incremento)", s["text"])
+        self.assertEqual(s["title"], "Proponer los requisitos del cambio")
+        self.assertIn("Proponelas desde la extracción (Tratamiento: requisito)", s["text"])
+        self.assertEqual(s["command"], f"/extract MAD --change {CID} --proposals PATH")
         for gap_id in ("GAP-ACCEPTANCE", "GAP-BUSINESS-RULES", "GAP-PRD-FR-AC"):
             self.assertNotIn(gap_id, s["text"])
 
@@ -208,10 +200,8 @@ class Walk(SnapshotWorkspaceCase):
 
     def test_real_walk_reaches_pending_extraction_and_stays(self):
         step = change_next_step("WLK", CID)
-        self.assertEqual(step["key"], "pending_extraction")
-        self.assertEqual(step["command"], "")
-        self.assertIn("§", step["text"])
-        self.assertIn("la marca queda hasta el incremento de extracción", step["text"])
+        self.assertEqual(step["key"], "extract_inventory")
+        self.assertEqual(step["command"], f"/extract WLK --change {CID}")
         # the honest exit: --final is refused, a draft is not
         code, err = run_err(["export", "WLK", "--artifact", "brief", "--change", CID, "--final"])
         self.assertNotEqual(code, 0)
@@ -248,44 +238,46 @@ class Borrador(SnapshotWorkspaceCase):
         for gap_id in ("GAP-ACCEPTANCE", "GAP-BUSINESS-RULES", "GAP-PRD-FR-AC"):
             self.assertEqual(gap_id in text, gap_id in open_ids, gap_id)
 
-    def test_done_text_says_coverage_not_measured(self):
-        for language, expected in (("es", ("Piezas del cambio al día", "Sentinel todavía no mide qué parte del pedido quedó cubierta",
-                                           "cada regla y criterio del pedido tenga su requisito o su descarte")),
-                                   ("en", ("Change pieces up to date", "Sentinel does not yet measure how much of the request is covered",
-                                           "each rule and criterion of the request has its requirement or its discard"))):
+    def test_done_text_says_coverage(self):
+        for language, expected in (("es", ("Cambio al día: pedido cubierto", "La extracción cubre 3 de 4 (Reglas 3 de 4)",
+                                           "cada superficie preservada tiene su fila UNCHANGED")),
+                                   ("en", ("Change up to date: request covered", "The extraction covers 3 of 4 (Rules 3 of 4)",
+                                           "each preserved surface has its UNCHANGED row"))):
             set_change("BORR", language=language)
-            with patch("sentinel.readiness_verdict._change_step_key", return_value="done"):
+            cover = {"state": "current", "total": 4, "pending": 0, "proposed": 0, "flagged": 0,
+                     "text": "3 de 4 (Reglas 3 de 4)" if language == "es" else "3 of 4 (Rules 3 of 4)"}
+            with patch("sentinel.readiness_verdict._change_step_key", return_value="done"), \
+                    patch("sentinel.extraction.coverage.extraction_coverage", return_value=cover):
                 s = change_next_step("BORR", CID)
             self.assertEqual(s["title"], expected[0])
             self.assertIn(expected[1], s["text"])
             self.assertIn(expected[2], s["text"])
             self.assertEqual(s["command"], "")
-        self.assertNotIn("Cambio al día", json.dumps(CHANGE_TEXT, ensure_ascii=False))
-        self.assertNotIn("Change up to date", json.dumps(CHANGE_TEXT))
+        self.assertNotIn("Sentinel todavía no mide", json.dumps(CHANGE_TEXT, ensure_ascii=False))
+        self.assertNotIn("does not yet measure", json.dumps(CHANGE_TEXT))
 
     def test_english_change_texts(self):
         set_change("BORR", language="en")
         s = change_next_step("BORR", CID)
         self.assertEqual(s["key"], "lenses")
         self.assertIn("answer them in a responses file (not in gaps.md, which Sentinel generates)", s["text"])
-        with patch("sentinel.readiness_verdict._change_step_key", return_value="pending_extraction"):
-            with patch("sentinel.readiness_verdict._extraction_pending", return_value=["2", "7"]):
-                s = change_next_step("BORR", CID)
-        self.assertEqual(s["title"], "Move the request content into the brief")
-        self.assertIn("the brief does not hold the request content yet in §2, §7", s["text"])
-        self.assertIn("The mark clears only when a question of that section is answered", s["text"])
-        self.assertIn("/export --final is refused", s["text"])
-        self.assertEqual(s["command"], "")
+        cover = {"state": "current", "total": 5, "pending": 0, "proposed": 2, "flagged": 1, "text": "0 of 5"}
+        with patch("sentinel.readiness_verdict._change_step_key", return_value="extract_confirm"), \
+                patch("sentinel.extraction.coverage.extraction_coverage", return_value=cover):
+            s = change_next_step("BORR", CID)
+        self.assertEqual(s["title"], "Confirm the extraction")
+        self.assertIn("2 proposal(s) of CHG-001 await the BA's confirmation, 1 flagged", s["text"])
+        self.assertEqual(s["command"], f"/extract BORR --change {CID} --confirm all")
         with patch("sentinel.readiness_verdict._change_step_key", return_value="requirements"), \
                 patch("sentinel.readiness_verdict._open_ears_gaps", return_value=[]):
             s = change_next_step("BORR", CID)
-        self.assertIn("has no open functional question where the requirements can be answered", s["text"])
+        self.assertIn("Propose them from the extraction", s["text"])
 
     def test_change_commands_of_the_new_steps(self):
-        self.assertEqual(CHANGE_COMMANDS["pending_extraction"], "")
         self.assertEqual(CHANGE_COMMANDS["done"], "")
-        self.assertEqual(set(CHANGE_COMMANDS), {"scope", "baseline", "lenses", "brief", "requirements", "specs", "backlog", "validate",
-                                                "pending_extraction", "done"})
+        self.assertEqual(set(CHANGE_COMMANDS), {
+            "scope", "baseline", "lenses", "extract_inventory", "extract_proposals", "extract_confirm", "preserved",
+            "brief", "requirements", "specs", "backlog", "validate", "done"})
 
 
 if __name__ == "__main__":

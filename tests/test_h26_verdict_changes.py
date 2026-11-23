@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_ok  # noqa: E402
 from sentinel.readiness_verdict import COVERAGE_NOT_MEASURED, build_readiness_verdict  # noqa: E402
 from test_change_next import CID, cli_json, load_baseline, set_change  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
@@ -52,6 +52,7 @@ class ChangeOnly(SnapshotWorkspaceCase):
         run_ok(["resolve-gaps", "BORR", "--source", "scope.md", "--change", CID])
         load_baseline("BORR")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
+        complete_extraction("BORR", CID)
         for command in ("brief", "specs", "backlog"):
             run_ok([command, "BORR", "--change", CID])
         verdict = build_readiness_verdict("BORR")

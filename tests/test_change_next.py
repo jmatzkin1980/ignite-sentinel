@@ -9,7 +9,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, build_matured_workspace, gap_acceptance_answer, run_cli, run_ok  # noqa: E402
+from helpers import (  # noqa: E402
+    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_cli, run_ok,
+)
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
 from sentinel.workspace import read_json, update_state, workspace_path  # noqa: E402
@@ -74,6 +76,9 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
 
         answer("BORR", CID, "a.md", ALL_ANSWERS)
         s = step()
+        self.assertEqual((s["key"], s["command"]), ("extract_inventory", f"/extract BORR --change {CID}"))
+        complete_extraction("BORR", CID)
+        s = step()
         self.assertEqual((s["key"], s["command"]), ("brief", f"/brief BORR --change {CID}"))
 
         run_ok(["brief", "BORR", "--change", CID])
@@ -109,6 +114,8 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["blocking_open"], 3)
         self.assertEqual(step()["key"], "lenses")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
+        self.assertEqual(step()["key"], "extract_inventory")
+        complete_extraction("BORR", CID)
         s = step()
         self.assertEqual((s["key"], s["command"]), ("brief", f"/brief BORR --change {CID}"))
         self.assertIn("cambió el estado de los gaps", s["text"])
@@ -292,6 +299,7 @@ class ChangeNextRemovedUnit(SnapshotWorkspaceCase):
         cls.cid = open_change("MIX")
         load_baseline("MIX", cls.cid)
         answer("MIX", cls.cid, "a.md", REMOVED_ANSWERS)
+        complete_extraction("MIX", cls.cid)
         run_ok(["brief", "MIX", "--change", cls.cid])
         run_ok(["specs", "MIX", "--change", cls.cid])
 
