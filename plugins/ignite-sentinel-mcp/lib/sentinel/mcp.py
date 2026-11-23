@@ -79,6 +79,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel. With change=CHG-nnn (IMP-386) only brief and gaps (md, interview) are exported, from that change, into exports/CHG-nnn-<name>; the project's exports are not touched and a change-only workspace refuses an export without it.", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
+    ("extract", "IMP-402: extract the request of change CHG-nnn element by element, in three phases. With none of proposals, confirm, confirm_item or reject_item it inventories the request (every rule, criterion, story, decision and section, with its id) and writes the worksheet. With proposals PATH it records the agent's cited proposals: per element a block with Tratamiento requisito|seccion|descarte, Cita literal (verbatim from the request) and, for a requirement, one Enunciado per statement with its own Delta and Superficie; nothing enters without the citation. With confirm SECTION|all it confirms the proposals of a section, which writes the EARS rows and fills the brief sections; whatever carries a flag (contradiction, duplicate, open gap) is held and is confirmed only one by one with confirm_item ID. reject_item ID with reason takes an element back to pending. Every result carries the coverage and the next step.", ["project_id", "change"]),
     ("sources", "List the F-NN source registry (one row per source content, opened and closed by /ingest, /sync and /resolve-gaps) and render 07_changes/source_log.md. Pass id with one change: from_who, superseded_by, retire with reason (and replacement), expire (and topic), current, or close; authority sets the row's authority; cell DOCUMENT/SECTION with mark updated, reviewed (with reason) or pending closes an impact-matrix cell. precedence SCOPE with between F-NN,F-NN says which source governs; report writes 07_changes/closing_report.md by recipient. IMP-400: load PATH with role pedido|linea_de_base|plan_previo|diseno_nuevo (and change CHG-nnn; pedido requires it) registers the file as a source with that role: a redacted copy in the role's 00_raw folder, or in place when it is already a context file of 00_raw (never the harvest); the same content reuses its row. id F-NN with role fixes the role of a registered row. change CHG-nnn with no_baseline and reason says the change has no baseline to load (the /next baseline step stops asking).", ["project_id"]),
     ("gap_elicitation", "Return a structured MCP elicitation request for one GAP when the client declares elicitation support; otherwise fall back to sentinel_gaps.", ["project_id", "gap_id"]),
 ]
@@ -474,6 +475,21 @@ def build_server():
             replacement=replacement, expire=expire, topic=topic, current=current, close=close, reason=reason,
             authority=authority, cell=cell, mark=mark, precedence=precedence, between=between, report=report, load=load, role=role,
             change=change, no_baseline=no_baseline)])
+
+    @tool(name="sentinel_extract", description=TOOL_DESCRIPTIONS["extract"])
+    def sentinel_extract(
+        project_id: str,
+        change: str,
+        proposals: str = "",
+        confirm: str = "",
+        confirm_item: str = "",
+        reject_item: str = "",
+        reason: str = "",
+    ) -> dict:
+        # IMP-402: every option is forwarded; the CLI refuses the combinations it does not take.
+        return run_cli(["extract", project_id, *option_arguments(
+            "extract", change=change, proposals=proposals, confirm=confirm, confirm_item=confirm_item,
+            reject_item=reject_item, reason=reason)])
 
     @tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False,

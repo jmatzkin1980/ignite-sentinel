@@ -200,6 +200,7 @@ All 37 commands, grouped by lifecycle stage. **Type** is from the command regist
 | Discover | [`/resolve-gaps`](#resolve-gaps) | mutating | | Process answered gaps |
 | Discover | [`/stakeholders`](#stakeholders) | mutating | | List or add owners for elicitation routing |
 | Discover | [`/sources`](#sources) | mutating | | Manage the F-NN source registry |
+| Discover | [`/extract`](#extract) | mutating | | Extract a change request element by element, with coverage |
 | Discover | [`/context-request`](#context-request) | mutating | | Ask a domain for context; move a request along |
 | Discover | [`/retrieve`](#retrieve) | read-only | | Focused retrieval from local memory |
 | Discover | [`/reindex`](#reindex) | mutating | | Rebuild local memory |
@@ -1302,6 +1303,81 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 
 **See also.** skill `sentinel-compose`.
 
+## `extract`
+
+**What it does.** Extracts the request of a change element by element and measures how much of it is covered. It has three phases: inventory (every rule, criterion, story, decision and section of the request, each with its id), cited proposals (the agent proposes what each element becomes) and confirmation by the BA. What is confirmed becomes EARS rows with Delta and Superficie per statement, fills sections of the change brief, and counts toward the coverage shown by `/status --change`, `/next --change` and the brief.
+
+**Type.** Mutating. Always with `--change`.
+
+**Use it when.** `/next --change` says to inventory the request, to propose the treatment of each element, to confirm the extraction or to cover what is preserved.
+
+**Syntax.**
+
+```text
+/extract COMPRAS_ALTAS --change CHG-001
+/extract COMPRAS_ALTAS --change CHG-001 --proposals proposals.md
+/extract COMPRAS_ALTAS --change CHG-001 --confirm reglas-de-negocio
+/extract COMPRAS_ALTAS --change CHG-001 --confirm all
+/extract COMPRAS_ALTAS --change CHG-001 --confirm-item RN-04
+/extract COMPRAS_ALTAS --change CHG-001 --reject-item HU-01 --reason "the story belongs to another change"
+```
+
+**Options.**
+
+| Flag | Values | Default | Meaning |
+|---|---|---|---|
+| `PROJECT_ID` | id | required | The workspace. |
+| `--change` | `CHG-NNN` | required | The change whose request is extracted. An unknown change is refused. |
+| `--proposals` | path | none | Record the cited proposals of a file kept outside `02_requirements`. |
+| `--confirm` | a section or `all` | none | Confirm every proposal of a section (or all of them), except what is flagged. |
+| `--confirm-item` | element id | none | Confirm one proposal, flagged or not. |
+| `--reject-item` | element id | none | Take one element back to pending. Needs `--reason`; its rows are superseded. |
+| `--reason` | text | none | Why the element is rejected. Only with `--reject-item`. |
+
+With no option it inventories the request and writes the worksheet `02_requirements/CHG-nnn/extraction/proposals_template.md`. `--proposals`, `--confirm`, `--confirm-item` and `--reject-item` are alternatives: more than one is an error (exit 3).
+
+**The proposals file.** One block per element, headed by its id. Copy the worksheet, complete it and record it:
+
+```text
+### RN-02
+- Tratamiento: requisito
+- Cita: "requiere aprobación de la jefa de Compras"
+- Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
+  - Delta: ADDED
+  - Superficie: Aprobación por monto
+- Enunciado: Mientras un alta está Pendiente de aprobación, el sistema debe impedir órdenes de compra a ese proveedor.
+  - Delta: ADDED
+  - Superficie: Tabla de proveedores
+```
+
+Every element gets a `Tratamiento` and a `Cita` copied word for word from the request; nothing is accepted without the quote. Each statement carries its own `Delta` and `Superficie` (a surface of the border of the change). The labels follow the language of the change:
+
+| Spanish | English | Used for |
+|---|---|---|
+| `Tratamiento` (`requisito`, `seccion`, `descarte`) | `Treatment` (`requirement`, `section`, `discard`) | What the element becomes. |
+| `Cita` | `Quote` | The verbatim text of the request. |
+| `Enunciado` | `Statement` | An EARS statement of a requirement; one per behavior. |
+| `Delta` | `Delta` | ADDED, MODIFIED, REMOVED or UNCHANGED. |
+| `Superficie` | `Surface` | The surface of the border the statement touches. |
+| `Afecta` | `Affects` | Other surfaces it affects. |
+| `Seccion` and `Texto` | `Section` and `Text` | For `seccion`: the brief section (`objetivo`, `usuarios`, `proceso`, `alcance`, `preservado`, `reglas`, `aceptacion`) and the text that goes there. |
+| `Motivo` | `Reason` | For `descarte`: why nothing is written. |
+| `Marca` | `Flag` | `divergencia`, `contradiccion` or `sin_respaldo`, with a note. |
+
+**What is flagged is not confirmed in bulk.** A proposal carries a flag when it contradicts the baseline, diverges from it, has no support or touches an open gap. `--confirm` and `--confirm all` hold those back and say how many; each one is confirmed on its own with `--confirm-item ID`, after the BA has read it in `02_requirements/CHG-nnn/extraction/review.md`, or taken out with `--reject-item ID --reason TEXT`.
+
+**You get.** `action` (`inventory`, `proposals`, `confirm` or `reject`), `coverage` (`total`, `covered`, `pending`, `proposed`, `flagged`, `by_kind`, `text`), `next_step` and a one-line `message`. The proposals phase also lists `recorded`, `rejected` (with the reason of each) and `flagged`; the confirmation phase lists `confirmed`, `held`, `invalid` and the EARS rows added, updated or superseded.
+
+**Reads.** The loaded request (role `pedido`), the border and gaps of the change.
+
+**Writes.** Under `02_requirements/CHG-nnn/extraction/`: the inventory, the worksheet, `proposals.json`, `review.md` and the submitted files; the EARS rows of the change and the sections of its brief.
+
+**Refuses when.** The change is unknown; the border is not closed yet (answer GAP-SCOPE first); proposals are recorded before the inventory exists or after the request changed (run `/extract` again); a proposal has no verbatim quote or names a surface outside the border.
+
+**Next.** Follow `next_step`; at the end `/next --change` reaches `brief`, `specs` and `done`, which needs the whole request confirmed and every preserved surface covered by an UNCHANGED row.
+
+**See also.** [`next`](#next) · [`status`](#status) · [`brief`](#brief).
+
 ## `export`
 
 **What it does.** Writes a shareable copy of an artifact under `08_context_packs/exports/`. An export of the brief, PRD or a context request with pending marks is stamped as a draft; `--final` refuses until none remain.
@@ -1798,7 +1874,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The next step for one release. |
-| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `lenses`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `pending_extraction`, `done` (`pending_extraction` and `done` have an empty `command`; `pending_extraction` shows only while the change brief still holds a `⏳ PENDIENTE DE EXTRACCIÓN` mark, and it does not clear until the extraction increment unless a question of that section is answered); it never reaches the PRD. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | The next step of that change only. The sequence is `scope`, `baseline`, `lenses`, `extract_inventory`, `extract_proposals`, `extract_confirm`, `preserved`, `brief`, `requirements`, `specs`, `backlog`, `validate`, `done`. The extraction steps (IMP-402) come from the coverage of the request: `extract_inventory` until `/extract` has inventoried it (or again when it changed), `extract_proposals` while elements have no proposal, `extract_confirm` while proposals wait for the BA, `preserved` while a preserved surface has no UNCHANGED row; `done` has an empty `command` and needs full coverage; it never reaches the PRD. It does not combine with `--release` (exit 3). |
 
 **Reads.** The same as `/status`.
 
