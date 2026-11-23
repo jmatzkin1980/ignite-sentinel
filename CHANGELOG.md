@@ -6,6 +6,14 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/cross --change` (IMP-404).** Cross-reads of the request against the new design and against itself, with a verbatim quote validated by role; divergences and contradictions open blocking questions; what has no support flags its element of the extraction; candidates for a `nuevo` surface from the `NO ENCONTRADO` of the change's harvest (`--accept-new`, `--decline-new`); a `crosses` block in `/status --change` and a "Cruces" line in the brief.
+
+### Changed
+
+- **`/next --change` (IMP-404).** It asks for the three cross-reads (or their waiver) and for the new surfaces before the request is inventoried; `/harvest --change` is recorded as the cross-read with the baseline; `/export --final` with a pending extraction sends the BA to `/extract`; what is preserved with no elements or questions sends the BA to load a note with the role `pedido`.
+
 ## [0.25.0] — 2026-11-23
 
 ### Added

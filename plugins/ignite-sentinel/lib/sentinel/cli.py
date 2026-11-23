@@ -438,6 +438,25 @@ def _run_project_command(args) -> int:
                 args.project_id, args.change, proposals=args.proposals, confirm=args.confirm,
                 confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
             ))
+        elif args.command == "cross":
+            from .crosses import run_cross
+
+            if sum(bool(x) for x in (args.claims, args.skip, args.accept_new, args.decline_new)) > 1:
+                raise ValueError("/cross takes one of --claims, --skip, --accept-new or --decline-new")
+            if (args.claims or args.skip) and not args.kind:
+                raise ValueError("/cross --claims and --skip need --kind")
+            if args.kind and (args.accept_new or args.decline_new or not (args.claims or args.skip)):
+                raise ValueError("/cross --kind goes with --claims or --skip")
+            if bool(args.reason) != bool(args.skip or args.decline_new):
+                raise ValueError("/cross --reason goes with --skip or --decline-new (and they need it)")
+            if bool(args.surface_type or args.name) != bool(args.accept_new) or (
+                args.accept_new and not (args.surface_type and args.name)
+            ):
+                raise ValueError("/cross --accept-new needs --type and --name (and only it takes them)")
+            print_json(run_cross(
+                args.project_id, args.change, kind=args.kind, claims=args.claims, skip=args.skip, reason=args.reason,
+                accept_new=args.accept_new, surface_type=args.surface_type, name=args.name, decline_new=args.decline_new,
+            ))
         elif args.command == "next":
             from .status import project_next
 

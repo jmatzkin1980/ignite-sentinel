@@ -281,6 +281,19 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--reason", help="IMP-402: with --reject-item, why")
 
 
+def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-reads of a change request
+    p.add_argument("project_id")
+    p.add_argument("--change", metavar="CHG-NNN", required=True, help="IMP-404: the change whose request is cross-read")
+    p.add_argument("--kind", metavar="TYPE", help="IMP-404: diseno, contradicciones or linea_de_base (with --claims or --skip)")
+    p.add_argument("--claims", metavar="PATH", help="IMP-404: record the cited cross-read in this file")
+    p.add_argument("--skip", action="store_true", help="IMP-404: waive the cross-read of --kind (needs --reason)")
+    p.add_argument("--reason", help="IMP-404: with --skip or --decline-new, why")
+    p.add_argument("--accept-new", dest="accept_new", metavar="ID", help="IMP-404: accept a new-surface candidate (needs --type and --name)")
+    p.add_argument("--type", dest="surface_type", metavar="TYPE", help="IMP-404: with --accept-new, the surface type")
+    p.add_argument("--name", help="IMP-404: with --accept-new, the surface name")
+    p.add_argument("--decline-new", dest="decline_new", metavar="ID", help="IMP-404: decline a new-surface candidate (needs --reason)")
+
+
 def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms profile, genesis and validation direction
     p.add_argument("project_id")
     p.add_argument("--profile", help="comma-separated: UI,API,BAT,INT,MIG,REG,MT")
@@ -358,6 +371,7 @@ REGISTRY: tuple[Command, ...] = (
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
     Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}),
     Command("extract", MUTATING, _extract),  # IMP-402
+    Command("cross", MUTATING, _cross),  # IMP-404
     Command("export", MUTATING, _export),
     Command("backlog", MUTATING, _backlog, release=True),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.

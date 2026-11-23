@@ -182,7 +182,7 @@ Which command refuses under which condition. "Before `/ingest`" means `01_discov
 
 ## Command index
 
-All 38 commands, grouped by lifecycle stage. **Type** is from the command registry. **Release** means the command takes `--release rN`.
+All 39 commands, grouped by lifecycle stage. **Type** is from the command registry. **Release** means the command takes `--release rN`.
 
 | Stage | Command | Type | Release | What it does |
 |---|---|---|---|---|
@@ -201,6 +201,7 @@ All 38 commands, grouped by lifecycle stage. **Type** is from the command regist
 | Discover | [`/stakeholders`](#stakeholders) | mutating | | List or add owners for elicitation routing |
 | Discover | [`/sources`](#sources) | mutating | | Manage the F-NN source registry |
 | Discover | [`/extract`](#extract) | mutating | | Extract a change request element by element, with coverage |
+| Discover | [`/cross`](#cross) | mutating | | Cross-read a change request with the new design and with itself |
 | Discover | [`/context-request`](#context-request) | mutating | | Ask a domain for context; move a request along |
 | Discover | [`/retrieve`](#retrieve) | read-only | | Focused retrieval from local memory |
 | Discover | [`/reindex`](#reindex) | mutating | | Rebuild local memory |
@@ -1302,6 +1303,87 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 **Next step.** `/backlog`, or `/export --artifact prd`.
 
 **See also.** skill `sentinel-compose`.
+
+## `cross`
+
+**What it does.** Records the cross-reads of a change request: the request against the new design and the request against itself. The BA (or the agent, with the BA) writes a claims file; every claim carries verbatim quotes, and each quote is checked word for word against the registered sources of its role. Divergences and contradictions open blocking questions in the change; what has no support in the design, and what is only in the design, flags its element in the extraction. A cross-read can be waived with a reason, and the same command decides the new surfaces that the baseline cross-read could not find.
+
+**Type.** Mutating. Always with `--change`.
+
+**Use it when.** `/next --change` asks for the cross-reads (`crosses`) or for the decision on the new surfaces (`cross_new_surfaces`), or when `/status --change` shows a cross-read as missing or stale.
+
+**Syntax.**
+
+```text
+/cross COMPRAS_ALTAS --change CHG-001
+/cross COMPRAS_ALTAS --change CHG-001 --kind diseno --claims cruce_diseno.md
+/cross COMPRAS_ALTAS --change CHG-001 --kind contradicciones --skip --reason "the request has no contradictions to cross"
+/cross COMPRAS_ALTAS --change CHG-001 --accept-new NEW-1A2B3C --type pantalla --name "Historial de aprobaciones"
+/cross COMPRAS_ALTAS --change CHG-001 --decline-new NEW-4D5E6F --reason "the harvest lists it by mistake"
+```
+
+**Options.**
+
+| Flag | Values | Default | Meaning |
+|---|---|---|---|
+| `PROJECT_ID` | id | required | The workspace. |
+| `--change` | `CHG-NNN` | required | The change whose request is cross-read. An unknown change is refused. |
+| `--kind` | `diseno`, `contradicciones`, `linea_de_base` | none | Which cross-read. Goes with `--claims` or `--skip`. `linea_de_base` can only be waived: recording it is `/harvest --change`. |
+| `--claims` | path | none | Record the cross-read written in this file. |
+| `--skip` | flag | off | Waive the cross-read of `--kind`. Needs `--reason`. |
+| `--reason` | text | none | Why the cross-read is waived or the candidate declined. Only with `--skip` or `--decline-new`. |
+| `--accept-new` | candidate id | none | Take a candidate surface of the harvest (a `NO ENCONTRADO` of the change) into the border as a new surface. Needs `--type` and `--name`. |
+| `--type` | surface type | none | The type of the new surface (`pantalla`, `regla`, `endpoint`, `dato`, ...). Only with `--accept-new`. |
+| `--name` | text | none | The name of the new surface. Only with `--accept-new`. |
+| `--decline-new` | candidate id | none | Rule out a candidate. Needs `--reason`. |
+
+With no action it only reports where each cross-read stands. `--claims`, `--skip`, `--accept-new` and `--decline-new` are alternatives: more than one is an error (exit 3), and so is any other combination of the flags above.
+
+**The claims file.** One `- [TAG] sentence` per claim, followed by indented lines with the quotes: `Pedido: F-NN "verbatim quote"` and `Diseño: F-NN "verbatim quote"` (`Request:` and `Design:` in an English change), where `F-NN` is the id of the source that holds the quote (see `/sources`). Example of a design cross-read:
+
+```text
+# Cruce pedido ↔ diseño nuevo — CHG-001
+
+- [RESPALDADO] La bandeja de la jefa de Compras está en el prototipo.
+  - Pedido: F-02 "quiero ver las altas pendientes en una bandeja para aprobarlas o rechazarlas"
+  - Diseño: F-05 "Bandeja de aprobaciones"
+- [RESPALDADO] El rechazo con motivo tiene su campo en el detalle del alta.
+  - Pedido: F-02 "La jefa aprueba o rechaza con un motivo"
+  - Diseño: F-05 "Motivo del rechazo"
+- [SIN RESPALDO EN DISEÑO] El historial que consulta el auditor no tiene pantalla en el prototipo.
+  - Pedido: F-02 "quiero consultar quién aprobó cada alta y cuándo"
+- [SOLO EN DISEÑO] El prototipo permite delegar las aprobaciones y el pedido no lo menciona.
+  - Diseño: F-05 "Delegar aprobaciones"
+- [DIVERGENCIA] El pedido fija el umbral en 5.000.000 y el prototipo muestra 1.000.000.
+  - Pedido: F-02 "mayor a 5.000.000 requiere aprobación de la jefa de Compras"
+  - Diseño: F-05 "Umbral de aprobación: 1.000.000"
+```
+
+A request quote must be in a source with the role `pedido`, a design quote in one with the role `diseno_nuevo`. A claim whose quote is not found, or whose number of quotes does not fit its tag, rejects the whole file and nothing is recorded. Recording the file again replaces the previous cross-read of that kind. The `contradicciones` kind uses only `CONTRADICCIÓN`, with two `Pedido` quotes.
+
+| Spanish | English | Quotes | Consequence | Severity |
+|---|---|---|---|---|
+| `RESPALDADO` | `BACKED` | one request, one or more design | none | none |
+| `SIN RESPALDO EN DISEÑO` | `NOT IN DESIGN` | one request | question; flags the element in the extraction | non-blocking |
+| `SOLO EN DISEÑO` | `ONLY IN DESIGN` | one or more design | question; flags the element in the extraction | non-blocking |
+| `DIVERGENCIA` | `DIVERGENCE` | one request, one design | question | blocking |
+| `CONTRADICCIÓN` | `CONTRADICTION` | two request | question | blocking |
+
+**The baseline cross-read is `/harvest --change`.** The request against the existing system is the harvest of the change; `/cross` does not record it (`--kind linea_de_base --claims` is refused and points to `/harvest`). It can be waived with `--skip --reason`.
+
+**New surfaces.** The `NO ENCONTRADO` claims of the change's harvest are candidates for new surfaces (zone `nuevo`). `--accept-new` takes one into the border, with a type and a name the BA chooses; `--decline-new` rules it out with a reason. `/next --change` asks for those decisions before the request is inventoried.
+
+**You get.** `action` (`claims`, `skip`, `accept_new`, `decline_new` or `status`), `crosses` (the state of the three cross-reads), `new_surface_candidates`, `next_step` and a one-line `message`. Recording also lists the `counts` per tag, the questions opened (`gaps`, `gaps_opened`) and the ones a re-recording dropped.
+
+**Reads.** The request and the design (roles `pedido` and `diseno_nuevo`), the harvest of the change and its border.
+
+**Writes.** Under `01_discovery/CHG-nnn/crosses/`: one JSON per cross-read, the submitted copies and the report `crosses.md`; the questions of the change; the border when a new surface is accepted.
+
+**Refuses when.** The change is unknown; `--kind` is not one of the three; a quote is not in a source of its role or the claim does not fit its tag; there is no source with the role `diseno_nuevo` for a design cross-read; a waiver has no reason or targets a cross-read already done; the border is still open (GAP-SCOPE) when a surface is accepted; the candidate is unknown or the type or name is invalid.
+
+**Next.** Follow `next_step`: answer the blocking questions the cross-read opened (`/resolve-gaps --change`), then `/extract --change`.
+
+**See also.** [`harvest`](#harvest) · [`sources`](#sources) · [`extract`](#extract) · [`next`](#next).
 
 ## `extract`
 

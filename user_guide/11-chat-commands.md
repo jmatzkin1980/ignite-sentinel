@@ -24,7 +24,7 @@ When something is waiting on you, the agent closes with one question and a few o
 | Terminal | `python -m sentinel /init ACME_PORTAL` | The Python package | `.\installers\sentinel.ps1 /init ACME_PORTAL` or `sh installers/sentinel.sh /init ACME_PORTAL` when `python` is missing | [Install](06-installation-vscode.md#path-e-terminal-only-no-agent) |
 | MCP client | Call the tool `sentinel_init` with `project_id` | `python -m sentinel.mcp` (clone, needs `.[mcp]`) or the `ignite-sentinel-mcp` plugin | Not applicable | [MCP](#mcp) below |
 
-All surfaces run the same 38 commands. The full list with flags is in the [command reference](01-command-reference.md).
+All surfaces run the same 39 commands. The full list with flags is in the [command reference](01-command-reference.md).
 
 ## Claude Code
 
@@ -86,7 +86,7 @@ Example client configuration for a clone:
 }
 ```
 
-The server exposes 38 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it.
+The server exposes 39 tools: one per command, named `sentinel_<command>` with hyphens turned into underscores (`sentinel_resolve_gaps`, `sentinel_story_status`), plus `sentinel_gap_elicitation`, which asks one gap as a structured question when the client supports it.
 
 Each tool takes every option of its command and forwards each value you set to the CLI, so the CLI accepts or refuses the combination exactly as it does in a terminal. Nothing you pass is dropped in silence. A parameter is named like its option, without the leading `--` and with hyphens turned into underscores (`--trace-id` is `trace_id`, `--with-task-seeds` is `with_task_seeds`). These parameters have a different name or shape:
 
