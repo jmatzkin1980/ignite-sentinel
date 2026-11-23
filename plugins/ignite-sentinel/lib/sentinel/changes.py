@@ -302,7 +302,13 @@ def confirm_border(project_id: str, change_id: str, border: list[dict[str, str]]
     """Fix the confirmed border on the change and open its lens round."""
     get_change(project_id, change_id)
     changes = {key: dict(value) for key, value in list_changes(project_id).items()}
-    changes[change_id].update({"border": list(border), "border_confirmed_at": utc_now(), "round": "lenses"})
+    # IMP-404: a surface the BA accepted from a cross-read survives a re-confirmed border.
+    from .change_requirements import _fold_name
+
+    taken = {_fold_name(n) for item in border for n in (item.get("name"), item.get("alias")) if n}
+    kept = [dict(item) for item in changes[change_id].get("border") or []
+            if item.get("origin") == "cross" and _fold_name(item.get("name", "")) not in taken]
+    changes[change_id].update({"border": [*border, *kept], "border_confirmed_at": utc_now(), "round": "lenses"})
     update_state(project_id, changes=changes)
 
 

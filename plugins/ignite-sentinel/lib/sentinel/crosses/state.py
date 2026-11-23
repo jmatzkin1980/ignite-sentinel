@@ -177,6 +177,22 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
                         "Questions from earlier deliveries that this one does not repeat (they stay open until the BA closes them): ")
                 lines += ["", lead + ", ".join(dropped)]
         lines.append("")
+    from .surfaces import new_surface_candidates
+
+    candidates = new_surface_candidates(project_id, change_id)
+    if candidates:
+        lines += ["## Candidatas a superficie nueva (del harvest)" if lang == "es"
+                  else "## New surface candidates (from the harvest)", ""]
+        for item in candidates:
+            if item["decision"] == "accepted":
+                verdict = (f"aceptada como {item['type']} «{item['name']}»" if lang == "es"
+                           else f"accepted as {item['type']} «{item['name']}»")
+            elif item["decision"] == "declined":
+                verdict = f"{'descartada' if lang == 'es' else 'declined'}: {item['reason']}"
+            else:
+                verdict = "pendiente" if lang == "es" else "pending"
+            lines.append(f"- {item['id']} «{item['text']}» ({item['source_id']}:{item['line']}): {verdict}")
+        lines.append("")
     path = crosses_dir(base, change_id) / "crosses.md"
     write_text(path, "\n".join(lines).rstrip() + "\n")
     return path
