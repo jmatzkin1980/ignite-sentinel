@@ -30,7 +30,7 @@ from pathlib import Path
 
 from .pending_marks import count_pending_marks
 
-WORKING_ARTIFACTS = {"gaps"}
+WORKING_ARTIFACTS = {"gaps", "borde", "decisiones"}  # IMP-412: the review views are working documents
 WORKING_FORMATS = {"interview", "faq"}
 
 

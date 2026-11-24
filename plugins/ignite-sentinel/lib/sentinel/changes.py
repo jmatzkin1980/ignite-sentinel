@@ -35,17 +35,28 @@ def list_changes(project_id: str) -> dict[str, dict]:
     return read_state(project_id).get("changes", {})
 
 
-CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps")  # IMP-386: what /view and /export take with --change
+CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # IMP-386: what /view and /export take with --change
+REVIEW_DELIVERABLES: tuple[str, ...] = ("borde", "decisiones")  # IMP-412: review views of a change (only md; only with --change)
+CHANGE_FORMATS: dict[str, tuple[str, ...]] = {"gaps": ("md", "interview", "faq"), "brief": ("md", "interview"),
+                                              "borde": ("md",), "decisiones": ("md",)}
 
 
-def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str) -> None:
-    """`/view` and `/export` with --change: only brief and gaps, and only of an open change."""
+def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str, fmt: str | None = None) -> None:
+    """`/view` and `/export` with --change: the change's own artifacts, and only of an open change.
+
+    IMP-412: `fmt` (an export) must be one the artifact takes: the review views are Markdown only."""
     if artifact.lower() not in CHANGE_DELIVERABLES:
         raise InputError(
             f"/{command} --change sólo admite {' o '.join(CHANGE_DELIVERABLES)}, no {artifact}: el resto es del proyecto.",
-            next_step=f"Quitá --change para {artifact}, o usá --artifact brief|gaps --change {change_id}.",
+            next_step=f"Quitá --change para {artifact}, o usá --artifact {'|'.join(CHANGE_DELIVERABLES)} --change {change_id}.",
         )
     get_change(project_id, change_id)
+    allowed = CHANGE_FORMATS.get(artifact.lower(), ())
+    if fmt is not None and artifact.lower() in REVIEW_DELIVERABLES and fmt not in allowed:
+        raise InputError(
+            f"/{command} --artifact {artifact} --change sólo admite el formato {' o '.join(allowed)}, no {fmt}.",
+            next_step=f"/{command} {project_id} --artifact {artifact} --change {change_id}",
+        )
 
 
 def is_change_only(project_id: str) -> bool:
@@ -57,6 +68,9 @@ def is_change_only(project_id: str) -> bool:
 
 def refuse_change_only_deliverable(project_id: str, command: str, artifact: str) -> None:
     """IMP-386: a workspace that only holds changes has no project brief or gaps to view or export."""
+    if artifact.lower() in REVIEW_DELIVERABLES:  # IMP-412: a review view is always of one change
+        raise InputError(f"/{command} --artifact {artifact} goes with --change CHG-NNN",
+                         next_step=f"/{command} {project_id} --artifact {artifact} --change CHG-NNN")
     if artifact.lower() not in CHANGE_DELIVERABLES:
         return
     if not is_change_only(project_id):

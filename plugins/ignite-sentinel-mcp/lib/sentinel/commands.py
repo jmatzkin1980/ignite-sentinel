@@ -22,8 +22,8 @@ MUTATING = "mutating"
 EXEMPT = "exempt"
 
 VIEW_ARTIFACTS = frozenset({"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype",
-                            "prototype-trace", "prototype-manual", "diagrams"})
-EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd")
+                            "prototype-trace", "prototype-manual", "diagrams", "borde", "decisiones"})
+EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd", "borde", "decisiones")
 
 
 @dataclass(frozen=True)
@@ -268,7 +268,7 @@ def _export(p: argparse.ArgumentParser) -> None:
     p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx", "interview", "faq"])
     p.add_argument("--domain")
     p.add_argument("--final", action="store_true", help="IMP-272: refuse to export while pending marks remain")
-    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: export this change's brief or gaps (exports/CHG-nnn-<name>)")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: export this change's brief, gaps, borde or decisiones (exports/CHG-nnn-<name>)")
 
 
 def _backlog(p: argparse.ArgumentParser) -> None:

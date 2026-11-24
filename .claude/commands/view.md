@@ -1,6 +1,6 @@
 ---
 description: Generate a local read-only HTML view for one Sentinel artifact.
-argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams|specs [OPTIONS] [--release rN] [--change CHG-NNN]
+argument-hint: PROJECT_ID --artifact backlog|brief|gaps|prd|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams|specs|borde|decisiones [OPTIONS] [--release rN] [--change CHG-NNN]
 ---
 
 # Ignite View
@@ -33,3 +33,5 @@ python -m sentinel /view PROJECT_ID --artifact ARTIFACT --theme neutral
 `--theme` takes a built-in theme name or the path to a local theme JSON; without it the workspace config `theme:` applies, else `neutral`.
 
 The runtime reads the Markdown source of truth, traceability graph, and workspace state, then writes a self-contained read-only HTML snapshot under `08_context_packs/views/`. It never mutates the source artifact. The output is reproducible (source cut-off and sha256 instead of a build time), and inline provenance is hidden behind a reader toggle. Summarize the generated path, source path, theme, cut-off, section count, pending markers, citations, and trace-node count.
+
+`--artifact borde|decisiones --change CHG-NNN` (IMP-412) renders the review view of the change (the border explained, the decisions) as `views/CHG-NNN-<artifact>.html`; without `--change` they are refused.

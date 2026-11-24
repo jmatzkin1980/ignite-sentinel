@@ -47,11 +47,11 @@ Translate short chat commands into Sentinel CLI executions.
 - `/sources PROJECT_ID --load PATH --role pedido|linea_de_base|plan_previo|diseno_nuevo [--change CHG-NNN]` (`pedido` requires `--change`)
 - `/sources PROJECT_ID --id F-NN --role ROLE` (correct the role of a registered source)
 - `/sources PROJECT_ID --change CHG-NNN --no-baseline --reason TEXT` (waive the baseline of a change)
-- `/export PROJECT_ID --artifact gaps|brief|context-request|prd --format md [--change CHG-NNN]` (with `--change` it accepts only `brief` and `gaps`)
+- `/export PROJECT_ID --artifact gaps|brief|context-request|prd|borde|decisiones --format md [--change CHG-NNN]` (with `--change` it accepts only `brief`, `gaps`, `borde` and `decisiones`; the last two need it)
 - `/export PROJECT_ID --artifact prd --format mdx`
 - `/export PROJECT_ID --artifact gaps --format interview`
-- `/export PROJECT_ID --artifact gaps --format faq`
-- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams [--open] [--theme NAME] [--release rN] [--change CHG-NNN]` (with `--change` it accepts only `brief` and `gaps`)
+- `/export PROJECT_ID --artifact gaps --format faq [--change CHG-NNN]`
+- `/view PROJECT_ID --artifact gaps|brief|prd|specs|backlog|readiness|release-guide|prototype|prototype-trace|prototype-manual|diagrams|borde|decisiones [--open] [--theme NAME] [--release rN] [--change CHG-NNN]` (with `--change` it accepts only `brief`, `gaps`, `borde` and `decisiones`; the last two need it)
 - `/sync PROJECT_ID`
 - `/sync PROJECT_ID --source PATH --note "NOTE"`
 - `/retrieve PROJECT_ID --query "TEXT" --workflow WORKFLOW`

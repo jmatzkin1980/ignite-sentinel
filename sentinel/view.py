@@ -65,6 +65,16 @@ ARTIFACTS = {
         "relative": "02_requirements/prototype/trace.md",
         "phase": "Prototype",
     },
+    "borde": {  # IMP-412: review views of a change, written by review_views.py
+        "label": "Border explained",
+        "relative": "02_requirements/review/borde.md",
+        "phase": "Review",
+    },
+    "decisiones": {
+        "label": "Decisions of the change",
+        "relative": "02_requirements/review/decisiones.md",
+        "phase": "Review",
+    },
     "prototype-manual": {  # IMP-276: the printable user manual of the prototype
         "label": "Prototype User Manual",
         "relative": "02_requirements/prototype/manual.md",
@@ -767,7 +777,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     if change_id:
         from .changes import check_change_deliverable
 
-        check_change_deliverable(project_id, "view", artifact, change_id)
+        check_change_deliverable(project_id, "view", artifact, change_id, "md")
     else:
         from .changes import refuse_change_only_deliverable
 
@@ -783,6 +793,10 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
     if theme_warning:
         print(f"sentinel warning: {theme_warning}", file=sys.stderr)
+    if change_id and artifact in ("borde", "decisiones"):  # IMP-412: the review view is rebuilt from what is registered
+        from .review_views import write_review_view
+
+        write_review_view(project_id, change_id, artifact)
     model = collect_artifact_model(project_id, artifact, change_id)
     rendered = render_artifact_view(model, loaded, theme_arg=theme_arg)
     out_dir = workspace_path(project_id) / "08_context_packs" / "views"
