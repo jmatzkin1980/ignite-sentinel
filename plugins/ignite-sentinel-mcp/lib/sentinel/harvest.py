@@ -231,6 +231,10 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
             existing = [g for g in parse_gap_rows(change_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if change_path.exists() else []
             merged = merge_gaps_by_topic(existing, gaps)
             opened = [g["id"] for g in merged["added"]]
+            from .prior_decisions import apply_prior_decisions, candidate_from_gap
+
+            apply_prior_decisions(project_id, str(change_id), merged["added"],  # IMP-410
+                                  {g["id"]: candidate_from_gap(g, [str(source_id)]) for g in merged["added"]})
             write_text(change_path, render_gaps(project_id, merged["gaps"], str(change_id), language,
                                                 change_path.with_name("gap_elicitation.json")))
             changes[str(change_id)]["gap_counts"] = count_gaps(merged["gaps"])

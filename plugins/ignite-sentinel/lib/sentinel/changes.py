@@ -471,7 +471,14 @@ def regenerate_change_gaps(project_id: str, change_id: str, prune: bool = False)
         found = detect_gaps(_lens_evidence(base, change), load_domain_context(base), work="change", border_types=border_types(change))
         if _request_states_acceptance(base, change):
             found = [g for g in found if g["id"] != "GAP-ACCEPTANCE"]
-        rows += [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
+        fresh = [g for g in found if g["id"] not in SCOPE_ROUND_IDS and g["id"] not in have]
+        if fresh:  # IMP-410: a check the change already decided is not asked again
+            from .extraction.inventory import pedido_rows
+            from .prior_decisions import apply_prior_decisions, candidate_from_gap
+
+            sources = [str(r["id"]) for r in pedido_rows(project_id, change_id)]
+            apply_prior_decisions(project_id, change_id, fresh, {g["id"]: candidate_from_gap(g, sources) for g in fresh})
+        rows += fresh
         if prune:
             context = load_domain_context(base)
             every = {g["id"] for g in detect_gaps(_lens_evidence(base, change), context, work="change", border_types=None)}
