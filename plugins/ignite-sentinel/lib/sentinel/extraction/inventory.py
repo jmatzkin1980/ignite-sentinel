@@ -24,6 +24,12 @@ from . import extraction_dir
 
 KINDS = ("rule", "criterion", "story", "decision", "section")
 
+SPLIT_MIN_LINES = 40  # a section with more non-blank lines (or characters) is cut in parts
+SPLIT_MIN_CHARS = 4000
+PART_MAX_LINES = 20
+PART_MAX_CHARS = 4000
+INVENTORY_SCHEMA = 2
+
 _NUM = r"\d+(?:\.\d+)*"
 # The id is not followed by a word character or hyphen, nor by a dot that continues
 # a token (`RN-01.x`); a sentence-final dot (`Regla 10.2.`) is fine.
@@ -269,6 +275,7 @@ def _element(
     spans: list[list[int]], lines: list[str], prefix: str | None = None,
 ) -> dict[str, Any]:
     flat = _squash(" ".join(" ".join(lines[start - 1 : end]) for start, end in spans))
+    chars = len("\n".join("\n".join(lines[start - 1 : end]) for start, end in spans))
     return {
         "id": element_id,
         "kind": kind,
@@ -278,12 +285,81 @@ def _element(
         "path": path,
         "line": spans[0][0],
         "end_line": spans[-1][1],
+        "lines": [spans[0][0], spans[-1][1]],
+        "chars": chars,
         "spans": spans,
         "excerpt": flat[:400],
         "sha": sha256(flat.encode("utf-8")).hexdigest()[:16],
         "home": home_section(kind, heading),
         "_prefix": prefix,
     }
+
+
+def element_lines(element: dict) -> list[int]:
+    """The first and last line of an element; an inventory of schema 1 has only `line` and `end_line`."""
+    found = element.get("lines")
+    if isinstance(found, list) and len(found) == 2:
+        return [int(found[0]), int(found[1])]
+    return [int(element.get("line", 0)), int(element.get("end_line", element.get("line", 0)))]
+
+
+def _line_type(raw: str, previous: str | None) -> str:
+    if raw.lstrip().startswith("|"):
+        return "table"
+    if _LIST_ITEM.match(raw) or (previous == "list" and _indent(raw) >= 2):
+        return "list"
+    return "text"
+
+
+def section_parts(lines: list[str], spans: list[list[int]]) -> list[list[int]]:
+    """Cut the lines of a section into parts: one per table, list or run of text, long ones in pieces."""
+    groups: list[list[int]] = []
+    kind: str | None = None
+    last = 0
+    for start, end in spans:
+        for number in range(start, end + 1):
+            raw = lines[number - 1]
+            if not raw.strip():
+                continue
+            current = _line_type(raw, kind if number == last + 1 else None)
+            if not groups or number != last + 1 or current != kind:
+                groups.append([])
+            groups[-1].append(number)
+            kind, last = current, number
+    parts: list[list[int]] = []
+    for group in groups:
+        piece: list[int] = []
+        size = 0
+        for number in group:
+            width = len(lines[number - 1]) + (1 if piece else 0)
+            if piece and (len(piece) + 1 > PART_MAX_LINES or size + width > PART_MAX_CHARS):
+                parts.append([piece[0], piece[-1]])
+                piece, size, width = [], 0, len(lines[number - 1])
+            piece.append(number)
+            size += width
+        parts.append([piece[0], piece[-1]])
+    return parts
+
+
+def _split_long_sections(found: list[dict[str, Any]], lines: list[str]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for item in found:
+        if item["kind"] == "section":
+            numbers = [n for start, end in item["spans"] for n in range(start, end + 1) if lines[n - 1].strip()]
+            if len(numbers) > SPLIT_MIN_LINES or sum(len(lines[n - 1]) for n in numbers) > SPLIT_MIN_CHARS:
+                parts = section_parts(lines, item["spans"])
+                if len(parts) >= 2:
+                    heading = "" if item["section"] == "intro" else item["section"]
+                    for number, span in enumerate(parts, start=1):
+                        part = _element(
+                            f"{item['id']}.p{number}", "section", heading, item["source_id"], item["path"],
+                            [span], lines,
+                        )
+                        part["parent"] = item["id"]
+                        result.append(part)
+                    continue
+        result.append(item)
+    return result
 
 
 def _nonblank_span(lines: list[str], first: int, last: int) -> list[int] | None:
@@ -365,7 +441,7 @@ def _parse(text: str, source_id: str, path: str) -> list[dict[str, Any]]:
         seen[item["id"]] = count
         if count > 1:
             item["id"] = f"{item['id']}#{count}"
-    return found
+    return _split_long_sections(found, lines)
 
 
 def _inner_elements(
@@ -531,7 +607,8 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             f"/extract {project_id} --change {change_id} --proposals ARCHIVO. "
             "Un bloque con Tratamiento vacío no es una propuesta.\n"
         )
-        labels = ("Tratamiento", "Cita", "Enunciado", "Delta", "Superficie", "Seccion", "Texto", "Motivo", "Marca")
+        labels = ("Tratamiento", "Líneas", "Lectura", "Cita", "Enunciado", "Delta", "Superficie", "Seccion",
+                  "Resumen", "Motivo", "Marca")
     else:
         header = (
             f"# Proposals worksheet — {change_id}\n\n"
@@ -539,15 +616,19 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             f"/extract {project_id} --change {change_id} --proposals FILE. "
             "A block with an empty Treatment is not a proposal.\n"
         )
-        labels = ("Treatment", "Quote", "Statement", "Delta", "Surface", "Section", "Text", "Reason", "Flag")
-    treatment, quote, statement, delta, surface, section, text, reason, flag = labels
+        labels = ("Treatment", "Lines", "Reading", "Quote", "Statement", "Delta", "Surface", "Section",
+                  "Summary", "Reason", "Flag")
+    treatment, line_range, reading, quote, statement, delta, surface, section, text, reason, flag = labels
     parts = [header]
     for item in elements:
         parts.append(
             f"\n### {item['id']}\n"
-            f"<!-- {item['section_slug']} · {item['source_id']}:{item['line']} · {item['kind']} -->\n"
+            f"<!-- {item['section_slug']} · {item['source_id']}:{element_lines(item)[0]}-{element_lines(item)[1]}"
+            f" · {item['kind']} -->\n"
             f"> {item['excerpt']}\n"
             f"- {treatment}:\n"
+            f"- {line_range}:\n"
+            f"- {reading}:\n"
             f"- {quote}:\n"
             f"- {statement}:\n"
             f"  - {delta}:\n"
@@ -585,9 +666,15 @@ def build_inventory(project_id: str, change_id: str) -> dict:
         for item in local:
             if item["_prefix"]:
                 continue
-            id_base, _, repeat = item["id"].partition("#")
+            parent = item.get("parent")
+            id_base, _, repeat = (parent or item["id"]).partition("#")
             if id_base in seen_bases:
-                item["id"] = f"{id_base}@{source_id}" + (f"#{repeat}" if repeat else "")
+                renamed = f"{id_base}@{source_id}" + (f"#{repeat}" if repeat else "")
+                if parent:
+                    item["id"] = renamed + item["id"][len(parent):]
+                    item["parent"] = renamed
+                else:
+                    item["id"] = renamed
             local_bases.add(id_base)
         seen_bases |= local_bases
         elements.extend(local)
@@ -598,15 +685,20 @@ def build_inventory(project_id: str, change_id: str) -> dict:
     key = sorted((e["id"], e["sha"]) for e in elements)
     previous_key = sorted((e["id"], e["sha"]) for e in (previous or {}).get("elements", []))
     changed = previous is None or key != previous_key
+    split: dict[str, list[str]] = {}
+    for item in elements:
+        if item.get("parent"):
+            split.setdefault(item["parent"], []).append(item["id"])
     version = 1 if previous is None else int(previous.get("version", 1)) + (1 if changed else 0)
     by_kind = _by_kind(elements)
     inv_path = inventory_path(base, change_id)
     sheet_path = worksheet_path(base, change_id)
     if (changed or previous is None or previous.get("sources") != sources or not sheet_path.exists()
-            or (previous.get("unreadable") or []) != unreadable):
+            or (previous.get("unreadable") or []) != unreadable
+            or int(previous.get("schema_version", 1)) < INVENTORY_SCHEMA):
         language = change_language(project_id, change, first_text)
         write_json(inv_path, {
-            "schema_version": 1,
+            "schema_version": INVENTORY_SCHEMA,
             "change_id": change_id,
             "version": version,
             "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -615,6 +707,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
             "elements": elements,
             "total": len(elements),
             "by_kind": by_kind,
+            "split": split,
         })
         write_text(sheet_path, _worksheet(project_id, change_id, elements, language))
     return {
@@ -627,6 +720,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
         "total": len(elements),
         "by_kind": by_kind,
         "changed": changed,
+        "split": split,
         "unreadable": unreadable,
         "stale_proposals": _stale_proposals(base, change_id, elements),
     }

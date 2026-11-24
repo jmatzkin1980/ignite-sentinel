@@ -59,6 +59,13 @@ def run_extract(
             f"{change_id}: {result['total']} elementos inventariados ({by_kind}). Planilla: `{sheet}`" if es
             else f"{change_id}: {result['total']} elements inventoried ({by_kind}). Worksheet: `{sheet}`"
         )
+        split = result.get("split") or {}
+        if split:
+            k = sum(len(parts) for parts in split.values())
+            message += (
+                f"; {len(split)} sección(es) larga(s) partida(s) en {k} parte(s)" if es
+                else f"; {len(split)} long section(s) split into {k} part(s)"
+            )
     elif action == "proposals":
         n, r, f = len(result["recorded"]), len(result["rejected"]), len(result["flagged"])
         u, s = len(result.get("unchanged", [])), len(result.get("skipped", []))

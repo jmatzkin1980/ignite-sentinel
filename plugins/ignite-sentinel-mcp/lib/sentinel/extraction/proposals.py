@@ -50,7 +50,7 @@ _LABELS = {
     "superficie": "surface", "surface": "surface",
     "afecta": "affects", "affects": "affects",
     "seccion": "section", "sección": "section", "section": "section",
-    "texto": "text", "text": "text",
+    "texto": "text", "text": "text", "resumen": "text", "summary": "text",
     "motivo": "reason", "reason": "reason",
     "marca": "flag", "flag": "flag",
 }
