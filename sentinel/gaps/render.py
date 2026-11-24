@@ -133,6 +133,7 @@ Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué
     - Afecta: US-003, US-007 | ninguna (sólo si el Delta es MODIFIED o REMOVED y el proyecto ya tiene historias)
     - Superficie: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (una o más del borde, separadas por `;`; obligatoria en toda respuesta EARS de un cambio)
 Si la pregunta da opciones (A), (B), (C), escribí la elegida en su propio campo y no copies las demás en la respuesta: `- Opción: B`. Una respuesta confirmada que nombra varias opciones no se cierra.
+Si la respuesta la preparó un agente, decilo en `- Redactado por: agente` y dejá en `Owner / fuente` a quien decide; sin nombre, se cierra como decidida por «BA (sin nombre)».
 """
     return """
 Answers are not written in this file: they go in a separate file (for example `input/respuestas/CHG-nnn-answers.md`) and are processed with `/resolve-gaps P --source FILE --change CHG-nnn`.
@@ -160,6 +161,7 @@ If the answer is in EARS ("When ..., the system shall ..."), declare what it doe
     - Affects: US-003, US-007 | none (only if the Delta is MODIFIED or REMOVED and the project already has stories)
     - Surface: "Save draft" button in the supplier registration; Current submission of the supplier registration (one or more of the border, separated by `;`; required on every EARS answer of a change)
 If the question gives options (A), (B), (C), write the chosen one in its own field and do not copy the others into the answer: `- Option: B`. A confirmed answer that names several options does not close.
+If an agent prepared the answer, say so in `- Drafted by: agent` and leave whoever decides in `Owner / source`; unnamed, it closes as decided by «BA (unnamed)».
 """
 
 

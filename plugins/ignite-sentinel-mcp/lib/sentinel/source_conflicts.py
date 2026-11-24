@@ -201,13 +201,36 @@ def _declares_draft(folded: str, data: dict[str, Any], position: int) -> bool:
     return bool(re.search(rf"\b{doc_subject}\b", folded) and re.search(rf"\b{phrases}\b", folded))
 
 
-def declares_unvalidated(text: str) -> bool:
+def _original_term(original: str, folded_term: str, data: dict[str, Any]) -> str:
+    """The word as it appears in the original line (no case folding), else the folded term."""
+    at = original.lower().find(folded_term)
+    if at >= 0:
+        return original[at:at + len(folded_term)]
+    return folded_term
+
+
+def unvalidated_trigger(text: str) -> dict[str, object] | None:
+    """What `declares_unvalidated` decides, plus where: `{"line", "text", "term"}`, or None."""
     data = _data()
-    head = [line.lstrip("\ufeff").strip() for _, line in _citable_lines(text)][: int(data["unvalidated_header_lines"])]
-    folded = [_fold(line) for line in head]
-    if re.search(data["unvalidated_pattern"], "\n".join(folded)):
-        return True
-    return any(_declares_draft(line, data, index) for index, line in enumerate(folded))
+    head = [(number, line.lstrip("﻿").strip()) for number, line in _citable_lines(text)][: int(data["unvalidated_header_lines"])]
+    folded = [_fold(line) for _, line in head]
+    joined = "\n".join(folded)
+    match = re.search(data["unvalidated_pattern"], joined)
+    if match:
+        number, original = head[joined[: match.start()].count("\n")]
+        return {"line": number, "text": original, "term": _original_term(original, match.group(0), data)}
+    for index, line in enumerate(folded):
+        if _declares_draft(line, data, index):
+            number, original = head[index]
+            words = data["unvalidated_draft_terms"] + data["unvalidated_draft_plurals"]
+            found = re.search(r"\b" + _alt(sorted(words, key=len, reverse=True)) + r"\b", line)
+            term = _original_term(original, found.group(0), data) if found else line
+            return {"line": number, "text": original, "term": term}
+    return None
+
+
+def declares_unvalidated(text: str) -> bool:
+    return unvalidated_trigger(text) is not None
 
 
 def new_technical_names(line: str, corpus: str) -> list[str]:
@@ -517,6 +540,6 @@ def render_conflicts_report(project_id: str, ledger: dict[str, Any]) -> str:
 
 __all__ = [
     "AGREE", "CONTRADICTION", "SILENCE", "ECHO_SOURCE_NOTE", "UNVALIDATED_SOURCE_NOTE", "SCOPES",
-    "classify_pair", "closing_block_note", "cited_documents", "declares_unvalidated", "extract_statements",
+    "classify_pair", "closing_block_note", "cited_documents", "declares_unvalidated", "unvalidated_trigger", "extract_statements",
     "load_ledger", "new_technical_names", "render_conflicts_report", "scan_source_conflicts", "scope_for",
 ]

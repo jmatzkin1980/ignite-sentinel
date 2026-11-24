@@ -12,7 +12,7 @@ from .gaps import CHANGE_CLOSURE_REASONS, gap_option_labels, option_markers, CLO
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
-from .source_conflicts import closing_block_note
+from .source_conflicts import UNVALIDATED_SOURCE_NOTE, closing_block_note, unvalidated_trigger
 from .sources import mark_source_processed, open_source_row, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
@@ -34,6 +34,12 @@ DOMAIN_SOURCE_TOKENS = {
     "seguridad", "technology", "tecnologia", "tecnología", "tech",
 }
 INFERENCE_SOURCE_TOKENS = {"agent", "analysis", "analisis", "análisis", "inference", "inferencia", "sentinel"}
+# IMP-408: who is an agent (never the decision owner) and what a decision without a named BA is called.
+AGENT_OWNER_TOKENS = INFERENCE_SOURCE_TOKENS | {"claude", "codex", "asistente", "assistant"}
+UNNAMED_BA = {"es": "BA (sin nombre)", "en": "BA (unnamed)"}
+# IMP-408: fields that belong at the same level as `Estado de decisión`, never under it.
+MISPLACED_LABELS = ("Borde", "Border", "Opción", "Opcion", "Option", "Delta", "Superficie", "Surface", "Afecta", "Affects",
+                    "Motivo de cierre", "Closure reason", "Redactado por", "Drafted by")
 EARS_ELIGIBLE_GAP_IDS = {"GAP-ACCEPTANCE", "GAP-BUSINESS-RULES", "GAP-PRD-FR-AC"}
 EARS_ELIGIBLE_NOTE = "EARS-eligible, not normalized: confirmed prose answer needs BA-approved EARS rewrite"
 
@@ -132,6 +138,9 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
                                               language=change_lang or project_language(project_id))
+    trigger = _unvalidated_trigger_in_file(text, note_text, block_note, change_lang or project_language(project_id))
+    if trigger:
+        resolution_results["findings"].insert(0, str(trigger.pop("finding")))
     # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
@@ -156,7 +165,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         return _finish_change_resolution(
             project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
             resolution_results, unknown_gap_ids, responses, delta_findings, language, affects_findings,
-            surface_findings,
+            surface_findings, trigger,
         )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
@@ -229,6 +238,8 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
         "options": closed_options(resolution_results),
+        "owners": gap_owners(resolution_results),
+        "unvalidated_trigger": trigger,
     }
     if brief_v2:
         result["brief_v2"] = brief_v2
@@ -415,6 +426,7 @@ def _finish_change_resolution(
     language: str = "es",
     affects_findings: list[dict[str, object]] | None = None,
     surface_findings: list[dict[str, object]] | None = None,
+    trigger: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
@@ -461,6 +473,8 @@ def _finish_change_resolution(
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
         "options": closed_options(resolution_results),
+        "owners": gap_owners(resolution_results),
+        "unvalidated_trigger": trigger,
         "delta_findings": delta_findings or [],
         "affects_findings": affects_findings or [],
         "surface_findings": surface_findings or [],
@@ -558,6 +572,56 @@ def option_choice(gap_id: str, response: dict[str, str], labels: list[str], lang
     return (named[0] if named else ""), None
 
 
+def _unvalidated_trigger_in_file(text: str, note_text: str, block_note: str | None, language: str) -> dict[str, object] | None:
+    """IMP-408: which line of the file made it count as not validated, with the finding that says how to fix it."""
+    if block_note != UNVALIDATED_SOURCE_NOTE:
+        return None
+    trigger = unvalidated_trigger(note_text)
+    if trigger is None:
+        return None
+    wanted = str(trigger["text"])
+    line = next((n for n, raw in enumerate(text.splitlines(), start=1) if raw.lstrip("\ufeff").strip() == wanted), int(trigger["line"]))
+    term = str(trigger["term"])
+    if language == "es":
+        finding = (f"el archivo se declara no validado por la línea {line} («{wanted[:80]}», palabra «{term}»): sus respuestas confirmadas quedan ANSWERED. "
+                   "Si ya está validado, cambiá esa línea y volvé a correr /resolve-gaps; si no, que lo ratifique el BA.")
+    else:
+        finding = (f"the file declares itself not validated by line {line} («{wanted[:80]}», word «{term}»): its confirmed answers stay ANSWERED. "
+                   "If it is already validated, change that line and run /resolve-gaps again; if not, the BA must ratify it.")
+    return {"line": line, "text": wanted, "term": term, "finding": finding}
+
+
+def gap_owners(result: dict[str, object]) -> dict[str, dict[str, str]]:
+    """IMP-408: who decided and who drafted, for the gaps whose answer says an agent drafted it."""
+    owners: dict[str, dict[str, str]] = {}
+    for key in ("closed", "answered", "partially_closed"):
+        for gap in result[key]:  # type: ignore[union-attr]
+            if gap.get("drafted_by"):
+                owners[gap["id"]] = {"decided_by": gap.get("decided_by", ""), "drafted_by": gap["drafted_by"]}
+    return owners
+
+
+def misplaced_field(decision_status: str) -> str | None:
+    """IMP-408: a field written as a sub-line of `Estado de decisión` (the status then reads as several lines)."""
+    segments = [part.strip() for part in str(decision_status or "").split("; ")]
+    if not segments or normalize_status(segments[0]) not in CONFIRMED_STATUSES | PENDING_STATUSES:
+        return None
+    for segment in segments[1:]:
+        for label in MISPLACED_LABELS:
+            if re.match(rf"{re.escape(label)}\s*:", segment, re.I):
+                return label
+    return None
+
+
+def misplaced_note(label: str, language: str) -> str:
+    if label in ("Borde", "Border"):
+        return ("el bloque Borde va debajo de Respuesta, no de Estado de decisión: movelo (con sus líneas) debajo de `- Respuesta:` y volvé a correr /resolve-gaps"
+                if language == "es" else
+                "the Border block goes under Answer, not under Decision status: move it (with its lines) under `- Answer:` and run /resolve-gaps again")
+    return (f"el campo {label} va al mismo nivel que los demás campos, no debajo de Estado de decisión" if language == "es"
+            else f"the {label} field goes at the same level as the other fields, not under Decision status")
+
+
 def closed_options(result: dict[str, object]) -> dict[str, str]:
     return {gap["id"]: gap["option"] for gap in result["closed"] if gap.get("option")}  # type: ignore[index,union-attr]
 
@@ -608,6 +672,14 @@ def apply_gap_responses(
         gap["owner"] = response.get("owner", "")
         gap["evidence"] = response.get("evidence", "")
         gap["decision_status"] = response.get("decision_status", "")
+        drafted_by = str(response.get("drafted_by", "")).strip()
+        unnamed = UNNAMED_BA[language if language in UNNAMED_BA else "en"]
+        if drafted_by:
+            # IMP-408: an agent may draft; only a named person decides
+            owner_name = gap["owner"].strip()
+            named = bool(owner_name) and not _mentions_any(owner_name.lower(), AGENT_OWNER_TOKENS)
+            gap["drafted_by"] = drafted_by
+            gap["decided_by"] = owner_name if named else unnamed
         substantive = is_substantive_answer(answer)
         confirmed = bool(answer) and decision in CONFIRMED_STATUSES and substantive
         reason, closure_findings = closure_for(gap["id"], response, decision) if confirmed or response.get("closure") else ("", [])
@@ -687,6 +759,11 @@ def apply_gap_responses(
             answered.append(gap)
         elif answer and decision in CONFIRMED_STATUSES and substantive:
             gap["status"] = "CLOSED"
+            if drafted_by and gap["decided_by"] == unnamed:
+                findings.append(
+                    f"{gap['id']}: lo redactó {drafted_by} y nadie lo firmó como decisión: se cierra como decidido por «{unnamed}»; nombrá al BA en `Owner / fuente:`"
+                    if language == "es" else
+                    f"{gap['id']}: drafted by {drafted_by} and nobody signed it as a decision: it closes as decided by «{unnamed}»; name the BA in `Owner / source:`")
             if is_ears_eligible_gap(gap["id"]) and not classify_ears(answer):
                 gap["resolution_note"] = EARS_ELIGIBLE_NOTE
             closed.append(gap)
@@ -702,7 +779,12 @@ def apply_gap_responses(
             answered.append(gap)
         elif answer:
             gap["status"] = "PARTIALLY_CLOSED"
-            gap["resolution_note"] = "ambiguous: answer present but no recognizable decision status"
+            label = misplaced_field(response.get("decision_status", ""))
+            if label:
+                gap["resolution_note"] = misplaced_note(label, language)
+                findings.append(f"{gap['id']}: {gap['resolution_note']}")
+            else:
+                gap["resolution_note"] = "ambiguous: answer present but no recognizable decision status"
             partially_closed.append(gap)
         else:
             gap["status"] = gap.get("status", "OPEN")
@@ -979,6 +1061,7 @@ def render_resolution_rows(gaps: object) -> str:
         + (f" _[{gap['resolution_note']}]_" if gap.get("resolution_note") else "")
         + (f" _(source: {gap['resolution_source_type']})_" if gap.get("resolution_source_type") else "")
         + (f" _(option {gap['option']})_" if gap.get("option") else "")
+        + (f" _(decided by: {gap.get('decided_by', '')}; drafted by: {gap['drafted_by']})_" if gap.get("drafted_by") else "")
         for gap in gaps
     )  # type: ignore[index]
 
