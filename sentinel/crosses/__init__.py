@@ -105,4 +105,7 @@ def run_cross(
     result["new_surface_candidates"] = new_surface_candidates(project_id, change_id)
     result["next_step"] = change_next_step(project_id, change_id)
     result["message"] = message
+    from ..decision_memory import index_change_decisions
+
+    index_change_decisions(project_id, change_id)  # IMP-410: what the cross-reads decided is retrievable
     return result
