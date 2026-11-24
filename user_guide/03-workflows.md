@@ -1015,7 +1015,7 @@ The refusal and `/next` use the same list, built from the `/health` findings: `/
 
 **When this happens.** The assistant stopped and told you it cannot do something.
 
-**What to do.** Read what it says is wrong and the next step it names. Most refusals name the step. If not, ask "what should I do next?": it gives the one step that unblocks the project.
+**What to do.** Read what it says is wrong and the next step it names. Most refusals name the step, and when the step is a command the line ends with `(skill: ...)`: the assistant loads that skill before it tries again (it holds the exact format of the file the command reads). If not, ask "what should I do next?": it gives the one step that unblocks the project.
 
 **Tell the assistant:** "What should I do next on ACME_PORTAL?"
 
@@ -1383,7 +1383,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
 
    **You'll see:** With a valid `Borde:` block, the review round opens, scoped to the change and its border.
 
-   **What it means:** One bad border line rejects the whole file and nothing is written. The full walkthrough, with the border format, is [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists).
+   **What it means:** One bad border line rejects the whole file and nothing is written. When a question offers lettered options, the answer names its choice in an `Opción:` line (`Option:` in English); an answer that names several options without that line does not close. The person in `Owner / source` decides; if someone else wrote the text, add `Redactado por:` (`Drafted by:`), and the report shows who decided and who drafted. If the request itself cites an earlier version of itself, the question for the version governing offers it as option (D) or does not open. The full walkthrough, with the border format, is [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists).
 
    <details><summary>In a terminal</summary>
 

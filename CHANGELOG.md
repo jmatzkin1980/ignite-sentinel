@@ -8,15 +8,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Added
 
+- **The agent works alone (IMP-408, H27 inc 2).** `Opción:` field in the answers (`Option:` in English); `Redactado por:` and who decides in the report (`owners`); the skill of the next step in `/next`, `/status`, `/ingest --change`, `/resolve-gaps --change` and in the `next step:` line; real formats in the skills, tested against the parsers; entry skill in `sentinel-intake-triage`; flow × step matrix (`user_guide/22-flow-step-matrix.md`); `tools/trial_audit.py`.
 - **Reliable change brief (IMP-406, H27 inc 1).** Fine inventory (`SEC-x.pN` parts with a range of lines); coverage by lines with `Líneas:` and `Lectura: parcial`; reading plan in batches; `/extract --verify` and `--verify-result`; change verdict in `/status --change`; `/gaps --change --id --impact construccion|operativo`; change export in brief v2 format with a seal; `export_final` step.
 
 ### Changed
 
+- A confirmed answer that names several options does not close (T2-09); the request of `/ingest --change` is stored in `00_raw/09_request/` (T2-02); the findings of `/resolve-gaps --change` come out in the language of the change.
 - IMP-406 final review: an element that starts with its id and one very long line are split into parts too (a quote and a line range now measure a reading); parts keep their id while their text does not change; a reopened `difiere` is confirmed again only with a corrected proposal; `/next` adds `extract_verify` for extractions of more than 100 elements and the default sample is 5 % of the confirmed (at least 10); `/export --change --final` refuses while the change verdict is `NOT_READY` or the v2 text has pending marks, and `/next` points to `/gaps --impact`; the final export goes stale when the seal inputs change; the change verdict is `NOT_READY` while its brief is stale or it has no requirement rows; items confirmed without a line check are listed as `legacy_confirmed` and keep the verdict from `READY`.
 - `Líneas:` is required on every proposal (the unconfirmed proposals of 0.26 are proposed again); a section is confirmed with its literal text and the brief shows it (`Texto:` becomes `Resumen:`); `--confirm-item` does not take a partial reading.
 
 ### Fixed
 
+- `GAP-VER` when the request cites an earlier version of itself offers option (D) or does not open (T2-01); the misplaced border and the word that marks a file as not validated are named in the refusal (T2-03, T2-04); a new run of the same answers file no longer stays as a "possible new version" (T2-22).
 - Registering a cross-read again closes the questions of the claims that disappear (T2-16); a workspace that only has changes no longer stays `health: DIRTY` forever and `/status --change` says why it is dirty (T2-30).
 
 ## [0.26.0] — 2026-11-23
