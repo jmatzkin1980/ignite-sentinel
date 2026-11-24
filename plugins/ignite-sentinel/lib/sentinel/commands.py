@@ -260,6 +260,8 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
     p.add_argument("--no-baseline", action="store_true", dest="no_baseline",
                    help="IMP-400: with --change and --reason, the change has no baseline to load")
+    p.add_argument("--keep-single", action="store_true", dest="keep_single",
+                   help="T2-05: with --change and --reason, the BA decides the change stays one change")
 
 
 def _export(p: argparse.ArgumentParser) -> None:

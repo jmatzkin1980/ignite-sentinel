@@ -60,17 +60,17 @@ class ChangeEscalation(SnapshotWorkspaceCase):
         self.assertEqual(w["rows"], [])
         self.assertTrue(w["message"].endswith(SUGGEST_ES))
 
-    def test_integration_in_new_or_adjacent_zone(self):
+    def test_lone_integration_no_longer_warns(self):
         self.setup_change([item("adyacente", "integracion", "Pasarela")])
-        (w,) = escalation_warnings("BORR", "CHG-001")
-        self.assertEqual((w["trigger"], w["surfaces"]), ("several_processes", ["Pasarela"]))
+        self.assertEqual(escalation_warnings("BORR", "CHG-001"), [])
         self.setup_change([item("preservado", "integracion", "Pasarela")])
         self.assertEqual(escalation_warnings("BORR", "CHG-001"), [])
 
-    def test_one_process_next_to_an_integration_lists_only_the_integration(self):
+    def test_process_and_integration_reach_the_threshold(self):
         self.setup_change([item("preservado", "proceso", "Alta"), item("adyacente", "integracion", "Pasarela")])
         (w,) = escalation_warnings("BORR", "CHG-001")
-        self.assertEqual(w["surfaces"], ["Pasarela"])
+        self.assertEqual(w["surfaces"], ["Alta", "Pasarela"])
+        self.assertEqual((w["count"], w["threshold"]), (2, 2))
         self.setup_change([item("nuevo", "proceso", "Alta"), item("preservado", "proceso", "Baja"),
                            item("adyacente", "integracion", "Pasarela")])
         (w,) = escalation_warnings("BORR", "CHG-001")

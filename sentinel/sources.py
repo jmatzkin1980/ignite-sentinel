@@ -602,3 +602,31 @@ def waive_baseline(project_id: str, change_id: str, reason: str) -> dict[str, An
     changes[change_id]["baseline_waived"] = waiver
     update_state(project_id, changes=changes)
     return {"project_id": project_id, "change_id": change_id, "baseline_waived": waiver}
+
+
+def keep_single_change(project_id: str, change_id: str, reason: str) -> dict[str, Any]:
+    """T2-05: the BA decides the change stays one change; the escalation warnings it covers become one decided notice."""
+    from .change_escalation import _raw_warnings
+    from .changes import get_change, list_changes
+    from .errors import InputError
+    from .workspace import update_state
+
+    change = get_change(project_id, change_id)
+    language = _load_language(project_id, change_id)
+    if not (reason or "").strip():
+        raise InputError(
+            _text(language, "--keep-single necesita --reason con el porqué: sin motivo no hay decisión.",
+                  "--keep-single needs --reason with the why: no reason, no decision."),
+            next_step=f'/sources {project_id} --change {change_id} --keep-single --reason "…"')
+    triggers = [w["trigger"] for w in _raw_warnings(project_id, change_id)]
+    if not triggers:
+        raise InputError(
+            _text(language, f"{change_id} no tiene avisos de escalamiento que decidir",
+                  f"{change_id} has no escalation warnings to decide on"))
+    previous = change.get("keep_single") if isinstance(change.get("keep_single"), dict) else {}
+    triggers = list(dict.fromkeys([*(previous.get("triggers") or []), *triggers]))
+    decision = {"reason": reason.strip(), "at": utc_now(), "triggers": triggers}
+    changes = {k: dict(v) for k, v in list_changes(project_id).items()}
+    changes[change_id]["keep_single"] = decision
+    update_state(project_id, changes=changes)
+    return {"project_id": project_id, "change_id": change_id, "keep_single": decision}

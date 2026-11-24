@@ -587,6 +587,16 @@ def _run_project_command(args) -> int:
                 from .sources import waive_baseline
 
                 result = waive_baseline(args.project_id, args.change, args.reason or "")
+            elif args.keep_single:
+                # T2-05: --change CHG --keep-single --reason TEXT records the BA's escalation decision.
+                if not args.change:
+                    raise ValueError("/sources --keep-single needs --change CHG-NNN")
+                if (args.load or args.role or args.precedence or args.between or args.report or args.source_id
+                        or any(value for key, value in changes.items() if key != "reason")):
+                    raise ValueError("/sources --keep-single takes only --change and --reason")
+                from .sources import keep_single_change
+
+                result = keep_single_change(args.project_id, args.change, args.reason or "")
             elif args.load or args.change:
                 # IMP-400: --load PATH --role ROLE [--change CHG] registers a source with its role.
                 if args.precedence or args.between or args.report or args.source_id or any(value for value in changes.values()):

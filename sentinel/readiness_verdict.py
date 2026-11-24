@@ -105,7 +105,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
         ids = ", ".join(row["id"] for row in assumed)
         warnings.append(f"{len(assumed)} supuesto(s) a validar: {ids}" if es
                         else f"{len(assumed)} assumption(s) to validate: {ids}")
-    warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id))
+    warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id) if not w.get("decided"))
     need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
     if need["needed"]:
         warnings.append(verification_gap_text(need, es))
