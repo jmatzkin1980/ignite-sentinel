@@ -226,6 +226,18 @@ class ClashResolution(clash_tests.ClashCase):
         self.assertNotIn(texts[loser], exported)
         self.assertIn(f"Decisión reemplazada: {loser}", exported)
 
+    def test_rerun_of_old_answer_does_not_undo_superseded(self):  # I7: a decision is not silently undone
+        chq, winner, loser, texts = self.losing()
+        self.answer(chq, "Rige lo que decidió la primera.", "A")
+        forget_read_snapshots()
+        path = change_gaps_path(workspace_path(PID), CID)
+        before = path.read_bytes()
+        out = self.answer(loser, texts[loser], "A")
+        forget_read_snapshots()
+        self.assertEqual(path.read_bytes(), before)
+        self.assertNotIn(loser, out["closed"])
+        self.assertTrue(any(f"{loser} fue reemplazada por {chq}" in f for f in out["closure_findings"]), out["closure_findings"])
+
     def test_option_b_supersedes_the_first_decision(self):  # I7
         chq, winner, loser, _texts = self.losing()
         out = self.answer(chq, "Rige lo que decidió la segunda.", "B")

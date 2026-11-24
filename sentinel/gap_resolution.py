@@ -757,6 +757,15 @@ def apply_gap_responses(
                 open_gaps.append(gap)
             updated.append(gap)
             continue
+        if (response and str(gap.get("status", "")).strip("`").upper() == "CLOSED"
+                and str(gap.get("closure_reason") or "").strip("`").strip().lower() == "superseded"):
+            # IMP-412: a replaced decision is only changed by answering the GAP-CHQ that replaced it, never by a rerun
+            chq = re.search(r"GAP-CHQ-[0-9A-F]+", str(gap.get("resolution_note", "")))
+            by = chq.group(0) if chq else "GAP-CHQ"
+            findings.append(f"{gap['id']} fue reemplazada por {by} — no se aplica" if language == "es"
+                            else f"{gap['id']} was replaced by {by} — not applied")
+            updated.append(gap)
+            continue
         answer = response.get("answer", "").strip()
         decision = normalize_status(response.get("decision_status", ""))
         gap["answer"] = answer
