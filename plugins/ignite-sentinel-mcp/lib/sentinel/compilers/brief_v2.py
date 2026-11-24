@@ -201,6 +201,11 @@ class BriefInputs:
     registry: list[dict[str, Any]] = field(default_factory=list)  # F-NN rows (id, paths, validity)
     source_log_title: str = ""
     previous_text: str = ""
+    # IMP-406: the brief of a change. Every field defaults so the project brief is byte-identical.
+    title: str = ""  # a non-empty title replaces `# Project Brief — {project_id}`
+    place_facts: dict[str, list[dict[str, str]]] = field(default_factory=dict)  # place -> {"text", "source", "gap"}
+    place_blocks: dict[str, list[str]] = field(default_factory=dict)  # place -> lines as written (count as content)
+    empty_na: dict[str, str] = field(default_factory=dict)  # {"reason", "condition"}: an empty place is N/A, not pending
 
 
 @dataclass
@@ -335,6 +340,11 @@ class _Writer:
                     facts.setdefault(target, []).append(_Fact(text, harvest_source))
             elif entry.get("kind") == "inferred":
                 self.harvest_inferred.setdefault(target, []).append(entry)
+        # IMP-406: facts a caller already placed (the change's deliverable), after the harvest, without repeats
+        for sid in sorted(inputs.place_facts, key=_sort_key):
+            for extra in inputs.place_facts[sid]:
+                if all(f.text != extra["text"] for f in facts.get(sid, [])):
+                    facts.setdefault(sid, []).append(_Fact(extra["text"], extra.get("source", ""), extra.get("gap", "")))
         self.facts = facts
         self.built = inputs.validation_direction == "built"
         self.inferred: dict[str, list[dict[str, str]]] = {}
@@ -385,8 +395,12 @@ class _Writer:
             else:
                 settled = True
             lines.append(line)
+        blocks = self.inputs.place_blocks.get(sid)
+        if blocks:  # IMP-406: lines written as given count as content, after the place's facts
+            lines += blocks
+            settled = True
         if settled:
-            self.covered(sid, sid, sum(1 for f in self.facts.get(sid, []) if not source_says_tbd(f.text)))
+            self.covered(sid, sid, sum(1 for f in self.facts.get(sid, []) if not source_says_tbd(f.text)) + (1 if blocks else 0))
         else:
             # the value to build with meanwhile exists only as an inference with its ledger row
             for assumption in self.inferred.get(sid, []):
@@ -445,6 +459,16 @@ class _Writer:
                             "section": sid.split(".")[0] if not sid.startswith("A.") else "A"})
         return self.markers[key][self.lang].format(gap=gap)
 
+    def missing(self, place: str, sid: str, klass: str) -> str:
+        """A place with no content: a pending mark, or (IMP-406, a change) the N/A the caller asked for."""
+        if not self.inputs.empty_na:
+            return self.pending(place, sid, klass)
+        self.places.append({"id": place, "fill": "na", "section": sid.split(".")[0] if not sid.startswith("A.") else "A"})
+        return self.markers["na"][self.lang].format(**self.inputs.empty_na)
+
+    def has_extra(self, sid: str) -> bool:
+        return bool(self.inputs.place_facts.get(sid) or self.inputs.place_blocks.get(sid))
+
     def na(self, place: str, sid: str) -> str:
         self.places.append({"id": place, "fill": "na", "section": sid.split(".")[0] if not sid.startswith("A.") else "A"})
         first = self.na_first.get(place)
@@ -474,7 +498,7 @@ class _Writer:
             answers = [f"- {transcribe(fact.text)}{f' (`{fact.gap}`)' if fact.gap else ''} {self.cite(fact, title)}"
                        for fact in self.facts.get(sid, [])]
             return out + self.glossary_lines(title) + ([""] + answers if answers else []) + [""]
-        if mark == "n/a":
+        if mark == "n/a" and not self.has_extra(sid):  # IMP-406: content given for the place keeps it open
             out += [self.na(sid, sid), ""]
             return out
         lines, facts, marked = self.place_body(sid, title)
@@ -483,7 +507,7 @@ class _Writer:
         blocks = item.get("blocks", [])
         if not blocks:
             if not facts and not marked:
-                out += [self.pending(sid, sid, klass), ""]
+                out += [self.missing(sid, sid, klass), ""]
             return out
         for block in blocks:
             place = f"{sid}/{block['key']}"
@@ -498,8 +522,8 @@ class _Writer:
                 out += [CROSS_CUTTING_PLACEHOLDER, ""]
             elif not facts:
                 block_class = "domain" if block_mark == "conditional" else klass
-                mark = self.pending(place, sid, block_class)
-                if place == SCREEN_STATES_PLACE:  # IMP-256: the 8 fixed states the place must cover
+                mark = self.missing(place, sid, block_class)
+                if place == SCREEN_STATES_PLACE and not self.inputs.empty_na:  # IMP-256: the 8 fixed states the place must cover
                     mark += " — " + self.copy["states"] + ": " + "; ".join(cross_cutting_data()["screen_states"][self.lang])
                     mark += " (" + "; ".join(cross_cutting_data()["distinctions"][self.lang]) + ")"
                 out += [mark, ""]
@@ -584,7 +608,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
             # IMP-344: an answer to the opening (an umbrella line `5.0: …`) lands like any place;
             # before, it was dropped and the umbrella reopened on the next compile
             facts, settled, marked = w.place_body(opening["id"], opening["title"][lang])
-            lines += facts + ([w.pending(opening["id"], opening["id"], opening["contract"].get("missing", "domain"))]
+            lines += facts + ([w.missing(opening["id"], opening["id"], opening["contract"].get("missing", "domain"))]
                               if not settled and not marked else []) + [""]
         for item in section["subsections"]:
             lines += w.entry(item, w.app["entries"].get(item["id"]))
@@ -606,7 +630,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
             build.append(f"- `C-{number:02d}` {kind}{fact.text} {w.cite(fact, sections[9]['subsections'][0]['title'][lang])} — {copy['depends']}: {copy['none']}")
         w.covered("9.1/items", "9.1", len(build))
     else:
-        build = [w.pending("9.1/items", "9.1", "client")]
+        build = [w.missing("9.1/items", "9.1", "client")]
     # IMP-26u: a confirmed delivery answer (slicing, readiness, enablers) is said under the items
     title_91 = sections[9]["subsections"][0]["title"][lang]
     # IMP-369: an answer to the §9 umbrella (`9.1: …`) answers the place it was asked for, the
@@ -622,7 +646,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         non_software = "\n".join(f"- {fact.text} (`{fact.gap}`) {w.cite(fact, title_91)}" for fact in umbrella_91)
         w.covered("9.1/non_software", "9.1", len(umbrella_91))
     else:
-        non_software = w.pending("9.1/non_software", "9.1", "domain")
+        non_software = w.missing("9.1/non_software", "9.1", "domain")
 
     # §0.1 legend
     _fill(body["0"], "0.1", [f"- {line}" for line in copy["legend"]])
@@ -637,7 +661,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
                           for fact in w.facts["7.1"])
         w.covered("7.1/risks", "7.1", len(w.facts["7.1"]))
     else:
-        risks = w.pending("7.1/risks", "7.1", "domain")
+        risks = w.missing("7.1/risks", "7.1", "domain")
     pending_places = [p for p in w.places if p["fill"] in ("pending", "pending_domain")]
     client = sum(1 for p in pending_places if p["fill"] == "pending")
     domain = len(pending_places) - client
@@ -651,7 +675,9 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
     open_rows = sorted((g for g in inputs.gaps if str(g.get("status", "")).upper() != "CLOSED"), key=lambda g: g["id"])
     open_items = [copy["open_count"].format(n=len(open_rows)), "", copy["open_header"], "|---|---|---|"]
     open_items += [f"| `{g['id']}` | {g.get('severity', '')} | {g.get('origin', '') or 'checklist'} |" for g in open_rows]
+    classes = inputs.place_blocks.get("7.1")  # IMP-406: a change's table of open questions with class and owner
     _fill(body["7"], "7.1", [f"#### {_block_title(w, '7.1', 'open_items')}", "", *open_items, "",
+                             *([*classes, ""] if classes else []),
                              f"#### {_block_title(w, '7.1', 'risks')}", "", risks])
 
     counts = _section_counts(w.places)
@@ -678,7 +704,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         "", f"{copy['sources']}:", "", *sources, "",
         f"{copy['certainty']}:", "", *cert, "", reliability,
     ]
-    _fill(body["0"], "0.2", [f"#### {_block_title(w, '0.2', 'status')}", "", *status, "",
+    _fill(body["0"], "0.2", [f"#### {_block_title(w, '0.2', 'status')}", "", *inputs.place_blocks.get("0.2", []), *status, "",
                              f"#### {_block_title(w, '0.2', 'ready')}", "", ready])
 
     # annex provenance
@@ -693,7 +719,7 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
 
     # §6.3 cascade against the previous v2 brief
     marker = w.schema["artifact_marker"]
-    head = [marker, f"# Project Brief — {inputs.project_id}", ""]
+    head = [marker, f"# {inputs.title}" if inputs.title else f"# Project Brief — {inputs.project_id}", ""]
     _fill_cross_cutting(w, body)
     draft = "\n".join(head + [line for sid in body for line in body[sid]] + annex_lines)
     cascade = _cascade(w, draft, inputs.previous_text)

@@ -141,8 +141,10 @@ class SnapshotWorkspaceCase(unittest.TestCase):
 _HOME_SECTION = {2: "objetivo", 3: "alcance", 4: "proceso", 6: "preservado", 7: "reglas"}
 
 
-def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
-    """IMP-402: inventory, propose every element as a section (or as UNCHANGED rows for the preserved surfaces) and confirm all."""
+def complete_extraction(project_id: str, change_id: str = "CHG-001", skip: tuple[str, ...] = ()) -> None:
+    """IMP-402: inventory, propose every element as a section (or as UNCHANGED rows for the preserved surfaces) and confirm all.
+
+    `skip`: elements a test already proposed and confirmed its own way (IMP-406)."""
     from sentinel.extraction.confirm import confirm_proposals
     from sentinel.extraction.inventory import build_inventory, element_lines, element_text, load_inventory
     from sentinel.extraction.coverage import preserved_coverage
@@ -152,7 +154,7 @@ def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
     waive_crosses(project_id, change_id)
     build_inventory(project_id, change_id)
     base = workspace_path(project_id)
-    elements = (load_inventory(base, change_id) or {}).get("elements", [])
+    elements = [e for e in (load_inventory(base, change_id) or {}).get("elements", []) if e["id"] not in skip]
     missing = preserved_coverage(project_id, change_id)["missing"]
     blocks: list[str] = []
     for index, element in enumerate(elements):
@@ -199,3 +201,8 @@ def lines_field(element_id: str, source: str = "pedido_ids.md") -> str:
             first, last = element_lines(element)
             return f"- Líneas: {first}-{last}"
     return ""
+
+
+def export_final_brief(project_id: str, change_id: str = "CHG-001") -> str:
+    """IMP-406: the `export_final` milestone, so a test of a later step (specs, backlog, validate) gets past it."""
+    return run_ok(["export", project_id, "--artifact", "brief", "--change", change_id, "--final"])

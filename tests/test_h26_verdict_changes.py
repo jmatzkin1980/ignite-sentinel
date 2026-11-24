@@ -13,7 +13,9 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_ok  # noqa: E402
+from helpers import (  # noqa: E402
+    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, export_final_brief, gap_acceptance_answer, run_ok,
+)
 from sentinel.readiness_verdict import build_readiness_verdict  # noqa: E402
 
 NOT_MEASURED = "not measured"
@@ -55,7 +57,9 @@ class ChangeOnly(SnapshotWorkspaceCase):
         load_baseline("BORR")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
         complete_extraction("BORR", CID)
-        for command in ("brief", "specs", "backlog"):
+        run_ok(["brief", "BORR", "--change", CID])
+        export_final_brief("BORR", CID)
+        for command in ("specs", "backlog"):
             run_ok([command, "BORR", "--change", CID])
         verdict = build_readiness_verdict("BORR")
         self.assertEqual(verdict["changes"][0]["next_step"]["key"], "done")

@@ -479,6 +479,10 @@ CHANGE_TEXT = {
         "requirements_none": ("Proponer los requisitos del cambio",
                               "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED. Proponelas desde la extracción "
                               "(Tratamiento: requisito) con /extract {pid} --change {cid} --proposals ARCHIVO."),
+        "export_final": ("Exportar el brief final",
+                         "El brief de {cid} está compilado y cierra Discovery: exportalo como entregable con "
+                         "/export {pid} --artifact brief --change {cid} --final. Sale en formato project brief v2 con su sello "
+                         "(veredicto {verdict}, cobertura {coverage}, {deferred} pendiente(s) diferido(s)). Después siguen las specs."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
@@ -559,6 +563,10 @@ CHANGE_TEXT = {
         "requirements_none": ("Propose the change requirements",
                               "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED. Propose them from the extraction "
                               "(Treatment: requirement) with /extract {pid} --change {cid} --proposals FILE."),
+        "export_final": ("Export the final brief",
+                         "The brief of {cid} is compiled and closes Discovery: export it as a deliverable with "
+                         "/export {pid} --artifact brief --change {cid} --final. It comes out in project brief v2 format with its seal "
+                         "(verdict {verdict}, coverage {coverage}, {deferred} deferred item(s)). The specs follow."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
@@ -584,6 +592,7 @@ CHANGE_COMMANDS = {
     "preserved_source": "/sources {pid} --load PATH --role pedido --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "export_final": "/export {pid} --artifact brief --change {cid} --final",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
@@ -631,6 +640,8 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "brief"
     if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id)):
         return "requirements"
+    if not _final_export_current(base, change_id, change):
+        return "export_final"
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
             or specs_currency(project_id, change_id) != "current"):
         return "specs"
@@ -640,6 +651,16 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
     return "done"
+
+
+def _final_export_current(base: Path, change_id: str, change: dict[str, Any]) -> bool:
+    """IMP-406: the change's final export exists and was made from the brief as it stands (the hash is the brief's, no dates)."""
+    from .compilers.change_deliverable import brief_sha
+
+    recorded = change.get("final_export")
+    if not isinstance(recorded, dict) or not recorded.get("brief_sha"):
+        return False
+    return str(recorded["brief_sha"]) == brief_sha(base, change_id)
 
 
 def _has_baseline(project_id: str) -> bool:
@@ -791,6 +812,11 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "orphans": "; ".join(f"{o['id']} ({', '.join(o['rows'])})" for o in orphans),
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
+    ctx["verdict"] = ctx["deferred"] = ""
+    if key == "export_final":
+        found = build_change_verdict(project_id, change_id)
+        ctx["verdict"] = found["verdict"]
+        ctx["deferred"] = str(sum(found["deferred"].values()))
     if text_key == "extract_partial":
         ctx["n"] = len(partial)
         ctx["items"] = ", ".join(p["id"] for p in partial)

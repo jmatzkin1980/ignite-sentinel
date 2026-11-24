@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import (  # noqa: E402
-    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, gap_acceptance_answer, run_cli, run_ok, waive_crosses,
+    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, export_final_brief, gap_acceptance_answer, run_cli, run_ok,
+    waive_crosses,
 )
 from sentinel import mcp as sentinel_mcp  # noqa: E402
 from sentinel.readiness_verdict import changes_overview, change_next_step  # noqa: E402
@@ -92,6 +93,9 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertIn("Superficie", s["text"])
         requirements_path().write_text(rows, encoding="utf-8")
 
+        s = step()
+        self.assertEqual((s["key"], s["command"]), ("export_final", f"/export BORR --artifact brief --change {CID} --final"))
+        export_final_brief("BORR", CID)
         s = step()
         self.assertEqual((s["key"], s["command"]), ("specs", f"/specs BORR --change {CID}"))
 
@@ -306,6 +310,7 @@ class ChangeNextRemovedUnit(SnapshotWorkspaceCase):
         answer("MIX", cls.cid, "a.md", REMOVED_ANSWERS)
         complete_extraction("MIX", cls.cid)
         run_ok(["brief", "MIX", "--change", cls.cid])
+        export_final_brief("MIX", cls.cid)
         run_ok(["specs", "MIX", "--change", cls.cid])
 
     def test_dropped_unit_does_not_keep_next_on_backlog(self):

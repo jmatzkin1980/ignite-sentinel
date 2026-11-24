@@ -80,7 +80,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     from .extraction.coverage import extraction_coverage, preserved_coverage
     from .extraction.reading_plan import reading_plan_status
     from .extraction.verify import verification_status
-    from .readiness_verdict import build_change_verdict, change_next_step
+    from .readiness_verdict import _final_export_current, build_change_verdict, change_next_step
 
     change = get_change(project_id, change_id)
     step = change_next_step(project_id, change_id)
@@ -105,6 +105,8 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "border_confirmed": bool(change.get("border_confirmed_at")),
         "gap_counts": change.get("gap_counts", {}),
         "verdict": build_change_verdict(project_id, change_id),
+        "final_export": change.get("final_export"),
+        "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),
         "next_step": step["text"],
         "next_action": step,
         "sources": sources,

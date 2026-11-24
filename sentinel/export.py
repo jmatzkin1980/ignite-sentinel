@@ -51,12 +51,33 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
                    report=compile_report_for(source), extraction=extraction, language=_language(project_id, change_id),
                    project_id=project_id, change_id=change_id or "")
-    result = _export(project_id, artifact, fmt, source, verdict, change_id)
+    result = _export(project_id, artifact, fmt, source, verdict, change_id, final)
+    if final and change_id and artifact.lower() == "brief" and fmt == "md":
+        _record_final_export(project_id, change_id, result["path"])
     return {**result, **verdict}
 
 
+def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str, str]:
+    """IMP-406: the milestone `export_final`: where the final export went and the hash of the brief it came from."""
+    from .changes import list_changes
+    from .compilers.change_deliverable import brief_sha, build_seal
+    from .core.time import utc_now
+
+    seal = build_seal(project_id, change_id, True, _language(project_id, change_id))
+    recorded = {
+        "path": workspace_relative(project_id, Path(path)),
+        "at": utc_now(),
+        "brief_sha": brief_sha(workspace_path(project_id), change_id),
+        "verdict": seal["verdict"],
+    }
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["final_export"] = recorded
+    update_state(project_id, changes=changes)
+    return recorded
+
+
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict,
-            change_id: str | None = None) -> dict[str, str]:
+            change_id: str | None = None, final: bool = False) -> dict[str, str]:
     from .deliverables import with_banner
 
     base = workspace_path(project_id)
@@ -71,6 +92,24 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / (f"{change_id}-{source.name}" if change_id else source.name)
+    if change_id and artifact.lower() == "brief":
+        # IMP-406: the change's deliverable is written by the project's brief v2 compiler, not copied from the working brief
+        from .compilers.change_deliverable import render_change_deliverable
+
+        text = render_change_deliverable(project_id, change_id, final)
+        assert_no_leaks(project_id, text, base, f"export {artifact}")
+        if verdict["deliverable"] == "draft":
+            text = with_banner(text, int(verdict["pending_marks"]), _language(project_id, change_id),
+                               list(verdict.get("extraction_pending") or []))
+        write_text(target, text)
+        update_state(project_id, last_export=workspace_relative(project_id, target))
+        return {
+            "project_id": project_id,
+            "artifact": artifact,
+            "format": "md",
+            "source": str(source.as_posix()),
+            "path": str(target.as_posix()),
+        }
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     if verdict["deliverable"] == "draft":
         write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id),

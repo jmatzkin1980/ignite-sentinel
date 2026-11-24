@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok, waive_crosses  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, export_final_brief, run_ok, waive_crosses  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import load_baseline, set_change  # noqa: E402
 from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
@@ -130,7 +130,9 @@ class BorradorDone(SnapshotWorkspaceCase):
         forget_read_snapshots()
         answer("BORR", CID, "a.md", ALL_ANSWERS)
         complete_extraction("BORR", CID)
-        for command in ("brief", "specs", "backlog", "validate"):
+        run_ok(["brief", "BORR", "--change", CID])
+        export_final_brief("BORR", CID)
+        for command in ("specs", "backlog", "validate"):
             run_ok([command, "BORR", "--change", CID])
 
     def test_done_says_coverage(self):
@@ -169,7 +171,7 @@ class Keys(unittest.TestCase):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
-            "brief", "requirements", "specs", "backlog", "validate", "done"})
+            "brief", "requirements", "export_final", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])
 
