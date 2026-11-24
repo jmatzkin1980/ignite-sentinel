@@ -12,6 +12,7 @@ extraction stored at confirm, never a summary), and every fact and block opens w
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -120,6 +121,23 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
         "assumptions": 0,
         "verdict": str(verdict["verdict"]),
     }
+
+
+def seal_sha(project_id: str, change_id: str) -> str:
+    """IMP-406 I7: the first 16 hex digits of the sha256 of what the seal says (verdict, coverage, deferred ids and classes).
+
+    The final export is current only while the brief AND this hash are the ones it was made from."""
+    from ..changes import deferred_gaps
+    from ..extraction.coverage import extraction_coverage
+    from ..readiness_verdict import build_change_verdict
+
+    coverage = extraction_coverage(project_id, change_id)
+    payload = {
+        "verdict": build_change_verdict(project_id, change_id)["verdict"],
+        "covered": int(coverage["covered"]), "total": int(coverage["total"]),
+        "deferred": sorted((d["id"], d["impact"]) for d in deferred_gaps(project_id, change_id)),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
 
 def seal_lines(seal: dict[str, Any], language: str) -> list[str]:
@@ -334,5 +352,11 @@ def _is_divergence(gap: dict) -> bool:
             and str(gap.get("origin", "harvest")).strip("`").lower() == "harvest")
 
 
+def render_change_deliverable_parts(project_id: str, change_id: str, final: bool) -> tuple[str, dict[str, Any]]:
+    """The deliverable text and the compile report of the project's compiler (`fill_sites` count its pending marks)."""
+    text, report = render_brief_v2(change_brief_inputs(project_id, change_id, final))[:2]
+    return text, report
+
+
 def render_change_deliverable(project_id: str, change_id: str, final: bool) -> str:
-    return render_brief_v2(change_brief_inputs(project_id, change_id, final))[0]
+    return render_change_deliverable_parts(project_id, change_id, final)[0]

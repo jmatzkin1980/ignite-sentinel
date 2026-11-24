@@ -1439,7 +1439,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
 
    **You'll see:** A verdict (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) with what blocks it, and the brief of the change in the format of the project brief, sealed with status, date, verdict, coverage and deferred items. After the export, `/next --change` goes on to the specs.
 
-   **What it means:** The final brief is the milestone before `/specs --change`. If the change changes afterwards, the export is out of date and `/next --change` asks for it again. `/status --change` also tells you why a workspace is not `CLEAN`.
+   **What it means:** `--final` refuses while the verdict is `NOT_READY`: class each open question first (the message and `/next --change` name the command). The final brief is the milestone before `/specs --change`. If the change changes afterwards, the export is out of date and `/next --change` asks for it again. `/status --change` also tells you why a workspace is not `CLEAN`.
 
    <details><summary>In a terminal</summary>
 

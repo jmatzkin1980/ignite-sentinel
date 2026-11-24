@@ -203,6 +203,49 @@ def lines_field(element_id: str, source: str = "pedido_ids.md") -> str:
     return ""
 
 
+def class_deferred(project_id: str, change_id: str = "CHG-001", impact: str = "operativo") -> list[str]:
+    """IMP-406: class the open non-blocking questions nobody classed yet (they default to `construccion` and hold the
+    verdict at NOT_READY, so `/export --final` refuses); the ids that were classed."""
+    from sentinel.changes import deferred_gaps
+    from sentinel.core.io import forget_read_snapshots
+
+    forget_read_snapshots()
+    found = [d["id"] for d in deferred_gaps(project_id, change_id) if not d["classed"]]
+    for gap in found:
+        run_ok(["gaps", project_id, "--change", change_id, "--id", gap, "--impact", impact,
+                "--reason", "lo resuelve otra área (prueba)"])
+    forget_read_snapshots()
+    return found
+
+
 def export_final_brief(project_id: str, change_id: str = "CHG-001") -> str:
     """IMP-406: the `export_final` milestone, so a test of a later step (specs, backlog, validate) gets past it."""
+    class_deferred(project_id, change_id)
     return run_ok(["export", project_id, "--artifact", "brief", "--change", change_id, "--final"])
+
+
+def reproposal_block(project_id: str, change_id: str, element_id: str, corrected: bool = True) -> str:
+    """IMP-406 I4: the stored proposal of an element as a worksheet block, corrected (a note, a reason or a statement
+    says one thing more), so it is a proposal that differs from the one a verification reopened.
+    `corrected=False` gives the same proposal again, as it was."""
+    from sentinel.core.io import forget_read_snapshots
+    from sentinel.extraction.lines import format_ranges
+    from sentinel.extraction.proposals import load_proposals
+    from sentinel.workspace import workspace_path
+
+    forget_read_snapshots()
+    item = load_proposals(workspace_path(project_id), change_id)["items"][element_id]
+    lines = [f"### {element_id}", f"- Tratamiento: {item['treatment']}", f"- Líneas: {format_ranges(item['lines'])}",
+             f'- Cita: "{item["quote"]}"']
+    if item["treatment"] == "seccion":
+        lines += [f"- Seccion: {item['section']}"]
+        if corrected or item.get("summary"):
+            lines += [f"- Resumen: {'corregido tras la verificación' if corrected else item['summary']}"]
+    elif item["treatment"] == "descarte":
+        lines += [f"- Motivo: {item['reason']}{' (corregido tras la verificación)' if corrected else ''}"]
+    else:
+        for statement in item["statements"]:
+            text = statement["text"].rstrip(".") + (" en todos los casos." if corrected else ".")
+            lines += [f"- Enunciado: {text}", f"  - Delta: {statement['delta']}",
+                      f"  - Superficie: {'; '.join(statement['surfaces'])}"]
+    return "\n".join(lines) + "\n"

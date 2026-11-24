@@ -235,10 +235,13 @@ def _run_project_command(args) -> int:
 
                 print_json(set_gap_impact(args.project_id, args.change, args.gap_id, args.impact, args.reason))
             elif args.change and args.gap_id and not args.disposition and args.top is None:
+                from .changes import change_language, get_change
                 from .errors import InputError
 
+                es = change_language(args.project_id, get_change(args.project_id, args.change)) == "es"
                 raise InputError(
-                    "/gaps --change con --id va con --impact construccion|operativo --reason TEXTO.",
+                    "/gaps --change con --id va con --impact construccion|operativo --reason TEXTO." if es
+                    else "/gaps --change with --id goes with --impact construccion|operativo --reason TEXT.",
                     next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact construccion|operativo --reason TEXTO",
                 )
             elif args.change and (args.gap_id or args.disposition or args.top is not None):

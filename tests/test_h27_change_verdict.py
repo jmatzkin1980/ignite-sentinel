@@ -55,6 +55,8 @@ class Verdict(CrossCase):
             patch("sentinel.extraction.coverage.preserved_coverage", return_value={"surfaces": [], "rows": {}, "missing": [], "complete": True}),
             patch("sentinel.crosses.state.cross_status", return_value={"missing": []}),
             patch("sentinel.change_escalation.escalation_warnings", return_value=[]),
+            patch("sentinel.readiness_verdict._brief_state", return_value=""),
+            patch("sentinel.readiness_verdict._has_unit_rows", return_value=True),
         )
 
     def verdict(self, patches) -> dict:
@@ -72,7 +74,7 @@ class Verdict(CrossCase):
         gate = next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps")
         self.assertEqual(gate, {"gate": "gaps", "state": "OPEN", "blocks": True})
         self.assertEqual(verdict["deferred"], {"construccion": 2, "operativo": 0})
-        self.assertEqual([g["gate"] for g in verdict["gate_matrix"]], ["gaps", "extraction", "crosses", "deferred", "verification"])
+        self.assertEqual([g["gate"] for g in verdict["gate_matrix"]], ["gaps", "extraction", "crosses", "deferred", "brief", "requirements", "verification"])
 
     def test_deferred_default_to_construction(self):
         verdict = self.verdict(self.settled())
@@ -113,6 +115,31 @@ class Verdict(CrossCase):
         self.assertEqual(verdict["blockers"], [])
         self.assertEqual(verdict["warnings"], [])
         self.assertEqual(verdict["deferred"], {"construccion": 0, "operativo": 0})
+
+    def test_brief_and_requirements_gate_the_verdict(self):
+        """I8: a change whose brief is not current, or with no requirement rows, is not READY whatever else is clear."""
+        for prefix in ("GAP-SRD-", "GAP-SED-"):
+            self.assertTrue(close_change_gap(PID, CID, self.gap(prefix), "resuelta"))
+        forget_read_snapshots()
+        clear = self.settled()[:4]
+        verdict = self.verdict([*clear, patch("sentinel.readiness_verdict._brief_state", return_value="stale"),
+                                patch("sentinel.readiness_verdict._has_unit_rows", return_value=True)])
+        self.assertEqual(verdict["verdict"], "NOT_READY")
+        self.assertEqual(verdict["blockers"], ["el brief del cambio quedó viejo"])
+        self.assertEqual(next(g for g in verdict["gate_matrix"] if g["gate"] == "brief"),
+                         {"gate": "brief", "state": "STALE", "blocks": True})
+        verdict = self.verdict([*clear, patch("sentinel.readiness_verdict._brief_state", return_value="missing"),
+                                patch("sentinel.readiness_verdict._has_unit_rows", return_value=False)])
+        self.assertEqual(verdict["blockers"], ["el brief del cambio no está compilado",
+                                               "el cambio no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED"])
+        self.assertEqual(next(g for g in verdict["gate_matrix"] if g["gate"] == "requirements"),
+                         {"gate": "requirements", "state": "NONE", "blocks": True})
+        set_language(PID, "en")
+        forget_read_snapshots()
+        english = self.verdict([*clear, patch("sentinel.readiness_verdict._brief_state", return_value="stale"),
+                                patch("sentinel.readiness_verdict._has_unit_rows", return_value=False)])
+        self.assertEqual(english["blockers"], ["the change brief is stale",
+                                               "the change has no EARS rows with Delta ADDED, MODIFIED or REMOVED"])
 
     def test_impact_errors(self):
         dis = self.gap("GAP-DIS-")

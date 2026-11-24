@@ -5,6 +5,7 @@ request; each `difiere` takes its element back to proposed with a `verificacion_
 """
 from __future__ import annotations
 
+import math
 import random
 import re
 from pathlib import Path
@@ -17,15 +18,22 @@ from ..core.paths import workspace_path
 from ..errors import InputError
 from . import extraction_dir
 from .coverage import extraction_fingerprint
-from .inventory import _read_text, _split_lines, element_lines, load_inventory
+from .inventory import _read_text, _split_lines, element_lines, load_inventory, span_text
 from .lines import format_ranges
 from .proposals import _now, load_proposals
 
 DEFAULT_SAMPLE = 10
+SAMPLE_SHARE = 0.05  # the default sample is 5 % of what is confirmed, at least DEFAULT_SAMPLE
+VERIFY_ABOVE = 100  # an extraction with more elements than this asks for a verification
+COVERS_SHARE = 0.8  # a verification covers the confirmations while it saw at least this share of what is confirmed now
+
+
+def sample_size(confirmed: int) -> int:
+    return max(DEFAULT_SAMPLE, math.ceil(SAMPLE_SHARE * confirmed))
 
 _RESULT = re.compile(
     r"^\s*[-*]\s*(?P<id>[^\s:]+)\s*:\s*(?P<verdict>igual|difiere|same|differs)\b\s*"
-    r"(?:(?:—|-|:)\s*(?P<note>.+?))?\s*$",
+    r"(?:(?:—|-|:)\s*)?(?P<note>.+?)?\s*$",
     re.IGNORECASE,
 )
 _LOOSE = re.compile(r"^\s*[-*]\s*(?P<id>[^\s:]+)\s*:\s*\S")
@@ -80,18 +88,21 @@ def _entry(project_id: str, change_id: str, base: Path, element: dict, item: dic
         source = _split_lines(text) if text is not None else []
         lines.append(f"- {'Sección' if es else 'Section'}: {item.get('section') or ''}")
         lines.append(f"- {'Texto literal' if es else 'Literal text'} ({word} {declared}):")
-        for start, end in element.get("spans", []):
-            lines.extend(f"  > {line}" for line in source[start - 1 : end])
+        literal = span_text(source, element.get("spans", []), element.get("cspan"))
+        lines.extend(f"  > {line}" for line in literal.split("\n"))
     else:
         lines.append(f"- {'Motivo' if es else 'Reason'}: {item.get('reason') or ''}")
     lines.append("")
     return lines
 
 
-def start_verification(project_id: str, change_id: str, sample: int = DEFAULT_SAMPLE) -> dict:
-    """Draw the sample of confirmed elements, write its file and open the run."""
+def start_verification(project_id: str, change_id: str, sample: int | None = None) -> dict:
+    """Draw the sample of confirmed elements, write its file and open the run.
+
+    The size is `sample`, else max(10, 5 % of the confirmed elements). Elements confirmed without a line check
+    (`legacy_ids`) are drawn first: they are the ones nothing has measured."""
     es = _es(project_id, change_id)
-    if sample < 1:
+    if sample is not None and sample < 1:
         raise InputError("--sample debe ser 1 o más" if es else "--sample must be 1 or more")
     base = workspace_path(project_id)
     inventory = load_inventory(base, change_id) or {}
@@ -103,7 +114,12 @@ def start_verification(project_id: str, change_id: str, sample: int = DEFAULT_SA
             else f"{change_id} has no confirmed elements to verify"
         )
     fingerprint = extraction_fingerprint(base, change_id)
-    picked = random.Random(int(fingerprint, 16) if fingerprint else 0).sample(ids, min(sample, len(ids)))
+    size = min(sample_size(len(ids)) if sample is None else sample, len(ids))
+    draw = random.Random(int(fingerprint, 16) if fingerprint else 0)
+    legacy = [i for i in ids if not items[i].get("lines")]
+    picked = draw.sample(legacy, min(size, len(legacy)))
+    rest = [i for i in ids if i not in picked]
+    picked += draw.sample(rest, size - len(picked))
     by_id = {e["id"]: e for e in inventory.get("elements", [])}
     rows: dict[str, list[dict]] = {}
     for row in load_change_ears(project_id, change_id):
@@ -131,7 +147,8 @@ def start_verification(project_id: str, change_id: str, sample: int = DEFAULT_SA
         if run.get("status") == "open":
             run["status"] = "superseded"
     store["runs"].append({
-        "n": number, "requested_at": _now(), "fingerprint": fingerprint, "sample": picked, "status": "open",
+        "n": number, "requested_at": _now(), "fingerprint": fingerprint, "confirmed_count": len(ids),
+        "sample": picked, "status": "open",
         "request_path": str(path), "results": {}, "reopened": [],
     })
     write_json(verification_path(base, change_id), store)
@@ -193,12 +210,14 @@ def record_verification(project_id: str, change_id: str, path: Path) -> dict:
             )
     proposals = load_proposals(base, change_id)
     reopened: list[str] = []
+    not_reopened: list[str] = []
     for element_id in sample:
         outcome = results[element_id]
         if outcome["verdict"] != "difiere":
             continue
         item = proposals["items"].get(element_id)
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or item.get("status") != "confirmed":
+            not_reopened.append(element_id)  # taken out or already back to proposed since the sample was drawn
             continue
         item["status"], item["confirmed_at"] = "proposed", None
         flags = [f for f in item.get("flags", []) or [] if f.get("ref") != f"verify:{run['n']}"]
@@ -214,7 +233,7 @@ def record_verification(project_id: str, change_id: str, path: Path) -> dict:
         "action": "verify_result", "run": run["n"],
         "same": [i for i in sample if results[i]["verdict"] == "igual"],
         "differs": [i for i in sample if results[i]["verdict"] == "difiere"],
-        "reopened": reopened, "review_path": result.get("review_path"),
+        "reopened": reopened, "not_reopened": not_reopened, "review_path": result.get("review_path"),
     }
 
 
@@ -227,7 +246,36 @@ def verification_status(project_id: str, change_id: str) -> dict[str, Any]:
         outcomes = [v.get("verdict") for v in (run.get("results") or {}).values()]
         last = {
             "n": run["n"], "completed_at": run.get("completed_at"), "sample": len(run.get("sample") or []),
+            "fingerprint": run.get("fingerprint"), "confirmed_count": int(run.get("confirmed_count", 0) or 0),
             "same": outcomes.count("igual"), "differs": outcomes.count("difiere"),
             "reopened": list(run.get("reopened") or []),
         }
     return {"runs": len(runs), "open": any(r.get("status") == "open" for r in runs), "last": last}
+
+
+def verification_needed(project_id: str, change_id: str, total: int | None = None) -> dict[str, Any]:
+    """IMP-406 I5: a big extraction (more than 100 elements) asks for a verification that covers its confirmations.
+
+    One covers them while its sample was drawn when at least 80 % of what is confirmed now was confirmed."""
+    base = workspace_path(project_id)
+    inventory = load_inventory(base, change_id) or {}
+    elements = int(total if total is not None else (inventory.get("total") or len(inventory.get("elements", []))))
+    state = verification_status(project_id, change_id)
+    confirmed = len(_confirmed_ids(inventory, load_proposals(base, change_id)["items"]))
+    last = state["last"]
+    covered = last is not None and int(last["confirmed_count"]) >= COVERS_SHARE * confirmed
+    needed = elements > VERIFY_ABOVE and confirmed > 0 and not covered
+    return {"needed": needed, "total": elements, "confirmed": confirmed, "open": state["open"],
+            "sample": sample_size(confirmed), "last": last}
+
+
+def verification_gap_text(need: dict[str, Any], es: bool) -> str:
+    """The sentence a status or verdict warning uses for `verification_needed` (no id prefix, no command)."""
+    last = need["last"]
+    if last is None:
+        return (f"la extracción tiene {need['total']} elementos y no se verificó ninguna muestra" if es
+                else f"the extraction has {need['total']} elements and no sample was verified")
+    return (f"la extracción tiene {need['total']} elementos y la última verificación vio {last['confirmed_count']} de "
+            f"{need['confirmed']} confirmados" if es
+            else f"the extraction has {need['total']} elements and the last verification saw {last['confirmed_count']} of "
+            f"{need['confirmed']} confirmed")

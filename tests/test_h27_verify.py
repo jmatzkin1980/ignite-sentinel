@@ -9,7 +9,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, complete_extraction, run_cli, run_ok, waive_crosses  # noqa: E402
+from helpers import (  # noqa: E402
+    IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, complete_extraction, reproposal_block, run_cli, run_ok, waive_crosses,
+)
 
 from sentinel.core.io import forget_read_snapshots, read_json  # noqa: E402
 from sentinel.errors import InputError  # noqa: E402
@@ -125,9 +127,28 @@ class Verify(SnapshotWorkspaceCase):
                                   "note": "falta el plazo de 3 días hábiles"}])
         self.assertEqual(extraction_coverage(PID, CID)["covered"], before - 1)
         self.assertEqual(change_next_step(PID, CID)["key"], "extract_confirm")
+        # I4: nothing changed, so nothing re-confirms it: not by hand, not by re-submitting the same block
+        with self.assertRaises(InputError) as caught:
+            confirm_item(PID, CID, target)
+        self.assertIn("la verificación dijo que difiere", str(caught.exception))
+        self.assertIn("falta el plazo de 3 días hábiles", str(caught.exception))
+        same = Path.cwd() / "igual.md"
+        same.write_text(reproposal_block(PID, CID, target, corrected=False), encoding="utf-8")
+        again = run_extract(PID, CID, proposals=str(same))
+        self.assertEqual(again["recorded"], [target], again)
+        self.assertIn(target, again["flagged"])
+        held = run_extract(PID, CID, confirm="all")
+        self.assertIn(target, held["held"])
+        self.assertEqual(run_extract(PID, CID)["coverage"]["covered"], before - 1)
+        # a corrected proposal does: the mark goes with the confirmation
+        fixed = Path.cwd() / "corregido.md"
+        fixed.write_text(reproposal_block(PID, CID, target), encoding="utf-8")
+        run_extract(PID, CID, proposals=str(fixed))
         confirm_item(PID, CID, target)
         forget_read_snapshots()
-        self.assertEqual(load_proposals(workspace_path(PID), CID)["items"][target]["status"], "confirmed")
+        item = load_proposals(workspace_path(PID), CID)["items"][target]
+        self.assertEqual(item["status"], "confirmed")
+        self.assertEqual([f for f in item["flags"] if f["origin"] == "verify"], [])
         self.assertEqual(extraction_coverage(PID, CID)["covered"], before)
         last = verification_status(PID, CID)["last"]
         self.assertEqual((last["same"], last["differs"], last["reopened"]), (2, 1, [target]))

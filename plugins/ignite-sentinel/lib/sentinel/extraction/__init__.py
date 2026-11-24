@@ -32,7 +32,7 @@ def run_extract(
     from .coverage import KIND_LABELS, extraction_coverage
     from .inventory import build_inventory
     from .proposals import record_proposals
-    from .verify import DEFAULT_SAMPLE, record_verification, start_verification
+    from .verify import record_verification, start_verification
 
     change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
@@ -46,7 +46,7 @@ def run_extract(
     elif reject_item:
         result = _reject_item(project_id, change_id, reject_item, reason or "")
     elif verify:
-        result = start_verification(project_id, change_id, DEFAULT_SAMPLE if sample is None else sample)
+        result = start_verification(project_id, change_id, sample)
     elif verify_result:
         result = record_verification(project_id, change_id, Path(verify_result))
     else:
@@ -110,6 +110,10 @@ def run_extract(
             f"{change_id}: verificación {result['run']}: {a} igual(es), {b} difiere(n); reabiertos: {ids}" if es
             else f"{change_id}: verification {result['run']}: {a} same, {b} differ; reopened: {ids}"
         )
+        if result.get("not_reopened"):
+            skipped = ", ".join(result["not_reopened"])
+            message += (f"; no se reabrieron (ya no estaban confirmados): {skipped}" if es
+                        else f"; not reopened (no longer confirmed): {skipped}")
     elif action == "reject":
         message = f"{change_id}: {reject_item} volvió a pendiente" if es else f"{change_id}: {reject_item} back to pending"
     else:

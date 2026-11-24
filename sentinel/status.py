@@ -182,13 +182,19 @@ def _extraction_warnings(
         warnings.append({"trigger": "extraction_orphans", "message": (
             f"{change_id}: elementos que ya no están en el pedido conservan filas EARS: {names} ({run} --reject-item ID --reason \"…\")" if es
             else f"{change_id}: elements no longer in the request keep EARS rows: {names} ({run} --reject-item ID --reason \"…\")")})
-    if int(extraction.get("total", 0) or 0) > 100:
-        from .extraction.verify import verification_status
+    from .extraction.verify import VERIFY_ABOVE, verification_gap_text, verification_needed
 
-        if not verification_status(project_id, change_id)["last"]:
+    if int(extraction.get("total", 0) or 0) > VERIFY_ABOVE:
+        need = verification_needed(project_id, change_id, int(extraction["total"]))
+        if need["needed"]:
             warnings.append({"trigger": "verification_missing", "message": (
-                f"{change_id}: la extracción tiene {extraction['total']} elementos y no se verificó ninguna muestra: corré {run} --verify" if es
-                else f"{change_id}: the extraction has {extraction['total']} elements and no sample was verified: run {run} --verify")})
+                f"{change_id}: {verification_gap_text(need, es)}: corré {run} --verify" if es
+                else f"{change_id}: {verification_gap_text(need, es)}: run {run} --verify")})
+    if extraction.get("legacy_ids"):
+        from .extraction.coverage import legacy_confirmed_message
+
+        warnings.append({"trigger": "legacy_confirmed", "message": (
+            f"{change_id}: {legacy_confirmed_message(extraction['legacy_ids'], 'es' if es else 'en')}")})
     if preserved["missing"]:
         names = ", ".join(preserved["missing"])
         warnings.append({"trigger": "preserved_missing", "message": (

@@ -12,6 +12,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Changed
 
+- IMP-406 final review: an element that starts with its id and one very long line are split into parts too (a quote and a line range now measure a reading); parts keep their id while their text does not change; a reopened `difiere` is confirmed again only with a corrected proposal; `/next` adds `extract_verify` for extractions of more than 100 elements and the default sample is 5 % of the confirmed (at least 10); `/export --change --final` refuses while the change verdict is `NOT_READY` or the v2 text has pending marks, and `/next` points to `/gaps --impact`; the final export goes stale when the seal inputs change; the change verdict is `NOT_READY` while its brief is stale or it has no requirement rows; items confirmed without a line check are listed as `legacy_confirmed` and keep the verdict from `READY`.
 - `Líneas:` is required on every proposal (the unconfirmed proposals of 0.26 are proposed again); a section is confirmed with its literal text and the brief shows it (`Texto:` becomes `Resumen:`); `--confirm-item` does not take a partial reading.
 
 ### Fixed

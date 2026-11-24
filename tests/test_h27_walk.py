@@ -16,7 +16,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, run_cli, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, reproposal_block, run_cli, run_ok  # noqa: E402
 
 from sentinel.changes import deferred_gaps  # noqa: E402
 from sentinel.cli import main  # noqa: E402
@@ -156,6 +156,11 @@ class LongRequestWalk(unittest.TestCase):
                                       *[f"- {i}: igual" for i in sampled[1:]], ""]), encoding="utf-8")
         result = extract("--verify-result", str(answers))
         self.assertEqual(result["reopened"], [sampled[0]])
+        code, _ = run_cli(["extract", PID, "--change", CID, "--confirm-item", sampled[0]])
+        self.assertNotEqual(code, 0)  # the verification said it differs and nothing changed: it is not re-confirmed as is
+        fixed = root / "corregido.md"
+        fixed.write_text(reproposal_block(PID, CID, sampled[0]), encoding="utf-8")
+        extract("--proposals", str(fixed))
         result = extract("--confirm-item", sampled[0])
         self.assertEqual(result["coverage"]["covered"], result["coverage"]["total"])
 
@@ -170,13 +175,16 @@ class LongRequestWalk(unittest.TestCase):
             run_ok(["gaps", PID, "--change", CID, "--id", gap, "--impact", "operativo",
                     "--reason", "lo resuelve el área de Compras"])
         current = status()["verdict"]
+        self.assertEqual(current["verdict"], "NOT_READY")  # the brief is not compiled yet: the verdict says so (I8)
+        self.assertEqual(current["blockers"], ["el brief del cambio no está compilado"])
+        run_ok(["brief", PID, "--change", CID])
+        current = status()["verdict"]
         self.assertEqual(current["verdict"], "READY_WITH_WARNINGS")
         self.assertEqual(current["deferred"]["construccion"], 0)
         operativo = current["deferred"]["operativo"]
         self.assertGreaterEqual(operativo, len(build))
 
         # 9. the brief carries the table of states as is; the next step is the final export
-        run_ok(["brief", PID, "--change", CID])
         base = Path("workspaces") / PID
         table = [line for line in (EXTRACTION / "pedido_largo.md").read_text(encoding="utf-8").splitlines()[84:98]]
         brief = next(base.rglob("project-brief.md")).read_text(encoding="utf-8")

@@ -403,7 +403,8 @@ def deferred_gaps(project_id: str, change_id: str) -> list[dict]:
             continue
         mark = classed.get(row["id"]) or {}
         found.append({"id": row["id"], "lens": row.get("lens", ""), "severity": severity,
-                      "impact": mark.get("impact", "construccion"), "reason": mark.get("reason", "")})
+                      "impact": mark.get("impact", "construccion"), "reason": mark.get("reason", ""),
+                      "classed": bool(mark)})
     return found
 
 

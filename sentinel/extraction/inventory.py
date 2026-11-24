@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+import zlib
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -28,6 +29,8 @@ SPLIT_MIN_LINES = 40  # a section with more non-blank lines (or characters) is c
 SPLIT_MIN_CHARS = 4000
 PART_MAX_LINES = 20
 PART_MAX_CHARS = 4000
+ANCHOR_MIN_LINES = 8  # a part cut at an anchor has at least this many lines
+ANCHOR_MOD = 4
 INVENTORY_SCHEMA = 2
 
 _NUM = r"\d+(?:\.\d+)*"
@@ -272,11 +275,12 @@ def _blocks(seg_lines: list[tuple[int, str, bool]]) -> list[dict[str, Any]]:
 
 def _element(
     element_id: str, kind: str, heading: str, source_id: str, path: str,
-    spans: list[list[int]], lines: list[str], prefix: str | None = None,
+    spans: list[list[int]], lines: list[str], prefix: str | None = None, cspan: list[int] | None = None,
 ) -> dict[str, Any]:
-    flat = _squash(" ".join(" ".join(lines[start - 1 : end]) for start, end in spans))
-    chars = len("\n".join("\n".join(lines[start - 1 : end]) for start, end in spans))
-    return {
+    body = span_text(lines, spans, cspan)
+    flat = _squash(body)
+    chars = len(body)
+    found = {
         "id": element_id,
         "kind": kind,
         "section": heading or "intro",
@@ -293,6 +297,15 @@ def _element(
         "home": home_section(kind, heading),
         "_prefix": prefix,
     }
+    if cspan:
+        found["cspan"] = [int(cspan[0]), int(cspan[1])]
+    return found
+
+
+def span_text(lines: list[str], spans: list[list[int]], cspan: list[int] | None = None) -> str:
+    """The text of the spans (joined by newlines); `cspan` cuts the characters of a part inside one long line."""
+    text = "\n".join("\n".join(lines[start - 1 : end]) for start, end in spans)
+    return text[int(cspan[0]) : int(cspan[1])] if cspan else text
 
 
 def element_lines(element: dict) -> list[int]:
@@ -328,6 +341,9 @@ def section_parts(lines: list[str], spans: list[list[int]]) -> list[list[int]]:
             kind, last = current, number
     parts: list[list[int]] = []
     for group in groups:
+        # inside a group longer than one part the cuts also fall after anchor lines (a hash of the line), so an
+        # edit above moves the cuts only until the next anchor and the parts after it keep their text
+        anchored = len(group) > PART_MAX_LINES or sum(len(lines[n - 1]) for n in group) > PART_MAX_CHARS
         piece: list[int] = []
         size = 0
         for number in group:
@@ -337,29 +353,120 @@ def section_parts(lines: list[str], spans: list[list[int]]) -> list[list[int]]:
                 piece, size, width = [], 0, len(lines[number - 1])
             piece.append(number)
             size += width
-        parts.append([piece[0], piece[-1]])
+            if anchored and number != group[-1] and len(piece) >= ANCHOR_MIN_LINES and _anchor(lines[number - 1]):
+                parts.append([piece[0], piece[-1]])
+                piece, size = [], 0
+        if piece:
+            parts.append([piece[0], piece[-1]])
     return parts
 
 
-def _split_long_sections(found: list[dict[str, Any]], lines: list[str]) -> list[dict[str, Any]]:
+def _anchor(text: str) -> bool:
+    """A line (or sentence) after which a long run may be cut: one in four, by a hash of its text, not by position."""
+    return zlib.crc32(" ".join(text.split()).encode("utf-8")) % ANCHOR_MOD == 0
+
+
+def _chunk_offsets(text: str, limit: int) -> list[list[int]]:
+    """Cut one long line in pieces of at most `limit` characters: after an anchor sentence, else at the last
+    sentence end, else at a space, else fixed (so an edit moves the cuts only until the next anchor)."""
+    ends = [m.end() for m in re.finditer(r"[.!?;:]\s+", text)]
+    pieces: list[list[int]] = []
+    start = 0
+    while len(text) - start > limit:
+        window = start + limit
+        inside = [e for e in ends if start + limit // 4 <= e <= window]
+        anchors = [e for e in inside if _anchor(text[max(0, _sentence_start(ends, e)) : e])]
+        cut = anchors[0] if anchors else max((e for e in ends if start < e <= window), default=0)
+        if not cut:
+            space = text.rfind(" ", start + 1, window)
+            cut = space + 1 if space > start else window
+        pieces.append([start, cut])
+        start = cut
+    pieces.append([start, len(text)])
+    return [p for p in pieces if text[p[0] : p[1]].strip()]
+
+
+def _sentence_start(ends: list[int], end: int) -> int:
+    """Where the sentence that closes at `end` starts (the previous sentence end, or the line start)."""
+    before = [e for e in ends if e < end]
+    return before[-1] if before else 0
+
+
+def _split_long(found: list[dict[str, Any]], lines: list[str]) -> list[dict[str, Any]]:
+    """IMP-406: an element (any kind) that is long in lines or characters is cut in parts `ID.pN`.
+
+    A part is a run of lines, or, inside one very long line (a converted document keeps a paragraph or a table
+    row per line), a piece of it cut at sentence ends (`cspan`): what a line range declares is then a reading."""
     result: list[dict[str, Any]] = []
     for item in found:
-        if item["kind"] == "section":
-            numbers = [n for start, end in item["spans"] for n in range(start, end + 1) if lines[n - 1].strip()]
-            if len(numbers) > SPLIT_MIN_LINES or sum(len(lines[n - 1]) for n in numbers) > SPLIT_MIN_CHARS:
-                parts = section_parts(lines, item["spans"])
-                if len(parts) >= 2:
-                    heading = "" if item["section"] == "intro" else item["section"]
-                    for number, span in enumerate(parts, start=1):
-                        part = _element(
-                            f"{item['id']}.p{number}", "section", heading, item["source_id"], item["path"],
-                            [span], lines,
-                        )
-                        part["parent"] = item["id"]
-                        result.append(part)
-                    continue
+        numbers = [n for start, end in item["spans"] for n in range(start, end + 1) if lines[n - 1].strip()]
+        if len(numbers) > SPLIT_MIN_LINES or sum(len(lines[n - 1]) for n in numbers) > SPLIT_MIN_CHARS:
+            parts: list[tuple[list[int], list[int] | None]] = []
+            for span in section_parts(lines, item["spans"]):
+                if span[0] == span[1] and len(lines[span[0] - 1]) > PART_MAX_CHARS:
+                    parts.extend((span, piece) for piece in _chunk_offsets(lines[span[0] - 1], PART_MAX_CHARS))
+                else:
+                    parts.append((span, None))
+            if len(parts) >= 2:
+                heading = "" if item["section"] == "intro" else item["section"]
+                for number, (span, cspan) in enumerate(parts, start=1):
+                    part = _element(
+                        f"{item['id']}.p{number}", item["kind"], heading, item["source_id"], item["path"],
+                        [span], lines, cspan=cspan,
+                    )
+                    part["parent"] = item["id"]
+                    result.append(part)
+                continue
         result.append(item)
     return result
+
+
+_PART_ID = re.compile(r"\.p(\d+)$")
+
+
+def _part_number(identifier: str) -> int:
+    found = _PART_ID.search(identifier)
+    return int(found.group(1)) if found else 0
+
+
+def _assign_parts(elements: list[dict], previous: dict | None) -> None:
+    """Parts keep the id they had when their text did not change, so an edit above does not move them (IMP-406 I3).
+
+    A part of new text takes a free old id in order, else the next number after the highest one."""
+    old: dict[str, list[dict]] = defaultdict(list)
+    for element in (previous or {}).get("elements", []) or []:
+        if element.get("parent"):
+            old[element["parent"]].append(element)
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for item in elements:
+        if item.get("parent"):
+            groups[item["parent"]].append(item)
+    for parent, parts in groups.items():
+        before = old.get(parent)
+        if not before:
+            continue
+        reusable: dict[str, deque[str]] = defaultdict(deque)
+        for element in before:
+            reusable[element["sha"]].append(element["id"])
+        chosen: dict[int, str] = {}
+        unmatched: list[dict] = []
+        for part in parts:
+            queue = reusable.get(part["sha"])
+            if queue:
+                chosen[id(part)] = queue.popleft()
+            else:
+                unmatched.append(part)
+        used = set(chosen.values())
+        free = sorted((e["id"] for e in before if e["id"] not in used), key=_part_number)
+        highest = max([_part_number(e["id"]) for e in before] + [_part_number(i) for i in used] + [len(parts)])
+        for part in unmatched:
+            if free:
+                chosen[id(part)] = free.pop(0)
+            else:
+                highest += 1
+                chosen[id(part)] = f"{parent}.p{highest}"
+        for part in parts:
+            part["id"] = chosen[id(part)]
 
 
 def _nonblank_span(lines: list[str], first: int, last: int) -> list[int] | None:
@@ -441,7 +548,7 @@ def _parse(text: str, source_id: str, path: str) -> list[dict[str, Any]]:
         seen[item["id"]] = count
         if count > 1:
             item["id"] = f"{item['id']}#{count}"
-    return _split_long_sections(found, lines)
+    return _split_long(found, lines)
 
 
 def _inner_elements(
@@ -679,6 +786,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
         seen_bases |= local_bases
         elements.extend(local)
     _assign_synthetic(elements, previous)
+    _assign_parts(elements, previous)
     for item in elements:
         item.pop("_prefix", None)
 
@@ -751,9 +859,7 @@ def element_text(base: Path, element: dict) -> str | None:
     if text is None:
         return None
     lines = _split_lines(text)
-    chunks = []
     for start, end in element.get("spans", []):
         if start < 1 or end > len(lines):
             return None
-        chunks.append("\n".join(lines[start - 1 : end]))
-    return "\n".join(chunks)
+    return span_text(lines, element.get("spans", []), element.get("cspan"))

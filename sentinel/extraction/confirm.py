@@ -18,7 +18,9 @@ from ..core.paths import workspace_path
 from ..errors import GateRefusal, InputError
 from . import extraction_dir
 from .flags import refresh_flags
-from .inventory import _fold, _read_text, _split_lines, element_text, inventory_state, load_inventory, section_slug
+from .inventory import (
+    _fold, _read_text, _split_lines, element_text, inventory_state, load_inventory, section_slug, span_text,
+)
 from .lines import format_ranges
 from .proposals import _msg, _now, _proposals_path, load_proposals, validate_proposal, write_review
 
@@ -142,6 +144,7 @@ def _try_confirm(
             item["rows"] = []
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
+    item["flags"] = [f for f in item.get("flags", []) or [] if f.get("origin") != "verify"]  # corrected: the mark is done
     result["confirmed"].append(element_id)
 
 
@@ -156,9 +159,7 @@ def write_sections(project_id: str, change_id: str) -> Path:
         if not item or item.get("status") != "confirmed" or item.get("treatment") != "seccion":
             continue
         source = _source_lines(base, element)
-        content = "\n".join(
-            line for start, end in element.get("spans", []) for line in source[start - 1 : end]
-        )
+        content = span_text(source, element.get("spans", []), element.get("cspan"))
         entries.append({
             "element": element["id"], "section": item.get("section"), "brief_section": item.get("brief_section"),
             "content": content, "lines": item.get("lines") or [], "summary": item.get("summary"),
@@ -224,6 +225,14 @@ def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
     if item is None or element is None or item.get("status") != "proposed":
         raise _no_pending(element_id, language)
     for flag in item.get("flags", []) or []:
+        if flag.get("origin") == "verify":
+            note = str(flag.get("note", "")).strip()
+            raise InputError(
+                f"{element_id}: la verificación dijo que difiere ({note}) y la propuesta no cambió: corregila y proponela "
+                "de nuevo" if language == "es"
+                else f"{element_id}: the verification said it differs ({note}) and the proposal has not changed: correct "
+                "it and propose it again"
+            )
         if flag.get("origin") != "coverage":
             continue
         if flag.get("kind") == "lineas_sin_cubrir":

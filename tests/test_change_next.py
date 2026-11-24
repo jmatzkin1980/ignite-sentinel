@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import (  # noqa: E402
-    SnapshotWorkspaceCase, build_matured_workspace, complete_extraction, export_final_brief, gap_acceptance_answer, run_cli, run_ok,
+    SnapshotWorkspaceCase, build_matured_workspace, class_deferred, complete_extraction, export_final_brief, gap_acceptance_answer, run_cli, run_ok,
     waive_crosses,
 )
 from sentinel import mcp as sentinel_mcp  # noqa: E402
@@ -93,6 +93,10 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertIn("Superficie", s["text"])
         requirements_path().write_text(rows, encoding="utf-8")
 
+        s = step()  # the open questions default to construccion: NOT_READY, so the step leads to /gaps --impact, not to a refused export
+        self.assertEqual(s["key"], "export_final")
+        self.assertTrue(s["command"].startswith(f"/gaps BORR --change {CID} --id GAP-"), s["command"])
+        class_deferred("BORR", CID)
         s = step()
         self.assertEqual((s["key"], s["command"]), ("export_final", f"/export BORR --artifact brief --change {CID} --final"))
         export_final_brief("BORR", CID)
@@ -136,11 +140,14 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
     def test_specs_not_current_goes_back_to_specs(self):
         self.test_each_row_of_the_table_in_order()
         answer("BORR", CID, "b.md", EXTRA)
+        self.assertEqual(step()["key"], "export_final")  # IMP-406: the questions the seal printed changed: seal again
+        export_final_brief("BORR", CID)
         self.assertEqual(step()["key"], "specs")
 
     def test_backlog_behind_the_specs(self):
         self.test_each_row_of_the_table_in_order()
         answer("BORR", CID, "b.md", EXTRA)
+        export_final_brief("BORR", CID)
         run_ok(["specs", "BORR", "--change", CID])
         self.assertEqual(step()["key"], "backlog")
         run_ok(["backlog", "BORR", "--change", CID])

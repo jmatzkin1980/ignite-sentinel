@@ -15,8 +15,10 @@ from . import extraction_dir
 READING_BUDGET = 60_000  # characters of the request an agent reads in one batch
 
 _WORDS = {
-    "es": {"title": "Plan de lectura", "batch": "Lote {n} de {m} — {chars} caracteres", "lines": "líneas", "elements": "Elementos"},
-    "en": {"title": "Reading plan", "batch": "Batch {n} of {m} — {chars} characters", "lines": "lines", "elements": "Elements"},
+    "es": {"title": "Plan de lectura", "batch": "Lote {n} de {m} — {chars} caracteres", "lines": "líneas", "elements": "Elementos",
+           "note": "Un lote «propuesto» no es un lote leído: declará en Líneas lo que leíste de cada elemento."},
+    "en": {"title": "Reading plan", "batch": "Batch {n} of {m} — {chars} characters", "lines": "lines", "elements": "Elements",
+           "note": "A «proposed» batch is not a read batch: declare in Lines what you read of each element."},
 }
 
 
@@ -77,7 +79,7 @@ def write_reading_plan(base: Path, change_id: str, inventory: dict, language: st
         "budget_chars": budget, "batches": batches,
     })
     words = _WORDS["es" if language == "es" else "en"]
-    lines = [f"# {words['title']} — {change_id}", ""]
+    lines = [f"# {words['title']} — {change_id}", "", words["note"], ""]
     for batch in batches:
         lines.append("## " + words["batch"].format(n=batch["number"], m=len(batches), chars=batch["chars"]))
         for found in batch["ranges"]:

@@ -24,7 +24,7 @@ from ..errors import GateRefusal, InputError
 from ..gap_resolution import ears_statements
 from . import extraction_dir
 from .flags import change_flag_context, element_flags
-from .inventory import _read_text, _split_lines, element_lines, inventory_state, load_inventory
+from .inventory import _read_text, _split_lines, element_lines, inventory_state, load_inventory, span_text
 from .lines import compress, content_lines, format_ranges, parse_line_ranges, quote_span
 
 TREATMENTS = {
@@ -443,12 +443,10 @@ def _element_text_cached(base: Path, element: dict, cache: dict[str, list[str] |
     lines = cache[path]
     if lines is None:
         return None
-    chunks = []
     for start, end in element.get("spans", []):
         if start < 1 or end > len(lines):
             return None
-        chunks.append("\n".join(lines[start - 1 : end]))
-    return "\n".join(chunks)
+    return span_text(lines, element.get("spans", []), element.get("cspan"))
 
 
 def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
@@ -521,10 +519,14 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         if item is None:
             rejected[element_id] = errors
             continue
+        previous = items.get(element_id) or {}
+        carried = [f for f in previous.get("flags", []) or [] if f.get("origin") == "verify"]
+        if carried and previous.get("status") == "proposed" and _same_proposal(previous, item):
+            # the verification said it differs and this is the proposal it said so about: the mark stays until it is corrected
+            item["flags"] = [*item["flags"], *carried]
         item["flags"] = element_flags(
             element_id, element_body or "", item["quote"], item["flags"], open_gaps, harvest_entries,
         )
-        previous = items.get(element_id) or {}
         if previous.get("status") == "confirmed" and _same_proposal(previous, item):
             # re-submitted as it was confirmed: it stays confirmed
             unchanged.append(element_id)

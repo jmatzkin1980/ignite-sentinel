@@ -45,7 +45,12 @@ class Parts(unittest.TestCase):
 
     def test_long_block_is_cut(self):
         lines = [f"- paso {i}: dato al final" for i in range(1, 46)]
-        self.assertEqual(section_parts(lines, [[1, 45]]), [[1, 20], [21, 40], [41, 45]])
+        parts = section_parts(lines, [[1, 45]])
+        # cut by size (20 lines) or after an anchor line (a hash of its text), never leaving a line out
+        self.assertEqual([n for a, b in parts for n in range(a, b + 1)], list(range(1, 46)))
+        self.assertTrue(all(b - a + 1 <= 20 for a, b in parts), parts)
+        self.assertGreaterEqual(len(parts), 3)
+        self.assertEqual(parts, section_parts(lines, [[1, 45]]))
 
     def test_short_and_id_elements_not_split(self):
         ids = parse_request_elements(IDS.read_text(encoding="utf-8"), "F-01", "pedido.md")

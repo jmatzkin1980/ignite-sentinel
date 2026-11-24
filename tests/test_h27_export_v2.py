@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, complete_extraction, run_ok, waive_crosses  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, class_deferred, complete_extraction, run_ok, waive_crosses  # noqa: E402
 
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.compilers.brief_v2 import BriefInputs, render_brief_v2  # noqa: E402
@@ -80,7 +80,9 @@ class ExportCase(SnapshotWorkspaceCase):
         forget_read_snapshots()
 
     def export(self, *extra: str) -> str:
-        """Export the change's brief; the exported text."""
+        """Export the change's brief; the exported text (`--final` needs the open questions classed first)."""
+        if "--final" in extra:
+            class_deferred(PID, CID)
         result = json.loads(run_ok(["export", PID, "--artifact", "brief", "--change", CID, *extra]))
         return Path(result["path"]).read_text(encoding="utf-8")
 
@@ -261,6 +263,14 @@ class Deliverable(ExportCase):
 
 class FinalStep(ExportCase):
     def test_export_final_step(self):
+        # the open questions default to construccion: NOT_READY, and the step points at /gaps --impact (I6)
+        step = self.next_step()
+        self.assertEqual(step["key"], "export_final", step)
+        self.assertTrue(step["command"].startswith(f"/gaps {PID} --change {CID} --id GAP-"), step)
+        self.assertIn("--impact construccion|operativo", step["command"])
+        self.assertIn("NOT_READY", step["text"])
+        class_deferred(PID, CID)
+        forget_read_snapshots()
         step = self.next_step()
         self.assertEqual(step["key"], "export_final", step)
         self.assertEqual(step["command"], f"/export {PID} --artifact brief --change {CID} --final")
