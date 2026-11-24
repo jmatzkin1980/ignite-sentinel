@@ -46,7 +46,27 @@ python -m sentinel /gaps PROJECT_ID --change CHG-001
 6. A long element (a section, or an element that starts with its id) is split into parts `ID.pN`, and one very long line is cut into pieces of it: propose each part with its own `Líneas` and a `Cita` taken from that part. A quote from another part is refused.
 7. `/export --change CHG-NNN --final` refuses while the change verdict is `NOT_READY` (the open questions that do not block count as `construccion` until the BA classes them) and while the text to export still carries a pending mark. Point the BA to `/gaps PROJECT_ID --change CHG-NNN --id GAP --impact construccion|operativo --reason TEXT`, and to `/export` without `--final` for a draft; `/next` says the same. Do not class the questions yourself.
 
-```text
+The format of the proposals and of the verification result is in `## Formato`, below.
+
+### Cross-reads of a change (IMP-404)
+
+A change is cross-read three ways: the request against the baseline (`linea_de_base`, which is the `/harvest ... --change` of the built system), against the new design (`diseno`: a prototype loaded with `/sources PROJECT_ID --load PATH --role diseno_nuevo --change CHG-NNN`) and against itself (`contradicciones`). Without options `/cross PROJECT_ID --change CHG-NNN` only says where each one stands.
+
+1. Read both sides whole, then write the claims file: one `- [TAG] sentence` per claim, and under it indented `Pedido: F-NN "quote"` / `Diseño: F-NN "quote"` lines. Tags: `RESPALDADO`, `SIN RESPALDO EN DISEÑO`, `SOLO EN DISEÑO`, `DIVERGENCIA` (design) and `CONTRADICCIÓN` (itself). The number of quotes per tag is fixed (`## Formato` has one claim per tag). If you read it all and found nothing, write the file with `- [SIN HALLAZGOS] …` alone; never leave a cross-read silent.
+2. Every quote is literal and comes from the source of the right role: `Pedido:` from a request of this change, `Diseño:` from a `diseno_nuevo` source, each with the `F-NN` of the file that holds it. A quote from another file, or a paraphrase, rejects the whole file and nothing is recorded. Copy the sentence; never summarize it.
+3. Record it: `python -m sentinel /cross PROJECT_ID --change CHG-001 --kind diseno --claims PATH` (or `--kind contradicciones`). Waiving a cross-read is the BA's call: `--kind K --skip --reason TEXT`.
+4. Each divergence, missing backing and design-only claim opens a question in the change. The new surfaces that the baseline cross-read did not find, or that the prototype shows and the request does not, are candidates for the border. Use them like this:
+   - `--accept-new ID --type TIPO --name NOMBRE`: the BA decides it belongs in the change (the harvest did not find it, or the prototype shows it and the BA wants it). It adds the surface to the border without reopening the scope gap. `TIPO` is one of the border types (`pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion`, `regla`).
+   - `--decline-new ID --reason TEXT`: it does not belong in this change.
+   Never accept or decline for the BA: both are decisions to ask for, with the surface and its quotes in front of them, and the name is theirs.
+
+## Formato
+
+Each block is parsed by the real parser in the test suite. Quotes are literal and come from the registered sources; the Compras domain here is made up.
+
+An extraction proposals file (`/extract --proposals`): a requirement, a section and a discard. Every block says which lines it read.
+
+```sentinel-example kind=extraction-proposals lang=es
 ### RN-02
 - Tratamiento: requisito
 - Líneas: 41-43
@@ -55,6 +75,48 @@ python -m sentinel /gaps PROJECT_ID --change CHG-001
 - Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
   - Delta: ADDED
   - Superficie: Aprobación por monto
+
+### SEC-proceso
+- Tratamiento: seccion
+- Seccion: proceso
+- Líneas: 12-20
+- Lectura: completa
+- Cita: "el analista completa el alta y la envía a aprobación"
+- Resumen: El analista completa el alta en cuatro pasos y la envía a aprobación.
+
+### P-07
+- Tratamiento: descarte
+- Líneas: 60
+- Motivo: Texto de presentación del documento, sin requisitos.
+```
+
+The verification result (`/extract --verify-result`): one line per sampled element, `igual`, or `difiere` with the note after `—`.
+
+```sentinel-example kind=verify-result lang=es
+## Resultados
+- RN-02: igual
+- SEC-proceso.p2: difiere — falta el plazo de 3 días hábiles
+```
+
+A cross-read claims file (`/cross --claims`), one claim per tag; the quotes are `Pedido` (the request) and `Diseño` (the prototype):
+
+```sentinel-example kind=cross-claims lang=es
+- [RESPALDADO] El alta pide datos fiscales y el prototipo los tiene.
+  - Pedido: F-01 "el alta de proveedores pide datos fiscales y bancarios"
+  - Diseño: F-03 "Datos fiscales"
+- [SIN RESPALDO EN DISEÑO] El pedido pide aprobación por monto y el prototipo no tiene pantalla para eso.
+  - Pedido: F-01 "requiere aprobación de la jefa de Compras"
+- [SOLO EN DISEÑO] El prototipo muestra un botón para guardar borradores que el pedido no menciona.
+  - Diseño: F-03 "Guardar borrador"
+- [DIVERGENCIA] El pedido pide dos firmas y el prototipo muestra una sola.
+  - Pedido: F-01 "la aprobación necesita dos firmas del área"
+  - Diseño: F-03 "Firma de aprobación"
+```
+
+What you write when you read both sides and found nothing (it stands alone in the file):
+
+```sentinel-example kind=cross-claims lang=es
+- [SIN HALLAZGOS] Se leyó el prototipo completo contra el pedido y no hay diferencias.
 ```
 
 ## Deepening Cycle After `/gaps`

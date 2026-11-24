@@ -14,11 +14,11 @@ Use this skill on a **brownfield** project: an existing system's repository is o
 - **A harvest is not a source with a role.** It is Sentinel's reading of the system, registered as built; it never takes a role and never closes a gap `by_baseline`. The original SAD or survey of what is built is loaded with `/sources PROJECT_ID --load PATH --role linea_de_base [--change CHG-nnn]`; a harvest that quotes it does not replace it.
 - **Do not use** on a greenfield project, to interview a domain team (that is `/context-request`), or to fetch code through an external service.
 
-## The harvest format
+## Formato
 
-One Markdown file, by blocks. Every claim is one line with one tag:
+The harvest format is one Markdown file, by blocks. Every claim is one line with one tag (the example is parsed by `parse_harvest` in the test suite):
 
-```markdown
+```sentinel-example kind=harvest
 ## B0 Inventory
 - repo: queue-api — services/queue-api
 - repo: metrics-job — jobs/metrics
