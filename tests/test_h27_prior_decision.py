@@ -84,8 +84,7 @@ class LinkedDecision(PriorDecisionCase):
         found = find_prior_decision(PID, CID, both)
         self.assertEqual((found.gap_id, found.match, found.basis), (con, "linked", "quote"))
         named = {"id": "GAP-CON-0000CCCC", "text": "RN-04 se contradice con otra regla", "sources": [], "citations": [
-            {"side": "pedido", "source_id": pedido, "line": 42,
-             "quote": "cuando ella intenta aprobarla, entonces el sistema no lo permite"}]}
+            {"side": "pedido", "source_id": pedido, "line": 33, "quote": "no puede aprobar un alta"}]}
         found = find_prior_decision(PID, CID, named)
         self.assertEqual((found.gap_id, found.basis), (con, "element"))
 
@@ -130,6 +129,57 @@ class LinkedDecision(PriorDecisionCase):
         self.assertEqual(self.gaps()[con]["status"].strip("`"), "CLOSED")
         self.assertEqual(prior_path(workspace_path(PID), CID).read_bytes(), before)
         self.assertTrue(self.priors()[con].get("overridden"))
+
+
+class TightLinks(PriorDecisionCase):
+    """IMP-410 final fix I1: a link covers the candidate, it does not merely touch it."""
+
+    def cand(self, gap_id, text, *cites):
+        pedido = self.ids()["pedido"]
+        return {"id": gap_id, "text": text, "sources": [], "citations": [
+            {"side": "pedido", "source_id": pedido, "line": line, "quote": quote} for line, quote in cites]}
+
+    def test_fragment_and_other_sentence_stay_open(self):
+        self.close_dis()
+        probe = self.cand("GAP-CON-00000001", "la notificación a la gerencia no dice quién aprueba",
+                          (31, "requiere aprobación de la jefa"), (34, "se notifica a la gerencia de Compras"))
+        found = find_prior_decision(PID, CID, probe)
+        self.assertTrue(found is None or found.match != "linked", found)
+
+    def test_named_rule_with_another_rule_stays_open(self):
+        self.close_dis()
+        probe = self.cand("GAP-CON-00000002", "RN-02 y el aviso a los 5 días no dicen quién escala",
+                          (34, "se notifica a la gerencia de Compras"))
+        found = find_prior_decision(PID, CID, probe)
+        self.assertTrue(found is None or found.match != "linked", found)
+
+    def test_true_case_still_links(self):
+        dis = self.close_dis()
+        probe = self.cand("GAP-CON-00000003", "", (31, "mayor a 5.000.000 requiere aprobación de la jefa de Compras"))
+        found = find_prior_decision(PID, CID, probe)
+        self.assertEqual((found.gap_id, found.match), (dis, "linked"))
+
+    def test_closure_other_than_answered_is_not_a_prior(self):
+        pedido = self.ids()["pedido"]
+        quote = "mayor a 5.000.000 requiere aprobación de la jefa de Compras"
+        decision = {"id": "GAP-DIS-0000AAAA", "closure": "by_absence", "answer": "no aplica", "option": "", "elements": [],
+                    "citations": [{"side": "pedido", "source_id": pedido, "line": 31, "quote": quote}]}
+        probe = self.cand("GAP-CON-00000004", "", (31, quote))
+        with mock.patch("sentinel.decision_memory.closed_decisions", return_value=[decision]):
+            self.assertIsNone(find_prior_decision(PID, CID, probe))
+            decision["closure"] = "answered"
+            self.assertEqual(find_prior_decision(PID, CID, probe).gap_id, "GAP-DIS-0000AAAA")
+
+    def test_critical_candidate_keeps_blocking(self):
+        from sentinel.prior_decisions import PriorDecision, apply_prior_decisions
+
+        gaps = [{"id": "GAP-CON-00000005", "severity": "critical", "status": "OPEN"},
+                {"id": "GAP-CON-00000006", "severity": "high", "status": "OPEN"}]
+        found = PriorDecision("GAP-DIS-0000AAAA", "linked", "quote", "Rige el pedido.")
+        with mock.patch("sentinel.prior_decisions.find_prior_decision", return_value=found):
+            apply_prior_decisions(PID, CID, gaps, {g["id"]: {"id": g["id"]} for g in gaps})
+        self.assertEqual([g["status"] for g in gaps], ["OPEN", "PRE_DECIDED"])
+        self.assertIn("GAP-CON-00000005", self.priors())
 
 
 class PickMemory(unittest.TestCase):

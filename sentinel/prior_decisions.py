@@ -35,6 +35,9 @@ def _flat(text: Any) -> str:
 def prior_note(entry: dict, language: str) -> str:
     """The `resolution_note` of a PRE_DECIDED row."""
     prior, answer = entry.get("prior", ""), _flat(entry.get("answer"))[:120]
+    if entry.get("changed") and entry.get("match") == "linked":
+        return (f"ya decidido en {prior} (la decisión previa cambió): {answer}" if language == "es"
+                else f"already decided in {prior} (the earlier decision changed): {answer}")
     if entry.get("match") == "suggested":
         return f"posible decisión previa en {prior}: {answer}" if language == "es" else f"possible earlier decision in {prior}: {answer}"
     if entry.get("match") == "design_request":
@@ -55,10 +58,10 @@ def prefill_lines(entry: dict, gap_id: str, project_id: str, change_id: str, lan
                 else f"Already registered in the request as a request to Design ({prior}): {answer}"]
     command = f"/gaps {project_id} --change {change_id} --id {gap_id} --accept-prior"
     if es:
-        return [f"Ya decidido en {prior}: {answer}",
+        return [f"Ya decidido en {prior}: {answer}" + (" (la decisión previa cambió)" if entry.get("changed") else ""),
                 f"Si sigue valiendo, confirmalo con `{command}` o con «Estado de decisión: confirmado»; "
                 "si cambió, escribí la respuesta nueva."]
-    return [f"Already decided in {prior}: {answer}",
+    return [f"Already decided in {prior}: {answer}" + (" (the earlier decision changed)" if entry.get("changed") else ""),
             f"If it still holds, confirm it with `{command}` or with \"Decision status: confirmed\"; "
             "if it changed, write the new answer."]
 
@@ -82,6 +85,8 @@ def pre_decided_gaps(project_id: str, change_id: str) -> list[dict[str, str]]:
 # --- the lookup: before a question of the change is opened ----------------------------------------
 
 PRIOR_MEMORY_MIN_SCORE = 0.75
+PRIOR_CLOSURES = ("", "answered", "by_decision")  # a question closed any other way decided nothing for another one
+_WEAK_PRIORS = ("GAP-SED-", "GAP-SRD-")  # "only in the design" / "no support" answers settle their own claim only
 _LINKABLE = ("rule", "criterion", "story", "decision")
 _PD = re.compile(r"\bPD-\d+(?:\.\d+)*\b")
 
@@ -150,20 +155,28 @@ class _Index:
             self._elements = _pedido_elements(self.project_id, self.change_id)
         return self._elements
 
-    def elements_of(self, candidate: dict) -> list[str]:
+    def elements_of(self, candidate: dict) -> tuple[list[str], bool]:
+        """The linkable request elements a candidate touches, and whether every pedido citation of it sits in one."""
         from .extraction.inventory import element_lines, match_element_id
 
         found: list[str] = []
+        complete = True
         for cite in candidate.get("citations", []):
-            if cite.get("side") == "pedido" and cite.get("line"):
+            if cite.get("side") != "pedido":
+                continue
+            here: list[str] = []
+            if cite.get("line"):
                 for element in self.elements:
                     first, last = element_lines(element)
                     if element["source_id"] == cite.get("source_id") and first <= int(cite["line"]) <= last:
-                        found.append(str(element["id"]))
+                        here.append(str(element["id"]))
+            linkable = [e for e in here if _linkable(e)]
+            complete = complete and bool(linkable)
+            found.extend(linkable)
         named = match_element_id(str(candidate.get("text", "")))
         if named:
             found.append(named[0])
-        return [e for e in dict.fromkeys(found) if _linkable(e)]
+        return [e for e in dict.fromkeys(found) if _linkable(e)], complete
 
     @property
     def surfaces(self) -> list[tuple[str, dict, set[str]]]:
@@ -191,17 +204,28 @@ class _Index:
         return self._surfaces
 
 
+COVER_RATIO = 0.8
+
+
+def _overlap(a: Any, b: Any) -> float:
+    """How much of the longer text the shorter one is, when it sits inside it (0 when it does not)."""
+    a, b = _flat(a).lower(), _flat(b).lower()
+    if not a or not b:
+        return 0.0
+    short, long = sorted((a, b), key=len)
+    return len(short) / len(long) if short in long else 0.0
+
+
+def _cite_matched(mine: dict, theirs: dict) -> bool:
+    """The two quotes are the same text (one covers at least COVER_RATIO of the other), whatever line they sit on."""
+    return _overlap(mine.get("quote"), theirs.get("quote")) >= COVER_RATIO
+
+
 def _quote_link(candidate: dict, decision: dict) -> bool:
-    for mine in candidate.get("citations", []):
-        flat = _flat(mine.get("quote"))
-        for theirs in decision.get("citations", []):
-            other = _flat(theirs.get("quote"))
-            if (mine.get("line") and theirs.get("line") and str(mine.get("source_id")) == str(theirs.get("source_id"))
-                    and int(mine["line"]) == int(theirs["line"])):
-                return True
-            if flat and other and (flat in other or other in flat):
-                return True
-    return False
+    """The prior decided on a statement the candidate is about: one of its pedido citations (any, if none is pedido) is the same quote."""
+    citations = candidate.get("citations", [])
+    mine = [c for c in citations if c.get("side") == "pedido"] or citations
+    return any(_cite_matched(c, t) for c in mine for t in decision.get("citations", []))
 
 
 def _surface_answer(decision: dict, language: str) -> str:
@@ -218,7 +242,8 @@ def find_prior_decision(project_id: str, change_id: str, candidate: dict, _index
     """The earlier decision that already answers a question about to be opened: a direct link first, then memory."""
     index = _index or _Index(project_id, change_id)
     gap_id = str(candidate.get("id", ""))
-    decisions = [d for d in index.decisions if d["id"] != gap_id]
+    decisions = [d for d in index.decisions if d["id"] != gap_id and d.get("closure", "") in PRIOR_CLOSURES
+                 and (_family(d["id"]) == _family(gap_id) or not d["id"].startswith(_WEAK_PRIORS))]
 
     def carried(decision: dict) -> str:
         return decision["option"] if _family(decision["id"]) == _family(gap_id) else ""
@@ -227,17 +252,18 @@ def find_prior_decision(project_id: str, change_id: str, candidate: dict, _index
         if _quote_link(candidate, decision):
             return PriorDecision(decision["id"], "linked", "quote", decision["answer"], carried(decision))
     mine = {_flat(c.get("quote")).lower() for c in candidate.get("citations", []) if c.get("side") == "diseno" and c.get("quote")}
-    if mine:  # (b) a surface already decided
+    if mine and gap_id.startswith("GAP-SED-"):  # (b) a surface already decided
         for key, decision, quotes in index.surfaces:
             if mine & quotes:
                 from .changes import change_language, get_change
 
                 language = change_language(project_id, get_change(project_id, change_id))
                 return PriorDecision(key, "linked", "surface", _surface_answer(decision, language))
-    wanted = set(index.elements_of(candidate))
-    if wanted:  # (c) an element of the request they share
+    named, complete = index.elements_of(candidate)
+    wanted = set(named)
+    if wanted and complete:  # (c) every element the candidate touches is one the prior decided on
         for decision in decisions:
-            if wanted & {e for e in decision["elements"] if _linkable(e)}:
+            if wanted <= {e for e in decision["elements"] if _linkable(e)}:
                 return PriorDecision(decision["id"], "linked", "element", decision["answer"], carried(decision))
     sources = set(candidate.get("sources") or []) or {str(c["source_id"]) for c in candidate.get("citations", []) if c.get("source_id")}
     query = " ".join(_flat(c.get("quote")) for c in candidate.get("citations", []) if c.get("quote")) or _flat(candidate.get("text"))
@@ -279,7 +305,7 @@ def design_request_ref(project_id: str, change_id: str, claim: dict) -> dict | N
     if not named:
         return None
     element = next((e for e in pd_elements if e["id"] == named.group(0)), None)
-    return result(element) if element else {"ref": named.group(0), "text": ""}
+    return result(element) if element else None
 
 
 def apply_prior_decisions(project_id: str, change_id: str, gaps: list[dict], candidates: dict[str, dict],
@@ -314,8 +340,9 @@ def apply_prior_decisions(project_id: str, change_id: str, gaps: list[dict], can
         else:
             continue
         if entry["match"] == "linked":
-            gap["status"] = PRE_DECIDED
             gap["resolution_note"] = prior_note(entry, language)
+            if str(gap.get("severity", "")).strip("`").lower() != "critical":
+                gap["status"] = PRE_DECIDED  # a critical question keeps blocking: the prior is only prefilled
         new[gap_id] = entry
     if new:
         save_priors(base, change_id, {**priors, **new})
