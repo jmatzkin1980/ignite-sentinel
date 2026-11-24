@@ -1,6 +1,6 @@
 ---
 name: sentinel-assume
-description: "Use when a BA needs to register governed, BA-owned assumptions in Ignite Sentinel through /assume: every assumption carries a human owner, risk (importance), uncertainty with a derived priority signal, an optional gap link, and a verbatim local evidence basis. Not for closing gaps with client answers (use sentinel-gap-response)."
+description: "Use when a BA needs to register governed, BA-owned assumptions in Ignite Sentinel through /assume: every assumption carries a human owner, risk (importance), uncertainty with a derived priority signal, an optional gap link, and a verbatim local evidence basis. Also for recording an assumption inside a change (/assume --change) and for validating or invalidating it later. Not for closing gaps with client answers (use sentinel-gap-response)."
 ---
 
 # Sentinel Assume
@@ -101,6 +101,27 @@ python -m sentinel /assume PROJECT_ID --change CHG-NNN --id ASM-ID --invalidate 
 ```
 
 Validating keeps the closure as an answer; invalidating opens the question again with its previous closure on record. An assumption is not a decision: it does not preload later questions and is not listed with the decisions.
+
+## Formato
+
+The example of `/assume --change`: one item per assumption; it is parsed by the real validator in the test suite (the Compras domain is made up):
+
+```sentinel-example kind=change-assumptions
+{
+  "assumptions": [
+    {
+      "id": "ASM-HISTORIAL-PESTANA",
+      "lens": "design",
+      "statement": "El historial del auditor se muestra como una pestaña del detalle del alta.",
+      "owner": "BA de Compras",
+      "risk": "med",
+      "justification": "quiero consultar quién aprobó cada alta y cuándo",
+      "closes_gap": "GAP-SRD-3F9A1C07",
+      "validate_with": "Diseño"
+    }
+  ]
+}
+```
 
 ## Agentic Spirit (applies to every proposal you author)
 

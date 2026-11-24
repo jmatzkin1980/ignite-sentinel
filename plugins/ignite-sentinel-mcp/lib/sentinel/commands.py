@@ -399,10 +399,10 @@ REGISTRY: tuple[Command, ...] = (
     # like every other writer (listing goes through it too; cost is negligible).
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}, skill="sentinel-discovery"),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
-    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync"),
+    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync", skill_variants=(("--keep-single", "sentinel-discovery §Delegate, extensions, speculative marks and conflicts"),)),
     Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change"),  # IMP-402
     Command("cross", MUTATING, _cross, skill="sentinel-discovery §Cross-reads of a change"),  # IMP-404
-    Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"))),
+    Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"), ("--artifact borde", "sentinel-views §Review views of a change"), ("--artifact decisiones", "sentinel-views §Review views of a change"))),
     Command("backlog", MUTATING, _backlog, release=True, skill="sentinel-backlog"),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.
     Command("maturity", MUTATING, _project, skill="sentinel-maturity"),

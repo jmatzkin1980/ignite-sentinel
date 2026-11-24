@@ -128,6 +128,8 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
 - `/assume --change`: use `sentinel-assume` (Change assumptions); register one only when the BA said to proceed with the risk, quoting their words, and never validate or invalidate for them (the reason is theirs).
 - `/resolve-gaps`: use `sentinel-gap-response`.
+- `/sources --change --keep-single --reason`: use `sentinel-discovery` (keep one change); run it only with the BA's decision and their reason, and report that the escalation warning stops.
+- `/export --artifact borde|decisiones` (and `/view --artifact borde|decisiones`), always with `--change`: use `sentinel-views` (Review views of a change); report the path and never present an assumption as a decision.
 - `/maturity`: use `sentinel-maturity`.
 - `/brief`: use `sentinel-project-brief`.
 - `/context-request`: use `sentinel-domain-request`. A request is `CTX-NNN`: `active` -> `answered` (also when a file synced with `/sync --source` cites the id in its text; the `--note` is not read for it) -> `closed`, or `obsolete`; an `active` request cannot be closed directly, and closing needs a reason.

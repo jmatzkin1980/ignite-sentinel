@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **The BA delegates and reviews (IMP-412, H27 inc 4).** `/assume --change` and `--id --validate|--invalidate --reason`; the answer `Estado de decisión: supuesto` with `Valida:` (`gap_counts["assumed"]`); `--delegated`/`--note` in `/extract` and `Confirmado por:` in the answers; `Tipo: aplica|extension` and `Decisión:` in the proposals; `a_confirmar` marks; `GAP-CHQ-*` questions when two decisions clash; `/export --artifact borde|decisiones --change`, `--format faq --change` and `/view --change` of those views; `/sources --change --keep-single --reason`.
+
+### Changed
+
+- The several-processes warning uses a threshold relative to the size of the request (a single integration no longer warns); `/assume` without `--source` answers with an input error (exit 3); `/extract --reason` also goes with `--confirm-item`.
+
+### Fixed
+
+- The assumptions of a change are no longer closed as confirmed by dodging the detector (T2-14, T2-15); a clash between decisions is no longer resolved by the agent (T2-26); the speculative marks of the request are no longer taken as firm (T2-28); the escalation warning stops repeating once the BA decided (T2-05).
+
 ## [0.29.0] — 2026-11-24
 
 ### Added

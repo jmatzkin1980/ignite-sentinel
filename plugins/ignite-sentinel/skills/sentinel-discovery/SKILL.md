@@ -60,6 +60,14 @@ A change is cross-read three ways: the request against the baseline (`linea_de_b
    - `--decline-new ID --reason TEXT`: it does not belong in this change.
    Never accept or decline for the BA: both are decisions to ask for, with the surface and its quotes in front of them, and the name is theirs.
 
+## Delegate, extensions, speculative marks and conflicts (IMP-412)
+
+- **Delegate.** The BA may hand the confirmation of the extraction to you: `/extract PROJECT_ID --change CHG-NNN --confirm all --delegated --note "TEXT"`, or `--confirm-item ID --delegated --note "TEXT"`. Run it only when the BA said so, and put their words in `--note`. The confirmed elements carry `delegated`, they are listed to review, and what was flagged is held anyway. The BA ratifies one with `--confirm-item` alone. The same goes for a question in `/resolve-gaps`: `Confirmado por: delegación del BA` (see `sentinel-gap-response`).
+- **Applies or extension.** Each proposal can say `Tipo: aplica` (the request asks for it) or `Tipo: extension` (it goes beyond what the request says). An extension is flagged and confirmed one by one, never with `--confirm all`. Never class something as `aplica` to skip that.
+- **Speculative marks.** A line of the request with 🔮, `(a confirmar)`, «tentativo» or `tentative` is not firm. The inventory flags it as `a_confirmar`: it is confirmed one by one and never enters as a firm requirement on its own.
+- **Decisions behind a proposal.** `Decisión: GAP-…` names the closed decisions of the change that the proposal rests on. A name that is not a closed decision of that change is refused. If two of them clash, the proposal is refused, a `GAP-CHQ-*` question opens and goes back to the BA; you never pick one.
+- **Keep one change.** When the escalation warning (several processes in one request) appears and the BA decides to keep it as one change: `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /sources PROJECT_ID --change CHG-NNN --keep-single --reason "TEXT"`, with their reason. The warning stops repeating. The threshold is relative to the size of the request; never choose for the BA.
+
 ## Formato
 
 Each block is parsed by the real parser in the test suite. Quotes are literal and come from the registered sources; the Compras domain here is made up.
@@ -88,6 +96,17 @@ An extraction proposals file (`/extract --proposals`): a requirement, a section 
 - Tratamiento: descarte
 - Líneas: 60
 - Motivo: Texto de presentación del documento, sin requisitos.
+
+### RN-05
+- Tratamiento: requisito
+- Tipo: extension
+- Líneas: 45
+- Lectura: completa
+- Cita: "se notifica a la gerencia de Compras"
+- Decisión: GAP-DIS-3F9A1C07
+- Enunciado: Cuando un alta lleva más de 5 días hábiles pendiente, el sistema debe notificar a la gerencia de Compras.
+  - Delta: ADDED
+  - Superficie: Aprobación por monto
 ```
 
 The verification result (`/extract --verify-result`): one line per sampled element, `igual`, or `difiere` with the note after `—`.
