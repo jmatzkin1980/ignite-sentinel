@@ -1,6 +1,8 @@
 """Gap persistence: gaps.md rendering, gap rows and the gap response sections."""
 from __future__ import annotations
 
+import re
+
 from ..core.markdown import table_cell
 from ..workspace import workspace_path
 from .model import gap_kind, parse_gap_table
@@ -130,6 +132,7 @@ Si la respuesta está en EARS ("Cuando …, el sistema debe …"), declarar qué
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (sólo si la respuesta está en EARS)
     - Afecta: US-003, US-007 | ninguna (sólo si el Delta es MODIFIED o REMOVED y el proyecto ya tiene historias)
     - Superficie: Listado "Mis borradores"; Botón "Guardar borrador" en el alta de proveedores (una o más del borde, separadas por `;`; obligatoria en toda respuesta EARS de un cambio)
+Si la pregunta da opciones (A), (B), (C), escribí la elegida en su propio campo y no copies las demás en la respuesta: `- Opción: B`. Una respuesta confirmada que nombra varias opciones no se cierra.
 """
     return """
 Answers are not written in this file: they go in a separate file (for example `input/respuestas/CHG-nnn-answers.md`) and are processed with `/resolve-gaps P --source FILE --change CHG-nnn`.
@@ -156,6 +159,7 @@ If the answer is in EARS ("When ..., the system shall ..."), declare what it doe
     - Delta: ADDED | MODIFIED | REMOVED | UNCHANGED (only if the answer is in EARS)
     - Affects: US-003, US-007 | none (only if the Delta is MODIFIED or REMOVED and the project already has stories)
     - Surface: "Save draft" button in the supplier registration; Current submission of the supplier registration (one or more of the border, separated by `;`; required on every EARS answer of a change)
+If the question gives options (A), (B), (C), write the chosen one in its own field and do not copy the others into the answer: `- Option: B`. A confirmed answer that names several options does not close.
 """
 
 
@@ -355,6 +359,32 @@ def candidate_options_markdown(gap: dict[str, str], language: str = "en") -> str
     return "\n".join(lines)
 
 
+OPTION_MARKER = re.compile(r"\(([A-Z])\)|\bOpci[oó]n\s+([A-Z])\b|\bOption\s+([A-Z])\b")
+
+
+def question_option_labels(question: str) -> list[str]:
+    """IMP-408: the letters a question offers as `(A)`, `(B)`, ... in order, without repeats."""
+    labels: list[str] = []
+    for letter in re.findall(r"\(([A-Z])\)", question or ""):
+        if letter not in labels:
+            labels.append(letter)
+    return labels
+
+
+def gap_option_labels(gap: dict[str, str]) -> list[str]:
+    return question_option_labels(gap.get("question", "")) or [o["label"] for o in candidate_options_for_gap(gap)]
+
+
+def option_markers(text: str) -> list[str]:
+    """IMP-408: the option letters an answer names, in order, without repeats."""
+    letters: list[str] = []
+    for match in OPTION_MARKER.finditer(text or ""):
+        letter = next(group for group in match.groups() if group)
+        if letter not in letters:
+            letters.append(letter)
+    return letters
+
+
 def render_gap_response_section(gap: dict[str, str], req_id: str, language: str = "en") -> str:
     gap_id = gap["id"]
     lens = gap.get("lens", lens_for_gap(gap_id))
@@ -364,6 +394,8 @@ def render_gap_response_section(gap: dict[str, str], req_id: str, language: str 
     candidate_options = candidate_options_markdown(gap, language)
     candidate_block = f"\n{candidate_options}\n" if candidate_options else ""
     candidate_block += meanwhile_markdown(gap, language)
+    has_options = bool(question_option_labels(gap.get("question", "")))
+    option_line = ("\n- Opción:" if language == "es" else "\n- Option:") if has_options else ""
     if language == "es":
         return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
 
@@ -393,7 +425,7 @@ Ejemplo de respuesta útil:
 
 Respuesta del cliente / dominio:
 
-- Respuesta:
+- Respuesta:{option_line}
 - Owner / fuente:
 - Evidencia o referencia:
 - Estado de decisión:
@@ -427,7 +459,7 @@ Example of a useful answer:
 
 Client / domain response:
 
-- Answer:
+- Answer:{option_line}
 - Owner / source:
 - Evidence or reference:
 - Decision status:

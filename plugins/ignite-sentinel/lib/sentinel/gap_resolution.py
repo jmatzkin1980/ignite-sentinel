@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .change_requirements import next_ears_index
 from .ears import classify_ears
-from .gaps import CHANGE_CLOSURE_REASONS, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
+from .gaps import CHANGE_CLOSURE_REASONS, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -131,7 +131,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     note_text = without_border_block(text) if change_id else text
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
-                                              language=project_language(project_id))
+                                              language=change_lang or project_language(project_id))
     # IMP-322: an answer under an id that is not in gaps.md used to vanish without a word.
     resolution_results["findings"].extend(
         f"{gap_id}: not in gaps.md, so its answer was not applied; check the id." for gap_id in unknown_gap_ids
@@ -228,6 +228,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         "knowledge_metabolism": metabolism,
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
+        "options": closed_options(resolution_results),
     }
     if brief_v2:
         result["brief_v2"] = brief_v2
@@ -459,6 +460,7 @@ def _finish_change_resolution(
         "gap_counts": change.get("gap_counts"),
         "closure_findings": resolution_results["findings"],
         "unknown_gap_ids": unknown_gap_ids,
+        "options": closed_options(resolution_results),
         "delta_findings": delta_findings or [],
         "affects_findings": affects_findings or [],
         "surface_findings": surface_findings or [],
@@ -519,6 +521,47 @@ def repeated_section_findings(responses: dict[str, dict[str, str]]) -> list[str]
 
 
 _TBD_IN_ANSWER = re.compile(r"(?<![\w-])(TBD|TBC|a definir|por definir|to be defined)(?![\w-])", re.I)
+
+
+def normalize_option(raw: str) -> str:
+    """IMP-408: `(b)`, `B - text` and `b` all read as the letter `B`."""
+    match = re.match(r"^\s*\(?([A-Za-z])\)?(?=\W|$)", raw)
+    return match.group(1).upper() if match else raw.strip()
+
+
+def option_choice(gap_id: str, response: dict[str, str], labels: list[str], language: str) -> tuple[str, str | None]:
+    """IMP-408: the option a confirmed answer chose and the note when it cannot close.
+
+    The `Option:` field wins over the markers in the answer; without it, one marker
+    is the choice and several are refused. A gap without options ignores the field.
+    """
+    es = language == "es"
+    raw = str(response.get("option", "")).strip()
+    listed = ", ".join(labels)
+    if not labels:
+        if raw:
+            return "", "Opción se ignora: la pregunta no tiene opciones" if es else "Option is ignored: the question has no options"
+        return "", None
+    if raw:
+        chosen = normalize_option(raw)
+        if chosen in labels:
+            return chosen, None
+        note = (f"`Opción: {raw}` no es una de las opciones ({listed}); elegí una en `Opción:`" if es
+                else f"`Option: {raw}` is not one of the options ({listed}); choose one in `Option:`")
+        return "", note
+    named = [letter for letter in option_markers(str(response.get("answer", ""))) if letter in labels]
+    if len(named) > 1:
+        joined = ", ".join(named)
+        note = (f"la respuesta confirmada nombra varias opciones ({joined}); elegí una opción en `Opción:` (una de {listed})" if es
+                else f"the confirmed answer names several options ({joined}); choose one option in `Option:` (one of {listed})")
+        return "", note
+    return (named[0] if named else ""), None
+
+
+def closed_options(result: dict[str, object]) -> dict[str, str]:
+    return {gap["id"]: gap["option"] for gap in result["closed"] if gap.get("option")}  # type: ignore[index,union-attr]
+
+
 _EXAMPLE_EVIDENCE = re.compile(r"\b(example|ejemplo|sample data|datos de ejemplo|current practice|pr[aá]ctica actual)\b", re.I)
 
 
@@ -577,6 +620,19 @@ def apply_gap_responses(
             open_gaps.append(gap)
             updated.append(gap)
             continue
+        if confirmed:
+            choice, option_note = option_choice(gap["id"], response, gap_option_labels(gap), language)
+            if option_note and gap_option_labels(gap):
+                # IMP-408: a confirmed answer that names several options, or an unknown one, is not confirmed yet
+                findings.append(f"{gap['id']}: {option_note}")
+                gap["status"] = "ANSWERED"
+                gap["resolution_note"] = option_note
+                answered.append(gap)
+                updated.append(gap)
+                continue
+            if option_note:
+                findings.append(f"{gap['id']}: {option_note}")
+            gap["option"] = choice
         if confirmed and _EXAMPLE_EVIDENCE.search(gap["evidence"]):
             # example data or the current practice never closes a gap
             gap["status"] = "ANSWERED"
@@ -922,6 +978,7 @@ def render_resolution_rows(gaps: object) -> str:
         f"- `{gap['id']}`: {gap.get('answer') or gap.get('description', '')}"
         + (f" _[{gap['resolution_note']}]_" if gap.get("resolution_note") else "")
         + (f" _(source: {gap['resolution_source_type']})_" if gap.get("resolution_source_type") else "")
+        + (f" _(option {gap['option']})_" if gap.get("option") else "")
         for gap in gaps
     )  # type: ignore[index]
 

@@ -249,6 +249,9 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
         surface = extract_field(block, ("Superficie", "Surface"))  # IMP-396, optional: only a change reads it
         if surface:
             response["surface"] = surface
+        option = extract_field(block, ("Opción", "Opcion", "Option"))  # IMP-408, optional: the chosen option
+        if option:
+            response["option"] = option
         responses[gap_id] = merge_gap_response(responses[gap_id], response) if gap_id in responses else response
     return responses
 
@@ -297,6 +300,9 @@ def merge_gap_response(first: dict[str, str], second: dict[str, str]) -> dict[st
     surface = _join_distinct(first.get("surface", ""), second.get("surface", ""))
     if surface:
         merged["surface"] = surface
+    option = _join_distinct(first.get("option", ""), second.get("option", ""))
+    if option:
+        merged["option"] = option
     return merged
 
 

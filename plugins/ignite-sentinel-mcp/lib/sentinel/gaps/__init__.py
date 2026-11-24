@@ -69,6 +69,10 @@ from .render import (
     candidate_options_for_gap,
     candidate_options_markdown,
     render_gap_response_section,
+    OPTION_MARKER,
+    question_option_labels,
+    gap_option_labels,
+    option_markers,
 )
 
 __all__ = [
@@ -130,4 +134,8 @@ __all__ = [
     "candidate_options_for_gap",
     "candidate_options_markdown",
     "render_gap_response_section",
+    "OPTION_MARKER",
+    "question_option_labels",
+    "gap_option_labels",
+    "option_markers",
 ]
