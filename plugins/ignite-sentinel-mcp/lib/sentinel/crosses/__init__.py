@@ -85,6 +85,10 @@ def run_cross(
         new = len(result.get("gaps_opened") or [])
         message = (f"{change_id}: cruce {label} registrado ({counts}); {new} pregunta(s) nueva(s)" if es
                    else f"{change_id}: cross-read {label} recorded ({counts}); {new} new question(s)")
+        retired = result.get("retired_gaps") or []
+        if retired:
+            message += (f"; {len(retired)} pregunta(s) retirada(s) ({', '.join(retired)})" if es
+                        else f"; {len(retired)} question(s) withdrawn ({', '.join(retired)})")
     elif action == "skip":
         message = (f"{change_id}: cruce {label} descartado: {result['reason']}" if es
                    else f"{change_id}: cross-read {label} waived: {result['reason']}")
