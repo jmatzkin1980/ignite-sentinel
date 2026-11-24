@@ -137,6 +137,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
             "answer": str(response.get("answer", "")).strip() or note,
             "option": normalize_option(option) if option else "",
             "owner": str(response.get("owner", "")).strip(),
+            "drafted_by": str(response.get("drafted_by", "")).strip(),
             "evidence": evidence,
             "closure": _value(row.get("closure_reason")),
             "citations": citations,
