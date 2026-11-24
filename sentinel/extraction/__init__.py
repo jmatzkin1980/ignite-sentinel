@@ -20,6 +20,9 @@ def run_extract(
     confirm_item: str | None = None,
     reject_item: str | None = None,
     reason: str | None = None,
+    verify: bool = False,
+    sample: int | None = None,
+    verify_result: str | None = None,
 ) -> dict:
     """The /extract command: inventory, proposals, confirmation or rejection of one change."""
     from ..changes import change_language, get_change
@@ -29,6 +32,7 @@ def run_extract(
     from .coverage import KIND_LABELS, extraction_coverage
     from .inventory import build_inventory
     from .proposals import record_proposals
+    from .verify import DEFAULT_SAMPLE, record_verification, start_verification
 
     change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
@@ -41,6 +45,10 @@ def run_extract(
         result = _confirm_item(project_id, change_id, confirm_item)
     elif reject_item:
         result = _reject_item(project_id, change_id, reject_item, reason or "")
+    elif verify:
+        result = start_verification(project_id, change_id, DEFAULT_SAMPLE if sample is None else sample)
+    elif verify_result:
+        result = record_verification(project_id, change_id, Path(verify_result))
     else:
         result = build_inventory(project_id, change_id)
         from ..core.paths import workspace_path
@@ -66,6 +74,12 @@ def run_extract(
                 f"; {len(split)} sección(es) larga(s) partida(s) en {k} parte(s)" if es
                 else f"; {len(split)} long section(s) split into {k} part(s)"
             )
+        batches = (result.get("reading_plan") or {}).get("batches")
+        if batches:
+            message += (
+                f"; plan de lectura: {batches} lote(s) (`reading_plan.md`)" if es
+                else f"; reading plan: {batches} batch(es) (`reading_plan.md`)"
+            )
     elif action == "proposals":
         n, r, f = len(result["recorded"]), len(result["rejected"]), len(result["flagged"])
         u, s = len(result.get("unchanged", [])), len(result.get("skipped", []))
@@ -80,6 +94,21 @@ def run_extract(
         message = (
             f"{change_id}: {n} confirmada(s), {h} retenida(s) por marca, {i} ya no válida(s); cobertura {coverage['text']}" if es
             else f"{change_id}: {n} confirmed, {h} held by flag, {i} no longer valid; coverage {coverage['text']}"
+        )
+    elif action == "verify":
+        k, path = len(result["sample"]), result["request_path"]
+        message = (
+            f"{change_id}: muestra de verificación {result['run']} con {k} elemento(s): `{path}`. Releé cada uno contra el pedido "
+            f"y respondé con /extract {project_id} --change {change_id} --verify-result ARCHIVO" if es
+            else f"{change_id}: verification sample {result['run']} with {k} element(s): `{path}`. Read each one against the request "
+            f"and answer with /extract {project_id} --change {change_id} --verify-result FILE"
+        )
+    elif action == "verify_result":
+        a, b = len(result["same"]), len(result["differs"])
+        ids = ", ".join(result["reopened"]) or "—"
+        message = (
+            f"{change_id}: verificación {result['run']}: {a} igual(es), {b} difiere(n); reabiertos: {ids}" if es
+            else f"{change_id}: verification {result['run']}: {a} same, {b} differ; reopened: {ids}"
         )
     elif action == "reject":
         message = f"{change_id}: {reject_item} volvió a pendiente" if es else f"{change_id}: {reject_item} back to pending"

@@ -279,6 +279,9 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--confirm-item", dest="confirm_item", metavar="ID", help="IMP-402: confirm one proposal, flagged or not")
     p.add_argument("--reject-item", dest="reject_item", metavar="ID", help="IMP-402: take one element back to pending (needs --reason)")
     p.add_argument("--reason", help="IMP-402: with --reject-item, why")
+    p.add_argument("--verify", action="store_true", help="IMP-406: draw a sample of the confirmed elements to re-read against the request")
+    p.add_argument("--sample", type=int, metavar="N", help="IMP-406: with --verify, how many elements (default 10)")
+    p.add_argument("--verify-result", dest="verify_result", metavar="PATH", help="IMP-406: record the results of the open verification")
 
 
 def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-reads of a change request

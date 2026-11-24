@@ -693,10 +693,13 @@ def build_inventory(project_id: str, change_id: str) -> dict:
     by_kind = _by_kind(elements)
     inv_path = inventory_path(base, change_id)
     sheet_path = worksheet_path(base, change_id)
-    if (changed or previous is None or previous.get("sources") != sources or not sheet_path.exists()
-            or (previous.get("unreadable") or []) != unreadable
-            or int(previous.get("schema_version", 1)) < INVENTORY_SCHEMA):
-        language = change_language(project_id, change, first_text)
+    from .reading_plan import plan_batches, reading_plan_paths, write_reading_plan
+
+    language = change_language(project_id, change, first_text)
+    rewrite = (changed or previous is None or previous.get("sources") != sources or not sheet_path.exists()
+               or (previous.get("unreadable") or []) != unreadable
+               or int(previous.get("schema_version", 1)) < INVENTORY_SCHEMA)
+    if rewrite:
         write_json(inv_path, {
             "schema_version": INVENTORY_SCHEMA,
             "change_id": change_id,
@@ -710,6 +713,9 @@ def build_inventory(project_id: str, change_id: str) -> dict:
             "split": split,
         })
         write_text(sheet_path, _worksheet(project_id, change_id, elements, language))
+    plan_json, plan_md = reading_plan_paths(base, change_id)
+    if rewrite or not plan_json.exists() or not plan_md.exists():
+        write_reading_plan(base, change_id, {"version": version, "elements": elements}, language)
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -721,6 +727,7 @@ def build_inventory(project_id: str, change_id: str) -> dict:
         "by_kind": by_kind,
         "changed": changed,
         "split": split,
+        "reading_plan": {"batches": len(plan_batches(elements)), "path": str(plan_md)},
         "unreadable": unreadable,
         "stale_proposals": _stale_proposals(base, change_id, elements),
     }

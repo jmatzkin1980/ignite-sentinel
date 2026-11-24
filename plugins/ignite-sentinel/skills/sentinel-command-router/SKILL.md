@@ -34,7 +34,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/context-request PROJECT_ID --id CTX-NNN --status answered|closed|obsolete|active [--reason TEXT]`
 - `/next PROJECT_ID [--change CHG-NNN]`
 - `/status PROJECT_ID [--change CHG-NNN]`
-- `/extract PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT]`
+- `/extract PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH]`
 - `/cross PROJECT_ID --change CHG-NNN [--kind diseno|contradicciones|linea_de_base (--claims PATH | --skip --reason TEXT) | --accept-new ID --type TYPE --name NAME | --decline-new ID --reason TEXT]`
 - `/stakeholders PROJECT_ID`
 - `/stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]`

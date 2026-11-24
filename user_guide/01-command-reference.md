@@ -1403,6 +1403,8 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 /extract COMPRAS_ALTAS --change CHG-001 --confirm all
 /extract COMPRAS_ALTAS --change CHG-001 --confirm-item RN-04
 /extract COMPRAS_ALTAS --change CHG-001 --reject-item HU-01 --reason "the story belongs to another change"
+/extract COMPRAS_ALTAS --change CHG-001 --verify --sample 10
+/extract COMPRAS_ALTAS --change CHG-001 --verify-result verification.md
 ```
 
 **Options.**
@@ -1416,8 +1418,11 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 | `--confirm-item` | element id | none | Confirm one proposal, flagged or not. |
 | `--reject-item` | element id | none | Take one element back to pending. Needs `--reason`; its rows are superseded. |
 | `--reason` | text | none | Why the element is rejected. Only with `--reject-item`. |
+| `--verify` | flag | off | Draw a reproducible sample of the confirmed elements into `extraction/verify/NNN-muestra.md` to re-read against the request. |
+| `--sample` | number | 10 | How many elements the sample takes. Only with `--verify`. |
+| `--verify-result` | path | none | Record the answers of the open verification (`- ID: igual` or `- ID: difiere — nota` under Resultados); each `difiere` takes its element back to proposed. |
 
-With no option it inventories the request and writes the worksheet `02_requirements/CHG-nnn/extraction/proposals_template.md`. `--proposals`, `--confirm`, `--confirm-item` and `--reject-item` are alternatives: more than one is an error (exit 3).
+With no option it inventories the request and writes the worksheet `02_requirements/CHG-nnn/extraction/proposals_template.md`. `--proposals`, `--confirm`, `--confirm-item`, `--reject-item`, `--verify` and `--verify-result` are alternatives: more than one is an error (exit 3). The inventory also writes the reading plan `extraction/reading_plan.md` (the request in batches of up to 60000 characters, with the lines of each source).
 
 **The proposals file.** One block per element, headed by its id. Copy the worksheet, complete it and record it:
 

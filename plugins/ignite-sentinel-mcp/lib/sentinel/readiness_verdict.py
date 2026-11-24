@@ -749,8 +749,28 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     command_key = text_key if text_key in (
         "extract_confirm_flagged", "extract_partial", "preserved_answer", "preserved_source") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
-    return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
+    text = text.format(**ctx)
+    if text_key == "extract_proposals":
+        text += _batch_sentence(project_id, change_id, language)
+    return {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}
+
+
+def _batch_sentence(project_id: str, change_id: str, language: str) -> str:
+    """IMP-406: the batch of the reading plan to read next (empty when every batch has its proposals)."""
+    from .extraction.reading_plan import reading_plan_status
+
+    status = reading_plan_status(project_id, change_id)
+    batch = status["next_batch"]
+    if not batch:
+        return ""
+    ids = batch["elements"]
+    plan = f"02_requirements/{change_id}/extraction/reading_plan.md"
+    if language == "es":
+        return (f" Seguí con el lote {batch['number']} de {status['total']} de `{plan}` ({len(ids)} elementos: "
+                f"{ids[0]} … {ids[-1]}); leé cada elemento completo y declará en Líneas el rango que leíste.")
+    return (f" Continue with batch {batch['number']} of {status['total']} of `{plan}` ({len(ids)} elements: "
+            f"{ids[0]} … {ids[-1]}); read each element in full and declare in Lines the range you read.")
 
 
 def changes_overview(project_id: str) -> list[dict[str, Any]]:
