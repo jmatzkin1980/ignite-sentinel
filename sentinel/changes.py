@@ -711,10 +711,15 @@ def accept_prior_decision(project_id: str, change_id: str, gap_id: str) -> dict:
     save_priors(base, change_id, priors)  # first: the render reads it to drop the prefill
     _save_change_gaps(project_id, change_id, path, rows)
     index_change_decisions(project_id, change_id)
+    from . import decision_conflicts
+
+    conflicts = decision_conflicts.refresh_decision_conflicts(project_id, change_id)  # IMP-414
     return {
         "project_id": project_id, "change_id": change_id, "action": "accept_prior", "gap_id": gap_id, "prior": prior,
         "match": entry.get("match"), "basis": entry.get("basis"), "option": entry.get("option", ""),
         **({"warnings": warnings} if warnings else {}),
+        **({"decision_conflicts": conflicts["opened"]} if conflicts["opened"] else {}),
+        **({"conflicts_retired": conflicts["retired"]} if conflicts["retired"] else {}),
         "gap_counts": get_change(project_id, change_id).get("gap_counts"),
         "next_step": change_next_step(project_id, change_id),
         "message": f"{change_id}: {gap_id} cerrada con lo decidido en {prior}" if es else f"{change_id}: {gap_id} closed with what {prior} decided",

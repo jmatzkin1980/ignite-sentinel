@@ -485,10 +485,10 @@ def _finish_change_resolution(
     from .prior_decisions import reconcile_priors
 
     prior_moves = reconcile_priors(project_id, change_id)  # a prior reopened or re-answered moves its dependents
-    from .decision_conflicts import detect_decision_conflicts, supersede_losing_decisions
+    from .decision_conflicts import refresh_decision_conflicts, supersede_and_restore
 
-    replaced = supersede_losing_decisions(project_id, change_id, decisions)  # IMP-412: a GAP-CHQ answer picks the governing decision
-    decision_conflicts = detect_decision_conflicts(project_id, change_id)  # IMP-412: closed decisions that clash go back to the BA
+    replaced, restored = supersede_and_restore(project_id, change_id, decisions)  # IMP-412: a GAP-CHQ answer picks the governing decision
+    conflicts = refresh_decision_conflicts(project_id, change_id)  # IMP-412: closed decisions that clash go back to the BA
     change = get_change(project_id, change_id)
 
     broker = ContextBroker(project_id)
@@ -530,8 +530,10 @@ def _finish_change_resolution(
         "next_step": change_next_step(project_id, change_id),
         "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
         "prior_overridden": prior_overridden,
-        "decision_conflicts": decision_conflicts,
+        "decision_conflicts": conflicts["opened"],
         **({"superseded": replaced} if replaced else {}),
+        **({"restored": restored} if restored else {}),
+        **({"conflicts_retired": conflicts["retired"]} if conflicts["retired"] else {}),
         **({"assumed": [gap["id"] for gap in assumed], "assumptions": assumptions} if assumed else {}),
         **({"delegated": delegated} if delegated else {}),
         **({"prior_reopened": prior_moves["reopened"]} if prior_moves.get("reopened") else {}),
