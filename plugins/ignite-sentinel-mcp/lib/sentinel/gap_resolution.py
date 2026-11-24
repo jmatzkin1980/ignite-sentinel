@@ -13,7 +13,7 @@ from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
 from .source_conflicts import UNVALIDATED_SOURCE_NOTE, closing_block_note, unvalidated_trigger
-from .sources import mark_source_processed, open_source_row, source_row
+from .sources import mark_source_processed, open_source_row, settle_answer_rerun, source_row
 from .core.graph import add_edge, add_node, load_graph, save_graph
 from .core.io import append_text, copy_file, write_text
 from .core.text import project_language, unique_path
@@ -204,6 +204,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[record_id, report_id])
     reindex_workspace(project_id)
     mark_source_processed(project_id, source, "gap_resolved", record_id, source_id=source_id)
+    rerun_of = settle_answer_rerun(project_id, source_id)
     mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
 
@@ -240,6 +241,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         "options": closed_options(resolution_results),
         "owners": gap_owners(resolution_results),
         "unvalidated_trigger": trigger,
+        "rerun_of": rerun_of,
     }
     if brief_v2:
         result["brief_v2"] = brief_v2
@@ -456,6 +458,7 @@ def _finish_change_resolution(
     broker.index_artifact(report_id, "gap_resolution_report", report_path, report_path.read_text(encoding="utf-8"), trace_ids=[record_id, report_id])
     reindex_workspace(project_id)
     mark_source_processed(project_id, source, "gap_resolved", record_id, source_id=source_id)
+    rerun_of = settle_answer_rerun(project_id, source_id)
     mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
     return {
@@ -475,6 +478,7 @@ def _finish_change_resolution(
         "options": closed_options(resolution_results),
         "owners": gap_owners(resolution_results),
         "unvalidated_trigger": trigger,
+        "rerun_of": rerun_of,
         "delta_findings": delta_findings or [],
         "affects_findings": affects_findings or [],
         "surface_findings": surface_findings or [],

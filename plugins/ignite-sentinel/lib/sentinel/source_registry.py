@@ -428,6 +428,7 @@ _COPY = {
         "cutoff": "expired on {date}",
         "topic": "topic: {topic}",
         "candidate": "candidate new version of {id}, not confirmed",
+        "rerun": "re-run of {id}",
         "copies": "copies: {n}",
         "authority": "authority: {authority}",
         "role": "role: {role}",
@@ -451,6 +452,7 @@ _COPY = {
         "cutoff": "vencida el {date}",
         "topic": "tema: {topic}",
         "candidate": "posible versión nueva de {id}, sin confirmar",
+        "rerun": "nueva corrida de {id}",
         "copies": "copias: {n}",
         "authority": "autoridad: {authority}",
         "role": "rol: {role}",
@@ -486,6 +488,8 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             notes.append(copy["topic"].format(topic=row["topic"]))
         if row.get("pending_version_of"):
             notes.append(copy["candidate"].format(id=row["pending_version_of"]))
+        if row.get("rerun_of"):
+            notes.append(copy["rerun"].format(id=row["rerun_of"]))
         if row.get("copies"):
             notes.append(copy["copies"].format(n=len(row["copies"])))
         if role_is_declared(row):
