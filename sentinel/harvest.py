@@ -247,8 +247,10 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
         from .crosses.state import write_cross_report
 
         write_cross_report(project_id, str(change_id))
+        from .change_coherence import refresh_coherence
         from .decision_memory import index_change_decisions
 
+        refresh_coherence(project_id, str(change_id))  # IMP-410
         index_change_decisions(project_id, str(change_id))  # IMP-410
     elif gaps and gaps_path.exists():
         existing = [g for g in parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"]

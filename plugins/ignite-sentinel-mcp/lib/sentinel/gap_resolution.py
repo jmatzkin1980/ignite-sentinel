@@ -463,6 +463,9 @@ def _finish_change_resolution(
     rerun_of = settle_answer_rerun(project_id, source_id)
     mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
+    from .change_coherence import refresh_coherence
+
+    refresh_coherence(project_id, change_id)  # IMP-410: the lens view follows the answers
     return {
         "change_id": change_id,
         "resolution_id": record_id,

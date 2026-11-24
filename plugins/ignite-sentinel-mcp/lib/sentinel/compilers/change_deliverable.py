@@ -201,8 +201,42 @@ def _change_rows(project_id: str, change_id: str, view: dict[str, Any]) -> tuple
     return every, placed
 
 
-def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
+def _border_facts(border: list[dict], every_rows: list[dict], copy: dict[str, str], add_fact: Any) -> None:
+    """The border's surfaces to build or touch (6.1) and to preserve (6.2), each with the rows that cite it."""
+    rows_of: dict[str, list[str]] = {}
+    for row in every_rows:
+        valid, _unknown = parse_surfaces(";".join(row.get("surfaces") or []), border)
+        for name in valid:
+            rows_of.setdefault(name, []).append(row["id"])
+    for item in border:
+        zone = item.get("zone")
+        if zone not in ZONE_TAG:
+            continue
+        text = f"{item.get('type', '')} — {item.get('name', '')}"
+        ids = rows_of.get(item.get("name", ""), [])
+        if ids:
+            text += f" — {copy['no_regression' if zone == 'preservado' else 'rows']}: {', '.join(ids)}"
+        add_fact("6.2" if zone == "preservado" else "6.1", ZONE_TAG[zone], text, gap="GAP-SCOPE")
+
+
+def _harvest_facts(harvest: dict, border: list[dict], template: dict, add_fact: Any) -> None:
+    """The code facts of the harvest that belong to the border's blocks (as in the project)."""
     from ..harvest import BLOCK_PLACES
+
+    harvest_source = str(harvest.get("source_id") or "")
+    wanted: set[str] = set()
+    for item in border:
+        wanted |= set(template["surface_blocks"].get(item.get("type"), []))
+    transversal = template.get("transversal", {})
+    if {item.get("type") for item in border} & set(transversal.get("surfaces", [])):
+        wanted |= set(transversal.get("context", [])) | set(transversal.get("technical", []))
+    for entry in harvest.get("entries", []) if harvest_source and border else []:
+        place = BLOCK_PLACES.get(entry.get("block", ""))
+        if place and entry.get("kind") == "fact" and entry.get("block") in wanted:
+            add_fact(place, "preservado", f"{entry['text']} ({entry['ref']})", harvest_source)
+
+
+def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
     from ..changes import deferred_gaps
     from ..compilers.change_brief import collect_change_brief_inputs
     from ..sources import load_source_manifest
@@ -250,20 +284,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         add_fact(place, tag, f"{row['statement']} ({row['id']})", row["source_id"])
 
     # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
-    rows_of: dict[str, list[str]] = {}
-    for row in every_rows:
-        valid, _unknown = parse_surfaces(";".join(row.get("surfaces") or []), border)
-        for name in valid:
-            rows_of.setdefault(name, []).append(row["id"])
-    for item in border:
-        zone = item.get("zone")
-        if zone not in ZONE_TAG:
-            continue
-        text = f"{item.get('type', '')} — {item.get('name', '')}"
-        ids = rows_of.get(item.get("name", ""), [])
-        if ids:
-            text += f" — {copy['no_regression' if zone == 'preservado' else 'rows']}: {', '.join(ids)}"
-        add_fact("6.2" if zone == "preservado" else "6.1", ZONE_TAG[zone], text, gap="GAP-SCOPE")
+    _border_facts(border, every_rows, copy, add_fact)
 
     # what the request leaves out
     for element in view.get("elements", []) if has_inventory else []:
@@ -292,18 +313,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         add_fact(gap_place(gap_id, str(gap.get("lens", ""))), tag, text, gap=gap_id)
 
     # the code facts of the harvest that belong to the border's blocks (as in the project)
-    harvest = inputs.get("harvest") or {}
-    harvest_source = str(harvest.get("source_id") or "")
-    wanted: set[str] = set()
-    for item in border:
-        wanted |= set(template["surface_blocks"].get(item.get("type"), []))
-    transversal = template.get("transversal", {})
-    if {item.get("type") for item in border} & set(transversal.get("surfaces", [])):
-        wanted |= set(transversal.get("context", [])) | set(transversal.get("technical", []))
-    for entry in harvest.get("entries", []) if harvest_source and border else []:
-        place = BLOCK_PLACES.get(entry.get("block", ""))
-        if place and entry.get("kind") == "fact" and entry.get("block") in wanted:
-            add_fact(place, "preservado", f"{entry['text']} ({entry['ref']})", harvest_source)
+    _harvest_facts(inputs.get("harvest") or {}, border, template, add_fact)
 
     # the seal, and the open questions with their class and owner
     seal = build_seal(project_id, change_id, final, language)
@@ -360,3 +370,120 @@ def render_change_deliverable_parts(project_id: str, change_id: str, final: bool
 
 def render_change_deliverable(project_id: str, change_id: str, final: bool) -> str:
     return render_change_deliverable_parts(project_id, change_id, final)[0]
+
+
+# --- IMP-410: the lens view of the change (what the request says, placed where the brief v2 reads it) ---
+
+COHERENCE_SECTION_PLACES: tuple[tuple[str, str], ...] = (
+    (r"objetivo|objective|problema|problem", "1.1"),
+    (r"usuario|user|actor|rol|role", "2.1"),
+    (r"as-is|situacion actual|proceso actual|current", "3.1"),
+    (r"proceso|process|flujo|flow|to-be|estado futuro", "3.2"),
+    (r"alcance|scope", "1.3"),
+    (r"preserva|preserved|se mantiene", "6.2"),
+    (r"pantalla|screen|diseno|design|prototipo|ux|ui", "4.1"),
+    (r"endpoint|api|contrato|contract|servicio|service", "5.7"),
+    (r"dato|data|tabla|table|modelo|model", "5.4"),
+    (r"integracion|integration|arquitectura|architecture", "5.1"),
+    (r"error|excepcion|exception|caso borde|edge", "3.6"),
+    (r"criterio|acceptance", "1.5"),
+    (r"regla|rule", "2.2"),
+)
+COHERENCE_UNPLACED = "1.4"
+COHERENCE_KIND_PLACES = {"rule": "2.2", "criterion": "1.5", "story": "3.2"}
+BORDER_LENS_PLACES = {"pantalla": "4.1", "endpoint": "5.7", "dato": "5.4", "integracion": "5.6", "regla": "2.2",
+                      "proceso": "3.2", "rol": "2.1"}
+COHERENCE_TITLE = {"es": "Coherencia entre lentes — {change_id}", "en": "Lens coherence — {change_id}"}
+
+
+def coherence_place(element: dict) -> str:
+    """The v2 place where an element of the request lands for the lens view."""
+    from ..extraction.inventory import _fold
+
+    kind = str(element.get("kind") or "")
+    heading = _fold(str(element.get("section") or ""))
+    if kind in COHERENCE_KIND_PLACES:
+        return COHERENCE_KIND_PLACES[kind]
+    if kind == "decision":
+        design = next(pattern for pattern, place in COHERENCE_SECTION_PLACES if place == "4.1")
+        return "4.3" if str(element.get("id", "")).startswith("PD-") or re.search(design, heading) else "2.2"
+    for pattern, place in COHERENCE_SECTION_PLACES:
+        if re.search(pattern, heading):
+            return place
+    return COHERENCE_UNPLACED
+
+
+def _request_elements(project_id: str, change_id: str) -> list[tuple[dict, str]]:
+    """(element, its verbatim text flattened) of every current request source of the change."""
+    from ..extraction.inventory import _read_text, _row_path, _split_lines, parse_request_elements, pedido_rows, span_text
+
+    base = workspace_path(project_id)
+    found: list[tuple[dict, str]] = []
+    for row in pedido_rows(project_id, change_id):
+        path = _row_path(row)
+        text = _read_text(base, path)
+        if text is None:
+            continue
+        lines = _split_lines(text)
+        for element in parse_request_elements(text, str(row["id"]), path):
+            found.append((element, " ".join(span_text(lines, element.get("spans", []), element.get("cspan")).split())))
+    return found
+
+
+def coherence_brief_inputs(project_id: str, change_id: str) -> tuple[BriefInputs, list[str]]:
+    """The change seen by lenses: the request's elements, the border and the harvest facts, at v2 places."""
+    from ..compilers.change_brief import collect_change_brief_inputs
+    from ..sources import load_source_manifest
+
+    inputs = collect_change_brief_inputs(project_id, change_id)
+    template = _template()
+    language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
+    lang = _lang(language)
+    copy = COPY[lang]
+    tags = DELTA_TAGS[lang]
+    change = inputs["change"]
+    border = list(change.get("border") or [])
+    view = inputs.get("extraction") or {}
+    facts: dict[str, list[dict[str, str]]] = {}
+
+    def add_fact(place: str, tag: str, text: str, source: str = "", gap: str = "") -> None:
+        label = f"[{tags[tag]}] " if tag else ""
+        facts.setdefault(place, []).append({"text": f"{label}{text}", "source": source, "gap": gap})
+
+    unplaced: list[str] = []
+    for element, flat in _request_elements(project_id, change_id):
+        place = coherence_place(element)
+        if place == COHERENCE_UNPLACED:
+            unplaced.append(str(element["id"]))
+        add_fact(place, "preservado" if place == "6.2" else "nuevo", f"{flat} ({element['id']})", str(element["source_id"]))
+    every_rows, _placed = _change_rows(project_id, change_id, view)
+    _border_facts(border, every_rows, copy, add_fact)
+    for item in border:
+        place = BORDER_LENS_PLACES.get(str(item.get("type")))
+        if place and item.get("zone") in ZONE_TAG:
+            add_fact(place, ZONE_TAG[item["zone"]], f"{item.get('type', '')} — {item.get('name', '')}", gap="GAP-SCOPE")
+    _harvest_facts(inputs.get("harvest") or {}, border, template, add_fact)
+
+    manifest = load_source_manifest(project_id)
+    mine = {str(i) for i in change.get("sources") or []}
+    registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
+    brief_inputs = BriefInputs(
+        project_id=project_id,
+        language=language,
+        profiles=change_profiles(border, brief_settings(project_id)),
+        genesis=GENESIS,
+        validation_direction="to-build",
+        raw_sources=[],
+        gap_answers=[],
+        gaps=[{"id": str(g["id"]).strip("`"), "severity": str(g.get("severity", "")).strip("`"),
+               "status": str(g.get("status", "")).strip("`"), "origin": str(g.get("origin", "")).strip("`")}
+              for g in inputs["gaps"]],
+        assumptions=[],
+        harvest={},
+        registry=registry,
+        title=COHERENCE_TITLE[lang].format(change_id=change_id),
+        place_facts=facts,
+        place_blocks={},
+        empty_na={"reason": copy["reason"], "condition": copy["condition"]},
+    )
+    return brief_inputs, unplaced
