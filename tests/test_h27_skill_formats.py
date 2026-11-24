@@ -6,12 +6,18 @@ the BA as a rejected answer.
 """
 from __future__ import annotations
 
+import json
 import re
+import sys
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import IDS_SCOPE_ANSWER  # noqa: E402
+
 from sentinel.change_requirements import parse_delta, parse_surfaces
 from sentinel.changes import parse_border
+from sentinel.cross_review import rules as cross_rules
 from sentinel.crosses.claims import CITATION_RULES, parse_claims
 from sentinel.crosses.record import _gap_texts
 from sentinel.ears import classify_ears
@@ -31,6 +37,7 @@ EXAMPLE_OWNERS = {
     "cross-claims": "sentinel-discovery",
     "extraction-proposals": "sentinel-discovery",
     "verify-result": "sentinel-discovery",
+    "coherence-crosses": "sentinel-self-review",
 }
 
 FENCE = re.compile(
@@ -150,6 +157,38 @@ def check_harvest(body: str) -> None:
     assert all(parsed["coverage"].values()), parsed["coverage"]
 
 
+REQUEST = REPO / "tests" / "fixtures" / "change_crosses" / "pedido_contradiccion.md"
+
+
+def _flat(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def check_coherence(body: str) -> None:
+    """IMP-410: the example of the lens crosses is what `/self-review --crosses --change` validates."""
+    payload = json.loads(body)
+    request = _flat(REQUEST.read_text(encoding="utf-8"))
+    border = []
+    for line in IDS_SCOPE_ANSWER.splitlines():
+        parts = [part.strip() for part in line.strip().lstrip("-").split("|")]
+        if len(parts) >= 3 and parts[0] in ("nuevo", "adyacente", "preservado"):
+            border.append(f"{parts[1]} — {parts[2]}")
+    catalog = cross_rules()
+    assert payload["crosses"], "no crosses"
+    for cross in payload["crosses"]:
+        rule = catalog.get(cross["rule"])
+        assert rule is not None, f"unknown rule {cross['rule']}"
+        assert cross["kind"] in rule["kinds"], f"{cross['rule']} takes {rule['kinds']}"
+        assert any(cross["a"]["place"] == p or cross["a"]["place"].startswith(p + ".") for p in rule["from"]), "a.place"
+        side = cross["b"]["place"] if cross["kind"] == "conflict" else cross["missing_in"]
+        assert any(side == p or side.startswith(p + ".") for p in rule["to"]), "b.place or missing_in"
+        assert str(cross["finding"]).strip(), "empty finding"
+        assert str(cross["question"]).strip().endswith("?"), "the question must end with ?"
+        quotes = [cross["a"]["quote"]] + ([cross["b"]["quote"]] if cross["kind"] == "conflict" else [])
+        for quote in quotes:
+            assert _flat(quote) in request or _flat(quote) in border, f"quote not in the request or the border: {quote!r}"
+
+
 class SkillFormatTests(unittest.TestCase):
     def test_every_kind_has_an_example_in_its_owner(self):
         for kind, skill in EXAMPLE_OWNERS.items():
@@ -200,6 +239,22 @@ class SkillFormatTests(unittest.TestCase):
             check_verify(body)
         verdicts = {r["verdict"] for _, body in found for r in parse_verify_results(body)[0].values()}
         self.assertEqual({"igual", "difiere"}, verdicts)
+
+    def test_coherence_examples_parse(self):
+        found = examples_of("coherence-crosses")
+        self.assertTrue(found)
+        kinds = set()
+        for _, body in found:
+            check_coherence(body)
+            kinds |= {cross["kind"] for cross in json.loads(body)["crosses"]}
+        self.assertEqual({"missing", "conflict"}, kinds)
+
+    def test_a_stale_coherence_example_fails(self):
+        _, body = examples_of("coherence-crosses")[0]
+        stale = body.replace('"rule": "cross_d_design_technical"', '"rule": "cross_z"', 1)
+        self.assertNotEqual(stale, body)
+        with self.assertRaises(AssertionError):
+            check_coherence(stale)
 
     def test_sync_skill_teaches_loading_by_role(self):
         text = skill_text("sentinel-sync")

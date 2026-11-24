@@ -1,6 +1,6 @@
 ---
 name: sentinel-self-review
-description: "Use when an Ignite Sentinel PRD or specs layer needs an adversarial pass before downstream handoff: author the cited skeptical findings and hard-to-reverse decisions that /self-review validates and registers under 03_specs/self_review/ — the runtime never rewrites PRD/specs. Trigger on 'review the PRD', 'review the specs', a skeptical pass over generated artifacts, or registering hard-to-reverse decisions. Not for discovery-stage scrutiny of raw input (use sentinel-scrutiny)."
+description: "Use when an Ignite Sentinel PRD or specs layer needs an adversarial pass before downstream handoff: author the cited skeptical findings and hard-to-reverse decisions that /self-review validates and registers under 03_specs/self_review/ — the runtime never rewrites PRD/specs. Trigger on 'review the PRD', 'review the specs', a skeptical pass over generated artifacts, or registering hard-to-reverse decisions, or checking that the lenses of a change agree before its extraction. Not for discovery-stage scrutiny of raw input (use sentinel-scrutiny)."
 ---
 
 # Sentinel Self-Review
@@ -122,6 +122,50 @@ python -m sentinel /self-review PROJECT_ID --crosses --source crosses.json
 ```
 
 4. **Report** the `GAP-XRV-*` gaps opened and the rejected crosses with their reason. Never edit the brief.
+
+## Change coherence (IMP-410): do the lenses of a change agree?
+
+The step runs in `/next --change` after the cross-reads and the new surfaces are decided and before the extraction. The runtime writes `01_discovery/CHG-NNN/coherence/view.md`: the request, the border, the decided surfaces and the harvest, placed at the places of a brief v2, plus `checks.json` with the deterministic IMP-260 checks. Before the cross-reads and new surfaces are decided the command refuses and names the next step.
+
+1. **Read `view.md`**, not the loose request: the places in it are what a quote is checked against (the quotes are checked against the view and must also sit in the request to be linked to it). Read `checks.json` and the rule catalog `templates/semantic_crosses.json` too.
+2. **Look for absences as well as contradictions**, rule by rule: a screen with no endpoint, a rule with no step, a role with no screen. A `WARN` of the deterministic checks is a lead, not a question: it opens none by itself, so if one matters, write it as a semantic cross with its quotes.
+3. **Report crosses** exactly as in Crosses Mode (the format is under `## Formato`). Transcribe what the BA confirms; never draft a cross for them. A view the BA read and found nothing in is `{"crosses": []}`.
+4. **Record or waive**:
+
+```powershell
+python -m sentinel /self-review PROJECT_ID --crosses --change CHG-NNN --source crosses.json
+python -m sentinel /self-review PROJECT_ID --crosses --change CHG-NNN --skip --reason "WHY"
+python -m sentinel /self-review PROJECT_ID --crosses --change CHG-NNN
+```
+
+The last one only refreshes the view and reports the checks. A rejected cross rejects the whole file and writes nothing: fix the quote or the rule and run again. Accepted crosses open `GAP-XRV-*` questions; one that an earlier decision of the change already answers is born `PRE_DECIDED` for the BA to confirm (`/gaps --change --id --accept-prior`). `--skip` needs `--reason`: without a reason there is no waiver. A change that moves after the reading makes it stale.
+
+## Formato
+
+The example below is parsed in the test suite against the rule catalog and the places of the lens view, so what you copy is what the runtime accepts. It carries one `missing` (a screen of the border without an endpoint) and one `conflict` (a rule of 2.2 against a story of 3.2); each quote is verbatim from the view.
+
+```sentinel-example kind=coherence-crosses
+{
+  "crosses": [
+    {
+      "rule": "cross_d_design_technical",
+      "kind": "missing",
+      "a": {"place": "4.1", "quote": "pantalla — Bandeja de aprobaciones"},
+      "missing_in": "5.7",
+      "finding": "La bandeja nueva no tiene un endpoint que liste las altas pendientes.",
+      "question": "¿Qué endpoint alimenta la bandeja de aprobaciones?"
+    },
+    {
+      "rule": "cross_b_business_product",
+      "kind": "conflict",
+      "a": {"place": "2.2", "quote": "La jefa de Compras no puede aprobar un alta que cargó ella misma."},
+      "b": {"place": "3.2", "quote": "Como jefa de Compras quiero ver las altas pendientes en una bandeja para aprobarlas o rechazarlas."},
+      "finding": "La historia deja a la jefa aprobar cualquier alta pendiente y la regla le prohíbe aprobar las que cargó ella.",
+      "question": "¿La bandeja de la jefa oculta las altas que cargó ella misma?"
+    }
+  ]
+}
+```
 
 ## Agentic Spirit (applies to every proposal you author)
 

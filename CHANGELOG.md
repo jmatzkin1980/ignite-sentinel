@@ -11,13 +11,17 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ### Added
 
 - **The agent works alone (IMP-408, H27 inc 2).** `Opción:` field in the answers (`Option:` in English); `Redactado por:` and who decides in the report (`owners`); the skill of the next step in `/next`, `/status`, `/ingest --change`, `/resolve-gaps --change` and in the `next step:` line; real formats in the skills, tested against the parsers; entry skill in `sentinel-intake-triage`; flow × step matrix (`user_guide/22-flow-step-matrix.md`); `tools/trial_audit.py`.
+- **Decisions not asked twice and coherence of the change (IMP-410, H27 inc 3).** The decisions of a change in the memory (`change_decision`, `change_border`, `change_cross`, `change_cross_report`, `change_coherence`); `PRE_DECIDED` questions with the earlier answer loaded and `/gaps --change --id --accept-prior`; divergences already requested from Design shown with their `PD-nn`; lens coherence of the change with `/self-review --crosses --change` and the `coherence` step of `/next --change`.
 
 ### Changed
 
+- A question is `PRE_DECIDED` only when the earlier decision covers it (same quoted statement, or same rule/criterion/story, never a mere shared line); `critical` ones keep blocking; `--accept-prior` only on those direct links, with the live answer and the option; a reopened or re-answered earlier decision updates its dependents (`prior_reopened`, `prior_changed`); a `PRE_DECIDED` section sent back untouched stays pending; `/status`, `/next` and the verdict no longer render the lens view of the change when its inputs did not move; the decision documents take the lens of the question as their memory domain.
+- `/self-review` without `--source` answers with an input error (exit 3); the change verdict adds the `coherence` gate; a workspace with its cross-reads done goes back to the `coherence` step before the extraction.
 - A confirmed answer that names several options, in its text or in the `Opción:` field (`A y B`), does not close (T2-09); a project gap whose question carries `(A)`/`(B)` marks now shows `_(option X)_` in its resolution row and stores `option` (project path, additive); the request of `/ingest --change` is stored in `00_raw/09_request/` (T2-02); the findings of `/resolve-gaps --change` come out in the language of the change.
 
 ### Fixed
 
+- Sentinel no longer asks again a contradiction that a divergence already decided (T2-19); the design cross-read recognizes the requests to Design that the request already holds (T2-13); `gaps.md`, the cross-reads, `crosses.md` and the border can be searched with `/retrieve` (T2-17).
 - `GAP-VER` when the request cites an earlier version of itself offers option (D) or does not open (T2-01); the misplaced border and the word that marks a file as not validated are named in the refusal (T2-03, T2-04); a new run of the same answers file no longer stays as a "possible new version" (T2-22).
 
 ## [0.27.0] — 2026-11-24

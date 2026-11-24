@@ -2044,6 +2044,16 @@ The normal submit has to keep working as today. The existing system is already i
 
    **What it means:** Every claim cites the request and the design word for word, and each quote is checked against its source. The cross-read with the existing system is the harvest of step 6. `/next --change` asks for them (or a waiver with its reason) before the request is inventoried; a cross-read also goes stale when a new request or prototype is loaded after it was recorded.
 
+   **A question you already decided, and the lens coherence.** Two more things happen around the cross-reads. If a cross-read finds a question you already decided in this change (the threshold the design contradicts, which you settled when you answered the divergence), it comes back as `PRE_DECIDED`: your earlier answer is loaded, the question names where it came from and does not block, and `/status --change` and `/next --change` list it under `pre_decided`. Tell the assistant: "Yes, the earlier answer holds for GAP-CON-1A2B" and it is closed with that decision. Then, once the three cross-reads and the new surfaces are decided and before the extraction, `/next --change` names the `coherence` step: the assistant reads the view of the change by lenses that Sentinel wrote at `01_discovery/CHG-001/coherence/view.md` and reports what does not fit between them (a new screen that no endpoint feeds, for example), each with its literal quotes; each one opens a question. `/next --change` does not move on to the extraction until the step is recorded or waived with a reason.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /gaps COMPRAS_PORTAL --change CHG-001 --id GAP-CON-1A2B --accept-prior
+   /self-review COMPRAS_PORTAL --crosses --change CHG-001 --source input/coherence.json
+   ```
+   </details>
+
 7. **Compile the brief of the change.** With the border confirmed and the baseline read, the change has enough to be written down as one document.
 
    **Tell the assistant:** "Compile the brief of CHG-001 for COMPRAS_PORTAL and tell me what is still open."

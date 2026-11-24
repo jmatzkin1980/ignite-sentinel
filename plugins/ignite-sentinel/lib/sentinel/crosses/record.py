@@ -112,8 +112,11 @@ def cross_gap(change_id: str, claim: dict, language: str) -> dict | None:
     }
 
 
-def add_change_gaps(project_id: str, change_id: str, gaps: list[dict]) -> list[str]:
-    """Open the gaps whose exact id the change does not have yet; returns the new ids."""
+def add_change_gaps(project_id: str, change_id: str, gaps: list[dict], candidates: dict[str, dict] | None = None,
+                    refs: dict[str, dict] | None = None) -> list[str]:
+    """Open the gaps whose exact id the change does not have yet; returns the new ids.
+
+    IMP-410: before they are written, the new ones are settled against what the change already decided."""
     base = workspace_path(project_id)
     path = change_gaps_path(base, change_id)
     existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"] if path.exists() else []
@@ -124,6 +127,9 @@ def add_change_gaps(project_id: str, change_id: str, gaps: list[dict]) -> list[s
             known.add(gap["id"])
             added.append(gap)
     if added:
+        from ..prior_decisions import apply_prior_decisions
+
+        apply_prior_decisions(project_id, change_id, added, candidates or {}, refs)
         language = change_language(project_id, get_change(project_id, change_id))
         rows = [*existing, *added]
         write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
@@ -261,17 +267,30 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
     source_id = mark_source_processed(project_id, claims_path, "crossed", source_id=source_id) or source_id
     mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
 
+    from ..prior_decisions import candidate_from_claim, design_request_ref, load_priors
+
     gap_ids: list[str] = []
     gaps: list[dict] = []
+    candidates: dict[str, dict] = {}
+    refs: dict[str, dict] = {}
     for claim in claims:
         gap = cross_gap(change_id, claim, language)
         if gap is not None:
             claim["gap"] = gap["id"]
+            candidates[gap["id"]] = candidate_from_claim(gap, claim)
+            ref = design_request_ref(project_id, change_id, claim) if claim["tag"] == "divergencia" else None
+            if ref:  # IMP-410: the request already asks Design for this (the id stays: it comes from the quotes)
+                refs[gap["id"]] = ref
+                gap["description"] += (f" Ya registrado en el pedido como pedido a Diseño: {ref['ref']}." if es
+                                       else f" Already registered in the request as a request to Design: {ref['ref']}.")
             gaps.append(gap)
             if gap["id"] not in gap_ids:
                 gap_ids.append(gap["id"])
     reopened = reopen_retired_gaps(project_id, change_id, gap_ids)
-    opened = add_change_gaps(project_id, change_id, gaps)
+    opened = add_change_gaps(project_id, change_id, gaps, candidates, refs)
+    priors = load_priors(base, change_id)
+    pre_decided = [g for g in opened if priors.get(g, {}).get("match") == "linked"]
+    design_requests = [g for g in opened if priors.get(g, {}).get("match") == "design_request"]
 
     previous = load_cross(base, change_id, kind) or {}
     earlier = [g for g in previous.get("gaps", []) if previous.get("status") == "done"]
@@ -295,7 +314,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
     return {
         "project_id": project_id, "change_id": change_id, "action": "claims", "kind": kind, "source_id": source_id,
         "counts": counts, "gaps": gap_ids, "gaps_opened": opened, "dropped_gaps": dropped,
-        "retired_gaps": retired, "reopened_gaps": reopened,
+        "retired_gaps": retired, "reopened_gaps": reopened, "pre_decided": pre_decided, "design_requests": design_requests,
         "path": path.as_posix(), "report_path": report.as_posix(),
     }
 

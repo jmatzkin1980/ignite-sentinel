@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .change_requirements import next_ears_index
 from .ears import classify_ears
-from .gaps import CHANGE_CLOSURE_REASONS, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
+from .gaps import CHANGE_CLOSURE_REASONS, PRE_DECIDED, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -136,8 +136,9 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     # IMP-382: the border's surface names ("Guardar borrador") are not a claim that the source is a draft.
     note_text = without_border_block(text) if change_id else text
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
+    prior_answers = _pending_prior_answers(base, change_id) if change_id else None
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
-                                              language=change_lang or project_language(project_id))
+                                              language=change_lang or project_language(project_id), prior_answers=prior_answers)
     trigger = _unvalidated_trigger_in_file(text, note_text, block_note, change_lang or project_language(project_id))
     if trigger:
         resolution_results["findings"].insert(0, str(trigger.pop("finding")))
@@ -452,6 +453,11 @@ def _finish_change_resolution(
 
     reconciled = reconcile_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
     change = get_change(project_id, change_id)
+    prior_overridden = _mark_prior_overridden(base, change_id, resolution_results["closed"])
+    from .prior_decisions import reconcile_priors
+
+    prior_moves = reconcile_priors(project_id, change_id)  # a prior reopened or re-answered moves its dependents
+    change = get_change(project_id, change_id)
 
     broker = ContextBroker(project_id)
     write_text(report_path, render_resolution_report(project_id, record_id, resolution_results))
@@ -462,6 +468,9 @@ def _finish_change_resolution(
     rerun_of = settle_answer_rerun(project_id, source_id)
     mark_source_processed(project_id, target, "gap_response_copy", record_id, source_id=source_id)
     mark_source_processed(project_id, report_path, "gap_resolution_report", report_id)
+    from .change_coherence import refresh_coherence
+
+    refresh_coherence(project_id, change_id)  # IMP-410: the lens view follows the answers
     return {
         "change_id": change_id,
         "resolution_id": record_id,
@@ -487,7 +496,33 @@ def _finish_change_resolution(
         "delta_updated": reconciled["delta_updated"],
         "superseded_rows": reconciled["superseded"],
         "next_step": change_next_step(project_id, change_id),
+        "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
+        "prior_overridden": prior_overridden,
+        **({"prior_reopened": prior_moves["reopened"]} if prior_moves.get("reopened") else {}),
+        **({"prior_changed": prior_moves["changed"]} if prior_moves.get("changed") else {}),
     }
+
+
+def _pending_prior_answers(base: Path, change_id: str) -> dict[str, str]:
+    """IMP-410: the earlier answer each still-unconfirmed prefilled question carries, to tell an untouched section from an edited one."""
+    from .prior_decisions import load_priors
+
+    return {gap_id: " ".join(str(entry.get("answer", "")).split()) for gap_id, entry in load_priors(base, change_id).items()
+            if not entry.get("accepted_at") and not entry.get("overridden")}
+
+
+def _mark_prior_overridden(base: Path, change_id: str, closed: list[dict[str, str]]) -> list[str]:
+    """IMP-410: a question an earlier decision answered that the BA closed with a different answer; the side file says so."""
+    from .prior_decisions import load_priors, save_priors
+
+    priors = load_priors(base, change_id)
+    flat = lambda text: " ".join(str(text or "").split())  # noqa: E731
+    overridden = [gap["id"] for gap in closed
+                  if gap["id"] in priors and not priors[gap["id"]].get("accepted_at")
+                  and flat(gap.get("answer")) != flat(priors[gap["id"]].get("answer"))]
+    if overridden:
+        save_priors(base, change_id, {**priors, **{i: {**priors[i], "overridden": True} for i in overridden}})
+    return overridden
 
 
 def mark_downstream_of_rewritten_brief(project_id: str, change_id: str) -> None:
@@ -668,6 +703,7 @@ def apply_gap_responses(
     can_close: bool = True,
     block_note: str | None = None,
     language: str = "en",
+    prior_answers: dict[str, str] | None = None,
 ) -> dict[str, object]:
     findings: list[str] = []
     closed: list[dict[str, str]] = []
@@ -789,6 +825,16 @@ def apply_gap_responses(
             gap["status"] = "ANSWERED"
             gap["resolution_note"] = "awaiting-confirmation: substantive answer, decision still pending"
             answered.append(gap)
+        elif (answer and not decision and str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED
+              and " ".join(answer.split()) == (prior_answers or {}).get(gap["id"])):
+            # IMP-410: an untouched prefilled section decides nothing: it stays pending, and says how to confirm
+            findings.append(
+                f"{gap['id']}: sigue pendiente de tu confirmación: «Estado de decisión: confirmado» o /gaps --change --id {gap['id']} --accept-prior; "
+                "si cambió, escribí la respuesta nueva" if language == "es" else
+                f"{gap['id']}: still waiting for your confirmation: \"Decision status: confirmed\" or /gaps --change --id {gap['id']} --accept-prior; "
+                "if it changed, write the new answer")
+            gap["answer"] = ""
+            open_gaps.append(gap)
         elif answer:
             gap["status"] = "PARTIALLY_CLOSED"
             label = misplaced_field(response.get("decision_status", ""))

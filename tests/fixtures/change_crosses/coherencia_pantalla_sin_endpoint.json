@@ -1,0 +1,1 @@
+{"crosses": [{"rule": "cross_d_design_technical", "kind": "missing", "a": {"place": "4.1", "quote": "pantalla — Bandeja de aprobaciones"}, "missing_in": "5.7", "finding": "La bandeja nueva no tiene un endpoint que liste las altas pendientes.", "question": "¿Qué endpoint alimenta la bandeja de aprobaciones?"}]}

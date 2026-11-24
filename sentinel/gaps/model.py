@@ -23,7 +23,8 @@ GAP_ROW_FIELDS = (
     "closure_reason",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
-GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED"}
+PRE_DECIDED = "PRE_DECIDED"  # IMP-410: an earlier decision already answers it; the BA confirms or overrides
+GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED", PRE_DECIDED}
 DEFAULT_BLOCKING_GAP_SEVERITIES = {"critical", "high"}
 
 # IMP-185: gap closures resolved as out-of-scope/not-applicable are governed
@@ -128,12 +129,17 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
     """The one gap counter (IMP-248). `blocking_open` follows the configured severities."""
     counts = {"open": 0, "answered": 0, "partially_closed": 0, "closed": 0, "blocking_open": 0, "total": len(gaps)}
     keys = {"OPEN": "open", "ANSWERED": "answered", "PARTIALLY_CLOSED": "partially_closed", "CLOSED": "closed"}
+    pre_decided = 0
     for gap in gaps:
         key = keys.get(str(gap.get("status", "OPEN")).strip("`").upper())
         if key:
             counts[key] += 1
         if is_blocking(gap, severities):
             counts["blocking_open"] += 1
+        if str(gap.get("status", "OPEN")).strip("`").upper() == PRE_DECIDED:
+            pre_decided += 1
+    if pre_decided:
+        counts["pre_decided"] = pre_decided
     return counts
 
 

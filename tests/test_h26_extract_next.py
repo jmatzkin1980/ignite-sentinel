@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, export_final_brief, run_ok, waive_crosses  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, export_final_brief, run_ok, waive_coherence, waive_crosses  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import load_baseline, set_change  # noqa: E402
 from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
@@ -109,6 +109,7 @@ class MatureNext(SnapshotWorkspaceCase):
 
     def test_english_texts(self):
         set_change("MAD", language="en")
+        waive_coherence("MAD", CID)  # the lens view is written in the language of the change
         build_inventory("MAD", CID)
         s = change_next_step("MAD", CID)
         self.assertEqual(s["key"], "extract_proposals")
@@ -145,6 +146,7 @@ class BorradorDone(SnapshotWorkspaceCase):
     def test_english_done(self):
         self.walk()
         set_change("BORR", language="en")
+        waive_coherence("BORR", CID)  # the lens view is written in the language of the change
         self.assertIn("The extraction covers", change_next_step("BORR", CID)["text"])
 
 
@@ -169,7 +171,7 @@ class BorradorDone(SnapshotWorkspaceCase):
 class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "coherence", "coherence_view", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):

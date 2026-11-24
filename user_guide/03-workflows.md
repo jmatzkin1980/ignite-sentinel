@@ -1413,6 +1413,28 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    The claims file and its tags are in the [`/cross`](01-command-reference.md#cross) entry.
    </details>
 
+   **Already decided.** If a question the cross-read opens is one you already decided in this change (a contradiction that an earlier divergence answered, say), Sentinel does not ask it twice: it is born `PRE_DECIDED`, with your earlier answer loaded and its source named, and it does not block. To confirm it, tell the assistant "Yes, the earlier answer holds for GAP-CON-1A2B"; to change it, answer it again; to refuse the earlier answer, answer it as pending. A suggestion that only looks like an earlier answer, or something the request already asked Design for (`PD-nn`), is shown on the question but never confirmed for you: `--accept-prior` refuses it and you answer it in the file. A question counts as already decided only when the earlier decision covers it (the same quoted statement or the same rule of the request); a critical one stays open. If you send the file back with that section untouched, it stays pending and Sentinel reminds you how to confirm it. If you later reopen or change the earlier decision, the questions that took it are updated: reopened ones go back to open, changed ones show the new answer marked as changed.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /gaps ACME_PORTAL --change CHG-001 --id GAP-CON-1A2B --accept-prior
+   ```
+   </details>
+
+   **Do the lenses agree?** Once the three cross-reads and the new surfaces are decided, `/next --change` asks for one more reading before the extraction (`coherence`). Tell the assistant: "Check whether the lenses of CHG-001 agree." It reads a view of the change by lenses (scope, business, product, design, technical) that Sentinel writes at `01_discovery/CHG-001/coherence/view.md`, looks for conflicts and for missing counterparts (a screen with no endpoint, a rule with no step), and reports each with literal quotes. Each one opens a question. Deterministic checks run alongside; their warnings are leads, not questions. If you read it and found nothing, or it does not apply, say so and give the reason: the step is recorded as read or waived. If the change moves afterwards, the reading goes stale and `/next --change` asks for it again. What moves it includes the request, the border, the cross-reads, a harvest (the harvest is shared by the whole workspace, so a harvest run for another change also does) and the language of the change; a waive (`--skip --reason`) clears the step on a change that was already finished before this reading existed.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /self-review ACME_PORTAL --crosses --change CHG-001
+   /self-review ACME_PORTAL --crosses --change CHG-001 --source crosses.json
+   /self-review ACME_PORTAL --crosses --change CHG-001 --skip --reason "nothing to cross in this change"
+   ```
+
+   The first line only builds the view and reports the checks. A file with `{"crosses": []}` records a reading that found nothing; one rejected cross rejects the whole file.
+   </details>
+
 5. Extract the request element by element.
 
    **Tell the assistant:** "Go through everything the request of CHG-001 says and propose what each element becomes."

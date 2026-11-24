@@ -69,13 +69,17 @@ def _ids(pattern: str, text: str) -> list[str]:
     return sorted(set(re.findall(pattern, text)))
 
 
-def run_cross_checks(text: str) -> list[dict[str, Any]]:
-    """One result per rule: {id, status PASS|WARN|SKIP, issues[]}. Empty for a v1 brief."""
+def run_cross_checks(text: str, only: tuple[str, ...] | None = None) -> list[dict[str, Any]]:
+    """One result per rule: {id, status PASS|WARN|SKIP, issues[]}. Empty for a v1 brief.
+
+    With `only`, just those rules, in the order of the template (IMP-410: the lens view of a change)."""
     brief = _Brief(text)
     if brief.model.version != 2:
         return []
     results = []
     for rule in rules():
+        if only is not None and rule["id"] not in only:
+            continue
         issues, applicable = _evaluate(brief, rule)
         status = "SKIP" if not applicable else ("WARN" if issues else "PASS")
         results.append({"id": rule["id"], "status": status, "issues": issues})

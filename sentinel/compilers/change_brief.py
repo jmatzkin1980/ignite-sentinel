@@ -24,6 +24,7 @@ from ..extraction.lines import format_ranges
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
 from ..harvest import load_harvest
 from ..pending_marks import count_pending_marks
+from ..prior_decisions import load_priors
 from ..resources import read_package_json
 from ..workspace import load_config, workspace_path
 
@@ -76,17 +77,21 @@ def _answers(base: Path, change: dict) -> dict[str, dict[str, str]]:
     return found
 
 
-def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, Any]:
+def collect_change_brief_inputs(project_id: str, change_id: str, extraction: bool = True) -> dict[str, Any]:
+    """`extraction=False` leaves out the extraction view (the lens view of the change is built before the extraction)."""
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
     gaps_path = change_gaps_path(base, change_id)
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
     answers = _answers(base, change)
+    priors = load_priors(base, change_id)  # IMP-410: a question the BA confirmed with the earlier decision has that answer
     severities = blocking_severities(load_config(project_id))
     gaps = []
     for row in rows:
         gap = dict(row)
-        response = answers.get(gap["id"], {})
+        entry = priors.get(gap["id"])
+        response = answers.get(gap["id"]) or (
+            {"answer": entry["answer"], "option": entry.get("option", "")} if entry and entry.get("accepted_at") else {})
         gap["answer"] = response.get("answer", "").strip()
         gap["evidence"] = response.get("evidence", "").strip()
         gap["owner"] = response.get("owner", "").strip()
@@ -103,7 +108,7 @@ def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, An
         "gaps": gaps,
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
-        "extraction": extraction_view(project_id, change_id),
+        "extraction": extraction_view(project_id, change_id) if extraction else {},
         "crosses": cross_status(project_id, change_id),
         "crosses_fingerprint": crosses_fingerprint(project_id, change_id),
     }

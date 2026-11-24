@@ -165,7 +165,19 @@ If an agent prepared the answer, say so in `- Drafted by: agent` and leave whoev
 """
 
 
+def _prefilled(gap: dict, priors: dict[str, dict]) -> bool:
+    entry = priors.get(gap.get("id", ""))
+    return (bool(entry) and not entry.get("accepted_at") and not entry.get("overridden")
+            and str(gap.get("status", "OPEN")).strip("`").upper() in ("PRE_DECIDED", "OPEN"))
+
+
 def render_gaps(project_id: str, gaps: list[dict[str, str]], req_id: str, language: str = "en", elicitation_path=None) -> str:
+    if str(req_id).startswith("CHG-") and workspace_path(project_id).exists():
+        # IMP-410: a change's question that an earlier decision already answers shows it, prefilled; the project path never reads this file
+        from ..prior_decisions import load_priors
+
+        priors = load_priors(workspace_path(project_id), str(req_id))
+        gaps = [{**gap, "_prior": priors[gap["id"]], "_project_id": project_id} if _prefilled(gap, priors) else gap for gap in gaps]
     if workspace_path(project_id).exists():
         meanwhile = gap_meanwhile_map(project_id)
         gaps = [{**gap, "_meanwhile": meanwhile[gap["id"]]} if gap.get("id") in meanwhile else gap for gap in gaps]
@@ -397,7 +409,18 @@ def render_gap_response_section(gap: dict[str, str], req_id: str, language: str 
     candidate_block = f"\n{candidate_options}\n" if candidate_options else ""
     candidate_block += meanwhile_markdown(gap, language)
     has_options = bool(question_option_labels(gap.get("question", "")))
-    option_line = ("\n- Opción:" if language == "es" else "\n- Option:") if has_options else ""
+    prior = gap.get("_prior")
+    prior_block = ""
+    answer_text = evidence_text = option_text = ""
+    if prior:
+        from ..prior_decisions import prefill_lines
+
+        lines = prefill_lines(prior, gap_id, str(gap.get("_project_id", "")), req_id, language)
+        prior_block = "\n".join(lines) + "\n\n"
+        answer_text = f" {' '.join(str(prior.get('answer', '')).split())}"
+        evidence_text = f" {prior.get('prior', '')}"
+        option_text = f" {prior['option']}" if prior.get("option") and has_options else ""
+    option_line = (f"\n- Opción:{option_text}" if language == "es" else f"\n- Option:{option_text}") if has_options else ""
     if language == "es":
         return f"""### {gap_id} - {human_title_for_gap(gap_id, language)}
 
@@ -425,11 +448,11 @@ Ejemplo de respuesta útil:
 {example_response_for_gap(gap_id, language)}
 {candidate_block}
 
-Respuesta del cliente / dominio:
+{prior_block}Respuesta del cliente / dominio:
 
-- Respuesta:{option_line}
+- Respuesta:{answer_text}{option_line}
 - Owner / fuente:
-- Evidencia o referencia:
+- Evidencia o referencia:{evidence_text}
 - Estado de decisión:
 - Motivo de cierre:
 """
@@ -459,11 +482,11 @@ Example of a useful answer:
 {example_response_for_gap(gap_id)}
 {candidate_block}
 
-Client / domain response:
+{prior_block}Client / domain response:
 
-- Answer:{option_line}
+- Answer:{answer_text}{option_line}
 - Owner / source:
-- Evidence or reference:
+- Evidence or reference:{evidence_text}
 - Decision status:
 - Closure reason:
 """

@@ -274,7 +274,7 @@ class Borrador(SnapshotWorkspaceCase):
     def test_change_commands_of_the_new_steps(self):
         self.assertEqual(CHANGE_COMMANDS["done"], "")
         self.assertEqual(set(CHANGE_COMMANDS), {
-            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
+            "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "coherence", "coherence_view", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
 

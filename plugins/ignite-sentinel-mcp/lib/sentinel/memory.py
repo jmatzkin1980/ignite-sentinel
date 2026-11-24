@@ -782,6 +782,23 @@ class ContextBroker:
             self._upsert_lancedb_chunks(artifact_id)  # no chunks left: deletes its rows
         return removed
 
+    def forget_artifacts(self, artifact_ids: set[str]) -> list[str]:
+        """IMP-410: remove the artifacts with these ids, from JSON and LanceDB; returns the ids it removed."""
+        gone = {str(i) for i in artifact_ids}
+        removed = sorted(
+            {str(a["artifact_id"]) for a in self.data.get("artifacts", []) if a.get("artifact_id") in gone}
+            | {str(c["artifact_id"]) for c in self.data.get("chunks", []) if c.get("artifact_id") in gone}
+        )
+        if not removed:
+            return []
+        keep = set(removed)
+        self.data["artifacts"] = [i for i in self.data.get("artifacts", []) if i.get("artifact_id") not in keep]
+        self.data["chunks"] = [i for i in self.data.get("chunks", []) if i.get("artifact_id") not in keep]
+        self._save()
+        for artifact_id in removed:
+            self._upsert_lancedb_chunks(artifact_id)
+        return removed
+
     def retrieve(
         self,
         query: str,
@@ -1250,6 +1267,11 @@ def reindex_workspace(project_id: str, full: bool = False) -> dict[str, Any]:
     with broker.deferred_saves():
         forgotten = broker.forget_sources(retired) if retired else []
         indexed, skipped, retired_skipped = _reindex_nodes(broker, project_id, graph, full, retired)
+        from .decision_memory import index_change_decisions
+
+        decisions = index_change_decisions(project_id, broker=broker, full=full)  # IMP-410
+        indexed = [*indexed, *decisions["indexed"]]
+        skipped = [*skipped, *decisions["skipped"]]
     return {
         "project_id": project_id,
         "indexed": indexed,

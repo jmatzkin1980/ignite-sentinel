@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_cli, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_cli, run_ok, waive_coherence  # noqa: E402
 
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
@@ -186,6 +186,8 @@ class NewSurfaces(NextCase):
         self.assertIn("--accept-new", step["command"])
         accept_new_surface(PID, CID, found[0]["id"], "pantalla", "Historial de aprobaciones")
         decline_new_surface(PID, CID, found[1]["id"], "ya existe")
+        self.assertEqual(self.step()["key"], "coherence")  # IMP-410: the lens coherence comes before the extraction
+        waive_coherence(PID, CID)
         self.assertEqual(self.step()["key"], "extract_inventory")
 
 

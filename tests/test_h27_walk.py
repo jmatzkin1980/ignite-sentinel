@@ -114,6 +114,7 @@ class LongRequestWalk(unittest.TestCase):
         result = cli("cross", PID, "--change", CID, "--kind", "diseno",
                      "--claims", self.claims("cruce_diseno.md", ids, drop="SOLO EN DISEÑO]"))
         self.assertEqual(result["retired_gaps"], [gap_sed])
+        cli("self-review", PID, "--crosses", "--change", CID, "--skip", "--reason", "x")  # IMP-410: the lenses are read before the extraction
 
         # 4. the inventory splits the long section into four parts and plans the reading
         inventory = extract()

@@ -14,7 +14,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH [--replace] [--change]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose. This note does not apply with `--change`: each `/ingest --change` opens a new change and returns its id, so it can be run as many times as there are changes)
 - `/maturity PROJECT_ID`
-- `/gaps PROJECT_ID [--change CHG-NNN [--id GAP-X --impact construccion|operativo --reason TEXT]]`
+- `/gaps PROJECT_ID [--change CHG-NNN [--id GAP-X (--impact construccion|operativo --reason TEXT | --accept-prior)]]`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
 - `/challenge PROJECT_ID --source ANALYSIS.json`
 - `/scrutinize PROJECT_ID --source ANALYSIS.json [--lens LENS] [--mode implementability-probe|anchors]`
@@ -57,6 +57,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/reindex PROJECT_ID`
 - `/specs PROJECT_ID [--change CHG-NNN]`
 - `/self-review PROJECT_ID --source FINDINGS.json`
+- `/self-review PROJECT_ID --crosses --change CHG-NNN [--source CROSSES.json | --skip --reason TEXT]`
 - `/compose PROJECT_ID --source PATH`
 - `/backlog PROJECT_ID [--change CHG-NNN]`
 - `/backlog PROJECT_ID --with-task-seeds`
@@ -108,6 +109,7 @@ When a command leaves the user a decision or a next step, end with one short que
 
 - Documents in hand and no command ("¿por dónde arranco?", "armá el brief del release 2 con todo esto"): use `sentinel-intake-triage` (entry check) before running anything.
 - `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
+- `/gaps --change --id --accept-prior`: use `sentinel-gap-response` (Already decided): it confirms a `PRE_DECIDED` question only when the BA says so; a memory suggestion or a request to Design is never confirmed on its own.
 - `/annotate`: use `sentinel-annotate` to author the analysis JSON before executing.
 - `/challenge`: use `sentinel-challenge` to author the findings JSON before executing.
 - `/scrutinize` (every mode): use `sentinel-scrutiny` to author the findings JSON before executing.
@@ -132,6 +134,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/dashboard` and `/view`: use `sentinel-views`.
 - `/specs`: use `sentinel-specs`.
 - `/self-review`: use `sentinel-self-review` to author the cited findings/decisions JSON before executing.
+- `/self-review --crosses --change`: use `sentinel-self-review` (Change coherence); report only crosses the BA confirms with verbatim quotes of the lens view, never waive for the BA.
 - `/compose`: use `sentinel-compose`.
 - `/backlog`, `/backlog-status`, `/story-status`: use `sentinel-backlog` (lifecycle and board rules live there).
 - `/refine-backlog`: use `sentinel-backlog-refine`; proposals land as cited agent-origin overlays, never direct rewrites.
@@ -140,7 +143,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`. A brief v2 that says "Ready to build: no" makes the verdict `NOT_READY` (see `ready_to_build`).
 - `/extract --change`: use `sentinel-discovery`; inventory the request, record the cited proposals (verbatim quote, EARS statements with Delta and Superficie), and let the BA confirm by section. What is flagged is confirmed one by one with `--confirm-item`; never confirm for the BA. Every proposal declares `Líneas`; a partial reading is never confirmed. `--verify`/`--verify-result` re-read a sample. Report the coverage and the next step.
-- `/cross --change`: use `sentinel-discovery`; write the cross-read file with verbatim quotes (`Pedido:`/`Diseño: F-NN "…"`), never waive a cross for the BA (a cross the BA read and found nothing in is a file with one `- [SIN HALLAZGOS] …` claim; `--skip --reason` also works on a stale one); `/self-review --crosses` is a different thing (the project's semantic crosses).
+- `/cross --change`: use `sentinel-discovery`; write the cross-read file with verbatim quotes (`Pedido:`/`Diseño: F-NN "…"`), never waive a cross for the BA (a cross the BA read and found nothing in is a file with one `- [SIN HALLAZGOS] …` claim; `--skip --reason` also works on a stale one); `/self-review --crosses` is a different thing (the project's semantic crosses; with `--change`, the lens coherence of the change).
 - `/export`: summarize the CLI result and generated artifact path.
 - `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.
 - `/sources --load`: when the user says what a document is, load it with its role instead of copying it into `00_raw/` by hand. "El SAD / el relevamiento / lo construido / el sistema actual" is `linea_de_base`; "el prototipo / el diseño de lo nuevo" is `diseno_nuevo`; "el brief / el plan del release anterior" is `plan_previo`; "el pedido" is `pedido` (with `--change`). If you are not sure which role, ask the BA before loading. A file already inside a `00_raw/` context folder is registered in place; the harvest folder and Sentinel's own outputs are refused. The same content reuses its F-NN, and a different declared role is refused: correct it with `--id F-NN --role ROLE`. Only a `linea_de_base` source closes a gap `by_baseline`; the harvest has no role (it is Sentinel's reading, never a source). `/status --change` shows the sources by role and `/next --change` asks for the baseline before the lenses; a system with nothing built is waived with `--no-baseline --reason`. If the request cites another version of a loaded document, a blocking `GAP-VER-*` opens in the change: report it and ask the BA which version governs.

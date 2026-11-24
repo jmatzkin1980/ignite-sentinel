@@ -187,11 +187,14 @@ def _prototype(p: argparse.ArgumentParser) -> None:  # IMP-274/275/276 (H17b): H
 
 def _self_review(p: argparse.ArgumentParser) -> None:
     p.add_argument("project_id")
-    p.add_argument("--source", required=True)
+    p.add_argument("--source", help="the review payload (required unless --change --skip)")
     p.add_argument("--sufficiency", action="store_true",
                    help="IMP-259: a clean-context reader checks the brief v2 is enough to start building")
     p.add_argument("--crosses", action="store_true",
                    help="IMP-260b: semantic crosses between the lenses of the brief v2")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-410: with --crosses, the lens view of this change (--source PATH or --skip --reason)")
+    p.add_argument("--skip", action="store_true", help="IMP-410: with --crosses --change, waive the coherence reading (needs --reason)")
+    p.add_argument("--reason", help="IMP-410: why the coherence reading is waived")
 
 
 def _story_status(p: argparse.ArgumentParser) -> None:
@@ -329,6 +332,8 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--impact", choices=("construccion", "operativo"),
                    help="IMP-406: class of a deferred question of a change (with --change, --id and --reason)")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-382: regenerate this change's gaps instead of the project's")
+    p.add_argument("--accept-prior", action="store_true",
+                   help="IMP-410: close a pre-decided question of a change with its earlier decision (with --change and --id)")
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 
 
@@ -366,7 +371,7 @@ REGISTRY: tuple[Command, ...] = (
             mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}, skill="sentinel-release-split"),
     # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
     Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
-    Command("self-review", MUTATING, _self_review, skill="sentinel-self-review"),
+    Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),
     Command("assume", MUTATING, _project_source, skill="sentinel-assume"),
     Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
     Command("refine-backlog", MUTATING, _project_source, skill="sentinel-backlog-refine"),

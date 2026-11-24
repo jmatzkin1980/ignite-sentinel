@@ -226,7 +226,13 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
-            if args.impact:
+            if args.accept_prior:
+                if not (args.change and args.gap_id):
+                    raise ValueError("/gaps --accept-prior goes with --change and --id")
+                from .changes import accept_prior_decision
+
+                print_json(accept_prior_decision(args.project_id, args.change, args.gap_id))
+            elif args.impact:
                 if not (args.change and args.gap_id):
                     raise ValueError("/gaps --impact goes with --change and --id")
                 if not args.reason.strip():
@@ -345,6 +351,22 @@ def _run_project_command(args) -> int:
 
             result = run_assess(args.project_id)
             print_json(result)
+        elif args.command == "self-review" and args.change and not args.crosses:
+            from .errors import InputError
+
+            raise InputError("/self-review --change va con --crosses")
+        elif args.command == "self-review" and args.skip and not args.change:
+            from .errors import InputError
+
+            raise InputError("/self-review --skip goes with --crosses --change")
+        elif args.command == "self-review" and args.crosses and args.change:
+            from .change_coherence import run_change_coherence
+
+            print_json(run_change_coherence(args.project_id, args.change, args.source, args.skip, args.reason))
+        elif args.command == "self-review" and not args.source:
+            from .errors import InputError
+
+            raise InputError("/self-review needs --source PATH")
         elif args.command == "self-review" and args.crosses:
             from .cross_review import apply_cross_review
 

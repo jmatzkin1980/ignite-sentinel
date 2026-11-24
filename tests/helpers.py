@@ -180,8 +180,10 @@ def complete_extraction(project_id: str, change_id: str = "CHG-001", skip: tuple
     confirm_proposals(project_id, change_id, "all")
 
 
-def waive_crosses(project_id: str, change_id: str = "CHG-001", reason: str = "fuera del alcance de esta prueba") -> None:
-    """IMP-404: waive every cross-read of the change that is still missing, so a test of a later step gets past `crosses`."""
+def waive_crosses(project_id: str, change_id: str = "CHG-001", reason: str = "fuera del alcance de esta prueba",
+                  coherence: bool = True) -> None:
+    """IMP-404: waive every cross-read of the change that is still missing, so a test of a later step gets past `crosses`
+    (and, IMP-410, the lens coherence once it can be read, unless `coherence=False`)."""
     from sentinel.core.io import forget_read_snapshots
     from sentinel.crosses.record import skip_cross
     from sentinel.crosses.state import cross_status
@@ -189,6 +191,19 @@ def waive_crosses(project_id: str, change_id: str = "CHG-001", reason: str = "fu
     forget_read_snapshots()
     for kind in cross_status(project_id, change_id)["missing"]:
         skip_cross(project_id, change_id, kind, reason)
+    if coherence:
+        waive_coherence(project_id, change_id, reason)
+
+
+def waive_coherence(project_id: str, change_id: str = "CHG-001", reason: str = "fuera del alcance de esta prueba") -> None:
+    """IMP-410: waive the lens coherence of the change (when it is ready to be read), so a later step is reachable."""
+    from sentinel.change_coherence import coherence_ready, skip_change_coherence
+    from sentinel.core.io import forget_read_snapshots
+
+    forget_read_snapshots()
+    if coherence_ready(project_id, change_id):
+        skip_change_coherence(project_id, change_id, reason)
+    forget_read_snapshots()  # the lens view read files this test writes next
 
 
 def lines_field(element_id: str, source: str = "pedido_ids.md") -> str:
