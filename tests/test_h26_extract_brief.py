@@ -64,8 +64,9 @@ class BriefWithExtraction(ProposalsCase):
         confirm_item(PID, CID, "SEC-objetivo")
         body = section(self.compile(), 2)
         self.assertIn("la jefatura aprueba las altas de monto alto dentro del sistema", body)
-        self.assertIn("(`00_raw/pedido.md`:4, SEC-objetivo)", body)
-        self.assertIn("Que la jefatura apruebe las altas de monto alto dentro del sistema", body)
+        self.assertIn("SEC-objetivo — texto literal del pedido (`00_raw/pedido.md`:4-4):", body)
+        self.assertIn("Que el alta de proveedores de Compras deje de depender de firmas en papel", body)
+        self.assertNotIn("Que la jefatura apruebe las altas de monto alto dentro del sistema", body)
 
     def test_marks_stay_where_elements_are_unconfirmed(self):
         confirm_item(PID, CID, "SEC-objetivo")
@@ -168,7 +169,7 @@ class BriefComplete(SnapshotWorkspaceCase):
         forget_read_snapshots()
         path = Path.cwd() / "intro.md"
         path.write_text(block(
-            "SEC-intro", "- Tratamiento: seccion", "- Seccion: proceso",
+            "SEC-intro", "- Tratamiento: seccion", "- Líneas: 3-7", "- Seccion: proceso",
             "- Texto: El formulario de alta se envía completo.",
             '- Cita: "el formulario de alta de proveedores es largo"',
         ), encoding="utf-8")

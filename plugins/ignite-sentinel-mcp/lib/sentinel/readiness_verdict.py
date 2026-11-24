@@ -389,6 +389,10 @@ CHANGE_TEXT = {
                                     "Las {proposed} propuesta(s) que quedan en {cid} están marcadas ({items}) y --confirm no las toma en bloque. "
                                     "Revisá `02_requirements/{cid}/extraction/review.md` y confirmá cada una con /extract {pid} --change {cid} "
                                     "--confirm-item ID, o rechazala con --reject-item ID --reason TEXTO."),
+        "extract_partial": ("Completar las lecturas parciales",
+                            "{n} propuesta(s) de {cid} no cubren todo su elemento o declaran lectura parcial ({items}): leé cada uno "
+                            "completo y volvé a proponerlo con Líneas que cubran lo que falta (el detalle está en "
+                            "`02_requirements/{cid}/extraction/review.md`); --confirm-item no las toma."),
         "extract_orphans": ("Sacar los elementos huérfanos",
                             "Estos elementos ya no están en el pedido de {cid} pero sus filas EARS siguen en pie: {orphans}. "
                             "Sacá cada uno con /extract {pid} --change {cid} --reject-item ID --reason \"…\": sus filas quedan reemplazadas."),
@@ -465,6 +469,10 @@ CHANGE_TEXT = {
                                     "The {proposed} proposal(s) left in {cid} are flagged ({items}) and --confirm does not take them in bulk. "
                                     "Review `02_requirements/{cid}/extraction/review.md` and confirm each one with /extract {pid} --change {cid} "
                                     "--confirm-item ID, or reject it with --reject-item ID --reason TEXT."),
+        "extract_partial": ("Complete the partial readings",
+                            "{n} proposal(s) of {cid} do not cover their whole element or declare a partial reading ({items}): read "
+                            "each one in full and propose it again with Lines covering what is missing (the detail is in "
+                            "`02_requirements/{cid}/extraction/review.md`); --confirm-item does not take them."),
         "extract_orphans": ("Take out the orphan elements",
                             "These elements are no longer in the request of {cid} but their EARS rows still stand: {orphans}. "
                             "Take each one out with /extract {pid} --change {cid} --reject-item ID --reason \"…\": its rows are superseded."),
@@ -505,6 +513,7 @@ CHANGE_COMMANDS = {
     "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
     "extract_confirm": "/extract {pid} --change {cid} --confirm all",
     "extract_confirm_flagged": "/extract {pid} --change {cid} --confirm-item {first_flagged}",
+    "extract_partial": "/extract {pid} --change {cid} --proposals PATH",
     "extract_orphans": "/extract {pid} --change {cid} --reject-item {first_orphan} --reason \"...\"",
     "preserved": "/extract {pid} --change {cid} --proposals PATH",
     "preserved_answer": "/resolve-gaps {pid} --source PATH --change {cid}",
@@ -695,8 +704,11 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     cover = extraction_coverage(project_id, change_id)
     if key == "extract_inventory" and cover["state"] == "stale":
         text_key = "extract_inventory_stale"
+    partial = cover.get("partial_ids", [])
     if key == "extract_confirm" and cover["proposed"] == cover["flagged"]:
         text_key = "extract_confirm_flagged"  # `--confirm all` would hold every one of them again
+        if partial:
+            text_key = "extract_partial"
     if key == "preserved" and cover["total"] == 0:
         # nothing in the request to quote: the UNCHANGED row comes from an answer, or from a note loaded as a source
         text_key = "preserved_answer" if ears_gaps else "preserved_source"
@@ -715,6 +727,9 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "orphans": "; ".join(f"{o['id']} ({', '.join(o['rows'])})" for o in orphans),
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
+    if text_key == "extract_partial":
+        ctx["n"] = len(partial)
+        ctx["items"] = ", ".join(p["id"] for p in partial)
     if text_key == "preserved_answer":
         ctx["ids"] = ", ".join(ears_gaps)
     ctx["missing"] = ctx["cross_command"] = ""
@@ -731,7 +746,8 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         if len(pending) > 5:
             shown += f"; {'y' if language == 'es' else 'and'} {len(pending) - 5} {'más' if language == 'es' else 'more'}"
         ctx.update(n=len(pending), items=shown, first_candidate=pending[0]["id"])
-    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer", "preserved_source") else key
+    command_key = text_key if text_key in (
+        "extract_confirm_flagged", "extract_partial", "preserved_answer", "preserved_source") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}

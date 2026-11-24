@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import complete_extraction, run_ok, waive_crosses  # noqa: E402
+from helpers import complete_extraction, lines_field, run_ok, waive_crosses  # noqa: E402
 from test_h26_extract_proposals import CID, EXAMPLE, PID, ProposalsCase  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
@@ -174,9 +174,9 @@ class Finalfix(ProposalsCase):
     # g: a section whose elements were all discarded says so
     def test_brief_section_with_every_element_discarded(self):
         discard = "\n".join([
-            "### SEC-objetivo", "- Tratamiento: descarte", "- Motivo: se trata en otro cambio",
+            "### SEC-objetivo", "- Tratamiento: descarte", lines_field("SEC-objetivo"), "- Motivo: se trata en otro cambio",
             '- Cita: "la jefatura aprueba las altas de monto alto dentro del sistema"',
-            "### SEC-usuarios", "- Tratamiento: descarte", "- Motivo: se trata en otro cambio",
+            "### SEC-usuarios", "- Tratamiento: descarte", lines_field("SEC-usuarios"), "- Motivo: se trata en otro cambio",
             '- Cita: "Analista de Compras: carga el alta del proveedor."', "",
         ])
         path = Path.cwd() / "descartes.md"
@@ -226,7 +226,7 @@ class ParsingAndFlags(unittest.TestCase):
             "### RN-06", "- Tratamiento: descarte", "- Motivo: exclusión de alcance", "    ya en GAP-SCOPE",
             "Texto suelto sin sangría", "",
         ]))
-        self.assertEqual(blocks["SEC-objetivo"]["text"], "Que la jefatura apruebe las altas de monto alto.")
+        self.assertEqual(blocks["SEC-objetivo"]["summary"], "Que la jefatura apruebe las altas de monto alto.")
         self.assertEqual(blocks["SEC-objetivo"]["quote"], "la jefatura aprueba las altas de monto alto")
         self.assertEqual(blocks["RN-06"]["reason"], "exclusión de alcance ya en GAP-SCOPE")
 

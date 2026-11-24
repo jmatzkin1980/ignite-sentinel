@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, lines_field, run_ok  # noqa: E402
 
 from sentinel.errors import GateRefusal, InputError  # noqa: E402
 from sentinel.extraction import extraction_dir  # noqa: E402
@@ -34,7 +34,10 @@ EXTERIOR = '- Cita: "Los proveedores del exterior quedan fuera"'
 
 
 def block(element: str, *lines: str) -> str:
-    return "\n".join([f"### {element}", *lines, ""])
+    """A block; the first line (Tratamiento) is followed by the full `Líneas` of the element (IMP-406)."""
+    span = lines_field(element)
+    body = [lines[0], span, *lines[1:]] if lines and span else list(lines)
+    return "\n".join([f"### {element}", *body, ""])
 
 
 class Parsing(unittest.TestCase):

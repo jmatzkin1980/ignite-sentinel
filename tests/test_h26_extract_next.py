@@ -16,7 +16,7 @@ from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
 
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.extraction.confirm import confirm_item, confirm_proposals  # noqa: E402
-from sentinel.extraction.inventory import build_inventory, element_text, load_inventory  # noqa: E402
+from sentinel.extraction.inventory import build_inventory, element_lines, element_text, load_inventory  # noqa: E402
 from sentinel.extraction.proposals import record_proposals  # noqa: E402
 from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
@@ -31,7 +31,8 @@ def all_as_sections(project: str, flagged: str | None = None) -> str:
     blocks = []
     for element in load_inventory(base, CID)["elements"]:
         quote = " ".join((element_text(base, element) or "").split())[:60].strip()
-        lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Seccion: {HOME_SECTION.get(element['home'], 'reglas')}",
+        first, last = element_lines(element)
+        lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Líneas: {first}-{last}", f"- Seccion: {HOME_SECTION.get(element['home'], 'reglas')}",
                  f'- Cita: "{quote}"']
         if element["id"] == flagged:
             lines.append("- Marca: sin_respaldo — sin respaldo en la línea de base")
@@ -167,7 +168,7 @@ class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
-            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
+            "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
             "brief", "requirements", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])

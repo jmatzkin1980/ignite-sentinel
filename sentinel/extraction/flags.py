@@ -16,6 +16,8 @@ from ..harvest import load_harvest
 # IMP-404: the gaps a cross-read opens quote the request: the element that holds the quote is flagged.
 CROSS_FLAG_PREFIXES = {"GAP-DIS-": "divergencia", "GAP-SRD-": "sin_respaldo", "GAP-CON-": "contradiccion"}
 MIN_CROSS_MENTION = 20
+# the flags a re-check keeps: the agent's, the line coverage's and the verifier's (gap and harvest ones are recomputed)
+PERSISTENT_FLAG_ORIGINS = ("agent", "coverage", "verify")
 
 
 def _cross_kind(gap_id: str) -> str | None:
@@ -66,7 +68,7 @@ def change_flag_context(project_id: str, change_id: str) -> tuple[list[dict], li
 
 
 def refresh_flags(project_id: str, change_id: str, element_id: str, item: dict) -> list[dict]:
-    """The flags with today's gaps and harvest, keeping the item's agent flags."""
+    """The flags with today's gaps and harvest, keeping the item's agent, coverage and verify flags."""
     from .inventory import load_inventory, element_text
 
     gaps, entries = change_flag_context(project_id, change_id)
@@ -74,5 +76,5 @@ def refresh_flags(project_id: str, change_id: str, element_id: str, item: dict) 
     inventory = load_inventory(base, change_id) or {}
     element = next((e for e in inventory.get("elements", []) if e["id"] == element_id), None)
     text = (element_text(base, element) if element else None) or ""
-    agent = [f for f in item.get("flags", []) or [] if f.get("origin") == "agent"]
-    return element_flags(element_id, text, str(item.get("quote", "")), agent, gaps, entries)
+    kept = [f for f in item.get("flags", []) or [] if f.get("origin") in PERSISTENT_FLAG_ORIGINS]
+    return element_flags(element_id, text, str(item.get("quote", "")), kept, gaps, entries)

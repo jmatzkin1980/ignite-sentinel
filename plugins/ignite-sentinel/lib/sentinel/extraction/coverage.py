@@ -38,6 +38,7 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
     by_kind = {kind: {"total": 0, "covered": 0} for kind in KINDS}
     covered = proposed = flagged = 0
     flagged_ids: list[str] = []
+    partial_ids: list[dict[str, Any]] = []
     for element in elements:
         kind = element.get("kind")
         if kind in by_kind:
@@ -54,6 +55,12 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
             if item.get("flags"):
                 flagged += 1
                 flagged_ids.append(element["id"])
+                marks = [f for f in item.get("flags", []) if f.get("origin") == "coverage"]
+                if marks:
+                    partial_ids.append({
+                        "id": element["id"], "missing": item.get("missing_lines") or [],
+                        "reading": item.get("reading") or "completa",
+                    })
     stale = [
         element_id for element_id, item in items.items()
         if isinstance(item, dict) and (element_id not in by_id or item.get("element_sha") != by_id[element_id].get("sha"))
@@ -72,7 +79,7 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
         text = f"{covered} {joiner} {total}" + (f" ({parts})" if parts else "")
     return {
         "state": state, "total": total, "covered": covered, "pending": total - covered - proposed,
-        "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "stale_items": stale,
+        "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "partial_ids": partial_ids, "stale_items": stale,
         "unreadable": unreadable, "orphans": orphans,
         "by_kind": {kind: c for kind, c in by_kind.items() if c["total"]},
         "complete": state in ("current", "empty") and covered == total and not unreadable and not orphans, "text": text,

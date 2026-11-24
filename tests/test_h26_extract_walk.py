@@ -120,7 +120,7 @@ class ExtractionWalk(unittest.TestCase):
         # 9. re-propose it as a discard, same flag: held by `all`, confirmed by hand
         again = root / "rn04.md"
         again.write_text(
-            "### RN-04\n- Tratamiento: descarte\n"
+            "### RN-04\n- Tratamiento: descarte\n- Líneas: 33-33\n"
             "- Motivo: la jefa de Compras lo resuelve fuera de este cambio\n"
             '- Cita: "La jefa de Compras no puede aprobar un alta que cargó ella misma."\n'
             "- Marca: contradiccion — el SAD permite que una jefatura apruebe sus propias altas\n",

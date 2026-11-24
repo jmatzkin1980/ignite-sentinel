@@ -144,7 +144,7 @@ _HOME_SECTION = {2: "objetivo", 3: "alcance", 4: "proceso", 6: "preservado", 7: 
 def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
     """IMP-402: inventory, propose every element as a section (or as UNCHANGED rows for the preserved surfaces) and confirm all."""
     from sentinel.extraction.confirm import confirm_proposals
-    from sentinel.extraction.inventory import build_inventory, element_text, load_inventory
+    from sentinel.extraction.inventory import build_inventory, element_lines, element_text, load_inventory
     from sentinel.extraction.coverage import preserved_coverage
     from sentinel.extraction.proposals import record_proposals
     from sentinel.workspace import workspace_path
@@ -158,14 +158,16 @@ def complete_extraction(project_id: str, change_id: str = "CHG-001") -> None:
     for index, element in enumerate(elements):
         flat = " ".join((element_text(base, element) or "").split())
         quote = flat[:60].strip()
+        first, last = element_lines(element)
+        span = f"- Líneas: {first}-{last}"
         if index == 0 and missing:
-            lines = [f"### {element['id']}", "- Tratamiento: requisito", f'- Cita: "{quote}"']
+            lines = [f"### {element['id']}", "- Tratamiento: requisito", span, f'- Cita: "{quote}"']
             for surface in missing:
                 lines += [f"- Enunciado: El sistema debe continuar funcionando como hoy en {surface}.",
                           "  - Delta: UNCHANGED", f"  - Superficie: {surface}"]
         else:
             section = _HOME_SECTION.get(element.get("home"), "reglas")
-            lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Seccion: {section}", f'- Cita: "{quote}"']
+            lines = [f"### {element['id']}", "- Tratamiento: seccion", span, f"- Seccion: {section}", f'- Cita: "{quote}"']
         blocks.append("\n".join(lines) + "\n")
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / "proposals.md"
@@ -185,3 +187,15 @@ def waive_crosses(project_id: str, change_id: str = "CHG-001", reason: str = "fu
     forget_read_snapshots()
     for kind in cross_status(project_id, change_id)["missing"]:
         skip_cross(project_id, change_id, kind, reason)
+
+
+def lines_field(element_id: str, source: str = "pedido_ids.md") -> str:
+    """IMP-406: the `- Líneas: A-B` line (the whole element) of an element of a change_extraction fixture."""
+    from sentinel.extraction.inventory import element_lines, parse_request_elements
+
+    path = Path(__file__).resolve().parent / "fixtures" / "change_extraction" / source
+    for element in parse_request_elements(path.read_text(encoding="utf-8"), "F-01", "pedido.md"):
+        if element["id"] == element_id:
+            first, last = element_lines(element)
+            return f"- Líneas: {first}-{last}"
+    return ""
