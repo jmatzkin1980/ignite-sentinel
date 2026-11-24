@@ -123,6 +123,22 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-r
 
 4. **Report** the `GAP-XRV-*` gaps opened and the rejected crosses with their reason. Never edit the brief.
 
+## Change coherence (IMP-410): do the lenses of a change agree?
+
+For a change (`--change CHG-NNN`) the runtime writes `01_discovery/CHG-NNN/coherence/view.md`: the request, the border, the decided surfaces and the harvest, placed at the places of a brief v2, plus `checks.json` with the deterministic IMP-260 checks. It is ready once the change's cross-reads and new surfaces are decided; before that the command refuses and names the next step.
+
+1. **Read `view.md`** and `checks.json`, and the rule catalog `templates/semantic_crosses.json`. A `WARN` of the checks is a lead, not a verdict.
+2. **Report crosses** exactly as in Crosses Mode, quoting `view.md` verbatim (the quotes are checked against the view and must also sit in the request to be linked to it). Transcribe what the BA confirms; never draft a cross for them. A view the BA read and found nothing in is `{"crosses": []}`.
+3. **Record or waive**:
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --crosses --change CHG-NNN --source crosses.json
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --crosses --change CHG-NNN --skip --reason "WHY"
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /self-review PROJECT_ID --crosses --change CHG-NNN
+```
+
+The last one only refreshes the view and reports the checks. A rejected cross rejects the whole file and writes nothing. Accepted crosses open `GAP-XRV-*` questions; one that an earlier decision of the change already answers is born `PRE_DECIDED` for the BA to confirm. The waiver needs its reason, and a change that moves after the reading makes it stale.
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

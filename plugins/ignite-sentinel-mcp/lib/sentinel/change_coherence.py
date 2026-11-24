@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .core.io import read_json, write_json, write_text
+from .errors import GateRefusal, InputError
 from .workspace import workspace_path
 
 CHANGE_CROSS_CHECKS = ("roles_named_alike", "error_codes_have_text", "excluded_transitions_have_codes",
@@ -103,4 +104,217 @@ def coherence_state(project_id: str, change_id: str) -> dict[str, Any]:
         "fingerprint": current,
         "recorded_fingerprint": recorded,
         "checks": {**counts, "issues": issues},
+    }
+
+
+# --- IMP-410 task 5: the BA's confirmed reading of the lens crosses --------------------------------------
+
+
+class CoherenceError(InputError):
+    pass
+
+
+def locate_in_requests(project_id: str, change_id: str, quote: str,
+                       texts: dict[str, tuple[str, str]] | None = None) -> dict | None:
+    """The citation of a quote in the current requests of the change (side `pedido`, its F-NN and line), or None."""
+    from .crosses.claims import locate_quote
+    from .extraction.inventory import _read_text, _row_path, pedido_rows
+
+    base = workspace_path(project_id)
+    cache = texts if texts is not None else {}
+    for row in pedido_rows(project_id, change_id):
+        source_id = str(row["id"])
+        if source_id not in cache:
+            path = _row_path(row)
+            cache[source_id] = (_read_text(base, path) or "", Path(path).suffix)
+        text, suffix = cache[source_id]
+        found = locate_quote(text, suffix, quote) if text else None
+        if found:
+            return {"side": "pedido", "source_id": source_id, "line": found["line"],
+                    "quote": " ".join(str(quote).split())}
+    return None
+
+
+def coherence_citations(project_id: str, change_id: str, cross: dict,
+                        texts: dict[str, tuple[str, str]] | None = None) -> list[dict]:
+    """The citations of one cross of `coherence.json`: each of its `a`/`b` quotes that sits in the request."""
+    found: list[dict] = []
+    for side in ("a", "b"):
+        part = cross.get(side)
+        if isinstance(part, dict) and part.get("quote"):
+            cite = locate_in_requests(project_id, change_id, str(part["quote"]), texts)
+            if cite:
+                found.append(cite)
+    return found
+
+
+def render_coherence_report(record: dict, language: str) -> str:
+    es = language == "es"
+    cid = record.get("change_id", "")
+    done = record.get("status") != "waived"
+    lines = [f"# Coherencia entre lentes — {cid}" if es else f"# Coherence between lenses — {cid}", ""]
+    status = ("registrada" if done else "descartada") if es else ("recorded" if done else "waived")
+    lines += [f"- {'Estado' if es else 'Status'}: {status}", ""]
+    lines += ["## Chequeos deterministas" if es else "## Deterministic checks", ""]
+    results = [r for r in record.get("checks") or [] if isinstance(r, dict)]
+    for result in results:
+        if str(result.get("status", "")).upper() == "WARN":
+            for issue in result.get("issues") or [""]:
+                lines.append(f"- WARN {result.get('id', '')}: {issue}")
+    others = {s: sum(1 for r in results if str(r.get("status", "")).upper() == s) for s in ("PASS", "SKIP")}
+    lines += [f"- PASS {others['PASS']} · SKIP {others['SKIP']}", ""]
+    lines += ["## Cruces semánticos" if es else "## Semantic crosses", ""]
+    if not done:
+        lines.append(f"- {'Motivo del descarte' if es else 'Reason for the waiver'}: {record.get('reason', '')}")
+    elif not record.get("crosses"):
+        lines.append("- Leído sin cruces." if es else "- Read, no crosses.")
+    for cross in record.get("crosses") or []:
+        a = cross.get("a") or {}
+        open_q, close_q = ("«", "»") if es else ("“", "”")
+        side = f"§{a.get('place', '')} {open_q}{' '.join(str(a.get('quote', '')).split())}{close_q}"
+        if cross.get("kind") == "conflict":
+            b = cross.get("b") or {}
+            other = f"§{b.get('place', '')} {open_q}{' '.join(str(b.get('quote', '')).split())}{close_q}"
+        else:
+            other = f"§{cross.get('missing_in', '')} ({'falta' if es else 'missing'})"
+        lines.append(f"- {cross.get('gap', '')} {cross.get('rule', '')} ({cross.get('kind', '')}) {side} ↔ {other}")
+    return "\n".join(lines) + "\n"
+
+
+def _write_record(project_id: str, change_id: str, record: dict, language: str) -> None:
+    from .decision_memory import index_change_decisions
+
+    folder = coherence_dir(workspace_path(project_id), change_id)
+    write_json(folder / "coherence.json", record)
+    write_text(folder / "coherence.md", render_coherence_report(record, language))
+    index_change_decisions(project_id, change_id)
+
+
+def _checks_now(project_id: str, change_id: str) -> tuple[dict[str, Any], str]:
+    """The refreshed view and its text; a gate refusal when the change is not ready."""
+    refreshed = refresh_coherence(project_id, change_id)
+    if refreshed is None:
+        raise CoherenceError("coherence is not ready", gate=True)
+    return refreshed, Path(refreshed["view_path"]).read_text(encoding="utf-8")
+
+
+def record_change_coherence(project_id: str, change_id: str, source: Path) -> dict[str, Any]:
+    from .agent_sweep import log_payload_findings, payload_cleaner, record_sweep
+    from .changes import change_language, get_change
+    from .core.text import unique_path
+    from .core.time import utc_now
+    from .cross_review import validate_crosses
+    from .crosses.record import _next_number, add_change_gaps
+    from .payload_hygiene import sanitize_payload
+    from .prior_decisions import load_priors
+
+    es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    language = "es" if es else "en"
+    base = workspace_path(project_id)
+    source = Path(source)
+    payload = read_json(source, None)
+    if not isinstance(payload, dict):
+        raise CoherenceError("El archivo de coherencia tiene que ser un objeto JSON." if es
+                             else "The coherence file must be a JSON object.")
+    refreshed, view_text = _checks_now(project_id, change_id)
+    crosses = payload.get("crosses")
+    accepted: list[dict] = []
+    counts = {"conflict": 0, "missing": 0}
+    if not (isinstance(crosses, list) and not crosses):
+        result = validate_crosses(view_text, payload, clean=payload_cleaner(base))
+        if result["rejected"]:
+            head = "Cruces rechazados" if es else "Crosses rejected"
+            reasons = sanitize_payload(base, result["rejected"], verbatim_keys=("reason",))
+            raise CoherenceError(f"{head}:\n- " + "\n- ".join(
+                f"#{r['index']} {r.get('rule', '?')}: {r['reason']}" for r in reasons))
+        accepted, counts = result["accepted"], result["counts"]
+    log_payload_findings(base, source)
+    clean_payload = sanitize_payload(base, payload)
+    texts: dict[str, tuple[str, str]] = {}
+    candidates: dict[str, dict] = {}
+    entries: list[dict] = []
+    if accepted:
+        # accepted keeps the order of the payload's valid items; every item was valid (nothing was rejected)
+        for gap, original, cross in zip(accepted, payload["crosses"], clean_payload["crosses"]):
+            cites = coherence_citations(project_id, change_id, original, texts)
+            candidates[gap["id"]] = {"id": gap["id"], "citations": cites, "sources": [], "text": gap["description"]}
+            entry = {"rule": str(cross.get("rule", "")), "kind": str(cross.get("kind", "")).lower(),
+                     "a": cross.get("a"), "gap": gap["id"]}
+            if entry["kind"] == "conflict":
+                entry["b"] = cross.get("b")
+            else:
+                entry["missing_in"] = cross.get("missing_in")
+            entries.append(entry)
+    opened = add_change_gaps(project_id, change_id, accepted, candidates) if accepted else []
+    submitted = coherence_dir(base, change_id) / "submitted"
+    target = unique_path(submitted / f"{_next_number(submitted):03d}-{source.name}")
+    write_text(target, json.dumps(clean_payload, ensure_ascii=False, indent=2) + "\n")
+    record = {
+        "schema_version": 1, "change_id": change_id, "status": "done", "fingerprint": refreshed["fingerprint"],
+        "recorded_at": utc_now(), "submitted": target.relative_to(base).as_posix(), "counts": counts,
+        "gaps": [e["gap"] for e in entries], "crosses": entries, "checks": refreshed["checks"],
+    }
+    record_sweep(base, "cross-review", payload, opened)
+    _write_record(project_id, change_id, record, language)
+    priors = load_priors(base, change_id)
+    return {"counts": counts, "gaps_opened": opened,
+            "pre_decided": [g for g in opened if priors.get(g, {}).get("match") == "linked"]}
+
+
+def skip_change_coherence(project_id: str, change_id: str, reason: str) -> dict[str, Any]:
+    from .changes import change_language, get_change
+    from .core.time import utc_now
+
+    es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    if not (reason or "").strip():
+        raise InputError(
+            "--skip necesita --reason con el porqué: sin motivo no hay descarte" if es
+            else "--skip needs --reason with the why: no reason, no waiver",
+            next_step=f'/self-review {project_id} --crosses --change {change_id} --skip --reason "…"')
+    refreshed, _text = _checks_now(project_id, change_id)
+    record = {"schema_version": 1, "change_id": change_id, "status": "waived", "reason": reason.strip(),
+              "waived_at": utc_now(), "fingerprint": refreshed["fingerprint"], "checks": refreshed["checks"]}
+    _write_record(project_id, change_id, record, "es" if es else "en")
+    return {"counts": {}, "gaps_opened": [], "pre_decided": []}
+
+
+def run_change_coherence(project_id: str, change_id: str, source: str | None, skip: bool,
+                         reason: str | None) -> dict[str, Any]:
+    from .changes import change_language, get_change
+    from .readiness_verdict import change_next_step
+
+    es = change_language(project_id, get_change(project_id, change_id)) == "es"
+    if not coherence_ready(project_id, change_id):
+        raise GateRefusal(
+            f"Terminá primero los cruces de {change_id}: la coherencia lee el pedido, el borde y las superficies decididas" if es
+            else f"Finish the cross-reads of {change_id} first: the coherence reads the request, the border and the decided surfaces",
+            next_step=change_next_step(project_id, change_id)["command"])
+    action: str = "status"
+    outcome: dict[str, Any] = {"counts": {}, "gaps_opened": [], "pre_decided": []}
+    if source:
+        action, outcome = "crosses", record_change_coherence(project_id, change_id, Path(source))
+    elif skip:
+        action, outcome = "skip", skip_change_coherence(project_id, change_id, reason or "")
+    refreshed = refresh_coherence(project_id, change_id) or {}
+    state = coherence_state(project_id, change_id)
+    view_path = refreshed.get("view_path", "")
+    if action == "crosses":
+        counts = outcome["counts"]
+        opened = len(outcome["gaps_opened"])
+        message = (f"{change_id}: coherencia registrada (conflictos {counts['conflict']}, contrapartes faltantes "
+                   f"{counts['missing']}); {opened} pregunta(s) nueva(s)" if es
+                   else f"{change_id}: coherence recorded (conflicts {counts['conflict']}, missing counterparts "
+                        f"{counts['missing']}); {opened} new question(s)")
+    elif action == "skip":
+        why = (reason or "").strip()
+        message = f"{change_id}: coherencia descartada: {why}" if es else f"{change_id}: coherence waived: {why}"
+    else:
+        warn = state["checks"]["warn"]
+        message = (f"{change_id}: vista por lentes en {view_path}; chequeos: {warn} advertencia(s)" if es
+                   else f"{change_id}: lens view at {view_path}; checks: {warn} warning(s)")
+    return {
+        "project_id": project_id, "change_id": change_id, "action": action, "view_path": view_path,
+        "checks": state["checks"], "counts": outcome["counts"], "gaps_opened": outcome["gaps_opened"],
+        "pre_decided": outcome["pre_decided"], "state": state["state"],
+        "next_step": change_next_step(project_id, change_id), "message": message,
     }

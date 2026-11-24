@@ -76,7 +76,7 @@ TOOL_SPECS: list[tuple[str, str, list[str]]] = [
     ("story_status", "Update a backlog story lifecycle status and owner through the governed state machine; optionally attach local acceptance evidence for Done.", ["project_id", "story", "status", "evidence"]),
     ("backlog_status", "Generate the BA-facing backlog board and rollup by epic/status.", ["project_id"]),
     ("implementation_feedback", "Merge structured downstream implementation feedback as traced backlog feedback without rewriting stories directly.", ["project_id", "source"]),
-    ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records.", ["project_id", "source"]),
+    ("self_review", "Merge skeptical PRD/spec self-review findings as cited gaps and hard-to-reverse decision records. With crosses=true and change=CHG-nnn (IMP-410) it registers the semantic crosses of that change's lens view (source PATH), or waives them (skip=true with reason); source is required otherwise.", ["project_id"]),
     ("export", "Export a governed artifact (gaps|brief|context-request|prd) to Markdown, MDX, or (gaps only) a read-only interview script or resolved-questions FAQ through the audited local export channel. With change=CHG-nnn (IMP-386) only brief and gaps (md, interview) are exported, from that change, into exports/CHG-nnn-<name>; the project's exports are not touched and a change-only workspace refuses an export without it. The change brief comes out in project brief v2 format with a seal (state, verdict, coverage, deferred items); with final it is sealed final and recorded as the export_final milestone, and it is refused while the change verdict is NOT_READY or the text carries pending marks (a draft export stays available).", ["project_id", "artifact"]),
     ("stakeholders", "Register or list the governed stakeholder registry (owner by domain/topic with respondent_profile); routes elicitation gaps by owner in the interview script. Pass add=true with name+domain to register; omit it to list.", ["project_id"]),
     ("extract", "IMP-402: extract the request of change CHG-nnn element by element, in three phases. With none of proposals, confirm, confirm_item or reject_item it inventories the request (every rule, criterion, story, decision and section, with its id) and writes the worksheet. With proposals PATH it records the agent's cited proposals: per element a block with Tratamiento requisito|seccion|descarte, Cita literal (verbatim from the request) and, for a requirement, one Enunciado per statement with its own Delta and Superficie; nothing enters without the citation. With confirm SECTION|all it confirms the proposals of a section, which writes the EARS rows and fills the brief sections; whatever carries a flag (divergencia, contradiccion, sin_respaldo, or an open gap that names the element) is held and is confirmed only one by one with confirm_item ID. reject_item ID with reason takes an element back to pending, or takes out an orphan (an element no longer in the request whose EARS rows still stand). With verify (and optionally sample N, default 10) it draws a reproducible sample of the confirmed elements into extraction/verify/NNN-muestra.md to re-read against the request; verify_result PATH records the answers (`- ID: igual` or `- ID: difiere — what is missing`), and each difiere takes its element back to proposed. Every result carries the coverage and the next step.", ["project_id", "change"]),
@@ -674,9 +674,12 @@ def build_server():
         return run_cli(["implementation-feedback", project_id, "--source", source])
 
     @tool(name="sentinel_self_review", description=TOOL_DESCRIPTIONS["self_review"])
-    def sentinel_self_review(project_id: str, source: str, sufficiency: bool = False, crosses: bool = False) -> dict:
-        return run_cli(["self-review", project_id, "--source", source] + (["--sufficiency"] if sufficiency else [])
-                       + (["--crosses"] if crosses else []))
+    def sentinel_self_review(project_id: str, source: str = "", sufficiency: bool = False, crosses: bool = False,
+                             change: str = "", skip: bool = False, reason: str = "") -> dict:
+        return run_cli(["self-review", project_id] + (["--source", source] if source else [])
+                       + (["--sufficiency"] if sufficiency else []) + (["--crosses"] if crosses else [])
+                       + (["--change", change] if change else []) + (["--skip"] if skip else [])
+                       + (["--reason", reason] if reason else []))
 
     @tool(name="sentinel_export", description=TOOL_DESCRIPTIONS["export"])
     def sentinel_export(project_id: str, artifact: str, format: str = "md", final: bool = False, domain: str = "",

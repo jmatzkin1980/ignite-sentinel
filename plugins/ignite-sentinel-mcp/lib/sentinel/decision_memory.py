@@ -62,6 +62,21 @@ def _cross_claims(project_id: str, change_id: str) -> list[tuple[str, dict]]:
     return out
 
 
+def _coherence_claims(project_id: str, change_id: str) -> list[tuple[str, dict]]:
+    """The recorded semantic crosses of the lens view, shaped like claims: their quotes located in the request."""
+    from .change_coherence import coherence_citations, coherence_dir
+    from .core.io import read_json
+    from .workspace import workspace_path
+
+    record = read_json(coherence_dir(workspace_path(project_id), change_id) / "coherence.json", None)
+    if not isinstance(record, dict) or record.get("status") != "done":
+        return []
+    texts: dict = {}
+    return [("coherence", {"gap": cross["gap"], "text": "",
+                           "citations": coherence_citations(project_id, change_id, cross, texts)})
+            for cross in record.get("crosses") or [] if isinstance(cross, dict) and cross.get("gap")]
+
+
 def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     """The closed questions of a change that someone decided (not the ones a re-recording withdrew)."""
     from .changes import change_gaps_path, get_change
@@ -81,7 +96,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     retired = set(RETIRE_NOTE.values())
     answers = _answers(base, change)
     priors = load_priors(base, change_id)
-    claims = _cross_claims(project_id, change_id)
+    claims = [*_cross_claims(project_id, change_id), *_coherence_claims(project_id, change_id)]
     elements = _pedido_elements(project_id, change_id)
     out: list[dict] = []
     for row in parse_gap_rows(path.read_text(encoding="utf-8-sig")):
