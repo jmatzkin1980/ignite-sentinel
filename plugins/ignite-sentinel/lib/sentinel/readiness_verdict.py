@@ -98,6 +98,13 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
         ids = ", ".join(p["id"] for p in pre_decided)
         warnings.append(f"{len(pre_decided)} pregunta(s) ya decidida(s) a confirmar: {ids}" if es
                         else f"{len(pre_decided)} already-decided question(s) to confirm: {ids}")
+    from .change_assumptions import open_change_assumptions
+
+    assumed = open_change_assumptions(project_id, change_id)  # IMP-412: visible, never blocking
+    if assumed:
+        ids = ", ".join(row["id"] for row in assumed)
+        warnings.append(f"{len(assumed)} supuesto(s) a validar: {ids}" if es
+                        else f"{len(assumed)} assumption(s) to validate: {ids}")
     warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id))
     need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
     if need["needed"]:
@@ -806,7 +813,12 @@ def _brief_stale(base: Path, change_id: str, change: dict[str, Any]) -> bool:
     # IMP-404: a cross-read was done, waived or decided (a new surface) since the brief was compiled.
     from .crosses.state import crosses_fingerprint
 
-    return str(report.get("crosses_fingerprint", "") or "") != crosses_fingerprint(base.name, change_id)
+    if str(report.get("crosses_fingerprint", "") or "") != crosses_fingerprint(base.name, change_id):
+        return True
+    # IMP-412: an assumption was registered, validated or invalidated since (a report without the key had none)
+    from .change_assumptions import open_change_assumptions
+
+    return list(report.get("assumptions_open") or []) != [row["id"] for row in open_change_assumptions(base.name, change_id)]
 
 
 def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dropped_units: list[str]) -> bool:

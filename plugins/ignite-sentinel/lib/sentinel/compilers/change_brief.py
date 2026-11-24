@@ -16,9 +16,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..change_assumptions import open_change_assumptions
 from ..changes import change_gaps_path, change_language, get_change
 from ..crosses.state import cross_status, crosses_fingerprint
 from ..core.io import write_json, write_text
+from ..core.markdown import table_cell
 from ..extraction.coverage import extraction_view
 from ..extraction.lines import format_ranges
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
@@ -106,6 +108,7 @@ def collect_change_brief_inputs(project_id: str, change_id: str, extraction: boo
         "change": change,
         "language": change_language(project_id, change),
         "gaps": gaps,
+        "assumptions": open_change_assumptions(project_id, change_id),  # IMP-412: [] when the change has no register
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
         "extraction": extraction_view(project_id, change_id) if extraction else {},
@@ -466,6 +469,17 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s9.raw(f"| {gap['id']} | {gap.get('lens', '')} | {gap.get('severity', '')} | {verdict} |")
     else:
         s9.info(copy["no_open"].format(cite=gaps_cite))
+    assumed = list(inputs.get("assumptions") or [])
+    if assumed:  # IMP-412: what the BA went on with, to be validated by someone else
+        es = language == "es"
+        s9.raw("")
+        s9.raw("**Supuestos a validar**" if es else "**Assumptions to validate**")
+        s9.raw("")
+        head = ["Supuesto", "Enunciado", "Valida", "Pregunta"] if es else ["Assumption", "Statement", "Validates", "Question"]
+        s9.raw("| " + " | ".join(head) + " |")
+        s9.raw("|" + "|".join("---" for _ in head) + "|")
+        for row in assumed:
+            s9.raw(f"| {row['id']} | {table_cell(row['statement'])} | {table_cell(row['validate_with'])} | {row['gap']} |")
     if has_inventory or extraction_pending:
         s9.raw("")
     if has_inventory:
@@ -506,6 +520,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "extraction": view.get("coverage") if has_inventory else None,
         "extraction_fingerprint": view.get("fingerprint", "") if has_inventory else "",
         "crosses_fingerprint": inputs.get("crosses_fingerprint", ""),
+        **({"assumptions_open": [row["id"] for row in assumed]} if assumed else {}),
         "preserved_missing": list((view.get("preserved") or {}).get("missing", [])) if has_inventory else [],
     }
     return text, report

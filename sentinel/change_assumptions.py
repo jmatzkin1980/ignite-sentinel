@@ -8,6 +8,7 @@ register; another register (`01_discovery/CHG-nnn/assumptions.md`) and another c
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ from .core.text import unique_path
 from .core.time import utc_now
 from .errors import InputError
 from .gaps import ASSUMED_CLOSURE, parse_gap_rows
+from .gaps.model import extract_field
 from .workspace import workspace_path, write_json
 
 SUPUESTO_STATUSES = {"supuesto", "assumption", "assumed"}
@@ -253,3 +255,104 @@ def set_change_assumption_status(project_id: str, change_id: str, assumption_id:
     return {"project_id": project_id, "change_id": change_id, "action": action, "assumption_id": asm,
             "gap": gap_id, "gap_status": _status(now) if now else "", "gap_counts": counts,
             "next_step": change_next_step(project_id, change_id), "message": message}
+
+
+_HEADING = re.compile(r"^###\s+GAP-[A-Z0-9-]+", re.M)
+_QUOTED = re.compile(r'"([^"]+)"|«([^»]+)»|“([^”]+)”')
+_RISK_BY_SEVERITY = {"critical": "high", "high": "high", "medium": "med", "low": "low"}
+
+
+def _normal_status(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().lower())
+
+
+def without_assumption_blocks(text: str) -> str:
+    """The text minus the `### GAP-…` blocks whose decision status is `supuesto`: their wording ("a validar") is the
+    assumption's own, not a claim that the file is not validated. The other blocks stay as they are."""
+    starts = [m.start() for m in _HEADING.finditer(text)]
+    if not starts:
+        return text
+    kept = [text[: starts[0]]]
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else len(text)
+        block = text[start:end]
+        if _normal_status(extract_field(block, ("Estado de decisión", "Decision status"))) not in SUPUESTO_STATUSES:
+            kept.append(block)
+    return "".join(kept)
+
+
+def _first_quote(evidence: str) -> str:
+    found = _QUOTED.search(evidence)
+    if not found:
+        return evidence.strip()
+    return next(group for group in found.groups() if group is not None).strip()
+
+
+def prepare_response_assumptions(project_id: str, change_id: str, responses: dict, gaps: list[dict],
+                                 exclude: Path, language: str) -> dict:
+    """Bridge: each `supuesto` response with a substantive answer becomes an ASM row (validated like `/assume --change`).
+
+    Marks the response with `assumption_id` and `assumption_note`, or with `assumption_error` when the quote is not
+    found in a local source (the question then stays ANSWERED). Returns `{"rows", "meta", "links"}`."""
+    from .gap_resolution import AGENT_OWNER_TOKENS, UNNAMED_BA, _mentions_any, is_substantive_answer
+    from .lens_registry import known_lenses
+
+    es = _es(language)
+    base = workspace_path(project_id)
+    by_id = {str(g.get("id")): g for g in gaps}
+    grounding = assumption_grounding_text(base, exclude=exclude)
+    lenses = known_lenses()
+    rows: list[dict] = []
+    meta: dict[str, dict] = {}
+    links: dict[str, tuple[str, str]] = {}
+    for gap_id, response in responses.items():
+        if _normal_status(response.get("decision_status", "")) not in SUPUESTO_STATUSES:
+            continue
+        answer = str(response.get("answer", "")).strip()
+        gap = by_id.get(gap_id)
+        if gap is None or not is_substantive_answer(answer):
+            continue
+        asm = "ASM-" + gap_id[4:]
+        if _status(gap) == "CLOSED" and _closure(gap) != ASSUMED_CLOSURE:
+            response["assumption_error"] = ("la pregunta ya está cerrada; un supuesto no reemplaza una decisión" if es
+                                            else "the question is already closed; an assumption does not replace a decision")
+            continue
+        owner = str(response.get("owner", "")).strip()
+        if not owner or _mentions_any(owner.lower(), AGENT_OWNER_TOKENS):
+            owner = UNNAMED_BA["es" if es else "en"]
+        lens = str(gap.get("lens", "")).strip("`").strip().lower()
+        validate_with = str(response.get("validates", "")).strip() or owner
+        row = {"id": asm, "lens": lens if lens in lenses else "product", "statement": answer, "owner": owner,
+               "risk": _RISK_BY_SEVERITY.get(str(gap.get("severity", "")).strip("`").strip().lower(), "med"),
+               "uncertainty": "med", "justification": _first_quote(str(response.get("evidence", ""))),
+               "closes_gap": gap_id}
+        try:
+            (valid,) = validate_assumptions({"assumptions": [row]}, grounding)
+        except AssumptionError:
+            response["assumption_error"] = (
+                "el supuesto necesita en `Evidencia o referencia` una cita literal (entre comillas) de una fuente local; sin cita queda ANSWERED"
+                if es else
+                "the assumption needs a literal quote (in quotation marks) from a local source in `Evidence or reference`; without one it stays ANSWERED")
+            continue
+        response["assumption_id"] = asm
+        response["assumption_note"] = assumed_note(asm, validate_with, language)
+        rows.append(valid)
+        meta[asm] = {"validate_with": validate_with, "gap": gap_id, "origin": "response", "reason": "", "decided_at": ""}
+        links[gap_id] = (asm, validate_with)
+    return {"rows": rows, "meta": meta, "links": links}
+
+
+def open_change_assumptions(project_id: str, change_id: str) -> list[dict]:
+    """The change's assumptions still to validate (`ASSUMED`); empty when the change has no register."""
+    return [row for row in load_change_assumptions(project_id, change_id) if str(row.get("status", "")).upper() == "ASSUMED"]
+
+
+def change_assumption_summary(project_id: str, change_id: str) -> dict[str, Any] | None:
+    """`{"open", "by_domain", "ids"}` of the change's register, or None when the change has none."""
+    if not change_assumptions_path(workspace_path(project_id), change_id).exists():
+        return None
+    open_rows = open_change_assumptions(project_id, change_id)
+    by_domain: dict[str, int] = {}
+    for row in open_rows:
+        by_domain[row["validate_with"]] = by_domain.get(row["validate_with"], 0) + 1
+    return {"open": len(open_rows), "by_domain": by_domain, "ids": [row["id"] for row in open_rows]}

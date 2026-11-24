@@ -268,6 +268,12 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
         drafted_by = extract_field(block, ("Redactado por", "Drafted by"))  # IMP-408, optional: who prepared the answer
         if drafted_by:
             response["drafted_by"] = drafted_by
+        validates = extract_field(block, ("Valida", "Validates with"))  # IMP-412, optional: who validates an assumption
+        if validates:
+            response["validates"] = validates
+        confirmed_by = extract_field(block, ("Confirmado por", "Confirmed by"))  # IMP-412, optional: who confirmed the answer
+        if confirmed_by:
+            response["confirmed_by"] = confirmed_by
         responses[gap_id] = merge_gap_response(responses[gap_id], response) if gap_id in responses else response
     return responses
 
@@ -322,6 +328,12 @@ def merge_gap_response(first: dict[str, str], second: dict[str, str]) -> dict[st
     drafted_by = _join_distinct(first.get("drafted_by", ""), second.get("drafted_by", ""))
     if drafted_by:
         merged["drafted_by"] = drafted_by
+    validates = _join_distinct(first.get("validates", ""), second.get("validates", ""))
+    if validates:
+        merged["validates"] = validates
+    confirmed_by = _join_distinct(first.get("confirmed_by", ""), second.get("confirmed_by", ""))
+    if confirmed_by:
+        merged["confirmed_by"] = confirmed_by
     return merged
 
 

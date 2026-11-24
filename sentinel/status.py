@@ -100,6 +100,9 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     from .prior_decisions import pre_decided_gaps
 
     pre_decided = pre_decided_gaps(project_id, change_id)
+    from .change_assumptions import change_assumption_summary
+
+    assumptions = change_assumption_summary(project_id, change_id)  # IMP-412: only a change with a register has the key
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -109,6 +112,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "border_confirmed": bool(change.get("border_confirmed_at")),
         "gap_counts": change.get("gap_counts", {}),
         **({"pre_decided": pre_decided} if pre_decided else {}),
+        **({"assumptions": assumptions} if assumptions is not None else {}),
         "verdict": build_change_verdict(project_id, change_id),
         "final_export": change.get("final_export"),
         "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),

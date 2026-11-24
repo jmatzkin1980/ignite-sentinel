@@ -19,6 +19,7 @@ from typing import Any
 
 from ..brief_model import V2_GAP_ROUTES
 from ..brief_schema import applicability, brief_settings, profile_order
+from ..change_assumptions import open_change_assumptions
 from ..change_requirements import load_change_ears, parse_surfaces
 from ..core.time import utc_now
 from ..extraction.lines import format_ranges
@@ -118,7 +119,7 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
         "total": int(coverage["total"]),
         "deferred": {"construccion": int(verdict["deferred"]["construccion"]),
                      "operativo": int(verdict["deferred"]["operativo"])},
-        "assumptions": 0,
+        "assumptions": len(open_change_assumptions(project_id, change_id)),  # IMP-412: the ones still to validate
         "verdict": str(verdict["verdict"]),
     }
 
@@ -331,6 +332,10 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
                          f"{copy['yes'] if gap.get('blocks') else copy['no']} | {_cell(gap.get('owner')) or '-'} |")
         blocks["7.1"] = table
 
+    # IMP-412: the open assumptions of the change fill section 8; an empty closes_gap keeps V2_GAP_ROUTES from injecting them
+    to_validate = "— a validar con" if lang == "es" else "— to validate with"
+    assumptions = [{"id": row["id"], "statement": f"{row['statement']} {to_validate} {row['validate_with']}",
+                    "status": row["status"], "closes_gap": ""} for row in open_change_assumptions(project_id, change_id)]
     manifest = load_source_manifest(project_id)
     mine = {str(i) for i in change.get("sources") or []}
     registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
@@ -346,7 +351,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         gaps=[{"id": str(g["id"]).strip("`"), "severity": str(g.get("severity", "")).strip("`"),
                "status": str(g.get("status", "")).strip("`"), "origin": str(g.get("origin", "")).strip("`")}
               for g in inputs["gaps"]],
-        assumptions=[],
+        assumptions=assumptions,
         harvest={},
         registry=registry,
         title=change_copy["heading"].format(change_id=change_id, title=inputs.get("note_title", "")),
