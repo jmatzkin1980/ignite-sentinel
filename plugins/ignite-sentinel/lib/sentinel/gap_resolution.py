@@ -564,6 +564,12 @@ def option_choice(gap_id: str, response: dict[str, str], labels: list[str], lang
         return "", None
     if raw:
         chosen = normalize_option(raw)
+        others = [x for x in dict.fromkeys(re.findall(r"(?<![\w])([A-Z])(?![\w])", raw)) if x in labels and x != chosen]
+        if chosen in labels and others:
+            joined = ", ".join([chosen, *others])
+            note = (f"`Opción: {raw}` nombra varias opciones ({joined}); elegí una sola en `Opción:` (una de {listed})" if es
+                    else f"`Option: {raw}` names several options ({joined}); choose a single one in `Option:` (one of {listed})")
+            return "", note
         if chosen in labels:
             return chosen, None
         note = (f"`Opción: {raw}` no es una de las opciones ({listed}); elegí una en `Opción:`" if es
@@ -623,7 +629,7 @@ def misplaced_note(label: str, language: str) -> str:
     if label in ("Borde", "Border"):
         return ("el bloque Borde va debajo de Respuesta, no de Estado de decisión: movelo (con sus líneas) debajo de `- Respuesta:` y volvé a correr /resolve-gaps"
                 if language == "es" else
-                "the Border block goes under Answer, not under Decision status: move it (with its lines) under `- Answer:` and run /resolve-gaps again")
+                "the `Borde:` block (the border) goes under Answer, not under Decision status: move it (with its lines) under `- Answer:` and run /resolve-gaps again")
     return (f"el campo {label} va al mismo nivel que los demás campos, no debajo de Estado de decisión" if language == "es"
             else f"the {label} field goes at the same level as the other fields, not under Decision status")
 

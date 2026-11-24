@@ -74,6 +74,18 @@ class Applying(unittest.TestCase):
         gap, _ = self.apply(THREE, "b", language="en")
         self.assertEqual(gap["option"], "B")
 
+    def test_option_field_with_several_letters_refused(self):
+        for raw in ("A y B", "A/B", "B, C"):
+            gap, _ = self.apply(THREE, raw)
+            self.assertEqual(gap["status"], "ANSWERED", raw)
+            self.assertEqual(gap.get("option", ""), "", raw)
+            self.assertIn("nombra varias opciones", gap["resolution_note"], raw)
+        gap, _ = self.apply(THREE, "A and B", language="en")
+        self.assertEqual(gap["status"], "ANSWERED")
+        self.assertIn("names several options (A, B)", gap["resolution_note"])
+        gap, _ = self.apply(THREE, "B — se corrige a favor del pedido")
+        self.assertEqual((gap["status"], gap["option"]), ("CLOSED", "B"))
+
     def test_unknown_option_refused(self):
         gap, _ = self.apply(THREE, "E")
         self.assertEqual(gap["status"], "ANSWERED")

@@ -19,7 +19,7 @@ PID = "H27M"
 SCOPE = {"id": "GAP-SCOPE", "lens": "product", "severity": "high", "status": "OPEN", "question": "¿Alcance?", "description": "x"}
 NOTE_BORDER_ES = ("el bloque Borde va debajo de Respuesta, no de Estado de decisión: movelo (con sus líneas) "
                   "debajo de `- Respuesta:` y volvé a correr /resolve-gaps")
-NOTE_BORDER_EN = ("the Border block goes under Answer, not under Decision status: move it (with its lines) "
+NOTE_BORDER_EN = ("the `Borde:` block (the border) goes under Answer, not under Decision status: move it (with its lines) "
                   "under `- Answer:` and run /resolve-gaps again")
 
 
