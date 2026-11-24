@@ -108,7 +108,7 @@ def _merge(result: dict, rows: dict[str, list[str]]) -> None:
 
 def _try_confirm(
     project_id: str, change_id: str, element: dict, item: dict, border: list[dict], language: str,
-    result: dict, force: bool,
+    result: dict, force: bool, delegated: bool = False, note: str = "",
 ) -> None:
     """Confirm one proposed item, or leave it held (flagged) or invalid (no longer valid)."""
     element_id = element["id"]
@@ -144,6 +144,12 @@ def _try_confirm(
             item["rows"] = []
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
+    if delegated:  # IMP-412: confirmed on behalf of the BA, kept apart and listed to review
+        item["confirmed_by"], item["delegated_note"], item["delegated_at"] = "delegated", note, item["confirmed_at"]
+        result.setdefault("delegated", []).append(element_id)
+    else:
+        for key in ("confirmed_by", "delegated_note", "delegated_at"):
+            item.pop(key, None)
     item["flags"] = [f for f in item.get("flags", []) or [] if f.get("origin") != "verify"]  # corrected: the mark is done
     result["confirmed"].append(element_id)
 
@@ -202,7 +208,7 @@ def _select(inventory: dict, section: str, language: str) -> list[dict]:
     return [e for e in elements if e["section_slug"] == slug]
 
 
-def confirm_proposals(project_id: str, change_id: str, section: str) -> dict:
+def confirm_proposals(project_id: str, change_id: str, section: str, delegated: bool = False, note: str = "") -> dict:
     """Confirm every proposed item of a section (or `all`); flagged ones are held, invalid ones reported."""
     base, inventory, _, change, language = _context(project_id, change_id)
     selected = _select(inventory, section, language)
@@ -212,16 +218,24 @@ def confirm_proposals(project_id: str, change_id: str, section: str) -> dict:
     for element in selected:
         item = store["items"].get(element["id"])
         if item and item.get("status") == "proposed":
-            _try_confirm(project_id, change_id, element, item, border, language, result, force=False)
+            _try_confirm(project_id, change_id, element, item, border, language, result, force=False,
+                         delegated=delegated, note=str(note or "").strip())
     return _finish(project_id, change_id, base, store, result)
 
 
-def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
-    """Confirm one proposed item, flagged or not."""
+def confirm_item(project_id: str, change_id: str, element_id: str, delegated: bool = False, note: str = "") -> dict:
+    """Confirm one proposed item, flagged or not; the BA confirming what was delegated ratifies it."""
     base, _, elements, change, language = _context(project_id, change_id)
     store = load_proposals(base, change_id)
     item = store["items"].get(element_id)
     element = elements.get(element_id)
+    if (not delegated and item is not None and element is not None
+            and item.get("status") == "confirmed" and item.get("confirmed_by") == "delegated"):
+        for key in ("confirmed_by", "delegated_note", "delegated_at"):
+            item.pop(key, None)
+        ratified = _empty_result("confirm")
+        ratified["ratified"] = [element_id]
+        return _finish(project_id, change_id, base, store, ratified)
     if item is None or element is None or item.get("status") != "proposed":
         raise _no_pending(element_id, language)
     for flag in item.get("flags", []) or []:
@@ -250,7 +264,8 @@ def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
                 else f"{element_id}: the proposal declares Reading: partial: read the whole element and propose it again"
             )
     result = _empty_result("confirm")
-    _try_confirm(project_id, change_id, element, item, change.get("border", []) or [], language, result, force=True)
+    _try_confirm(project_id, change_id, element, item, change.get("border", []) or [], language, result, force=True,
+                 delegated=delegated, note=str(note or "").strip())
     return _finish(project_id, change_id, base, store, result)
 
 

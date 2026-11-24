@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_assumptions import open_change_assumptions
+from ..delegation import delegated_summary
 from ..changes import change_gaps_path, change_language, get_change
 from ..crosses.state import cross_status, crosses_fingerprint
 from ..core.io import write_json, write_text
@@ -109,6 +110,7 @@ def collect_change_brief_inputs(project_id: str, change_id: str, extraction: boo
         "language": change_language(project_id, change),
         "gaps": gaps,
         "assumptions": open_change_assumptions(project_id, change_id),  # IMP-412: [] when the change has no register
+        "delegated": delegated_summary(project_id, change_id),  # IMP-412
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
         "extraction": extraction_view(project_id, change_id) if extraction else {},
@@ -480,6 +482,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         s9.raw("|" + "|".join("---" for _ in head) + "|")
         for row in assumed:
             s9.raw(f"| {row['id']} | {table_cell(row['statement'])} | {table_cell(row['validate_with'])} | {row['gap']} |")
+    delegated = inputs.get("delegated") or {}
+    if delegated.get("total"):  # IMP-412: confirmed by someone else for the BA, to be reviewed
+        s9.raw("")
+        s9.raw("**Confirmado por delegación (revisar)**" if language == "es" else "**Confirmed on behalf of the BA (to review)**")
+        s9.raw("")
+        for delegated_id in [*delegated["elements"], *delegated["gaps"]]:
+            s9.raw(f"- {delegated_id}")
     if has_inventory or extraction_pending:
         s9.raw("")
     if has_inventory:

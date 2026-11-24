@@ -474,6 +474,10 @@ def _finish_change_resolution(
         mine = [row for row in bridge["rows"] if row.get("closes_gap") in assumed_ids]
         register_change_assumptions(project_id, change_id, mine, bridge["meta"])
         assumptions = [row["id"] for row in mine]
+    from .delegation import record_gap_delegations
+
+    delegated = record_gap_delegations(  # IMP-412: a closed answer that says who confirmed it, on behalf of the BA
+        project_id, change_id, resolution_results["closed"], responses or {}, saved)
     decisions = [gap for gap in resolution_results["closed"] if gap["id"] not in assumed_ids]
     reconciled = reconcile_change_ears(project_id, change_id, decisions, responses or {}, language, record_id)
     change = get_change(project_id, change_id)
@@ -523,6 +527,7 @@ def _finish_change_resolution(
         "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
         "prior_overridden": prior_overridden,
         **({"assumed": [gap["id"] for gap in assumed], "assumptions": assumptions} if assumed else {}),
+        **({"delegated": delegated} if delegated else {}),
         **({"prior_reopened": prior_moves["reopened"]} if prior_moves.get("reopened") else {}),
         **({"prior_changed": prior_moves["changed"]} if prior_moves.get("changed") else {}),
     }

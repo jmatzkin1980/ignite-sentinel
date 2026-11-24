@@ -23,6 +23,8 @@ def run_extract(
     verify: bool = False,
     sample: int | None = None,
     verify_result: str | None = None,
+    delegated: bool = False,
+    note: str = "",
 ) -> dict:
     """The /extract command: inventory, proposals, confirmation or rejection of one change."""
     from ..changes import change_language, get_change
@@ -40,9 +42,9 @@ def run_extract(
     if proposals:
         result = record_proposals(project_id, change_id, Path(proposals))
     elif confirm:
-        result = confirm_proposals(project_id, change_id, confirm)
+        result = confirm_proposals(project_id, change_id, confirm, delegated=delegated, note=note or "")
     elif confirm_item:
-        result = _confirm_item(project_id, change_id, confirm_item)
+        result = _confirm_item(project_id, change_id, confirm_item, delegated=delegated, note=note or "")
     elif reject_item:
         result = _reject_item(project_id, change_id, reject_item, reason or "")
     elif verify:
@@ -95,6 +97,9 @@ def run_extract(
             f"{change_id}: {n} confirmada(s), {h} retenida(s) por marca, {i} ya no válida(s); cobertura {coverage['text']}" if es
             else f"{change_id}: {n} confirmed, {h} held by flag, {i} no longer valid; coverage {coverage['text']}"
         )
+        d = len(result.get("delegated", []))
+        if d:  # IMP-412
+            message += f"; {d} por delegación (revisar)" if es else f"; {d} on behalf of the BA (to review)"
     elif action == "verify":
         k, path = len(result["sample"]), result["request_path"]
         message = (

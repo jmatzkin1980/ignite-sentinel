@@ -493,11 +493,14 @@ def build_server():
         verify: bool = False,
         sample: int = 0,
         verify_result: str = "",
+        delegated: bool = False,
+        note: str = "",
     ) -> dict:
         # IMP-402: every option is forwarded; the CLI refuses the combinations it does not take.
         return run_cli(["extract", project_id, *option_arguments(
             "extract", change=change, proposals=proposals, confirm=confirm, confirm_item=confirm_item,
-            reject_item=reject_item, reason=reason, verify=verify, sample=sample, verify_result=verify_result)])
+            reject_item=reject_item, reason=reason, verify=verify, sample=sample, verify_result=verify_result,
+            delegated=delegated, note=note)])
 
     @tool(name="sentinel_cross", description=TOOL_DESCRIPTIONS["cross"])
     def sentinel_cross(

@@ -112,6 +112,9 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
     lang = _lang(language)
     coverage = extraction_coverage(project_id, change_id)
     verdict = build_change_verdict(project_id, change_id)
+    from ..delegation import delegated_summary
+
+    delegated = delegated_summary(project_id, change_id)
     return {
         "state": "final" if final else COPY[lang]["draft"],
         "date": utc_now()[:10],
@@ -120,6 +123,7 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
         "deferred": {"construccion": int(verdict["deferred"]["construccion"]),
                      "operativo": int(verdict["deferred"]["operativo"])},
         "assumptions": len(open_change_assumptions(project_id, change_id)),  # IMP-412: the ones still to validate
+        "delegated": [*delegated["elements"], *delegated["gaps"]],  # IMP-412: confirmed on behalf of the BA, to review
         "verdict": str(verdict["verdict"]),
     }
 
@@ -143,18 +147,26 @@ def seal_sha(project_id: str, change_id: str) -> str:
 
 def seal_lines(seal: dict[str, Any], language: str) -> list[str]:
     build, operational = seal["deferred"]["construccion"], seal["deferred"]["operativo"]
+    ids = seal.get("delegated") or []
+    es = _lang(language) == "es"
+    delegated_line = ([
+        f"> **Confirmado por delegación:** {len(ids)} (revisar: {', '.join(ids)})" if es
+        else f"> **Confirmed on behalf of the BA:** {len(ids)} (review: {', '.join(ids)})"
+    ] if ids else [])
     if _lang(language) == "es":
         return [
             f"> **Estado:** {seal['state']} · **Fecha:** {seal['date']} · **Veredicto:** {seal['verdict']}",
             f"> **Cobertura:** {seal['covered']} de {seal['total']} elementos del pedido",
             f"> **Pendientes diferidos:** {build + operational} (construcción {build}, operativo {operational})",
             f"> **Supuestos:** {seal['assumptions']}",
+            *delegated_line,
         ]
     return [
         f"> **Status:** {seal['state']} · **Date:** {seal['date']} · **Verdict:** {seal['verdict']}",
         f"> **Coverage:** {seal['covered']} of {seal['total']} request elements",
         f"> **Deferred items:** {build + operational} (build {build}, operational {operational})",
         f"> **Assumptions:** {seal['assumptions']}",
+        *delegated_line,
     ]
 
 

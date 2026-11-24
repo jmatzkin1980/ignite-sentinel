@@ -1,6 +1,6 @@
 ---
 description: Inventory a change request element by element, record cited proposals (requirement, brief section or discard), confirm them by section and measure coverage.
-argument-hint: PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH]
+argument-hint: PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH] [--delegated [--note TEXT]]
 ---
 
 # Ignite Extract
@@ -46,6 +46,8 @@ Three phases. Without options it inventories the request (every rule, criterion,
 ```
 
 Transcribe, never draft: nothing enters without a verbatim quote of the request, and nothing is confirmed without the BA. With `--confirm SECTION|all` the BA confirms the proposals of a section (or all of them), which writes the EARS rows and fills the brief sections. What is flagged (`Marca`: contradiction, divergence, no support, or an open gap) is not confirmed in bulk: it is held, and each one is confirmed with `--confirm-item ID` after the BA reads it in `review.md`, or taken out with `--reject-item ID --reason TEXT`. `--proposals`, `--confirm`, `--confirm-item`, `--reject-item`, `--verify` and `--verify-result` are alternatives; `--reason` goes only with `--reject-item` and `--sample` only with `--verify`.
+
+`--delegated` (with `--confirm` or `--confirm-item`, optionally `--note TEXT`) confirms on behalf of the BA: the rules are the same (a partial reading or a coverage or verification mark still refuses), but the element is recorded apart as confirmed by delegation and listed in the status, the brief and the export seal to review; the BA ratifies it with `--confirm-item ID` without `--delegated`. A question answered with `- Confirmado por: delegación del BA` (`- Confirmed by:`) in a change leaves the same trace.
 
 The inventory also writes a reading plan (`extraction/reading_plan.md`): the request in batches of at most 60000 characters, each with the lines of each source; read each batch in full and declare in `Líneas` the range you read. `--verify` draws a reproducible sample of the confirmed elements (10 by default) into `extraction/verify/NNN-muestra.md`; re-read each one against the request and answer under Resultados with `- ID: igual` or `- ID: difiere — what is missing`, then record it with `--verify-result PATH`: each `difiere` takes its element back to proposed with the mark `verificacion_difiere`.
 

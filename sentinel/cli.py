@@ -502,10 +502,15 @@ def _run_project_command(args) -> int:
                 raise ValueError("/extract --reason goes with --reject-item")
             if args.reject_item and not args.reason:
                 raise ValueError("/extract --reject-item needs --reason")
+            if args.delegated and not (args.confirm or args.confirm_item):
+                raise ValueError("/extract --delegated goes with --confirm or --confirm-item")
+            if args.note and not args.delegated:
+                raise ValueError("/extract --note goes with --delegated")
             print_json(run_extract(
                 args.project_id, args.change, proposals=args.proposals, confirm=args.confirm,
                 confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
                 verify=args.verify, sample=args.sample, verify_result=args.verify_result,
+                delegated=args.delegated, note=args.note or "",
             ))
         elif args.command == "cross":
             from .crosses import run_cross
