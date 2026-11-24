@@ -120,6 +120,7 @@ Use this when you know what you want but not the command. Commands are in chat f
 | You say | Run | Notes |
 |---|---|---|
 | "Is Sentinel working on this machine?" | `/doctor` | Full check in a clone, runtime check elsewhere (plugin, wheel, `.pyz`). `WARN` on LanceDB is healthy. With the Claude Code plugin, type `sentinel /doctor`: a bare `/doctor` is Claude Code's own diagnostic. In a Claude Code clone, if `/doctor` runs Claude Code's diagnostic, send `/sentinel /doctor`. |
+| "I have these documents, where do I start?" | `sentinel-intake-triage` skill (entry check), then the first step it names | The skill classifies what you hold (request, baseline, earlier plan, design, domains, people's answers) and proposes a starting point from the [flow matrix](22-flow-step-matrix.md); nothing runs until you confirm. |
 | "I got a pile of requests, how many projects is this?" | `sentinel-intake-triage` skill, then `/init` | Groups requests by theme before any project exists. |
 | "I have a new client requirement in this file" | `/init` → `/ingest --source FILE` → `/brief --profile ... --genesis ...` → `/next` | `gaps.md` is ready after `/ingest`. Confirm the brief settings right after the first `/ingest`; `/next` asks for it and suggests values. In a Claude Code clone, if `/init` starts Claude Code's own setup, send `/sentinel /init`. |
 | "Keep the older v1 brief on this new project" | `/init --brief-version 1` | New projects get the brief v2. Switch an existing project with `/brief --brief-version N`; `/init` on an existing workspace does not change it. |

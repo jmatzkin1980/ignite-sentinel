@@ -35,6 +35,28 @@ class IntakeTriageSkillTests(unittest.TestCase):
         ):
             self.assertIn(anchor, text, f"intake-triage skill missing contract anchor: {anchor!r}")
 
+    def test_entry_check_anchors(self):
+        text = _skill_text()
+        for anchor in (
+            "## Where do I start? (documents in hand)",
+            "Pedido",
+            "Línea de base",
+            "Plan previo",
+            "Diseño",
+            "Dominios",
+            "Respuestas de personas",
+            "Madurez de lo hecho fuera",
+            "**proyecto**",
+            "**cambio**",
+            "**serie**",
+            "--role linea_de_base --change CHG-001",
+            "verification-only",
+        ):
+            self.assertIn(anchor, text, f"entry check missing anchor: {anchor!r}")
+        description = text.split("---", 2)[1]
+        self.assertIn("¿por dónde arranco?", description)
+        self.assertIn("tengo dos briefs y la documentación técnica", description)
+
 
 if __name__ == "__main__":
     unittest.main()

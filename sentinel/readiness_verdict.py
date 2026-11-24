@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .assumptions import assumptions_projection
+from .commands import skill_for_command
 from .core.state import read_state
 from .development_readiness import compute_development_readiness, compute_unit_implementability
 from .drift import derived_drift_warnings
@@ -416,7 +417,8 @@ def next_step(
     proposal = settings or {}
     command = command.format(pid=project_id, profiles=",".join(proposal.get("profiles", ["UI"])),
                              genesis=proposal.get("genesis", "greenfield"))
-    return {"key": key, "title": title, "text": text, "command": release_scoped_command(command)}
+    command = release_scoped_command(command)
+    return {"key": key, "title": title, "text": text, "command": command, "skill": skill_for_command(command)}
 
 
 CHANGE_TEXT = {
@@ -926,8 +928,9 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     text = text.format(**ctx)
     if text_key == "extract_proposals":
         text += _batch_sentence(project_id, change_id, language)
+    command = CHANGE_COMMANDS[command_key].format(**ctx)
     return {"change_id": change_id, "key": key, "title": title, "text": text,
-            "command": CHANGE_COMMANDS[command_key].format(**ctx)}
+            "command": command, "skill": skill_for_command(command)}
 
 
 def _batch_sentence(project_id: str, change_id: str, language: str) -> str:
@@ -1016,7 +1019,7 @@ def health_fix_step(project_id: str, fixes: list[dict[str, Any]]) -> dict[str, s
     text = ("Health is DIRTY, so /backlog, /quality and /refine-backlog refuse until this is done. "
             + (steps if len(fixes) > 1 else f"{first['label']} {first['fix']}"))
     return {"key": "health", "title": HEALTH_FIX_TITLES.get(first["kind"], HEALTH_FIX_TITLES["other"]),
-            "text": text, "command": command}
+            "text": text, "command": command, "skill": skill_for_command(command)}
 
 
 def unconfirmed_brief_settings(project_id: str) -> dict[str, Any] | None:

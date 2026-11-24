@@ -6,7 +6,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from .commands import COMMANDS, VIEW_ARTIFACTS, build_parser  # noqa: F401  IMP-303: the single command registry
+from .commands import COMMANDS, VIEW_ARTIFACTS, build_parser, skill_for_next_text  # noqa: F401  IMP-303: the single command registry
 from .errors import EXIT_BUG, EXIT_OK, EXIT_VERDICT, exit_code_for, next_step_for
 from .protocols import postflight_command, preflight_command
 
@@ -672,7 +672,8 @@ def report_error(exc: BaseException) -> int:
     print(f"sentinel error: {exc}", file=sys.stderr)
     next_step = next_step_for(exc)
     if next_step:
-        print(f"next step: {next_step}", file=sys.stderr)
+        skill = skill_for_next_text(next_step)
+        print(f"next step: {next_step} (skill: {skill})" if skill else f"next step: {next_step}", file=sys.stderr)
     if code == EXIT_BUG:
         traceback.print_exception(exc, file=sys.stderr)
     return code

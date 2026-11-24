@@ -119,6 +119,7 @@ Every command, with its options and what it refuses, is in the [command referenc
 | [11 Chat and MCP](user_guide/11-chat-commands.md) | Driving Sentinel from chat; plain words to commands |
 | [14 Dashboard](user_guide/14-dashboard.md) · [15 Artifact views](user_guide/15-artifact-views.md) · [17 Themes](user_guide/17-themes.md) | HTML pages to review with the client and the team |
 | [21 When something went wrong](user_guide/21-recovery.md) | Wrong file or answer, hand edits, lost or damaged files, refusals |
+| [22 Flow and step matrix](user_guide/22-flow-step-matrix.md) | Which skill, command and artifacts each step uses, per starting point |
 | [06 Install](user_guide/06-installation-vscode.md) | Choose your path |
 | [07 Kilo Code](user_guide/07-kilo-code-adapter.md) · [08 Codex](user_guide/08-codex-adapter.md) · [13 Claude Code](user_guide/13-claude-adapter.md) · [18 Claude Code plugin](user_guide/18-claude-plugin.md) | Using Sentinel in that tool |
 | [01 Command reference](user_guide/01-command-reference.md) | Every command: options, outputs, refusals, exit codes |

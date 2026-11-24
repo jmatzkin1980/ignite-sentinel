@@ -145,8 +145,8 @@ class Validate(SnapshotWorkspaceCase):
         self.assertEqual(len(result), 5)
         divergence = result[4]
         pedido = divergence["citations"][0]
-        self.assertEqual(pedido["path"], "00_raw/pedido.md")
-        text = (workspace_path(PID) / "00_raw" / "pedido.md").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(pedido["path"], "00_raw/09_request/pedido.md")
+        text = (workspace_path(PID) / "00_raw" / "09_request" / "pedido.md").read_text(encoding="utf-8").splitlines()
         self.assertIn("RN-02", text[pedido["line"] - 1])
         design = divergence["citations"][1]
         self.assertTrue(design["path"].startswith("00_raw/"))

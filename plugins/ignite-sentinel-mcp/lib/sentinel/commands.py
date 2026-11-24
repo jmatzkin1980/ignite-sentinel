@@ -13,6 +13,7 @@ Stdlib only; it imports nothing from the rest of the package.
 from __future__ import annotations
 
 import argparse
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -43,6 +44,9 @@ class Command:
     mcp: bool = True
     mcp_params: dict[str, tuple[str, ...]] = field(default_factory=dict)
     mcp_omits: dict[str, str] = field(default_factory=dict)
+    # IMP-408: the skill that carries the command's work; skill_variants maps a substring of the command to another skill
+    skill: str = ""
+    skill_variants: tuple[tuple[str, str], ...] = ()
 
     @property
     def tool(self) -> str:
@@ -344,54 +348,54 @@ ROOT_OMIT = {"root": "the MCP server runs at the repository root; --root is a CL
 
 REGISTRY: tuple[Command, ...] = (
     Command("doctor", EXEMPT, _doctor, exempt_reason="environment check over the repository, no project workspace",
-            mcp_omits=ROOT_OMIT),
+            mcp_omits=ROOT_OMIT, skill="sentinel-health"),
     Command("dashboard", EXEMPT, _dashboard, exempt_reason="read-only portfolio view across workspaces, no single project",
-            mcp_params={"open_browser": ("open",)}, mcp_omits=ROOT_OMIT),
-    Command("view", READ_ONLY, _view, release=True, mcp_params={"open_browser": ("open",)}),
-    Command("init", EXEMPT, _init, exempt_reason="creates the workspace (state.json) that the protocol log needs"),
-    Command("ingest", MUTATING, _ingest),
-    Command("retrieve", READ_ONLY, _retrieve),
-    Command("sync", MUTATING, _sync),
-    Command("resolve-gaps", MUTATING, _resolve_gaps),
-    Command("annotate", MUTATING, _project_source),
-    Command("challenge", MUTATING, _project_source),
-    Command("scrutinize", MUTATING, _scrutinize),
-    Command("harvest", MUTATING, _harvest),  # IMP-262
+            mcp_params={"open_browser": ("open",)}, mcp_omits=ROOT_OMIT, skill="sentinel-views"),
+    Command("view", READ_ONLY, _view, release=True, mcp_params={"open_browser": ("open",)}, skill="sentinel-views"),
+    Command("init", EXEMPT, _init, exempt_reason="creates the workspace (state.json) that the protocol log needs", skill="sentinel-discovery"),
+    Command("ingest", MUTATING, _ingest, skill="sentinel-discovery"),
+    Command("retrieve", READ_ONLY, _retrieve, skill="sentinel-sync"),
+    Command("sync", MUTATING, _sync, skill="sentinel-sync"),
+    Command("resolve-gaps", MUTATING, _resolve_gaps, skill="sentinel-gap-response"),
+    Command("annotate", MUTATING, _project_source, skill="sentinel-annotate"),
+    Command("challenge", MUTATING, _project_source, skill="sentinel-challenge"),
+    Command("scrutinize", MUTATING, _scrutinize, skill="sentinel-scrutiny"),
+    Command("harvest", MUTATING, _harvest, skill="sentinel-brownfield-harvest"),  # IMP-262
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     Command("split", MUTATING, _split,
-            mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}),
+            mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}, skill="sentinel-release-split"),
     # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
-    Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}),
-    Command("self-review", MUTATING, _self_review),
-    Command("assume", MUTATING, _project_source),
-    Command("compose", MUTATING, _project_source),
-    Command("refine-backlog", MUTATING, _project_source),
-    Command("implementation-feedback", MUTATING, _project_source),
-    Command("story-status", MUTATING, _story_status, release=True),
-    Command("context-request", MUTATING, _context_request, mcp_params={"id": ("request_id",)}),
-    Command("next", READ_ONLY, _next, release=True),  # IMP-294: the next step of /status, alone
+    Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
+    Command("self-review", MUTATING, _self_review, skill="sentinel-self-review"),
+    Command("assume", MUTATING, _project_source, skill="sentinel-assume"),
+    Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
+    Command("refine-backlog", MUTATING, _project_source, skill="sentinel-backlog-refine"),
+    Command("implementation-feedback", MUTATING, _project_source, skill="sentinel-implementation-feedback"),
+    Command("story-status", MUTATING, _story_status, release=True, skill="sentinel-backlog"),
+    Command("context-request", MUTATING, _context_request, mcp_params={"id": ("request_id",)}, skill="sentinel-domain-request"),
+    Command("next", READ_ONLY, _next, release=True, skill="sentinel-command-router"),  # IMP-294: the next step of /status, alone
     # IMP-244: /stakeholders writes the stakeholder registry, so it is logged and snapshotted
     # like every other writer (listing goes through it too; cost is negligible).
-    Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}),
+    Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}, skill="sentinel-discovery"),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
-    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}),
-    Command("extract", MUTATING, _extract),  # IMP-402
-    Command("cross", MUTATING, _cross),  # IMP-404
-    Command("export", MUTATING, _export),
-    Command("backlog", MUTATING, _backlog, release=True),
+    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync"),
+    Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change"),  # IMP-402
+    Command("cross", MUTATING, _cross, skill="sentinel-discovery §Cross-reads of a change"),  # IMP-404
+    Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"))),
+    Command("backlog", MUTATING, _backlog, release=True, skill="sentinel-backlog"),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.
-    Command("maturity", MUTATING, _project),
-    Command("specs", MUTATING, _specs, release=True),
-    Command("backlog-status", MUTATING, _project_override),
-    Command("quality", MUTATING, _project_override, release=True),
-    Command("health", READ_ONLY, _project),
+    Command("maturity", MUTATING, _project, skill="sentinel-maturity"),
+    Command("specs", MUTATING, _specs, release=True, skill="sentinel-specs"),
+    Command("backlog-status", MUTATING, _project_override, skill="sentinel-backlog"),
+    Command("quality", MUTATING, _project_override, release=True, skill="sentinel-quality"),
+    Command("health", READ_ONLY, _project, skill="sentinel-health"),
     # IMP-306: /trace rewrites the traceability matrix and graph.
-    Command("trace", MUTATING, _trace, release=True),
-    Command("validate", READ_ONLY, _validate, release=True),
-    Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}),
-    Command("brief", MUTATING, _brief),
-    Command("status", READ_ONLY, _status, release=True),
-    Command("reindex", MUTATING, _reindex),
+    Command("trace", MUTATING, _trace, release=True, skill="sentinel-health"),
+    Command("validate", READ_ONLY, _validate, release=True, skill="sentinel-health"),
+    Command("gaps", MUTATING, _gaps, mcp_params={"id": ("gap_id",)}, skill="sentinel-discovery"),
+    Command("brief", MUTATING, _brief, skill="sentinel-project-brief"),
+    Command("status", READ_ONLY, _status, release=True, skill="sentinel-command-router"),
+    Command("reindex", MUTATING, _reindex, skill="sentinel-sync"),
 )
 
 BY_NAME: dict[str, Command] = {command.name: command for command in REGISTRY}
@@ -401,6 +405,29 @@ MUTATING_COMMANDS: frozenset[str] = frozenset(c.name for c in REGISTRY if c.prot
 PROTOCOL_EXEMPT_COMMANDS: dict[str, str] = {c.name: c.exempt_reason for c in REGISTRY if c.protocol == EXEMPT}
 RELEASE_COMMANDS: tuple[str, ...] = tuple(c.name for c in REGISTRY if c.release)
 MCP_TOOLS: frozenset[str] = frozenset(c.tool for c in REGISTRY if c.mcp)
+
+_VERB = re.compile(r"(?:^|\s)/([a-z][a-z-]*)\b")
+_RUN_PREFIX = re.compile(r"^(Run|Corré|Correr|Ejecutá)\s+/")
+
+
+def skill_for_command(command: str) -> str:
+    """IMP-408: the skill of the first `/verb` of a command line that the registry knows ("" if none)."""
+    for found in _VERB.finditer(command):
+        entry = BY_NAME.get(found.group(1))
+        if entry is None:
+            continue
+        for fragment, variant in entry.skill_variants:
+            if fragment in command:
+                return variant
+        return entry.skill
+    return ""
+
+
+def skill_for_next_text(text: str) -> str:
+    """IMP-408: the skill of a next-step text, only when the text is a command to run."""
+    if text.startswith("/") or _RUN_PREFIX.match(text):
+        return skill_for_command(text)
+    return ""
 
 
 def build_parser() -> argparse.ArgumentParser:

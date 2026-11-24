@@ -47,9 +47,9 @@ Seven skills share one shape, the proposal channel: `sentinel-annotate`, `sentin
 
 ### `sentinel-intake-triage`
 
-- **Use it when** you hold a pile of raw intake (client requests, an RFQ inbox, mail or chat threads) and it is not clear whether it is one project or several. Strictly before `/init`.
+- **Use it when** you hold a pile of raw intake (client requests, an RFQ inbox, mail or chat threads) and it is not clear whether it is one project or several, or when you hold documents and ask where to start. It is the entry check: it classifies what you hold and points to the first step and its skill (see the [flow matrix](22-flow-step-matrix.md)). It normally runs before `/init`, but it also works over an existing workspace.
 - **What it does** numbers every source item (`R1`, `R2`, ...), groups them by theme with a verbatim quote for each, proposes one-line requirement candidates, recommends one project or several, and lists duplicates, noise and out-of-scope asks with the reason. It stops there and hands you the decision.
-- **Commands it drives** none. It runs before any workspace exists. After you confirm the split you run `/init` and `/ingest` per project for its first source, and `/sync --source` for each further `R#` source assigned to it, so the citations become evidence.
+- **Commands it drives** none of its own while it classifies; once you confirm, it gives the first commands (`/init`, `/ingest`, `/sources --load --role`, `/harvest`) and the skill each one needs. After you confirm the split you run `/init` and `/ingest` per project for its first source, and `/sync --source` for each further `R#` source assigned to it, so the citations become evidence.
 - **Human-only** no.
 
 ## Discovery

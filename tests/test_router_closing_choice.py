@@ -26,6 +26,15 @@ class RouterClosingChoiceTest(unittest.TestCase):
         self.assertIn("2 to 4 options", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         self.assertIn("2 a 4 opciones", (ROOT / "CLAUDE.md").read_text(encoding="utf-8"))
 
+    def test_router_routes_documents_to_the_entry_check(self):
+        text = (ROOT / ROUTER_COPIES[0]).read_text(encoding="utf-8")
+        description = text.split("---", 2)[1]
+        self.assertIn("armá el brief del release 2 con todo esto", description)
+        self.assertIn("sentinel-intake-triage", description)
+        self.assertIn("use `sentinel-intake-triage` (entry check)", text)
+        self.assertIn("Build the options from `next_action` (`/status`), `next_step`", text)
+        self.assertIn(".claude/launch.json", text)
+
 
 if __name__ == "__main__":
     unittest.main()

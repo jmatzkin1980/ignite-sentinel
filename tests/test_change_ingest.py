@@ -39,7 +39,7 @@ class ChangeIngest(SnapshotWorkspaceCase):
 
     def test_state_entry_shape(self):
         entry = list_changes("BORR")[self.out["change_id"]]
-        self.assertEqual(entry["source"], "00_raw/pedido.md")
+        self.assertEqual(entry["source"], "00_raw/09_request/pedido.md")
         self.assertEqual(entry["round"], "scope")
         self.assertEqual(entry["border"], [])
         self.assertIsNone(entry["border_confirmed_at"])

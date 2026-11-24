@@ -20,6 +20,7 @@ from .core.text import unique_path
 from .lens_registry import SURFACE_TYPES, load_lens_checks
 from .secrets_scan import ingest_source, pii_report_enabled
 from .source_formats import read_source, target_suffix
+from .source_registry import ROLE_FOLDERS
 from .sources import declare_source_role, mark_source_processed, open_source_row
 from .workspace import ensure_workspace, load_config, read_state, update_state, workspace_path
 
@@ -117,18 +118,20 @@ def ingest_change(project_id: str, source: Path) -> dict:
 
     ensure_workspace(project_id)
     base = workspace_path(project_id)
-    natural = base / "00_raw" / f"{source.stem}{target_suffix(source)}"
+    natural = base / ROLE_FOLDERS["pedido"] / f"{source.stem}{target_suffix(source)}"
+    natural.parent.mkdir(parents=True, exist_ok=True)
     # The id comes from the source path (add_node dedups on it): a second --change with the
     # same file would overwrite the open change's answers, border and gaps. Refuse before writing.
     for open_id, entry in list_changes(project_id).items():
-        if entry.get("source") == f"00_raw/{natural.name}" or entry.get("origin") == source.name:
+        if (entry.get("source") in (f"00_raw/{natural.name}", f"00_raw/09_request/{natural.name}")
+                or entry.get("origin") == source.name):
             raise GateRefusal(
                 f"{source.name} ya está abierto como {open_id} en {project_id}",
                 next_step=f"Seguí ese cambio con /gaps {project_id} --change {open_id}; para un cambio nuevo usá otro archivo.",
             )
     # A raw copy that is not this change's own (the project's input, a baseline source) is never overwritten.
     raw_target = unique_path(natural)
-    own_source = f"00_raw/{raw_target.name}"
+    own_source = raw_target.relative_to(base).as_posix()
     extracted = read_source(source, media_stem=raw_target.stem)
     source_id = open_source_row(project_id, source, "change_ingested")
     declare_source_role(project_id, source_id, "pedido")  # IMP-400: the note is the request
@@ -169,6 +172,8 @@ def ingest_change(project_id: str, source: Path) -> dict:
     update_state(project_id, changes=changes)
     from .source_versions import check_change_versions
 
+    from .readiness_verdict import change_next_step  # IMP-408
+
     check_change_versions(project_id, change_id)  # IMP-400: a request that cites another version of a loaded source
     return {
         "project_id": project_id,
@@ -176,6 +181,7 @@ def ingest_change(project_id: str, source: Path) -> dict:
         "gaps_path": str(gaps_path.as_posix()),
         "gap_counts": list_changes(project_id)[change_id]["gap_counts"],
         "round": "scope",
+        "next_step": change_next_step(project_id, change_id),
     }
 
 

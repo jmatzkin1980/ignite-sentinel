@@ -99,7 +99,7 @@ def _read_row_text(row: dict[str, Any]) -> str:
 
 
 def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str, source_id: str,
-         role: str = "linea_de_base") -> dict[str, str]:
+         role: str = "linea_de_base", own_name: str | None = None) -> dict[str, str]:
     es = language == "es"
     # The cited name lower-cased: SAD-v3.md and sad-v3.md in one request are one question.
     digest = hashlib.sha256(f"{change_id}|{cited.lower() if cited else sha}".encode("utf-8")).hexdigest()[:6].upper()
@@ -112,6 +112,9 @@ def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str
                     "(A) rige la cargada (la cita del pedido está desactualizada); "
                     f"(B) cargar la versión citada (/sources … --load … --role {role}); "
                     "(C) el pedido se escribió sobre otra versión: revisar lo que dependa de ella.")
+        if own_name:
+            description += f" El nombre citado es de la misma familia que el propio pedido (`{own_name}`)."
+            question += f" (D) es una versión anterior del propio pedido: no se compara con `{loaded}`."
     else:
         description = (f"The request cites {shown}{sha_part} and the loaded source is `{loaded}` ({source_id}). "
                        "Which version was the request written on?")
@@ -119,6 +122,9 @@ def _gap(change_id: str, language: str, cited: str, sha: str | None, loaded: str
                     "(A) the loaded one governs (the request's citation is out of date); "
                     f"(B) load the cited version (/sources … --load … --role {role}); "
                     "(C) the request was written on another version: review whatever depends on it.")
+        if own_name:
+            description += f" The cited name belongs to the same family as the request itself (`{own_name}`)."
+            question += f" (D) it is an earlier version of the request itself: it is not compared with `{loaded}`."
     return {"id": f"GAP-VER-{digest}", "lens": "technical", "severity": "high", "status": "OPEN", "kind": "client",
             "description": description, "question": question,
             "evidence_mention": cited or str(sha), "origin": "sources", "resolution_note": ""}
@@ -135,13 +141,17 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
     from .sources import load_source_manifest
     from .workspace import update_state, workspace_path
 
-    result: dict[str, Any] = {"matched": [], "mismatched": [], "not_loaded": [], "opened": []}
+    result: dict[str, Any] = {"matched": [], "mismatched": [], "not_loaded": [], "opened": [], "self_version": []}
     entry = list_changes(project_id).get(change_id)
     if not entry:
         return result
     rows = {str(r.get("id")): r for r in load_source_manifest(project_id).get("registry", [])}
     pedidos = [rows[i] for i in entry.get("sources") or [] if i in rows and row_role(rows[i]) == "pedido"]
     loaded = [r for r in rows.values() if r.get("validity", "current") == "current" and row_role(r) in COMPARED_ROLES]
+    own = [(n, p) for p in pedidos for n in _basenames(p)]
+    own_names = {n for n, _ in own}
+    own_families = {version_key(n) for n in own_names} - {""}
+    own_label = {id(p): (Path(str(p["paths"][0])).name if p.get("paths") else str(p["id"])) for p in pedidos}
     seen: set[tuple[str, str]] = set()
     new_gaps: list[dict[str, str]] = []
     language = change_language(project_id, entry)
@@ -152,6 +162,11 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
             if key in seen:
                 continue
             seen.add(key)
+            own_hit = next((p for n, p in own if cited and (cited.lower() == n or same_document(cited, n))), None)
+            if own_hit is not None:  # the request names itself: nothing to compare
+                result["matched"].append({"cited": cited, "sha": sha, "line": ref["line"], "source_id": own_hit["id"]})
+                continue
+            own_family = bool(cited) and version_key(cited) in own_families
             by_name = next((r for r in loaded if cited and cited.lower() in _basenames(r)), None)
             if cited and by_name is None:  # the same document in another format or spacing counts as the name
                 by_name = next((r for r in loaded if any(same_document(cited, n) for n in _basenames(r))), None)
@@ -160,6 +175,11 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
                 by_family = next((r for r in loaded if any(version_key(n) == version_key(cited) for n in _basenames(r))), None)
             report = {"cited": cited, "sha": sha, "line": ref["line"]}
             row = by_name or by_family
+            mine = next((p for n, p in own if version_key(n) == version_key(cited)), None) if own_family else None
+            if own_family and row is None:  # an earlier version of the request itself
+                result["self_version"].append({"cited": cited, "line": ref["line"], "pedido": own_label[id(mine)]})
+                continue
+            own_name = own_label[id(mine)] if mine is not None and by_name is None else None
             if cited is None:  # a bare sha: it must prefix some loaded hash
                 hit = next((r for r in loaded if sha and _sha_matches(r, sha)), None)
                 result["matched" if hit else "not_loaded"].append({**report, "source_id": hit["id"]} if hit else report)
@@ -170,7 +190,8 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
             else:
                 result["mismatched"].append({**report, "source_id": row["id"], "reason": "sha" if by_name is not None else "version"})
                 loaded_name = Path(str(row["paths"][0])).name if row.get("paths") else str(row["id"])
-                new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"]), row_role(row) or "linea_de_base"))
+                new_gaps.append(_gap(change_id, language, cited, sha, loaded_name, str(row["id"]), row_role(row) or "linea_de_base",
+                                     own_name=own_name))
     if new_gaps and write:
         path = change_gaps_path(workspace_path(project_id), change_id)
         existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []

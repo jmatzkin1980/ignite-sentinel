@@ -385,6 +385,30 @@ def mark_source_processed(
     return str(row["id"]) if row else None
 
 
+def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
+    """H27: a new answers file over a previous /resolve-gaps run is a re-run, not a candidate version.
+
+    Applies only when the row's first event and every event of the row it would replace are
+    `gap_resolved`; returns that row id, or None when the candidate note must stay.
+    """
+    manifest = load_source_manifest(project_id)
+    row = find_row(manifest, source_id)
+    previous_id = row.get("pending_version_of") if row else None
+    if not row or not previous_id:
+        return None
+    previous = find_row(manifest, str(previous_id))
+    events = row.get("events") or []
+    before = (previous or {}).get("events") or []
+    if previous is None or not events or events[0].get("via") != "gap_resolved":
+        return None
+    if not before or any(e.get("via") != "gap_resolved" for e in before):
+        return None
+    row["pending_version_of"] = None
+    row["rerun_of"] = str(previous_id)
+    save_source_manifest(project_id, manifest)
+    return str(previous_id)
+
+
 def discover_source_novelty(project_id: str) -> dict[str, list[dict[str, Any]]]:
     """Pending sources, plus unseen paths whose content is already a registered row.
 
