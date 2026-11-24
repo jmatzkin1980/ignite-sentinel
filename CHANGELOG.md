@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-11-24
+
 ### Added
 
 - **Reliable change brief (IMP-406, H27 inc 1).** Fine inventory (`SEC-x.pN` parts with a range of lines); coverage by lines with `Líneas:` and `Lectura: parcial`; reading plan in batches; `/extract --verify` and `--verify-result`; change verdict in `/status --change`; `/gaps --change --id --impact construccion|operativo`; change export in brief v2 format with a seal; `export_final` step.
