@@ -492,18 +492,19 @@ def _run_project_command(args) -> int:
             from .extraction import run_extract
 
             forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item,
-                                       args.verify, args.verify_result)]
+                                       args.verify, args.verify_result, args.consolidate, args.confirm_replacement)]
             if sum(forms) > 1:
                 raise ValueError(
-                    "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify or --verify-result")
+                    "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify, "
+                    "--verify-result, --consolidate or --confirm-replacement")
             if args.sample is not None and not args.verify:
                 raise ValueError("/extract --sample goes with --verify")
             if args.reason and not (args.reject_item or args.confirm_item):
                 raise ValueError("/extract --reason goes with --reject-item or --confirm-item")
             if args.reject_item and not args.reason:
                 raise ValueError("/extract --reject-item needs --reason")
-            if args.delegated and not (args.confirm or args.confirm_item):
-                raise ValueError("/extract --delegated goes with --confirm or --confirm-item")
+            if args.delegated and not (args.confirm or args.confirm_item or args.confirm_replacement):
+                raise ValueError("/extract --delegated goes with --confirm, --confirm-item or --confirm-replacement")
             if args.note and not args.delegated:
                 raise ValueError("/extract --note goes with --delegated")
             print_json(run_extract(
@@ -511,6 +512,7 @@ def _run_project_command(args) -> int:
                 confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
                 verify=args.verify, sample=args.sample, verify_result=args.verify_result,
                 delegated=args.delegated, note=args.note or "",
+                consolidate=args.consolidate, confirm_replacement=args.confirm_replacement,
             ))
         elif args.command == "cross":
             from .crosses import run_cross

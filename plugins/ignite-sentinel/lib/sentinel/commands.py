@@ -302,6 +302,10 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--verify", action="store_true", help="IMP-406: draw a sample of the confirmed elements to re-read against the request")
     p.add_argument("--sample", type=int, metavar="N", help="IMP-406: with --verify, how many elements (default 10)")
     p.add_argument("--verify-result", dest="verify_result", metavar="PATH", help="IMP-406: record the results of the open verification")
+    p.add_argument("--consolidate", metavar="PATH",
+                   help="IMP-414: record the text of the elements with the decision applied, one block per element")
+    p.add_argument("--confirm-replacement", dest="confirm_replacement", metavar="ID",
+                   help="IMP-414: confirm the replacement text of one element")
     p.add_argument("--delegated", action="store_true",
                    help="IMP-412: confirm on behalf of the BA; recorded apart and listed to review")
     p.add_argument("--note", help="IMP-412: with --delegated, what the BA delegated")
