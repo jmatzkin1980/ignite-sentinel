@@ -90,7 +90,8 @@ def collect_change_brief_inputs(project_id: str, change_id: str, extraction: boo
     for row in rows:
         gap = dict(row)
         entry = priors.get(gap["id"])
-        response = answers.get(gap["id"]) or ({"answer": entry["answer"]} if entry and entry.get("accepted_at") else {})
+        response = answers.get(gap["id"]) or (
+            {"answer": entry["answer"], "option": entry.get("option", "")} if entry and entry.get("accepted_at") else {})
         gap["answer"] = response.get("answer", "").strip()
         gap["evidence"] = response.get("evidence", "").strip()
         gap["owner"] = response.get("owner", "").strip()

@@ -5,6 +5,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_cli, run_ok  # noqa: E402
@@ -35,6 +36,11 @@ class Counting(unittest.TestCase):
 class PreDecided(CrossCase):
     def setUp(self):
         super().setUp()
+        # these tests seed an earlier decision by hand: it counts as standing (the live check has its own tests)
+        patcher = mock.patch("sentinel.prior_decisions.live_prior_answer",
+                             side_effect=lambda _p, _c, entry, live=None: entry.get("answer"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         record_cross(PID, CID, "diseno", self.write("cruce_diseno.md"))
         forget_read_snapshots()
 

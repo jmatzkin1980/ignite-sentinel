@@ -669,6 +669,27 @@ def accept_prior_decision(project_id: str, change_id: str, gap_id: str) -> dict:
         raise InputError(f"{gap_id} no tiene una decisión previa para aceptar" if es else f"{gap_id} has no earlier decision to accept")
     if str(row.get("status", "")).strip("`").upper() == "CLOSED":
         raise InputError(f"{gap_id} ya está cerrada" if es else f"{gap_id} is already closed")
+    if entry.get("match") != "linked":
+        raise InputError(
+            f"{gap_id}: la sugerencia de memoria o el pedido a Diseño no se aceptan solos: respondela con /resolve-gaps" if es
+            else f"{gap_id}: a memory suggestion or a request to Design is not accepted as is: answer it with /resolve-gaps")
+    from .prior_decisions import live_prior_answer, prior_note
+
+    answer = live_prior_answer(project_id, change_id, entry)
+    if answer is None:
+        raise InputError(
+            f"{gap_id}: la decisión previa ya no está vigente (se reabrió o se retiró): respondela de nuevo" if es
+            else f"{gap_id}: the earlier decision no longer stands (reopened or withdrawn): answer it again")
+    warnings: list[str] = []
+    if " ".join(answer.split()) != " ".join(str(entry.get("answer", "")).split()):
+        entry = {**entry, "answer": answer, "changed": True}
+        warnings.append(f"la decisión previa cambió: se cierra con la respuesta vigente de {entry.get('prior')}" if es
+                        else f"the earlier decision changed: it closes with the current answer of {entry.get('prior')}")
+    from .compilers.change_brief import _answers
+
+    if gap_id in _answers(base, change):
+        warnings.append("ya hay una respuesta escrita para esta pregunta: el brief toma esa y no la decisión previa" if es
+                        else "an answer file already exists for this question: the brief takes it, not the earlier decision")
     prior = str(entry.get("prior", ""))
     row["status"] = "CLOSED"
     row["resolution_note"] = f"confirmado por el BA: rige lo decidido en {prior}" if es else f"confirmed by the BA: what {prior} decided governs"
@@ -678,6 +699,8 @@ def accept_prior_decision(project_id: str, change_id: str, gap_id: str) -> dict:
     index_change_decisions(project_id, change_id)
     return {
         "project_id": project_id, "change_id": change_id, "action": "accept_prior", "gap_id": gap_id, "prior": prior,
+        "match": entry.get("match"), "basis": entry.get("basis"), "option": entry.get("option", ""),
+        **({"warnings": warnings} if warnings else {}),
         "gap_counts": get_change(project_id, change_id).get("gap_counts"),
         "next_step": change_next_step(project_id, change_id),
         "message": f"{change_id}: {gap_id} cerrada con lo decidido en {prior}" if es else f"{change_id}: {gap_id} closed with what {prior} decided",

@@ -82,6 +82,66 @@ def pre_decided_gaps(project_id: str, change_id: str) -> list[dict[str, str]]:
             if str(row.get("status", "")).strip("`").upper() == "PRE_DECIDED"]
 
 
+def live_prior_answer(project_id: str, change_id: str, entry: dict, live: dict[str, dict] | None = None) -> str | None:
+    """What the earlier decision an entry points to says now, or None when it is no longer a decision (reopened, retired)."""
+    from .changes import change_language, get_change
+
+    prior = str(entry.get("prior", ""))
+    if live is None:
+        from .decision_memory import closed_decisions
+
+        live = {d["id"]: d for d in closed_decisions(project_id, change_id) if d.get("closure", "") in PRIOR_CLOSURES}
+    if prior in live:
+        return str(live[prior]["answer"])
+    change = get_change(project_id, change_id)
+    decision = (change.get("new_surfaces") or {}).get(prior)
+    if entry.get("basis") == "surface" and isinstance(decision, dict) and decision.get("decision") in ("accepted", "declined"):
+        return _surface_answer(decision, change_language(project_id, change))
+    return None
+
+
+def reconcile_priors(project_id: str, change_id: str) -> dict[str, list[str]]:
+    """The questions that took an earlier decision follow it: a reopened one falls back to OPEN, a re-answered one is refreshed."""
+    from .changes import change_gaps_path, change_language, get_change
+    from .crosses.record import _save_change_gaps
+    from .gaps import parse_gap_rows
+    from .workspace import workspace_path
+
+    base = workspace_path(project_id)
+    priors = load_priors(base, change_id)
+    pending = {k: e for k, e in priors.items() if e.get("match") == "linked" and not e.get("accepted_at") and not e.get("overridden")}
+    path = change_gaps_path(base, change_id)
+    if not pending or not path.exists():
+        return {}
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"]
+    by_id = {g["id"]: g for g in rows}
+    language = change_language(project_id, get_change(project_id, change_id))
+    from .decision_memory import closed_decisions
+
+    live = {d["id"]: d for d in closed_decisions(project_id, change_id) if d.get("closure", "") in PRIOR_CLOSURES}
+    reopened: list[str] = []
+    changed: list[str] = []
+    for gap_id, entry in pending.items():
+        row = by_id.get(gap_id)
+        if row is None or str(row.get("status", "")).strip("`").upper() == "CLOSED":
+            continue
+        answer = live_prior_answer(project_id, change_id, entry, live)
+        if answer is None:
+            del priors[gap_id]
+            row["resolution_note"] = ""
+            if str(row.get("status", "")).strip("`").upper() == PRE_DECIDED:
+                row["status"] = "OPEN"
+            reopened.append(gap_id)
+        elif _flat(answer) != _flat(entry.get("answer")):
+            priors[gap_id] = {**entry, "answer": answer, "changed": True}
+            row["resolution_note"] = prior_note(priors[gap_id], language)
+            changed.append(gap_id)
+    if reopened or changed:
+        save_priors(base, change_id, priors)
+        _save_change_gaps(project_id, change_id, path, rows)
+    return {"reopened": reopened, "changed": changed}
+
+
 # --- the lookup: before a question of the change is opened ----------------------------------------
 
 PRIOR_MEMORY_MIN_SCORE = 0.75

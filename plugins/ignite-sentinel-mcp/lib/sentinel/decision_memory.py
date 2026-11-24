@@ -107,7 +107,8 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
         if note in retired:
             continue
         entry = priors.get(gap_id)
-        response = answers.get(gap_id) or ({"answer": entry["answer"]} if entry and entry.get("accepted_at") else {})
+        response = answers.get(gap_id) or (
+            {"answer": entry["answer"], "option": entry.get("option", "")} if entry and entry.get("accepted_at") else {})
         option = str(response.get("option", "")).strip()
         citations: list[dict] = []
         element_ids: list[str] = []
