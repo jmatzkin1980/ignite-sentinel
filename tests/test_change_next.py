@@ -188,7 +188,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertNotIn("changes", nxt)
         status = cli_json(["status", "BORR", "--change", CID])
         self.assertEqual((status["change_id"], status["round"]), (CID, "scope"))
-        self.assertEqual(status["next_action"], {k: nxt[k] for k in ("change_id", "key", "title", "text", "command")})
+        self.assertEqual(status["next_action"], {k: nxt[k] for k in ("change_id", "key", "title", "text", "command", "skill")})
         # IMP-406: the change has its own verdict (the project rule over the change's gates), not the project's
         self.assertEqual(status["verdict"]["change_id"], CID)
         self.assertEqual(status["verdict"]["verdict"], "NOT_READY")

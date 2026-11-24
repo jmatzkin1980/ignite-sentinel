@@ -432,6 +432,7 @@ def _finish_change_resolution(
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
+    from .readiness_verdict import change_next_step  # IMP-408
 
     base = workspace_path(project_id)
     saved = target.relative_to(base).as_posix()
@@ -485,6 +486,7 @@ def _finish_change_resolution(
         "ears_rows": reconciled["added"],
         "delta_updated": reconciled["delta_updated"],
         "superseded_rows": reconciled["superseded"],
+        "next_step": change_next_step(project_id, change_id),
     }
 
 

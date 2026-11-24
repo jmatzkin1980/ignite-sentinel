@@ -144,8 +144,9 @@ def _run_cli(arguments: list[str]) -> dict[str, object]:
 
         result["code"] = exit_code
         result["kind"] = EXIT_CODES.get(exit_code, "unexpected error")
-        found = re.search(r"^next step: (.+)$", err, flags=re.M)
+        found = re.search(r"^next step: (.+?)(?: \(skill: ([^)]+)\))?$", err, flags=re.M)
         result["next_step"] = found.group(1).strip() if found else ""
+        result["skill"] = found.group(2) if found and found.group(2) else ""
     return result
 
 
