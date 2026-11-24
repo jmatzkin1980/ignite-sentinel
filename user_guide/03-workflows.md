@@ -2071,6 +2071,7 @@ Then ask for a health check and a validation.
 ## Next
 
 - [Scenarios: worked examples](12-scenarios.md)
+- [Flow and step matrix](22-flow-step-matrix.md)
 - [When something went wrong](21-recovery.md)
 - [Command reference](01-command-reference.md)
 - [Artifact reference](02-artifact-reference.md)
