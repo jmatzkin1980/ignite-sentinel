@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import (  # noqa: E402
     SnapshotWorkspaceCase, build_matured_workspace, class_deferred, complete_extraction, export_final_brief, gap_acceptance_answer, run_cli, run_ok,
+    waive_coherence,
     waive_crosses,
 )
 from sentinel import mcp as sentinel_mcp  # noqa: E402
@@ -77,6 +78,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertEqual(s["command"], f"/resolve-gaps BORR --source PATH --change {CID}")
 
         answer("BORR", CID, "a.md", ALL_ANSWERS)
+        waive_coherence("BORR", CID)
         s = step()
         self.assertEqual((s["key"], s["command"]), ("extract_inventory", f"/extract BORR --change {CID}"))
         complete_extraction("BORR", CID)
@@ -124,6 +126,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["blocking_open"], 3)
         self.assertEqual(step()["key"], "lenses")
         answer("BORR", CID, "a.md", ALL_ANSWERS)
+        waive_coherence("BORR", CID)
         self.assertEqual(step()["key"], "extract_inventory")
         complete_extraction("BORR", CID)
         s = step()
@@ -135,6 +138,7 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         report.unlink()
         self.assertEqual(step()["key"], "brief")
         set_change("BORR", language="en")
+        waive_coherence("BORR", CID)  # the lens view is written in the language of the change
         self.assertIn("state of the gaps changed", step()["text"])
 
     def test_specs_not_current_goes_back_to_specs(self):

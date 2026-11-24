@@ -62,7 +62,7 @@ class CoherenceView(CrossCase):
         self.assertEqual(refresh_coherence(PID, CID)["unplaced"], [])
 
     def test_fingerprint_stable_and_moves(self):
-        waive_crosses(PID, CID)
+        waive_crosses(PID, CID, coherence=False)
         first = coherence_view(PID, CID)["fingerprint"]
         self.assertEqual(first, coherence_view(PID, CID)["fingerprint"])
         result = record_cross(PID, CID, "diseno", self.write("cruce_diseno.md"))

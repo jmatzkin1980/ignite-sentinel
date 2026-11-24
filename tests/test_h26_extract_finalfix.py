@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import complete_extraction, lines_field, run_ok, waive_crosses  # noqa: E402
+from helpers import complete_extraction, lines_field, run_ok, waive_coherence, waive_crosses  # noqa: E402
 from test_h26_extract_proposals import CID, EXAMPLE, PID, ProposalsCase  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
@@ -41,6 +41,7 @@ def set_language(language: str) -> None:
     changes = {key: dict(value) for key, value in list_changes(PID).items()}
     changes[CID]["language"] = language
     update_state(PID, changes=changes)
+    waive_coherence(PID, CID)  # the lens view is written in the language of the change (IMP-410)
 
 
 class Finalfix(ProposalsCase):
@@ -63,6 +64,7 @@ class Finalfix(ProposalsCase):
         text = path.read_text(encoding="utf-8")
         start = text.index("## Objetivo")
         path.write_text(text[:start] + text[text.index("## Usuarios"):], encoding="utf-8")
+        waive_coherence(PID, CID)  # the request changed, so the lens view did too (IMP-410)
         result = run_extract(PID, CID)
         self.assertEqual(result["coverage"]["orphans"], [{"id": "SEC-objetivo", "rows": rows}])
         self.assertFalse(result["coverage"]["complete"])
@@ -108,6 +110,7 @@ class Finalfix(ProposalsCase):
         self.waive_baseline()
         pedido_path().write_bytes(b"\x00\x01\x02 binario")
         build_inventory(PID, CID)
+        waive_coherence(PID, CID)  # the request changed, so the lens view did too (IMP-410)
         cover = extraction_coverage(PID, CID)
         self.assertEqual((cover["state"], cover["total"], cover["unreadable"]), ("empty", 0, ["F-01"]))
         self.assertFalse(cover["complete"])
@@ -132,6 +135,7 @@ class Finalfix(ProposalsCase):
         self.waive_baseline()
         pedido_path().write_text("# Pedido sin cuerpo\n", encoding="utf-8")
         build_inventory(PID, CID)
+        waive_coherence(PID, CID)  # the request changed, so the lens view did too (IMP-410)
         cover = extraction_coverage(PID, CID)
         self.assertEqual((cover["state"], cover["unreadable"], cover["complete"]), ("empty", [], True))
         step = change_next_step(PID, CID)

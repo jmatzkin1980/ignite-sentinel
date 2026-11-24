@@ -12,7 +12,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, run_cli, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, run_cli, run_ok, waive_coherence  # noqa: E402
 
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.cli import main  # noqa: E402
@@ -147,6 +147,8 @@ class CrossWalk(unittest.TestCase):
         border = list_changes(PID)[CID]["border"]
         self.assertEqual(len(border), 7, [b.get("name") for b in border])
         self.assertIn("Historial de aprobaciones", [b.get("name") for b in border])
+        self.assertEqual(next_step()["key"], "coherence")  # IMP-410: before the extraction
+        waive_coherence(PID, CID)
         self.assertEqual(next_step()["key"], "extract_inventory")
 
         # 8. extraction: the new surface can be cited, the open GAP-SRD flags the requirement

@@ -87,6 +87,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     sources = change_sources(project_id, change_id)
     extraction = extraction_coverage(project_id, change_id)
     preserved = preserved_coverage(project_id, change_id)
+    from .change_coherence import coherence_state
     from .crosses.state import cross_status
     from .crosses.surfaces import new_surface_candidates
 
@@ -119,6 +120,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "verification": verification_status(project_id, change_id),
         "preserved": preserved,
         "crosses": crosses,
+        "coherence": coherence_state(project_id, change_id),
         "new_surface_candidates": candidates,
         "warnings": [
             *escalation_warnings(project_id, change_id),

@@ -46,6 +46,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     from .crosses.state import KIND_LABELS, cross_status
     from .extraction.coverage import extraction_coverage, legacy_confirmed_message, preserved_coverage
     from .extraction.verify import verification_gap_text, verification_needed
+    from .change_coherence import coherence_ready, coherence_state
     from .prior_decisions import pre_decided_gaps
 
     change = get_change(project_id, change_id)
@@ -70,6 +71,10 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     if crosses["missing"]:
         labels = ", ".join(KIND_LABELS[lang][kind] for kind in crosses["missing"])
         blockers.append(f"faltan cruces: {labels}" if es else f"cross-reads missing: {labels}")
+    coherence = coherence_state(project_id, change_id)["state"]
+    if coherence in ("missing", "stale") and coherence_ready(project_id, change_id):  # before that, the crosses block
+        blockers.append(("falta la coherencia entre lentes" if coherence == "missing" else "la coherencia entre lentes quedó vieja") if es
+                        else ("the lens coherence is missing" if coherence == "missing" else "the lens coherence is stale"))
     if build:
         ids = ", ".join(build)
         blockers.append(f"{len(build)} pendiente(s) diferido(s) frenan la construcción: {ids}" if es
@@ -103,6 +108,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
         {"gate": "gaps", "state": "OPEN" if blocking_open else "CLEAR", "blocks": bool(blocking_open)},
         {"gate": "extraction", "state": "INCOMPLETE" if extraction_open else "COMPLETE", "blocks": extraction_open},
         {"gate": "crosses", "state": "MISSING" if crosses["missing"] else "DONE", "blocks": bool(crosses["missing"])},
+        {"gate": "coherence", "state": coherence.upper(), "blocks": coherence in ("missing", "stale")},
         {"gate": "deferred", "state": "BUILD" if build else ("OPERATIONAL" if operational else "NONE"), "blocks": bool(build)},
         {"gate": "brief", "state": "STALE" if brief_stale else "CURRENT", "blocks": brief_stale},
         {"gate": "requirements", "state": "PRESENT" if has_rows else "NONE", "blocks": not has_rows},
@@ -450,6 +456,14 @@ CHANGE_TEXT = {
                                "El harvest de {cid} no encontró en lo construido {n} cosa(s): {items}. Si hay que construirla en este cambio, "
                                "aceptala como superficie nuevo del borde con /cross {pid} --change {cid} --accept-new ID --type TIPO --name NOMBRE; "
                                "si no, descartala con /cross {pid} --change {cid} --decline-new ID --reason \"…\"."),
+        "coherence_view": ("Prepará la coherencia entre lentes",
+                           "Los cruces de {cid} están completos. Corré /self-review {pid} --crosses --change {cid}: arma la vista por lentes del pedido "
+                           "(01_discovery/{cid}/coherence/view.md) y corre los chequeos deterministas de IMP-260."),
+        "coherence": ("Revisá la coherencia entre lentes",
+                      "Leé 01_discovery/{cid}/coherence/view.md y buscá, regla por regla de semantic_crosses.json, conflictos y contrapartes faltantes "
+                      "entre alcance, negocio, producto, diseño y técnica (por ejemplo, una pantalla sin endpoint). Registralos con "
+                      "/self-review {pid} --crosses --change {cid} --source ARCHIVO, o con {{\"crosses\": []}} si no hay; para no hacerla, "
+                      "--skip --reason \"…\". Chequeos deterministas: {checks}."),
         "extract_inventory": ("Inventariar el pedido",
                               "Corré /extract {pid} --change {cid}: Sentinel lista cada regla, criterio, historia, decisión y sección del pedido de {cid}; "
                               "ese inventario es el denominador de la cobertura."),
@@ -547,6 +561,14 @@ CHANGE_TEXT = {
                                "The harvest of {cid} found {n} thing(s) not in what is built: {items}. If it has to be built in this change, "
                                "accept it as a new surface of the border with /cross {pid} --change {cid} --accept-new ID --type TYPE --name NAME; "
                                "otherwise decline it with /cross {pid} --change {cid} --decline-new ID --reason \"…\"."),
+        "coherence_view": ("Prepare the lens coherence",
+                           "The cross-reads of {cid} are complete. Run /self-review {pid} --crosses --change {cid}: it builds the lens view of the request "
+                           "(01_discovery/{cid}/coherence/view.md) and runs the deterministic checks of IMP-260."),
+        "coherence": ("Review the coherence between lenses",
+                      "Read 01_discovery/{cid}/coherence/view.md and look, rule by rule of semantic_crosses.json, for conflicts and missing counterparts "
+                      "between scope, business, product, design and technical (for example, a screen without an endpoint). Record them with "
+                      "/self-review {pid} --crosses --change {cid} --source FILE, or with {{\"crosses\": []}} if there are none; to skip it, "
+                      "--skip --reason \"…\". Deterministic checks: {checks}."),
         "extract_inventory": ("Inventory the request",
                               "Run /extract {pid} --change {cid}: Sentinel lists each rule, criterion, story, decision and section of the request of {cid}; "
                               "that inventory is the denominator of the coverage."),
@@ -628,6 +650,8 @@ CHANGE_COMMANDS = {
     "lenses": "/resolve-gaps {pid} --source PATH --change {cid}",
     "crosses": "{cross_command}",
     "cross_new_surfaces": "/cross {pid} --change {cid} --accept-new {first_candidate} --type TIPO --name NOMBRE",
+    "coherence_view": "/self-review {pid} --crosses --change {cid}",
+    "coherence": "/self-review {pid} --crosses --change {cid} --source PATH",
     "extract_inventory": "/extract {pid} --change {cid}",
     "extract_unreadable": "/sources {pid} --load PATH --role pedido --change {cid}",
     "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
@@ -670,6 +694,10 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "crosses"
     if any(c["decision"] is None for c in new_surface_candidates(project_id, change_id)):
         return "cross_new_surfaces"
+    from .change_coherence import coherence_state
+
+    if coherence_state(project_id, change_id)["state"] in ("missing", "stale"):
+        return "coherence"
     from .extraction.coverage import extraction_coverage, preserved_coverage
 
     cover = extraction_coverage(project_id, change_id)
@@ -855,6 +883,13 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     stale = key == "brief" and (base / "02_requirements" / change_id / "project-brief.md").is_file()
     ears_gaps = _open_ears_gaps(base, change_id) if key in ("requirements", "preserved") else []
     text_key = "brief_stale" if stale else key
+    coherence = None
+    if key == "coherence":
+        from .change_coherence import coherence_state
+
+        coherence = coherence_state(project_id, change_id)
+        if not coherence["view_current"]:
+            text_key = "coherence_view"
     if key == "requirements" and not ears_gaps:
         text_key = "requirements_none"
     cover = extraction_coverage(project_id, change_id)
@@ -915,6 +950,11 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         ctx["ids"] = ", ".join(ears_gaps)
     ctx["missing"] = ctx["cross_command"] = ""
     ctx["first_candidate"] = "ID"
+    ctx["checks"] = ""
+    if coherence is not None:
+        warn, passed = coherence["checks"]["warn"], coherence["checks"]["pass"]
+        ctx["checks"] = (f"{warn} advertencia(s), {passed} sin observaciones" if change_language(project_id, change) == "es"
+                         else f"{warn} warning(s), {passed} clean")
     language = change_language(project_id, change)
     if key == "crosses":
         found = _cross_step_context(project_id, change_id, language)
@@ -929,7 +969,7 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         ctx.update(n=len(pending), items=shown, first_candidate=pending[0]["id"])
     command_key = text_key if text_key in (
         "extract_confirm_flagged", "extract_partial", "preserved_answer", "preserved_source",
-        "export_not_ready", "extract_verify_result") else key
+        "export_not_ready", "extract_verify_result", "coherence_view") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
     text = text.format(**ctx)
     if text_key == "extract_proposals":

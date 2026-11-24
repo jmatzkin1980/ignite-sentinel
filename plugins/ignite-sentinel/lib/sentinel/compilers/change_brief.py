@@ -77,7 +77,8 @@ def _answers(base: Path, change: dict) -> dict[str, dict[str, str]]:
     return found
 
 
-def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, Any]:
+def collect_change_brief_inputs(project_id: str, change_id: str, extraction: bool = True) -> dict[str, Any]:
+    """`extraction=False` leaves out the extraction view (the lens view of the change is built before the extraction)."""
     change = get_change(project_id, change_id)
     base = workspace_path(project_id)
     gaps_path = change_gaps_path(base, change_id)
@@ -106,7 +107,7 @@ def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, An
         "gaps": gaps,
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
-        "extraction": extraction_view(project_id, change_id),
+        "extraction": extraction_view(project_id, change_id) if extraction else {},
         "crosses": cross_status(project_id, change_id),
         "crosses_fingerprint": crosses_fingerprint(project_id, change_id),
     }

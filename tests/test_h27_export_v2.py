@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, class_deferred, complete_extraction, run_ok, waive_crosses  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, class_deferred, complete_extraction, run_ok, waive_crosses, waive_coherence  # noqa: E402
 
 from sentinel.changes import list_changes  # noqa: E402
 from sentinel.compilers.brief_v2 import BriefInputs, render_brief_v2  # noqa: E402
@@ -91,6 +91,7 @@ class ExportCase(SnapshotWorkspaceCase):
         changes[CID]["language"] = language
         update_state(PID, changes=changes)
         forget_read_snapshots()
+        waive_coherence(PID, CID)  # the lens view is written in the language of the change (IMP-410)
 
     def internal_brief(self) -> str:
         return (workspace_path(PID) / "02_requirements" / CID / "project-brief.md").read_text(encoding="utf-8")

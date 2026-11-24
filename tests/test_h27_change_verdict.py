@@ -54,6 +54,7 @@ class Verdict(CrossCase):
             patch("sentinel.extraction.coverage.extraction_coverage", return_value=COMPLETE),
             patch("sentinel.extraction.coverage.preserved_coverage", return_value={"surfaces": [], "rows": {}, "missing": [], "complete": True}),
             patch("sentinel.crosses.state.cross_status", return_value={"missing": []}),
+            patch("sentinel.change_coherence.coherence_state", return_value={"state": "done"}),
             patch("sentinel.change_escalation.escalation_warnings", return_value=[]),
             patch("sentinel.readiness_verdict._brief_state", return_value=""),
             patch("sentinel.readiness_verdict._has_unit_rows", return_value=True),
@@ -74,7 +75,7 @@ class Verdict(CrossCase):
         gate = next(g for g in verdict["gate_matrix"] if g["gate"] == "gaps")
         self.assertEqual(gate, {"gate": "gaps", "state": "OPEN", "blocks": True})
         self.assertEqual(verdict["deferred"], {"construccion": 2, "operativo": 0})
-        self.assertEqual([g["gate"] for g in verdict["gate_matrix"]], ["gaps", "extraction", "crosses", "deferred", "brief", "requirements", "verification"])
+        self.assertEqual([g["gate"] for g in verdict["gate_matrix"]], ["gaps", "extraction", "crosses", "coherence", "deferred", "brief", "requirements", "verification"])
 
     def test_deferred_default_to_construction(self):
         verdict = self.verdict(self.settled())

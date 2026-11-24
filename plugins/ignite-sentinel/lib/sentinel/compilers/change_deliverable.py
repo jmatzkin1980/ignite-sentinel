@@ -435,7 +435,7 @@ def coherence_brief_inputs(project_id: str, change_id: str) -> tuple[BriefInputs
     from ..compilers.change_brief import collect_change_brief_inputs
     from ..sources import load_source_manifest
 
-    inputs = collect_change_brief_inputs(project_id, change_id)
+    inputs = collect_change_brief_inputs(project_id, change_id, extraction=False)
     template = _template()
     language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
     lang = _lang(language)
@@ -443,7 +443,6 @@ def coherence_brief_inputs(project_id: str, change_id: str) -> tuple[BriefInputs
     tags = DELTA_TAGS[lang]
     change = inputs["change"]
     border = list(change.get("border") or [])
-    view = inputs.get("extraction") or {}
     facts: dict[str, list[dict[str, str]]] = {}
 
     def add_fact(place: str, tag: str, text: str, source: str = "", gap: str = "") -> None:
@@ -456,8 +455,8 @@ def coherence_brief_inputs(project_id: str, change_id: str) -> tuple[BriefInputs
         if place == COHERENCE_UNPLACED:
             unplaced.append(str(element["id"]))
         add_fact(place, "preservado" if place == "6.2" else "nuevo", f"{flat} ({element['id']})", str(element["source_id"]))
-    every_rows, _placed = _change_rows(project_id, change_id, view)
-    _border_facts(border, every_rows, copy, add_fact)
+    # no EARS rows here: they come from the extraction, which runs after the coherence, and would make it stale
+    _border_facts(border, [], copy, add_fact)
     for item in border:
         place = BORDER_LENS_PLACES.get(str(item.get("type")))
         if place and item.get("zone") in ZONE_TAG:

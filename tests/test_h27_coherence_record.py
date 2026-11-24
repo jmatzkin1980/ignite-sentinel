@@ -34,7 +34,7 @@ def run_err(argv: list[str]) -> tuple[int, str]:
 
 class CoherenceRecord(CrossCase):
     def ready(self) -> None:
-        waive_crosses(PID, CID)
+        waive_crosses(PID, CID, coherence=False)
         forget_read_snapshots()
 
     def payload(self, data: dict, name: str = "coh.json") -> Path:
