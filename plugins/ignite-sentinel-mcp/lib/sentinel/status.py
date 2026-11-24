@@ -90,9 +90,15 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
 
     crosses = cross_status(project_id, change_id)
     candidates = new_surface_candidates(project_id, change_id)
+    from .health import health_explanation
+
+    health = str(read_json(state_path(project_id), {}).get("health", ""))
+    detail = health_explanation(project_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
+        "health": health,
+        **({"health_detail": detail} if detail else {}),
         "round": change.get("round"),
         "border_confirmed": bool(change.get("border_confirmed_at")),
         "gap_counts": change.get("gap_counts", {}),

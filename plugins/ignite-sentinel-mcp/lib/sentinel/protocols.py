@@ -328,6 +328,13 @@ def postflight_command(command: str, project_id: str | None, result: Any) -> Non
         update_state(project_id, artifact_hashes=settle_governed_hashes(project_id, command))
         # IMP-332: health follows the current findings, not the last writer.
         reconcile_health(project_id)
+        # IMP-406: a workspace that only holds changes never reaches a project command that recomputes it.
+        from .changes import is_change_only
+
+        if is_change_only(project_id):
+            from .health import reconcile_change_only_health
+
+            reconcile_change_only_health(project_id)
 
     state = read_json(state_path(project_id), {})
     entry = {

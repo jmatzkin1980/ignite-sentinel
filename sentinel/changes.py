@@ -47,11 +47,18 @@ def check_change_deliverable(project_id: str, command: str, artifact: str, chang
     get_change(project_id, change_id)
 
 
+def is_change_only(project_id: str) -> bool:
+    """IMP-406: the workspace holds at least one change and no project requirements."""
+    if (workspace_path(project_id) / "02_requirements" / "requirements.md").exists():
+        return False
+    return bool(list_changes(project_id))
+
+
 def refuse_change_only_deliverable(project_id: str, command: str, artifact: str) -> None:
     """IMP-386: a workspace that only holds changes has no project brief or gaps to view or export."""
     if artifact.lower() not in CHANGE_DELIVERABLES:
         return
-    if (workspace_path(project_id) / "02_requirements" / "requirements.md").exists():
+    if not is_change_only(project_id):
         return
     open_changes = sorted(list_changes(project_id))
     if open_changes:
@@ -133,6 +140,11 @@ def ingest_change(project_id: str, source: Path) -> dict:
     mark_source_processed(project_id, source, "change_ingested", source_id=source_id)
     mark_source_processed(project_id, raw_target, "raw_copy", source_id=source_id)
     change_id = add_node(project_id, "CHG", "change", raw_target, source.stem, status="open", domain="product")
+    # IMP-406: the request is indexed now, so /health does not flag the change as missing from memory.
+    from .memory import ContextBroker
+
+    ContextBroker(project_id).index_artifact(change_id, "change", raw_target, text, domain="product",
+                                             trace_ids=[change_id], client_source=True)
 
     found = {g["id"]: g for g in detect_gaps(text, context, work="change")}
     # GAP-SCOPE carries the border: it is always asked, whether or not its token check fires.

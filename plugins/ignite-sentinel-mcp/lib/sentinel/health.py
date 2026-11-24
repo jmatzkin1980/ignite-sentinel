@@ -54,6 +54,32 @@ def run_health(project_id: str) -> dict[str, object]:
     }
 
 
+def reconcile_change_only_health(project_id: str) -> str | None:
+    """IMP-406: a workspace of changes has no project command that recomputes /health: do it when it is not CLEAN."""
+    state = read_json(state_path(project_id), {})
+    if str(state.get("health", "")).upper() == "CLEAN":
+        return None
+    return str(run_health(project_id)["verdict"])
+
+
+def health_explanation(project_id: str) -> dict | None:
+    """IMP-406: why health is not CLEAN and the command that clears it (writes nothing); None when it is CLEAN."""
+    from .readiness_verdict import health_fix_step
+
+    state = read_json(state_path(project_id), {})
+    verdict = str(state.get("health", "")).upper()
+    if verdict == "CLEAN":
+        return None
+    collected = collect_health(project_id)
+    findings = list(collected["findings"])
+    if findings:
+        return {"verdict": verdict, "findings": findings[:5],
+                **health_fix_step(project_id, health_fixes(project_id, collected))}
+    return {"verdict": verdict, "findings": [], "title": "Health was never evaluated",
+            "text": f"Nothing keeps health dirty: DIRTY is the state /init leaves until /health runs. Run /health {project_id}.",
+            "command": f"/health {project_id}"}
+
+
 def collect_health(project_id: str) -> dict:
     """The /health findings and warnings, computed without writing anything.
 
