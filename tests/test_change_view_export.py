@@ -86,9 +86,11 @@ class ChangeViewExport(SnapshotWorkspaceCase):
             build_interview_script("BORR", change_id=CHG)
         self.assertIn(f"01_discovery/{CHG}/gaps.md", str(caught.exception))
 
-    def test_export_change_faq_refused(self):
-        code, _ = run_err(["export", "BORR", "--artifact", "gaps", "--change", CHG, "--format", "faq"])
-        self.assertEqual(3, code)
+    def test_export_change_faq_is_the_changes_own(self):
+        # IMP-412: the FAQ takes --change (the decided questions of the change), into its own file
+        out = json.loads(run_ok(["export", "BORR", "--artifact", "gaps", "--change", CHG, "--format", "faq"]))
+        self.assertTrue(out["path"].endswith(f"exports/{CHG}-gaps-faq.md"))
+        self.assertFalse((self.base / "08_context_packs" / "exports" / "gaps-faq.md").exists())
 
     def test_view_change_brief_html(self):
         out = json.loads(run_ok(["view", "BORR", "--artifact", "brief", "--change", CHG]))

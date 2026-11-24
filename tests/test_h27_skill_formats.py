@@ -17,6 +17,8 @@ from helpers import IDS_SCOPE_ANSWER  # noqa: E402
 
 from sentinel.change_requirements import parse_delta, parse_surfaces
 from sentinel.changes import parse_border
+from sentinel.assumptions import validate_assumptions
+from sentinel.change_assumptions import SUPUESTO_STATUSES
 from sentinel.cross_review import rules as cross_rules
 from sentinel.crosses.claims import CITATION_RULES, parse_claims
 from sentinel.crosses.record import _gap_texts
@@ -38,6 +40,8 @@ EXAMPLE_OWNERS = {
     "extraction-proposals": "sentinel-discovery",
     "verify-result": "sentinel-discovery",
     "coherence-crosses": "sentinel-self-review",
+    "change-assumptions": "sentinel-assume",
+    "gap-assumption": "sentinel-gap-response",
 }
 
 FENCE = re.compile(
@@ -128,6 +132,9 @@ def check_proposals(body: str) -> None:
         assert parse_line_ranges(block["lines"]) is not None, f"{element_id}: lines {block['lines']!r}"
         assert block["reading"] == "" or block["reading"].lower() in READINGS, f"{element_id}: reading"
         assert block["errors"] == [], block["errors"]
+        assert block["type"] in ("", "aplica", "extension"), f"{element_id}: Tipo {block['type']!r}"
+        for cited in block["decisions"]:
+            assert cited.startswith("GAP-"), f"{element_id}: Decisión {cited!r} is not a GAP id"
         if treatment in ("requisito", "seccion"):
             assert len(block["quote"]) >= 20, f"{element_id}: quote shorter than 20 characters"
         if treatment == "requisito":
@@ -187,6 +194,31 @@ def check_coherence(body: str) -> None:
         quotes = [cross["a"]["quote"]] + ([cross["b"]["quote"]] if cross["kind"] == "conflict" else [])
         for quote in quotes:
             assert _flat(quote) in request or _flat(quote) in border, f"quote not in the request or the border: {quote!r}"
+
+
+def check_change_assumptions(body: str) -> None:
+    """IMP-412: the example of `/assume --change` is what the real validator accepts, and it closes a question."""
+    payload = json.loads(body)
+    validate_assumptions(payload, REQUEST.read_text(encoding="utf-8"))
+    for item in payload["assumptions"]:
+        assert str(item.get("closes_gap", "")).startswith("GAP-"), f"{item.get('id')}: closes_gap"
+        assert str(item.get("validate_with", "")).strip(), f"{item.get('id')}: validate_with"
+
+
+def check_gap_assumption(body: str) -> None:
+    """IMP-412: a `supuesto` answer carries `Valida`, a substantive answer and a literal quote of the request."""
+    responses = parse_gap_responses(body)
+    assert responses, "no `### GAP-` block parsed"
+    request = _flat(REQUEST.read_text(encoding="utf-8"))
+    for gap_id, response in responses.items():
+        status = str(response.get("decision_status", "")).strip().lower().replace(" ", "_")
+        assert status in SUPUESTO_STATUSES, f"{gap_id}: status {status!r} is not an assumption"
+        assert str(response.get("validates", "")).strip(), f"{gap_id}: no Valida"
+        assert len(str(response.get("answer", "")).split()) >= 5, f"{gap_id}: answer is not substantive"
+        quotes = re.findall(r"[\"“]([^\"”]+)[\"”]", str(response.get("evidence", "")))
+        assert quotes, f"{gap_id}: no quoted evidence"
+        for quote in quotes:
+            assert _flat(quote) in request, f"{gap_id}: quote not in the request: {quote!r}"
 
 
 class SkillFormatTests(unittest.TestCase):
@@ -261,6 +293,30 @@ class SkillFormatTests(unittest.TestCase):
         self.assertRegex(text, r"(?m)^## Loading a document by role")
         for needle in ("--role linea_de_base", "`diseno_nuevo`", "`plan_previo`", "`pedido`", "--id F-NN --role", "--no-baseline", "GAP-VER"):
             self.assertIn(needle, text)
+
+    def test_change_assumption_examples_parse(self):
+        found = examples_of("change-assumptions")
+        self.assertTrue(found)
+        for _, body in found:
+            check_change_assumptions(body)
+
+    def test_gap_assumption_examples_parse(self):
+        found = examples_of("gap-assumption")
+        self.assertEqual({"es", "en"}, {lang for lang, _ in found})
+        for _, body in found:
+            check_gap_assumption(body)
+
+    def test_a_stale_gap_assumption_example_fails(self):
+        _, body = examples_of("gap-assumption")[0]
+        stale = re.sub(r"(Estado de decisión|Decision status): \w+", r"\g<1>: confirmado", body, count=1)
+        self.assertNotEqual(stale, body)
+        with self.assertRaises(AssertionError):
+            check_gap_assumption(stale)
+
+    def test_proposals_example_has_extension(self):
+        found = examples_of("extraction-proposals")
+        types = {block["type"] for _, body in found for block in parse_proposals(body)[0].values()}
+        self.assertIn("extension", types)
 
     def test_a_stale_example_fails(self):
         lang, body = next((lang, body) for lang, body in examples_of("gap-response") if lang == "es")

@@ -58,7 +58,9 @@ def load_assumption_source(source: Path) -> dict[str, Any]:
     return data
 
 
-def assumption_grounding_text(base: Path) -> str:
+def assumption_grounding_text(base: Path, exclude: Path | tuple[Path, ...] | None = None) -> str:
+    """The local evidence an assumption can quote; `exclude` leaves out files (or folders) so a register cannot cite itself."""
+    skipped = (exclude,) if isinstance(exclude, Path) else tuple(exclude or ())
     roots = [
         base / "00_raw",
         base / "01_discovery",
@@ -70,6 +72,8 @@ def assumption_grounding_text(base: Path) -> str:
         if not root.exists():
             continue
         for path in sorted(root.rglob("*")):
+            if skipped and any(path == gone or gone in path.parents for gone in skipped):
+                continue
             if path.is_file() and path.suffix.lower() in {".md", ".txt", ".json"}:
                 chunks.append(path.read_text(encoding="utf-8", errors="ignore"))
     return "\n\n".join(chunks)
@@ -196,8 +200,8 @@ def assumption_rows(text: str) -> list[dict[str, str]]:
     return rows
 
 
-def load_assumptions(project_id: str) -> list[dict[str, str]]:
-    path = workspace_path(project_id) / "01_discovery" / "assumptions.md"
+def load_assumptions(project_id: str, path: Path | None = None) -> list[dict[str, str]]:
+    path = path or workspace_path(project_id) / "01_discovery" / "assumptions.md"
     if not path.exists():
         return []
     return assumption_rows(path.read_text(encoding="utf-8"))

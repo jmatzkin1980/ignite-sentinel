@@ -16,9 +16,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..change_assumptions import open_change_assumptions
+from ..delegation import delegated_summary
 from ..changes import change_gaps_path, change_language, get_change
 from ..crosses.state import cross_status, crosses_fingerprint
 from ..core.io import write_json, write_text
+from ..core.markdown import table_cell
 from ..extraction.coverage import extraction_view
 from ..extraction.lines import format_ranges
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
@@ -106,6 +109,8 @@ def collect_change_brief_inputs(project_id: str, change_id: str, extraction: boo
         "change": change,
         "language": change_language(project_id, change),
         "gaps": gaps,
+        "assumptions": open_change_assumptions(project_id, change_id),  # IMP-412: [] when the change has no register
+        "delegated": delegated_summary(project_id, change_id),  # IMP-412
         "harvest": load_harvest(base),
         "note_title": _note_title(base, change),
         "extraction": extraction_view(project_id, change_id) if extraction else {},
@@ -199,6 +204,8 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         if _is_open(gap):
             section.mark(mark_text(gap_id, bool(gap.get("blocks"))))
             return
+        if gap.get("closure_reason") in ("assumed", "superseded"):
+            return  # IMP-412: an assumption is no fact (it is in the table to validate); a replaced decision is listed apart
         answer = gap.get("answer", "")
         if gap.get("closure_reason") == "by_baseline":
             path = _CITE_PATH.search(gap.get("evidence", ""))
@@ -244,9 +251,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             content = entry.get("content")
             if content is not None:
                 # IMP-406: the section is the request text as written, never a summary of it
-                section.fill(copy["extracted_content"].format(
+                head = copy["extracted_content"].format(
                     element=entry.get("element", ""), path=entry.get("path", ""),
-                    lines=format_ranges(entry.get("lines") or []) or entry.get("line", "")))
+                    lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
+                held = ext_items.get(entry.get("element")) or {}
+                if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
+                    head += f" — {copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
+                section.fill(head)
                 section.raw("")
                 for line in str(content).split("\n"):
                     section.raw(line)
@@ -265,9 +276,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             for row in rows:
                 if (str(row.get("delta", "")).strip().upper() == "UNCHANGED") != unchanged:
                     continue
-                section.fill(copy["extracted_row"].format(
+                line = copy["extracted_row"].format(
                     statement=row.get("statement", ""), delta=row.get("delta", ""), row=row.get("id", ""),
-                    element=element_id, path=element.get("path", ""), line=element.get("line", "")))
+                    element=element_id, path=element.get("path", ""), line=element.get("line", ""))
+                if row.get("a_confirmar"):  # IMP-412
+                    reason = str((ext_items.get(element_id) or {}).get("a_confirmar_reason", "")).strip()
+                    line += f" — {copy['to_confirm']}: {reason}"
+                section.fill(line)
 
     def extraction_marks(section: _Section, number: int) -> None:
         """A deferred mark while elements of this section are unconfirmed; else an empty section says so."""
@@ -466,6 +481,31 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             s9.raw(f"| {gap['id']} | {gap.get('lens', '')} | {gap.get('severity', '')} | {verdict} |")
     else:
         s9.info(copy["no_open"].format(cite=gaps_cite))
+    assumed = list(inputs.get("assumptions") or [])
+    if assumed:  # IMP-412: what the BA went on with, to be validated by someone else
+        es = language == "es"
+        s9.raw("")
+        s9.raw("**Supuestos a validar**" if es else "**Assumptions to validate**")
+        s9.raw("")
+        head = ["Supuesto", "Enunciado", "Valida", "Pregunta"] if es else ["Assumption", "Statement", "Validates", "Question"]
+        s9.raw("| " + " | ".join(head) + " |")
+        s9.raw("|" + "|".join("---" for _ in head) + "|")
+        for row in assumed:
+            s9.raw(f"| {row['id']} | {table_cell(row['statement'])} | {table_cell(row['validate_with'])} | {row['gap']} |")
+    replaced = [gap for gap in gaps if not _is_open(gap) and gap.get("closure_reason") == "superseded"]
+    if replaced:  # IMP-412: decisions a GAP-CHQ answer replaced; they are not facts any more
+        s9.raw("")
+        s9.raw("**Decisiones reemplazadas**" if language == "es" else "**Replaced decisions**")
+        s9.raw("")
+        for gap in replaced:
+            s9.raw(f"- {gap['id']}: {str(gap.get('resolution_note', '')).strip()}")
+    delegated = inputs.get("delegated") or {}
+    if delegated.get("total"):  # IMP-412: confirmed by someone else for the BA, to be reviewed
+        s9.raw("")
+        s9.raw("**Confirmado por delegación (revisar)**" if language == "es" else "**Confirmed on behalf of the BA (to review)**")
+        s9.raw("")
+        for delegated_id in [*delegated["elements"], *delegated["gaps"]]:
+            s9.raw(f"- {delegated_id}")
     if has_inventory or extraction_pending:
         s9.raw("")
     if has_inventory:
@@ -506,6 +546,7 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "extraction": view.get("coverage") if has_inventory else None,
         "extraction_fingerprint": view.get("fingerprint", "") if has_inventory else "",
         "crosses_fingerprint": inputs.get("crosses_fingerprint", ""),
+        **({"assumptions_open": [row["id"] for row in assumed]} if assumed else {}),
         "preserved_missing": list((view.get("preserved") or {}).get("missing", [])) if has_inventory else [],
     }
     return text, report

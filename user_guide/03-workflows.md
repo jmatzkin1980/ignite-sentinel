@@ -1472,6 +1472,36 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
+**Moving on without an answer, delegating and reviewing.** Along the way you can decide things the questions do not force you to decide with the client.
+
+**Tell the assistant:** "Record this as an assumption to validate with Design", "Confirm the extraction on my behalf", "Give me something to review the border with the client" and "We keep it as one change". Say who validates, and give the reason in your own words.
+
+**You'll see:**
+
+- An assumption closes its question as `assumed`: it is counted apart (`/status --change` shows how many are open and who validates them), the verdict warns about it without blocking, and the brief lists it. It is not a decision: it does not preload later questions and the decisions view shows it apart, as "to validate". When Design answers, you validate it (the question stays closed as an answer) or invalidate it (the question opens again).
+- A delegation confirms the extraction, or a question, in your name. It carries your words, it is listed "to review" in the brief and the exports, and what Sentinel flagged (an extension of the request, a speculative mark such as 🔮 or "a confirmar") is held anyway and confirmed one by one. You ratify a delegated element with a plain confirmation.
+- A clash between two decisions you already made is not resolved by the assistant: it opens a `GAP-CHQ-*` question that comes back to you. You answer it with `Opción: A` (the first decision governs) or `Opción: B`: the other decision is marked as replaced and stops showing as a fact.
+- Two review views for people outside the tool: the border explained surface by surface (`borde`) and the decisions by domain (`decisiones`), with the FAQ and the interview of the change's questions.
+- When the escalation warning says the request looks like several changes and you decide to keep it as one, you say so once, with your reason, and the warning stops repeating. The threshold follows the size of the request.
+
+**What it means:** The assistant only transcribes what you said. An assumption, a delegation or a decision to keep one change is yours: it is never taken on your behalf.
+
+<details><summary>In a terminal</summary>
+
+```text
+/assume ACME_PORTAL --change CHG-001 --source assumptions.json
+/assume ACME_PORTAL --change CHG-001 --id ASM-HISTORIAL --validate --reason "Design confirmed it in the review"
+/assume ACME_PORTAL --change CHG-001 --id ASM-HISTORIAL --invalidate --reason "Design does not accept it"
+/extract ACME_PORTAL --change CHG-001 --confirm all --delegated --note "the BA delegated the confirmation"
+/export ACME_PORTAL --artifact borde --change CHG-001
+/export ACME_PORTAL --artifact decisiones --change CHG-001
+/view ACME_PORTAL --artifact decisiones --change CHG-001
+/sources ACME_PORTAL --change CHG-001 --keep-single --reason "the release ships together"
+```
+
+In an answer file, an assumption is `Estado de decisión: supuesto` with `Valida: Diseño` and a quote of the request as evidence (between quotation marks, at least 4 words); a delegated confirmation adds `Confirmado por: delegación del BA`, and you ratify it by answering again without that line. Processing the same assumption again never reopens or closes anything once it was validated or invalidated.
+</details>
+
 **If something goes wrong.** `/next --change CHG-001` always names the step in progress (`crosses`, `cross_new_surfaces`, `extract_inventory`, ...), and `/status --change CHG-001` shows the cross-reads and the coverage. `/brief --change CHG-001` compiles the change's brief (see [Scenario 11](12-scenarios.md#scenario-11-a-change-on-something-that-already-exists)); the change's specs are built with `/specs --change CHG-001`, and its stories with `/backlog --change CHG-001`: one story per unit under an epic of its own, with the preserved behavior as pass-to-pass criteria. If the project already has stories, the answer of each modified or removed requirement says which ones it affects (`Afecta`); those become `Stale`, or get a change request when they are already implemented. `/backlog` without `--change` is refused in a workspace that only has changes. Once the backlog exists, `/validate --change CHG-001` checks the change against its border (each answer names its surfaces with `Superficie`), and `/next --change CHG-001` tells you the next step of the change, ending in `done`. `/next` and `/status` also warn when the border looks too big for a change (several processes, new roles, a contract third parties use): the warning never blocks, you decide whether to split the change.
 
 <a id="backlog-refinement-and-story-status"></a>

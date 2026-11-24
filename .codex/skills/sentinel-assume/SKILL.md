@@ -1,6 +1,6 @@
 ---
 name: sentinel-assume
-description: "Use when a BA needs to register governed, BA-owned assumptions in Ignite Sentinel through /assume: every assumption carries a human owner, risk (importance), uncertainty with a derived priority signal, an optional gap link, and a verbatim local evidence basis. Not for closing gaps with client answers (use sentinel-gap-response)."
+description: "Use when a BA needs to register governed, BA-owned assumptions in Ignite Sentinel through /assume: every assumption carries a human owner, risk (importance), uncertainty with a derived priority signal, an optional gap link, and a verbatim local evidence basis. Also for recording an assumption inside a change (/assume --change) and for validating or invalidating it later. Not for closing gaps with client answers (use sentinel-gap-response)."
 ---
 
 # Sentinel Assume
@@ -23,7 +23,7 @@ Do not use web or remote sources for client/project content.
 - Every assumption needs a human owner. Use the BA, Product Owner, domain lead, or named role supplied by the user; never use "AI" as owner.
 - Every assumption needs risk: `low`, `med`, or `high` (`medium` normalizes to `med`).
 - `uncertainty` is optional: `low`, `med`, or `high`; defaults to `med`. It feeds the priority signal — see the rubric below.
-- Every assumption needs a verbatim local quote as `justification`.
+- Every assumption needs a verbatim local quote as `justification`. In a change (`--change`) the quote is at least 4 words, never comes from an answer file saved by `/resolve-gaps`, and `GAP-SCOPE` cannot be closed with an assumption (confirm the border instead).
 - `closes_gap` is provisional visibility only. It does not turn the gap into confirmed evidence, and it never unblocks a blocking gap: `/maturity` stays `BLOCKED` and `/next` says so. When the BA wants to move on without the client, tell them the exit: confirm the answer in their own name with `/resolve-gaps` (`Decision status: confirmed`, `Owner / source`: the BA); the assumption becomes `VALIDATED`.
 - High-risk assumptions linked to gaps must be called out in the summary.
 - `risk_category` is optional and separate from `lens` — a lens is whose evidence scope the assumption sits in; `risk_category` is which of Cagan's four product risks it is about: `value`, `usability`, `viability` (business viability), or `feasibility`. Do not conflate the two or try to derive one from the other. Old payloads without `risk_category` remain valid.
@@ -82,6 +82,46 @@ These are the exact same contract as gap candidate options (IMP-113), mirrored f
 - **Cited or silent.** Every candidate cites the assumption's verbatim local basis. An assumption without a local basis quote gets **no candidates** — never invent an experiment to fill the space.
 - **Never auto-validates.** Proposing a cheapest test does not move the assumption. Its status changes only through the existing channels: a gap response (`/resolve-gaps`), `/sync`, or an explicit BA decision. The candidate is a prompt for the BA, not a state transition.
 - The candidates are suggestions for the BA to run outside the tool; do not treat "candidate proposed" as "assumption tested."
+
+## Change assumptions (IMP-412)
+
+In a change (`/assume PROJECT_ID --change CHG-NNN --source PATH`) the BA decides to go on without the answer, so the assumption **closes** the question: it stays `CLOSED` with closure `assumed` and note `supuesto ASM-…: a validar con <dominio>`, counted apart in `gap_counts.assumed`, until someone validates or invalidates it. Same item shape as above, with:
+
+- `closes_gap`: an open question of that change (a question that does not exist, or is already closed, rejects the whole file; an assumption never replaces a decision).
+- `justification`: a verbatim quote of a local source of the change, never of the assumptions register itself.
+- `validate_with` (optional): who or what area validates it; default the owner.
+
+Register it only when the BA said to proceed with the risk, and transcribe their words; never assume for them. The register is `01_discovery/CHG-nnn/assumptions.md` (the project's `assumptions.md` is not touched).
+
+Life cycle, always with the BA's reason in their words:
+
+```powershell
+python -m sentinel /assume PROJECT_ID --change CHG-NNN --id ASM-ID --validate --reason "TEXT"
+python -m sentinel /assume PROJECT_ID --change CHG-NNN --id ASM-ID --invalidate --reason "TEXT"
+```
+
+Validating keeps the closure as an answer; invalidating opens the question again with its previous closure on record. An assumption is not a decision: it does not preload later questions and is not listed with the decisions.
+
+## Formato
+
+The example of `/assume --change`: one item per assumption; it is parsed by the real validator in the test suite (the Compras domain is made up):
+
+```sentinel-example kind=change-assumptions
+{
+  "assumptions": [
+    {
+      "id": "ASM-HISTORIAL-PESTANA",
+      "lens": "design",
+      "statement": "El historial del auditor se muestra como una pestaña del detalle del alta.",
+      "owner": "BA de Compras",
+      "risk": "med",
+      "justification": "quiero consultar quién aprobó cada alta y cuándo",
+      "closes_gap": "GAP-SRD-3F9A1C07",
+      "validate_with": "Diseño"
+    }
+  ]
+}
+```
 
 ## Agentic Spirit (applies to every proposal you author)
 

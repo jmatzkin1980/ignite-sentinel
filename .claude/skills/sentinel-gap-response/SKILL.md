@@ -54,6 +54,31 @@ For the gaps of a change, a question that an earlier decision of the same change
 
 A question is `PRE_DECIDED` only when the earlier decision covers it (the same quoted statement, or the same rule, criterion or story of the request); a `critical` one keeps blocking with the earlier answer only prefilled. `--accept-prior` works only on those. A memory suggestion (the answer only looks like an earlier one) or a request already made to Design (`PD-nn`) is never confirmed on its own, and `--accept-prior` refuses it: it is shown as a suggestion on the question, and the BA still answers in a response file. If the earlier decision is reopened, its `PRE_DECIDED` questions go back to `OPEN`; if it is answered differently they are refreshed (`prior_changed`). A `PRE_DECIDED` section sent back untouched stays pending: it asks for `Estado de decisión: confirmado` or `--accept-prior`. Do not copy an earlier answer into a response yourself; transcribe what the BA confirms.
 
+## Assumptions and delegation in a change (IMP-412)
+
+In a change, the BA can answer a question with a decision or with an assumption to validate later. Both are written in the BA's words; you only transcribe them.
+
+- **Assumption.** When the BA says to go on with the risk, write the block with `Estado de decisión: supuesto` (`Decision status: assumption`) and a `Valida:` line (`Validates with:`) naming who validates it. The evidence is a verbatim quote between quotation marks (at least 4 words), from a source of the change: unquoted text or a shorter quote does not close the question, and a quote that only exists in an answer file you saved does not count. The runtime closes the question as `assumed` and registers the `ASM-…` of the change (`/assume --change` does the same from a JSON file). Processing the same block again never closes, reopens or downgrades anything: once the assumption is validated or invalidated (`/assume --change --id … --validate|--invalidate`), or the question is closed, the block changes nothing and the runtime says so. Never write `confirmado` on an answer that says «a validar» or «pendiente de validación»: the detector flags it and the question does not close. If the BA has not said to proceed, the answer is `pendiente`.
+- **Delegation.** When the BA said to confirm for them, add `Confirmado por: delegación del BA` (`Confirmed by: BA delegation`) to that block. The question closes, and it stays listed to review until the BA ratifies it: they answer it again in their own name, without `Confirmado por: delegación del BA`. A delegated question that is reopened is no longer listed. Never add the line on your own; any other name in `Confirmado por` is just the person who confirmed.
+
+```sentinel-example kind=gap-assumption lang=es
+### GAP-SRD-3F9A1C07
+- Respuesta: Supuesto: el historial del auditor se muestra como una pestaña del detalle del alta.
+- Owner / fuente: BA de Compras
+- Evidencia o referencia: "quiero consultar quién aprobó cada alta y cuándo"
+- Estado de decisión: supuesto
+- Valida: Diseño
+```
+
+```sentinel-example kind=gap-assumption lang=en
+### GAP-SRD-3F9A1C07
+- Answer: Assumption: the auditor's history is shown as a tab of the supplier detail.
+- Owner / source: Purchasing BA
+- Evidence or reference: "quiero consultar quién aprobó cada alta y cuándo"
+- Decision status: assumption
+- Validates with: Design
+```
+
 ## Formato
 
 Every block below is parsed by the real `/resolve-gaps` parser in the test suite, so what you copy is what closes. Labels follow the language of the workspace: the Spanish example is for a change, the English one for a project.

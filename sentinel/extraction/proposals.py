@@ -32,6 +32,7 @@ TREATMENTS = {
     "seccion": "seccion", "sección": "seccion", "section": "seccion",
     "descarte": "descarte", "discard": "descarte",
 }
+TYPES = {"aplica": "aplica", "applies": "aplica", "extension": "extension", "extensión": "extension"}
 SECTION_KEYS = {"objetivo": 2, "usuarios": 2, "proceso": 4, "alcance": 3, "preservado": 6, "reglas": 7, "aceptacion": 7}
 SECTION_ALIASES = {
     "objective": "objetivo", "users": "usuarios", "process": "proceso", "scope": "alcance",
@@ -41,6 +42,7 @@ FLAG_KINDS = {
     "divergencia": "divergencia", "divergence": "divergencia",
     "contradiccion": "contradiccion", "contradicción": "contradiccion", "contradiction": "contradiccion",
     "sin_respaldo": "sin_respaldo", "sin respaldo": "sin_respaldo", "unsupported": "sin_respaldo",
+    "choque": "choque", "conflict": "choque",  # IMP-412: it joins decisions that clash
 }
 
 _LABELS = {
@@ -56,6 +58,8 @@ _LABELS = {
     "lectura": "reading", "reading": "reading",
     "motivo": "reason", "reason": "reason",
     "marca": "flag", "flag": "flag",
+    "tipo": "type", "type": "type",
+    "decision": "decisions", "decisión": "decisions", "decisiones": "decisions", "decisions": "decisions",
 }
 READINGS = {
     "completa": "completa", "complete": "completa", "full": "completa",
@@ -83,7 +87,7 @@ def _unquote(value: str) -> str:
 def _new_block() -> dict[str, Any]:
     return {
         "treatment": "", "quote": "", "statements": [], "section": "", "summary": "",
-        "lines": "", "reading": "", "reason": "", "flag": "", "flag_note": "", "errors": [],
+        "lines": "", "reading": "", "reason": "", "type": "", "flag": "", "flag_note": "", "decisions": [], "errors": [],
     }
 
 
@@ -144,6 +148,8 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
             found = _FLAG_SPLIT.search(value)
             kind, note = (value[: found.start()], value[found.end():]) if found else (value, "")
             current["flag"], current["flag_note"] = kind.strip().lower(), note.strip()
+        elif key == "decisions":
+            current["decisions"] = [d for d in re.split(r"[,;\s]+", value) if d]
         else:
             current[key] = value
     return blocks, warnings
@@ -236,9 +242,21 @@ _MESSAGES = {
         "{id}: la cita está en las líneas {qa}-{qb}, fuera de lo declarado en Líneas ({declared})",
         "{id}: the quote is on lines {qa}-{qb}, outside what Lines declares ({declared})",
     ),
+    "bad_type": (
+        "{id}: Tipo debe ser aplica o extension",
+        "{id}: Type must be aplica or extension",
+    ),
     "bad_flag": (
-        "{id}: Marca debe ser divergencia, contradiccion o sin_respaldo",
-        "{id}: Flag must be divergence, contradiction or unsupported",
+        "{id}: Marca debe ser divergencia, contradiccion, sin_respaldo o choque",
+        "{id}: Flag must be divergence, contradiction, unsupported or conflict",
+    ),
+    "unknown_decision": (
+        "{id}: {gap} no es una decisión cerrada de {cid}",
+        "{id}: {gap} is not a closed decision of {cid}",
+    ),
+    "conflicting_decisions": (
+        "{id}: cita {a} y {b}, que chocan: se abrió {chq} para que decida el BA; proponelo de nuevo cuando se cierre",
+        "{id}: cites {a} and {b}, which clash: {chq} was opened for the BA to decide; propose it again when it is closed",
     ),
 }
 
@@ -363,6 +381,14 @@ def validate_proposal(
             fail("no_reason")
 
     flags: list[dict] = []
+    type_raw = str(raw.get("type", "")).strip()
+    kind_type = "aplica"
+    if type_raw:
+        kind_type = TYPES.get(type_raw.lower(), "")
+        if not kind_type:
+            fail("bad_type")
+    if kind_type == "extension":  # IMP-412: it extends what the request says; held and confirmed one by one
+        flags.append({"origin": "proposal", "kind": "extension", "ref": "", "note": ""})
     flag_raw = str(raw.get("flag", "")).strip().lower()
     if flag_raw:
         kind = FLAG_KINDS.get(flag_raw)
@@ -385,6 +411,7 @@ def validate_proposal(
     return {
         "element_sha": element["sha"],
         "treatment": treatment,
+        "type": kind_type,
         "quote": quote,
         "statements": statements,
         "section": section,
@@ -395,6 +422,7 @@ def validate_proposal(
         "missing_lines": missing,
         "reason": reason if treatment == "descarte" else None,
         "flags": flags,
+        "decisions": [str(d) for d in raw.get("decisions") or []],
     }, []
 
 
@@ -500,6 +528,8 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
     unchanged: list[str] = []
     skipped: list[str] = []
     flagged: list[str] = []
+    conflicts: list[str] = []
+    closed_by_id: dict[str, dict] | None = None
     rejected: dict[str, list[str]] = {}
     now = _now()
     open_gaps, harvest_entries = change_flag_context(project_id, change_id)
@@ -519,6 +549,29 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         if item is None:
             rejected[element_id] = errors
             continue
+        if item["decisions"]:  # IMP-412: a proposal that cites decisions cites closed ones, and ones that do not clash
+            from ..decision_conflicts import clash_pairs, open_conflict
+            from ..decision_memory import closed_decisions
+
+            if closed_by_id is None:
+                closed_by_id = {d["id"]: d for d in closed_decisions(project_id, change_id)}
+            cited = list(dict.fromkeys(item["decisions"]))
+            unknown = [g for g in cited if g not in closed_by_id]
+            if unknown:
+                rejected[element_id] = [_msg("unknown_decision", language, id=element_id, gap=g, cid=change_id) for g in unknown]
+                continue
+            pairs = clash_pairs([closed_by_id[g] for g in cited], any_flag=any(f["kind"] == "choque" for f in item["flags"]))
+            if pairs:
+                first = True
+                for a, b, link in pairs:
+                    chq = open_conflict(project_id, change_id, a["id"], b["id"], link or element_id)
+                    conflicts.append(chq)
+                    if first:
+                        rejected[element_id] = [_msg("conflicting_decisions", language, id=element_id,
+                                                     a=a["id"], b=b["id"], chq=chq)]
+                        first = False
+                closed_by_id = None  # the new question changes nothing about what is decided, but read it fresh next time
+                continue
         previous = items.get(element_id) or {}
         carried = [f for f in previous.get("flags", []) or [] if f.get("origin") == "verify"]
         if carried and previous.get("status") == "proposed" and _same_proposal(previous, item):
@@ -555,6 +608,7 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         "skipped": skipped,
         "rejected": rejected,
         "flagged": flagged,
+        "conflicts": list(dict.fromkeys(conflicts)),
         "warnings": warnings,
         "submitted": submitted,
         "review_path": str(review),
@@ -569,6 +623,10 @@ def _same_proposal(stored: dict, item: dict) -> bool:
     """The normalized proposal says exactly what the stored one says (statements, deltas, surfaces, flag, text…)."""
     keys = ("element_sha", "treatment", "quote", "section", "brief_section", "summary", "reason", "lines", "reading")
     if any(stored.get(key) != item.get(key) for key in keys):
+        return False
+    if (stored.get("type") or "aplica") != (item.get("type") or "aplica"):  # an item stored before IMP-412 has none
+        return False
+    if list(stored.get("decisions") or []) != list(item.get("decisions") or []):
         return False
     statement_keys = ("text", "delta", "surfaces", "affects")
     mine = [{k: s.get(k) or ([] if k in ("surfaces", "affects") else "") for k in statement_keys} for s in stored.get("statements") or []]

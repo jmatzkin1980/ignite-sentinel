@@ -380,6 +380,30 @@ def _run_project_command(args) -> int:
 
             result = apply_self_review(args.project_id, Path(args.source))
             print_json(result)
+        elif args.command == "assume" and not args.change and not args.source:
+            from .errors import InputError
+
+            raise InputError("/assume needs --source PATH")
+        elif args.command == "assume" and not args.change and (
+                args.id or args.validate or args.invalidate or args.reason):
+            raise ValueError("/assume --id, --validate, --invalidate and --reason go with --change")
+        elif args.command == "assume" and args.change:
+            from .change_assumptions import apply_change_assumptions, set_change_assumption_status
+
+            moving = bool(args.id or args.validate or args.invalidate or args.reason)
+            if args.source and not moving:
+                print_json(apply_change_assumptions(args.project_id, args.change, Path(args.source)))
+            elif (not args.source and args.id and args.reason and args.validate != args.invalidate):
+                print_json(set_change_assumption_status(
+                    args.project_id, args.change, args.id,
+                    "validate" if args.validate else "invalidate", args.reason))
+            elif not args.source and args.id and args.validate != args.invalidate:
+                # --reason missing: the status function names it in the change's language
+                print_json(set_change_assumption_status(
+                    args.project_id, args.change, args.id,
+                    "validate" if args.validate else "invalidate", ""))
+            else:
+                raise ValueError("/assume --change takes --source PATH, or --id ASM --validate|--invalidate --reason TEXT")
         elif args.command == "assume":
             from .assumptions import apply_assumptions
 
@@ -474,14 +498,19 @@ def _run_project_command(args) -> int:
                     "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify or --verify-result")
             if args.sample is not None and not args.verify:
                 raise ValueError("/extract --sample goes with --verify")
-            if args.reason and not args.reject_item:
-                raise ValueError("/extract --reason goes with --reject-item")
+            if args.reason and not (args.reject_item or args.confirm_item):
+                raise ValueError("/extract --reason goes with --reject-item or --confirm-item")
             if args.reject_item and not args.reason:
                 raise ValueError("/extract --reject-item needs --reason")
+            if args.delegated and not (args.confirm or args.confirm_item):
+                raise ValueError("/extract --delegated goes with --confirm or --confirm-item")
+            if args.note and not args.delegated:
+                raise ValueError("/extract --note goes with --delegated")
             print_json(run_extract(
                 args.project_id, args.change, proposals=args.proposals, confirm=args.confirm,
                 confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
                 verify=args.verify, sample=args.sample, verify_result=args.verify_result,
+                delegated=args.delegated, note=args.note or "",
             ))
         elif args.command == "cross":
             from .crosses import run_cross
@@ -552,12 +581,24 @@ def _run_project_command(args) -> int:
                 # IMP-400: --change CHG --no-baseline --reason TEXT waives the change's baseline step.
                 if not args.change:
                     raise ValueError("/sources --no-baseline needs --change CHG-NNN")
+                if args.keep_single:
+                    raise ValueError("/sources --no-baseline and --keep-single are two decisions: run them one at a time")
                 if (args.load or args.role or args.precedence or args.between or args.report or args.source_id
                         or any(value for key, value in changes.items() if key != "reason")):
                     raise ValueError("/sources --no-baseline takes only --change and --reason")
                 from .sources import waive_baseline
 
                 result = waive_baseline(args.project_id, args.change, args.reason or "")
+            elif args.keep_single:
+                # T2-05: --change CHG --keep-single --reason TEXT records the BA's escalation decision.
+                if not args.change:
+                    raise ValueError("/sources --keep-single needs --change CHG-NNN")
+                if (args.load or args.role or args.precedence or args.between or args.report or args.source_id
+                        or any(value for key, value in changes.items() if key != "reason")):
+                    raise ValueError("/sources --keep-single takes only --change and --reason")
+                from .sources import keep_single_change
+
+                result = keep_single_change(args.project_id, args.change, args.reason or "")
             elif args.load or args.change:
                 # IMP-400: --load PATH --role ROLE [--change CHG] registers a source with its role.
                 if args.precedence or args.between or args.report or args.source_id or any(value for value in changes.values()):

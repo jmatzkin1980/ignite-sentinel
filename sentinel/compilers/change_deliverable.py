@@ -19,6 +19,7 @@ from typing import Any
 
 from ..brief_model import V2_GAP_ROUTES
 from ..brief_schema import applicability, brief_settings, profile_order
+from ..change_assumptions import open_change_assumptions
 from ..change_requirements import load_change_ears, parse_surfaces
 from ..core.time import utc_now
 from ..extraction.lines import format_ranges
@@ -111,6 +112,9 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
     lang = _lang(language)
     coverage = extraction_coverage(project_id, change_id)
     verdict = build_change_verdict(project_id, change_id)
+    from ..delegation import delegated_summary
+
+    delegated = delegated_summary(project_id, change_id)
     return {
         "state": "final" if final else COPY[lang]["draft"],
         "date": utc_now()[:10],
@@ -118,7 +122,8 @@ def build_seal(project_id: str, change_id: str, final: bool, language: str) -> d
         "total": int(coverage["total"]),
         "deferred": {"construccion": int(verdict["deferred"]["construccion"]),
                      "operativo": int(verdict["deferred"]["operativo"])},
-        "assumptions": 0,
+        "assumptions": len(open_change_assumptions(project_id, change_id)),  # IMP-412: the ones still to validate
+        "delegated": [*delegated["elements"], *delegated["gaps"]],  # IMP-412: confirmed on behalf of the BA, to review
         "verdict": str(verdict["verdict"]),
     }
 
@@ -142,18 +147,26 @@ def seal_sha(project_id: str, change_id: str) -> str:
 
 def seal_lines(seal: dict[str, Any], language: str) -> list[str]:
     build, operational = seal["deferred"]["construccion"], seal["deferred"]["operativo"]
+    ids = seal.get("delegated") or []
+    es = _lang(language) == "es"
+    delegated_line = ([
+        f"> **Confirmado por delegación:** {len(ids)} (revisar: {', '.join(ids)})" if es
+        else f"> **Confirmed on behalf of the BA:** {len(ids)} (review: {', '.join(ids)})"
+    ] if ids else [])
     if _lang(language) == "es":
         return [
             f"> **Estado:** {seal['state']} · **Fecha:** {seal['date']} · **Veredicto:** {seal['verdict']}",
             f"> **Cobertura:** {seal['covered']} de {seal['total']} elementos del pedido",
             f"> **Pendientes diferidos:** {build + operational} (construcción {build}, operativo {operational})",
             f"> **Supuestos:** {seal['assumptions']}",
+            *delegated_line,
         ]
     return [
         f"> **Status:** {seal['state']} · **Date:** {seal['date']} · **Verdict:** {seal['verdict']}",
         f"> **Coverage:** {seal['covered']} of {seal['total']} request elements",
         f"> **Deferred items:** {build + operational} (build {build}, operational {operational})",
         f"> **Assumptions:** {seal['assumptions']}",
+        *delegated_line,
     ]
 
 
@@ -272,6 +285,9 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         head = change_copy["extracted_content"].format(
             element=entry.get("element", ""), path=entry.get("path", ""),
             lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
+        held = (view.get("items") or {}).get(entry.get("element")) or {}
+        if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
+            head += f" — {change_copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
         blocks.setdefault(place, []).extend(
             [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
 
@@ -281,7 +297,11 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         delta = str(row.get("delta", "")).strip().upper()
         tag = ROW_TAG.get(delta, "nuevo")
         place = "6.2" if delta == "UNCHANGED" else ROW_PLACES[row_lens(row, border, template)]
-        add_fact(place, tag, f"{row['statement']} ({row['id']})", row["source_id"])
+        statement = f"{row['statement']} ({row['id']})"
+        if row.get("a_confirmar"):  # IMP-412: the request left it to confirm; the BA's reason travels with the fact
+            reason = str(((view.get("items") or {}).get(row["element"]) or {}).get("a_confirmar_reason", "")).strip()
+            statement += f" — {change_copy['to_confirm']}: {reason}"
+        add_fact(place, tag, statement, row["source_id"])
 
     # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
     _border_facts(border, every_rows, copy, add_fact)
@@ -299,6 +319,12 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED":
             continue
         gap_id = str(gap["id"]).strip("`")
+        if gap.get("closure_reason") == "assumed":
+            continue  # IMP-412: an assumption is no fact: its statement is in section 8, to validate
+        if gap.get("closure_reason") == "superseded":
+            add_fact("6.2", "", f"{'Decisión reemplazada' if lang == 'es' else 'Replaced decision'}: {gap_id} — "
+                     f"{str(gap.get('resolution_note', '')).strip()}", gap=gap_id)
+            continue
         answer = str(gap.get("answer", "")).strip()
         tag = "nuevo"
         text = answer or change_copy["no_text"]
@@ -331,6 +357,10 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
                          f"{copy['yes'] if gap.get('blocks') else copy['no']} | {_cell(gap.get('owner')) or '-'} |")
         blocks["7.1"] = table
 
+    # IMP-412: the open assumptions of the change fill section 8; an empty closes_gap keeps V2_GAP_ROUTES from injecting them
+    to_validate = "— a validar con" if lang == "es" else "— to validate with"
+    assumptions = [{"id": row["id"], "statement": f"{row['statement']} {to_validate} {row['validate_with']}",
+                    "status": row["status"], "closes_gap": ""} for row in open_change_assumptions(project_id, change_id)]
     manifest = load_source_manifest(project_id)
     mine = {str(i) for i in change.get("sources") or []}
     registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
@@ -346,7 +376,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         gaps=[{"id": str(g["id"]).strip("`"), "severity": str(g.get("severity", "")).strip("`"),
                "status": str(g.get("status", "")).strip("`"), "origin": str(g.get("origin", "")).strip("`")}
               for g in inputs["gaps"]],
-        assumptions=[],
+        assumptions=assumptions,
         harvest={},
         registry=registry,
         title=change_copy["heading"].format(change_id=change_id, title=inputs.get("note_title", "")),

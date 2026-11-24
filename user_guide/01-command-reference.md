@@ -678,6 +678,9 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 ```text
 /assume ACME_PORTAL --source assumptions.json
 python -m sentinel /assume ACME_PORTAL --source assumptions.json
+/assume COMPRAS_ALTAS --change CHG-001 --source assumptions.json
+/assume COMPRAS_ALTAS --change CHG-001 --id ASM-HISTORIAL --validate --reason "Design confirmed it in the review"
+/assume COMPRAS_ALTAS --change CHG-001 --id ASM-HISTORIAL --invalidate --reason "Design does not accept it"
 ```
 
 **Options.**
@@ -685,17 +688,23 @@ python -m sentinel /assume ACME_PORTAL --source assumptions.json
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--source` | a JSON file | required | `assumptions[]`: `id` (`ASM-*`), `lens`, `statement`, human `owner`, `risk` and `uncertainty` (`low`, `med`, `high`), verbatim `justification`, optional `closes_gap` and `risk_category` (`value`, `usability`, `viability`, `feasibility`). Written with the `sentinel-assume` skill. |
+| `--source` | a JSON file | required, except with `--change --id` | `assumptions[]`: `id` (`ASM-*`), `lens`, `statement`, human `owner`, `risk` and `uncertainty` (`low`, `med`, `high`), verbatim `justification`, optional `closes_gap` and `risk_category` (`value`, `usability`, `viability`, `feasibility`). Written with the `sentinel-assume` skill. |
+| `--change` | `CHG-NNN` | none | The assumption belongs to a change: `closes_gap` is required and must be an open question of that change, `justification` a verbatim quote of a source of the change, and `validate_with` (optional) says who validates it. The question closes as `assumed` and is counted apart. The register is `01_discovery/CHG-nnn/assumptions.md`; the project's is not touched. |
+| `--id` | `ASM-...` | none | With `--change` and `--validate` or `--invalidate`: the assumption of that change to resolve. |
+| `--validate` / `--invalidate` | flag | off | Validating keeps the closure as an answer; invalidating opens the question again. One of them, with `--id`, `--change` and `--reason`. |
+| `--reason` | text | none | The BA's reason, in their words. Required with `--validate` and `--invalidate`. |
 
 **Reads.** The JSON and the workspace evidence.
 
 **Writes.** `01_discovery/assumptions.md`, a copy under `01_discovery/assumptions/`, `knowledge_state.*` with `ASSUMED` units, a graph node.
 
-**Refuses when.** Before `/ingest` → exit 4. Payload refused, or `--source` file not found → exit 3.
+**Refuses when.** Before `/ingest` → exit 4. Payload refused, or `--source` file not found → exit 3. `/assume` with neither `--source` nor `--change` → exit 3. In a change: a `closes_gap` that does not exist or is already closed rejects the whole file; `--validate` or `--invalidate` without `--reason`, or on an assumption that is not `ASSUMED` or not of that change → exit 3.
 
 **You get.** The registered assumptions. `risk=high` with `uncertainty=high` is flagged "test before advancing" (non-blocking).
 
 An assumption never unblocks a blocking gap, even with `closes_gap`: `/maturity` stays `BLOCKED` and `/next` says so. To move on without the client, confirm the answer yourself with `/resolve-gaps` (`Decision status: confirmed`, `Owner / source`: your name and role); the assumption is then marked `VALIDATED`.
+
+**In a change.** An assumption is not a decision: it does not preload later questions and the decisions view lists it apart, as "to validate". `/status --change` counts the open ones (`assumptions`) and the verdict warns about them without blocking; `/brief --change` and `/export --artifact brief --change` list them. The same assumption can be recorded from an answer file with `Estado de decisión: supuesto` and `Valida:` (see `/resolve-gaps`).
 
 **Next step.** `/maturity`. Answer the assumption later through `/resolve-gaps` or `/sync` to validate or invalidate it.
 
@@ -810,6 +819,7 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 /sources ACME_PORTAL --load input/sad-compras.md --role linea_de_base --change CHG-001
 /sources ACME_PORTAL --id F-04 --role diseno_nuevo
 /sources ACME_PORTAL --change CHG-001 --no-baseline --reason "the system is new, nothing is built yet"
+/sources ACME_PORTAL --change CHG-001 --keep-single --reason "the release ships together"
 ```
 
 **Options.**
@@ -836,6 +846,7 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 | `--load` | path | none | Register a document with the role it plays. Needs `--role`; takes only `--role` and `--change`. A file already inside a `00_raw/` context folder is registered in place; otherwise Sentinel copies it into the folder of its role. The same content reuses its `F-NN`. The harvest folder and Sentinel's own outputs are refused. |
 | `--role` | `pedido`, `linea_de_base`, `plan_previo`, `diseno_nuevo` | none | What the document is: the request, the system as it stands (SAD, survey of what is built), the plan of an earlier release, or the design of what is new. Goes with `--load PATH` or `--id F-NN` (to correct a role). Folders: `00_raw/09_request`, `06_baseline`, `07_prior_plan`, `08_new_design`. The harvest has no role. |
 | `--change` | `CHG-NNN` | none | With `--load`: the change the document belongs to (required for `pedido`). With `--no-baseline`: the change that waives its baseline. |
+| `--keep-single` | flag | off | The BA decides to keep the request as one change despite the escalation warning. Needs `--change` and `--reason`; takes no other option. The warning stops repeating for the size it had; if the same trigger grows or a new one appears it warns again. It does not combine with `--no-baseline`. Its threshold follows the size of the request. |
 | `--no-baseline` | flag | off | The change has no baseline to load (a system with nothing built). Needs `--change` and `--reason`; takes no other option. |
 
 Pass one validity change at a time. The newest source never wins by default: an unsettled precedence answers `unresolved`.
@@ -854,7 +865,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 - `--precedence` without `--between`, or the reverse, or `--precedence --between` with another option → exit 3.
 - `--report` with another option → exit 3.
 - `--cell` without `--mark`, or an invalid value (unknown row, cycle, missing reason) → exit 3.
-- `--load` without `--role`, with another option besides `--role` and `--change`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` without `--change` or `--reason`, or with another option → exit 3.
+- `--load` without `--role`, with another option besides `--role` and `--change`, or with a role that is not one of the four; `--role pedido` without `--change`; `--no-baseline` or `--keep-single` without `--change` or `--reason`, or with another option → exit 3.
 - `--load` of a file that is the harvest (or has the same content as a harvest draft), a Sentinel output or not UTF-8 text, or whose content already has another declared role → exit 3, the message says why; nothing is registered.
 - `--id F-NN --role ROLE` on a row the harvest registered → exit 3: the harvest is Sentinel's reading and has no role.
 
@@ -1419,6 +1430,7 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 /extract COMPRAS_ALTAS --change CHG-001 --reject-item HU-01 --reason "the story belongs to another change"
 /extract COMPRAS_ALTAS --change CHG-001 --verify --sample 10
 /extract COMPRAS_ALTAS --change CHG-001 --verify-result verification.md
+/extract COMPRAS_ALTAS --change CHG-001 --confirm all --delegated --note "the BA delegated the confirmation of the extraction"
 ```
 
 **Options.**
@@ -1431,7 +1443,9 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 | `--confirm` | a section or `all` | none | Confirm every proposal of a section (or all of them), except what is flagged. |
 | `--confirm-item` | element id | none | Confirm one proposal, flagged or not. |
 | `--reject-item` | element id | none | Take one element back to pending. Needs `--reason`; its rows are superseded. |
-| `--reason` | text | none | Why the element is rejected. Only with `--reject-item`. |
+| `--reason` | text | none | Why the element is rejected (`--reject-item`), or why a flagged one is confirmed (`--confirm-item`). |
+| `--delegated` | flag | off | With `--confirm` or `--confirm-item`: the BA asked the agent to confirm for them. Needs `--note`. What is flagged is still held, and the delegated elements are listed to review until the BA ratifies them with `--confirm-item` alone. |
+| `--note` | text | none | With `--delegated`: the BA's words. |
 | `--verify` | flag | off | Draw a reproducible sample of the confirmed elements into `extraction/verify/NNN-muestra.md` to re-read against the request. |
 | `--sample` | number | 10 | How many elements the sample takes. Only with `--verify`. |
 | `--verify-result` | path | none | Record the answers of the open verification (`- ID: igual` or `- ID: difiere — nota` under Resultados); each `difiere` takes its element back to proposed. |
@@ -1468,6 +1482,8 @@ Every element gets a `Tratamiento`, a `Líneas` and a `Cita` copied word for wor
 | `Afecta` | `Affects` | Other surfaces it affects. |
 | `Seccion` and `Resumen` | `Section` and `Summary` | For `seccion`: the brief section (`objetivo`, `usuarios`, `proceso`, `alcance`, `preservado`, `reglas`, `aceptacion`) and, optionally, a summary. The section goes into the brief with the literal text of the lines read, not with the summary; the summary does not count as coverage. `Texto`/`Text` still reads as `Resumen`/`Summary`. |
 | `Motivo` | `Reason` | For `descarte`: why nothing is written. |
+| `Tipo` | `Type` | `aplica` (the request asks for it) or `extension` (it goes beyond the request). An extension is flagged and confirmed one by one. |
+| `Decisión` | `Decision` | The closed decisions of the change (`GAP-...`) the proposal rests on. Unknown or clashing ones are refused; a clash opens a `GAP-CHQ-*` question for the BA. |
 | `Marca` | `Flag` | `divergencia`, `contradiccion` or `sin_respaldo`, with a note. |
 
 **What is flagged is not confirmed in bulk.** A proposal carries a flag when it contradicts the baseline, diverges from it, has no support, touches an open gap, leaves lines of its element uncovered, is a partial reading or came back from a verification with `difiere`. `--confirm` and `--confirm all` hold those back and say how many; each one is confirmed on its own with `--confirm-item ID`, after the BA has read it in `02_requirements/CHG-nnn/extraction/review.md`, or taken out with `--reject-item ID --reason TEXT`. A partial reading or one with uncovered lines is not confirmed even one by one: the refusal names the lines still to read (for example `69-78`). Complete the reading, record the proposal again with the full `Líneas` and `Lectura: completa`, and confirm.
@@ -1507,6 +1523,9 @@ Every element gets a `Tratamiento`, a `Líneas` and a `Cita` copied word for wor
 /export ACME_PORTAL --artifact prd --final
 /export ACME_PORTAL --artifact brief --change CHG-001
 /export ACME_PORTAL --artifact brief --change CHG-001 --final
+/export ACME_PORTAL --artifact borde --change CHG-001
+/export ACME_PORTAL --artifact decisiones --change CHG-001
+/export ACME_PORTAL --artifact gaps --format faq --change CHG-001
 ```
 
 **Options.**
@@ -1514,11 +1533,11 @@ Every element gets a `Tratamiento`, a `Líneas` and a `Cita` copied word for wor
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--artifact` | `gaps`, `brief`, `context-request`, `prd` | required | What to export. |
+| `--artifact` | `gaps`, `brief`, `context-request`, `prd`, `borde`, `decisiones` | required | What to export. `borde` and `decisiones` exist only for a change: without `--change` they exit 3. |
 | `--format` (alias `--fmt`) | `md`, `mdx`, `interview`, `faq` | `md` | `mdx` only for `prd`; `interview` and `faq` only for `gaps`. |
 | `--domain` | a context-request domain | none | Required with `--artifact context-request`. |
 | `--final` | flag | off | Refuse while pending marks remain. |
-| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do, and also while the extraction of the request is pending (run `/extract`). The brief of a change is written in the format of the project brief v2 (the ten headings, with the confirmed sections as literal text) and opens with a seal: status (`draft` or `final`), date, verdict, coverage, deferred items by class and assumptions. `--final` refuses while the change verdict is `NOT_READY` (the open questions that do not block count as `construccion` until classed with `/gaps --change --id --impact`; the message lists them and the command) and while the text to export still has a pending mark; the draft export stays available. It records the export (`export_final` in `/next --change`), and the step is current only while the brief and the seal (verdict, coverage, deferred items and their classes) do not change afterwards. The brief shows a "Cruces" line with the cross-reads recorded or waived. A workspace that only has changes refuses an export without it. |
+| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do, and also while the extraction of the request is pending (run `/extract`). The brief of a change is written in the format of the project brief v2 (the ten headings, with the confirmed sections as literal text) and opens with a seal: status (`draft` or `final`), date, verdict, coverage, deferred items by class and assumptions. `--final` refuses while the change verdict is `NOT_READY` (the open questions that do not block count as `construccion` until classed with `/gaps --change --id --impact`; the message lists them and the command) and while the text to export still has a pending mark; the draft export stays available. It records the export (`export_final` in `/next --change`), and the step is current only while the brief and the seal (verdict, coverage, deferred items and their classes) do not change afterwards. The brief shows a "Cruces" line with the cross-reads recorded or waived. A workspace that only has changes refuses an export without it. `borde` is the border explained surface by surface (what it is, where it comes from, open doubts), to confirm it with someone who did not write it. `decisiones` is the closed decisions by domain with the chosen option and who decided (a delegated one says `confirmado por delegación del BA`), plus the assumptions in a separate section "to validate". Both take no `--format`. `gaps` with `--format faq` or `interview` also works for a change. |
 
 | Format | Writes | Notes |
 |---|---|---|
@@ -2032,6 +2051,7 @@ Every next step also carries `skill`: the skill that holds the format and the ru
 /view ACME_PORTAL --artifact readiness --theme my-theme.json
 /view ACME_PORTAL --release r1 --artifact backlog
 /view ACME_PORTAL --artifact brief --change CHG-001
+/view ACME_PORTAL --artifact decisiones --change CHG-001
 ```
 
 **Options.**
@@ -2039,11 +2059,11 @@ Every next step also carries `skill`: the skill that holds the format and the ru
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--artifact` | `gaps`, `brief`, `prd`, `specs`, `backlog`, `readiness`, `diagrams`, `release-guide`, `prototype`, `prototype-trace`, `prototype-manual` | required | Which artifact. `readiness` is the build-readiness view; `diagrams` the to-be diagrams of the brief v2. |
+| `--artifact` | `gaps`, `brief`, `prd`, `specs`, `backlog`, `readiness`, `diagrams`, `release-guide`, `prototype`, `prototype-trace`, `prototype-manual`, `borde`, `decisiones` | required | Which artifact. `readiness` is the build-readiness view; `diagrams` the to-be diagrams of the brief v2; `borde` and `decisiones` are the review views of a change (only with `--change`). |
 | `--open` | flag | off | Open the view in the browser. MCP: `open_browser`. |
 | `--theme` | a built-in theme name or a path to a local theme JSON | the workspace config theme, else `neutral` | Visual theme. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The artifact of one release. |
-| `--change` | `CHG-NNN` | none | The brief or the gaps of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
+| `--change` | `CHG-NNN` | none | The brief, the gaps, the border (`borde`) or the decisions (`decisiones`) of one change, written to `08_context_packs/views/CHG-nnn-<artifact>.html`. Another artifact is refused. A workspace that only has changes refuses a view without it. |
 
 **Reads.** The artifact's Markdown, `state.json`, gaps, assumptions, readiness and the graph.
 

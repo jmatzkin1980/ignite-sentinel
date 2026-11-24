@@ -23,6 +23,8 @@ GAP_ROW_FIELDS = (
     "closure_reason",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
+SUPERSEDED_CLOSURE = "superseded"  # IMP-412: a decision a GAP-CHQ answer replaced; CLOSED but no longer a fact
+ASSUMED_CLOSURE = "assumed"  # IMP-412: a change's question an assumption closed; it stays CLOSED but is counted apart
 PRE_DECIDED = "PRE_DECIDED"  # IMP-410: an earlier decision already answers it; the BA confirms or overrides
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED", PRE_DECIDED}
 DEFAULT_BLOCKING_GAP_SEVERITIES = {"critical", "high"}
@@ -130,6 +132,7 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
     counts = {"open": 0, "answered": 0, "partially_closed": 0, "closed": 0, "blocking_open": 0, "total": len(gaps)}
     keys = {"OPEN": "open", "ANSWERED": "answered", "PARTIALLY_CLOSED": "partially_closed", "CLOSED": "closed"}
     pre_decided = 0
+    assumed = 0
     for gap in gaps:
         key = keys.get(str(gap.get("status", "OPEN")).strip("`").upper())
         if key:
@@ -138,8 +141,13 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
             counts["blocking_open"] += 1
         if str(gap.get("status", "OPEN")).strip("`").upper() == PRE_DECIDED:
             pre_decided += 1
+        if (str(gap.get("status", "OPEN")).strip("`").upper() == "CLOSED"
+                and str(gap.get("closure_reason") or "").strip("`").strip().lower() == ASSUMED_CLOSURE):
+            assumed += 1
     if pre_decided:
         counts["pre_decided"] = pre_decided
+    if assumed:
+        counts["assumed"] = assumed
     return counts
 
 
@@ -261,6 +269,12 @@ def parse_gap_responses(text: str) -> dict[str, dict[str, str]]:
         drafted_by = extract_field(block, ("Redactado por", "Drafted by"))  # IMP-408, optional: who prepared the answer
         if drafted_by:
             response["drafted_by"] = drafted_by
+        validates = extract_field(block, ("Valida", "Validates with"))  # IMP-412, optional: who validates an assumption
+        if validates:
+            response["validates"] = validates
+        confirmed_by = extract_field(block, ("Confirmado por", "Confirmed by"))  # IMP-412, optional: who confirmed the answer
+        if confirmed_by:
+            response["confirmed_by"] = confirmed_by
         responses[gap_id] = merge_gap_response(responses[gap_id], response) if gap_id in responses else response
     return responses
 
@@ -315,6 +329,12 @@ def merge_gap_response(first: dict[str, str], second: dict[str, str]) -> dict[st
     drafted_by = _join_distinct(first.get("drafted_by", ""), second.get("drafted_by", ""))
     if drafted_by:
         merged["drafted_by"] = drafted_by
+    validates = _join_distinct(first.get("validates", ""), second.get("validates", ""))
+    if validates:
+        merged["validates"] = validates
+    confirmed_by = _join_distinct(first.get("confirmed_by", ""), second.get("confirmed_by", ""))
+    if confirmed_by:
+        merged["confirmed_by"] = confirmed_by
     return merged
 
 

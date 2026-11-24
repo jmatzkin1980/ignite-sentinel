@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .change_requirements import next_ears_index
 from .ears import classify_ears
-from .gaps import CHANGE_CLOSURE_REASONS, PRE_DECIDED, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
+from .gaps import ASSUMED_CLOSURE, CHANGE_CLOSURE_REASONS, PRE_DECIDED, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -134,8 +134,19 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
     # IMP-250b / IMP-251: an example, an own artifact (echo) or a source that declares
     # itself not validated never closes a rule; its confirmed answers stay ANSWERED.
     # IMP-382: the border's surface names ("Guardar borrador") are not a claim that the source is a draft.
-    note_text = without_border_block(text) if change_id else text
+    note_text = text
+    if change_id:
+        # IMP-412: the wording of a `supuesto` block ("a validar") is the assumption's own, not a claim about the file
+        from .change_assumptions import without_assumption_blocks
+
+        note_text = without_assumption_blocks(without_border_block(text))
     block_note = closing_block_note(source_row(project_id, source_id), note_text)
+    bridge: dict[str, object] | None = None
+    if change_id and block_note in (None, UNVALIDATED_SOURCE_NOTE):
+        # IMP-412: a `supuesto` answer with a local quote becomes the change's assumption; the file never rejects it
+        from .change_assumptions import prepare_response_assumptions
+
+        bridge = prepare_response_assumptions(project_id, change_id, responses, existing, target.parent, change_lang)
     prior_answers = _pending_prior_answers(base, change_id) if change_id else None
     resolution_results = apply_gap_responses(existing, responses, can_close=block_note is None, block_note=block_note,
                                               language=change_lang or project_language(project_id), prior_answers=prior_answers)
@@ -166,7 +177,7 @@ def resolve_gaps(project_id: str, source: Path, change_id: str | None = None) ->
         return _finish_change_resolution(
             project_id, source, change_id, record_id, source_id, target, text, report_path, report_id,
             resolution_results, unknown_gap_ids, responses, delta_findings, language, affects_findings,
-            surface_findings, trigger,
+            surface_findings, trigger, bridge,
         )
 
     gap_report_ids = [node["id"] for node in load_graph(project_id).get("nodes", []) if node.get("type") == "gap_report"]
@@ -430,6 +441,7 @@ def _finish_change_resolution(
     affects_findings: list[dict[str, object]] | None = None,
     surface_findings: list[dict[str, object]] | None = None,
     trigger: dict[str, object] | None = None,
+    bridge: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """IMP-382: the change side of /resolve-gaps: its responses, its border, its lens round."""
     from .changes import confirm_border, get_change, parse_border, regenerate_change_gaps
@@ -451,12 +463,32 @@ def _finish_change_resolution(
     # IMP-388: confirmed EARS answers with a declared Delta become the change's REQ-EARS rows.
     from .change_requirements import reconcile_change_ears
 
-    reconciled = reconcile_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
+    # IMP-412: a question closed as an assumption registers its ASM; an assumption is not a decision, so it makes no EARS row
+    assumed = [gap for gap in resolution_results["closed"]
+               if gap.get("closure_reason") == ASSUMED_CLOSURE and (responses or {}).get(gap["id"], {}).get("assumption_id")]
+    assumed_ids = {gap["id"] for gap in assumed}
+    assumptions: list[str] = []
+    if bridge and assumed_ids:
+        from .change_assumptions import register_change_assumptions
+
+        mine = [row for row in bridge["rows"] if row.get("closes_gap") in assumed_ids]
+        register_change_assumptions(project_id, change_id, mine, bridge["meta"])
+        assumptions = [row["id"] for row in mine]
+    from .delegation import record_gap_delegations
+
+    delegated = record_gap_delegations(  # IMP-412: a closed answer that says who confirmed it, on behalf of the BA
+        project_id, change_id, resolution_results["closed"], responses or {}, saved)
+    decisions = [gap for gap in resolution_results["closed"] if gap["id"] not in assumed_ids]
+    reconciled = reconcile_change_ears(project_id, change_id, decisions, responses or {}, language, record_id)
     change = get_change(project_id, change_id)
-    prior_overridden = _mark_prior_overridden(base, change_id, resolution_results["closed"])
+    prior_overridden = _mark_prior_overridden(base, change_id, decisions)
     from .prior_decisions import reconcile_priors
 
     prior_moves = reconcile_priors(project_id, change_id)  # a prior reopened or re-answered moves its dependents
+    from .decision_conflicts import detect_decision_conflicts, supersede_losing_decisions
+
+    replaced = supersede_losing_decisions(project_id, change_id, decisions)  # IMP-412: a GAP-CHQ answer picks the governing decision
+    decision_conflicts = detect_decision_conflicts(project_id, change_id)  # IMP-412: closed decisions that clash go back to the BA
     change = get_change(project_id, change_id)
 
     broker = ContextBroker(project_id)
@@ -498,6 +530,10 @@ def _finish_change_resolution(
         "next_step": change_next_step(project_id, change_id),
         "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
         "prior_overridden": prior_overridden,
+        "decision_conflicts": decision_conflicts,
+        **({"superseded": replaced} if replaced else {}),
+        **({"assumed": [gap["id"] for gap in assumed], "assumptions": assumptions} if assumed else {}),
+        **({"delegated": delegated} if delegated else {}),
         **({"prior_reopened": prior_moves["reopened"]} if prior_moves.get("reopened") else {}),
         **({"prior_changed": prior_moves["changed"]} if prior_moves.get("changed") else {}),
     }
@@ -714,6 +750,22 @@ def apply_gap_responses(
     for gap in gaps:
         gap = dict(gap)
         response = responses.get(gap["id"], {})
+        if response.get("assumption_skip"):
+            # IMP-412: a `supuesto` block that meets an assumption already decided, or a closed question, moves nothing
+            findings.append(f"{gap['id']}: {response['assumption_skip']}")
+            if str(gap.get("status", "")).strip("`").upper() == "OPEN":
+                open_gaps.append(gap)
+            updated.append(gap)
+            continue
+        if (response and str(gap.get("status", "")).strip("`").upper() == "CLOSED"
+                and str(gap.get("closure_reason") or "").strip("`").strip().lower() == "superseded"):
+            # IMP-412: a replaced decision is only changed by answering the GAP-CHQ that replaced it, never by a rerun
+            chq = re.search(r"GAP-CHQ-[0-9A-F]+", str(gap.get("resolution_note", "")))
+            by = chq.group(0) if chq else "GAP-CHQ"
+            findings.append(f"{gap['id']} fue reemplazada por {by} — no se aplica" if language == "es"
+                            else f"{gap['id']} was replaced by {by} — not applied")
+            updated.append(gap)
+            continue
         answer = response.get("answer", "").strip()
         decision = normalize_status(response.get("decision_status", ""))
         gap["answer"] = answer
@@ -729,6 +781,23 @@ def apply_gap_responses(
             gap["drafted_by"] = drafted_by
             gap["decided_by"] = owner_name if named else unnamed
         substantive = is_substantive_answer(answer)
+        if response.get("assumption_error"):
+            # IMP-412: a `supuesto` without a literal local quote is not an assumption yet
+            note = str(response["assumption_error"])
+            findings.append(f"{gap['id']}: {note}")
+            gap["status"] = "ANSWERED"
+            gap["resolution_note"] = note
+            answered.append(gap)
+            updated.append(gap)
+            continue
+        if response.get("assumption_id") and substantive:
+            # IMP-412: closed as an assumption to validate (not a decision); it closes even when the file is not validated
+            gap["status"] = "CLOSED"
+            gap["closure_reason"] = ASSUMED_CLOSURE
+            gap["resolution_note"] = str(response.get("assumption_note", ""))
+            closed.append(gap)
+            updated.append(gap)
+            continue
         confirmed = bool(answer) and decision in CONFIRMED_STATUSES and substantive
         reason, closure_findings = closure_for(gap["id"], response, decision) if confirmed or response.get("closure") else ("", [])
         if str(response.get("closure", "")).strip().lower().replace(" ", "_") == "reopened_false_premise":
@@ -752,6 +821,16 @@ def apply_gap_responses(
                 continue
             if option_note:
                 findings.append(f"{gap['id']}: {option_note}")
+            if gap["id"].startswith("GAP-CHQ-") and choice not in ("A", "B"):
+                # IMP-412: which decision governs is the whole answer; without a valid option the clash stays open
+                note = ("elegí cuál rige con «Opción: A» u «Opción: B»" if language == "es"
+                        else "say which one governs with \"Option: A\" or \"Option: B\"")
+                findings.append(f"{gap['id']}: {note}")
+                gap["status"] = "ANSWERED"
+                gap["resolution_note"] = note
+                answered.append(gap)
+                updated.append(gap)
+                continue
             gap["option"] = choice
         if confirmed and _EXAMPLE_EVIDENCE.search(gap["evidence"]):
             # example data or the current practice never closes a gap

@@ -80,3 +80,19 @@ Recommend where to start and why; do not run a mutating command just because the
 ## A Change's Brief or Gaps
 
 `/view PROJECT_ID --artifact brief --change CHG-001` (or `--artifact gaps`) writes `08_context_packs/views/CHG-001-brief.html` from the change's own files; any other artifact is refused with `--change`. A workspace that only has changes refuses `/view` without it. Compile the change's brief first (`/brief --change`). To send it outside, use `/export --artifact brief --change CHG-001` (`--artifact gaps --format interview` for the questions); a draft carries a banner and `--final` refuses while blocking marks remain.
+
+## Review views of a change (IMP-412)
+
+To review a change with the client, Design or Technology, there are two artifacts that exist only with `--change CHG-NNN` (without it the command exits 3):
+
+```powershell
+python -m sentinel /export PROJECT_ID --artifact borde --change CHG-001
+python -m sentinel /export PROJECT_ID --artifact decisiones --change CHG-001
+python -m sentinel /view PROJECT_ID --artifact decisiones --change CHG-001   # also borde
+python -m sentinel /export PROJECT_ID --artifact gaps --format faq --change CHG-001   # or interview
+```
+
+- `borde`: the border explained surface by surface (what it is, where it comes from, open doubts), to confirm it with someone who did not write it.
+- `decisiones`: the closed decisions by domain, with the chosen option and who decided. A decision confirmed by delegation says so (`confirmado por delegación del BA`). The assumptions are a separate section (`Supuestos (no son decisiones: a validar)`): never present one as decided.
+- `faq` and `interview` take the questions of the change; `borde` and `decisiones` take no `--format`.
+- The files are `exports/CHG-001-borde.md`, `exports/CHG-001-decisiones.md` and `08_context_packs/views/CHG-001-decisiones.html`. Report the path. They are read-only views: nothing in them closes or confirms anything.

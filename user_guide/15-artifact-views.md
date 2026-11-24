@@ -35,6 +35,7 @@ python -m sentinel /view ACME_PORTAL --artifact prd --open
 | `prototype` | The prototype inventory. | `02_requirements/prototype/inventory.md` | `/prototype --inventory` |
 | `prototype-trace` | Element to data to contract to rule, per screen. | `02_requirements/prototype/trace.md` | `/prototype --trace` |
 | `prototype-manual` | The printable user manual of the prototype. | `02_requirements/prototype/manual.md` | `/prototype --manual` |
+| `borde`, `decisiones` | Review views of one change: the border explained surface by surface, and the decisions by domain with who decided (a delegated one is marked) and the assumptions apart. Only with `--change CHG-NNN`. | The change's border and closed questions | `/gaps --change`, `/resolve-gaps --change`; see [below](#review-views-of-a-change) |
 
 ## What a Markdown view shows
 
@@ -63,6 +64,17 @@ Everything below is local to your browser (`localStorage`); nothing is written b
 - **Draft Email To BA** opens a pre-filled draft in your mail client. It never sends anything, and it reminds you to attach the downloaded file.
 
 Review feedback that changes scope or answers a gap must enter through `/resolve-gaps`, `/sync`, `/annotate` or `/compose`, never by editing the HTML or the governed Markdown.
+
+<a id="review-views-of-a-change"></a>
+
+## Review views of a change
+
+`/view PROJECT_ID --artifact borde --change CHG-001` and `--artifact decisiones` write `08_context_packs/views/CHG-001-borde.html` and `CHG-001-decisiones.html`; without `--change` they are refused. The Markdown versions are `/export --artifact borde|decisiones --change CHG-001`, and take no `--format`. In chat: "Give me something to review the border with the client."
+
+- **`borde`** lists each surface of the confirmed border (what it is, where it comes from, open doubts), so someone who did not write it can confirm it.
+- **`decisiones`** lists the closed decisions by domain: the chosen option, who decided and, when the BA delegated it, "confirmado por delegación del BA". A decision that a clash question replaced is listed apart as "Decisiones reemplazadas", never as a fact. The assumptions are in a separate section, "Supuestos (no son decisiones: a validar)"; an assumption is never shown as a decision.
+
+Both are read-only views of the change's files: nothing in them closes a question or confirms anything.
 
 ## Readiness
 

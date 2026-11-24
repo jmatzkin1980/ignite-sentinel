@@ -35,9 +35,13 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     if change_id:
         from .changes import check_change_deliverable
 
-        check_change_deliverable(project_id, "export", artifact, change_id)
-        if fmt not in ("md", "interview"):
-            raise InputError(f"/export --change admite los formatos md e interview, no {fmt}.")
+        check_change_deliverable(project_id, "export", artifact, change_id, fmt)
+        if fmt not in ("md", "interview", "faq"):
+            raise InputError(f"/export --change admite los formatos md, interview y faq, no {fmt}.")
+        if artifact.lower() in ("borde", "decisiones"):  # IMP-412: rebuilt from what is registered
+            from .review_views import write_review_view
+
+            write_review_view(project_id, change_id, artifact.lower())
     else:
         from .changes import refuse_change_only_deliverable
 
@@ -133,7 +137,7 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     if fmt == "interview":
         return export_interview(project_id, artifact, change_id)
     if fmt == "faq":
-        return export_faq(project_id, artifact)
+        return export_faq(project_id, artifact, change_id)
     if fmt != "md":
         raise InputError("Unsupported export format. Use md, mdx, interview, or faq.")
     export_dir = base / "08_context_packs" / "exports"
@@ -195,15 +199,23 @@ def export_interview(project_id: str, artifact: str, change_id: str | None = Non
     }
 
 
-def export_faq(project_id: str, artifact: str) -> dict[str, str]:
+def export_faq(project_id: str, artifact: str, change_id: str | None = None) -> dict[str, str]:
     if artifact.lower() != "gaps":
         raise InputError("FAQ export is currently supported only for --artifact gaps.")
     from .discovery import build_faq
 
-    faq = build_faq(project_id)
+    if change_id:  # IMP-412: the questions of the change someone decided, with the answer and evidence as registered
+        from .decision_memory import closed_decisions
+        from .discovery.elicitation import render_faq
+
+        answers = {item["id"]: {"statement": item["answer"], "source": item["evidence"]}
+                   for item in closed_decisions(project_id, change_id)}
+        faq = render_faq(project_id, answers, _language(project_id, change_id))
+    else:
+        faq = build_faq(project_id)
     export_dir = workspace_path(project_id) / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
-    target = export_dir / "gaps-faq.md"
+    target = export_dir / (f"{change_id}-gaps-faq.md" if change_id else "gaps-faq.md")
     assert_no_leaks(project_id, faq, workspace_path(project_id), "FAQ export")
     write_text(target, faq)
     update_state(project_id, last_export=workspace_relative(project_id, target))
@@ -211,7 +223,8 @@ def export_faq(project_id: str, artifact: str) -> dict[str, str]:
         "project_id": project_id,
         "artifact": "gaps",
         "format": "faq",
-        "source": str((workspace_path(project_id) / "01_discovery" / "decisions.md").as_posix()),
+        "source": str((change_gaps_path(workspace_path(project_id), change_id) if change_id
+                       else workspace_path(project_id) / "01_discovery" / "decisions.md").as_posix()),
         "path": str(target.as_posix()),
     }
 
@@ -319,6 +332,10 @@ def artifact_source(base: Path, artifact: str, domain: str | None, change_id: st
             return change_gaps_path(base, change_id)
         if artifact == "brief":
             return base / "02_requirements" / change_id / "project-brief.md"
+        if artifact in ("borde", "decisiones"):  # IMP-412
+            from .review_views import review_path
+
+            return review_path(base, change_id, artifact)
         raise InputError(f"Unsupported export artifact with --change: {artifact}")
     if artifact == "gaps":
         return base / "01_discovery" / "gaps.md"

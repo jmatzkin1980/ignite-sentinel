@@ -2405,6 +2405,24 @@ command: /extract COMPRAS_ALTAS --change CHG-001
 From there the steps follow the extraction: `extract_proposals` (fill the worksheet, `/extract … --proposals FILE`), `extract_confirm` (`--confirm SECTION` or `--confirm all`; a flagged element is confirmed with `--confirm-item ID`), `extract_orphans` when an element left the request but its rows still stand (`--reject-item ID --reason "…"`), and `preserved` until each preserved surface has its UNCHANGED row. If Sentinel cannot read a registered request file, the step is `extract_unreadable`: load a readable copy with `/sources … --load FILE --role pedido --change CHG-001` and mark the unreadable one as superseded.
 </details>
 
+**When you delegate and review.** Suppose the design cross-read left two questions: a divergence between the request and the prototype, and something only the prototype shows (the auditor's history as a tab of the supplier detail). Design will not answer until next week, and you want to move on.
+
+**Tell the assistant:** "On the divergence, the request governs: confirm it on my behalf. On the history tab, record it as an assumption to validate with Design; the basis is the request line that says the auditor wants to see who approved each registration and when." Then: "Give me something to review the border with the client."
+
+**You'll see:** The divergence closes with the answer you gave, marked "confirmed by BA delegation" and listed to review. The history question closes as an assumption: `/status --change` counts one open assumption and the verdict warns about it without blocking. The assistant wrote the answer file with `Estado de decisión: supuesto`, `Valida: Diseño` and the literal quote, and the `borde` export (the border explained surface by surface, with its open doubts) and the `decisiones` export (the decisions by domain, the delegated one marked, the assumption in its own section "to validate").
+
+**What it means:** Nothing was decided for you without your words: the delegation and the assumption carry them. If Design rejects the history tab, tell the assistant: "Design does not accept it; invalidate the assumption." The question opens again and the warning disappears from the verdict.
+
+<details><summary>In a terminal</summary>
+
+```text
+/resolve-gaps COMPRAS_ALTAS --source input/answers.md --change CHG-001
+/export COMPRAS_ALTAS --artifact borde --change CHG-001
+/export COMPRAS_ALTAS --artifact decisiones --change CHG-001
+/assume COMPRAS_ALTAS --change CHG-001 --id ASM-SRD-1A2B3C4D --invalidate --reason "Design does not accept it"
+```
+</details>
+
 ### What you have now
 
 A change, `CHG-001`, with its own questions, a confirmed border (and a warning if it looks too big), a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification units of what it adds, with the preserved behavior listed apart, and an epic with one story per unit, each with the preserved behavior as a pass-to-pass criterion, a `VALID` verdict from `/validate --change` and `done` as the next step (`done` means the registered pieces are up to date, every element of the request is extracted and every preserved surface has its UNCHANGED row). Every requirement, unit and story names the border surfaces it touches. The project's own epic and stories are exactly as they were.

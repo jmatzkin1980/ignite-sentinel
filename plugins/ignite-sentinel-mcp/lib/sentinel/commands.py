@@ -22,8 +22,8 @@ MUTATING = "mutating"
 EXEMPT = "exempt"
 
 VIEW_ARTIFACTS = frozenset({"gaps", "brief", "prd", "specs", "backlog", "readiness", "release-guide", "prototype",
-                            "prototype-trace", "prototype-manual", "diagrams"})
-EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd")
+                            "prototype-trace", "prototype-manual", "diagrams", "borde", "decisiones"})
+EXPORT_ARTIFACTS = ("gaps", "brief", "context-request", "prd", "borde", "decisiones")
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,17 @@ def _project(parser: argparse.ArgumentParser) -> None:
 def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", required=True)
+
+
+def _assume(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("project_id")
+    parser.add_argument("--source", help="the assumptions JSON (project: required; change: or --id with --validate|--invalidate)")
+    # IMP-412: the assumptions of a change close its question; --validate/--invalidate move one
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-412: register the assumptions of this change (they close its question)")
+    parser.add_argument("--id", metavar="ASM-ID", help="IMP-412: the change assumption to validate or invalidate")
+    parser.add_argument("--validate", action="store_true", help="IMP-412: the assumption holds; the question keeps its closure")
+    parser.add_argument("--invalidate", action="store_true", help="IMP-412: the assumption fails; the question opens again")
+    parser.add_argument("--reason", help="IMP-412: why it was validated or invalidated")
 
 
 def _resolve_gaps(parser: argparse.ArgumentParser) -> None:
@@ -249,6 +260,8 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
     p.add_argument("--no-baseline", action="store_true", dest="no_baseline",
                    help="IMP-400: with --change and --reason, the change has no baseline to load")
+    p.add_argument("--keep-single", action="store_true", dest="keep_single",
+                   help="T2-05: with --change and --reason, the BA decides the change stays one change")
 
 
 def _export(p: argparse.ArgumentParser) -> None:
@@ -257,7 +270,7 @@ def _export(p: argparse.ArgumentParser) -> None:
     p.add_argument("--format", "--fmt", default="md", choices=["md", "mdx", "interview", "faq"])
     p.add_argument("--domain")
     p.add_argument("--final", action="store_true", help="IMP-272: refuse to export while pending marks remain")
-    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: export this change's brief or gaps (exports/CHG-nnn-<name>)")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-386: export this change's brief, gaps, borde or decisiones (exports/CHG-nnn-<name>)")
 
 
 def _backlog(p: argparse.ArgumentParser) -> None:
@@ -289,6 +302,9 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--verify", action="store_true", help="IMP-406: draw a sample of the confirmed elements to re-read against the request")
     p.add_argument("--sample", type=int, metavar="N", help="IMP-406: with --verify, how many elements (default 10)")
     p.add_argument("--verify-result", dest="verify_result", metavar="PATH", help="IMP-406: record the results of the open verification")
+    p.add_argument("--delegated", action="store_true",
+                   help="IMP-412: confirm on behalf of the BA; recorded apart and listed to review")
+    p.add_argument("--note", help="IMP-412: with --delegated, what the BA delegated")
 
 
 def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-reads of a change request
@@ -372,7 +388,7 @@ REGISTRY: tuple[Command, ...] = (
     # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
     Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
     Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),
-    Command("assume", MUTATING, _project_source, skill="sentinel-assume"),
+    Command("assume", MUTATING, _assume, skill="sentinel-assume", skill_variants=(("--change", "sentinel-assume §Change assumptions"),)),
     Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
     Command("refine-backlog", MUTATING, _project_source, skill="sentinel-backlog-refine"),
     Command("implementation-feedback", MUTATING, _project_source, skill="sentinel-implementation-feedback"),
@@ -383,10 +399,10 @@ REGISTRY: tuple[Command, ...] = (
     # like every other writer (listing goes through it too; cost is negligible).
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}, skill="sentinel-discovery"),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
-    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync"),
+    Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync", skill_variants=(("--keep-single", "sentinel-discovery §Delegate, extensions, speculative marks and conflicts"),)),
     Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change"),  # IMP-402
     Command("cross", MUTATING, _cross, skill="sentinel-discovery §Cross-reads of a change"),  # IMP-404
-    Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"))),
+    Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"), ("--artifact borde", "sentinel-views §Review views of a change"), ("--artifact decisiones", "sentinel-views §Review views of a change"))),
     Command("backlog", MUTATING, _backlog, release=True, skill="sentinel-backlog"),
     # IMP-306: /maturity rewrites its report, the readiness matrix and the brief.
     Command("maturity", MUTATING, _project, skill="sentinel-maturity"),
