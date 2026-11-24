@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 
+from .workspace import workspace_path
+
 from .prior_decisions import _family, _linkable
 
 CONFLICT_PREFIX = "GAP-CHQ-"
@@ -34,6 +36,8 @@ def differ(a: dict, b: dict) -> bool:
     ids = (str(a["id"]), str(b["id"]))
     if any(i.startswith(CONFLICT_PREFIX) for i in ids) or _family(ids[0]) != _family(ids[1]):
         return False
+    if _family(ids[0]) == "GAP-CON":
+        return False  # IMP-412 (M1): a contradiction's (A)/(B) point at its own two lines; the letters mean nothing across questions
     first, second = str(a.get("option", "")).strip(), str(b.get("option", "")).strip()
     return bool(first and second and first != second)
 
@@ -80,6 +84,43 @@ def conflict_gap(change_id: str, a: dict, b: dict, link: str, language: str) -> 
         "description": description, "question": question, "evidence_mention": f"{a_id} // {b_id}",
         "origin": "contradiction", "resolution_note": "",
     }
+
+
+def supersede_losing_decisions(project_id: str, change_id: str, closed: list[dict]) -> list[str]:
+    """A GAP-CHQ answered with Option A or B: the decision that does not govern closes as `superseded`.
+
+    Its resolution note names the winner and the question; its EARS rows move to the superseded table. The brief, the
+    export and the decisions view drop it as a fact (it is listed apart). Returns the ids of the replaced decisions."""
+    from .change_requirements import _reconcile_groups
+    from .changes import change_gaps_path
+    from .crosses.record import _save_change_gaps
+    from .gaps import SUPERSEDED_CLOSURE, parse_gap_rows
+
+    answered = [g for g in closed if str(g["id"]).startswith(CONFLICT_PREFIX) and str(g.get("option", "")).strip().upper() in ("A", "B")]
+    if not answered:
+        return []
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"]
+    by_id = {str(g["id"]).strip(): g for g in rows}
+    language = _language(project_id, change_id)
+    replaced: list[str] = []
+    for gap in answered:
+        pair = [part.strip() for part in str((by_id.get(gap["id"]) or {}).get("evidence_mention", "")).split("//")]
+        if len(pair) != 2:
+            continue
+        winner, loser = (pair[0], pair[1]) if str(gap["option"]).strip().upper() == "A" else (pair[1], pair[0])
+        target = by_id.get(loser)
+        if (target is None or str(target.get("status", "")).strip("`").strip().upper() != "CLOSED"
+                or str(target.get("closure_reason") or "").strip("`").strip().lower() == SUPERSEDED_CLOSURE):
+            continue
+        target["closure_reason"] = SUPERSEDED_CLOSURE
+        target["resolution_note"] = (f"reemplazada por {winner} según {gap['id']}" if language == "es"
+                                     else f"replaced by {winner} per {gap['id']}")
+        replaced.append(loser)
+    if replaced:
+        _save_change_gaps(project_id, change_id, path, rows)
+        _reconcile_groups(project_id, change_id, [(loser, "", []) for loser in replaced], language)
+    return replaced
 
 
 def _language(project_id: str, change_id: str) -> str:

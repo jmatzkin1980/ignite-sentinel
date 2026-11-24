@@ -285,6 +285,9 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         head = change_copy["extracted_content"].format(
             element=entry.get("element", ""), path=entry.get("path", ""),
             lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
+        held = (view.get("items") or {}).get(entry.get("element")) or {}
+        if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
+            head += f" — {change_copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
         blocks.setdefault(place, []).extend(
             [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
 
@@ -316,6 +319,12 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED":
             continue
         gap_id = str(gap["id"]).strip("`")
+        if gap.get("closure_reason") == "assumed":
+            continue  # IMP-412: an assumption is no fact: its statement is in section 8, to validate
+        if gap.get("closure_reason") == "superseded":
+            add_fact("6.2", "", f"{'Decisión reemplazada' if lang == 'es' else 'Replaced decision'}: {gap_id} — "
+                     f"{str(gap.get('resolution_note', '')).strip()}", gap=gap_id)
+            continue
         answer = str(gap.get("answer", "")).strip()
         tag = "nuevo"
         text = answer or change_copy["no_text"]

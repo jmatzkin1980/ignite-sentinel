@@ -23,6 +23,7 @@ GAP_ROW_FIELDS = (
     "closure_reason",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
+SUPERSEDED_CLOSURE = "superseded"  # IMP-412: a decision a GAP-CHQ answer replaced; CLOSED but no longer a fact
 ASSUMED_CLOSURE = "assumed"  # IMP-412: a change's question an assumption closed; it stays CLOSED but is counted apart
 PRE_DECIDED = "PRE_DECIDED"  # IMP-410: an earlier decision already answers it; the BA confirms or overrides
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED", PRE_DECIDED}

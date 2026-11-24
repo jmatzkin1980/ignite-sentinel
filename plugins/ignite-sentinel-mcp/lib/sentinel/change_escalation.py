@@ -48,6 +48,11 @@ def escalation_threshold(elements: int) -> int:
     return max(2, elements // 40)
 
 
+def warning_size(warning: dict) -> int:
+    """How big a trigger is: its process count, or the surfaces and rows it names (a decision covers up to that size)."""
+    return int(warning.get("count") or (len(warning.get("surfaces") or []) + len(warning.get("rows") or [])))
+
+
 def escalation_warnings(project_id: str, change_id: str) -> list[dict]:
     """Warnings computed on the fly from the confirmed border and the EARS rows; [] while the border is open.
 
@@ -57,13 +62,19 @@ def escalation_warnings(project_id: str, change_id: str) -> list[dict]:
     decision = change.get("keep_single")
     if not isinstance(decision, dict):
         return warnings
-    covered = set(decision.get("triggers") or [])
-    if not any(w["trigger"] in covered for w in warnings):
+    sizes = decision.get("sizes") if isinstance(decision.get("sizes"), dict) else {}
+    triggers = set(decision.get("triggers") or [])
+
+    def covers(w: dict) -> bool:
+        # IMP-412 final review (I4): a decision reaches what it saw; a trigger that grew warns again
+        return w["trigger"] in triggers and warning_size(w) <= int(sizes.get(w["trigger"], warning_size(w)))
+
+    if not any(covers(w) for w in warnings):
         return warnings
     text = TEXT.get(change_language(project_id, change), TEXT["es"])
     decided = {"trigger": "kept_single", "surfaces": [], "rows": [], "decided": True,
                "message": text["kept_single"].format(reason=decision.get("reason", ""))}
-    return [decided, *(w for w in warnings if w["trigger"] not in covered)]
+    return [decided, *(w for w in warnings if not covers(w))]
 
 
 def _raw_warnings(project_id: str, change_id: str) -> list[dict]:

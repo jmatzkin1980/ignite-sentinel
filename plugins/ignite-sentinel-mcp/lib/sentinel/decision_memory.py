@@ -85,7 +85,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     from .crosses.record import RETIRE_NOTE
     from .extraction.inventory import element_lines, match_element_id
     from .gap_resolution import normalize_option
-    from .gaps import ASSUMED_CLOSURE, parse_gap_rows
+    from .gaps import ASSUMED_CLOSURE, SUPERSEDED_CLOSURE, parse_gap_rows
     from .prior_decisions import load_priors
     from .workspace import workspace_path
 
@@ -105,8 +105,8 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
         if gap_id in ("", "NONE") or str(row.get("status", "")).strip("`").strip().upper() != "CLOSED":
             continue
         note = str(row.get("resolution_note", "")).strip()
-        if note in retired or _value(row.get("closure_reason")).lower() == ASSUMED_CLOSURE:
-            continue  # IMP-412: withdrawn by a re-recording, or closed by an assumption (not a decision)
+        if note in retired or _value(row.get("closure_reason")).lower() in (ASSUMED_CLOSURE, SUPERSEDED_CLOSURE):
+            continue  # IMP-412: withdrawn by a re-recording, closed by an assumption (not a decision) or replaced by a GAP-CHQ answer
         entry = priors.get(gap_id)
         response = answers.get(gap_id) or (
             {"answer": entry["answer"], "option": entry.get("option", "")} if entry and entry.get("accepted_at") else {})
@@ -145,6 +145,21 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
             "sources": list(dict.fromkeys(sources)),
         })
     return out
+
+
+def superseded_decisions(project_id: str, change_id: str) -> list[dict]:
+    """The decisions a GAP-CHQ answer replaced: `{"id", "note"}` each, for the views that list them apart."""
+    from .changes import change_gaps_path
+    from .gaps import SUPERSEDED_CLOSURE, parse_gap_rows
+    from .workspace import workspace_path
+
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    if not path.exists():
+        return []
+    return [{"id": str(row["id"]).strip(), "note": _squash(row.get("resolution_note"))}
+            for row in parse_gap_rows(path.read_text(encoding="utf-8-sig"))
+            if str(row.get("status", "")).strip("`").strip().upper() == "CLOSED"
+            and _value(row.get("closure_reason")).lower() == SUPERSEDED_CLOSURE]
 
 
 _LABELS = {

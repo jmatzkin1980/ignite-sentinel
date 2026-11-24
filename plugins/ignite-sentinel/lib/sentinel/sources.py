@@ -618,14 +618,20 @@ def keep_single_change(project_id: str, change_id: str, reason: str) -> dict[str
             _text(language, "--keep-single necesita --reason con el porqué: sin motivo no hay decisión.",
                   "--keep-single needs --reason with the why: no reason, no decision."),
             next_step=f'/sources {project_id} --change {change_id} --keep-single --reason "…"')
-    triggers = [w["trigger"] for w in _raw_warnings(project_id, change_id)]
+    from .change_escalation import warning_size
+
+    now = _raw_warnings(project_id, change_id)
+    triggers = [w["trigger"] for w in now]
     if not triggers:
         raise InputError(
             _text(language, f"{change_id} no tiene avisos de escalamiento que decidir",
                   f"{change_id} has no escalation warnings to decide on"))
     previous = change.get("keep_single") if isinstance(change.get("keep_single"), dict) else {}
     triggers = list(dict.fromkeys([*(previous.get("triggers") or []), *triggers]))
-    decision = {"reason": reason.strip(), "at": utc_now(), "triggers": triggers}
+    sizes = dict(previous.get("sizes") or {})
+    for warning in now:  # IMP-412: the size each trigger had when the BA decided; a bigger one warns again
+        sizes[warning["trigger"]] = max(int(sizes.get(warning["trigger"], 0)), warning_size(warning))
+    decision = {"reason": reason.strip(), "at": utc_now(), "triggers": triggers, "sizes": sizes}
     changes = {k: dict(v) for k, v in list_changes(project_id).items()}
     changes[change_id]["keep_single"] = decision
     update_state(project_id, changes=changes)

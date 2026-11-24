@@ -581,6 +581,8 @@ def _run_project_command(args) -> int:
                 # IMP-400: --change CHG --no-baseline --reason TEXT waives the change's baseline step.
                 if not args.change:
                     raise ValueError("/sources --no-baseline needs --change CHG-NNN")
+                if args.keep_single:
+                    raise ValueError("/sources --no-baseline and --keep-single are two decisions: run them one at a time")
                 if (args.load or args.role or args.precedence or args.between or args.report or args.source_id
                         or any(value for key, value in changes.items() if key != "reason")):
                     raise ValueError("/sources --no-baseline takes only --change and --reason")

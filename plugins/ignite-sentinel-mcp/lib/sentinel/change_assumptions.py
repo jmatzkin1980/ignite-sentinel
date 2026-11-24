@@ -53,6 +53,25 @@ def _es(language: str) -> bool:
     return language == "es"
 
 
+MIN_QUOTE_WORDS = 4
+
+
+def change_grounding_exclusions(base: Path, change_id: str) -> tuple[Path, ...]:
+    """What an assumption of a change cannot quote: its own register, its lateral, its archive and the answer files
+    /resolve-gaps kept (the agent's own words). One list for `/assume --change` and for the `supuesto` bridge."""
+    return (change_assumptions_path(base, change_id), assumptions_meta_path(base, change_id),
+            base / "01_discovery" / change_id / "assumptions", base / "07_changes" / "00_client_responses")
+
+
+def literal_quote(text: str) -> str:
+    """The first quoted span (", «», “”) of `text` with at least MIN_QUOTE_WORDS words, or ''."""
+    for found in _QUOTED.finditer(text or ""):
+        span = next(group for group in found.groups() if group is not None).strip()
+        if len(span.split()) >= MIN_QUOTE_WORDS:
+            return span
+    return ""
+
+
 def _read_meta(base: Path, change_id: str) -> dict[str, dict]:
     data = read_json(assumptions_meta_path(base, change_id), {})
     found = data.get("assumptions") if isinstance(data, dict) else None
@@ -160,8 +179,19 @@ def apply_change_assumptions(project_id: str, change_id: str, source: Path) -> d
         raise GateRefusal(f"{change_id} no tiene preguntas registradas todavía" if es
                           else f"{change_id} has no questions recorded yet")
     data = load_assumption_source(Path(source))
-    own = (change_assumptions_path(base, change_id), assumptions_meta_path(base, change_id),
-           base / "01_discovery" / change_id / "assumptions")
+    own = change_grounding_exclusions(base, change_id)
+    # IMP-412 final review: in a change the justification is a literal quote of at least 4 words (quote marks optional in the JSON field)
+    for index, item in enumerate((i for i in data.get("assumptions", []) if isinstance(i, dict)), start=1):
+        raw = str(item.get("justification", item.get("evidence", ""))).strip()
+        quoted = literal_quote(raw) if _QUOTED.search(raw) else raw
+        if raw and len(quoted.split()) < MIN_QUOTE_WORDS:
+            asm_id = str(item.get("id") or f"ASM-{index:03d}").strip().upper()
+            raise AssumptionError(
+                f"{asm_id}: la justificación debe ser una cita literal de al menos {MIN_QUOTE_WORDS} palabras de una fuente local" if es
+                else f"{asm_id}: the justification must be a literal quote of at least {MIN_QUOTE_WORDS} words from a local source")
+        if raw and quoted != raw:
+            item["justification"] = quoted
+            item.pop("evidence", None)
     validated = validate_assumptions(data, assumption_grounding_text(base, exclude=own))
     raw_items = [item for item in data.get("assumptions", []) if isinstance(item, dict)]
     extra = {str(item.get("id") or f"ASM-{index:03d}").strip().upper(): str(item.get("validate_with") or "").strip()
@@ -176,6 +206,9 @@ def apply_change_assumptions(project_id: str, change_id: str, source: Path) -> d
         if gap_id not in by_gap:
             raise AssumptionError(f"{asm}: {gap_id} no es una pregunta de {change_id}" if es
                                   else f"{asm}: {gap_id} is not a question of {change_id}")
+        if gap_id == "GAP-SCOPE":
+            raise AssumptionError(f"{asm}: GAP-SCOPE se cierra confirmando el borde, no con un supuesto" if es
+                                  else f"{asm}: GAP-SCOPE closes by confirming the border, not with an assumption")
         if _status(by_gap[gap_id]) == "CLOSED" or gap_id in taken:
             raise AssumptionError(f"{asm}: {gap_id} ya está cerrada; un supuesto no reemplaza una decisión" if es
                                   else f"{asm}: {gap_id} is already closed; an assumption does not replace a decision")
@@ -281,13 +314,6 @@ def without_assumption_blocks(text: str) -> str:
     return "".join(kept)
 
 
-def _first_quote(evidence: str) -> str:
-    found = _QUOTED.search(evidence)
-    if not found:
-        return evidence.strip()
-    return next(group for group in found.groups() if group is not None).strip()
-
-
 def prepare_response_assumptions(project_id: str, change_id: str, responses: dict, gaps: list[dict],
                                  exclude: Path, language: str) -> dict:
     """Bridge: each `supuesto` response with a substantive answer becomes an ASM row (validated like `/assume --change`).
@@ -300,7 +326,8 @@ def prepare_response_assumptions(project_id: str, change_id: str, responses: dic
     es = _es(language)
     base = workspace_path(project_id)
     by_id = {str(g.get("id")): g for g in gaps}
-    grounding = assumption_grounding_text(base, exclude=exclude)
+    grounding = assumption_grounding_text(base, exclude=(*change_grounding_exclusions(base, change_id), exclude))
+    known = {row["id"]: str(row.get("status", "")).upper() for row in load_change_assumptions(project_id, change_id)}
     lenses = known_lenses()
     rows: list[dict] = []
     meta: dict[str, dict] = {}
@@ -313,9 +340,17 @@ def prepare_response_assumptions(project_id: str, change_id: str, responses: dic
         if gap is None or not is_substantive_answer(answer):
             continue
         asm = "ASM-" + gap_id[4:]
+        # IMP-412 final review (C1/I1): a rerun never re-closes, reopens or downgrades; it only says why nothing moved
+        if known.get(asm) in ("VALIDATED", "INVALIDATED"):
+            state = known[asm]
+            word = "validado" if state == "VALIDATED" else "invalidado"
+            response["assumption_skip"] = (
+                f"{asm} ya {word} ({state}): el supuesto no vuelve a cerrar la pregunta; para otro supuesto, otro id o una decisión" if es
+                else f"{asm} is already {state}: the assumption does not close the question again; use another id or a decision")
+            continue
         if _status(gap) == "CLOSED" and _closure(gap) != ASSUMED_CLOSURE:
-            response["assumption_error"] = ("la pregunta ya está cerrada; un supuesto no reemplaza una decisión" if es
-                                            else "the question is already closed; an assumption does not replace a decision")
+            response["assumption_skip"] = ("la pregunta ya está cerrada; un supuesto no reemplaza una decisión" if es
+                                           else "the question is already closed; an assumption does not replace a decision")
             continue
         owner = str(response.get("owner", "")).strip()
         if not owner or _mentions_any(owner.lower(), AGENT_OWNER_TOKENS):
@@ -324,15 +359,17 @@ def prepare_response_assumptions(project_id: str, change_id: str, responses: dic
         validate_with = str(response.get("validates", "")).strip() or owner
         row = {"id": asm, "lens": lens if lens in lenses else "product", "statement": answer, "owner": owner,
                "risk": _RISK_BY_SEVERITY.get(str(gap.get("severity", "")).strip("`").strip().lower(), "med"),
-               "uncertainty": "med", "justification": _first_quote(str(response.get("evidence", ""))),
+               "uncertainty": "med", "justification": literal_quote(str(response.get("evidence", ""))),
                "closes_gap": gap_id}
         try:
+            if not row["justification"]:
+                raise AssumptionError("no literal quote")
             (valid,) = validate_assumptions({"assumptions": [row]}, grounding)
         except AssumptionError:
             response["assumption_error"] = (
-                "el supuesto necesita en `Evidencia o referencia` una cita literal (entre comillas) de una fuente local; sin cita queda ANSWERED"
+                f"el supuesto necesita en `Evidencia o referencia` una cita literal (entre comillas) de al menos {MIN_QUOTE_WORDS} palabras de una fuente local; sin cita queda ANSWERED"
                 if es else
-                "the assumption needs a literal quote (in quotation marks) from a local source in `Evidence or reference`; without one it stays ANSWERED")
+                f"the assumption needs a literal quote (in quotation marks) of at least {MIN_QUOTE_WORDS} words from a local source in `Evidence or reference`; without one it stays ANSWERED")
             continue
         response["assumption_id"] = asm
         response["assumption_note"] = assumed_note(asm, validate_with, language)

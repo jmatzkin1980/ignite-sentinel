@@ -26,12 +26,12 @@ COPY = {
         "zone_text": {"nuevo": "Se construye: hoy no existe.", "adyacente": "Existe y este cambio la toca.",
                       "preservado": "Existe y este cambio no la modifica."},
         "what": "Qué es", "why": "Por qué en esta zona", "from": "De dónde sale", "doubts": "Dudas abiertas",
-        "none": "ninguna", "no_description": "sin descripción registrada",
+        "to_confirm": "a confirmar", "none": "ninguna", "none_naming": "ninguna que la nombre", "no_description": "sin descripción registrada",
         "no_regression": "sin filas de no regresión todavía", "rows": "filas",
         "surfaces": "Superficies nuevas decididas", "accepted": "aceptada", "declined": "descartada",
         "option": "Opción elegida", "answer": "Respuesta", "evidence": "Evidencia", "quotes": "Citas",
-        "decided": "Decidió", "drafted": "redactó", "delegated": "confirmado por delegación del BA",
-        "assumptions": "Supuestos (no son decisiones: a validar)", "validate": "a validar con",
+        "decided": "Decidió", "unnamed": "BA (sin nombre)", "drafted": "redactó", "delegated": "confirmado por delegación del BA",
+        "replaced": "Decisiones reemplazadas (no rigen)", "assumptions": "Supuestos (no son decisiones: a validar)", "validate": "a validar con",
     },
     "en": {
         "border_title": "Border explained", "decisions_title": "Decisions of the change",
@@ -42,12 +42,12 @@ COPY = {
         "zone_text": {"nuevo": "To be built: it does not exist today.", "adyacente": "It exists and this change touches it.",
                       "preservado": "It exists and this change does not modify it."},
         "what": "What it is", "why": "Why in this zone", "from": "Where it comes from", "doubts": "Open doubts",
-        "none": "none", "no_description": "no recorded description",
+        "to_confirm": "to be confirmed", "none": "none", "none_naming": "none that names it", "no_description": "no recorded description",
         "no_regression": "no non-regression rows yet", "rows": "rows",
         "surfaces": "New surfaces decided", "accepted": "accepted", "declined": "declined",
         "option": "Chosen option", "answer": "Answer", "evidence": "Evidence", "quotes": "Quotes",
-        "decided": "Decided by", "drafted": "drafted by", "delegated": "confirmed on behalf of the BA",
-        "assumptions": "Assumptions (not decisions: to validate)", "validate": "to validate with",
+        "decided": "Decided by", "unnamed": "BA (unnamed)", "drafted": "drafted by", "delegated": "confirmed on behalf of the BA",
+        "replaced": "Replaced decisions (they do not govern)", "assumptions": "Assumptions (not decisions: to validate)", "validate": "to validate with",
     },
 }
 
@@ -94,6 +94,16 @@ def _open_questions(project_id: str, change_id: str) -> list[dict]:
     return out
 
 
+def _to_confirm_reason(project_id: str, change_id: str, row: dict) -> str:
+    import re
+
+    from .extraction.proposals import load_proposals
+
+    found = re.search(r"EXT:([^`\s/]+)", str(row.get("source", "")))
+    items = load_proposals(workspace_path(project_id), change_id)["items"]
+    return _squash((items.get(found.group(1)) or {}).get("a_confirmar_reason")) if found else ""
+
+
 def _quoted(text: str) -> str:
     return f"«{text[:LINE_MAX]}»"
 
@@ -106,7 +116,7 @@ def render_border_review(project_id: str, change_id: str) -> str:
     t = _copy(project_id, change_id)
     change = get_change(project_id, change_id)
     border = [item for item in change.get("border") or [] if isinstance(item, dict)]
-    ears = [row for row in load_change_ears(project_id, change_id) if not row.get("a_confirmar")]
+    ears = load_change_ears(project_id, change_id)  # IMP-412 (P3): the rows the request left to confirm are in, marked
     elements = _request_elements(project_id, change_id)
     questions = _open_questions(project_id, change_id)
     lines = [f"# {t['border_title']} — {change_id}", "", t["intro"], ""]
@@ -125,7 +135,8 @@ def render_border_review(project_id: str, change_id: str) -> str:
             found = [(element, flat) for element, flat in elements if key and key in _fold(flat)]
             lines += [f"### {name} — {item.get('type', '')}", f"- {t['what']}:"]
             for row in mine:
-                lines.append(f"  - {row['id']}: {_squash(row['statement'])}")
+                mark = f" — {t['to_confirm']}: {_to_confirm_reason(project_id, change_id, row)}" if row.get("a_confirmar") else ""
+                lines.append(f"  - {row['id']}: {_squash(row['statement'])}{mark}")
             for element, flat in found:
                 first = element_lines(element)[0]
                 lines.append(f"  - {element['id']} ({element['source_id']}:{first}): {_quoted(flat)}")
@@ -148,7 +159,7 @@ def render_border_review(project_id: str, change_id: str) -> str:
                 lines.append(f"- {t['doubts']}:")
                 lines += [f"  - {q['id']}: {q['question']}" for q in doubts]
             else:
-                lines.append(f"- {t['doubts']}: {t['none']}")
+                lines.append(f"- {t['doubts']}: {t['none_naming']}")
             lines.append("")
     lines += [f"## {t['surfaces']}", ""]
     decided = _decided_surfaces(project_id, change_id, change, t)
@@ -183,15 +194,15 @@ def _candidate_text(project_id: str, change_id: str, key: str) -> str:
 
 def render_decisions_review(project_id: str, change_id: str) -> str:
     from .change_assumptions import open_change_assumptions
-    from .decision_memory import closed_decisions
-    from .delegation import load_gap_delegations
+    from .decision_memory import closed_decisions, superseded_decisions
+    from .delegation import current_gap_delegations
     from .resources import read_package_json
 
     t = _copy(project_id, change_id)
     language = "es" if t is COPY["es"] else "en"
     titles = read_package_json("templates", "change_brief.json")["lens_titles"]
     decisions = closed_decisions(project_id, change_id)
-    delegated = load_gap_delegations(workspace_path(project_id), change_id)
+    delegated = current_gap_delegations(workspace_path(project_id), change_id)
     by_lens: dict[str, list[dict]] = {}
     for item in decisions:
         by_lens.setdefault(item["lens"].strip("`").lower(), []).append(item)
@@ -211,15 +222,19 @@ def render_decisions_review(project_id: str, change_id: str) -> str:
                 lines.append(f"- {t['quotes']}:")
                 for cite in item["citations"]:
                     lines.append(f"  - {cite['source_id']}:{cite['line']} «{cite['quote']}»")
-            who = item["owner"]
-            if who:
-                line = f"- {t['decided']}: {who}"
-                if item["drafted_by"]:
-                    line += f" — {t['drafted']}: {item['drafted_by']}"
-                if item["id"] in delegated:
-                    line += f" — {t['delegated']}"
-                lines.append(line)
+            # IMP-412 final review (I5): who decided, who drafted and who confirmed for the BA show even without `Owner / fuente`
+            line = f"- {t['decided']}: {item['owner'] or t['unnamed']}"
+            if item["drafted_by"]:
+                line += f" — {t['drafted']}: {item['drafted_by']}"
+            if item["id"] in delegated:
+                line += f" — {t['delegated']}"
+            lines.append(line)
             lines.append("")
+    replaced = superseded_decisions(project_id, change_id)
+    if replaced:  # IMP-412: decisions a GAP-CHQ answer replaced are not facts; they are listed apart
+        lines += [f"## {t['replaced']}", ""]
+        lines += [f"- {item['id']}: {item['note']}" for item in replaced]
+        lines.append("")
     open_rows = open_change_assumptions(project_id, change_id)
     if open_rows:
         lines += [f"## {t['assumptions']}", ""]

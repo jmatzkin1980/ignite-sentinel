@@ -240,10 +240,13 @@ def _reconcile_groups(project_id: str, change_id: str, groups: list[Group], lang
             if key in produced and key not in matched:
                 matched.add(key)
                 _, _, delta, affects, surfaces = produced[key]
-                if cells[2] != delta or cells[5] != affects or cells[6] != surfaces:
+                want_tail, has_tail = source_cell.endswith(A_CONFIRMAR_TAIL), cells[4].endswith(A_CONFIRMAR_TAIL)
+                if cells[2] != delta or cells[5] != affects or cells[6] != surfaces or want_tail != has_tail:
                     cells[2] = delta or cells[2]
                     cells[5] = affects
                     cells[6] = surfaces
+                    if want_tail != has_tail:  # IMP-412 (P2): the mark follows the request, both ways, on rows that already exist
+                        cells[4] = cells[4] + A_CONFIRMAR_TAIL if want_tail else cells[4][: -len(A_CONFIRMAR_TAIL)]
                     active[position] = "| " + " | ".join(cells) + " |"
                     result["delta_updated"].append(cells[0])
             else:

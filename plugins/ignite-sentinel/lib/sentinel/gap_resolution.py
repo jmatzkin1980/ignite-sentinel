@@ -485,8 +485,9 @@ def _finish_change_resolution(
     from .prior_decisions import reconcile_priors
 
     prior_moves = reconcile_priors(project_id, change_id)  # a prior reopened or re-answered moves its dependents
-    from .decision_conflicts import detect_decision_conflicts
+    from .decision_conflicts import detect_decision_conflicts, supersede_losing_decisions
 
+    replaced = supersede_losing_decisions(project_id, change_id, decisions)  # IMP-412: a GAP-CHQ answer picks the governing decision
     decision_conflicts = detect_decision_conflicts(project_id, change_id)  # IMP-412: closed decisions that clash go back to the BA
     change = get_change(project_id, change_id)
 
@@ -530,6 +531,7 @@ def _finish_change_resolution(
         "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
         "prior_overridden": prior_overridden,
         "decision_conflicts": decision_conflicts,
+        **({"superseded": replaced} if replaced else {}),
         **({"assumed": [gap["id"] for gap in assumed], "assumptions": assumptions} if assumed else {}),
         **({"delegated": delegated} if delegated else {}),
         **({"prior_reopened": prior_moves["reopened"]} if prior_moves.get("reopened") else {}),
@@ -748,6 +750,13 @@ def apply_gap_responses(
     for gap in gaps:
         gap = dict(gap)
         response = responses.get(gap["id"], {})
+        if response.get("assumption_skip"):
+            # IMP-412: a `supuesto` block that meets an assumption already decided, or a closed question, moves nothing
+            findings.append(f"{gap['id']}: {response['assumption_skip']}")
+            if str(gap.get("status", "")).strip("`").upper() == "OPEN":
+                open_gaps.append(gap)
+            updated.append(gap)
+            continue
         answer = response.get("answer", "").strip()
         decision = normalize_status(response.get("decision_status", ""))
         gap["answer"] = answer
@@ -803,6 +812,16 @@ def apply_gap_responses(
                 continue
             if option_note:
                 findings.append(f"{gap['id']}: {option_note}")
+            if gap["id"].startswith("GAP-CHQ-") and choice not in ("A", "B"):
+                # IMP-412: which decision governs is the whole answer; without a valid option the clash stays open
+                note = ("elegí cuál rige con «Opción: A» u «Opción: B»" if language == "es"
+                        else "say which one governs with \"Option: A\" or \"Option: B\"")
+                findings.append(f"{gap['id']}: {note}")
+                gap["status"] = "ANSWERED"
+                gap["resolution_note"] = note
+                answered.append(gap)
+                updated.append(gap)
+                continue
             gap["option"] = choice
         if confirmed and _EXAMPLE_EVIDENCE.search(gap["evidence"]):
             # example data or the current practice never closes a gap

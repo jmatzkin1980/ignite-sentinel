@@ -204,6 +204,8 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         if _is_open(gap):
             section.mark(mark_text(gap_id, bool(gap.get("blocks"))))
             return
+        if gap.get("closure_reason") in ("assumed", "superseded"):
+            return  # IMP-412: an assumption is no fact (it is in the table to validate); a replaced decision is listed apart
         answer = gap.get("answer", "")
         if gap.get("closure_reason") == "by_baseline":
             path = _CITE_PATH.search(gap.get("evidence", ""))
@@ -249,9 +251,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             content = entry.get("content")
             if content is not None:
                 # IMP-406: the section is the request text as written, never a summary of it
-                section.fill(copy["extracted_content"].format(
+                head = copy["extracted_content"].format(
                     element=entry.get("element", ""), path=entry.get("path", ""),
-                    lines=format_ranges(entry.get("lines") or []) or entry.get("line", "")))
+                    lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
+                held = ext_items.get(entry.get("element")) or {}
+                if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
+                    head += f" — {copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
+                section.fill(head)
                 section.raw("")
                 for line in str(content).split("\n"):
                     section.raw(line)
@@ -486,6 +492,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         s9.raw("|" + "|".join("---" for _ in head) + "|")
         for row in assumed:
             s9.raw(f"| {row['id']} | {table_cell(row['statement'])} | {table_cell(row['validate_with'])} | {row['gap']} |")
+    replaced = [gap for gap in gaps if not _is_open(gap) and gap.get("closure_reason") == "superseded"]
+    if replaced:  # IMP-412: decisions a GAP-CHQ answer replaced; they are not facts any more
+        s9.raw("")
+        s9.raw("**Decisiones reemplazadas**" if language == "es" else "**Replaced decisions**")
+        s9.raw("")
+        for gap in replaced:
+            s9.raw(f"- {gap['id']}: {str(gap.get('resolution_note', '')).strip()}")
     delegated = inputs.get("delegated") or {}
     if delegated.get("total"):  # IMP-412: confirmed by someone else for the BA, to be reviewed
         s9.raw("")
