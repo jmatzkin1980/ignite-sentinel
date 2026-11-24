@@ -32,6 +32,7 @@ TREATMENTS = {
     "seccion": "seccion", "sección": "seccion", "section": "seccion",
     "descarte": "descarte", "discard": "descarte",
 }
+TYPES = {"aplica": "aplica", "applies": "aplica", "extension": "extension", "extensión": "extension"}
 SECTION_KEYS = {"objetivo": 2, "usuarios": 2, "proceso": 4, "alcance": 3, "preservado": 6, "reglas": 7, "aceptacion": 7}
 SECTION_ALIASES = {
     "objective": "objetivo", "users": "usuarios", "process": "proceso", "scope": "alcance",
@@ -56,6 +57,7 @@ _LABELS = {
     "lectura": "reading", "reading": "reading",
     "motivo": "reason", "reason": "reason",
     "marca": "flag", "flag": "flag",
+    "tipo": "type", "type": "type",
 }
 READINGS = {
     "completa": "completa", "complete": "completa", "full": "completa",
@@ -83,7 +85,7 @@ def _unquote(value: str) -> str:
 def _new_block() -> dict[str, Any]:
     return {
         "treatment": "", "quote": "", "statements": [], "section": "", "summary": "",
-        "lines": "", "reading": "", "reason": "", "flag": "", "flag_note": "", "errors": [],
+        "lines": "", "reading": "", "reason": "", "type": "", "flag": "", "flag_note": "", "errors": [],
     }
 
 
@@ -236,6 +238,10 @@ _MESSAGES = {
         "{id}: la cita está en las líneas {qa}-{qb}, fuera de lo declarado en Líneas ({declared})",
         "{id}: the quote is on lines {qa}-{qb}, outside what Lines declares ({declared})",
     ),
+    "bad_type": (
+        "{id}: Tipo debe ser aplica o extension",
+        "{id}: Type must be aplica or extension",
+    ),
     "bad_flag": (
         "{id}: Marca debe ser divergencia, contradiccion o sin_respaldo",
         "{id}: Flag must be divergence, contradiction or unsupported",
@@ -363,6 +369,14 @@ def validate_proposal(
             fail("no_reason")
 
     flags: list[dict] = []
+    type_raw = str(raw.get("type", "")).strip()
+    kind_type = "aplica"
+    if type_raw:
+        kind_type = TYPES.get(type_raw.lower(), "")
+        if not kind_type:
+            fail("bad_type")
+    if kind_type == "extension":  # IMP-412: it extends what the request says; held and confirmed one by one
+        flags.append({"origin": "proposal", "kind": "extension", "ref": "", "note": ""})
     flag_raw = str(raw.get("flag", "")).strip().lower()
     if flag_raw:
         kind = FLAG_KINDS.get(flag_raw)
@@ -385,6 +399,7 @@ def validate_proposal(
     return {
         "element_sha": element["sha"],
         "treatment": treatment,
+        "type": kind_type,
         "quote": quote,
         "statements": statements,
         "section": section,
@@ -569,6 +584,8 @@ def _same_proposal(stored: dict, item: dict) -> bool:
     """The normalized proposal says exactly what the stored one says (statements, deltas, surfaces, flag, text…)."""
     keys = ("element_sha", "treatment", "quote", "section", "brief_section", "summary", "reason", "lines", "reading")
     if any(stored.get(key) != item.get(key) for key in keys):
+        return False
+    if (stored.get("type") or "aplica") != (item.get("type") or "aplica"):  # an item stored before IMP-412 has none
         return False
     statement_keys = ("text", "delta", "surfaces", "affects")
     mine = [{k: s.get(k) or ([] if k in ("surfaces", "affects") else "") for k in statement_keys} for s in stored.get("statements") or []]

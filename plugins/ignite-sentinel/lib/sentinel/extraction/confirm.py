@@ -69,6 +69,7 @@ def _raw(item: dict) -> dict:
     """The stored item as the block it came from, so `validate_proposal` can check it again."""
     return {
         "treatment": item.get("treatment", ""),
+        "type": item.get("type") or "",
         "quote": item.get("quote", ""),
         "statements": [
             {
@@ -108,7 +109,7 @@ def _merge(result: dict, rows: dict[str, list[str]]) -> None:
 
 def _try_confirm(
     project_id: str, change_id: str, element: dict, item: dict, border: list[dict], language: str,
-    result: dict, force: bool, delegated: bool = False, note: str = "",
+    result: dict, force: bool, delegated: bool = False, note: str = "", reason: str = "",
 ) -> None:
     """Confirm one proposed item, or leave it held (flagged) or invalid (no longer valid)."""
     element_id = element["id"]
@@ -125,6 +126,7 @@ def _try_confirm(
         normalized, errors = None, [_msg("stale_element", language, id=element_id, **ctx)]
     else:
         normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx, source_lines)
+    speculative = any(f.get("kind") == "a_confirmar" for f in flags)
     if normalized is None:
         result["invalid"][element_id] = errors or [_msg("stale_element", language, id=element_id, **ctx)]
         return
@@ -133,7 +135,8 @@ def _try_confirm(
         statements = normalized["statements"]
         item["statements"] = statements
         cite = f"{element['source_id']}:{element['line']}"
-        _merge(result, reconcile_extraction_ears(project_id, change_id, element_id, statements, cite, language))
+        _merge(result, reconcile_extraction_ears(
+            project_id, change_id, element_id, statements, cite, language, a_confirmar=speculative))
         item["rows"] = _element_rows(project_id, change_id, element_id)
     else:
         if treatment == "seccion":
@@ -144,6 +147,11 @@ def _try_confirm(
             item["rows"] = []
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
+    if speculative:  # IMP-412: the request left it to confirm; the BA's reason stays with the item
+        item["a_confirmar"], item["a_confirmar_reason"] = True, str(reason or "").strip()
+    else:
+        item.pop("a_confirmar", None)
+        item.pop("a_confirmar_reason", None)
     if delegated:  # IMP-412: confirmed on behalf of the BA, kept apart and listed to review
         item["confirmed_by"], item["delegated_note"], item["delegated_at"] = "delegated", note, item["confirmed_at"]
         result.setdefault("delegated", []).append(element_id)
@@ -223,7 +231,9 @@ def confirm_proposals(project_id: str, change_id: str, section: str, delegated: 
     return _finish(project_id, change_id, base, store, result)
 
 
-def confirm_item(project_id: str, change_id: str, element_id: str, delegated: bool = False, note: str = "") -> dict:
+def confirm_item(
+    project_id: str, change_id: str, element_id: str, delegated: bool = False, note: str = "", reason: str = "",
+) -> dict:
     """Confirm one proposed item, flagged or not; the BA confirming what was delegated ratifies it."""
     base, _, elements, change, language = _context(project_id, change_id)
     store = load_proposals(base, change_id)
@@ -263,9 +273,18 @@ def confirm_item(project_id: str, change_id: str, element_id: str, delegated: bo
                 if language == "es"
                 else f"{element_id}: the proposal declares Reading: partial: read the whole element and propose it again"
             )
+    for flag in refresh_flags(project_id, change_id, element_id, item):
+        if flag.get("kind") == "a_confirmar" and not str(reason or "").strip():
+            term = str(flag.get("note", "")).strip()
+            raise InputError(
+                f"{element_id}: el pedido lo marca como a confirmar («{term}»): confirmalo con --confirm-item "
+                f"{element_id} --reason \"…\"" if language == "es"
+                else f"{element_id}: the request marks it as to be confirmed («{term}»): confirm it with "
+                f"--confirm-item {element_id} --reason \"…\""
+            )
     result = _empty_result("confirm")
     _try_confirm(project_id, change_id, element, item, change.get("border", []) or [], language, result, force=True,
-                 delegated=delegated, note=str(note or "").strip())
+                 delegated=delegated, note=str(note or "").strip(), reason=str(reason or "").strip())
     return _finish(project_id, change_id, base, store, result)
 
 

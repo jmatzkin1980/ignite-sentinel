@@ -106,6 +106,12 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     from .delegation import delegated_summary
 
     delegated = delegated_summary(project_id, change_id)  # IMP-412: what was confirmed on behalf of the BA
+    from .extraction.proposals import load_proposals
+
+    to_confirm = [  # IMP-412: confirmed with the BA's reason although the request left them to confirm
+        element_id for element_id, item in load_proposals(workspace_path(project_id), change_id)["items"].items()
+        if item.get("status") == "confirmed" and item.get("a_confirmar")
+    ]
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -117,6 +123,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         **({"pre_decided": pre_decided} if pre_decided else {}),
         **({"assumptions": assumptions} if assumptions is not None else {}),
         **({"delegated": delegated} if delegated["total"] else {}),
+        **({"a_confirmar": to_confirm} if to_confirm else {}),
         "verdict": build_change_verdict(project_id, change_id),
         "final_export": change.get("final_export"),
         "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),

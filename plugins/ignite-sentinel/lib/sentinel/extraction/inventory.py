@@ -715,7 +715,7 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             "Un bloque con Tratamiento vacío no es una propuesta.\n"
         )
         labels = ("Tratamiento", "Líneas", "Lectura", "Cita", "Enunciado", "Delta", "Superficie", "Seccion",
-                  "Resumen", "Motivo", "Marca")
+                  "Resumen", "Motivo", "Marca", "Tipo")
     else:
         header = (
             f"# Proposals worksheet — {change_id}\n\n"
@@ -724,8 +724,8 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             "A block with an empty Treatment is not a proposal.\n"
         )
         labels = ("Treatment", "Lines", "Reading", "Quote", "Statement", "Delta", "Surface", "Section",
-                  "Summary", "Reason", "Flag")
-    treatment, line_range, reading, quote, statement, delta, surface, section, text, reason, flag = labels
+                  "Summary", "Reason", "Flag", "Type")
+    treatment, line_range, reading, quote, statement, delta, surface, section, text, reason, flag, kind_type = labels
     parts = [header]
     for item in elements:
         parts.append(
@@ -734,6 +734,7 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
             f" · {item['kind']} -->\n"
             f"> {item['excerpt']}\n"
             f"- {treatment}:\n"
+            f"- {kind_type}:\n"
             f"- {line_range}:\n"
             f"- {reading}:\n"
             f"- {quote}:\n"

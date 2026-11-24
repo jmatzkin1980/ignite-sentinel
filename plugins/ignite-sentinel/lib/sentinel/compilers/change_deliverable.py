@@ -294,7 +294,11 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         delta = str(row.get("delta", "")).strip().upper()
         tag = ROW_TAG.get(delta, "nuevo")
         place = "6.2" if delta == "UNCHANGED" else ROW_PLACES[row_lens(row, border, template)]
-        add_fact(place, tag, f"{row['statement']} ({row['id']})", row["source_id"])
+        statement = f"{row['statement']} ({row['id']})"
+        if row.get("a_confirmar"):  # IMP-412: the request left it to confirm; the BA's reason travels with the fact
+            reason = str(((view.get("items") or {}).get(row["element"]) or {}).get("a_confirmar_reason", "")).strip()
+            statement += f" — {change_copy['to_confirm']}: {reason}"
+        add_fact(place, tag, statement, row["source_id"])
 
     # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
     _border_facts(border, every_rows, copy, add_fact)

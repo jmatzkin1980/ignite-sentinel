@@ -172,7 +172,8 @@ def extraction_view(project_id: str, change_id: str) -> dict[str, Any]:
             if element and isinstance(item, dict) and item.get("status") == "confirmed" \
                     and item.get("element_sha") == element.get("sha"):
                 rows.setdefault(found.group(1), []).append(
-                    {"id": row["id"], "statement": row["statement"], "delta": row["delta"]}
+                    {"id": row["id"], "statement": row["statement"], "delta": row["delta"],
+                     **({"a_confirmar": True} if row.get("a_confirmar") else {})}
                 )
         stored = read_json(extraction_dir(base, change_id) / "sections.json", {})
         for entry in stored.get("entries", []) if isinstance(stored, dict) else []:

@@ -153,6 +153,9 @@ def _cell(text: str) -> str:
     return " ".join(str(text).split()).replace("|", _ESCAPED_PIPE)
 
 
+A_CONFIRMAR_TAIL = " / `a_confirmar`"  # IMP-412: ends the Source cell of the rows of an element the request left to confirm
+
+
 def load_change_ears(project_id: str, change_id: str) -> list[dict]:
     path = change_requirements_path(workspace_path(project_id), change_id)
     if not path.is_file():
@@ -168,6 +171,7 @@ def load_change_ears(project_id: str, change_id: str) -> list[dict]:
         if len(cells) < 5:
             continue
         rows.append({
+            **({"a_confirmar": True} if cells[4].endswith(A_CONFIRMAR_TAIL) else {}),
             "id": cells[0], "pattern": cells[1], "delta": cells[2],
             "statement": cells[3].replace(_ESCAPED_PIPE, "|"), "source": cells[4],
             "affects": _STORY_ID.findall(cells[5]) if len(cells) >= 6 else [],
@@ -314,8 +318,10 @@ def reconcile_change_ears(project_id: str, change_id: str, closed: list[dict], r
 
 
 def reconcile_extraction_ears(project_id: str, change_id: str, element_id: str, statements: list[dict], cite: str,
-                              language: str = "es") -> dict[str, list[str]]:
-    """IMP-402: the rows of one extracted element; each statement carries its own Delta, Afecta and Superficie."""
+                              language: str = "es", a_confirmar: bool = False) -> dict[str, list[str]]:
+    """IMP-402: the rows of one extracted element; each statement carries its own Delta, Afecta and Superficie.
+
+    IMP-412: `a_confirmar` marks the new rows (the request calls the element to be confirmed; the BA gave a reason)."""
     entries: list[Statement] = [
         (
             str(s["text"]), str(s["pattern"]), str(s["delta"]),
@@ -324,7 +330,8 @@ def reconcile_extraction_ears(project_id: str, change_id: str, element_id: str, 
         )
         for s in statements
     ]
-    group: Group = (f"EXT:{element_id}", f"`EXT:{element_id}` / `{cite}` / `{change_id}`", entries)
+    source = f"`EXT:{element_id}` / `{cite}` / `{change_id}`" + (" / `a_confirmar`" if a_confirmar else "")
+    group: Group = (f"EXT:{element_id}", source, entries)
     return _reconcile_groups(project_id, change_id, [group], language)
 
 

@@ -6,6 +6,7 @@ context (gap rows, harvest entries) is read by `change_flag_context`.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from ..changes import _squash, change_gaps_path
 from ..core.paths import workspace_path
@@ -17,7 +18,28 @@ from ..harvest import load_harvest
 CROSS_FLAG_PREFIXES = {"GAP-DIS-": "divergencia", "GAP-SRD-": "sin_respaldo", "GAP-CON-": "contradiccion"}
 MIN_CROSS_MENTION = 20
 # the flags a re-check keeps: the agent's, the line coverage's and the verifier's (gap and harvest ones are recomputed)
-PERSISTENT_FLAG_ORIGINS = ("agent", "coverage", "verify")
+PERSISTENT_FLAG_ORIGINS = ("agent", "coverage", "verify", "proposal")
+# IMP-412: words with which a request says its own text is not firm; they hold the element for the BA's reason
+SPECULATIVE_MARKS = ("🔮", "a confirmar", "tentativo", "tentativa", "por definir", "to be confirmed", "tentative")
+
+
+def _plain(text: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c)).lower()
+
+
+def speculative_marks(text: str) -> list[str]:
+    """The speculative terms the text holds, in the order of `SPECULATIVE_MARKS`, each once."""
+    folded = _plain(_squash(text or ""))
+    found: list[str] = []
+    for term in SPECULATIVE_MARKS:
+        needle = _plain(term)
+        if needle.isalpha() or " " in needle:
+            hit = re.search(r"(?<!\w)" + re.escape(needle) + r"(?!\w)", folded)
+        else:
+            hit = needle in folded  # the emoji, literally
+        if hit and term not in found:
+            found.append(term)
+    return found
 
 
 def _cross_kind(gap_id: str) -> str | None:
@@ -29,6 +51,9 @@ def element_flags(
     open_gaps: list[dict], harvest_entries: list[dict],
 ) -> list[dict]:
     flags: list[dict] = [dict(flag) for flag in agent_flags]
+    marks = speculative_marks(element_text)
+    if marks:
+        flags.append({"origin": "request", "kind": "a_confirmar", "ref": "", "note": marks[0]})
     squashed_quote = _squash(quote or "")
     # `RN-1` is not inside `RN-1.2` (a dot followed by a word character continues the id)
     token = re.compile(r"(?<![\w-])" + re.escape(element_id) + r"(?![\w-])(?!\.\w)")

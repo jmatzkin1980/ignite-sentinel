@@ -44,7 +44,8 @@ def run_extract(
     elif confirm:
         result = confirm_proposals(project_id, change_id, confirm, delegated=delegated, note=note or "")
     elif confirm_item:
-        result = _confirm_item(project_id, change_id, confirm_item, delegated=delegated, note=note or "")
+        result = _confirm_item(project_id, change_id, confirm_item, delegated=delegated, note=note or "",
+                               reason=reason or "")
     elif reject_item:
         result = _reject_item(project_id, change_id, reject_item, reason or "")
     elif verify:

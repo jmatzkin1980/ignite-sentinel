@@ -498,8 +498,8 @@ def _run_project_command(args) -> int:
                     "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify or --verify-result")
             if args.sample is not None and not args.verify:
                 raise ValueError("/extract --sample goes with --verify")
-            if args.reason and not args.reject_item:
-                raise ValueError("/extract --reason goes with --reject-item")
+            if args.reason and not (args.reject_item or args.confirm_item):
+                raise ValueError("/extract --reason goes with --reject-item or --confirm-item")
             if args.reject_item and not args.reason:
                 raise ValueError("/extract --reject-item needs --reason")
             if args.delegated and not (args.confirm or args.confirm_item):

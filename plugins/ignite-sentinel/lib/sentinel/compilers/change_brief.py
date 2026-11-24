@@ -270,9 +270,13 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             for row in rows:
                 if (str(row.get("delta", "")).strip().upper() == "UNCHANGED") != unchanged:
                     continue
-                section.fill(copy["extracted_row"].format(
+                line = copy["extracted_row"].format(
                     statement=row.get("statement", ""), delta=row.get("delta", ""), row=row.get("id", ""),
-                    element=element_id, path=element.get("path", ""), line=element.get("line", "")))
+                    element=element_id, path=element.get("path", ""), line=element.get("line", ""))
+                if row.get("a_confirmar"):  # IMP-412
+                    reason = str((ext_items.get(element_id) or {}).get("a_confirmar_reason", "")).strip()
+                    line += f" — {copy['to_confirm']}: {reason}"
+                section.fill(line)
 
     def extraction_marks(section: _Section, number: int) -> None:
         """A deferred mark while elements of this section are unconfirmed; else an empty section says so."""
