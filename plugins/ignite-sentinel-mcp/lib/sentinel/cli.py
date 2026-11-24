@@ -226,7 +226,13 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
-            if args.impact:
+            if args.accept_prior:
+                if not (args.change and args.gap_id):
+                    raise ValueError("/gaps --accept-prior goes with --change and --id")
+                from .changes import accept_prior_decision
+
+                print_json(accept_prior_decision(args.project_id, args.change, args.gap_id))
+            elif args.impact:
                 if not (args.change and args.gap_id):
                     raise ValueError("/gaps --impact goes with --change and --id")
                 if not args.reason.strip():

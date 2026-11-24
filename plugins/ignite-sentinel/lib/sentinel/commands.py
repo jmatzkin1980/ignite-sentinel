@@ -329,6 +329,8 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--impact", choices=("construccion", "operativo"),
                    help="IMP-406: class of a deferred question of a change (with --change, --id and --reason)")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-382: regenerate this change's gaps instead of the project's")
+    p.add_argument("--accept-prior", action="store_true",
+                   help="IMP-410: close a pre-decided question of a change with its earlier decision (with --change and --id)")
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 
 

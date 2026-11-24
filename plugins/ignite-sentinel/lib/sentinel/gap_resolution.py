@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .change_requirements import next_ears_index
 from .ears import classify_ears
-from .gaps import CHANGE_CLOSURE_REASONS, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
+from .gaps import CHANGE_CLOSURE_REASONS, PRE_DECIDED, gap_option_labels, option_markers, CLOSURE_CITES, CLOSURE_REASONS, DECISION_KIND, NON_GOAL_KIND, REOPEN_FALSE_PREMISE, brief_section_for_gap, count_gaps, parse_gap_responses, parse_gap_rows, prd_section_for_gap, readiness_stage_after_gap_change, render_gaps
 from .knowledge.metabolism import metabolize_knowledge
 from .memory import ContextBroker, reindex_workspace
 from .secrets_scan import sanitize_text
@@ -452,6 +452,7 @@ def _finish_change_resolution(
 
     reconciled = reconcile_change_ears(project_id, change_id, resolution_results["closed"], responses or {}, language, record_id)
     change = get_change(project_id, change_id)
+    prior_overridden = _mark_prior_overridden(base, change_id, resolution_results["closed"])
 
     broker = ContextBroker(project_id)
     write_text(report_path, render_resolution_report(project_id, record_id, resolution_results))
@@ -487,7 +488,23 @@ def _finish_change_resolution(
         "delta_updated": reconciled["delta_updated"],
         "superseded_rows": reconciled["superseded"],
         "next_step": change_next_step(project_id, change_id),
+        "pre_decided": [gap["id"] for gap in resolution_results["gaps"] if str(gap.get("status", "")).strip("`").upper() == PRE_DECIDED],
+        "prior_overridden": prior_overridden,
     }
+
+
+def _mark_prior_overridden(base: Path, change_id: str, closed: list[dict[str, str]]) -> list[str]:
+    """IMP-410: a question an earlier decision answered that the BA closed with a different answer; the side file says so."""
+    from .prior_decisions import load_priors, save_priors
+
+    priors = load_priors(base, change_id)
+    flat = lambda text: " ".join(str(text or "").split())  # noqa: E731
+    overridden = [gap["id"] for gap in closed
+                  if gap["id"] in priors and not priors[gap["id"]].get("accepted_at")
+                  and flat(gap.get("answer")) != flat(priors[gap["id"]].get("answer"))]
+    if overridden:
+        save_priors(base, change_id, {**priors, **{i: {**priors[i], "overridden": True} for i in overridden}})
+    return overridden
 
 
 def mark_downstream_of_rewritten_brief(project_id: str, change_id: str) -> None:

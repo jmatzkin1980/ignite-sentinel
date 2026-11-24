@@ -24,6 +24,7 @@ from ..extraction.lines import format_ranges
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
 from ..harvest import load_harvest
 from ..pending_marks import count_pending_marks
+from ..prior_decisions import load_priors
 from ..resources import read_package_json
 from ..workspace import load_config, workspace_path
 
@@ -82,11 +83,13 @@ def collect_change_brief_inputs(project_id: str, change_id: str) -> dict[str, An
     gaps_path = change_gaps_path(base, change_id)
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.exists() else []
     answers = _answers(base, change)
+    priors = load_priors(base, change_id)  # IMP-410: a question the BA confirmed with the earlier decision has that answer
     severities = blocking_severities(load_config(project_id))
     gaps = []
     for row in rows:
         gap = dict(row)
-        response = answers.get(gap["id"], {})
+        entry = priors.get(gap["id"])
+        response = answers.get(gap["id"]) or ({"answer": entry["answer"]} if entry and entry.get("accepted_at") else {})
         gap["answer"] = response.get("answer", "").strip()
         gap["evidence"] = response.get("evidence", "").strip()
         gap["owner"] = response.get("owner", "").strip()

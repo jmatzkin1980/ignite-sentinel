@@ -639,3 +639,39 @@ def validate_baseline_citation(base: Path, project_id: str, change_id: str, evid
             f"by_baseline: the quote is not literal (verbatim) in {rel!r} (compared with whitespace collapsed, case kept).",
         )
     return None
+
+
+# --- IMP-410: confirming a question an earlier decision already answers ------------------------
+
+def accept_prior_decision(project_id: str, change_id: str, gap_id: str) -> dict:
+    """`/gaps --change --id --accept-prior`: the question closes with what was already decided, and says so."""
+    from .crosses.record import _save_change_gaps
+    from .decision_memory import index_change_decisions
+    from .prior_decisions import load_priors, save_priors
+    from .readiness_verdict import change_next_step
+
+    change = get_change(project_id, change_id)
+    es = change_language(project_id, change) == "es"
+    base = workspace_path(project_id)
+    path = change_gaps_path(base, change_id)
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"] if path.exists() else []
+    row = next((g for g in rows if g.get("id") == gap_id), None)
+    priors = load_priors(base, change_id)
+    entry = priors.get(gap_id)
+    if row is None or not entry:
+        raise InputError(f"{gap_id} no tiene una decisión previa para aceptar" if es else f"{gap_id} has no earlier decision to accept")
+    if str(row.get("status", "")).strip("`").upper() == "CLOSED":
+        raise InputError(f"{gap_id} ya está cerrada" if es else f"{gap_id} is already closed")
+    prior = str(entry.get("prior", ""))
+    row["status"] = "CLOSED"
+    row["resolution_note"] = f"confirmado por el BA: rige lo decidido en {prior}" if es else f"confirmed by the BA: what {prior} decided governs"
+    priors[gap_id] = {**entry, "accepted_at": utc_now()}
+    save_priors(base, change_id, priors)  # first: the render reads it to drop the prefill
+    _save_change_gaps(project_id, change_id, path, rows)
+    index_change_decisions(project_id, change_id)
+    return {
+        "project_id": project_id, "change_id": change_id, "action": "accept_prior", "gap_id": gap_id, "prior": prior,
+        "gap_counts": get_change(project_id, change_id).get("gap_counts"),
+        "next_step": change_next_step(project_id, change_id),
+        "message": f"{change_id}: {gap_id} cerrada con lo decidido en {prior}" if es else f"{change_id}: {gap_id} closed with what {prior} decided",
+    }

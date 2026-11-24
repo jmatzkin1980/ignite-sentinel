@@ -96,6 +96,9 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
 
     health = str(read_json(state_path(project_id), {}).get("health", ""))
     detail = health_explanation(project_id)
+    from .prior_decisions import pre_decided_gaps
+
+    pre_decided = pre_decided_gaps(project_id, change_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -104,6 +107,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "round": change.get("round"),
         "border_confirmed": bool(change.get("border_confirmed_at")),
         "gap_counts": change.get("gap_counts", {}),
+        **({"pre_decided": pre_decided} if pre_decided else {}),
         "verdict": build_change_verdict(project_id, change_id),
         "final_export": change.get("final_export"),
         "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),

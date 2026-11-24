@@ -14,7 +14,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH [--replace] [--change]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose. This note does not apply with `--change`: each `/ingest --change` opens a new change and returns its id, so it can be run as many times as there are changes)
 - `/maturity PROJECT_ID`
-- `/gaps PROJECT_ID [--change CHG-NNN [--id GAP-X --impact construccion|operativo --reason TEXT]]`
+- `/gaps PROJECT_ID [--change CHG-NNN [--id GAP-X (--impact construccion|operativo --reason TEXT | --accept-prior)]]`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
 - `/challenge PROJECT_ID --source ANALYSIS.json`
 - `/scrutinize PROJECT_ID --source ANALYSIS.json [--lens LENS] [--mode implementability-probe|anchors]`

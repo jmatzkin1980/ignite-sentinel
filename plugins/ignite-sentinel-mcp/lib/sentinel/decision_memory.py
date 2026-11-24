@@ -70,6 +70,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     from .extraction.inventory import element_lines, match_element_id
     from .gap_resolution import normalize_option
     from .gaps import parse_gap_rows
+    from .prior_decisions import load_priors
     from .workspace import workspace_path
 
     base = workspace_path(project_id)
@@ -79,6 +80,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
         return []
     retired = set(RETIRE_NOTE.values())
     answers = _answers(base, change)
+    priors = load_priors(base, change_id)
     claims = _cross_claims(project_id, change_id)
     elements = _pedido_elements(project_id, change_id)
     out: list[dict] = []
@@ -89,7 +91,8 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
         note = str(row.get("resolution_note", "")).strip()
         if note in retired:
             continue
-        response = answers.get(gap_id, {})
+        entry = priors.get(gap_id)
+        response = answers.get(gap_id) or ({"answer": entry["answer"]} if entry and entry.get("accepted_at") else {})
         option = str(response.get("option", "")).strip()
         citations: list[dict] = []
         element_ids: list[str] = []

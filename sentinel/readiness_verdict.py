@@ -46,6 +46,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     from .crosses.state import KIND_LABELS, cross_status
     from .extraction.coverage import extraction_coverage, legacy_confirmed_message, preserved_coverage
     from .extraction.verify import verification_gap_text, verification_needed
+    from .prior_decisions import pre_decided_gaps
 
     change = get_change(project_id, change_id)
     es = change_language(project_id, change) == "es"
@@ -87,6 +88,11 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     if not has_rows:
         blockers.append("el cambio no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED" if es
                         else "the change has no EARS rows with Delta ADDED, MODIFIED or REMOVED")
+    pre_decided = pre_decided_gaps(project_id, change_id)
+    if pre_decided:
+        ids = ", ".join(p["id"] for p in pre_decided)
+        warnings.append(f"{len(pre_decided)} pregunta(s) ya decidida(s) a confirmar: {ids}" if es
+                        else f"{len(pre_decided)} already-decided question(s) to confirm: {ids}")
     warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id))
     need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
     if need["needed"]:
@@ -837,7 +843,7 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
     return {"missing": "; ".join(parts), "n_missing": str(len(parts)), "cross_command": first}
 
 
-def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
+def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     """IMP-396: the next step of one change, in the change's language."""
     from .changes import change_language, get_change
     from .extraction.coverage import extraction_coverage, preserved_coverage
@@ -929,8 +935,14 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     if text_key == "extract_proposals":
         text += _batch_sentence(project_id, change_id, language)
     command = CHANGE_COMMANDS[command_key].format(**ctx)
-    return {"change_id": change_id, "key": key, "title": title, "text": text,
+    step = {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": command, "skill": skill_for_command(command)}
+    from .prior_decisions import pre_decided_gaps  # IMP-410
+
+    pre_decided = pre_decided_gaps(project_id, change_id)
+    if pre_decided:
+        step["pre_decided"] = pre_decided
+    return step
 
 
 def _batch_sentence(project_id: str, change_id: str, language: str) -> str:
@@ -967,7 +979,9 @@ def _first_change_step(overview: list[dict[str, Any]]) -> dict[str, str]:
 
     Its `change_id` is exposed at top level only in a change-only workspace, where this replaces the project step."""
     pending = [item["next_step"] for item in overview if item["next_step"]["key"] != "done"]
-    return dict((pending or [overview[0]["next_step"]])[0])
+    step = dict((pending or [overview[0]["next_step"]])[0])
+    step.pop("pre_decided", None)  # IMP-410: that list belongs to the change's own /next and /status
+    return step
 
 
 def release_scoped_command(command: str) -> str:
