@@ -500,6 +500,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 /gaps ACME_PORTAL --id GAP-DATA-RETENTION --disposition accepted
 /gaps ACME_PORTAL --id GAP-DATA-RETENTION --disposition rejected --reason "covered by the SLA clause"
 /gaps ACME_PORTAL --id GAP-CHG-3F9A1C --disposition accepted
+/gaps ACME_PORTAL --change CHG-001 --id GAP-SED-1A2B --impact operativo --reason "the Purchasing area defines it"
 ```
 
 **Options.**
@@ -512,6 +513,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 | `--reason` | text | empty | Why. Required for `rejected` and `irrelevant`. |
 | `--top` | an integer | none | Plan a round of at most N open gaps, ordered scope, then security and privacy, then UX, then technical, then by severity. |
 | `--change` | `CHG-nnn` | none | Regenerate the gap file of that change (`01_discovery/CHG-nnn/gaps.md`) instead of the project's. |
+| `--impact` | `construccion`, `operativo` | none | With `--change`, `--id` and `--reason`: classes an open question that does not block as a deferred item. `construccion` (the default for every such question) holds back the change verdict (`/status --change`, `verdict`); `operativo` only warns. A blocking or closed question is refused. |
 
 **On any other gap the disposition only records your call.** It goes to `01_discovery/agent_dispositions.json` and feeds the per-channel false-alarm metrics that `/maturity` reports. The gap row in `gaps.md` does not change: a critical or high gap marked `irrelevant` stays open and keeps `/maturity` `BLOCKED`. To take it out of the way, close it through `/resolve-gaps` (for example with `Decision status: not applicable` and the reason).
 

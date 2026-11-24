@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..core.io import write_json, write_text
+from ..core.io import read_json, write_json, write_text
 from ..core.paths import workspace_path
 from . import extraction_dir
 
@@ -71,6 +71,7 @@ def write_reading_plan(base: Path, change_id: str, inventory: dict, language: st
     budget = READING_BUDGET
     batches = plan_batches(inventory.get("elements", []), budget)
     json_path, md_path = reading_plan_paths(base, change_id)
+    read_json(json_path, None)  # the plan is rebuilt whole: note what is on disk, so only an outside writer conflicts
     write_json(json_path, {
         "schema_version": 1, "change_id": change_id, "inventory_version": inventory.get("version", 1),
         "budget_chars": budget, "batches": batches,

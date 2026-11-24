@@ -381,6 +381,70 @@ def _request_states_acceptance(base: Path, change: dict) -> bool:
     return False
 
 
+GAP_IMPACTS = ("construccion", "operativo")
+
+
+def deferred_gaps(project_id: str, change_id: str) -> list[dict]:
+    """IMP-406: the change's open questions that do not block, each with the class the BA gave it (build by default)."""
+    from .gaps import BLOCKING_GAP_STATUSES, blocking_severities
+
+    change = get_change(project_id, change_id)
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    rows = parse_gap_rows(path.read_text(encoding="utf-8-sig")) if path.exists() else []
+    severities = blocking_severities(load_config(project_id))
+    classed = change.get("gap_impact") or {}
+    found = []
+    for row in rows:
+        if row.get("id") == "NONE":
+            continue
+        status = str(row.get("status", "OPEN")).strip("`").upper()
+        severity = str(row.get("severity", "")).strip("`").lower()
+        if status not in BLOCKING_GAP_STATUSES or severity in severities:
+            continue
+        mark = classed.get(row["id"]) or {}
+        found.append({"id": row["id"], "lens": row.get("lens", ""), "severity": severity,
+                      "impact": mark.get("impact", "construccion"), "reason": mark.get("reason", "")})
+    return found
+
+
+def set_gap_impact(project_id: str, change_id: str, gap_id: str, impact: str, reason: str) -> dict:
+    """IMP-406: class an open, non-blocking question of the change as a build or an operational deferred item."""
+    from .gaps import BLOCKING_GAP_STATUSES, blocking_severities
+    from .readiness_verdict import build_change_verdict
+
+    change = get_change(project_id, change_id)
+    es = change_language(project_id, change) == "es"
+    if impact not in GAP_IMPACTS:
+        raise InputError(f"--impact es {' o '.join(GAP_IMPACTS)}" if es else f"--impact is {' or '.join(GAP_IMPACTS)}")
+    if not reason.strip():
+        raise InputError("--impact necesita --reason con el porqué" if es else "--impact needs --reason with the why")
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    rows = parse_gap_rows(path.read_text(encoding="utf-8-sig")) if path.exists() else []
+    row = next((r for r in rows if r.get("id") == gap_id), None)
+    if row is None:
+        raise InputError(f"{gap_id} no es una pregunta de {change_id}" if es else f"{gap_id} is not a question of {change_id}")
+    status = str(row.get("status", "OPEN")).strip("`").upper()
+    if status not in BLOCKING_GAP_STATUSES:
+        raise InputError(
+            f"{gap_id} ya está cerrada: la clase sólo aplica a pendientes abiertos" if es
+            else f"{gap_id} is already closed: the class only applies to open deferred items")
+    if str(row.get("severity", "")).strip("`").lower() in blocking_severities(load_config(project_id)):
+        raise InputError(
+            f"{gap_id} es bloqueante: se responde, no se difiere" if es
+            else f"{gap_id} is blocking: it is answered, not deferred")
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    marks = dict(changes[change_id].get("gap_impact") or {})
+    marks[gap_id] = {"impact": impact, "reason": reason.strip(), "at": utc_now()}
+    changes[change_id]["gap_impact"] = marks
+    update_state(project_id, changes=changes)
+    return {
+        "project_id": project_id, "change_id": change_id, "action": "impact", "gap_id": gap_id,
+        "impact": impact, "reason": reason.strip(), "verdict": build_change_verdict(project_id, change_id),
+        "message": (f"{change_id}: {gap_id} queda como pendiente {impact}: {reason.strip()}" if es
+                    else f"{change_id}: {gap_id} is now a {impact} deferred item: {reason.strip()}"),
+    }
+
+
 def regenerate_change_gaps(project_id: str, change_id: str, prune: bool = False) -> dict:
     """Re-render the change's gaps.md; in the lens round add the checks not yet there, once.
 

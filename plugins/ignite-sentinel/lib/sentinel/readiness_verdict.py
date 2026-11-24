@@ -29,6 +29,75 @@ VERDICTS = ("READY", "READY_WITH_WARNINGS", "NOT_READY")
 BRIEF_BLOCK_STAGES = {"BRIEF_BELOW_THRESHOLD", "SELF_CORRECTION_FAILED", "UNITS_NOT_IMPLEMENTABLE"}
 
 
+def decide_verdict(blockers: list, warnings: list, partial: list | None = None) -> str:
+    """The one rule: a blocker is NOT_READY, a warning or an unrun check READY_WITH_WARNINGS, else READY (project and change)."""
+    if blockers:
+        return "NOT_READY"
+    if warnings or partial:
+        return "READY_WITH_WARNINGS"
+    return "READY"
+
+
+def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
+    """IMP-406: the readiness verdict of one change, decided by the project's rule over the change's own gates."""
+    from .change_escalation import escalation_warnings
+    from .changes import change_language, deferred_gaps, get_change
+    from .crosses.state import KIND_LABELS, cross_status
+    from .extraction.coverage import extraction_coverage, preserved_coverage
+    from .extraction.verify import verification_status
+
+    change = get_change(project_id, change_id)
+    es = change_language(project_id, change) == "es"
+    lang = "es" if es else "en"
+    blocking_open = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    extraction = extraction_coverage(project_id, change_id)
+    preserved = preserved_coverage(project_id, change_id)
+    crosses = cross_status(project_id, change_id)
+    deferred = deferred_gaps(project_id, change_id)
+    build = [d["id"] for d in deferred if d["impact"] == "construccion"]
+    operational = [d["id"] for d in deferred if d["impact"] == "operativo"]
+    extraction_open = not extraction["complete"] or int(extraction.get("proposed", 0) or 0) > 0 or not preserved["complete"]
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    if blocking_open:
+        blockers.append(f"{blocking_open} pregunta(s) bloqueante(s) abierta(s)" if es else f"{blocking_open} blocking question(s) open")
+    if extraction_open:
+        blockers.append(f"la extracción no está completa ({extraction['text']})" if es
+                        else f"the extraction is not complete ({extraction['text']})")
+    if crosses["missing"]:
+        labels = ", ".join(KIND_LABELS[lang][kind] for kind in crosses["missing"])
+        blockers.append(f"faltan cruces: {labels}" if es else f"cross-reads missing: {labels}")
+    if build:
+        ids = ", ".join(build)
+        blockers.append(f"{len(build)} pendiente(s) diferido(s) frenan la construcción: {ids}" if es
+                        else f"{len(build)} deferred item(s) hold back the build: {ids}")
+    if operational:
+        ids = ", ".join(operational)
+        warnings.append(f"{len(operational)} pendiente(s) diferido(s) operativo(s): {ids}" if es
+                        else f"{len(operational)} operational deferred item(s): {ids}")
+    warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id))
+    verified = verification_status(project_id, change_id)
+    if int(extraction.get("total", 0) or 0) > 100 and verified["last"] is None:
+        warnings.append(f"la extracción tiene {extraction['total']} elementos y no se verificó ninguna muestra" if es
+                        else f"the extraction has {extraction['total']} elements and no sample was verified")
+    gate_matrix = [
+        {"gate": "gaps", "state": "OPEN" if blocking_open else "CLEAR", "blocks": bool(blocking_open)},
+        {"gate": "extraction", "state": "INCOMPLETE" if extraction_open else "COMPLETE", "blocks": extraction_open},
+        {"gate": "crosses", "state": "MISSING" if crosses["missing"] else "DONE", "blocks": bool(crosses["missing"])},
+        {"gate": "deferred", "state": "BUILD" if build else ("OPERATIONAL" if operational else "NONE"), "blocks": bool(build)},
+        {"gate": "verification", "state": "NOT_RUN" if verified["last"] is None else "RUN", "blocks": False},
+    ]
+    return {
+        "change_id": change_id,
+        "verdict": decide_verdict(blockers, warnings),
+        "blockers": blockers,
+        "warnings": warnings,
+        "gate_matrix": gate_matrix,
+        "deferred": {"construccion": len(build), "operativo": len(operational)},
+    }
+
+
 def build_readiness_verdict(project_id: str, release: str | None = None) -> dict[str, Any]:
     base = workspace_path(project_id)
     state = read_state(project_id, {})
@@ -143,12 +212,7 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         pending = [item for item in overview if item["next_step"]["key"] != "done"]
         blockers[:0] = [_change_blocker(project_id, item) for item in pending]
 
-    if blockers:
-        verdict = "NOT_READY"
-    elif warnings or partial:
-        verdict = "READY_WITH_WARNINGS"
-    else:
-        verdict = "READY"
+    verdict = decide_verdict(blockers, warnings, partial)
 
     metrics_score = _maturity_score(project_id)
     result: dict[str, Any] = {

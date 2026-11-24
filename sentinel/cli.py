@@ -226,7 +226,22 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
-            if args.change and (args.gap_id or args.disposition or args.top is not None):
+            if args.impact:
+                if not (args.change and args.gap_id):
+                    raise ValueError("/gaps --impact goes with --change and --id")
+                if not args.reason.strip():
+                    raise ValueError("/gaps --impact needs --reason")
+                from .changes import set_gap_impact
+
+                print_json(set_gap_impact(args.project_id, args.change, args.gap_id, args.impact, args.reason))
+            elif args.change and args.gap_id and not args.disposition and args.top is None:
+                from .errors import InputError
+
+                raise InputError(
+                    "/gaps --change con --id va con --impact construccion|operativo --reason TEXTO.",
+                    next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact construccion|operativo --reason TEXTO",
+                )
+            elif args.change and (args.gap_id or args.disposition or args.top is not None):
                 from .errors import InputError
 
                 clash = "--id/--disposition" if (args.gap_id or args.disposition) else "--top"
@@ -234,7 +249,7 @@ def _run_project_command(args) -> int:
                     f"/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
                     next_step="Corré /gaps --change CHG-NNN solo, o quitá --change para usar " + clash + ".",
                 )
-            if args.gap_id or args.disposition:
+            elif args.gap_id or args.disposition:
                 if not (args.gap_id and args.disposition):
                     raise ValueError("/gaps --disposition goes with --id GAP-X")
                 from .discovery import record_gap_disposition
