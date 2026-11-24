@@ -23,7 +23,7 @@ Do not use web or remote sources for client/project content.
 - Every assumption needs a human owner. Use the BA, Product Owner, domain lead, or named role supplied by the user; never use "AI" as owner.
 - Every assumption needs risk: `low`, `med`, or `high` (`medium` normalizes to `med`).
 - `uncertainty` is optional: `low`, `med`, or `high`; defaults to `med`. It feeds the priority signal — see the rubric below.
-- Every assumption needs a verbatim local quote as `justification`.
+- Every assumption needs a verbatim local quote as `justification`. In a change (`--change`) the quote is at least 4 words, never comes from an answer file saved by `/resolve-gaps`, and `GAP-SCOPE` cannot be closed with an assumption (confirm the border instead).
 - `closes_gap` is provisional visibility only. It does not turn the gap into confirmed evidence, and it never unblocks a blocking gap: `/maturity` stays `BLOCKED` and `/next` says so. When the BA wants to move on without the client, tell them the exit: confirm the answer in their own name with `/resolve-gaps` (`Decision status: confirmed`, `Owner / source`: the BA); the assumption becomes `VALIDATED`.
 - High-risk assumptions linked to gaps must be called out in the summary.
 - `risk_category` is optional and separate from `lens` — a lens is whose evidence scope the assumption sits in; `risk_category` is which of Cagan's four product risks it is about: `value`, `usability`, `viability` (business viability), or `feasibility`. Do not conflate the two or try to derive one from the other. Old payloads without `risk_category` remain valid.

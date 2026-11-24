@@ -72,7 +72,7 @@ Review feedback that changes scope or answers a gap must enter through `/resolve
 `/view PROJECT_ID --artifact borde --change CHG-001` and `--artifact decisiones` write `08_context_packs/views/CHG-001-borde.html` and `CHG-001-decisiones.html`; without `--change` they are refused. The Markdown versions are `/export --artifact borde|decisiones --change CHG-001`, and take no `--format`. In chat: "Give me something to review the border with the client."
 
 - **`borde`** lists each surface of the confirmed border (what it is, where it comes from, open doubts), so someone who did not write it can confirm it.
-- **`decisiones`** lists the closed decisions by domain: the chosen option, who decided and, when the BA delegated it, "confirmado por delegación del BA". The assumptions are in a separate section, "Supuestos (no son decisiones: a validar)"; an assumption is never shown as a decision.
+- **`decisiones`** lists the closed decisions by domain: the chosen option, who decided and, when the BA delegated it, "confirmado por delegación del BA". A decision that a clash question replaced is listed apart as "Decisiones reemplazadas", never as a fact. The assumptions are in a separate section, "Supuestos (no son decisiones: a validar)"; an assumption is never shown as a decision.
 
 Both are read-only views of the change's files: nothing in them closes a question or confirms anything.
 

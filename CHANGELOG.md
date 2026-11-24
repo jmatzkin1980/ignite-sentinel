@@ -16,6 +16,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Fixed
 
+- Final review of H27 inc 4: a rerun of an answer file never closes again an assumption the BA invalidated nor downgrades one they validated (C1, I1); a `supuesto` needs a quoted literal of at least 4 words that is not in an answer file the runtime saved (I2, I3), and `/assume --change` cannot close `GAP-SCOPE` (M6); `--keep-single` covers only the size the BA saw (I4) and refuses `--no-baseline` (M7); `decisiones` shows who decided and the delegation even without `Owner / fuente` (I5); a delegated question is ratified by answering again and is not listed once reopened (I6); a `GAP-CHQ` answered with `Opción: A|B` replaces the losing decision, which stops being a fact in the brief, the export and `decisiones` (I7); a question closed as assumed is no longer printed as a fact in the brief or the export (P1); the "a confirmar" mark follows the request on existing EARS rows (P2) and shows in the border view (P3) and in confirmed sections (M5); contradiction letters are not compared across questions (M1).
 - The assumptions of a change are no longer closed as confirmed by dodging the detector (T2-14, T2-15); a clash between decisions is no longer resolved by the agent (T2-26); the speculative marks of the request are no longer taken as firm (T2-28); the escalation warning stops repeating once the BA decided (T2-05).
 
 ## [0.29.0] — 2026-11-24
