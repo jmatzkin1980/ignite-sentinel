@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 import trial_audit  # noqa: E402
 
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "trial_audit" / "session.jsonl"
+SHELL_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "trial_audit" / "shell_forms.jsonl"
 
 
 class TrialAuditTests(unittest.TestCase):
@@ -60,10 +61,33 @@ class TrialAuditTests(unittest.TestCase):
             data = json.loads((Path(tmp) / "trial_audit.json").read_text(encoding="utf-8"))
             self.assertEqual(
                 data["summary"],
-                {"skills": 2, "commands": 3, "runtime_reads": 2, "format_rejections": 1, "missing_skills": 1},
+                {"skills": 2, "commands": 3, "runtime_reads": 2, "format_rejections": 1, "format_retries": 0, "missing_skills": 1},
             )
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(trial_audit.main(["no-existe.jsonl"]), 2)
+
+
+class ShellFormsTests(unittest.TestCase):
+    """A synthetic transcript: `$L /verb`, a loop, a shell function, exit 0 with only findings."""
+
+    def setUp(self):
+        self.report = trial_audit.audit(SHELL_FIXTURE)
+
+    def test_commands_through_a_variable_or_function_are_counted(self):
+        self.assertEqual(
+            [c["verb"] for c in self.report["commands"]],
+            ["cross", "extract", "resolve-gaps", "resolve-gaps", "resolve-gaps"],
+        )
+
+    def test_a_non_sentinel_command_is_not_counted(self):
+        self.assertEqual(self.report["summary"]["commands"], 5)
+
+    def test_error_without_exit_code_is_a_rejection(self):
+        self.assertEqual([r["line"] for r in self.report["format_rejections"]], [9])
+
+    def test_same_input_after_findings_is_a_retry(self):
+        self.assertEqual(self.report["format_retries"], [{"verb": "resolve-gaps", "line": 7, "value": "r.md"}])
+        self.assertEqual(self.report["summary"]["format_retries"], 1)
 
 
 if __name__ == "__main__":

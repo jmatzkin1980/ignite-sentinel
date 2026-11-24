@@ -4,7 +4,8 @@
 
 Reports which skills were invoked against the skill each command expected, which
 runtime files under lib/sentinel the agent read, and which commands the CLI
-refused for format (exit 3). Stdlib plus ``sentinel`` (repo root on sys.path).
+refused for format (exit 3 or a `sentinel error:` line) and the commands repeated
+with the same input after findings. Stdlib plus ``sentinel`` (repo root on sys.path).
 """
 
 from __future__ import annotations
@@ -24,7 +25,16 @@ RUNTIME_PATH = re.compile(r"lib[\\/]+sentinel[\\/]+(?P<rel>[\w./\\-]+?\.(?:py|js
 COMMAND_RE = re.compile(
     r"(?:launcher\.py[\"']?|-m\s+sentinel|\bsentinel(?:\.ps1)?|\bignite)\s+/?(?P<verb>[a-z][a-z-]*)(?P<rest>[^\n;&|]*)"
 )
+# A command reached through a shell variable or function: ``$L /cross P ...``,
+# ``"$L" /extract ...`` or a bare ``/verb`` inside a call that names the launcher.
+VARIABLE_RE = re.compile(
+    r"(?:^|[\s;&|(])(?:\"?\$\{?\w+\}?\"?\s+)?/(?P<verb>[a-z][a-z-]*)(?=[\s\"')]|$)(?P<rest>[^\n;&|)]*)"
+)
+LAUNCHER_MARK = re.compile(r"launcher\.py|python\.sh")
 EXIT_RE = re.compile(r"^Exit code (\d+)")
+RETRY_VERBS = ("resolve-gaps", "cross", "extract")
+RETRY_FLAGS = re.compile(r"--(?:source|claims|proposals)(?:=|\s+)(?P<value>\"[^\"]+\"|'[^']+'|\S+)")
+FINDING_KEYS = ("answered", "closure_findings", "errors")
 
 
 def _rel(raw: str) -> str:
@@ -39,6 +49,25 @@ def _result_text(content) -> str:
             block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"
         )
     return ""
+
+
+def _has_findings(body: str) -> bool:
+    """True when the result is a JSON object with format findings left in it."""
+    start = body.find("{")
+    if start < 0:
+        return False
+    try:
+        data = json.loads(body[start:])
+    except ValueError:
+        return False
+    return isinstance(data, dict) and any(data.get(key) for key in FINDING_KEYS)
+
+
+def _retry_key(command: str, verb: str):
+    if verb not in RETRY_VERBS:
+        return None
+    found = RETRY_FLAGS.search(command)
+    return (verb, found.group("value").strip("\"'")) if found else None
 
 
 def read_events(path: Path) -> tuple[list[dict], int]:
@@ -73,7 +102,12 @@ def read_events(path: Path) -> tuple[list[dict], int]:
                     events.append({"kind": "skill", "skill": str(data.get("skill", "")).split(":")[-1], "line": number})
                 elif name == "Bash":
                     command = str(data.get("command", ""))
-                    for found in COMMAND_RE.finditer(command):
+                    matches = list(COMMAND_RE.finditer(command))
+                    if LAUNCHER_MARK.search(command):
+                        taken = {found.start("verb") for found in matches}
+                        matches += [f for f in VARIABLE_RE.finditer(command) if f.start("verb") not in taken]
+                        matches.sort(key=lambda found: found.start("verb"))
+                    for found in matches:
                         verb = found.group("verb")
                         if verb not in COMMANDS:
                             continue
@@ -100,6 +134,8 @@ def read_events(path: Path) -> tuple[list[dict], int]:
                 lines = body.splitlines()
                 match = EXIT_RE.match(lines[0]) if lines else None
                 event["exit"] = int(match.group(1)) if match else 0
+                event["exit_known"] = match is not None
+                event["findings"] = _has_findings(body)
                 for line in lines:
                     if line.startswith("sentinel error:"):
                         event["error"] = line
@@ -113,6 +149,8 @@ def audit(path: Path) -> dict:
     commands: list[dict] = []
     reads: dict[str, int] = {}
     rejections: list[dict] = []
+    retries: list[dict] = []
+    pending: dict[tuple, bool] = {}
     seen_skills: list[tuple[int, str]] = []
     for event in events:
         if event["kind"] == "skill":
@@ -133,8 +171,13 @@ def audit(path: Path) -> dict:
                     "skill_before": before,
                 }
             )
-            if event.get("error") and event.get("exit", 0) == 3:
+            if event.get("error") and (event.get("exit", 0) == 3 or not event.get("exit_known", False)):
                 rejections.append({"verb": event["verb"], "line": event["line"], "error": event["error"]})
+            key = _retry_key(event["command"], event["verb"])
+            if key is not None:
+                if pending.get(key):
+                    retries.append({"verb": event["verb"], "line": event["line"], "value": key[1]})
+                pending[key] = bool(event.get("findings"))
     expected_all = {c["expected_skill"].split(" §")[0] for c in commands if c["expected_skill"]}
     missing = sorted(expected_all - set(skills))
     late = sum(1 for c in commands if not c["skill_before"] and c["expected_skill"])
@@ -147,11 +190,13 @@ def audit(path: Path) -> dict:
         "late_skills": late,
         "runtime_reads": reads,
         "format_rejections": rejections,
+        "format_retries": retries,
         "summary": {
             "skills": len(skills),
             "commands": len(commands),
             "runtime_reads": sum(reads.values()),
             "format_rejections": len(rejections),
+            "format_retries": len(retries),
             "missing_skills": len(missing),
         },
     }
@@ -169,6 +214,7 @@ def render_markdown(report: dict) -> str:
         f"- Commands: {s['commands']}",
         f"- Runtime reads: {s['runtime_reads']}",
         f"- Format rejections: {s['format_rejections']}",
+        f"- Format retries (same input again after findings): {s['format_retries']}",
         f"- Expected skills never loaded: {s['missing_skills']}",
         f"- Late skills (command before its skill): {report['late_skills']}",
         f"- Unparsed lines: {report['unparsed_lines']}",
@@ -186,13 +232,15 @@ def render_markdown(report: dict) -> str:
     out += [f"- {rel}: {n}" for rel, n in sorted(report["runtime_reads"].items())] or ["- none"]
     out += ["", "## Format rejections", ""]
     out += [f"- line {r['line']} /{r['verb']}: {r['error']}" for r in report["format_rejections"]] or ["- none"]
+    out += ["", "## Format retries", ""]
+    out += [f"- line {r['line']} /{r['verb']}: {r['value']}" for r in report["format_retries"]] or ["- none"]
     all_loaded = report["late_skills"] == 0 and s["missing_skills"] == 0
     out += [
         "",
         "## Targets",
         "",
         f"- {_mark(s['runtime_reads'] == 0)} zero runtime reads",
-        f"- {_mark(s['format_rejections'] == 0)} zero format retries",
+        f"- {_mark(s['format_rejections'] == 0 and s['format_retries'] == 0)} zero format retries",
         f"- {_mark(all_loaded)} every expected skill loaded before its command",
         "",
     ]
