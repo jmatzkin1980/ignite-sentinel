@@ -28,6 +28,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/split PROJECT_ID --close rN --evidence PATH --ba NAME --tech TEAM`
 - `/split PROJECT_ID --move --unit UNIT --from rA --to rB --reason TEXT [--finding ID] [--criterion Cn] --ba NAME --tech TEAM`
 - `/assume PROJECT_ID --source ASSUMPTIONS.json`
+- `/assume PROJECT_ID --change CHG-NNN (--source ASSUMPTIONS.json | --id ASM-ID --validate|--invalidate --reason TEXT)`
 - `/resolve-gaps PROJECT_ID --source PATH [--change CHG-NNN]`
 - `/brief PROJECT_ID [--change CHG-NNN]`
 - `/context-request PROJECT_ID --domain technology|design|quality|frontend|backend`
@@ -125,6 +126,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/split --move`: run it only with the reason and the BA's and the technical team's names, given by them. Report the dated change, `releases_changed` and `stale_derivations`; a round trip is refused and opens `GAP-SPLIT-CRITERION`.
 - `/split --confirm`: run it only with the BA's and the technical team's names, given by them. It refuses unless the partition validation is green; report every finding by code. A confirmation opens `GAP-SPLIT-CLIENT` for the client's confirmation, freezes the contracts and compiles the series (`02_requirements/series/index.md` and `02_requirements/r<N>/project-brief.md`); report the index's sync findings.
 - `/assume`: use `sentinel-assume` to author the assumptions JSON before executing.
+- `/assume --change`: use `sentinel-assume` (Change assumptions); register one only when the BA said to proceed with the risk, quoting their words, and never validate or invalidate for them (the reason is theirs).
 - `/resolve-gaps`: use `sentinel-gap-response`.
 - `/maturity`: use `sentinel-maturity`.
 - `/brief`: use `sentinel-project-brief`.

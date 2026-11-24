@@ -23,6 +23,7 @@ GAP_ROW_FIELDS = (
     "closure_reason",
 )
 BLOCKING_GAP_STATUSES = {"OPEN", "ANSWERED", "PARTIALLY_CLOSED"}
+ASSUMED_CLOSURE = "assumed"  # IMP-412: a change's question an assumption closed; it stays CLOSED but is counted apart
 PRE_DECIDED = "PRE_DECIDED"  # IMP-410: an earlier decision already answers it; the BA confirms or overrides
 GAP_STATUSES = BLOCKING_GAP_STATUSES | {"CLOSED", PRE_DECIDED}
 DEFAULT_BLOCKING_GAP_SEVERITIES = {"critical", "high"}
@@ -130,6 +131,7 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
     counts = {"open": 0, "answered": 0, "partially_closed": 0, "closed": 0, "blocking_open": 0, "total": len(gaps)}
     keys = {"OPEN": "open", "ANSWERED": "answered", "PARTIALLY_CLOSED": "partially_closed", "CLOSED": "closed"}
     pre_decided = 0
+    assumed = 0
     for gap in gaps:
         key = keys.get(str(gap.get("status", "OPEN")).strip("`").upper())
         if key:
@@ -138,8 +140,13 @@ def count_gaps(gaps: list[dict[str, Any]], severities: set[str] | None = None) -
             counts["blocking_open"] += 1
         if str(gap.get("status", "OPEN")).strip("`").upper() == PRE_DECIDED:
             pre_decided += 1
+        if (str(gap.get("status", "OPEN")).strip("`").upper() == "CLOSED"
+                and str(gap.get("closure_reason") or "").strip("`").strip().lower() == ASSUMED_CLOSURE):
+            assumed += 1
     if pre_decided:
         counts["pre_decided"] = pre_decided
+    if assumed:
+        counts["assumed"] = assumed
     return counts
 
 

@@ -83,6 +83,25 @@ These are the exact same contract as gap candidate options (IMP-113), mirrored f
 - **Never auto-validates.** Proposing a cheapest test does not move the assumption. Its status changes only through the existing channels: a gap response (`/resolve-gaps`), `/sync`, or an explicit BA decision. The candidate is a prompt for the BA, not a state transition.
 - The candidates are suggestions for the BA to run outside the tool; do not treat "candidate proposed" as "assumption tested."
 
+## Change assumptions (IMP-412)
+
+In a change (`/assume PROJECT_ID --change CHG-NNN --source PATH`) the BA decides to go on without the answer, so the assumption **closes** the question: it stays `CLOSED` with closure `assumed` and note `supuesto ASM-…: a validar con <dominio>`, counted apart in `gap_counts.assumed`, until someone validates or invalidates it. Same item shape as above, with:
+
+- `closes_gap`: an open question of that change (a question that does not exist, or is already closed, rejects the whole file; an assumption never replaces a decision).
+- `justification`: a verbatim quote of a local source of the change, never of the assumptions register itself.
+- `validate_with` (optional): who or what area validates it; default the owner.
+
+Register it only when the BA said to proceed with the risk, and transcribe their words; never assume for them. The register is `01_discovery/CHG-nnn/assumptions.md` (the project's `assumptions.md` is not touched).
+
+Life cycle, always with the BA's reason in their words:
+
+```powershell
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /assume PROJECT_ID --change CHG-NNN --id ASM-ID --validate --reason "TEXT"
+sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /assume PROJECT_ID --change CHG-NNN --id ASM-ID --invalidate --reason "TEXT"
+```
+
+Validating keeps the closure as an answer; invalidating opens the question again with its previous closure on record. An assumption is not a decision: it does not preload later questions and is not listed with the decisions.
+
 ## Agentic Spirit (applies to every proposal you author)
 
 - **Citation rejection loop:** when the runtime rejects a citation, never paraphrase the quote to make it pass. Re-read the source and shorten to the exact verbatim substring (typos included; never translate or normalize), or drop the finding. Evidence or silence applies to your proposals too.

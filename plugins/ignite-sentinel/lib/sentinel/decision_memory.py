@@ -85,7 +85,7 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
     from .crosses.record import RETIRE_NOTE
     from .extraction.inventory import element_lines, match_element_id
     from .gap_resolution import normalize_option
-    from .gaps import parse_gap_rows
+    from .gaps import ASSUMED_CLOSURE, parse_gap_rows
     from .prior_decisions import load_priors
     from .workspace import workspace_path
 
@@ -105,8 +105,8 @@ def closed_decisions(project_id: str, change_id: str) -> list[dict]:
         if gap_id in ("", "NONE") or str(row.get("status", "")).strip("`").strip().upper() != "CLOSED":
             continue
         note = str(row.get("resolution_note", "")).strip()
-        if note in retired:
-            continue
+        if note in retired or _value(row.get("closure_reason")).lower() == ASSUMED_CLOSURE:
+            continue  # IMP-412: withdrawn by a re-recording, or closed by an assumption (not a decision)
         entry = priors.get(gap_id)
         response = answers.get(gap_id) or (
             {"answer": entry["answer"], "option": entry.get("option", "")} if entry and entry.get("accepted_at") else {})

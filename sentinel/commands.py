@@ -62,6 +62,17 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _assume(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("project_id")
+    parser.add_argument("--source", help="the assumptions JSON (project: required; change: or --id with --validate|--invalidate)")
+    # IMP-412: the assumptions of a change close its question; --validate/--invalidate move one
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-412: register the assumptions of this change (they close its question)")
+    parser.add_argument("--id", metavar="ASM-ID", help="IMP-412: the change assumption to validate or invalidate")
+    parser.add_argument("--validate", action="store_true", help="IMP-412: the assumption holds; the question keeps its closure")
+    parser.add_argument("--invalidate", action="store_true", help="IMP-412: the assumption fails; the question opens again")
+    parser.add_argument("--reason", help="IMP-412: why it was validated or invalidated")
+
+
 def _resolve_gaps(parser: argparse.ArgumentParser) -> None:
     _project_source(parser)
     # IMP-382: answer this change's gaps (and confirm its border) instead of the project's
@@ -372,7 +383,7 @@ REGISTRY: tuple[Command, ...] = (
     # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
     Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
     Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),
-    Command("assume", MUTATING, _project_source, skill="sentinel-assume"),
+    Command("assume", MUTATING, _assume, skill="sentinel-assume", skill_variants=(("--change", "sentinel-assume §Change assumptions"),)),
     Command("compose", MUTATING, _project_source, skill="sentinel-compose"),
     Command("refine-backlog", MUTATING, _project_source, skill="sentinel-backlog-refine"),
     Command("implementation-feedback", MUTATING, _project_source, skill="sentinel-implementation-feedback"),

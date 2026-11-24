@@ -380,6 +380,30 @@ def _run_project_command(args) -> int:
 
             result = apply_self_review(args.project_id, Path(args.source))
             print_json(result)
+        elif args.command == "assume" and not args.change and not args.source:
+            from .errors import InputError
+
+            raise InputError("/assume needs --source PATH")
+        elif args.command == "assume" and not args.change and (
+                args.id or args.validate or args.invalidate or args.reason):
+            raise ValueError("/assume --id, --validate, --invalidate and --reason go with --change")
+        elif args.command == "assume" and args.change:
+            from .change_assumptions import apply_change_assumptions, set_change_assumption_status
+
+            moving = bool(args.id or args.validate or args.invalidate or args.reason)
+            if args.source and not moving:
+                print_json(apply_change_assumptions(args.project_id, args.change, Path(args.source)))
+            elif (not args.source and args.id and args.reason and args.validate != args.invalidate):
+                print_json(set_change_assumption_status(
+                    args.project_id, args.change, args.id,
+                    "validate" if args.validate else "invalidate", args.reason))
+            elif not args.source and args.id and args.validate != args.invalidate:
+                # --reason missing: the status function names it in the change's language
+                print_json(set_change_assumption_status(
+                    args.project_id, args.change, args.id,
+                    "validate" if args.validate else "invalidate", ""))
+            else:
+                raise ValueError("/assume --change takes --source PATH, or --id ASM --validate|--invalidate --reason TEXT")
         elif args.command == "assume":
             from .assumptions import apply_assumptions
 
