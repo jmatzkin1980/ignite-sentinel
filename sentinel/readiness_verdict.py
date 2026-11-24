@@ -71,8 +71,8 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     if crosses["missing"]:
         labels = ", ".join(KIND_LABELS[lang][kind] for kind in crosses["missing"])
         blockers.append(f"faltan cruces: {labels}" if es else f"cross-reads missing: {labels}")
-    coherence = coherence_state(project_id, change_id)["state"] if coherence_ready(project_id, change_id) else ""
-    if coherence in ("missing", "stale"):  # before ready, the crosses block
+    coherence = coherence_state(project_id, change_id)["state"]  # does not render while nothing is recorded and the change is not ready
+    if coherence in ("missing", "stale") and coherence_ready(project_id, change_id):  # before that, the crosses block
         blockers.append(("falta la coherencia entre lentes" if coherence == "missing" else "la coherencia entre lentes quedó vieja") if es
                         else ("the lens coherence is missing" if coherence == "missing" else "the lens coherence is stale"))
     if build:
