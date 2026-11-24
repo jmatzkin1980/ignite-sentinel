@@ -226,7 +226,25 @@ def _run_project_command(args) -> int:
                 result = sync_pending_sources(args.project_id, args.note or "autonomous sync", digest=args.digest)
             print_json(result)
         elif args.command == "gaps":
-            if args.change and (args.gap_id or args.disposition or args.top is not None):
+            if args.impact:
+                if not (args.change and args.gap_id):
+                    raise ValueError("/gaps --impact goes with --change and --id")
+                if not args.reason.strip():
+                    raise ValueError("/gaps --impact needs --reason")
+                from .changes import set_gap_impact
+
+                print_json(set_gap_impact(args.project_id, args.change, args.gap_id, args.impact, args.reason))
+            elif args.change and args.gap_id and not args.disposition and args.top is None:
+                from .changes import change_language, get_change
+                from .errors import InputError
+
+                es = change_language(args.project_id, get_change(args.project_id, args.change)) == "es"
+                raise InputError(
+                    "/gaps --change con --id va con --impact construccion|operativo --reason TEXTO." if es
+                    else "/gaps --change with --id goes with --impact construccion|operativo --reason TEXT.",
+                    next_step=f"/gaps {args.project_id} --change {args.change} --id {args.gap_id} --impact construccion|operativo --reason TEXTO",
+                )
+            elif args.change and (args.gap_id or args.disposition or args.top is not None):
                 from .errors import InputError
 
                 clash = "--id/--disposition" if (args.gap_id or args.disposition) else "--top"
@@ -234,7 +252,7 @@ def _run_project_command(args) -> int:
                     f"/gaps --change no se combina con {clash}: --change sólo regenera los gaps del cambio.",
                     next_step="Corré /gaps --change CHG-NNN solo, o quitá --change para usar " + clash + ".",
                 )
-            if args.gap_id or args.disposition:
+            elif args.gap_id or args.disposition:
                 if not (args.gap_id and args.disposition):
                     raise ValueError("/gaps --disposition goes with --id GAP-X")
                 from .discovery import record_gap_disposition
@@ -427,9 +445,13 @@ def _run_project_command(args) -> int:
         elif args.command == "extract":
             from .extraction import run_extract
 
-            forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item)]
+            forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item,
+                                       args.verify, args.verify_result)]
             if sum(forms) > 1:
-                raise ValueError("/extract takes one of --proposals, --confirm, --confirm-item or --reject-item")
+                raise ValueError(
+                    "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify or --verify-result")
+            if args.sample is not None and not args.verify:
+                raise ValueError("/extract --sample goes with --verify")
             if args.reason and not args.reject_item:
                 raise ValueError("/extract --reason goes with --reject-item")
             if args.reject_item and not args.reason:
@@ -437,6 +459,7 @@ def _run_project_command(args) -> int:
             print_json(run_extract(
                 args.project_id, args.change, proposals=args.proposals, confirm=args.confirm,
                 confirm_item=args.confirm_item, reject_item=args.reject_item, reason=args.reason,
+                verify=args.verify, sample=args.sample, verify_result=args.verify_result,
             ))
         elif args.command == "cross":
             from .crosses import run_cross

@@ -38,6 +38,8 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
     by_kind = {kind: {"total": 0, "covered": 0} for kind in KINDS}
     covered = proposed = flagged = 0
     flagged_ids: list[str] = []
+    partial_ids: list[dict[str, Any]] = []
+    legacy_ids: list[str] = []
     for element in elements:
         kind = element.get("kind")
         if kind in by_kind:
@@ -47,6 +49,8 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
             continue
         if item.get("status") == "confirmed":
             covered += 1
+            if not item.get("lines"):
+                legacy_ids.append(element["id"])  # confirmed before the line check existed: declared only
             if kind in by_kind:
                 by_kind[kind]["covered"] += 1
         elif item.get("status") == "proposed":
@@ -54,6 +58,12 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
             if item.get("flags"):
                 flagged += 1
                 flagged_ids.append(element["id"])
+                marks = [f for f in item.get("flags", []) if f.get("origin") == "coverage"]
+                if marks:
+                    partial_ids.append({
+                        "id": element["id"], "missing": item.get("missing_lines") or [],
+                        "reading": item.get("reading") or "completa",
+                    })
     stale = [
         element_id for element_id, item in items.items()
         if isinstance(item, dict) and (element_id not in by_id or item.get("element_sha") != by_id[element_id].get("sha"))
@@ -72,11 +82,24 @@ def extraction_coverage(project_id: str, change_id: str) -> dict[str, Any]:
         text = f"{covered} {joiner} {total}" + (f" ({parts})" if parts else "")
     return {
         "state": state, "total": total, "covered": covered, "pending": total - covered - proposed,
-        "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "stale_items": stale,
+        "proposed": proposed, "flagged": flagged, "flagged_ids": flagged_ids, "partial_ids": partial_ids, "stale_items": stale,
+        "legacy_ids": legacy_ids,
         "unreadable": unreadable, "orphans": orphans,
         "by_kind": {kind: c for kind, c in by_kind.items() if c["total"]},
         "complete": state in ("current", "empty") and covered == total and not unreadable and not orphans, "text": text,
     }
+
+
+def legacy_confirmed_message(ids: list[str], language: str, run: str = "") -> str:
+    """IMP-406: the confirmed items that were never line-checked, as one sentence (empty when there are none)."""
+    if not ids:
+        return ""
+    shown = ", ".join(ids[:5]) + (f" (+{len(ids) - 5})" if len(ids) > 5 else "")
+    if language == "es":
+        return (f"{len(ids)} elemento(s) confirmado(s) sin control de líneas ({shown}): se confirmaron sin declarar Líneas; "
+                "volvé a proponerlos con Líneas o verificalos con --verify")
+    return (f"{len(ids)} confirmed element(s) without a line check ({shown}): they were confirmed without declared Lines; "
+            "propose them again with Lines or check them with --verify")
 
 
 def preserved_coverage(project_id: str, change_id: str) -> dict[str, Any]:

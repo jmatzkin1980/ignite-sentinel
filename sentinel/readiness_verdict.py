@@ -29,6 +29,89 @@ VERDICTS = ("READY", "READY_WITH_WARNINGS", "NOT_READY")
 BRIEF_BLOCK_STAGES = {"BRIEF_BELOW_THRESHOLD", "SELF_CORRECTION_FAILED", "UNITS_NOT_IMPLEMENTABLE"}
 
 
+def decide_verdict(blockers: list, warnings: list, partial: list | None = None) -> str:
+    """The one rule: a blocker is NOT_READY, a warning or an unrun check READY_WITH_WARNINGS, else READY (project and change)."""
+    if blockers:
+        return "NOT_READY"
+    if warnings or partial:
+        return "READY_WITH_WARNINGS"
+    return "READY"
+
+
+def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
+    """IMP-406: the readiness verdict of one change, decided by the project's rule over the change's own gates."""
+    from .change_escalation import escalation_warnings
+    from .changes import change_language, deferred_gaps, get_change
+    from .crosses.state import KIND_LABELS, cross_status
+    from .extraction.coverage import extraction_coverage, legacy_confirmed_message, preserved_coverage
+    from .extraction.verify import verification_gap_text, verification_needed
+
+    change = get_change(project_id, change_id)
+    es = change_language(project_id, change) == "es"
+    lang = "es" if es else "en"
+    blocking_open = int((change.get("gap_counts") or {}).get("blocking_open", 0) or 0)
+    extraction = extraction_coverage(project_id, change_id)
+    preserved = preserved_coverage(project_id, change_id)
+    crosses = cross_status(project_id, change_id)
+    deferred = deferred_gaps(project_id, change_id)
+    build = [d["id"] for d in deferred if d["impact"] == "construccion"]
+    operational = [d["id"] for d in deferred if d["impact"] == "operativo"]
+    extraction_open = not extraction["complete"] or int(extraction.get("proposed", 0) or 0) > 0 or not preserved["complete"]
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    if blocking_open:
+        blockers.append(f"{blocking_open} pregunta(s) bloqueante(s) abierta(s)" if es else f"{blocking_open} blocking question(s) open")
+    if extraction_open:
+        blockers.append(f"la extracción no está completa ({extraction['text']})" if es
+                        else f"the extraction is not complete ({extraction['text']})")
+    if crosses["missing"]:
+        labels = ", ".join(KIND_LABELS[lang][kind] for kind in crosses["missing"])
+        blockers.append(f"faltan cruces: {labels}" if es else f"cross-reads missing: {labels}")
+    if build:
+        ids = ", ".join(build)
+        blockers.append(f"{len(build)} pendiente(s) diferido(s) frenan la construcción: {ids}" if es
+                        else f"{len(build)} deferred item(s) hold back the build: {ids}")
+    if operational:
+        ids = ", ".join(operational)
+        warnings.append(f"{len(operational)} pendiente(s) diferido(s) operativo(s): {ids}" if es
+                        else f"{len(operational)} operational deferred item(s): {ids}")
+    brief_state = _brief_state(workspace_path(project_id), change_id, change)
+    brief_missing, brief_stale = brief_state == "missing", bool(brief_state)
+    has_rows = _has_unit_rows(project_id, change_id)
+    if brief_stale:
+        blockers.append(("el brief del cambio no está compilado" if brief_missing else "el brief del cambio quedó viejo") if es
+                        else ("the change brief is not compiled" if brief_missing else "the change brief is stale")
+                        )
+    if not has_rows:
+        blockers.append("el cambio no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED" if es
+                        else "the change has no EARS rows with Delta ADDED, MODIFIED or REMOVED")
+    warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id))
+    need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
+    if need["needed"]:
+        warnings.append(verification_gap_text(need, es))
+    if extraction.get("legacy_ids"):
+        warnings.append(legacy_confirmed_message(extraction["legacy_ids"], lang))
+    gate_matrix = [
+        {"gate": "gaps", "state": "OPEN" if blocking_open else "CLEAR", "blocks": bool(blocking_open)},
+        {"gate": "extraction", "state": "INCOMPLETE" if extraction_open else "COMPLETE", "blocks": extraction_open},
+        {"gate": "crosses", "state": "MISSING" if crosses["missing"] else "DONE", "blocks": bool(crosses["missing"])},
+        {"gate": "deferred", "state": "BUILD" if build else ("OPERATIONAL" if operational else "NONE"), "blocks": bool(build)},
+        {"gate": "brief", "state": "STALE" if brief_stale else "CURRENT", "blocks": brief_stale},
+        {"gate": "requirements", "state": "PRESENT" if has_rows else "NONE", "blocks": not has_rows},
+        {"gate": "verification", "state": "NOT_RUN" if need["last"] is None else ("DUE" if need["needed"] else "RUN"),
+         "blocks": False},
+    ]
+    return {
+        "change_id": change_id,
+        "verdict": decide_verdict(blockers, warnings),
+        "blockers": blockers,
+        "warnings": warnings,
+        "gate_matrix": gate_matrix,
+        "deferred": {"construccion": len(build), "operativo": len(operational)},
+    }
+
+
 def build_readiness_verdict(project_id: str, release: str | None = None) -> dict[str, Any]:
     base = workspace_path(project_id)
     state = read_state(project_id, {})
@@ -143,12 +226,7 @@ def build_readiness_verdict(project_id: str, release: str | None = None) -> dict
         pending = [item for item in overview if item["next_step"]["key"] != "done"]
         blockers[:0] = [_change_blocker(project_id, item) for item in pending]
 
-    if blockers:
-        verdict = "NOT_READY"
-    elif warnings or partial:
-        verdict = "READY_WITH_WARNINGS"
-    else:
-        verdict = "READY"
+    verdict = decide_verdict(blockers, warnings, partial)
 
     metrics_score = _maturity_score(project_id)
     result: dict[str, Any] = {
@@ -389,6 +467,10 @@ CHANGE_TEXT = {
                                     "Las {proposed} propuesta(s) que quedan en {cid} están marcadas ({items}) y --confirm no las toma en bloque. "
                                     "Revisá `02_requirements/{cid}/extraction/review.md` y confirmá cada una con /extract {pid} --change {cid} "
                                     "--confirm-item ID, o rechazala con --reject-item ID --reason TEXTO."),
+        "extract_partial": ("Completar las lecturas parciales",
+                            "{n} propuesta(s) de {cid} no cubren todo su elemento o declaran lectura parcial ({items}): leé cada uno "
+                            "completo y volvé a proponerlo con Líneas que cubran lo que falta (el detalle está en "
+                            "`02_requirements/{cid}/extraction/review.md`); --confirm-item no las toma."),
         "extract_orphans": ("Sacar los elementos huérfanos",
                             "Estos elementos ya no están en el pedido de {cid} pero sus filas EARS siguen en pie: {orphans}. "
                             "Sacá cada uno con /extract {pid} --change {cid} --reject-item ID --reason \"…\": sus filas quedan reemplazadas."),
@@ -411,6 +493,23 @@ CHANGE_TEXT = {
         "requirements_none": ("Proponer los requisitos del cambio",
                               "{cid} no tiene filas EARS con Delta ADDED, MODIFIED o REMOVED. Proponelas desde la extracción "
                               "(Tratamiento: requisito) con /extract {pid} --change {cid} --proposals ARCHIVO."),
+        "extract_verify": ("Verificar una muestra de lo confirmado",
+                           "{cid} tiene {total} elementos, {confirmed} confirmados, y ninguna verificación cubre las últimas "
+                           "confirmaciones. Corré /extract {pid} --change {cid} --verify (muestra de {sample}), releé cada elemento "
+                           "contra el pedido y registrá las respuestas con --verify-result. No frena el veredicto; sí avisa."),
+        "extract_verify_result": ("Registrar la verificación abierta",
+                                  "Hay una muestra de verificación abierta en {cid}: releé cada elemento contra el pedido y "
+                                  "registrá las respuestas con /extract {pid} --change {cid} --verify-result ARCHIVO "
+                                  "(`- ID: igual` o `- ID: difiere — qué falta`)."),
+        "export_not_ready": ("Resolver los pendientes antes de sellar el brief",
+                             "El veredicto de {cid} es NOT_READY ({blockers}), y /export --final no sella un brief que lo "
+                             "contradice. Cada pendiente abierto que no frena se responde (/resolve-gaps) o se clasifica con "
+                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (los "
+                             "operativos no frenan). Sin --final, /export deja un borrador."),
+        "export_final": ("Exportar el brief final",
+                         "El brief de {cid} está compilado y cierra Discovery: exportalo como entregable con "
+                         "/export {pid} --artifact brief --change {cid} --final. Sale en formato project brief v2 con su sello "
+                         "(veredicto {verdict}, cobertura {coverage}, {deferred} pendiente(s) diferido(s)). Después siguen las specs."),
         "specs": ("Preparar las specs del cambio", "Corré /specs --change {cid}: faltan o no están al día con sus filas EARS."),
         "backlog": ("Preparar el backlog del cambio", "Corré /backlog --change {cid}: falta o está atrasado respecto de las specs."),
         "validate": ("Validar el cambio", "Corré /validate --change {cid}: hay hallazgos por corregir."),
@@ -465,6 +564,10 @@ CHANGE_TEXT = {
                                     "The {proposed} proposal(s) left in {cid} are flagged ({items}) and --confirm does not take them in bulk. "
                                     "Review `02_requirements/{cid}/extraction/review.md` and confirm each one with /extract {pid} --change {cid} "
                                     "--confirm-item ID, or reject it with --reject-item ID --reason TEXT."),
+        "extract_partial": ("Complete the partial readings",
+                            "{n} proposal(s) of {cid} do not cover their whole element or declare a partial reading ({items}): read "
+                            "each one in full and propose it again with Lines covering what is missing (the detail is in "
+                            "`02_requirements/{cid}/extraction/review.md`); --confirm-item does not take them."),
         "extract_orphans": ("Take out the orphan elements",
                             "These elements are no longer in the request of {cid} but their EARS rows still stand: {orphans}. "
                             "Take each one out with /extract {pid} --change {cid} --reject-item ID --reason \"…\": its rows are superseded."),
@@ -487,6 +590,23 @@ CHANGE_TEXT = {
         "requirements_none": ("Propose the change requirements",
                               "{cid} has no EARS rows with Delta ADDED, MODIFIED or REMOVED. Propose them from the extraction "
                               "(Treatment: requirement) with /extract {pid} --change {cid} --proposals FILE."),
+        "extract_verify": ("Verify a sample of what is confirmed",
+                           "{cid} has {total} elements, {confirmed} confirmed, and no verification covers the latest "
+                           "confirmations. Run /extract {pid} --change {cid} --verify (a sample of {sample}), read each element "
+                           "against the request and record the answers with --verify-result. It does not block the verdict; it warns."),
+        "extract_verify_result": ("Record the open verification",
+                                  "There is an open verification sample in {cid}: read each element against the request and "
+                                  "record the answers with /extract {pid} --change {cid} --verify-result FILE "
+                                  "(`- ID: same` or `- ID: differs — what is missing`)."),
+        "export_not_ready": ("Resolve the open items before sealing the brief",
+                             "The verdict of {cid} is NOT_READY ({blockers}), and /export --final does not seal a brief that "
+                             "contradicts it. Answer each open non-blocking item (/resolve-gaps) or class it with "
+                             "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (operational "
+                             "ones do not block). Without --final, /export leaves a draft."),
+        "export_final": ("Export the final brief",
+                         "The brief of {cid} is compiled and closes Discovery: export it as a deliverable with "
+                         "/export {pid} --artifact brief --change {cid} --final. It comes out in project brief v2 format with its seal "
+                         "(verdict {verdict}, coverage {coverage}, {deferred} deferred item(s)). The specs follow."),
         "specs": ("Prepare the change specs", "Run /specs --change {cid}: they are missing or not current with its EARS rows."),
         "backlog": ("Prepare the change backlog", "Run /backlog --change {cid}: it is missing or behind the specs."),
         "validate": ("Validate the change", "Run /validate --change {cid}: there are findings to fix."),
@@ -505,12 +625,17 @@ CHANGE_COMMANDS = {
     "extract_proposals": "/extract {pid} --change {cid} --proposals PATH",
     "extract_confirm": "/extract {pid} --change {cid} --confirm all",
     "extract_confirm_flagged": "/extract {pid} --change {cid} --confirm-item {first_flagged}",
+    "extract_partial": "/extract {pid} --change {cid} --proposals PATH",
     "extract_orphans": "/extract {pid} --change {cid} --reject-item {first_orphan} --reason \"...\"",
     "preserved": "/extract {pid} --change {cid} --proposals PATH",
     "preserved_answer": "/resolve-gaps {pid} --source PATH --change {cid}",
     "preserved_source": "/sources {pid} --load PATH --role pedido --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "export_final": "/export {pid} --artifact brief --change {cid} --final",
+    "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact construccion|operativo --reason \"...\"",
+    "extract_verify": "/extract {pid} --change {cid} --verify",
+    "extract_verify_result": "/extract {pid} --change {cid} --verify-result PATH",
     "specs": "/specs {pid} --change {cid}",
     "backlog": "/backlog {pid} --change {cid}",
     "validate": "/validate {pid} --change {cid}",
@@ -520,10 +645,8 @@ CHANGE_COMMANDS = {
 
 def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
     """IMP-396: the first step of the change's sequence that is still pending (none ever suggests the PRD)."""
-    from .change_requirements import load_change_ears, parse_delta
     from .change_validation import validate_change
     from .compilers.change_backlog import read_change_units, specs_currency
-    from .compilers.change_specs import UNIT_DELTAS
 
     base = workspace_path(project_id)
     if change.get("round") == "scope":
@@ -554,10 +677,16 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "extract_orphans"
     if preserved_coverage(project_id, change_id)["missing"]:
         return "preserved"
-    if not (base / "02_requirements" / change_id / "project-brief.md").is_file() or _brief_stale(base, change_id, change):
+    from .extraction.verify import verification_needed
+
+    if verification_needed(project_id, change_id, cover["total"])["needed"]:
+        return "extract_verify"
+    if _brief_state(base, change_id, change):
         return "brief"
-    if not any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id)):
+    if not _has_unit_rows(project_id, change_id):
         return "requirements"
+    if not _final_export_current(base, change_id, change):
+        return "export_final"
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
             or specs_currency(project_id, change_id) != "current"):
         return "specs"
@@ -567,6 +696,34 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
     if validate_change(project_id, change_id)["verdict"] != "VALID":
         return "validate"
     return "done"
+
+
+def _brief_state(base: Path, change_id: str, change: dict[str, Any]) -> str:
+    """"missing" (not compiled), "stale" (compiled, and something moved since) or "" (current): the step and the verdict read it."""
+    if not (base / "02_requirements" / change_id / "project-brief.md").is_file():
+        return "missing"
+    return "stale" if _brief_stale(base, change_id, change) else ""
+
+
+def _has_unit_rows(project_id: str, change_id: str) -> bool:
+    """The change has EARS rows with a Delta that makes units (ADDED, MODIFIED or REMOVED)."""
+    from .change_requirements import load_change_ears, parse_delta
+    from .compilers.change_specs import UNIT_DELTAS
+
+    return any(parse_delta(row["delta"]) in UNIT_DELTAS for row in load_change_ears(project_id, change_id))
+
+
+def _final_export_current(base: Path, change_id: str, change: dict[str, Any]) -> bool:
+    """IMP-406: the change's final export exists and was made from the brief and the seal as they stand (hashes, no dates)."""
+    from .compilers.change_deliverable import brief_sha, seal_sha
+
+    recorded = change.get("final_export")
+    if not isinstance(recorded, dict) or not recorded.get("brief_sha"):
+        return False
+    if str(recorded["brief_sha"]) != brief_sha(base, change_id):
+        return False
+    # the seal says more than the brief: its verdict, coverage and deferred classes (the project id is the folder name)
+    return str(recorded.get("seal_sha", "")) == seal_sha(base.name, change_id)
 
 
 def _has_baseline(project_id: str) -> bool:
@@ -695,8 +852,11 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
     cover = extraction_coverage(project_id, change_id)
     if key == "extract_inventory" and cover["state"] == "stale":
         text_key = "extract_inventory_stale"
+    partial = cover.get("partial_ids", [])
     if key == "extract_confirm" and cover["proposed"] == cover["flagged"]:
         text_key = "extract_confirm_flagged"  # `--confirm all` would hold every one of them again
+        if partial:
+            text_key = "extract_partial"
     if key == "preserved" and cover["total"] == 0:
         # nothing in the request to quote: the UNCHANGED row comes from an answer, or from a note loaded as a source
         text_key = "preserved_answer" if ears_gaps else "preserved_source"
@@ -715,6 +875,34 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         "orphans": "; ".join(f"{o['id']} ({', '.join(o['rows'])})" for o in orphans),
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
+    ctx["verdict"] = ctx["deferred"] = ctx["blockers"] = ctx["confirmed"] = ctx["sample"] = ""
+    ctx["first_deferred"] = "GAP-ID"
+    if key == "export_final":
+        found = build_change_verdict(project_id, change_id)
+        ctx["verdict"] = found["verdict"]
+        ctx["deferred"] = str(sum(found["deferred"].values()))
+        if found["verdict"] == "NOT_READY":
+            # a seal that says NOT_READY contradicts "final": the open items are answered or classed first
+            from .changes import deferred_gaps
+
+            text_key = "export_not_ready"
+            title, text = texts[text_key]
+            held = deferred_gaps(project_id, change_id)
+            first = next((d for d in held if not d["classed"]), None) or next(
+                (d for d in held if d["impact"] == "construccion"), None)
+            ctx["first_deferred"] = first["id"] if first else "GAP-ID"
+            ctx["blockers"] = "; ".join(found["blockers"])
+    if key == "extract_verify":
+        from .extraction.verify import verification_needed
+
+        need = verification_needed(project_id, change_id, cover["total"])
+        ctx["confirmed"], ctx["sample"] = str(need["confirmed"]), str(need["sample"])
+        if need["open"]:
+            text_key = "extract_verify_result"
+            title, text = texts[text_key]
+    if text_key == "extract_partial":
+        ctx["n"] = len(partial)
+        ctx["items"] = ", ".join(p["id"] for p in partial)
     if text_key == "preserved_answer":
         ctx["ids"] = ", ".join(ears_gaps)
     ctx["missing"] = ctx["cross_command"] = ""
@@ -731,10 +919,32 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, str]:
         if len(pending) > 5:
             shown += f"; {'y' if language == 'es' else 'and'} {len(pending) - 5} {'más' if language == 'es' else 'more'}"
         ctx.update(n=len(pending), items=shown, first_candidate=pending[0]["id"])
-    command_key = text_key if text_key in ("extract_confirm_flagged", "preserved_answer", "preserved_source") else key
+    command_key = text_key if text_key in (
+        "extract_confirm_flagged", "extract_partial", "preserved_answer", "preserved_source",
+        "export_not_ready", "extract_verify_result") else key
     command_key = "extract_proposals" if text_key == "requirements_none" else command_key
-    return {"change_id": change_id, "key": key, "title": title, "text": text.format(**ctx),
+    text = text.format(**ctx)
+    if text_key == "extract_proposals":
+        text += _batch_sentence(project_id, change_id, language)
+    return {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": CHANGE_COMMANDS[command_key].format(**ctx)}
+
+
+def _batch_sentence(project_id: str, change_id: str, language: str) -> str:
+    """IMP-406: the batch of the reading plan to read next (empty when every batch has its proposals)."""
+    from .extraction.reading_plan import reading_plan_status
+
+    status = reading_plan_status(project_id, change_id)
+    batch = status["next_batch"]
+    if not batch:
+        return ""
+    ids = batch["elements"]
+    plan = f"02_requirements/{change_id}/extraction/reading_plan.md"
+    if language == "es":
+        return (f" Seguí con el lote {batch['number']} de {status['total']} de `{plan}` ({len(ids)} elementos: "
+                f"{ids[0]} … {ids[-1]}); leé cada elemento completo y declará en Líneas el rango que leíste.")
+    return (f" Continue with batch {batch['number']} of {status['total']} of `{plan}` ({len(ids)} elements: "
+            f"{ids[0]} … {ids[-1]}); read each element in full and declare in Lines the range you read.")
 
 
 def changes_overview(project_id: str) -> list[dict[str, Any]]:

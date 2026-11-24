@@ -24,7 +24,8 @@ from ..errors import GateRefusal, InputError
 from ..gap_resolution import ears_statements
 from . import extraction_dir
 from .flags import change_flag_context, element_flags
-from .inventory import _read_text, _split_lines, inventory_state, load_inventory
+from .inventory import _read_text, _split_lines, element_lines, inventory_state, load_inventory, span_text
+from .lines import compress, content_lines, format_ranges, parse_line_ranges, quote_span
 
 TREATMENTS = {
     "requisito": "requisito", "requirement": "requisito",
@@ -50,15 +51,21 @@ _LABELS = {
     "superficie": "surface", "surface": "surface",
     "afecta": "affects", "affects": "affects",
     "seccion": "section", "sección": "section", "section": "section",
-    "texto": "text", "text": "text",
+    "texto": "summary", "text": "summary", "resumen": "summary", "summary": "summary",
+    "líneas": "lines", "lineas": "lines", "lines": "lines",
+    "lectura": "reading", "reading": "reading",
     "motivo": "reason", "reason": "reason",
     "marca": "flag", "flag": "flag",
+}
+READINGS = {
+    "completa": "completa", "complete": "completa", "full": "completa",
+    "parcial": "parcial", "partial": "parcial",
 }
 _FIELD_NAMES = {"delta": "Delta", "surface": "Superficie", "affects": "Afecta"}
 _HEADING = re.compile(r"^###\s+(.+?)\s*$")
 _FIELD = re.compile(r"^\s*[-*]\s*([^\W\d_]+)\s*:\s*(.*?)\s*$")
 _FLAG_SPLIT = re.compile(r" — |:| - ")
-_CONTINUED = ("text", "reason", "quote")  # an indented line under these fields continues their value
+_CONTINUED = ("summary", "reason", "quote")  # an indented line under these fields continues their value
 _EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
 
 
@@ -75,8 +82,8 @@ def _unquote(value: str) -> str:
 
 def _new_block() -> dict[str, Any]:
     return {
-        "treatment": "", "quote": "", "statements": [], "section": "", "text": "",
-        "reason": "", "flag": "", "flag_note": "", "errors": [],
+        "treatment": "", "quote": "", "statements": [], "section": "", "summary": "",
+        "lines": "", "reading": "", "reason": "", "flag": "", "flag_note": "", "errors": [],
     }
 
 
@@ -209,6 +216,26 @@ _MESSAGES = {
         "{id}: un descarte necesita Motivo",
         "{id}: a discard needs Reason",
     ),
+    "no_lines": (
+        "{id}: falta Líneas (el rango del elemento que leíste, p. ej. Líneas: {a}-{b})",
+        "{id}: Lines is missing (the range of the element you read, e.g. Lines: {a}-{b})",
+    ),
+    "bad_lines": (
+        "{id}: Líneas debe ser A-B[, C-D] con números de línea del archivo",
+        "{id}: Lines must be A-B[, C-D] with line numbers of the file",
+    ),
+    "lines_outside": (
+        "{id}: {ranges} está fuera del elemento (líneas {a}-{b})",
+        "{id}: {ranges} is outside the element (lines {a}-{b})",
+    ),
+    "bad_reading": (
+        "{id}: Lectura debe ser completa o parcial",
+        "{id}: Reading must be complete or partial",
+    ),
+    "quote_outside": (
+        "{id}: la cita está en las líneas {qa}-{qb}, fuera de lo declarado en Líneas ({declared})",
+        "{id}: the quote is on lines {qa}-{qb}, outside what Lines declares ({declared})",
+    ),
     "bad_flag": (
         "{id}: Marca debe ser divergencia, contradiccion o sin_respaldo",
         "{id}: Flag must be divergence, contradiction or unsupported",
@@ -226,6 +253,7 @@ def _msg(code: str, language: str, **values: Any) -> str:
 
 def validate_proposal(
     element: dict, element_text: str | None, raw: dict, border: list[dict], language: str, ctx: dict,
+    source_lines: list[str] | None = None,
 ) -> tuple[dict | None, list[str]]:
     """The normalized item of a block, or the errors that keep it out. An empty treatment is neither."""
     treatment_raw = str(raw.get("treatment", "")).strip()
@@ -253,6 +281,33 @@ def validate_proposal(
         fail("short_quote")
     elif quote not in flat:
         fail("quote_not_found", path=element.get("path", ""), line=element.get("line", ""))
+
+    declared: list[list[int]] = []
+    reading = "completa"
+    missing: list[list[int]] = []
+    if source_lines is not None and not errors:
+        first, last = element_lines(element)
+        spans = element.get("spans") or [[first, last]]
+        lines_raw = str(raw.get("lines", "")).strip()
+        parsed = parse_line_ranges(lines_raw) if lines_raw else None
+        reading_raw = str(raw.get("reading", "")).strip()
+        if not lines_raw:
+            fail("no_lines", a=first, b=last)
+        elif parsed is None:
+            fail("bad_lines")
+        elif parsed[0][0] < first or parsed[-1][1] > last:
+            fail("lines_outside", ranges=format_ranges(parsed), a=first, b=last)
+        elif reading_raw and READINGS.get(reading_raw.lower()) is None:
+            fail("bad_reading")
+        else:
+            declared = parsed
+            reading = READINGS.get(reading_raw.lower(), "completa") if reading_raw else "completa"
+            if quote_span(source_lines, declared, quote) is None:
+                found = quote_span(source_lines, spans, quote) or (first, last)
+                fail("quote_outside", qa=found[0], qb=found[1], declared=format_ranges(declared))
+            else:
+                covered = {n for a, b in declared for n in range(a, b + 1)}
+                missing = compress([n for n in content_lines(source_lines, spans) if n not in covered])
 
     for problem in raw.get("errors", []):
         fail(problem["code"], field=problem.get("field", ""))
@@ -316,9 +371,16 @@ def validate_proposal(
         else:
             flags.append({"origin": "agent", "kind": kind, "ref": "", "note": str(raw.get("flag_note", "")).strip()})
 
+    if source_lines is not None and not errors:
+        if missing:
+            note = f"faltan {format_ranges(missing)}" if language == "es" else f"missing {format_ranges(missing)}"
+            flags.append({"origin": "coverage", "kind": "lineas_sin_cubrir", "ref": "", "note": note})
+        if reading == "parcial":
+            flags.append({"origin": "coverage", "kind": "lectura_parcial", "ref": "", "note": ""})
+
     if errors:
         return None, errors
-    section_text = str(raw.get("text", "")).strip() or None
+    section_text = str(raw.get("summary", "")).strip() or None
     reason = str(raw.get("reason", "")).strip() or None
     return {
         "element_sha": element["sha"],
@@ -327,7 +389,10 @@ def validate_proposal(
         "statements": statements,
         "section": section,
         "brief_section": brief_section,
-        "text": section_text if treatment == "seccion" else None,
+        "summary": section_text if treatment == "seccion" else None,
+        "lines": declared,
+        "reading": reading,
+        "missing_lines": missing,
         "reason": reason if treatment == "descarte" else None,
         "flags": flags,
     }, []
@@ -378,12 +443,10 @@ def _element_text_cached(base: Path, element: dict, cache: dict[str, list[str] |
     lines = cache[path]
     if lines is None:
         return None
-    chunks = []
     for start, end in element.get("spans", []):
         if start < 1 or end > len(lines):
             return None
-        chunks.append("\n".join(lines[start - 1 : end]))
-    return "\n".join(chunks)
+    return span_text(lines, element.get("spans", []), element.get("cspan"))
 
 
 def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
@@ -451,14 +514,19 @@ def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
         element_body = _element_text_cached(base, element, cache)
         item, errors = validate_proposal(
             element, element_body, raw, change.get("border", []) or [], language, ctx,
+            source_lines=cache.get(str(element.get("path", ""))),
         )
         if item is None:
             rejected[element_id] = errors
             continue
+        previous = items.get(element_id) or {}
+        carried = [f for f in previous.get("flags", []) or [] if f.get("origin") == "verify"]
+        if carried and previous.get("status") == "proposed" and _same_proposal(previous, item):
+            # the verification said it differs and this is the proposal it said so about: the mark stays until it is corrected
+            item["flags"] = [*item["flags"], *carried]
         item["flags"] = element_flags(
             element_id, element_body or "", item["quote"], item["flags"], open_gaps, harvest_entries,
         )
-        previous = items.get(element_id) or {}
         if previous.get("status") == "confirmed" and _same_proposal(previous, item):
             # re-submitted as it was confirmed: it stays confirmed
             unchanged.append(element_id)
@@ -499,7 +567,7 @@ def _agent_flags(item: dict) -> list[tuple[str, str]]:
 
 def _same_proposal(stored: dict, item: dict) -> bool:
     """The normalized proposal says exactly what the stored one says (statements, deltas, surfaces, flag, text…)."""
-    keys = ("element_sha", "treatment", "quote", "section", "brief_section", "text", "reason")
+    keys = ("element_sha", "treatment", "quote", "section", "brief_section", "summary", "reason", "lines", "reading")
     if any(stored.get(key) != item.get(key) for key in keys):
         return False
     statement_keys = ("text", "delta", "surfaces", "affects")

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, SnapshotWorkspaceCase, lines_field, run_ok  # noqa: E402
 from test_h26_extract_proposals import (  # noqa: E402
     CID, EXAMPLE, FIXTURES, PID, RN02_QUOTE, ProposalsCase, block,
 )
@@ -107,7 +107,9 @@ class Confirming(ProposalsCase):
         entry = data["entries"][0]
         self.assertEqual((entry["brief_section"], entry["line"], entry["section"]), (2, 4, "objetivo"))
         self.assertIn("la jefatura aprueba las altas", entry["quote"])
-        self.assertTrue(entry["text"].startswith("Que la jefatura"))
+        self.assertTrue(entry["content"].startswith("Que el alta"))
+        self.assertTrue(entry["summary"].startswith("Que la jefatura"))
+        self.assertEqual(entry["lines"], [[4, 4]])
         self.assertTrue(entry["path"] and entry["source_id"])
 
     def test_correction_keeps_ids_and_supersedes_dropped(self):
@@ -233,7 +235,7 @@ class MatureIds(SnapshotWorkspaceCase):
 
     def test_mature_ids_with_spaces(self):
         text = block(
-            "Regla 1", "- Tratamiento: requisito",
+            "Regla 1", "- Tratamiento: requisito", lines_field("Regla 1", "../change_mature/pedido_maduro.md"),
             '- Cita: "un CUIT duplicado se rechaza con un mensaje que nombra el proveedor existente"',
             "- Enunciado: Cuando el analista envía un alta con un CUIT ya registrado, el sistema debe rechazarla nombrando al proveedor existente.",
             "  - Delta: ADDED", "  - Superficie: Alta de proveedores",

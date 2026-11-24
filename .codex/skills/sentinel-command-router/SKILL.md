@@ -14,7 +14,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/init PROJECT_ID`
 - `/ingest PROJECT_ID --source PATH [--replace] [--change]` (once per project; every later file goes through `/sync PROJECT_ID --source PATH`; a second `/ingest` is refused with exit 4 unless `--replace` is given on purpose. This note does not apply with `--change`: each `/ingest --change` opens a new change and returns its id, so it can be run as many times as there are changes)
 - `/maturity PROJECT_ID`
-- `/gaps PROJECT_ID [--change CHG-NNN]`
+- `/gaps PROJECT_ID [--change CHG-NNN [--id GAP-X --impact construccion|operativo --reason TEXT]]`
 - `/annotate PROJECT_ID --source ANALYSIS.json`
 - `/challenge PROJECT_ID --source ANALYSIS.json`
 - `/scrutinize PROJECT_ID --source ANALYSIS.json [--lens LENS] [--mode implementability-probe|anchors]`
@@ -34,7 +34,7 @@ Translate short chat commands into Sentinel CLI executions.
 - `/context-request PROJECT_ID --id CTX-NNN --status answered|closed|obsolete|active [--reason TEXT]`
 - `/next PROJECT_ID [--change CHG-NNN]`
 - `/status PROJECT_ID [--change CHG-NNN]`
-- `/extract PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT]`
+- `/extract PROJECT_ID --change CHG-NNN [--proposals PATH | --confirm SECTION|all | --confirm-item ID | --reject-item ID --reason TEXT | --verify [--sample N] | --verify-result PATH]`
 - `/cross PROJECT_ID --change CHG-NNN [--kind diseno|contradicciones|linea_de_base (--claims PATH | --skip --reason TEXT) | --accept-new ID --type TYPE --name NAME | --decline-new ID --reason TEXT]`
 - `/stakeholders PROJECT_ID`
 - `/stakeholders PROJECT_ID --add --name NAME --domain LENS [--id STK-00N] [--profile business|technical] [--topic TEXT] [--notes TEXT]`
@@ -137,7 +137,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - `/quality`: use `sentinel-quality`.
 - `/health`, `/trace`, `/validate`, `/view`, `/doctor`: use `sentinel-health`.
 - `/status`: lead with `verdict` (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) and what blocks it, keep every `partial_coverage` entry visible, and give the next step exactly as `next_action` says. Never call a workspace ready unless the verdict is `READY`. A brief v2 that says "Ready to build: no" makes the verdict `NOT_READY` (see `ready_to_build`).
-- `/extract --change`: use `sentinel-discovery`; inventory the request, record the cited proposals (verbatim quote, EARS statements with Delta and Superficie), and let the BA confirm by section. What is flagged is confirmed one by one with `--confirm-item`; never confirm for the BA. Report the coverage and the next step.
+- `/extract --change`: use `sentinel-discovery`; inventory the request, record the cited proposals (verbatim quote, EARS statements with Delta and Superficie), and let the BA confirm by section. What is flagged is confirmed one by one with `--confirm-item`; never confirm for the BA. Every proposal declares `Líneas`; a partial reading is never confirmed. `--verify`/`--verify-result` re-read a sample. Report the coverage and the next step.
 - `/cross --change`: use `sentinel-discovery`; write the cross-read file with verbatim quotes (`Pedido:`/`Diseño: F-NN "…"`), never waive a cross for the BA (a cross the BA read and found nothing in is a file with one `- [SIN HALLAZGOS] …` claim; `--skip --reason` also works on a stale one); `/self-review --crosses` is a different thing (the project's semantic crosses).
 - `/export`: summarize the CLI result and generated artifact path.
 - `/stakeholders`: use `sentinel-discovery`; the registry is CLI-only, so add owners with `--add` (never hand-edit `01_discovery/stakeholders.md`), then point the user at the owner-grouped interview export.

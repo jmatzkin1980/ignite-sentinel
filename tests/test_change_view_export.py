@@ -5,11 +5,12 @@ import io
 import json
 import sys
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, class_deferred, complete_extraction, run_ok  # noqa: E402
 
 from sentinel.cli import main  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
@@ -157,7 +158,13 @@ class ChangeFinalWithDeferredMarks(SnapshotWorkspaceCase):
         run_ok(["brief", "BORR", "--change", CHG])
 
     def test_final_export_with_only_deferred_marks_is_final(self):
-        out = json.loads(run_ok(["export", "BORR", "--artifact", "brief", "--change", CHG, "--final"]))
+        # IMP-406: `--final` also needs a verdict that is not NOT_READY: extraction done, crosses waived, questions classed
+        complete_extraction("BORR", CHG)
+        run_ok(["brief", "BORR", "--change", CHG])
+        class_deferred("BORR", CHG)
+        # what this test is about is the deferred marks; the requirement rows have their own tests
+        with patch("sentinel.readiness_verdict._has_unit_rows", return_value=True):
+            out = json.loads(run_ok(["export", "BORR", "--artifact", "brief", "--change", CHG, "--final"]))
         self.assertEqual("final", out["deliverable"])
         self.assertGreater(int(out["deferred_marks"]), 0)
         target = workspace_path("BORR") / "08_context_packs" / "exports" / f"{CHG}-project-brief.md"

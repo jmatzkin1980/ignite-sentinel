@@ -6,6 +6,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Reliable change brief (IMP-406, H27 inc 1).** Fine inventory (`SEC-x.pN` parts with a range of lines); coverage by lines with `Líneas:` and `Lectura: parcial`; reading plan in batches; `/extract --verify` and `--verify-result`; change verdict in `/status --change`; `/gaps --change --id --impact construccion|operativo`; change export in brief v2 format with a seal; `export_final` step.
+
+### Changed
+
+- IMP-406 final review: an element that starts with its id and one very long line are split into parts too (a quote and a line range now measure a reading); parts keep their id while their text does not change; a reopened `difiere` is confirmed again only with a corrected proposal; `/next` adds `extract_verify` for extractions of more than 100 elements and the default sample is 5 % of the confirmed (at least 10); `/export --change --final` refuses while the change verdict is `NOT_READY` or the v2 text has pending marks, and `/next` points to `/gaps --impact`; the final export goes stale when the seal inputs change; the change verdict is `NOT_READY` while its brief is stale or it has no requirement rows; items confirmed without a line check are listed as `legacy_confirmed` and keep the verdict from `READY`.
+- `Líneas:` is required on every proposal (the unconfirmed proposals of 0.26 are proposed again); a section is confirmed with its literal text and the brief shows it (`Texto:` becomes `Resumen:`); `--confirm-item` does not take a partial reading.
+
+### Fixed
+
+- Registering a cross-read again closes the questions of the claims that disappear (T2-16); a workspace that only has changes no longer stays `health: DIRTY` forever and `/status --change` says why it is dirty (T2-30).
+
 ## [0.26.0] — 2026-11-23
 
 ### Added

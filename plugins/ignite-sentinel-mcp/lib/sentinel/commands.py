@@ -279,6 +279,9 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--confirm-item", dest="confirm_item", metavar="ID", help="IMP-402: confirm one proposal, flagged or not")
     p.add_argument("--reject-item", dest="reject_item", metavar="ID", help="IMP-402: take one element back to pending (needs --reason)")
     p.add_argument("--reason", help="IMP-402: with --reject-item, why")
+    p.add_argument("--verify", action="store_true", help="IMP-406: draw a sample of the confirmed elements to re-read against the request")
+    p.add_argument("--sample", type=int, metavar="N", help="IMP-406: with --verify, how many elements (default 10)")
+    p.add_argument("--verify-result", dest="verify_result", metavar="PATH", help="IMP-406: record the results of the open verification")
 
 
 def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-reads of a change request
@@ -319,6 +322,8 @@ def _gaps(p: argparse.ArgumentParser) -> None:  # IMP-271 / F7: BA disposition o
     p.add_argument("--id", dest="gap_id")
     p.add_argument("--disposition", choices=("accepted", "rejected", "irrelevant"))
     p.add_argument("--reason", default="")
+    p.add_argument("--impact", choices=("construccion", "operativo"),
+                   help="IMP-406: class of a deferred question of a change (with --change, --id and --reason)")
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-382: regenerate this change's gaps instead of the project's")
     p.add_argument("--top", type=int, help="IMP-257: plan the next round of at most N questions; without it /gaps regenerates gaps.md")
 

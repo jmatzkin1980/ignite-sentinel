@@ -34,6 +34,29 @@ sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /gaps P
 
 `--change` opens a CHG-nnn with only the scope round: GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE and GAP-PRODUCT-ASIS-TOBE, written to `01_discovery/CHG-nnn/gaps.md`. The project's requirement, gaps and artifacts are not touched. The PRD-only checks and GAP-BACKLOG-ENABLERS never fire for a change. The lens round opens later, when GAP-SCOPE closes with a border (see `sentinel-gap-response`). `/brief --change CHG-nnn` compiles the change's brief (see `sentinel-project-brief`). Its specs and backlog are not generated yet: say so to the BA instead of improvising them.
 
+### Extraction of a change (IMP-402, IMP-406)
+
+`/extract PROJECT_ID --change CHG-NNN` turns the request of a change into confirmed EARS rows and brief sections, element by element. Work like this:
+
+1. Run `/extract` with no option. It writes the inventory, the worksheet and the reading plan `02_requirements/CHG-nnn/extraction/reading_plan.md`. Read the plan batch by batch and read every element whole, never from a summary.
+2. Propose each element with `--proposals PATH`. Every proposal, a discard included, declares `Líneas: A-B[, C-D]` with the lines you actually read. If you did not read the whole element, write `Lectura: parcial`; never summarize the rest. A partial reading is not confirmed: finish reading it, then propose it again with the full `Líneas` and `Lectura: completa`.
+3. A section is proposed with its literal text: the quote alone is not enough. `Resumen:` is optional and does not count as coverage.
+4. The BA confirms (`--confirm`, `--confirm-item`, `--reject-item --reason`). Never confirm for the BA, and never class a pending question as `operativo` for the BA (`/gaps --change --id --impact operativo --reason` is the BA's call).
+5. To check the work, run `--verify` (the sample is 5 % of what is confirmed, at least 10; `--sample N` sets it), re-read each sampled element against the request and write `- ID: igual` or `- ID: difiere — nota` under `## Resultados`; record it with `--verify-result PATH`. A `difiere` takes its element back to proposed, and it is confirmed again only with a proposal that differs from the one that was reopened: correct it and propose it again; `--confirm-item` on the same proposal is refused. With more than 100 elements `/next` adds the step `extract_verify` before `brief` until a verification covers the latest confirmations.
+6. A long element (a section, or an element that starts with its id) is split into parts `ID.pN`, and one very long line is cut into pieces of it: propose each part with its own `Líneas` and a `Cita` taken from that part. A quote from another part is refused.
+7. `/export --change CHG-NNN --final` refuses while the change verdict is `NOT_READY` (the open questions that do not block count as `construccion` until the BA classes them) and while the text to export still carries a pending mark. Point the BA to `/gaps PROJECT_ID --change CHG-NNN --id GAP --impact construccion|operativo --reason TEXT`, and to `/export` without `--final` for a draft; `/next` says the same. Do not class the questions yourself.
+
+```text
+### RN-02
+- Tratamiento: requisito
+- Líneas: 41-43
+- Lectura: completa
+- Cita: "requiere aprobación de la jefa de Compras"
+- Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
+  - Delta: ADDED
+  - Superficie: Aprobación por monto
+```
+
 ## Deepening Cycle After `/gaps`
 
 The lexical checklist behind `/gaps` is the floor, not the ceiling. Once `gaps.md` exists, chain the agentic deepening passes — each has its own skill with the full contract:

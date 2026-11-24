@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, export_final_brief, run_ok  # noqa: E402
 from sentinel.core.markdown import parse_frontmatter  # noqa: E402
 from sentinel.changes import change_gaps_path, get_change  # noqa: E402
 from sentinel.gaps import parse_gap_rows  # noqa: E402
@@ -107,6 +107,7 @@ class ChangeFlow(SnapshotWorkspaceCase):
         run_ok(["brief", "BORR", "--change", cid])
         report = json.loads((workspace_path("BORR") / "02_requirements" / cid / "change_brief_report.json").read_text(encoding="utf-8"))
         self.assertEqual(0, report["blocking_open"])
+        export_final_brief("BORR", cid)  # IMP-406: the final export closes Discovery before the specs
         specs_out = json.loads(run_ok(["specs", "BORR", "--change", cid]))
         self.assertEqual(len(specs_out["units"]), SPEC_UNITS)
         self.assertEqual(len(specs_out["preserved"]), SPEC_PRESERVED)

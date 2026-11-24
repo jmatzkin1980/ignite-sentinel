@@ -13,6 +13,8 @@ Extract the request of a change element by element and measure its coverage. Par
 /extract PROJECT_ID --change CHG-NNN --confirm SECTION|all
 /extract PROJECT_ID --change CHG-NNN --confirm-item ID
 /extract PROJECT_ID --change CHG-NNN --reject-item ID --reason TEXT
+/extract PROJECT_ID --change CHG-NNN --verify [--sample N]
+/extract PROJECT_ID --change CHG-NNN --verify-result PATH
 ```
 
 Run from the repository root:
@@ -23,6 +25,8 @@ python -m sentinel /extract PROJECT_ID --change CHG-NNN --proposals PATH
 python -m sentinel /extract PROJECT_ID --change CHG-NNN --confirm SECTION|all
 python -m sentinel /extract PROJECT_ID --change CHG-NNN --confirm-item ID
 python -m sentinel /extract PROJECT_ID --change CHG-NNN --reject-item ID --reason TEXT
+python -m sentinel /extract PROJECT_ID --change CHG-NNN --verify [--sample N]
+python -m sentinel /extract PROJECT_ID --change CHG-NNN --verify-result PATH
 ```
 
 Three phases. Without options it inventories the request (every rule, criterion, story, decision and section with its id) and writes a worksheet, `02_requirements/CHG-nnn/extraction/proposals_template.md`. With `--proposals PATH` it records the proposals: copy the worksheet outside `02_requirements`, and for each element write a block headed by its id with `Tratamiento: requisito|seccion|descarte` (in an English change: `Treatment: requirement|section|discard`), a `Cita` copied word for word from the request and, for a requirement, one `Enunciado` per statement with its own `Delta` and `Superficie`. Example:
@@ -39,6 +43,8 @@ Three phases. Without options it inventories the request (every rule, criterion,
   - Superficie: Tabla de proveedores
 ```
 
-Transcribe, never draft: nothing enters without a verbatim quote of the request, and nothing is confirmed without the BA. With `--confirm SECTION|all` the BA confirms the proposals of a section (or all of them), which writes the EARS rows and fills the brief sections. What is flagged (`Marca`: contradiction, divergence, no support, or an open gap) is not confirmed in bulk: it is held, and each one is confirmed with `--confirm-item ID` after the BA reads it in `review.md`, or taken out with `--reject-item ID --reason TEXT`. `--proposals`, `--confirm`, `--confirm-item` and `--reject-item` are alternatives; `--reason` goes only with `--reject-item`.
+Transcribe, never draft: nothing enters without a verbatim quote of the request, and nothing is confirmed without the BA. With `--confirm SECTION|all` the BA confirms the proposals of a section (or all of them), which writes the EARS rows and fills the brief sections. What is flagged (`Marca`: contradiction, divergence, no support, or an open gap) is not confirmed in bulk: it is held, and each one is confirmed with `--confirm-item ID` after the BA reads it in `review.md`, or taken out with `--reject-item ID --reason TEXT`. `--proposals`, `--confirm`, `--confirm-item`, `--reject-item`, `--verify` and `--verify-result` are alternatives; `--reason` goes only with `--reject-item` and `--sample` only with `--verify`.
+
+The inventory also writes a reading plan (`extraction/reading_plan.md`): the request in batches of at most 60000 characters, each with the lines of each source; read each batch in full and declare in `Líneas` the range you read. `--verify` draws a reproducible sample of the confirmed elements (10 by default) into `extraction/verify/NNN-muestra.md`; re-read each one against the request and answer under Resultados with `- ID: igual` or `- ID: difiere — what is missing`, then record it with `--verify-result PATH`: each `difiere` takes its element back to proposed with the mark `verificacion_difiere`.
 
 Every result carries `coverage` (what share of the request is confirmed), `next_step` and a one-line `message`. Report the message and the coverage, and say which flagged items wait for the BA.

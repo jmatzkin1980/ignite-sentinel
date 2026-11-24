@@ -1417,9 +1417,9 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
 
    **Tell the assistant:** "Go through everything the request of CHG-001 says and propose what each element becomes."
 
-   **You'll see:** The list of rules, criteria, stories and decisions of the request, a cited proposal for each, and the coverage (how many are confirmed out of the total).
+   **You'll see:** The list of rules, criteria, stories and decisions of the request with the lines of each, a reading plan in batches, a cited proposal for each (with the lines the assistant read) and the coverage (how many are confirmed out of the total).
 
-   **What it means:** Nothing is confirmed on your behalf. You confirm by section; what Sentinel flagged (a contradiction with the baseline, an element the design does not back) you confirm one by one. The change is `done` only with the whole request covered.
+   **What it means:** Nothing is confirmed on your behalf. You confirm by section, and a section goes into the brief with the literal text of the request. What Sentinel flagged (a contradiction with the baseline, an element the design does not back) you confirm one by one; an element read only in part is not confirmed until the reading is completed ("Completar las lecturas parciales"). To check the work, ask "re-read a sample of what we confirmed": each element that differs goes back to proposed. The change is `done` only with the whole request covered.
 
    <details><summary>In a terminal</summary>
 
@@ -1428,6 +1428,25 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    /extract ACME_PORTAL --change CHG-001 --proposals proposals.md
    /extract ACME_PORTAL --change CHG-001 --confirm all
    /extract ACME_PORTAL --change CHG-001 --confirm-item RN-04
+   /extract ACME_PORTAL --change CHG-001 --verify --sample 10
+   /extract ACME_PORTAL --change CHG-001 --verify-result verification.md
+   ```
+   </details>
+
+6. See whether the change is ready, class what is left and export the final brief.
+
+   **Tell the assistant:** "Is CHG-001 ready?" Open questions that do not block are `construccion` by default and hold the change back; if one is not needed to build, say so: "The Purchasing area resolves GAP-SED-1A2B, it does not stop the build." Then: "Export the final brief of CHG-001."
+
+   **You'll see:** A verdict (`READY`, `READY_WITH_WARNINGS` or `NOT_READY`) with what blocks it, and the brief of the change in the format of the project brief, sealed with status, date, verdict, coverage and deferred items. After the export, `/next --change` goes on to the specs.
+
+   **What it means:** `--final` refuses while the verdict is `NOT_READY`: class each open question first (the message and `/next --change` name the command). The final brief is the milestone before `/specs --change`. If the change changes afterwards, the export is out of date and `/next --change` asks for it again. `/status --change` also tells you why a workspace is not `CLEAN`.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /status ACME_PORTAL --change CHG-001
+   /gaps ACME_PORTAL --change CHG-001 --id GAP-SED-1A2B --impact operativo --reason "the Purchasing area resolves it"
+   /export ACME_PORTAL --artifact brief --change CHG-001 --final
    ```
    </details>
 

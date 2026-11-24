@@ -159,12 +159,55 @@ def close_change_gap(project_id: str, change_id: str, gap_id: str, note: str) ->
         return False
     hit[0]["status"] = "CLOSED"
     hit[0]["resolution_note"] = note
+    _save_change_gaps(project_id, change_id, path, rows)
+    return True
+
+
+RETIRE_NOTE = {"es": "afirmación retirada al re-registrar el cruce", "en": "claim withdrawn when the cross-read was re-recorded"}
+
+
+def _save_change_gaps(project_id: str, change_id: str, path: Path, rows: list[dict]) -> None:
     language = change_language(project_id, get_change(project_id, change_id))
     write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
     updated = {k: dict(v) for k, v in list_changes(project_id).items()}
     updated[change_id]["gap_counts"] = count_gaps(rows)
     update_state(project_id, changes=updated)
-    return True
+
+
+def _gap_rows(path: Path) -> list[dict]:
+    return [g for g in parse_gap_rows(path.read_text(encoding="utf-8-sig")) if g.get("id") != "NONE"] if path.exists() else []
+
+
+def retire_change_gaps(project_id: str, change_id: str, gap_ids: list[str], note: str) -> list[str]:
+    """Close, in one write, the open questions among gap_ids with the note; returns the ones it closed."""
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    rows = _gap_rows(path)
+    wanted = set(gap_ids)
+    closed = [g for g in rows if g.get("id") in wanted and str(g.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
+    if not closed:
+        return []
+    for gap in closed:
+        gap["status"] = "CLOSED"
+        gap["resolution_note"] = note
+    _save_change_gaps(project_id, change_id, path, rows)
+    return [g["id"] for g in closed]
+
+
+def reopen_retired_gaps(project_id: str, change_id: str, gap_ids: list[str]) -> list[str]:
+    """Reopen the questions among gap_ids that a re-recording had withdrawn (never one the BA answered)."""
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    rows = _gap_rows(path)
+    wanted = set(gap_ids)
+    notes = set(RETIRE_NOTE.values())
+    back = [g for g in rows if g.get("id") in wanted and str(g.get("status", "")).strip("`").upper() == "CLOSED"
+            and str(g.get("resolution_note", "")).strip() in notes]
+    if not back:
+        return []
+    for gap in back:
+        gap["status"] = "OPEN"
+        gap["resolution_note"] = ""
+    _save_change_gaps(project_id, change_id, path, rows)
+    return [g["id"] for g in back]
 
 
 def load_cross(base: Path, change_id: str, kind: str) -> dict | None:
@@ -227,12 +270,14 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
             gaps.append(gap)
             if gap["id"] not in gap_ids:
                 gap_ids.append(gap["id"])
+    reopened = reopen_retired_gaps(project_id, change_id, gap_ids)
     opened = add_change_gaps(project_id, change_id, gaps)
 
     previous = load_cross(base, change_id, kind) or {}
     earlier = [g for g in previous.get("gaps", []) if previous.get("status") == "done"]
     dropped = [g for g in earlier if g not in gap_ids]
     carried = [g for g in [*(previous.get("dropped_gaps") or []), *dropped] if g not in gap_ids]
+    retired = retire_change_gaps(project_id, change_id, dropped, RETIRE_NOTE["es" if es else "en"])
     counts = _counts(claims)
     path = cross_path(base, change_id, kind)
     record = {
@@ -243,12 +288,14 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
         "counts": counts, "gaps": gap_ids, "basis": source_basis(project_id, change_id),
         "claims_hash": claims_hash(claims, reason=""),
         **({"dropped_gaps": list(dict.fromkeys(carried))} if carried else {}),
+        **({"retired_gaps": retired} if retired else {}),
     }
     write_json(path, record)
     report = write_cross_report(project_id, change_id)
     return {
         "project_id": project_id, "change_id": change_id, "action": "claims", "kind": kind, "source_id": source_id,
         "counts": counts, "gaps": gap_ids, "gaps_opened": opened, "dropped_gaps": dropped,
+        "retired_gaps": retired, "reopened_gaps": reopened,
         "path": path.as_posix(), "report_path": report.as_posix(),
     }
 

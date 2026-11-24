@@ -20,6 +20,7 @@ from ..changes import change_gaps_path, change_language, get_change
 from ..crosses.state import cross_status, crosses_fingerprint
 from ..core.io import write_json, write_text
 from ..extraction.coverage import extraction_view
+from ..extraction.lines import format_ranges
 from ..gaps import BLOCKING_GAP_STATUSES, blocking_severities, parse_gap_responses, parse_gap_rows
 from ..harvest import load_harvest
 from ..pending_marks import count_pending_marks
@@ -235,6 +236,17 @@ def render_change_brief(inputs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             if entry.get("brief_section") != number:
                 continue
             quote = str(entry.get("quote") or "").strip()
+            content = entry.get("content")
+            if content is not None:
+                # IMP-406: the section is the request text as written, never a summary of it
+                section.fill(copy["extracted_content"].format(
+                    element=entry.get("element", ""), path=entry.get("path", ""),
+                    lines=format_ranges(entry.get("lines") or []) or entry.get("line", "")))
+                section.raw("")
+                for line in str(content).split("\n"):
+                    section.raw(line)
+                section.raw("")
+                continue
             text = str(entry.get("text") or "").strip()
             fields = {"quote": quote, "path": entry.get("path", ""), "line": entry.get("line", ""),
                       "element": entry.get("element", "")}

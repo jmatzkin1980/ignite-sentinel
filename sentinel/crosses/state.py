@@ -6,9 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..changes import _squash, change_gaps_path, change_language, get_change
+from ..changes import _squash, change_language, get_change
 from ..core.io import read_json, write_text
-from ..gaps import parse_gap_rows
 from ..harvest import load_harvest
 from ..sources import load_source_manifest
 from ..workspace import workspace_path
@@ -155,9 +154,6 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
     lang = "es" if change_language(project_id, change) == "es" else "en"
     base = workspace_path(project_id)
     status = cross_status(project_id, change_id)
-    gaps_path = change_gaps_path(base, change_id)
-    gap_rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8-sig")) if gaps_path.exists() else []
-    open_ids = {g["id"] for g in gap_rows if str(g.get("status", "OPEN")).strip("`").upper() != "CLOSED"}
     title = f"# Cruces del pedido — {change_id}" if lang == "es" else f"# Cross-reads of the request — {change_id}"
     lines = [title, "", status["text"], ""]
     for kind in CROSS_KINDS:
@@ -187,12 +183,12 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
                 tail = f" — {cites}{arrow}" if cites or arrow else ""
                 lines.append(f"- [{names[claim['tag']]}] {_squash(claim['text'])}{tail}")
         if record and record.get("status") in ("done", "waived"):
-            dropped = [g for g in record.get("dropped_gaps", []) if g in open_ids]
-            if dropped:
-                lead = ("Preguntas de entregas anteriores que esta entrega no repite (siguen abiertas hasta que el BA las cierre): "
+            retired = list(record.get("retired_gaps") or [])
+            if retired:
+                lead = ("Preguntas retiradas porque esta entrega ya no trae su afirmación: "
                         if lang == "es" else
-                        "Questions from earlier deliveries that this one does not repeat (they stay open until the BA closes them): ")
-                lines += ["", lead + ", ".join(dropped)]
+                        "Questions withdrawn because this delivery no longer carries their claim: ")
+                lines += ["", lead + ", ".join(retired)]
         lines.append("")
     from .surfaces import new_surface_candidates
 

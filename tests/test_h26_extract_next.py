@@ -9,14 +9,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import SnapshotWorkspaceCase, complete_extraction, run_ok, waive_crosses  # noqa: E402
+from helpers import SnapshotWorkspaceCase, complete_extraction, export_final_brief, run_ok, waive_crosses  # noqa: E402
 from test_change_flow import SCOPE_ANSWER  # noqa: E402
 from test_change_next import load_baseline, set_change  # noqa: E402
 from test_change_specs import ALL_ANSWERS, answer  # noqa: E402
 
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.extraction.confirm import confirm_item, confirm_proposals  # noqa: E402
-from sentinel.extraction.inventory import build_inventory, element_text, load_inventory  # noqa: E402
+from sentinel.extraction.inventory import build_inventory, element_lines, element_text, load_inventory  # noqa: E402
 from sentinel.extraction.proposals import record_proposals  # noqa: E402
 from sentinel.readiness_verdict import CHANGE_COMMANDS, CHANGE_TEXT, change_next_step  # noqa: E402
 from sentinel.workspace import workspace_path  # noqa: E402
@@ -31,7 +31,8 @@ def all_as_sections(project: str, flagged: str | None = None) -> str:
     blocks = []
     for element in load_inventory(base, CID)["elements"]:
         quote = " ".join((element_text(base, element) or "").split())[:60].strip()
-        lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Seccion: {HOME_SECTION.get(element['home'], 'reglas')}",
+        first, last = element_lines(element)
+        lines = [f"### {element['id']}", "- Tratamiento: seccion", f"- Líneas: {first}-{last}", f"- Seccion: {HOME_SECTION.get(element['home'], 'reglas')}",
                  f'- Cita: "{quote}"']
         if element["id"] == flagged:
             lines.append("- Marca: sin_respaldo — sin respaldo en la línea de base")
@@ -129,7 +130,9 @@ class BorradorDone(SnapshotWorkspaceCase):
         forget_read_snapshots()
         answer("BORR", CID, "a.md", ALL_ANSWERS)
         complete_extraction("BORR", CID)
-        for command in ("brief", "specs", "backlog", "validate"):
+        run_ok(["brief", "BORR", "--change", CID])
+        export_final_brief("BORR", CID)
+        for command in ("specs", "backlog", "validate"):
             run_ok([command, "BORR", "--change", CID])
 
     def test_done_says_coverage(self):
@@ -167,8 +170,8 @@ class Keys(unittest.TestCase):
     def test_step_keys(self):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
-            "extract_confirm_flagged", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
-            "brief", "requirements", "specs", "backlog", "validate", "done"})
+            "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
+            "brief", "requirements", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])
 

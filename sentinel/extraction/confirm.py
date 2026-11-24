@@ -18,7 +18,10 @@ from ..core.paths import workspace_path
 from ..errors import GateRefusal, InputError
 from . import extraction_dir
 from .flags import refresh_flags
-from .inventory import _fold, element_text, inventory_state, load_inventory, section_slug
+from .inventory import (
+    _fold, _read_text, _split_lines, element_text, inventory_state, load_inventory, section_slug, span_text,
+)
+from .lines import format_ranges
 from .proposals import _msg, _now, _proposals_path, load_proposals, validate_proposal, write_review
 
 _EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
@@ -75,10 +78,17 @@ def _raw(item: dict) -> dict:
             for s in item.get("statements", []) or []
         ],
         "section": item.get("section") or "",
-        "text": item.get("text") or "",
+        "summary": item.get("summary") or "",
+        "lines": format_ranges(item.get("lines") or []),
+        "reading": item.get("reading") or "",
         "reason": item.get("reason") or "",
         "flag": "", "flag_note": "", "errors": [],
     }
+
+
+def _source_lines(base: Path, element: dict) -> list[str]:
+    text = _read_text(base, str(element.get("path", "")))
+    return [] if text is None else _split_lines(text)
 
 
 def _element_rows(project_id: str, change_id: str, element_id: str) -> list[str]:
@@ -109,11 +119,12 @@ def _try_confirm(
         result["held"].append(element_id)
         return
     body = element_text(base, element)
+    source_lines = _source_lines(base, element)
     ctx = {"pid": project_id, "cid": change_id}
     if item.get("element_sha") != element.get("sha"):
         normalized, errors = None, [_msg("stale_element", language, id=element_id, **ctx)]
     else:
-        normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx)
+        normalized, errors = validate_proposal(element, body, _raw(item), border, language, ctx, source_lines)
     if normalized is None:
         result["invalid"][element_id] = errors or [_msg("stale_element", language, id=element_id, **ctx)]
         return
@@ -133,6 +144,7 @@ def _try_confirm(
             item["rows"] = []
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
+    item["flags"] = [f for f in item.get("flags", []) or [] if f.get("origin") != "verify"]  # corrected: the mark is done
     result["confirmed"].append(element_id)
 
 
@@ -146,9 +158,12 @@ def write_sections(project_id: str, change_id: str) -> Path:
         item = items.get(element["id"])
         if not item or item.get("status") != "confirmed" or item.get("treatment") != "seccion":
             continue
+        source = _source_lines(base, element)
+        content = span_text(source, element.get("spans", []), element.get("cspan"))
         entries.append({
             "element": element["id"], "section": item.get("section"), "brief_section": item.get("brief_section"),
-            "text": item.get("text"), "quote": item.get("quote"), "path": element.get("path"),
+            "content": content, "lines": item.get("lines") or [], "summary": item.get("summary"),
+            "quote": item.get("quote"), "path": element.get("path"),
             "line": element.get("line"), "source_id": element.get("source_id"),
         })
     path = sections_path(base, change_id)
@@ -209,6 +224,31 @@ def confirm_item(project_id: str, change_id: str, element_id: str) -> dict:
     element = elements.get(element_id)
     if item is None or element is None or item.get("status") != "proposed":
         raise _no_pending(element_id, language)
+    for flag in item.get("flags", []) or []:
+        if flag.get("origin") == "verify":
+            note = str(flag.get("note", "")).strip()
+            raise InputError(
+                f"{element_id}: la verificación dijo que difiere ({note}) y la propuesta no cambió: corregila y proponela "
+                "de nuevo" if language == "es"
+                else f"{element_id}: the verification said it differs ({note}) and the proposal has not changed: correct "
+                "it and propose it again"
+            )
+        if flag.get("origin") != "coverage":
+            continue
+        if flag.get("kind") == "lineas_sin_cubrir":
+            ranges = format_ranges(item.get("missing_lines") or []) or str(flag.get("note", "")).split(" ", 1)[-1]
+            raise InputError(
+                f"{element_id}: la propuesta no cubre las líneas {ranges} del elemento: proponelo de nuevo con Líneas que "
+                "cubran todo lo que tiene contenido" if language == "es"
+                else f"{element_id}: the proposal does not cover lines {ranges} of the element: propose it again with "
+                "Lines covering everything with content"
+            )
+        if flag.get("kind") == "lectura_parcial":
+            raise InputError(
+                f"{element_id}: la propuesta declara Lectura: parcial: leé el elemento completo y proponelo de nuevo"
+                if language == "es"
+                else f"{element_id}: the proposal declares Reading: partial: read the whole element and propose it again"
+            )
     result = _empty_result("confirm")
     _try_confirm(project_id, change_id, element, item, change.get("border", []) or [], language, result, force=True)
     return _finish(project_id, change_id, base, store, result)

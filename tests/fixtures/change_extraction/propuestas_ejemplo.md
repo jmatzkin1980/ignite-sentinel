@@ -1,5 +1,6 @@
 ### HU-01
 - Tratamiento: requisito
+- Líneas: 21-21
 - Cita: "quiero enviar un alta a aprobación para no imprimir el resumen"
 - Enunciado: Cuando el analista envía un alta con monto mayor al umbral, el sistema debe pasarla a la bandeja de aprobaciones.
   - Delta: ADDED
@@ -7,6 +8,7 @@
 
 ### RN-02
 - Tratamiento: requisito
+- Líneas: 31-31
 - Cita: "requiere aprobación de la jefa de Compras"
 - Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
   - Delta: ADDED
@@ -17,6 +19,7 @@
 
 ### RN-04
 - Tratamiento: requisito
+- Líneas: 33-33
 - Cita: "La jefa de Compras no puede aprobar un alta que cargó ella misma."
 - Enunciado: Si la jefa de Compras intenta aprobar un alta que cargó ella misma, el sistema debe impedirlo.
   - Delta: ADDED
@@ -25,11 +28,13 @@
 
 ### SEC-objetivo
 - Tratamiento: seccion
+- Líneas: 4-4
 - Seccion: objetivo
 - Texto: Que la jefatura apruebe las altas de monto alto dentro del sistema y el analista vea el estado sin preguntar.
 - Cita: "la jefatura aprueba las altas de monto alto dentro del sistema"
 
 ### RN-06
 - Tratamiento: descarte
+- Líneas: 35-35
 - Motivo: es una exclusión de alcance y ya está en la respuesta de GAP-SCOPE
 - Cita: "Los proveedores del exterior quedan fuera de este cambio."

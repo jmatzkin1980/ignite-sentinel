@@ -133,11 +133,11 @@ class Recording(CrossCase):
         third = record_cross(PID, CID, "diseno", self.write("cruce_diseno.md", drop_solo=True))
         (sed,) = [g for g in first["gaps"] if g.startswith("GAP-SED-")]
         self.assertEqual(third["dropped_gaps"], [sed])
-        self.assertEqual(self.gaps()[sed]["status"], "OPEN")
+        self.assertEqual(self.gaps()[sed]["status"], "CLOSED")
         base = workspace_path(PID)
         report = (crosses_dir(base, CID) / "crosses.md").read_text(encoding="utf-8")
         self.assertIn(sed, report)
-        self.assertIn("siguen abiertas", report)
+        self.assertIn("retiradas", report)
         self.assertEqual(len(list((crosses_dir(base, CID) / "submitted").glob("00*"))), 3)
 
     def test_gap_id_is_stable_and_by_content(self):

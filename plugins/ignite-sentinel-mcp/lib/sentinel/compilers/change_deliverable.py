@@ -1,0 +1,362 @@
+"""IMP-406: the deliverable of a change, in the project brief v2 format.
+
+This module renders nothing. It translates what the change holds (the confirmed border, the
+extraction, the answered and open questions, the EARS rows) into the `BriefInputs` that the
+project's compiler (`render_brief_v2`, `templates/brief_v2.json`) already knows how to write, so
+the change's `/export` and the project's brief share one format.
+
+Transcribe, don't draft: the sections come as the request wrote them (the verbatim content the
+extraction stored at confirm, never a summary), and every fact and block opens with its delta tag
+(`[nuevo]`, `[modificado]`, `[preservado]`). What the change does not touch is N/A, never pending.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+from ..brief_model import V2_GAP_ROUTES
+from ..brief_schema import applicability, brief_settings, profile_order
+from ..change_requirements import load_change_ears, parse_surfaces
+from ..core.time import utc_now
+from ..extraction.lines import format_ranges
+from ..resources import read_package_json
+from ..workspace import workspace_path
+from .brief_v2 import BriefInputs, render_brief_v2
+
+DELTA_TAGS = {
+    "es": {"nuevo": "nuevo", "modificado": "modificado", "preservado": "preservado"},
+    "en": {"nuevo": "new", "modificado": "modified", "preservado": "preserved"},
+}
+ROW_TAG = {"ADDED": "nuevo", "MODIFIED": "modificado", "REMOVED": "modificado", "UNCHANGED": "preservado"}
+ZONE_TAG = {"nuevo": "nuevo", "adyacente": "modificado", "preservado": "preservado"}
+SECTION_PLACES = {"objetivo": "1.1", "usuarios": "2.1", "proceso": "3.2", "alcance": "1.3", "reglas": "2.2",
+                  "aceptacion": "1.5", "preservado": "6.2"}
+ROW_PLACES = {"business": "2.2", "product": "3.2", "design": "4.1", "technical": "5.12"}
+LENS_PLACES = {"business": "2.4", "product": "3.6", "design": "4.2", "technical": "5.1", "quality": "1.5",
+               "compliance": "5.11", "delivery": "2.5"}
+CHANGE_ROUTE_OVERRIDES = {"GAP-SCOPE": "1.3"}  # 6.1 stays for the border, so §9 comes from it
+DECISION_PREFIXES = ("GAP-DIS-", "GAP-CON-", "GAP-SRD-", "GAP-SED-", "GAP-VER-")  # cross-reads and versions: decisions
+DECISION_PLACE = "7.1"
+SURFACE_PROFILES = {"pantalla": "UI", "endpoint": "API", "dato": "API", "integracion": "INT"}
+GENESIS = "brownfield-extension"
+_EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
+_FIRST_CODE = re.compile(r"`([^`]+)`")
+
+COPY = {
+    "es": {
+        "out": "Fuera de este cambio", "no_regression": "no regresión", "rows": "filas",
+        "table": ["Pendiente", "Clase", "Bloquea", "Responsable"], "yes": "sí", "no": "no",
+        "blocking": "bloqueante", "construccion": "construccion", "operativo": "operativo",
+        "reason": "el cambio no toca este punto", "condition": "el borde del cambio lo suma",
+        "draft": "borrador",
+    },
+    "en": {
+        "out": "Out of this change", "no_regression": "no regression", "rows": "rows",
+        "table": ["Item", "Class", "Blocks", "Owner"], "yes": "yes", "no": "no",
+        "blocking": "blocking", "construccion": "build", "operativo": "operational",
+        "reason": "the change does not touch this point", "condition": "the change border adds it",
+        "draft": "draft",
+    },
+}
+
+
+def _lang(language: str) -> str:
+    return "es" if language == "es" else "en"
+
+
+def _template() -> dict[str, Any]:
+    return read_package_json("templates", "change_brief.json")
+
+
+def brief_sha(base: Path, change_id: str) -> str:
+    """The first 16 hex digits of the sha256 of the change's internal brief ('' when it is not compiled)."""
+    path = base / "02_requirements" / change_id / "project-brief.md"
+    if not path.is_file():
+        return ""
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+
+def row_lens(row: dict, border: list[dict], template: dict) -> str:
+    """The lens of a requirement row: the type of its first surface of the border; without one, business."""
+    valid, _unknown = parse_surfaces(";".join(row.get("surfaces") or []), border)
+    for name in valid[:1]:
+        kind = next((item.get("type") for item in border if item.get("name") == name), None)
+        for lens, kinds in template["lens_surfaces"].items():
+            if kind in kinds:
+                return lens
+    return "business"
+
+
+def change_profiles(border: list[dict], settings: dict) -> list[str]:
+    """The profiles the workspace confirmed; else those the border's surface types imply (UI when none)."""
+    order = profile_order()
+    given = [p for p in (settings or {}).get("profiles") or [] if p in order]
+    if given:
+        try:
+            applicability(given, GENESIS)
+            return given
+        except ValueError:
+            pass
+    found = {SURFACE_PROFILES[item["type"]] for item in border if item.get("type") in SURFACE_PROFILES}
+    return [profile for profile in order if profile in found] or ["UI"]
+
+
+def build_seal(project_id: str, change_id: str, final: bool, language: str) -> dict[str, Any]:
+    from ..extraction.coverage import extraction_coverage
+    from ..readiness_verdict import build_change_verdict
+
+    lang = _lang(language)
+    coverage = extraction_coverage(project_id, change_id)
+    verdict = build_change_verdict(project_id, change_id)
+    return {
+        "state": "final" if final else COPY[lang]["draft"],
+        "date": utc_now()[:10],
+        "covered": int(coverage["covered"]),
+        "total": int(coverage["total"]),
+        "deferred": {"construccion": int(verdict["deferred"]["construccion"]),
+                     "operativo": int(verdict["deferred"]["operativo"])},
+        "assumptions": 0,
+        "verdict": str(verdict["verdict"]),
+    }
+
+
+def seal_sha(project_id: str, change_id: str) -> str:
+    """IMP-406 I7: the first 16 hex digits of the sha256 of what the seal says (verdict, coverage, deferred ids and classes).
+
+    The final export is current only while the brief AND this hash are the ones it was made from."""
+    from ..changes import deferred_gaps
+    from ..extraction.coverage import extraction_coverage
+    from ..readiness_verdict import build_change_verdict
+
+    coverage = extraction_coverage(project_id, change_id)
+    payload = {
+        "verdict": build_change_verdict(project_id, change_id)["verdict"],
+        "covered": int(coverage["covered"]), "total": int(coverage["total"]),
+        "deferred": sorted((d["id"], d["impact"]) for d in deferred_gaps(project_id, change_id)),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def seal_lines(seal: dict[str, Any], language: str) -> list[str]:
+    build, operational = seal["deferred"]["construccion"], seal["deferred"]["operativo"]
+    if _lang(language) == "es":
+        return [
+            f"> **Estado:** {seal['state']} · **Fecha:** {seal['date']} · **Veredicto:** {seal['verdict']}",
+            f"> **Cobertura:** {seal['covered']} de {seal['total']} elementos del pedido",
+            f"> **Pendientes diferidos:** {build + operational} (construcción {build}, operativo {operational})",
+            f"> **Supuestos:** {seal['assumptions']}",
+        ]
+    return [
+        f"> **Status:** {seal['state']} · **Date:** {seal['date']} · **Verdict:** {seal['verdict']}",
+        f"> **Coverage:** {seal['covered']} of {seal['total']} request elements",
+        f"> **Deferred items:** {build + operational} (build {build}, operational {operational})",
+        f"> **Assumptions:** {seal['assumptions']}",
+    ]
+
+
+_HEADING = re.compile(r"^(\s{0,3})(#{1,6})(\s)")
+
+
+def _keep_flat(line: str) -> str:
+    """A request line that looks like a heading would open a subsection of the brief: escape its first `#` (the text stays)."""
+    return _HEADING.sub(lambda m: f"{m.group(1)}\\{m.group(2)}{m.group(3)}", line)
+
+
+def _cell(text: Any) -> str:
+    return " ".join(str(text or "").split()).replace("|", "\\|")
+
+
+def gap_place(gap_id: str, lens: str) -> str:
+    """The v2 place where the answer of a closed question of the change lands."""
+    if gap_id in CHANGE_ROUTE_OVERRIDES:
+        return CHANGE_ROUTE_OVERRIDES[gap_id]
+    if gap_id in V2_GAP_ROUTES:
+        return V2_GAP_ROUTES[gap_id]
+    if gap_id.startswith(DECISION_PREFIXES):
+        return DECISION_PLACE
+    return LENS_PLACES.get(str(lens).strip("`").lower(), DECISION_PLACE)
+
+
+def _change_rows(project_id: str, change_id: str, view: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+    """(every active EARS row, the rows the extraction confirmed and still stand), with their surfaces and source."""
+    by_element = {e["id"]: e for e in view.get("elements", [])}
+    owner = {row["id"]: element_id for element_id, rows in (view.get("rows") or {}).items() for row in rows}
+    every: list[dict] = []
+    placed: list[dict] = []
+    for row in load_change_ears(project_id, change_id):
+        found = _EXT_SOURCE.match(str(row.get("source", "")))
+        item = {**row, "element": found.group(1) if found else "", "source_id": "", "gap": ""}
+        if found:
+            element = by_element.get(found.group(1))
+            item["source_id"] = str((element or {}).get("source_id") or "")
+            if row["id"] in owner:
+                placed.append(item)
+        else:
+            code = _FIRST_CODE.search(str(row.get("source", "")))
+            item["gap"] = code.group(1) if code and code.group(1).startswith("GAP-") else ""
+        every.append(item)
+    return every, placed
+
+
+def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
+    from ..harvest import BLOCK_PLACES
+    from ..changes import deferred_gaps
+    from ..compilers.change_brief import collect_change_brief_inputs
+    from ..sources import load_source_manifest
+
+    inputs = collect_change_brief_inputs(project_id, change_id)
+    template = _template()
+    language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
+    lang = _lang(language)
+    copy, change_copy = COPY[lang], template["copy"][lang]
+    tags = DELTA_TAGS[lang]
+    base = workspace_path(project_id)
+    change = inputs["change"]
+    border = list(change.get("border") or [])
+    view = inputs.get("extraction") or {}
+    has_inventory = view.get("state", "missing") != "missing"
+    facts: dict[str, list[dict[str, str]]] = {}
+    blocks: dict[str, list[str]] = {}
+
+    def add_fact(place: str, tag: str, text: str, source: str = "", gap: str = "") -> None:
+        label = f"[{tags[tag]}] " if tag else ""
+        facts.setdefault(place, []).append({"text": f"{label}{text}", "source": source, "gap": gap})
+
+    # the confirmed sections, as the request wrote them (the verbatim content, never a summary)
+    for entry in view.get("sections", []) if has_inventory else []:
+        place = SECTION_PLACES.get(str(entry.get("section") or ""), SECTION_PLACES["reglas"])
+        tag = "preservado" if entry.get("section") == "preservado" else "nuevo"
+        content = entry.get("content")
+        if content is None:  # an entry stored before the content was kept: its quote is all there is
+            quote = str(entry.get("text") or entry.get("quote") or "").strip()
+            add_fact(place, tag, f"{quote} ({entry.get('element', '')}, `{entry.get('path', '')}`:{entry.get('line', '')})",
+                     str(entry.get("source_id") or ""))
+            continue
+        head = change_copy["extracted_content"].format(
+            element=entry.get("element", ""), path=entry.get("path", ""),
+            lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
+        blocks.setdefault(place, []).extend(
+            [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
+
+    # the confirmed requirement rows, by the lens of their first surface
+    every_rows, placed_rows = _change_rows(project_id, change_id, view)
+    for row in placed_rows:
+        delta = str(row.get("delta", "")).strip().upper()
+        tag = ROW_TAG.get(delta, "nuevo")
+        place = "6.2" if delta == "UNCHANGED" else ROW_PLACES[row_lens(row, border, template)]
+        add_fact(place, tag, f"{row['statement']} ({row['id']})", row["source_id"])
+
+    # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
+    rows_of: dict[str, list[str]] = {}
+    for row in every_rows:
+        valid, _unknown = parse_surfaces(";".join(row.get("surfaces") or []), border)
+        for name in valid:
+            rows_of.setdefault(name, []).append(row["id"])
+    for item in border:
+        zone = item.get("zone")
+        if zone not in ZONE_TAG:
+            continue
+        text = f"{item.get('type', '')} — {item.get('name', '')}"
+        ids = rows_of.get(item.get("name", ""), [])
+        if ids:
+            text += f" — {copy['no_regression' if zone == 'preservado' else 'rows']}: {', '.join(ids)}"
+        add_fact("6.2" if zone == "preservado" else "6.1", ZONE_TAG[zone], text, gap="GAP-SCOPE")
+
+    # what the request leaves out
+    for element in view.get("elements", []) if has_inventory else []:
+        item = (view.get("items") or {}).get(element["id"])
+        if (isinstance(item, dict) and item.get("status") == "confirmed" and item.get("element_sha") == element.get("sha")
+                and item.get("treatment") == "descarte"):
+            add_fact("6.2", "", f"{copy['out']}: {element['id']} — {str(item.get('reason', '')).strip()}",
+                     str(element.get("source_id") or ""))
+
+    # answers of closed questions, at the place the project routes them to
+    for gap in inputs["gaps"]:
+        if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED":
+            continue
+        gap_id = str(gap["id"]).strip("`")
+        answer = str(gap.get("answer", "")).strip()
+        tag = "nuevo"
+        text = answer or change_copy["no_text"]
+        if gap.get("closure_reason") == "by_baseline":
+            path = re.search(r"`([^`]+)`", str(gap.get("evidence", "")))
+            quote = re.search(r'"([^"]*)"|“([^”]*)”', str(gap.get("evidence", "")))
+            if path and quote:
+                said = (quote.group(1) if quote.group(1) is not None else quote.group(2)).strip()
+                tag = "preservado"
+                text = (f"{answer or change_copy['no_text']} — {change_copy['baseline_support']}: «{said}» (`{path.group(1).strip()}`)"
+                        if _is_divergence(gap) else f"{change_copy['already']}: «{said}» (`{path.group(1).strip()}`)")
+        add_fact(gap_place(gap_id, str(gap.get("lens", ""))), tag, text, gap=gap_id)
+
+    # the code facts of the harvest that belong to the border's blocks (as in the project)
+    harvest = inputs.get("harvest") or {}
+    harvest_source = str(harvest.get("source_id") or "")
+    wanted: set[str] = set()
+    for item in border:
+        wanted |= set(template["surface_blocks"].get(item.get("type"), []))
+    transversal = template.get("transversal", {})
+    if {item.get("type") for item in border} & set(transversal.get("surfaces", [])):
+        wanted |= set(transversal.get("context", [])) | set(transversal.get("technical", []))
+    for entry in harvest.get("entries", []) if harvest_source and border else []:
+        place = BLOCK_PLACES.get(entry.get("block", ""))
+        if place and entry.get("kind") == "fact" and entry.get("block") in wanted:
+            add_fact(place, "preservado", f"{entry['text']} ({entry['ref']})", harvest_source)
+
+    # the seal, and the open questions with their class and owner
+    seal = build_seal(project_id, change_id, final, language)
+    blocks["0.2"] = seal_lines(seal, language) + [""]
+    classes = {d["id"]: d["impact"] for d in deferred_gaps(project_id, change_id)}
+    open_rows = [gap for gap in inputs["gaps"] if str(gap.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
+    if open_rows:
+        header = copy["table"]
+        table = ["| " + " | ".join(header) + " |", "|" + "|".join("---" for _ in header) + "|"]
+        for gap in sorted(open_rows, key=lambda g: str(g["id"])):
+            gap_id = str(gap["id"]).strip("`")
+            klass = copy["blocking"] if gap.get("blocks") else copy[classes.get(gap_id, "construccion")]
+            question = _cell(gap.get("question") or gap.get("description"))
+            table.append(f"| `{gap_id}`{': ' + question if question else ''} | {klass} | "
+                         f"{copy['yes'] if gap.get('blocks') else copy['no']} | {_cell(gap.get('owner')) or '-'} |")
+        blocks["7.1"] = table
+
+    manifest = load_source_manifest(project_id)
+    mine = {str(i) for i in change.get("sources") or []}
+    registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
+    settings = brief_settings(project_id)
+    return BriefInputs(
+        project_id=project_id,
+        language=language,
+        profiles=change_profiles(border, settings),
+        genesis=GENESIS,
+        validation_direction="to-build",
+        raw_sources=[],
+        gap_answers=[],
+        gaps=[{"id": str(g["id"]).strip("`"), "severity": str(g.get("severity", "")).strip("`"),
+               "status": str(g.get("status", "")).strip("`"), "origin": str(g.get("origin", "")).strip("`")}
+              for g in inputs["gaps"]],
+        assumptions=[],
+        harvest={},
+        registry=registry,
+        title=change_copy["heading"].format(change_id=change_id, title=inputs.get("note_title", "")),
+        place_facts=facts,
+        place_blocks=blocks,
+        empty_na={"reason": copy["reason"], "condition": copy["condition"]},
+    )
+
+
+def _is_divergence(gap: dict) -> bool:
+    gap_id = str(gap.get("id", ""))
+    return (gap_id.startswith("GAP-HRV-") and str(gap.get("kind", "")).strip("`").lower() != "domain"
+            and str(gap.get("origin", "harvest")).strip("`").lower() == "harvest")
+
+
+def render_change_deliverable_parts(project_id: str, change_id: str, final: bool) -> tuple[str, dict[str, Any]]:
+    """The deliverable text and the compile report of the project's compiler (`fill_sites` count its pending marks)."""
+    text, report = render_brief_v2(change_brief_inputs(project_id, change_id, final))[:2]
+    return text, report
+
+
+def render_change_deliverable(project_id: str, change_id: str, final: bool) -> str:
+    return render_change_deliverable_parts(project_id, change_id, final)[0]

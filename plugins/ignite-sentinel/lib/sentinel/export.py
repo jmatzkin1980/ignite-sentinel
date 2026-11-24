@@ -51,12 +51,80 @@ def export_artifact(project_id: str, artifact: str, fmt: str = "md", domain: str
     verdict = gate(source.read_text(encoding="utf-8"), artifact=artifact.lower(), fmt=fmt, final=final,
                    report=compile_report_for(source), extraction=extraction, language=_language(project_id, change_id),
                    project_id=project_id, change_id=change_id or "")
-    result = _export(project_id, artifact, fmt, source, verdict, change_id)
+    if final and change_id and artifact.lower() == "brief" and fmt == "md":
+        _check_final_change(project_id, change_id)  # after the marks and the pending extraction, which say their own thing
+    result = _export(project_id, artifact, fmt, source, verdict, change_id, final)
+    if final and change_id and artifact.lower() == "brief" and fmt == "md":
+        _record_final_export(project_id, change_id, result["path"])
     return {**result, **verdict}
 
 
+def _check_final_change(project_id: str, change_id: str) -> None:
+    """IMP-406 I6/I7: `--final` seals a brief that does not contradict its own seal.
+
+    It refuses while the change verdict is NOT_READY, and while the exported text (the project brief v2 format,
+    not only the internal brief) still carries pending marks."""
+    from .changes import deferred_gaps
+    from .compilers.change_deliverable import render_change_deliverable_parts
+    from .deliverables import DeliverableNotReady
+    from .pending_marks import count_pending_marks
+    from .readiness_verdict import build_change_verdict
+
+    es = _language(project_id, change_id) == "es"
+    found = build_change_verdict(project_id, change_id)
+    if found["verdict"] == "NOT_READY":
+        held = [d for d in deferred_gaps(project_id, change_id) if d["impact"] == "construccion"]
+        first = next((d for d in held if not d["classed"]), None) or (held[0] if held else None)
+        reasons = "; ".join(found["blockers"])
+        if held:
+            command = (f"/gaps {project_id} --change {change_id} --id {first['id']} "
+                       "--impact construccion|operativo --reason TEXTO")
+            how_es = f"Respondelos o clasificalos con {command}; /export sin --final deja un borrador."
+            how_en = f"Answer them or class them with {command}; /export without --final leaves a draft."
+        else:
+            command = f"/next {project_id} --change {change_id}"
+            how_es = f"Resolvé lo que dice el veredicto ({command} dice por dónde); /export sin --final deja un borrador."
+            how_en = f"Resolve what the verdict says ({command} says where to start); /export without --final leaves a draft."
+        if es:
+            message = (f"/export --final rechazado: el veredicto de {change_id} es NOT_READY ({reasons}). "
+                       + (f"Pendientes que frenan la construcción: {', '.join(d['id'] for d in held)}. " if held else "")
+                       + how_es)
+        else:
+            message = (f"/export --final refused: the verdict of {change_id} is NOT_READY ({reasons}). "
+                       + (f"Items that hold back the build: {', '.join(d['id'] for d in held)}. " if held else "")
+                       + how_en)
+        raise DeliverableNotReady(message, command)
+    text, report = render_change_deliverable_parts(project_id, change_id, True)
+    marks = count_pending_marks(text, report)
+    if marks.blocking:
+        raise DeliverableNotReady(
+            f"/export --final refused: {marks.blocking} pending marks remain in the brief that would be exported "
+            "(a confirmed statement or answer that says «a definir»/TBD is one). Close them (or export without --final "
+            "to get a marked draft).", f"/export {project_id} --artifact brief --change {change_id}")
+
+
+def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str, str]:
+    """IMP-406: the milestone `export_final`: where the final export went and the hash of the brief it came from."""
+    from .changes import list_changes
+    from .compilers.change_deliverable import brief_sha, build_seal, seal_sha
+    from .core.time import utc_now
+
+    seal = build_seal(project_id, change_id, True, _language(project_id, change_id))
+    recorded = {
+        "path": workspace_relative(project_id, Path(path)),
+        "at": utc_now(),
+        "brief_sha": brief_sha(workspace_path(project_id), change_id),
+        "verdict": seal["verdict"],
+        "seal_sha": seal_sha(project_id, change_id),
+    }
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["final_export"] = recorded
+    update_state(project_id, changes=changes)
+    return recorded
+
+
 def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dict,
-            change_id: str | None = None) -> dict[str, str]:
+            change_id: str | None = None, final: bool = False) -> dict[str, str]:
     from .deliverables import with_banner
 
     base = workspace_path(project_id)
@@ -71,6 +139,24 @@ def _export(project_id: str, artifact: str, fmt: str, source: Path, verdict: dic
     export_dir = base / "08_context_packs" / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     target = export_dir / (f"{change_id}-{source.name}" if change_id else source.name)
+    if change_id and artifact.lower() == "brief":
+        # IMP-406: the change's deliverable is written by the project's brief v2 compiler, not copied from the working brief
+        from .compilers.change_deliverable import render_change_deliverable
+
+        text = render_change_deliverable(project_id, change_id, final)
+        assert_no_leaks(project_id, text, base, f"export {artifact}")
+        if verdict["deliverable"] == "draft":
+            text = with_banner(text, int(verdict["pending_marks"]), _language(project_id, change_id),
+                               list(verdict.get("extraction_pending") or []))
+        write_text(target, text)
+        update_state(project_id, last_export=workspace_relative(project_id, target))
+        return {
+            "project_id": project_id,
+            "artifact": artifact,
+            "format": "md",
+            "source": str(source.as_posix()),
+            "path": str(target.as_posix()),
+        }
     assert_no_leaks(project_id, source.read_text(encoding="utf-8"), base, f"export {artifact}")
     if verdict["deliverable"] == "draft":
         write_text(target, with_banner(source.read_text(encoding="utf-8"), int(verdict["pending_marks"]), _language(project_id, change_id),

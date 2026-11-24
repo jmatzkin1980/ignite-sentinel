@@ -25,6 +25,7 @@ CID = "CHG-001"
 HU03 = "\n".join([
     "### HU-03",
     "- Tratamiento: requisito",
+    "- Líneas: 24-25",
     '- Cita: "quiero consultar quién aprobó cada alta y cuándo"',
     "- Enunciado: Cuando el auditor consulta un alta aprobada, el sistema debe mostrar quién la aprobó y cuándo.",
     "  - Delta: ADDED",

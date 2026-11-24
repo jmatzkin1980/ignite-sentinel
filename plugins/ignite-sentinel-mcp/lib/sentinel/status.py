@@ -78,7 +78,9 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
     from .change_escalation import escalation_warnings
     from .changes import get_change
     from .extraction.coverage import extraction_coverage, preserved_coverage
-    from .readiness_verdict import change_next_step
+    from .extraction.reading_plan import reading_plan_status
+    from .extraction.verify import verification_status
+    from .readiness_verdict import _final_export_current, build_change_verdict, change_next_step
 
     change = get_change(project_id, change_id)
     step = change_next_step(project_id, change_id)
@@ -90,16 +92,27 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
 
     crosses = cross_status(project_id, change_id)
     candidates = new_surface_candidates(project_id, change_id)
+    from .health import health_explanation
+
+    health = str(read_json(state_path(project_id), {}).get("health", ""))
+    detail = health_explanation(project_id)
     return {
         "project_id": project_id,
         "change_id": change_id,
+        "health": health,
+        **({"health_detail": detail} if detail else {}),
         "round": change.get("round"),
         "border_confirmed": bool(change.get("border_confirmed_at")),
         "gap_counts": change.get("gap_counts", {}),
+        "verdict": build_change_verdict(project_id, change_id),
+        "final_export": change.get("final_export"),
+        "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),
         "next_step": step["text"],
         "next_action": step,
         "sources": sources,
         "extraction": extraction,
+        "reading_plan": reading_plan_status(project_id, change_id),
+        "verification": verification_status(project_id, change_id),
         "preserved": preserved,
         "crosses": crosses,
         "new_surface_candidates": candidates,
@@ -169,6 +182,19 @@ def _extraction_warnings(
         warnings.append({"trigger": "extraction_orphans", "message": (
             f"{change_id}: elementos que ya no están en el pedido conservan filas EARS: {names} ({run} --reject-item ID --reason \"…\")" if es
             else f"{change_id}: elements no longer in the request keep EARS rows: {names} ({run} --reject-item ID --reason \"…\")")})
+    from .extraction.verify import VERIFY_ABOVE, verification_gap_text, verification_needed
+
+    if int(extraction.get("total", 0) or 0) > VERIFY_ABOVE:
+        need = verification_needed(project_id, change_id, int(extraction["total"]))
+        if need["needed"]:
+            warnings.append({"trigger": "verification_missing", "message": (
+                f"{change_id}: {verification_gap_text(need, es)}: corré {run} --verify" if es
+                else f"{change_id}: {verification_gap_text(need, es)}: run {run} --verify")})
+    if extraction.get("legacy_ids"):
+        from .extraction.coverage import legacy_confirmed_message
+
+        warnings.append({"trigger": "legacy_confirmed", "message": (
+            f"{change_id}: {legacy_confirmed_message(extraction['legacy_ids'], 'es' if es else 'en')}")})
     if preserved["missing"]:
         names = ", ".join(preserved["missing"])
         warnings.append({"trigger": "preserved_missing", "message": (

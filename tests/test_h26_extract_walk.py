@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import IDS_SCOPE_ANSWER, run_ok, waive_crosses  # noqa: E402
+from helpers import IDS_SCOPE_ANSWER, export_final_brief, run_ok, waive_crosses  # noqa: E402
 
 from sentinel.change_requirements import load_change_ears  # noqa: E402
 
@@ -120,7 +120,7 @@ class ExtractionWalk(unittest.TestCase):
         # 9. re-propose it as a discard, same flag: held by `all`, confirmed by hand
         again = root / "rn04.md"
         again.write_text(
-            "### RN-04\n- Tratamiento: descarte\n"
+            "### RN-04\n- Tratamiento: descarte\n- Líneas: 33-33\n"
             "- Motivo: la jefa de Compras lo resuelve fuera de este cambio\n"
             '- Cita: "La jefa de Compras no puede aprobar un alta que cargó ella misma."\n'
             "- Marca: contradiccion — el SAD permite que una jefatura apruebe sus propias altas\n",
@@ -154,6 +154,11 @@ class ExtractionWalk(unittest.TestCase):
         self.assertEqual(len(rn02), 2)
         self.assertEqual([len(r["surfaces"]) for r in rn02], [1, 1])
         self.assertEqual({r["surfaces"][0] for r in rn02}, {"Aprobación por monto", "Tabla de proveedores"})
+
+        # 11b. the final export closes Discovery before the specs (IMP-406)
+        self.assertEqual(next_step()["key"], "export_final")
+        export_final_brief(PID, CID)
+        self.assertEqual(next_step()["key"], "specs")
 
         # 12. specs and backlog carry the preserved rows as pass-to-pass
         run_ok(["specs", PID, "--change", CID])
