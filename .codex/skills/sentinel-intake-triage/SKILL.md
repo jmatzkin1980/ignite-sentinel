@@ -1,6 +1,6 @@
 ---
 name: sentinel-intake-triage
-description: "Use before /init when facing a pile of unstructured initial intake — client requests, RFQs, mails, chat threads — that has not yet become one or more projects: group the pile by theme with a verbatim citation to each source, propose requirement candidates and whether it is one project or several, flag what is noise or out of scope, and hand the BA a decision. Trigger on 'triage these requests', a stack of initial asks, 'tengo el pedido, el SAD y el relevamiento de lo construido' (label what each document is before loading it), or deciding how many projects a pile of intake should become. Not for a single requirement already scoped to one project (use sentinel-discovery)."
+description: "Use before /init when facing a pile of unstructured initial intake — client requests, RFQs, mails, chat threads — that has not yet become one or more projects: group the pile by theme with a verbatim citation to each source, propose requirement candidates and whether it is one project or several, flag what is noise or out of scope, and hand the BA a decision. Trigger on 'triage these requests', a stack of initial asks, 'tengo el pedido, el SAD y el relevamiento de lo construido' (label what each document is before loading it), or deciding how many projects a pile of intake should become. Also the entry point when someone hands over documents and asks where to start: 'tengo estos documentos, ¿por dónde arranco?', 'tengo dos briefs y la documentación técnica', 'armá el brief del release 2 con todo esto' — classify each document, pick the path (project, change or series) and give the first commands with roles. Not for a single requirement already scoped to one project (use sentinel-discovery)."
 ---
 
 # Sentinel Intake Triage
@@ -10,7 +10,7 @@ Use this skill **before `/init`**, when you are handed a pile of unstructured in
 ## When to use / when not
 
 - **Use** before any workspace exists: the input is raw intake and the question is "is this one project or several, and what is even in scope?".
-- **Do not use** once a project exists. After `/init`, the project's first source goes through `/ingest` and every later file through `/sync --source` — see `sentinel-discovery` and `sentinel-sync`. This skill is strictly the pre-project step.
+- **Do not use** once a project exists. After `/init`, the project's first source goes through `/ingest` and every later file through `/sync --source` — see `sentinel-discovery` and `sentinel-sync`. The grouping of a pile is the pre-project step; the entry check below also works when a workspace already exists (then it ends in `/sources --load … --role`, never in a second `/ingest`).
 
 ## Workflow
 
@@ -21,6 +21,24 @@ Use this skill **before `/init`**, when you are handed a pile of unstructured in
 5. **Flag noise and out-of-scope — explicitly.** Duplicates, off-topic items, and asks that are clearly out of scope are listed with their citation and a one-line reason. Never drop an item silently.
 6. **Hand the BA a decision.** Present the triage as a proposal table (themes → candidate → source citations → proposed project; plus an out-of-scope list). Stop there. The skill does not run `/init`.
 7. **Only after the BA confirms the split**, execute per chosen project: `/init PROJECT_ID`, then `/ingest PROJECT_ID --source PATH` for the project's first source item and `/sync PROJECT_ID --source PATH` for each further item assigned to it, so the `R#` citations become governed discovery evidence.
+
+## Where do I start? (documents in hand)
+
+Use this when someone hands over documents and asks where to start ("tengo estos documentos, ¿por dónde arranco?"). It extends the triage with the dimensions of the starting point; there is no parallel flow. Nothing runs until the BA confirms.
+
+1. **List every file or folder received** (`D1`, `D2`, …) and read its beginning and its headings (not the code).
+2. **Classify each document in seven dimensions**, with the evidence that shows it (a quote or a heading). Table columns and values:
+   - **Pedido**: ninguno / pocas líneas / brief parcial / brief maduro / varias versiones.
+   - **Línea de base**: nada construido / documental / código accesible / mixta.
+   - **Plan previo**: ninguno / brief del release anterior / backlog o specs anteriores.
+   - **Diseño**: ninguno / wireframes / HTML estático / prototipo JS / Figma o imágenes.
+   - **Dominios**: ausentes / parciales / maduros con autoridad.
+   - **Respuestas de personas**: ninguna / actas y notas / estructuradas.
+   - **Madurez de lo hecho fuera**: nada / decisiones sueltas / análisis completos.
+3. **Pick the path.** **proyecto**: nothing built and a single release. **cambio**: something is built and the request modifies it ("el brief del release 2" over a built release 1 is a change). **serie**: nothing built and the request already splits into releases: a project, and `/split --assess` after the brief.
+4. **Give the exact first commands, with the role of each document.** Change: `/init P`, `/ingest P --source PEDIDO --change`, `/sources P --load DOC --role linea_de_base --change CHG-001` (and `plan_previo`, `diseno_nuevo` the same way), `/harvest P --source HARVEST.md --change CHG-001` when the code is accessible. Project or series: `/init P`, `/ingest P --source PEDIDO`, `/sync P --source DOC` for each further one.
+5. **Say which steps will be verification-only** because what arrives is mature: a mature brief is extracted and confirmed with a citation (not rewritten); a cross done by hand is registered with `/cross --claims` with its verbatim citations (not redone); structured answers are transcribed into the `sentinel-gap-response` format with `Owner / fuente` = whoever decided.
+6. **Present a table** `documento → dimensión y valor → rol → comando` and the recommendation. The BA confirms before anything runs.
 
 ## Output
 

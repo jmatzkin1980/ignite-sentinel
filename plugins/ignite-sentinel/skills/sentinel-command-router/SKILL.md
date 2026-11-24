@@ -1,6 +1,6 @@
 ---
 name: sentinel-command-router
-description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal. Also use it when the user hands over a document of a change and says what it is, so you load it with its role: 'tengo el SAD y el relevamiento de lo construido' (línea de base), 'este es el prototipo de lo nuevo' (diseño nuevo), 'este es el brief del release anterior' (plan previo), 'este es el pedido' (pedido). Not for interpreting a stage's results: the skill of that stage does it (for example sentinel-maturity or sentinel-views)."
+description: "Use when the user sends an Ignite Sentinel chat command such as /init PROJECT_ID, /dashboard, /ingest PROJECT_ID --source PATH, or sentinel /health PROJECT_ID, and wants the command executed from chat instead of typing in a terminal. Also use it when the user hands over a document of a change and says what it is, so you load it with its role: 'tengo el SAD y el relevamiento de lo construido' (línea de base), 'este es el prototipo de lo nuevo' (diseño nuevo), 'este es el brief del release anterior' (plan previo), 'este es el pedido' (pedido). When the user has documents but no command ('tengo estos documentos, ¿por dónde arranco?', 'tengo dos briefs y la documentación técnica', 'armá el brief del release 2 con todo esto'), start with sentinel-intake-triage. Not for interpreting a stage's results: the skill of that stage does it (for example sentinel-maturity or sentinel-views)."
 ---
 
 # Sentinel Command Router
@@ -101,10 +101,12 @@ When a command leaves the user a decision or a next step, end with one short que
 - Each option says what happens: the command it runs, or the file the user has to fill in. The user can always answer in their own words or call a skill instead.
 - A gate refusal already names its prerequisite: offer that step as the first option.
 - Options never decide for the user. Picking one never closes a gap, confirms a brief setting or signs a `/split` step: those still need the user's own answers and names.
+- Build the options from `next_action` of the last result: its command first, and its `skill` (load that skill before writing the file the command reads). Never offer a step the runtime did not name, such as reopening the scope when `/cross --accept-new` adds a surface.
 - Ask nothing when nothing is pending.
 
 ## Routing
 
+- Documents in hand and no command ("¿por dónde arranco?", "armá el brief del release 2 con todo esto"): use `sentinel-intake-triage` (entry check) before running anything.
 - `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
 - `/annotate`: use `sentinel-annotate` to author the analysis JSON before executing.
 - `/challenge`: use `sentinel-challenge` to author the findings JSON before executing.
@@ -146,6 +148,7 @@ When a command leaves the user a decision or a next step, end with one short que
 
 ## Safety
 
+- Never leave files in the client's folders (for example `.claude/launch.json` to serve a prototype): serve or copy from the workspace or a temporary folder, and remove what you created.
 - Never edit generated workspace artifacts by hand; mutation flows only through Sentinel commands. If the user insists on a manual correction, warn that `/health` will flag the out-of-CLI edit and recommend the owning command instead.
 - Do not close gaps manually when a structured client response can be processed with `/resolve-gaps`.
 - After source inputs change (files under `00_raw/` context folders or new client material), run `/reindex PROJECT_ID` so memory matches the versionable files.
