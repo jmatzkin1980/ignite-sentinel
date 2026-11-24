@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **Reliable change brief (IMP-406, H27 inc 1).** Fine inventory (`SEC-x.pN` parts with a range of lines); coverage by lines with `Líneas:` and `Lectura: parcial`; reading plan in batches; `/extract --verify` and `--verify-result`; change verdict in `/status --change`; `/gaps --change --id --impact construccion|operativo`; change export in brief v2 format with a seal; `export_final` step.
+
+### Changed
+
+- `Líneas:` is required on every proposal (the unconfirmed proposals of 0.26 are proposed again); a section is confirmed with its literal text and the brief shows it (`Texto:` becomes `Resumen:`); `--confirm-item` does not take a partial reading.
+
+### Fixed
+
+- Registering a cross-read again closes the questions of the claims that disappear (T2-16); a workspace that only has changes no longer stays `health: DIRTY` forever and `/status --change` says why it is dirty (T2-30).
+
 ## [0.26.0] — 2026-11-23
 
 ### Added

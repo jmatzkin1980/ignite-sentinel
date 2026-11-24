@@ -490,7 +490,7 @@ You can deliver the harvest one block at a time: each run adds its blocks to `ha
 
 **Type.** Mutating.
 
-**Use it when.** Before sharing gaps with a client or domain owner; before a meeting (`--top`); after reviewing agent-raised gaps (`--disposition`).
+**Use it when.** Before sharing gaps with a client or domain owner; before a meeting (`--top`); after reviewing agent-raised gaps (`--disposition`); to class an open question of a change as operational (`--impact`). In chat: "The Purchasing area resolves GAP-SED-1A2B, it does not stop the build."
 
 **Syntax.**
 
@@ -1390,11 +1390,13 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 
 ## `extract`
 
-**What it does.** Extracts the request of a change element by element and measures how much of it is covered. It has three phases: inventory (every rule, criterion, story, decision and section of the request, each with its id), cited proposals (the agent proposes what each element becomes) and confirmation by the BA. What is confirmed becomes EARS rows with Delta and Superficie per statement, fills sections of the change brief, and counts toward the coverage shown by `/status --change`, `/next --change` and the brief.
+**What it does.** Extracts the request of a change element by element and measures how much of it is covered, line by line. It has three phases: inventory (every rule, criterion, story, decision and section of the request, each with its id and its range of lines; a long section is split into parts `SEC-x.pN`), cited proposals (the agent reads each element in full and proposes what it becomes, declaring the lines it read) and confirmation by the BA. What is confirmed becomes EARS rows with Delta and Superficie per statement, fills sections of the change brief, and counts toward the coverage shown by `/status --change`, `/next --change` and the brief.
 
 **Type.** Mutating. Always with `--change`.
 
-**Use it when.** `/next --change` says to inventory the request, to propose the treatment of each element, to confirm the extraction or to cover what is preserved.
+**Use it when.** `/next --change` says to inventory the request, to propose the treatment of each element, to confirm the extraction, to complete the partial readings or to cover what is preserved.
+
+**In chat.** Ask: "Go through everything the request of CHG-001 says and propose what each element becomes." The assistant reads the reading plan batch by batch, reads every element whole, and brings you the proposals. Later ask "re-read a sample of what we confirmed against the request" to verify it. The commands below are what runs underneath.
 
 **Syntax.**
 
@@ -1431,6 +1433,8 @@ With no option it inventories the request and writes the worksheet `02_requireme
 ```text
 ### RN-02
 - Tratamiento: requisito
+- Líneas: 41-43
+- Lectura: completa
 - Cita: "requiere aprobación de la jefa de Compras"
 - Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
   - Delta: ADDED
@@ -1440,31 +1444,37 @@ With no option it inventories the request and writes the worksheet `02_requireme
   - Superficie: Tabla de proveedores
 ```
 
-Every element gets a `Tratamiento` and a `Cita` copied word for word from the request; nothing is accepted without the quote. Each statement carries its own `Delta` and `Superficie` (a surface of the border of the change). The labels follow the language of the change:
+Every element gets a `Tratamiento`, a `Líneas` and a `Cita` copied word for word from the request; nothing is accepted without the quote. `Líneas: A-B[, C-D]` declares the lines of the source that were read, and it is required on every proposal, discards included: a proposal without it, with a range outside the element, or whose quote lies outside the declared lines is refused, naming the element and the range expected. `Lectura: parcial` says the element was not read whole (the agent never summarizes it instead); `completa` is the default. Each statement carries its own `Delta` and `Superficie` (a surface of the border of the change). The labels follow the language of the change:
 
 | Spanish | English | Used for |
 |---|---|---|
 | `Tratamiento` (`requisito`, `seccion`, `descarte`) | `Treatment` (`requirement`, `section`, `discard`) | What the element becomes. |
+| `Líneas` | `Lines` | The lines read, `A-B` or `A-B, C-D`. Required, also on a discard. |
+| `Lectura` | `Reading` | `completa` or `parcial`. A partial reading is held back from every confirmation until it is completed. |
 | `Cita` | `Quote` | The verbatim text of the request. |
 | `Enunciado` | `Statement` | An EARS statement of a requirement; one per behavior. |
 | `Delta` | `Delta` | ADDED, MODIFIED, REMOVED or UNCHANGED. |
 | `Superficie` | `Surface` | The surface of the border the statement touches. |
 | `Afecta` | `Affects` | Other surfaces it affects. |
-| `Seccion` and `Texto` | `Section` and `Text` | For `seccion`: the brief section (`objetivo`, `usuarios`, `proceso`, `alcance`, `preservado`, `reglas`, `aceptacion`) and the text that goes there. |
+| `Seccion` and `Resumen` | `Section` and `Summary` | For `seccion`: the brief section (`objetivo`, `usuarios`, `proceso`, `alcance`, `preservado`, `reglas`, `aceptacion`) and, optionally, a summary. The section goes into the brief with the literal text of the lines read, not with the summary; the summary does not count as coverage. `Texto`/`Text` still reads as `Resumen`/`Summary`. |
 | `Motivo` | `Reason` | For `descarte`: why nothing is written. |
 | `Marca` | `Flag` | `divergencia`, `contradiccion` or `sin_respaldo`, with a note. |
 
-**What is flagged is not confirmed in bulk.** A proposal carries a flag when it contradicts the baseline, diverges from it, has no support or touches an open gap. `--confirm` and `--confirm all` hold those back and say how many; each one is confirmed on its own with `--confirm-item ID`, after the BA has read it in `02_requirements/CHG-nnn/extraction/review.md`, or taken out with `--reject-item ID --reason TEXT`.
+**What is flagged is not confirmed in bulk.** A proposal carries a flag when it contradicts the baseline, diverges from it, has no support, touches an open gap, leaves lines of its element uncovered, is a partial reading or came back from a verification with `difiere`. `--confirm` and `--confirm all` hold those back and say how many; each one is confirmed on its own with `--confirm-item ID`, after the BA has read it in `02_requirements/CHG-nnn/extraction/review.md`, or taken out with `--reject-item ID --reason TEXT`. A partial reading or one with uncovered lines is not confirmed even one by one: the refusal names the lines still to read (for example `69-78`). Complete the reading, record the proposal again with the full `Líneas` and `Lectura: completa`, and confirm.
 
-**You get.** `action` (`inventory`, `proposals`, `confirm` or `reject`), `coverage` (`total`, `covered`, `pending`, `proposed`, `flagged`, `by_kind`, `text`), `next_step` and a one-line `message`. The proposals phase also lists `recorded`, `rejected` (with the reason of each) and `flagged`; the confirmation phase lists `confirmed`, `held`, `invalid` and the EARS rows added, updated or superseded.
+**The reading plan.** The inventory writes `02_requirements/CHG-nnn/extraction/reading_plan.md` and `reading_plan.json`: the elements in batches of up to 60000 characters, each with its lines. The agent reads one batch at a time and `/status --change` shows `reading_plan.text` (for example `lote 1 de 1`).
+
+**Verification.** `--verify --sample N` draws a reproducible sample of confirmed elements to `extraction/verify/NNN-muestra.md`. Re-read each against the request and answer under `## Resultados`, one line per element: `- ID: igual` or `- ID: difiere — nota`. `--verify-result PATH` records all the answers or none; each `difiere` takes its element back to proposed (`reopened`) with a `verify` flag, and it is confirmed again with `--confirm-item`. A change with more than 100 elements and no verification run gets a `verification_missing` warning.
+
+**You get.** `action` (`inventory`, `proposals`, `confirm` or `reject`), `coverage` (`total`, `covered`, `pending`, `proposed`, `flagged`, `by_kind`, `text`), `next_step` and a one-line `message`. The inventory also gives `split` (the sections divided into parts) and `reading_plan`. The proposals phase also lists `recorded`, `rejected` (with the reason of each) and `flagged`; the confirmation phase lists `confirmed`, `held`, `invalid` and the EARS rows added, updated or superseded. `--verify` lists the sampled ids and `--verify-result` the `reopened` ones.
 
 **Reads.** The loaded request (role `pedido`), the border and gaps of the change.
 
-**Writes.** Under `02_requirements/CHG-nnn/extraction/`: the inventory, the worksheet, `proposals.json`, `review.md` and the submitted files; the EARS rows of the change and the sections of its brief.
+**Writes.** Under `02_requirements/CHG-nnn/extraction/`: the inventory, the worksheet, the reading plan, `proposals.json`, `review.md`, the verification samples and the submitted files; the EARS rows of the change and the sections of its brief.
 
-**Refuses when.** The change is unknown; the border is not closed yet (answer GAP-SCOPE first); proposals are recorded before the inventory exists or after the request changed (run `/extract` again); a proposal has no verbatim quote or names a surface outside the border.
+**Refuses when.** The change is unknown; the border is not closed yet (answer GAP-SCOPE first); proposals are recorded before the inventory exists or after the request changed (run `/extract` again); a proposal has no verbatim quote, no `Líneas` (or lines outside its element) or names a surface outside the border.
 
-**Next.** Follow `next_step`; at the end `/next --change` reaches `brief`, `specs` and `done`, which needs the whole request confirmed and every preserved surface covered by an UNCHANGED row.
+**Next.** Follow `next_step`; with partial readings left it says "Completar las lecturas parciales" (`extract_partial`). At the end `/next --change` reaches `brief`, `export_final`, `specs` and `done`, which needs the whole request confirmed and every preserved surface covered by an UNCHANGED row.
 
 **See also.** [`next`](#next) · [`status`](#status) · [`brief`](#brief).
 
@@ -1486,6 +1496,7 @@ Every element gets a `Tratamiento` and a `Cita` copied word for word from the re
 /export ACME_PORTAL --artifact prd --format mdx
 /export ACME_PORTAL --artifact prd --final
 /export ACME_PORTAL --artifact brief --change CHG-001
+/export ACME_PORTAL --artifact brief --change CHG-001 --final
 ```
 
 **Options.**
@@ -1497,7 +1508,7 @@ Every element gets a `Tratamiento` and a `Cita` copied word for word from the re
 | `--format` (alias `--fmt`) | `md`, `mdx`, `interview`, `faq` | `md` | `mdx` only for `prd`; `interview` and `faq` only for `gaps`. |
 | `--domain` | a context-request domain | none | Required with `--artifact context-request`. |
 | `--final` | flag | off | Refuse while pending marks remain. |
-| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do, and also while the extraction of the request is pending (run `/extract`). The brief shows a "Cruces" line with the cross-reads recorded or waived. A workspace that only has changes refuses an export without it. |
+| `--change` | `CHG-NNN` | none | Export the brief or the gaps (`md`, `interview`) of one change to `08_context_packs/exports/CHG-nnn-<name>`; the project's exports are untouched. The change brief is a draft while pending marks remain, and `--final` refuses while blocking ones do, and also while the extraction of the request is pending (run `/extract`). The brief of a change is written in the format of the project brief v2 (the ten headings, with the confirmed sections as literal text) and opens with a seal: status (`draft` or `final`), date, verdict, coverage, deferred items by class and assumptions. `--final` records the export (`export_final` in `/next --change`), and the step is current only while the brief does not change afterwards. The brief shows a "Cruces" line with the cross-reads recorded or waived. A workspace that only has changes refuses an export without it. |
 
 | Format | Writes | Notes |
 |---|---|---|
@@ -1922,7 +1933,7 @@ On a brief v2 with a backlog, `cross_artifact_consistency` also warns about each
 | `PROJECT_ID` | id | required | The workspace. |
 | `--full` | flag | off | Add the detailed dump: maturity metrics, development readiness, assumptions, knowledge ledger, story gates, backlog rollup, last change ids. |
 | `--release` | `r<N>` or `r<N>.<M>` | none | The verdict for one release. A release that depends on an unclosed release is `NOT_READY`, with the dependency named. |
-| `--change` | `CHG-NNN` | none | Show only that change: its round, whether the border is confirmed (`border_confirmed`), gap counts, `next_action`, the sources by role, the `crosses` block (for each of the three cross-reads: `done`, `waived`, `stale`, `missing` or `no_aplica`, with the counts per tag) and escalation `warnings`. It does not combine with `--release` (exit 3). |
+| `--change` | `CHG-NNN` | none | Show only that change: its round, whether the border is confirmed (`border_confirmed`), gap counts, `next_action`, the sources by role, the `crosses` block (for each of the three cross-reads: `done`, `waived`, `stale`, `missing` or `no_aplica`, with the counts per tag) escalation `warnings` and what Sentinel needs to call the change ready: `verdict` (the same `READY`, `READY_WITH_WARNINGS` or `NOT_READY` as the project, with `blockers`, `warnings`, the `deferred` open questions by class and the gates of gaps, extraction, cross-reads, deferred items and verification), `reading_plan` (`text`, for example `lote 1 de 1`), `verification` (the last run, with `differs`), `health` and, when it is not `CLEAN`, `health_detail` (why), and `final_export` (the last final export of the change, with `final_export_current` telling whether the brief has changed since). It does not combine with `--release` (exit 3). |
 
 **Reads.** `state.json` and the workspace artifacts.
 

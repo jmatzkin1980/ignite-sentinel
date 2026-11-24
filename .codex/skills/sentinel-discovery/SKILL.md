@@ -34,6 +34,27 @@ python -m sentinel /gaps PROJECT_ID --change CHG-001
 
 `--change` opens a CHG-nnn with only the scope round: GAP-OBJECTIVE, GAP-USERS, GAP-SCOPE and GAP-PRODUCT-ASIS-TOBE, written to `01_discovery/CHG-nnn/gaps.md`. The project's requirement, gaps and artifacts are not touched. The PRD-only checks and GAP-BACKLOG-ENABLERS never fire for a change. The lens round opens later, when GAP-SCOPE closes with a border (see `sentinel-gap-response`). `/brief --change CHG-nnn` compiles the change's brief (see `sentinel-project-brief`). Its specs and backlog are not generated yet: say so to the BA instead of improvising them.
 
+### Extraction of a change (IMP-402, IMP-406)
+
+`/extract PROJECT_ID --change CHG-NNN` turns the request of a change into confirmed EARS rows and brief sections, element by element. Work like this:
+
+1. Run `/extract` with no option. It writes the inventory, the worksheet and the reading plan `02_requirements/CHG-nnn/extraction/reading_plan.md`. Read the plan batch by batch and read every element whole, never from a summary.
+2. Propose each element with `--proposals PATH`. Every proposal, a discard included, declares `Líneas: A-B[, C-D]` with the lines you actually read. If you did not read the whole element, write `Lectura: parcial`; never summarize the rest. A partial reading is not confirmed: finish reading it, then propose it again with the full `Líneas` and `Lectura: completa`.
+3. A section is proposed with its literal text: the quote alone is not enough. `Resumen:` is optional and does not count as coverage.
+4. The BA confirms (`--confirm`, `--confirm-item`, `--reject-item --reason`). Never confirm for the BA, and never class a pending question as `operativo` for the BA (`/gaps --change --id --impact operativo --reason` is the BA's call).
+5. To check the work, run `--verify --sample N`, re-read each sampled element against the request and write `- ID: igual` or `- ID: difiere — nota` under `## Resultados`; record it with `--verify-result PATH`. A `difiere` takes its element back to proposed.
+
+```text
+### RN-02
+- Tratamiento: requisito
+- Líneas: 41-43
+- Lectura: completa
+- Cita: "requiere aprobación de la jefa de Compras"
+- Enunciado: Cuando el analista envía un alta con monto anual estimado mayor al umbral, el sistema debe dejarla Pendiente de aprobación.
+  - Delta: ADDED
+  - Superficie: Aprobación por monto
+```
+
 ## Deepening Cycle After `/gaps`
 
 The lexical checklist behind `/gaps` is the floor, not the ceiling. Once `gaps.md` exists, chain the agentic deepening passes — each has its own skill with the full contract:
