@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-11-24
+
 ### Added
 
 - **The agent works alone (IMP-408, H27 inc 2).** `Opción:` field in the answers (`Option:` in English); `Redactado por:` and who decides in the report (`owners`); the skill of the next step in `/next`, `/status`, `/ingest --change`, `/resolve-gaps --change` and in the `next step:` line; real formats in the skills, tested against the parsers; entry skill in `sentinel-intake-triage`; flow × step matrix (`user_guide/22-flow-step-matrix.md`); `tools/trial_audit.py`.
