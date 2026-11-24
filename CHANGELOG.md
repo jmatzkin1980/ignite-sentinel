@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-11-24
+
 ### Added
 
 - **The BA delegates and reviews (IMP-412, H27 inc 4).** `/assume --change` and `--id --validate|--invalidate --reason`; the answer `Estado de decisión: supuesto` with `Valida:` (`gap_counts["assumed"]`); `--delegated`/`--note` in `/extract` and `Confirmado por:` in the answers; `Tipo: aplica|extension` and `Decisión:` in the proposals; `a_confirmar` marks; `GAP-CHQ-*` questions when two decisions clash; `/export --artifact borde|decisiones --change`, `--format faq --change` and `/view --change` of those views; `/sources --change --keep-single --reason`.
