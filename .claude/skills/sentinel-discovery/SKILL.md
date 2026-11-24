@@ -98,6 +98,14 @@ The verification result (`/extract --verify-result`): one line per sampled eleme
 - SEC-proceso.p2: difiere — falta el plazo de 3 días hábiles
 ```
 
+The same in English (`same` / `differs`):
+
+```sentinel-example kind=verify-result lang=en
+## Results
+- RN-02: same
+- SEC-proceso.p2: differs — the 3 business day deadline is missing
+```
+
 A cross-read claims file (`/cross --claims`), one claim per tag; the quotes are `Pedido` (the request) and `Diseño` (the prototype):
 
 ```sentinel-example kind=cross-claims lang=es
@@ -111,6 +119,35 @@ A cross-read claims file (`/cross --claims`), one claim per tag; the quotes are 
 - [DIVERGENCIA] El pedido pide dos firmas y el prototipo muestra una sola.
   - Pedido: F-01 "la aprobación necesita dos firmas del área"
   - Diseño: F-03 "Firma de aprobación"
+```
+
+A claims file for the cross-read of the request against itself (`--kind contradicciones`): two `Pedido` quotes, no `Diseño`:
+
+```sentinel-example kind=cross-claims lang=es
+- [CONTRADICCIÓN] El pedido fija dos umbrales de aprobación distintos para la misma alta.
+  - Pedido: F-01 "requiere aprobación de la jefa de Compras"
+  - Pedido: F-01 "las altas hasta 5.000.000 no requieren aprobación"
+```
+
+The same in English (the labels are `Request:` and `Design:`; the tags `BACKED`, `NOT IN DESIGN`, `ONLY IN DESIGN`, `DIVERGENCE`, `CONTRADICTION`, `NOTHING FOUND`):
+
+```sentinel-example kind=cross-claims lang=en
+- [BACKED] The registration asks for tax data and the prototype has it.
+  - Request: F-01 "el alta de proveedores pide datos fiscales y bancarios"
+  - Design: F-03 "Datos fiscales"
+- [NOT IN DESIGN] The request asks for approval by amount and the prototype has no screen for it.
+  - Request: F-01 "requiere aprobación de la jefa de Compras"
+- [ONLY IN DESIGN] The prototype shows a save-draft button that the request does not mention.
+  - Design: F-03 "Guardar borrador"
+- [DIVERGENCE] The request asks for two signatures and the prototype shows one.
+  - Request: F-01 "la aprobación necesita dos firmas del área"
+  - Design: F-03 "Firma de aprobación"
+```
+
+```sentinel-example kind=cross-claims lang=en
+- [CONTRADICTION] The request sets two different approval thresholds for the same registration.
+  - Request: F-01 "requiere aprobación de la jefa de Compras"
+  - Request: F-01 "las altas hasta 5.000.000 no requieren aprobación"
 ```
 
 What you write when you read both sides and found nothing (it stands alone in the file):

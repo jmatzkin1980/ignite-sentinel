@@ -101,7 +101,7 @@ When a command leaves the user a decision or a next step, end with one short que
 - Each option says what happens: the command it runs, or the file the user has to fill in. The user can always answer in their own words or call a skill instead.
 - A gate refusal already names its prerequisite: offer that step as the first option.
 - Options never decide for the user. Picking one never closes a gap, confirms a brief setting or signs a `/split` step: those still need the user's own answers and names.
-- Build the options from `next_action` of the last result: its command first, and its `skill` (load that skill before writing the file the command reads). Never offer a step the runtime did not name, such as reopening the scope when `/cross --accept-new` adds a surface.
+- Build the options from `next_action` (`/status`), `next_step` (`/ingest --change`, `/resolve-gaps --change`) or the `/next` result itself: its command first, and its `skill` (load that skill before writing the file the command reads). Never offer a step the runtime did not name, such as reopening the scope when `/cross --accept-new` adds a surface.
 - Ask nothing when nothing is pending.
 
 ## Routing

@@ -37,7 +37,11 @@ Use this when someone hands over documents and asks where to start ("tengo estos
    - **Madurez de lo hecho fuera**: nada / decisiones sueltas / análisis completos.
 3. **Pick the path.** **proyecto**: nothing built and a single release. **cambio**: something is built and the request modifies it ("el brief del release 2" over a built release 1 is a change). **serie**: nothing built and the request already splits into releases: a project, and `/split --assess` after the brief.
 4. **Give the exact first commands, with the role of each document.** Change: `/init P`, `/ingest P --source PEDIDO --change`, `/sources P --load DOC --role linea_de_base --change CHG-001` (and `plan_previo`, `diseno_nuevo` the same way), `/harvest P --source HARVEST.md --change CHG-001` when the code is accessible. Project or series: `/init P`, `/ingest P --source PEDIDO`, `/sync P --source DOC` for each further one.
-5. **Say which steps will be verification-only** because what arrives is mature: a mature brief is extracted and confirmed with a citation (not rewritten); a cross done by hand is registered with `/cross --claims` with its verbatim citations (not redone); structured answers are transcribed into the `sentinel-gap-response` format with `Owner / fuente` = whoever decided.
+   - **Several versions of the request**: load each with `/sources P --load DOC --role pedido --change CHG-001` and ask the BA which one governs (`/sources P --id F-NN --superseded-by F-MM` once they decide).
+   - **No design**: say that the design cross-read does not apply; do not ask for a prototype.
+   - **Design that is not text** (Figma, images, a JS app): ask for an HTML or text export, or record it as a pending item; it cannot be loaded as is.
+   - **Documentary baseline** (a survey, a wiki, no code): load it as `linea_de_base` and say that the harvest of the code is pending.
+5. **Say which steps will be verification-only** because what arrives is mature: a mature brief is extracted and confirmed with a citation (not rewritten); a cross done by hand is registered with `/cross --claims` with its verbatim citations (not redone). Both are change path only today (`/extract` and `/cross` require `--change`): for a project or series the brief is ingested and answered with the normal rounds; structured answers are transcribed into the `sentinel-gap-response` format with `Owner / fuente` = whoever decided.
 6. **Present a table** `documento → dimensión y valor → rol → comando` and the recommendation. The BA confirms before anything runs.
 
 ## Output

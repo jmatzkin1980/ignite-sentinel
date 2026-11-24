@@ -18,6 +18,16 @@ Use this skill when new information may mutate existing requirements, specs, bac
 
 The Sentinel command protocol records each sync in `workspaces/PROJECT_ID/06_traceability/command_protocol_log.md` and refreshes trace views after mutation.
 
+## Loading a document by role (`/sources --load`)
+
+`python -m sentinel /sources PROJECT_ID --load PATH --role ROLE [--change CHG-NNN]` registers a document with the role it plays; the next-step line of `/next` points here for `baseline`, `extract_unreadable` and `preserved_source`.
+
+- Roles: `pedido` (the request, needs `--change`), `linea_de_base` (the built system: the SAD, the survey, "lo construido": `--load SAD.md --role linea_de_base --change CHG-001`), `diseno_nuevo` (the prototype or design of what is new) and `plan_previo` (the brief or plan of the previous release). If you are not sure which one a document is, ask the BA before loading.
+- A file already inside a `00_raw/` context folder is registered in place; the harvest folder and Sentinel's own outputs are refused. The same content reuses its F-NN, and a different declared role is refused: correct it with `/sources PROJECT_ID --id F-NN --role ROLE`.
+- Only a `linea_de_base` source closes a gap `by_baseline`; the harvest has no role (it is Sentinel's reading, never a source).
+- `/status --change` shows the sources by role and `/next --change` asks for the baseline before the lenses. A system with nothing built is waived with `/sources PROJECT_ID --change CHG-NNN --no-baseline --reason TEXT` (the reason is the BA's).
+- If the request cites another version of a loaded document, a blocking `GAP-VER-*` opens in the change: report it and ask the BA which version governs.
+
 ## Interaction digest (opt-in sub-mode)
 
 Unstructured interactions — meeting transcripts, mail threads, Slack — carry answers, decisions and contradictions buried in prose. `/sync PROJECT_ID --source PATH --digest` runs an **analysis layer on top of the normal sync**: it reads the change text and extracts, each quoted verbatim with a `source:line` citation, four classes of signal:

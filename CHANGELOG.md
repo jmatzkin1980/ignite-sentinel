@@ -12,7 +12,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Changed
 
-- A confirmed answer that names several options does not close (T2-09); the request of `/ingest --change` is stored in `00_raw/09_request/` (T2-02); the findings of `/resolve-gaps --change` come out in the language of the change.
+- A confirmed answer that names several options, in its text or in the `Opción:` field (`A y B`), does not close (T2-09); a project gap whose question carries `(A)`/`(B)` marks now shows `_(option X)_` in its resolution row and stores `option` (project path, additive); the request of `/ingest --change` is stored in `00_raw/09_request/` (T2-02); the findings of `/resolve-gaps --change` come out in the language of the change.
 
 ### Fixed
 

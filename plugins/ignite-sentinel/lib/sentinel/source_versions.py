@@ -175,11 +175,11 @@ def check_change_versions(project_id: str, change_id: str, write: bool = True) -
                 by_family = next((r for r in loaded if any(version_key(n) == version_key(cited) for n in _basenames(r))), None)
             report = {"cited": cited, "sha": sha, "line": ref["line"]}
             row = by_name or by_family
+            mine = next((p for n, p in own if version_key(n) == version_key(cited)), None) if own_family else None
             if own_family and row is None:  # an earlier version of the request itself
-                mine = next(p for n, p in own if version_key(n) == version_key(cited))
                 result["self_version"].append({"cited": cited, "line": ref["line"], "pedido": own_label[id(mine)]})
                 continue
-            own_name = own_label[id(next(p for n, p in own if version_key(n) == version_key(cited)))]                 if own_family and by_name is None else None
+            own_name = own_label[id(mine)] if mine is not None and by_name is None else None
             if cited is None:  # a bare sha: it must prefix some loaded hash
                 hit = next((r for r in loaded if sha and _sha_matches(r, sha)), None)
                 result["matched" if hit else "not_loaded"].append({**report, "source_id": hit["id"]} if hit else report)

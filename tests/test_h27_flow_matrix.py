@@ -30,6 +30,11 @@ def _sections() -> dict[str, list[list[str]]]:
     return sections
 
 
+def _verb(command: str) -> str:
+    found = re.search(r"/([a-z][a-z-]*)", command)
+    return found.group(1) if found else ""
+
+
 def _keyed(section: str) -> dict[str, list[str]]:
     rows = {}
     for cells in _sections()[section]:
@@ -45,7 +50,9 @@ class FlowMatrixTest(unittest.TestCase):
         self.assertEqual(set(rows), set(NEXT_STEPS))
         for key, cells in rows.items():
             with self.subTest(step=key):
-                self.assertIn(skill_for_command(NEXT_STEPS[key][2]), cells[2])
+                command = NEXT_STEPS[key][2]
+                self.assertEqual(cells[2], skill_for_command(command) or "—")
+                self.assertEqual(_verb(cells[1]), _verb(command))
                 self.assertTrue(cells[3] and cells[4])
 
     def test_every_change_step_has_a_row_and_an_equivalent(self):
@@ -55,7 +62,9 @@ class FlowMatrixTest(unittest.TestCase):
             with self.subTest(step=key):
                 command = CHANGE_COMMANDS[key].replace("{cross_command}", "/cross")
                 expected = skill_for_command(command) if command else "—"
-                self.assertIn(expected or "—", cells[2])
+                self.assertEqual(cells[2], expected or "—")
+                if command:
+                    self.assertEqual(_verb(cells[1]), _verb(command))
                 self.assertTrue(cells[3] and cells[4])
                 equivalent = cells[5]
                 found = re.match(r"^`(\w+)`", equivalent)

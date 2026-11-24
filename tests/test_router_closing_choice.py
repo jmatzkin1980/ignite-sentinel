@@ -32,7 +32,7 @@ class RouterClosingChoiceTest(unittest.TestCase):
         self.assertIn("armá el brief del release 2 con todo esto", description)
         self.assertIn("sentinel-intake-triage", description)
         self.assertIn("use `sentinel-intake-triage` (entry check)", text)
-        self.assertIn("Build the options from `next_action`", text)
+        self.assertIn("Build the options from `next_action` (`/status`), `next_step`", text)
         self.assertIn(".claude/launch.json", text)
 
 

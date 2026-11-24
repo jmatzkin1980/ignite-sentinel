@@ -182,7 +182,10 @@ class SkillFormatTests(unittest.TestCase):
         for lang, body in found:
             check_cross(body, lang)
         tags = {claim["tag"] for lang, body in found for claim in parse_claims(body, lang)[0]}
-        self.assertEqual({"respaldado", "sin_respaldo", "solo_en_diseno", "divergencia", "sin_hallazgos"}, tags)
+        self.assertEqual(
+            {"respaldado", "sin_respaldo", "solo_en_diseno", "divergencia", "contradiccion", "sin_hallazgos"}, tags
+        )
+        self.assertEqual({"es", "en"}, {lang for lang, _ in found})
 
     def test_proposal_examples_parse(self):
         found = examples_of("extraction-proposals")
@@ -197,6 +200,12 @@ class SkillFormatTests(unittest.TestCase):
             check_verify(body)
         verdicts = {r["verdict"] for _, body in found for r in parse_verify_results(body)[0].values()}
         self.assertEqual({"igual", "difiere"}, verdicts)
+
+    def test_sync_skill_teaches_loading_by_role(self):
+        text = skill_text("sentinel-sync")
+        self.assertRegex(text, r"(?m)^## Loading a document by role")
+        for needle in ("--role linea_de_base", "`diseno_nuevo`", "`plan_previo`", "`pedido`", "--id F-NN --role", "--no-baseline", "GAP-VER"):
+            self.assertIn(needle, text)
 
     def test_a_stale_example_fails(self):
         lang, body = next((lang, body) for lang, body in examples_of("gap-response") if lang == "es")
