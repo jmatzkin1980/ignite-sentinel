@@ -15,6 +15,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ### Changed
 
+- A question is `PRE_DECIDED` only when the earlier decision covers it (same quoted statement, or same rule/criterion/story, never a mere shared line); `critical` ones keep blocking; `--accept-prior` only on those direct links, with the live answer and the option; a reopened or re-answered earlier decision updates its dependents (`prior_reopened`, `prior_changed`); a `PRE_DECIDED` section sent back untouched stays pending; `/status`, `/next` and the verdict no longer render the lens view of the change when its inputs did not move; the decision documents take the lens of the question as their memory domain.
 - `/self-review` without `--source` answers with an input error (exit 3); the change verdict adds the `coherence` gate; a workspace with its cross-reads done goes back to the `coherence` step before the extraction.
 - A confirmed answer that names several options, in its text or in the `Opción:` field (`A y B`), does not close (T2-09); a project gap whose question carries `(A)`/`(B)` marks now shows `_(option X)_` in its resolution row and stores `option` (project path, additive); the request of `/ingest --change` is stored in `00_raw/09_request/` (T2-02); the findings of `/resolve-gaps --change` come out in the language of the change.
 

@@ -52,7 +52,7 @@ For the gaps of a change, a question that an earlier decision of the same change
 - **Change it**: answer it in `/resolve-gaps` with the new answer. The earlier decision is overridden and the result says so (`prior_overridden`).
 - **Reject it**: answer it with `Estado de decisión: pendiente` (`Decision status: pending`): the earlier decision is not taken, the question stops being `PRE_DECIDED` and counts as an open question again, with the usual rules of a pending answer.
 
-A memory suggestion (the answer only looks like an earlier one) or a request already made to Design (`PD-nn`) is never confirmed on its own: it is shown as a suggestion on the question, and the BA still answers. Do not copy an earlier answer into a response yourself; transcribe what the BA confirms.
+A question is `PRE_DECIDED` only when the earlier decision covers it (the same quoted statement, or the same rule, criterion or story of the request); a `critical` one keeps blocking with the earlier answer only prefilled. `--accept-prior` works only on those. A memory suggestion (the answer only looks like an earlier one) or a request already made to Design (`PD-nn`) is never confirmed on its own, and `--accept-prior` refuses it: it is shown as a suggestion on the question, and the BA still answers in a response file. If the earlier decision is reopened, its `PRE_DECIDED` questions go back to `OPEN`; if it is answered differently they are refreshed (`prior_changed`). A `PRE_DECIDED` section sent back untouched stays pending: it asks for `Estado de decisión: confirmado` or `--accept-prior`. Do not copy an earlier answer into a response yourself; transcribe what the BA confirms.
 
 ## Formato
 

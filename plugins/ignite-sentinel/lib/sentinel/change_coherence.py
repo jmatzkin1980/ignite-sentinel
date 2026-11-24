@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,55 @@ def coherence_view(project_id: str, change_id: str) -> dict[str, Any]:
     return {"text": text, "fingerprint": hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16], "unplaced": unplaced}
 
 
+_FINGERPRINTS: dict[tuple[str, str], tuple[str, str]] = {}
+
+
+def _inputs_stamp(project_id: str, change_id: str) -> str:
+    """A cheap stamp of everything the lens view reads (sources, discovery files, workspace state), without reading it."""
+    from .core.paths import state_path
+
+    base = workspace_path(project_id)
+    skip = coherence_dir(base, change_id)
+    items: list[tuple[str, int, int]] = []
+    for root in (base / "00_raw", base / "01_discovery"):
+        for folder, dirs, files in os.walk(root):
+            if Path(folder) == skip:
+                dirs[:] = []
+                continue
+            for name in files:
+                try:
+                    info = os.stat(os.path.join(folder, name))
+                except OSError:
+                    continue
+                items.append((os.path.join(folder, name), info.st_size, info.st_mtime_ns))
+    try:
+        info = os.stat(state_path(project_id))
+        items.append(("state", info.st_size, info.st_mtime_ns))
+    except OSError:
+        pass
+    return hashlib.sha256(json.dumps(sorted(items)).encode("utf-8")).hexdigest()
+
+
+def view_fingerprint(project_id: str, change_id: str) -> str:
+    """The fingerprint of the lens view; the view is rendered again only when the stamp of its inputs moved (IMP-410 I3)."""
+    base = workspace_path(project_id)
+    folder = coherence_dir(base, change_id)
+    stamp = _inputs_stamp(project_id, change_id)
+    key = (str(base), change_id)
+    cached = _FINGERPRINTS.get(key)
+    if cached and cached[0] == stamp:
+        return cached[1]
+    stored = read_json(folder / "fingerprint.json", {})
+    if isinstance(stored, dict) and stored.get("stamp") == stamp and stored.get("fingerprint"):
+        fingerprint = str(stored["fingerprint"])
+    else:
+        fingerprint = coherence_view(project_id, change_id)["fingerprint"]
+        if folder.is_dir():
+            write_json(folder / "fingerprint.json", {"stamp": stamp, "fingerprint": fingerprint})
+    _FINGERPRINTS[key] = (stamp, fingerprint)
+    return fingerprint
+
+
 def _checks_file(base: Path, change_id: str) -> dict[str, Any]:
     found = read_json(coherence_dir(base, change_id) / "checks.json", {})
     return found if isinstance(found, dict) else {}
@@ -65,15 +115,17 @@ def refresh_coherence(project_id: str, change_id: str) -> dict[str, Any] | None:
         return None
     base = workspace_path(project_id)
     folder = coherence_dir(base, change_id)
-    view = coherence_view(project_id, change_id)
     recorded = _checks_file(base, change_id)
-    if recorded.get("fingerprint") != view["fingerprint"] or not (folder / "view.md").is_file():
+    fingerprint = view_fingerprint(project_id, change_id)
+    if recorded.get("fingerprint") != fingerprint or not (folder / "view.md").is_file():
+        view = coherence_view(project_id, change_id)
+        fingerprint = view["fingerprint"]
         checks = run_cross_checks(view["text"], only=CHANGE_CROSS_CHECKS)
         write_text(folder / "view.md", view["text"])
         write_json(folder / "checks.json", {"fingerprint": view["fingerprint"], "checks": checks,
                                             "unplaced": view["unplaced"]})
         recorded = _checks_file(base, change_id)
-    return {"view_path": (folder / "view.md").as_posix(), "fingerprint": view["fingerprint"],
+    return {"view_path": (folder / "view.md").as_posix(), "fingerprint": fingerprint,
             "checks": recorded.get("checks", []), "unplaced": recorded.get("unplaced", [])}
 
 
@@ -81,10 +133,14 @@ def coherence_state(project_id: str, change_id: str) -> dict[str, Any]:
     """missing (nothing recorded), stale (the change moved after it), done or waived."""
     base = workspace_path(project_id)
     folder = coherence_dir(base, change_id)
-    current = coherence_view(project_id, change_id)["fingerprint"]
-    checks_file = _checks_file(base, change_id)
     record = read_json(folder / "coherence.json", None)
     record = record if isinstance(record, dict) else None
+    if record is None and not coherence_ready(project_id, change_id):
+        # nothing recorded and not ready to read: nothing to render
+        return {"state": "missing", "view_current": False, "fingerprint": "", "recorded_fingerprint": "",
+                "checks": {"pass": 0, "warn": 0, "skip": 0, "issues": []}}
+    current = view_fingerprint(project_id, change_id)
+    checks_file = _checks_file(base, change_id)
     recorded = str((record or {}).get("fingerprint") or "")
     if record is None:
         state = "missing"

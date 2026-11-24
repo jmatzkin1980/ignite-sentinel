@@ -15,6 +15,7 @@ from .memory import ContextBroker
 DECISION_TYPES = ("change_decision", "change_border", "change_cross", "change_cross_report", "change_coherence")
 _FNN = re.compile(r"\bF-\d+\b")
 _NA = {"", "n/a", "na", "-"}
+_LENS_DOMAINS = ("business", "product", "design", "technical")
 
 
 def decision_id(change_id: str, item_id: str) -> str:
@@ -231,19 +232,20 @@ def _index_change(project_id: str, change_id: str, broker: ContextBroker, full: 
     skipped: list[str] = []
     wanted: set[str] = set()
 
-    def put(item_id: str, kind: str, source: Path, text: str, trace: list[str]) -> None:
+    def put(item_id: str, kind: str, source: Path, text: str, trace: list[str], domain: str = "product") -> None:
         artifact_id = decision_id(change_id, item_id)
         wanted.add(artifact_id)
         trace_ids = list(dict.fromkeys([change_id, *trace]))
         title = text.splitlines()[0].lstrip("# ").strip() if text else artifact_id
         done = broker.index_artifact(
-            artifact_id, kind, source, text, domain="product", trace_ids=trace_ids, title=title,
+            artifact_id, kind, source, text, domain=domain, trace_ids=trace_ids, title=title,
             metadata={"language": language, "change_id": change_id}, skip_unchanged=not full)
         (indexed if done else skipped).append(artifact_id)
 
     for item in closed_decisions(project_id, change_id):
         put(item["id"], "change_decision", gaps_path, render_decision(item, change_id, language),
-            [item["id"], *item["sources"], *item["elements"]])
+            [item["id"], *item["sources"], *item["elements"]],
+            domain=item["lens"] if item["lens"] in _LENS_DOMAINS else "product")
     if change.get("border"):
         put("BORDER", "change_border", gaps_path, _border_text(change, change_id, language), ["GAP-SCOPE"])
     for kind in CROSS_KINDS:
