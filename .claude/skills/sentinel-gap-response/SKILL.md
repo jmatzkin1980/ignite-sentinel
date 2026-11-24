@@ -44,6 +44,16 @@ GAP-SCOPE closes with a `Borde:` block: one line per surface, `zone | type | nam
 
 One bad line rejects the whole file and nothing is written: fix the line and run again. A valid border is confirmed and opens the lens round, scoped by the surface types: with no `pantalla` in the border there are no design or frontend checks. Do not invent border lines the client did not give.
 
+## Already decided (IMP-410)
+
+For the gaps of a change, a question that an earlier decision of the same change already answers is not asked again: it is born `PRE_DECIDED`, with the earlier answer loaded and the gap it comes from named in its resolution note. It does not block. The BA decides what to do with it:
+
+- **Confirm it**: `python -m sentinel /gaps PROJECT_ID --change CHG-001 --id GAP-X --accept-prior`, or answer it in a response file with `Estado de decisión: confirmado` (`Decision status: confirmed`) and the same answer.
+- **Change it**: answer it in `/resolve-gaps` with the new answer. The earlier decision is overridden and the result says so (`prior_overridden`).
+- **Reject it**: answer it with `Estado de decisión: pendiente` (`Decision status: pending`): the earlier decision is not taken, the question stops being `PRE_DECIDED` and counts as an open question again, with the usual rules of a pending answer.
+
+A memory suggestion (the answer only looks like an earlier one) or a request already made to Design (`PD-nn`) is never confirmed on its own: it is shown as a suggestion on the question, and the BA still answers. Do not copy an earlier answer into a response yourself; transcribe what the BA confirms.
+
 ## Formato
 
 Every block below is parsed by the real `/resolve-gaps` parser in the test suite, so what you copy is what closes. Labels follow the language of the workspace: the Spanish example is for a change, the English one for a project.

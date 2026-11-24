@@ -109,6 +109,7 @@ When a command leaves the user a decision or a next step, end with one short que
 
 - Documents in hand and no command ("¿por dónde arranco?", "armá el brief del release 2 con todo esto"): use `sentinel-intake-triage` (entry check) before running anything.
 - `/init`, `/ingest`, `/gaps`: use `sentinel-discovery` guidance after execution.
+- `/gaps --change --id --accept-prior`: use `sentinel-gap-response` (Already decided): it confirms a `PRE_DECIDED` question only when the BA says so; a memory suggestion or a request to Design is never confirmed on its own.
 - `/annotate`: use `sentinel-annotate` to author the analysis JSON before executing.
 - `/challenge`: use `sentinel-challenge` to author the findings JSON before executing.
 - `/scrutinize` (every mode): use `sentinel-scrutiny` to author the findings JSON before executing.

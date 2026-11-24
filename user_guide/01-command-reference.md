@@ -728,6 +728,8 @@ A gap closes when the answer is substantive and the decision status is confirmed
 
 **Option and who drafted.** When the question offers lettered options `(A) ... (B) ...`, the answer names the one chosen in its own field: `- Opción: B` (`Option: B` in English files; the field wins over anything in the answer text). A confirmed answer that names two or more options in its text and has no `Opción` field does not close: it stays `ANSWERED` with a finding asking for the field. An `Opción` that is not one of the question's letters is refused with the same finding; on a question with no options the field is ignored, with a finding. `- Redactado por: <who wrote the text>` (`Drafted by`) records who drafted the answer when it is not who decides: the person in `Owner / source` decides, and an agent or inference token in that field is not a decision. When `Redactado por:` is present and the confirmed answer closes with no named person in `Owner / source`, it is recorded as `BA (sin nombre)` (`BA (unnamed)`) and the report lists a finding; without `Redactado por:` nothing changes. A field that sits under the decision status (a `Borde:` block that landed there, say) is named in the finding instead of being lost. An `Opción` that names several letters (`A y B`) is refused like several markers in the text. A file that declares itself not validated names the line and the word that made it so, and its confirmed answers stay `ANSWERED`.
 
+**Already decided (IMP-410).** With `--change`, a question that an earlier decision of the same change already answers is born `PRE_DECIDED` and does not block. Answering it here closes it; if the answer differs from the earlier decision, the result lists it under `prior_overridden`. `pre_decided` lists the questions still waiting for a confirmation. `/gaps --accept-prior` confirms one with the earlier decision.
+
 **Reads.** The response file and `01_discovery/gaps.md`.
 
 **Writes.** `01_discovery/gaps.md`, a copy (secrets redacted, as in `/ingest`) and a resolution report under `07_changes/00_client_responses/`, `01_discovery/gap_resolution_log.md`, `knowledge_state.*`, `development_readiness.json`, seeds and decisions, EARS rows in `02_requirements/requirements.md`. In a v2 project it recompiles the brief.
@@ -930,7 +932,7 @@ Pass one validity change at a time. The newest source never wins by default: an 
 | `--query` | text | none | What to look for. Required unless `--timeline`. |
 | `--workflow` | free text (for example `maturity`, `sync`, `specs`) | none | The task the context is for; also names the pack. Required unless `--timeline`. |
 | `--limit` | integer | `5` | Maximum results. |
-| `--artifact-type` | text | none | Only this artifact type. |
+| `--artifact-type` | text | none | Only this artifact type. The decisions of a change are indexed as `change_decision`, `change_border`, `change_cross`, `change_cross_report` and `change_coherence` (with `--trace-id CHG-nnn` or a gap id). |
 | `--domain` | text | none | Only this domain. |
 | `--trace-id` | an id | none | Only chunks linked to this id. |
 | `--iteration-min` | integer | `1` | Only chunks from this iteration on. |
@@ -1198,7 +1200,7 @@ The modes are mutually exclusive; giving none or two is exit 2.
 
 - Default: reviews the generated PRD and specs for implicit decisions, costly reversibility and hidden assumptions; records gaps and `DEC-*` decisions.
 - `--sufficiency`: a clean-context reader checks that the brief v2 alone is enough to start building; obstacles open `GAP-SUF-*` gaps.
-- `--crosses`: reports where the lenses of the brief v2 disagree; crosses open `GAP-XRV-*` gaps.
+- `--crosses`: reports where the lenses of the brief v2 disagree; crosses open `GAP-XRV-*` gaps. With `--change CHG-nnn` it does the same over the lens view of a change, before its extraction (IMP-410).
 
 **Type.** Mutating.
 
@@ -1210,6 +1212,8 @@ The modes are mutually exclusive; giving none or two is exit 2.
 /self-review ACME_PORTAL --source self-review.json
 /self-review ACME_PORTAL --sufficiency --source round1.json
 /self-review ACME_PORTAL --crosses --source crosses.json
+/self-review ACME_PORTAL --crosses --change CHG-001 --source crosses.json
+/self-review ACME_PORTAL --crosses --change CHG-001 --skip --reason "nothing to cross in this change"
 ```
 
 **Options.**
@@ -1217,15 +1221,18 @@ The modes are mutually exclusive; giving none or two is exit 2.
 | Flag | Values | Default | Meaning |
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
-| `--source` | a JSON file | required | The findings, written with the `sentinel-self-review` skill. In the default mode it needs a non-empty `gaps` array; `decisions` are optional and go alongside the gaps, never alone. |
+| `--source` | a JSON file | required, except with `--crosses --change` | The findings, written with the `sentinel-self-review` skill. In the default mode it needs a non-empty `gaps` array; `decisions` are optional and go alongside the gaps, never alone. With neither `--source` nor `--change` the command exits 3. |
 | `--sufficiency` | flag | off | Sufficiency mode (`{"round": N, "obstacles": [...]}`). |
 | `--crosses` | flag | off | Semantic crosses mode. Wins if both flags are given. |
+| `--change` | `CHG-nnn` | none | With `--crosses` (IMP-410): the crosses of that change. The runtime writes the lens view (`01_discovery/CHG-nnn/coherence/view.md`: the request, the border, the decided surfaces and the harvest, placed at the places of a brief v2) and the deterministic IMP-260 checks (`checks.json`); the agent reads the view and reports the crosses. It is ready once the cross-reads and new surfaces of the change are decided. Without `--source` or `--skip` it only refreshes the view and reports the checks. Recording is all or nothing: one rejected cross rejects the whole file and writes nothing. `{"crosses": []}` records a reading that found nothing. Accepted crosses open `GAP-XRV-*` questions; one an earlier decision of the change already answers is born `PRE_DECIDED`. |
+| `--skip` | flag | off | With `--crosses --change`: waive the coherence of the change. Needs `--reason`. |
+| `--reason` | text | none | The why of `--skip`; without it there is no waiver (exit 3). |
 
 **Reads.** The JSON; the PRD and specs (default) or the brief v2 (other modes).
 
-**Writes.** Default: `03_specs/self_review/` (copy, `self_review_report.md`, `decision_register.md`) and `01_discovery/gaps.md` when gaps are accepted. `--sufficiency`: gaps and `01_discovery/sufficiency_log.md`. `--crosses`: gaps and `01_discovery/cross_review_log.md`.
+**Writes.** Default: `03_specs/self_review/` (copy, `self_review_report.md`, `decision_register.md`) and `01_discovery/gaps.md` when gaps are accepted. `--sufficiency`: gaps and `01_discovery/sufficiency_log.md`. `--crosses`: gaps and `01_discovery/cross_review_log.md`. `--crosses --change`: `01_discovery/CHG-nnn/coherence/` (`view.md`, `checks.json`, `coherence.json`, `coherence.md` and the submitted copy) and the change's `gaps.md`. A change that moves after the reading makes it stale, and `/next --change` asks for it again.
 
-**Refuses when.** Default mode before `/specs` or before `/ingest` → exit 4. `--sufficiency` or `--crosses` without a compiled brief → exit 4. A refused payload → exit 3.
+**Refuses when.** Default mode before `/specs` or before `/ingest` → exit 4. `--sufficiency` or `--crosses` without a compiled brief → exit 4; `--crosses --change` before the cross-reads and new surfaces of the change are decided → exit 4. A refused payload, a missing `--source`, or `--skip` with no `--reason` → exit 3.
 
 **You get.** The accepted gaps and decisions, or the obstacles with their reasons.
 
@@ -1379,7 +1386,7 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 
 **New surfaces.** The `NO ENCONTRADO` claims of the change's harvest are candidates for new surfaces (zone `nuevo`). `--accept-new` takes one into the border, with a type and a name the BA chooses; `--decline-new` rules it out with a reason (declining one that was accepted takes it out of the border again, and with it the questions only its type raised). `/next --change` asks for those decisions before the request is inventoried.
 
-**You get.** `action` (`claims`, `skip`, `accept_new`, `decline_new` or `status`), `crosses` (the state of the three cross-reads), `new_surface_candidates`, `next_step` and a one-line `message`. Recording also lists the `counts` per tag, the questions opened (`gaps`, `gaps_opened`) and the ones a re-recording dropped.
+**You get.** `action` (`claims`, `skip`, `accept_new`, `decline_new` or `status`), `crosses` (the state of the three cross-reads), `new_surface_candidates`, `next_step` and a one-line `message`. Recording also lists the `counts` per tag, the questions opened (`gaps`, `gaps_opened`) and the ones a re-recording dropped. IMP-410: `pre_decided` lists the questions that were born `PRE_DECIDED` because an earlier decision of the change already answers them, and `design_requests` the divergences the request already registered as a request to Design (`PD-nn`), which the question names.
 
 **Reads.** The request and the design (roles `pedido` and `diseno_nuevo`), the harvest of the change and its border.
 
