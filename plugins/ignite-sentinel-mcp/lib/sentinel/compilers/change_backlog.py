@@ -32,9 +32,9 @@ TEXT = {
         "stale_specs": "La especificación de {cid} no está al día con sus filas REQ-EARS (cambiaron desde /specs --change)",
         "old_specs": "La especificación de {cid} fue escrita por una versión anterior: volvé a correr /specs --change",
         "no_seeds": "--with-task-seeds no aplica a /backlog --change: las historias del cambio no llevan semillas de tareas",
-        "epic_outcome": "Entregar el cambio {cid} sobre lo existente: una historia por unidad, con el comportamiento preservado como criterios pass-to-pass.",
+        "epic_outcome": "Entregar el cambio {cid} sobre lo existente en cortes verticales por funcionalidad (modelo de slicing de Ignite), con el comportamiento preservado como criterios pass-to-pass.",
         "stories": "## Historias",
-        "header": ["Historia", "Delta", "Unidad", "Título"],
+        "header": ["Historia", "Delta", "Funcionalidad", "Unidades", "Título"],
         "preserved": "## Comportamiento preservado",
         "no_preserved": "_Sin filas UNCHANGED._",
         "next": "Revisá el tablero {board} y las historias de {cid} en {epic}.",
@@ -49,9 +49,9 @@ TEXT = {
         "stale_specs": "The specification of {cid} is not current with its REQ-EARS rows (they changed since /specs --change)",
         "old_specs": "The specification of {cid} was written by an older version: rerun /specs --change",
         "no_seeds": "--with-task-seeds does not apply to /backlog --change: the change's stories carry no task seeds",
-        "epic_outcome": "Deliver the change {cid} on the existing system: one story per unit, with the preserved behavior as pass-to-pass criteria.",
+        "epic_outcome": "Deliver the change {cid} on the existing system in vertical slices by functionality (Ignite slicing model), with the preserved behavior as pass-to-pass criteria.",
         "stories": "## Stories",
-        "header": ["Story", "Delta", "Unit", "Title"],
+        "header": ["Story", "Delta", "Functionality", "Units", "Title"],
         "preserved": "## Preserved behavior",
         "no_preserved": "_No UNCHANGED rows._",
         "next": "Review the board {board} and the stories of {cid} in {epic}.",
@@ -115,18 +115,27 @@ def _change_story_ids(base: Path, change_id: str) -> list[str]:
     return found
 
 
+def _story_units(story: dict[str, Any]) -> list[str]:
+    """The spec units a story carries: `source_units`, or the lone `source_unit` of a story of 0.31."""
+    units = story.get("source_units")
+    if isinstance(units, list) and units:
+        return [str(u) for u in units]
+    return [str(story["source_unit"])] if story.get("source_unit") else []
+
+
 def _render_epic(project_id: str, change_id: str, title: str, stories: list[dict[str, Any]],
                  preserved: list[dict[str, str]], text: dict[str, Any], context_pack: str) -> str:
     header = text["header"]
     lines = ["| " + " | ".join(header) + " |", "| " + " | ".join("---" for _ in header) + " |"]
     lines += [
-        f"| `{s['id']}` | {s['delta']} | `{s['source_unit']}` | {table_cell(s['title'], 160)} |" for s in stories
+        f"| `{s['id']}` | {s['delta']} | `{s.get('fr', '')}` | {', '.join('`' + u + '`' for u in _story_units(s))} | {table_cell(s['title'], 160)} |"
+        for s in stories
     ]
     preserved_lines = (
         "\n".join(f"- `{row['id']}`: {table_cell(row['statement'], 220)}" for row in preserved)
         if preserved else text["no_preserved"]
     )
-    trace = [change_id, *[s["source_unit"] for s in stories]]
+    trace = [change_id, *dict.fromkeys(u for s in stories for u in _story_units(s))]
     return f"""---
 id: {epic_id_for(change_id)}
 project: {project_id}
@@ -226,7 +235,7 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     from ..backlog.status import lifecycle_for_story
 
     rows_by_id = {str(row["id"]): row for row in rows}
-    ears_of_unit = {unit["id"]: next((e for e in unit["ears"] if e in rows_by_id), "") for unit in units}
+    ears_of_unit = {unit["id"]: [e for e in unit["ears"] if e in rows_by_id] for unit in units}
     on_disk = {path.stem for path in (base / "04_backlog").glob("US-*.md")}
     to_stale: list[str] = []
     all_stale: list[str] = []
@@ -236,12 +245,16 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     dropped: list[str] = []
     dropped_units: list[str] = []
     for story in stories:
-        row = rows_by_id.get(ears_of_unit.get(str(story.get("source_unit", "")), ""))
-        delta = parse_delta(row["delta"]) if row else None
-        affected = list(row.get("affects") or []) if row and delta in ("MODIFIED", "REMOVED") else []
-        missing = [sid for sid in affected if sid not in on_disk]
-        warnings += [text["missing_affected"].format(sid=sid, cid=change_id, row=row["id"]) for sid in missing]
-        affected = [sid for sid in affected if sid in on_disk]
+        # IMP-416: a story is its units' rows; the slice has one delta, so `delta` is the story's.
+        story_rows = [rows_by_id[e] for uid in _story_units(story) for e in ears_of_unit.get(uid, [])]
+        delta = str(story["delta"]) if story.get("delta") else (parse_delta(story_rows[0]["delta"]) if story_rows else None)
+        affected: list[str] = []
+        if delta in ("MODIFIED", "REMOVED"):
+            for row in story_rows:
+                missing = [sid for sid in row.get("affects") or [] if sid not in on_disk]
+                warnings += [text["missing_affected"].format(sid=sid, cid=change_id, row=row["id"]) for sid in missing]
+                affected += [sid for sid in row.get("affects") or [] if sid in on_disk]
+        affected = list(dict.fromkeys(affected))
         statuses = {sid: lifecycle_for_story(project_id, sid)["status"] for sid in affected}
         modifies = [sid for sid, status in statuses.items() if status == "Done" or status in _IN_PROGRESS]
         to_stale += [sid for sid, status in statuses.items() if status in _NOT_IMPLEMENTED]
@@ -254,7 +267,7 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
             story["type"], story["modifica"] = "change_request", modifies
         elif delta == "REMOVED" and affected:
             dropped.append(story["id"])
-            dropped_units.append(str(story.get("source_unit", "")))
+            dropped_units.extend(_story_units(story))
             continue
         kept.append(story)
     stories[:] = kept
@@ -302,10 +315,13 @@ def compile_change_backlog(project_id: str, change_id: str, story_format: str | 
     if with_task_seeds:
         change = get_change(project_id, change_id)
         raise InputError(TEXT.get(change_language(project_id, change), TEXT["es"])["no_seeds"])
-    try:
-        return _compile_change_backlog(project_id, change_id, story_format)
-    finally:
-        _reindex_change_artifacts(project_id, change_id)
+    from ..memory import shared_brokers
+
+    with shared_brokers():  # IMP-345/416: one broker for the whole run, as /backlog does for the project
+        try:
+            return _compile_change_backlog(project_id, change_id, story_format)
+        finally:
+            _reindex_change_artifacts(project_id, change_id)
 
 
 def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
@@ -347,9 +363,11 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     from ..generation import build_backlog_generation_context, implementation_readiness_for_story
     from ..memory import memory_key, shared_broker
     from .backlog import render_story
-    from .slicing import build_backlog_story_specs
-
+    from ..slicing_model import load_slicing_model
     from .backlog import normalize_story_format
+    from .change_functionalities import change_functionalities, story_size
+    from .change_slices import plan_change_slices
+    from .slicing import build_slice_story_specs
 
     change, text, units = _gate(project_id, change_id)
     story_format = normalize_story_format(story_format or load_config(project_id).get("story_format"))
@@ -364,7 +382,12 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         unit["preserved"] = preserved
 
     ensure_story_ids_seeded(project_id, base)
-    ids = id_registry.assign_ids(project_id, "US", [unit["id"] for unit in units])
+    # IMP-416: functionalities -> slices -> one story per slice; the id key is the slice's, so a rerun keeps ids.
+    unit_of = {str(e): unit["id"] for unit in units for e in unit["ears"]}
+    slicing_model = load_slicing_model()
+    slices = plan_change_slices(change_id, units, change_functionalities(project_id, change_id, rows), unit_of,
+                                story_size(slicing_model), slicing_model)
+    ids = id_registry.assign_ids(project_id, "US", [item["key"] for item in slices])
 
     # A rerun must not retrieve what the previous run derived (the change's epic, stories and readiness pack):
     # drop those rows from memory so the same inputs give the same stories; they are indexed again at the end.
@@ -377,7 +400,9 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     })
     specs_text = (base / _specs_path(change_id)).read_text(encoding="utf-8")
     backlog_context = build_backlog_generation_context(project_id, specs_text, "")
-    stories = build_backlog_story_specs(project_id, backlog_context, language=language, units=units, ids=ids)
+    stories = build_slice_story_specs(project_id, backlog_context, language, slices,
+                                      {unit["id"]: unit for unit in units}, ids, preserved)
+    slice_of = {ids[item["key"]]: item for item in slices}
     affected = _classify_affected(project_id, base, change_id, stories, units, rows, text)
     for story_id in affected["dropped"]:
         backlog_context.get("per_story", {}).pop(story_id, None)
@@ -490,10 +515,15 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     board = backlog_status(project_id)
 
     epic_rel = epic_path.relative_to(base).as_posix()
+    slices_out = {
+        sid: {"functionality": slice_of[sid]["functionality"], "units": list(slice_of[sid]["units"]), "axis": slice_of[sid]["axis"]}
+        for sid in story_ids
+    }
     report = {
         "change_id": change_id, "epic": epic_id, "stories": story_ids, "removed": removed,
         "pass_to_pass": [row["id"] for row in preserved],
         "change_requests": change_requests, "stale": stale_now, "warnings": affected["warnings"],
+        "slices": slices_out,
     }
     write_json(base / "08_context_packs" / change_id / "backlog_report.json", report)
     return {
@@ -505,6 +535,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "change_requests": change_requests,
         "stale": stale_now,
         "warnings": affected["warnings"],
+        "slices": slices_out,
         "report": report,
         "backlog_board": board["path"],
         "next_step": text["next"].format(board="04_backlog/BACKLOG.md", cid=change_id, epic=epic_rel),

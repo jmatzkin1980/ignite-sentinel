@@ -141,11 +141,11 @@ class ChangeValidation(SnapshotWorkspaceCase):
         self.assertTrue(any("Pantalla Fantasma" in f for f in result["findings"]))
 
     def test_story_with_surface_outside_the_border(self):
-        edit(story_path("US-003"), "surfaces:\n  - Tabla de proveedores", "surfaces:\n  - Pantalla Fantasma")
+        edit(story_path("US-002"), "surfaces:\n  - Tabla de proveedores", "surfaces:\n  - Pantalla Fantasma")
         result = validate_change("BORR", CID)
         self.assertEqual(result["verdict"], "INVALID")
         self.assertEqual(checks(result)["stories_inside_border"], "FAIL")
-        self.assertTrue(any("US-003" in f and "Pantalla Fantasma" in f for f in result["findings"]))
+        self.assertTrue(any("US-002" in f and "Pantalla Fantasma" in f for f in result["findings"]))
 
     def test_unit_without_surfaces(self):
         edit(units_dir("BORR") / "SPEC-U-001.md", "surfaces:\n  - Tabla de proveedores\n", "")

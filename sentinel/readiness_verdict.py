@@ -857,7 +857,11 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dro
         except OSError:
             continue
         if str(front.get("change", "")).strip() == change_id:
-            sources.add(str(front.get("source_unit", "")).strip())
+            grouped = front.get("source_units")  # IMP-416; a story of 0.31 has only the scalar `source_unit`
+            if isinstance(grouped, list) and grouped:
+                sources.update(str(unit).strip() for unit in grouped)
+            else:
+                sources.add(str(front.get("source_unit", "")).strip())
     return sources != {unit["id"] for unit in units} - set(dropped_units)
 
 
