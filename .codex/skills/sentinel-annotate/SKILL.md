@@ -46,6 +46,14 @@ After `/ingest` has produced `01_discovery/gaps.md`, when you have read `00_raw/
 - `description` (optional): one-line statement of what is missing.
 - `ambiguities` / `assumptions` (optional): recorded in the annotation log for the BA, not merged as gaps.
 
+## Change (`--change CHG-NNN`)
+
+When the BA is working on one change (a request that modifies a system that already exists), annotate that change instead of the project. In chat: "annotate the change CHG-001 with what you read between the lines". Behind it, run `python -m sentinel /annotate PROJECT_ID --source PATH --change CHG-NNN`.
+
+- The evidence you may quote is the change's own text: its request (whatever format), the answers already given, its brief when it exists, and the current baseline and new-design sources. The project's raw input and domain context are not part of it.
+- Gaps open in the change (`01_discovery/CHG-NNN/gaps.md`) and the log is `01_discovery/CHG-NNN/agent_annotation_log.md`; the project's gaps, readiness and health are not touched.
+- A workspace that only has changes refuses the form without `--change` and names the one to use.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

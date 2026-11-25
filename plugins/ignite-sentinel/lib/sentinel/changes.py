@@ -95,6 +95,29 @@ def refuse_change_only_specs(project_id: str, command: str = "specs") -> None:
         )
 
 
+def refusal_language(project_id: str, change_id: str | None = None) -> str:
+    """The language of a refusal on a change path: the change in the command, else the first one (English if none)."""
+    changes = list_changes(project_id)
+    change = changes.get(change_id) if change_id else None
+    if change is None and changes:
+        change = changes[sorted(changes)[0]]
+    return change_language(project_id, change) if change else "en"
+
+
+def refuse_change_only_channel(project_id: str, command: str) -> None:
+    """IMP-418: /annotate, /challenge and /scrutinize without --change in a workspace that only holds changes."""
+    if not is_change_only(project_id):
+        return
+    first = sorted(list_changes(project_id))[0]
+    es = refusal_language(project_id, first) == "es"
+    file_word = "ARCHIVO" if es else "FILE"
+    raise GateRefusal(
+        f"{project_id} sólo tiene cambios: /{command} sin --change no tiene gaps del proyecto para revisar" if es
+        else f"{project_id} only holds changes: /{command} without --change has no project gaps to review",
+        next_step=f"/{command} {project_id} --source {file_word} --change {first}",
+    )
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:
@@ -108,6 +131,31 @@ def get_change(project_id: str, change_id: str) -> dict:
             ),
         )
     return changes[change_id]
+
+
+def merge_change_gaps(project_id: str, change_id: str, gaps: list[dict], evidence_ids: list[str]) -> dict:
+    """The change's gap sink (IMP-418): fold by topic, settle against earlier decisions, render, count.
+
+    Shared by /harvest and the change's adversarial channels. Writes the change's `gaps.md` and its
+    `gap_counts`; never the project's gaps, readiness stage or health.
+    """
+    from .gaps import merge_gaps_by_topic
+    from .prior_decisions import apply_prior_decisions, candidate_from_gap
+
+    change = get_change(project_id, change_id)
+    language = change_language(project_id, change)
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []
+    merged = merge_gaps_by_topic(existing, gaps)
+    apply_prior_decisions(project_id, change_id, merged["added"],  # IMP-410
+                          {g["id"]: candidate_from_gap(g, [str(i) for i in evidence_ids]) for g in merged["added"]})
+    write_text(path, render_gaps(project_id, merged["gaps"], change_id, language, path.with_name("gap_elicitation.json")))
+    counts = count_gaps(merged["gaps"])
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["gap_counts"] = counts
+    update_state(project_id, changes=changes)
+    return {"opened": [g["id"] for g in merged["added"]], "skipped": list(merged["skipped"]),
+            "gaps": merged["gaps"], "counts": counts}
 
 
 def _scope_gap() -> dict[str, str]:

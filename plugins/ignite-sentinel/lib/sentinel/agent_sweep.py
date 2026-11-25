@@ -88,13 +88,13 @@ def validate_sweep_extras(data: dict, haystack: str, normalize: Callable[[str], 
     return {"absent": [str(entry).strip() for entry in absent], "untouched": [item.strip() for item in untouched]}
 
 
-def record_sweep(base: Path, channel: str, data: dict, accepted_gap_ids: list[str]) -> Path:
+def record_sweep(base: Path, channel: str, data: dict, accepted_gap_ids: list[str], log_path: Path | None = None) -> Path:
     """Append the run to the sweep log. Every figure here is counted by the runtime."""
     absent = [str(entry).strip() for entry in data.get("absent", []) or []]
     untouched = [str(item).strip() for item in data.get("untouched", []) or []]
     blocking = [str(item.get("id", "")).strip().upper() for item in data.get("gaps") or []
                 if isinstance(item, dict) and item.get("blocks") is True]
-    path = base / SWEEP_LOG_FILE
+    path = log_path if log_path is not None else base / SWEEP_LOG_FILE
     lines = []
     if not path.exists():
         lines += [

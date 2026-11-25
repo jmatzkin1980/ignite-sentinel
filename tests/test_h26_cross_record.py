@@ -200,7 +200,9 @@ class Status(CrossCase):
         run_ok(["sources", PID, "--id", ids["diseno"], "--superseded-by", loaded["source_id"], "--reason", "x"])
         status = cross_status(PID, CID)
         self.assertEqual(status["kinds"]["diseno"]["state"], "stale")
-        self.assertEqual(status["kinds"]["diseno"]["stale_sources"], [ids["diseno"]])
+        # the claims were rebased onto the new version: what is stale is the pending delta, not a cited source
+        self.assertEqual(status["kinds"]["diseno"]["stale_sources"], [])
+        self.assertEqual(status["kinds"]["diseno"]["delta"]["design"], loaded["source_id"])
         self.assertIn("diseno", status["missing"])
 
     def test_fingerprint(self):

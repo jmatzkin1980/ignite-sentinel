@@ -11,6 +11,7 @@ Parse `PROJECT_ID`, optional `--lens LENS`, optional `--mode MODE`, and `--sourc
 /scrutinize PROJECT_ID --source PATH
 /scrutinize PROJECT_ID --lens technical --source PATH
 /scrutinize PROJECT_ID --mode implementability-probe --source PATH
+/scrutinize PROJECT_ID --source PATH --change CHG-NNN
 ```
 
 The `--source` file is JSON with systematic findings by Ignite lens. Each gap has `id`, `lens`, `severity`, `finding_type`, `question`, and a verbatim `evidence` quote from the raw input or local domain context folders.
@@ -29,3 +30,5 @@ python -m sentinel /scrutinize PROJECT_ID --mode implementability-probe --source
 The runtime validates declared lens, optional lens filter, severity, finding type, RU anchor (probe mode), and citation; tags accepted gaps with the mode origin; writes the matching report; refreshes `01_discovery/knowledge_state.md/json`; and records traceability. Nothing is auto-resolved. Summarize merged/skipped gap IDs, updated gap counts, and the report path.
 
 `--mode anchors` (IMP-258b) reviews the anchors of a brief v2: per fact line, holds / says_less / says_opposite with the inverted reading, an adversarial refutation pass, verbatim quotes at both ends and a question per finding (see the `sentinel-scrutiny` skill). Findings open `GAP-ANC-*` gaps; the brief is never edited.
+
+With `--change CHG-NNN` (IMP-418) the scrutiny reviews that change's request, brief and baseline; its findings open in `01_discovery/CHG-NNN/gaps.md` and the report is `01_discovery/CHG-NNN/scrutiny_report.md`. The knowledge ledger is the project's and is not refreshed. `--mode implementability-probe` and `--mode anchors` are per project and refuse with `--change`. A workspace that only has changes refuses the project form.

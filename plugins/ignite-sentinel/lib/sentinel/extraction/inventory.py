@@ -641,6 +641,11 @@ def _read_text(base: Path, relative: str) -> str | None:
     return None if "\x00" in text else text
 
 
+def row_text(base: Path, row: dict) -> str | None:
+    """The text of a registered source row (its first copy, else its path); None if it cannot be read."""
+    return _read_text(base, _row_path(row))
+
+
 def inventory_path(base: Path, change_id: str) -> Path:
     return extraction_dir(base, change_id) / "inventory.json"
 

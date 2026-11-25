@@ -59,6 +59,7 @@ A change is cross-read three ways: the request against the baseline (`linea_de_b
    - `--accept-new ID --type TIPO --name NOMBRE`: the BA decides it belongs in the change (the harvest did not find it, or the prototype shows it and the BA wants it). It adds the surface to the border without reopening the scope gap. `TIPO` is one of the border types (`pantalla`, `proceso`, `endpoint`, `dato`, `rol`, `integracion`, `regla`).
    - `--decline-new ID --reason TEXT`: it does not belong in this change.
    Never accept or decline for the BA: both are decisions to ask for, with the surface and its quotes in front of them, and the name is theirs.
+5. A new version of the request or of the design (`/sync --change` or `/sources --superseded-by`) leaves a `pending_delta` in the cross-read: `/next --change` then asks for the same command with `--delta`. The delta file carries only what the sync marked: the claims touched and the claims of the new or changed elements or of the new design source (the sync report lists them). Claims whose quote stayed literal are not repeated: they stay with their questions and answers. Record it with `/cross PROJECT_ID --change CHG-001 --kind diseno --claims PATH --delta`. A claim you send that is already there adds nothing; a `[SIN HALLAZGOS]` adds nothing unless no claim is left. `--delta` needs a cross-read already recorded (otherwise record it whole, without `--delta`), and the gaps of a replaced claim that does not come back are retired.
 
 ## Delegate, extensions, speculative marks and conflicts (IMP-412)
 

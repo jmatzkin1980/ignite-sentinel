@@ -213,7 +213,16 @@ def _run_project_command(args) -> int:
         elif args.command == "sync":
             from .sync import sync_change, sync_change_with_analysis, sync_pending_sources
 
-            if args.analysis:
+            if args.change:
+                if args.analysis or args.digest:
+                    raise ValueError("/sync --change takes --source, --role, --supersedes and --note")
+                from .change_sync import sync_change_scope
+
+                result = sync_change_scope(args.project_id, args.change, Path(args.source) if args.source else None,
+                                           args.role, args.supersedes, args.note)
+            elif args.role or args.supersedes:
+                raise ValueError("/sync --role and --supersedes go with --change CHG-NNN")
+            elif args.analysis:
                 if not args.source:
                     from .errors import InputError
 
@@ -285,21 +294,31 @@ def _run_project_command(args) -> int:
         elif args.command == "annotate":
             from .discovery import apply_annotation
 
-            result = apply_annotation(args.project_id, Path(args.source))
+            result = apply_annotation(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "challenge":
             from .discovery import apply_challenge
 
-            result = apply_challenge(args.project_id, Path(args.source))
+            result = apply_challenge(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "scrutinize" and args.mode == "anchors":
+            if args.change:  # IMP-418: the anchors are the project's
+                from .changes import refusal_language
+                from .errors import InputError
+
+                es = refusal_language(args.project_id, args.change) == "es"
+                file_word = "ARCHIVO" if es else "FILE"
+                raise InputError(
+                    f"--mode anchors revisa las anclas del proyecto; en el cambio usá /scrutinize {args.project_id} --source {file_word} --change {args.change}" if es
+                    else f"--mode anchors reviews the project's anchors; in the change use /scrutinize {args.project_id} --source {file_word} --change {args.change}",
+                    next_step=f"/scrutinize {args.project_id} --source {file_word} --change {args.change}")
             from .anchor_review import apply_anchor_review  # IMP-258b
 
             print_json(apply_anchor_review(args.project_id, Path(args.source)))
         elif args.command == "scrutinize":
             from .discovery import apply_scrutiny
 
-            result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
+            result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode, change_id=args.change)
             print_json(result)
         elif args.command == "harvest":
             from .harvest import apply_harvest
@@ -538,6 +557,7 @@ def _run_project_command(args) -> int:
             print_json(run_cross(
                 args.project_id, args.change, kind=args.kind, claims=args.claims, skip=args.skip, reason=args.reason,
                 accept_new=args.accept_new, surface_type=args.surface_type, name=args.name, decline_new=args.decline_new,
+                delta=args.delta,
             ))
         elif args.command == "next":
             from .status import project_next

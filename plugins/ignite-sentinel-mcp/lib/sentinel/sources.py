@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -385,23 +386,38 @@ def mark_source_processed(
     return str(row["id"]) if row else None
 
 
-def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
-    """H27: a new answers file over a previous /resolve-gaps run is a re-run, not a candidate version.
+RERUN_VIAS = ("gap_resolved", "crossed", "harvested")
 
-    Applies only when the row's first event and every event of the row it would replace are
-    `gap_resolved`; returns that row id, or None when the candidate note must stay.
+
+def settle_rerun(project_id: str, source_id: str, via: str,
+                 previous_ids: Collection[str] | None = None) -> str | None:
+    """H27: a new file over a previous run of the same Sentinel command is a re-run, not a candidate version.
+
+    `via` is the command that opened both rows (`gap_resolved`, `crossed` or `harvested`). The
+    candidate note is cleared only when the row it would replace belongs to `previous_ids` (the
+    earlier runs of that same command in that scope); `None` applies no filter. Returns the
+    replaced row id, or None when the candidate note must stay.
     """
+    if via not in RERUN_VIAS:
+        raise ValueError(f"via must be one of {', '.join(RERUN_VIAS)}: {via}")
     manifest = load_source_manifest(project_id)
     row = find_row(manifest, source_id)
     previous_id = row.get("pending_version_of") if row else None
     if not row or not previous_id:
         return None
+    if previous_ids is not None and str(previous_id) not in {str(i) for i in previous_ids}:
+        return None
     previous = find_row(manifest, str(previous_id))
     events = row.get("events") or []
     before = (previous or {}).get("events") or []
-    if previous is None or not events or events[0].get("via") != "gap_resolved":
+    if previous is None or not events or events[0].get("via") != via:
         return None
-    if not before or any(e.get("via") != "gap_resolved" for e in before):
+    if not before:
+        return None
+    if via == "gap_resolved":
+        if any(e.get("via") != via for e in before):
+            return None
+    elif before[0].get("via") != via:
         return None
     row["pending_version_of"] = None
     row["rerun_of"] = str(previous_id)
@@ -409,17 +425,23 @@ def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
     return str(previous_id)
 
 
-def discover_source_novelty(project_id: str) -> dict[str, list[dict[str, Any]]]:
+def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
+    """H27: a new answers file over a previous /resolve-gaps run is a re-run (see `settle_rerun`)."""
+    return settle_rerun(project_id, source_id, "gap_resolved")
+
+
+def discover_source_novelty(project_id: str, paths: list[Path] | None = None) -> dict[str, list[dict[str, Any]]]:
     """Pending sources, plus unseen paths whose content is already a registered row.
 
     Novelty is decided by content hash or by a missing row, never by date (IMP-250a).
+    H27: `paths` limits the scan to those files (the role folders of a change); None scans as always.
     """
     manifest = load_source_manifest(project_id)
     known = manifest.get("sources", {})
     pending: list[dict[str, Any]] = []
     duplicates: list[dict[str, Any]] = []
     first_new: dict[str, str] = {}  # hash -> key of the first unseen path with it in this scan
-    for path in scan_candidate_sources(project_id):
+    for path in (scan_candidate_sources(project_id) if paths is None else paths):
         key = source_key(path)
         data = path.read_bytes()
         current_hash = content_sha256(data)
@@ -487,6 +509,7 @@ def update_source(
         raise SourceRegistryError("--cell and --mark go together: --cell DOCUMENT/SECTION --mark updated|reviewed|pending.")
     if cell is not None:
         find_row_or_raise(manifest, source_id)
+    was_candidate = bool((find_row(manifest, source_id) or {}).get("pending_version_of"))
     row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
     if authority:
         set_authority(row, authority)
@@ -498,6 +521,9 @@ def update_source(
         mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
     extra: dict[str, Any] = {}
+    synced = _touched_set_after_confirm(project_id, source_id, changes, was_candidate)
+    if synced:
+        extra["sync"] = synced
     if role:
         from .source_versions import check_versions_for
 
@@ -516,6 +542,28 @@ def update_source(
         "summary": registry_summary(manifest),
         "source_log": source_log_path(project_id).as_posix(),
     }
+
+
+def _touched_set_after_confirm(project_id: str, source_id: str, changes: dict[str, Any], was_candidate: bool) -> list[dict[str, Any]]:
+    """H27 inc 6a: confirming a version runs the touched set of every change that holds the old or the new row."""
+    newer = changes.get("superseded_by")
+    if newer:
+        previous_id, new_id = source_id, str(newer)
+    elif changes.get("current") and was_candidate:
+        previous_id, new_id = None, source_id
+    else:
+        return []
+    from .change_sync import apply_touched_set
+    from .changes import list_changes
+
+    done: list[dict[str, Any]] = []
+    for change_id, change in list_changes(project_id).items():
+        held = {str(i) for i in change.get("sources") or []}
+        if not ({new_id} | ({previous_id} if previous_id else set())) & held:
+            continue
+        result = apply_touched_set(project_id, change_id, previous_id=previous_id, new_id=new_id)
+        done.append(result)
+    return done
 
 
 def source_registry_summary(project_id: str) -> dict[str, Any]:

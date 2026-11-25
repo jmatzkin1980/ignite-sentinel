@@ -39,6 +39,28 @@ def decide_verdict(blockers: list, warnings: list, partial: list | None = None) 
     return "READY"
 
 
+def change_versions(project_id: str, change_id: str) -> list[dict[str, str]]:
+    """H27 inc 6a: the new versions of the change's sources nobody confirmed, each with the command that confirms it."""
+    from .changes import get_change
+    from .source_registry import change_unconfirmed_versions
+    from .sources import load_source_manifest
+
+    change = get_change(project_id, change_id)
+    found = change_unconfirmed_versions(load_source_manifest(project_id), change.get("sources") or [])
+    return [{**item, "command": f"/sources {project_id} --id {item['version_of']} --superseded-by {item['id']}"}
+            for item in found]
+
+
+def version_sentence(project_id: str, item: dict[str, str], es: bool) -> str:
+    """H27 inc 6a: the one sentence that names an unconfirmed version (`/next`, the verdict and `/status` share it)."""
+    new, old = item["id"], item["version_of"]
+    if es:
+        return (f"Hay una versión nueva sin confirmar: {new} de {old}. Confirmá cuál rige: {item['command']} "
+                f"(o /sources {project_id} --id {new} --current si conviven).")
+    return (f"There is an unconfirmed new version: {new} of {old}. Confirm which one governs: {item['command']} "
+            f"(or /sources {project_id} --id {new} --current if both stay).")
+
+
 def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     """IMP-406: the readiness verdict of one change, decided by the project's rule over the change's own gates."""
     from .change_escalation import escalation_warnings
@@ -106,6 +128,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
         warnings.append(f"{len(assumed)} supuesto(s) a validar: {ids}" if es
                         else f"{len(assumed)} assumption(s) to validate: {ids}")
     warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id) if not w.get("decided"))
+    warnings.extend(version_sentence(project_id, v, es) for v in change_versions(project_id, change_id))
     need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
     if need["needed"]:
         warnings.append(verification_gap_text(need, es))
@@ -874,11 +897,15 @@ CROSS_MISSING = {
     "es": {"linea_de_base": "línea de base", "diseno": "diseño nuevo", "contradicciones": "contradicciones internas del pedido",
            "no_design": " — ya no hay un prototipo vigente: si no aplica, descartalo con /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
            "stale": " — las fuentes citadas cambiaron: {sources}",
-           "new": " — fuentes vigentes que el cruce no leyó: {sources}"},
+           "new": " — fuentes vigentes que el cruce no leyó: {sources}",
+           "delta": " — releer sólo: {what}", "claims": "afirmaciones {items}", "elements": "elementos {items}",
+           "source": "la fuente nueva {items}"},
     "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions of the request",
            "no_design": " — there is no current prototype any more: if it does not apply, waive it with /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
            "stale": " — the cited sources changed: {sources}",
-           "new": " — current sources the cross-read did not read: {sources}"},
+           "new": " — current sources the cross-read did not read: {sources}",
+           "delta": " — re-read only: {what}", "claims": "claims {items}", "elements": "elements {items}",
+           "source": "the new source {items}"},
 }
 
 
@@ -898,7 +925,9 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
     first = ""
     for kind in status["missing"]:
         info = status["kinds"][kind]
-        part = f"{labels[kind]} ({commands[kind]})"
+        delta = info.get("delta") if kind != "linea_de_base" else None
+        command = commands[kind] + (" --delta" if delta else "")
+        part = f"{labels[kind]} ({command})"
         no_design = kind == "diseno" and not status["design_sources"]
         if no_design:
             part += labels["no_design"].format(pid=pid, cid=cid)
@@ -907,10 +936,20 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
                 part += labels["stale"].format(sources=", ".join(info["stale_sources"]))
             if info.get("new_sources"):
                 part += labels["new"].format(sources=", ".join(info["new_sources"]))
+        if delta:
+            what = []
+            if delta.get("touched"):
+                what.append(labels["claims"].format(items=", ".join(str(n) for n in delta["touched"])))
+            if delta.get("elements"):
+                what.append(labels["elements"].format(items=", ".join(delta["elements"])))
+            if delta.get("design"):
+                what.append(labels["source"].format(items=delta["design"]))
+            if what:
+                part += labels["delta"].format(what="; ".join(what))
         parts.append(part)
         if not first:
             first = (f"/cross {pid} --change {cid} --kind diseno --skip --reason \"…\"" if no_design
-                     else commands[kind].replace("ARCHIVO", "PATH"))
+                     else command.replace("ARCHIVO", "PATH"))
     return {"missing": "; ".join(parts), "n_missing": str(len(parts)), "cross_command": first}
 
 
@@ -1024,9 +1063,14 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     text = text.format(**ctx)
     if text_key == "extract_proposals":
         text += _batch_sentence(project_id, change_id, language)
+    versions = change_versions(project_id, change_id)
+    for item in versions:
+        text += " " + version_sentence(project_id, item, language == "es")
     command = CHANGE_COMMANDS[command_key].format(**ctx)
     step = {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": command, "skill": skill_for_command(command)}
+    if versions:
+        step["versions"] = versions
     from .prior_decisions import pre_decided_gaps  # IMP-410
 
     pre_decided = pre_decided_gaps(project_id, change_id)

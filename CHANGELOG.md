@@ -6,6 +6,19 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **A new source in the middle of a change: `/sync --change`, re-cross of what it touched and adversarial review of the change (IMP-418, H27 inc 6a).** `/sync PROJECT_ID --change CHG-nnn --source PATH --role ROLE [--supersedes F-NN]` loads the new document of a change by role, detects whether it is a new version (same path, or same role and file name) and confirms it only with the BA's `--supersedes`; without `--source` it scans the shared role folders for files not yet registered (it skips those of another change). `01_discovery/CHG-nnn/sync_report.md` says what was carried and what to read again, with the commands. `/cross --delta` records only the touched claims; the others keep their questions and answers. `--change` on `/challenge`, `/scrutinize` and `/annotate` reviews the request, the brief and the gaps of the change, opens its questions in `01_discovery/CHG-nnn/gaps.md` and writes `challenge_report.md`, `scrutiny_report.md` and `agent_annotation_log.md` under `01_discovery/CHG-nnn/` (the probe and anchors modes refuse with `--change`).
+
+### Changed
+
+- Confirming a version with `/sources --superseded-by` (or `--current`) on a row of a change re-crosses only what it touched: the claims whose quote stays literal are carried with their gap and their answer. `/next --change`, the verdict and `/status --change` show a new version nobody confirmed once (a warning, never a blocker). A baseline loaded after the harvest asks for `/harvest --change` again. In a workspace that only has changes, `/challenge`, `/scrutinize` and `/annotate` without `--change` refuse naming `--change`.
+
+### Fixed
+
+- Final review of IMP-418: a request edited in place and confirmed as a new version re-crosses its new elements (the previous text is gone, so every element counts as new); the refusals of `/scrutinize --change` (probe, anchors), `/cross --delta` and the project form in a change-only workspace follow the language of the change; `/sync --change --supersedes` with the content already loaded says nothing new; a design claim is no longer carried onto another change's prototype; the cross report lists the answered questions of replaced claims as replaced, not withdrawn; `/status --change` no longer repeats the unconfirmed-version note in its `warnings`.
+- T2-22 and casuistry G of the forensic report: the cross-read and harvest files sent again are no longer left as "candidate new version, not confirmed", and a new version of the request no longer forces crossing everything again.
+
 ## [0.32.0] — 2026-11-25
 
 ### Added

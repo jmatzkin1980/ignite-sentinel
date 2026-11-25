@@ -62,6 +62,11 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _project_source_change(parser: argparse.ArgumentParser) -> None:
+    _project_source(parser)
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-418: review this change's request, brief and gaps instead of the project's")
+
+
 def _assume(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", help="the assumptions JSON (project: required; change: or --id with --validate|--invalidate)")
@@ -150,6 +155,11 @@ def _sync(p: argparse.ArgumentParser) -> None:
     p.add_argument("--digest", action="store_true")
     p.add_argument("--analysis", help="IMP-337: an agent's cited change analysis of the --source note (JSON); "
                                       "each valid candidate opens a blocking GAP-CHG")
+    # H27 inc 6a: /sync --change CHG-nnn loads the change's new source by role (--source goes with --role)
+    p.add_argument("--change", help="H27: sync this change: load --source PATH --role ROLE (or scan the role folders), "
+                                    "confirm the version and re-cross what it touched")
+    p.add_argument("--role", help="H27: with --change and --source: pedido|linea_de_base|plan_previo|diseno_nuevo")
+    p.add_argument("--supersedes", help="H27: with --change and --source: the F-NN row this source replaces")
 
 
 def _scrutinize(p: argparse.ArgumentParser) -> None:
@@ -157,6 +167,7 @@ def _scrutinize(p: argparse.ArgumentParser) -> None:
     p.add_argument("--source", required=True)
     p.add_argument("--lens")
     p.add_argument("--mode", default="scrutiny", choices=["scrutiny", "implementability-probe", "anchors"])
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-418: review this change's request, brief and gaps instead of the project's")
 
 
 def _split(p: argparse.ArgumentParser) -> None:  # IMP-263/265/266 (H17a): release series
@@ -325,6 +336,8 @@ def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-rea
     p.add_argument("--type", dest="surface_type", metavar="TYPE", help="IMP-404: with --accept-new, the surface type")
     p.add_argument("--name", help="IMP-404: with --accept-new, the surface name")
     p.add_argument("--decline-new", dest="decline_new", metavar="ID", help="IMP-404: decline a new-surface candidate (needs --reason)")
+    p.add_argument("--delta", action="store_true",
+                   help="IMP-418: with --claims, replace only the claims a new source touched and keep the rest with their questions")
 
 
 def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms profile, genesis and validation direction
@@ -383,11 +396,11 @@ REGISTRY: tuple[Command, ...] = (
     Command("init", EXEMPT, _init, exempt_reason="creates the workspace (state.json) that the protocol log needs", skill="sentinel-discovery"),
     Command("ingest", MUTATING, _ingest, skill="sentinel-discovery"),
     Command("retrieve", READ_ONLY, _retrieve, skill="sentinel-sync"),
-    Command("sync", MUTATING, _sync, skill="sentinel-sync"),
+    Command("sync", MUTATING, _sync, skill="sentinel-sync", skill_variants=(("--change", "sentinel-sync §Change sync"),)),
     Command("resolve-gaps", MUTATING, _resolve_gaps, skill="sentinel-gap-response"),
-    Command("annotate", MUTATING, _project_source, skill="sentinel-annotate"),
-    Command("challenge", MUTATING, _project_source, skill="sentinel-challenge"),
-    Command("scrutinize", MUTATING, _scrutinize, skill="sentinel-scrutiny"),
+    Command("annotate", MUTATING, _project_source_change, skill="sentinel-annotate", skill_variants=(("--change", "sentinel-annotate §Change"),)),
+    Command("challenge", MUTATING, _project_source_change, skill="sentinel-challenge", skill_variants=(("--change", "sentinel-challenge §Change"),)),
+    Command("scrutinize", MUTATING, _scrutinize, skill="sentinel-scrutiny", skill_variants=(("--change", "sentinel-scrutiny §Change"),)),
     Command("harvest", MUTATING, _harvest, skill="sentinel-brownfield-harvest"),  # IMP-262
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     Command("split", MUTATING, _split,

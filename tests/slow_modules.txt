@@ -34,3 +34,12 @@ test_h27_change_enablers_plan  # 47 s
 test_h27_change_invest  # 13 s
 test_h27_functional_specs_walk  # 38 s
 test_h27_change_final_fixes  # 130 s
+test_h27_version_chain  # 13 s
+test_h27_touched_set  # 47 s
+test_h27_cross_delta  # 22 s
+test_h27_version_confirm  # 17 s
+test_h27_change_sync  # 20 s
+test_h27_change_challenge  # 24 s
+test_h27_change_review  # 20 s
+test_h27_change_sync_walk
+test_h27_change_final_6a  # 52 s

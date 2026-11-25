@@ -282,6 +282,70 @@ def validate_claims(project_id: str, change_id: str, kind: str, claims: list[dic
     return ([], errors) if errors else (result, [])
 
 
+def rebase_claim(project_id: str, change_id: str, claim: dict, current: set[str]) -> dict | None:
+    """H27 inc 6a: the claim with its quotes moved to the sources now current, or None if one does not fit.
+
+    A quote of a source that is still current stays as it is (a row's content never changes). One of a
+    source that is not is looked for, verbatim, in the current sources of the same side: first the row
+    that replaced it, then the others in registry order; the first that has it takes `source_id`,
+    `path` and `line`. If any quote is not found the claim is not rebased (the caller re-reads it).
+    """
+    base = workspace_path(project_id)
+    registry = {str(row.get("id")): row for row in load_source_manifest(project_id).get("registry", [])}
+    held = {str(i) for i in get_change(project_id, change_id).get("sources") or []}
+    # the design side of the cross-read is every current prototype of the workspace; a quote moves only onto
+    # the rows that belong to this change, never onto another change's source
+    sources = {side: {i: row for i, row in rows.items() if i in held}
+               for side, rows in cross_sources(project_id, change_id).items()}
+    texts: dict[str, str | None] = {}
+
+    def where(source_id: str, quote: str) -> dict | None:
+        row = registry.get(source_id)
+        if row is None:
+            return None
+        if source_id not in texts:
+            texts[source_id] = _read_text(base, _row_path(row))
+        text = texts[source_id]
+        return None if text is None else locate_quote(text, Path(_row_path(row)).suffix, quote)
+
+    rebased: list[dict] = []
+    places: list[tuple[str, int, int]] = []
+    moved = False
+    for cite in claim.get("citations", []):
+        source_id = str(cite.get("source_id"))
+        quote = str(cite.get("quote", ""))
+        if source_id in current:
+            rebased.append(dict(cite))
+            found = where(source_id, quote) if claim.get("tag") == "contradiccion" else None
+            if found is not None:
+                places.append((source_id, found["start"], found["start"] + len(_squash(quote))))
+            continue
+        side = cite.get("side")
+        if side not in sources:
+            return None
+        replaced = (registry.get(source_id) or {}).get("superseded_by")
+        order = [str(replaced)] if str(replaced) in sources[side] else []
+        order += [i for i in sources[side] if i not in order]
+        hit = None
+        for candidate in order:
+            found = where(candidate, quote)
+            if found is not None:
+                hit = (candidate, found)
+                break
+        if hit is None:
+            return None
+        candidate, found = hit
+        moved = True
+        places.append((candidate, found["start"], found["start"] + len(_squash(quote))))
+        rebased.append({**cite, "source_id": candidate, "path": _workspace_path(base, _row_path(registry[candidate])),
+                        "line": found["line"]})
+    if moved and claim.get("tag") == "contradiccion" and len(places) == 2:
+        (src_a, a0, a1), (src_b, b0, b1) = places
+        if src_a == src_b and a0 < b1 and b0 < a1:
+            return None  # the two quotes now land on the same place: it is not the same contradiction
+    return {**claim, "citations": rebased}
+
+
 def _workspace_path(base: Path, relative: str) -> str:
     """The path as the workspace cites it (`00_raw/...`), when the file lives inside it."""
     found = _resolve(base, relative)
