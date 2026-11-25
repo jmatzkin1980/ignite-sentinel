@@ -105,11 +105,13 @@ def cross_status(project_id: str, change_id: str) -> dict[str, Any]:
         else:
             cited = [str(c.get("source_id")) for claim in record.get("claims", []) for c in claim.get("citations", [])]
             stale = list(dict.fromkeys(i for i in cited if i not in current))
+            delta = record.get("pending_delta") if isinstance(record.get("pending_delta"), dict) else None
             kinds[kind] = {
-                "state": "stale" if stale or added else "done", "source_id": record.get("source_id"),
+                "state": "stale" if stale or added or delta else "done", "source_id": record.get("source_id"),
                 "counts": dict(record.get("counts") or {}), "gaps": list(record.get("gaps") or []),
                 "reason": None, "stale_sources": stale, "new_sources": added,
                 "claims_hash": str(record.get("claims_hash") or ""),
+                **({"delta": dict(delta)} if delta else {}),
             }
     missing = [kind for kind in CROSS_KINDS if kinds[kind]["state"] in ("missing", "stale")]
     status: dict[str, Any] = {
