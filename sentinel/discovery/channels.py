@@ -356,55 +356,117 @@ def write_annotation_log(
     merged: list[dict[str, str]],
     skipped: list[str],
     data: dict,
+    language: str | None = None,
 ) -> None:
+    """Appends one entry; `language` (a change's log, IMP-418) speaks Spanish when the change does."""
+    es = language == "es"
     if not log_path.exists():
-        write_text(log_path, f"""# Agent Annotation Log - {project_id}
+        header = f"""# Agent Annotation Log - {project_id}
 
 Sanctioned record of agentic (`origin: agent`) discovery analysis (IMP-021).
 Each entry below was validated and merged by the runtime; source files remain
 the authority. The agent proposes with evidence; it never writes artifacts by hand.
 
-""")
-    append_text(log_path, render_annotation_log_entry(label, merged, skipped, data) + "\n")
+"""
+        write_text(log_path, _speak(header, _ANNOTATION_LOG_ES) if es else header)
+    entry = render_annotation_log_entry(label, merged, skipped, data) + "\n"
+    append_text(log_path, _speak(entry, _ANNOTATION_LOG_ES) if es else entry)
 
 
-def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
-    """Validate, merge, and trace an agentic annotation of the raw input (IMP-021)."""
+_ANNOTATION_LOG_ES = (
+    ("# Agent Annotation Log - ", "# Registro de anotaciones del agente - "),
+    ("Sanctioned record of agentic (`origin: agent`) discovery analysis (IMP-021).\n"
+     "Each entry below was validated and merged by the runtime; source files remain\n"
+     "the authority. The agent proposes with evidence; it never writes artifacts by hand.",
+     "Registro autorizado del análisis agéntico (`origin: agent`) del descubrimiento (IMP-021).\n"
+     "El runtime validó e incorporó cada entrada; las fuentes siguen siendo la autoridad.\n"
+     "El agente propone con evidencia; nunca escribe artefactos a mano."),
+    ("## Annotation: ", "## Anotación: "),
+    ("Origin: `agent`. The runtime validated each gap (declared lens, severity range, and a verbatim evidence citation) before merging.",
+     "Origen: `agent`. El runtime validó cada gap (lente declarada, rango de severidad y una cita textual de evidencia) antes de incorporarlo."),
+    ("### Merged Semantic Gaps", "### Gaps semánticos incorporados"),
+    ("| Gap ID | Lens | Severity | Question | Evidence Cited |", "| Gap | Lente | Severidad | Pregunta | Evidencia citada |"),
+    ("No new gaps merged (all duplicates).", "Ningún gap nuevo (todos duplicados)."),
+    ("Skipped (already present in gaps.md)", "Omitidos (ya están en gaps.md)"),
+    ("### Ambiguities Reported", "### Ambigüedades informadas"),
+    ("### Implicit Assumptions Reported", "### Supuestos implícitos informados"),
+    ("- None reported.", "- Nada informado."),
+    ("None.", "Ninguno."),
+)
+
+
+def _speak(text: str, table: tuple[tuple[str, str], ...]) -> str:
+    for english, spanish in table:
+        text = text.replace(english, spanish)
+    return text
+
+
+def apply_annotation(project_id: str, source: Path, change_id: str | None = None) -> dict[str, object]:
+    """Validate, merge, and trace an agentic annotation of the raw input (IMP-021).
+
+    With `change_id` (IMP-418) the run annotates that change's request, brief and gaps and leaves
+    everything under `01_discovery/<CHG>/`; the project's files, state and ledger are not touched.
+    """
     base = workspace_path(project_id)
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}")
-    gaps_path = base / "01_discovery" / "gaps.md"
-    if not gaps_path.exists():
-        raise GateRefusal("Cannot annotate before /ingest creates 01_discovery/gaps.md.")
+    language = "en"
+    if change_id is not None:
+        from .change_scope import change_channel_gate, change_channel_paths, change_grounding_text
 
-    raw_text = raw_input_text(base)
-    if not raw_text.strip():
-        raise GateRefusal("No raw input found under 00_raw/ to ground the annotation against.")
+        _change, gaps_path, language = change_channel_gate(project_id, change_id, "annotate")
+        paths = change_channel_paths(base, change_id)
+        raw_text = change_grounding_text(project_id, change_id)
+    else:
+        from ..changes import refuse_change_only_channel
+
+        refuse_change_only_channel(project_id, "annotate")
+        gaps_path = base / "01_discovery" / "gaps.md"
+        if not gaps_path.exists():
+            raise GateRefusal("Cannot annotate before /ingest creates 01_discovery/gaps.md.")
+        raw_text = raw_input_text(base)
+        if not raw_text.strip():
+            raise GateRefusal("No raw input found under 00_raw/ to ground the annotation against.")
 
     data = load_agent_annotation(source)
     agent_gaps = validate_agent_gaps(data, raw_text)
     # IMP-347: validated as written; stored and rendered redacted and neutralized
     data, agent_gaps = _clean_agent_payload(base, data, agent_gaps)
-    _record_sweep(base, "annotate", data, agent_gaps)
+    if change_id is not None:
+        from ..changes import merge_change_gaps
+        from ..extraction.inventory import pedido_rows
 
-    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
-    real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
+        _record_sweep(base, "annotate", data, agent_gaps, paths["sweep_log"])
+        sunk = merge_change_gaps(project_id, change_id, agent_gaps,
+                                 [str(row["id"]) for row in pedido_rows(project_id, change_id)])
+        added = set(sunk["opened"])
+        merged_new = [gap for gap in sunk["gaps"] if gap["id"] in added]
+        skipped = sunk["skipped"]
+        merged = sunk["gaps"]
+        annotations_dir = paths["annotations"]
+        log_path = paths["annotation_log"]
+    else:
+        _record_sweep(base, "annotate", data, agent_gaps)
 
-    topic_merge = merge_gaps_by_topic(real_existing, agent_gaps)  # IMP-257: id, then topic
-    merged_new: list[dict[str, str]] = topic_merge["added"]
-    skipped: list[str] = topic_merge["skipped"]
-    merged = topic_merge["gaps"]
-    language = _annotation_project_language(project_id, base)
-    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
+        existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+        real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
+        req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    annotations_dir = base / "01_discovery" / "annotations"
+        topic_merge = merge_gaps_by_topic(real_existing, agent_gaps)  # IMP-257: id, then topic
+        merged_new = topic_merge["added"]
+        skipped = topic_merge["skipped"]
+        merged = topic_merge["gaps"]
+        language = _annotation_project_language(project_id, base)
+        write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
+        annotations_dir = base / "01_discovery" / "annotations"
+        log_path = base / "01_discovery" / "agent_annotation_log.md"
+
     annotations_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(annotations_dir / f"{source.stem}.json")
     archive_payload(base, source, stored)
 
-    log_path = base / "01_discovery" / "agent_annotation_log.md"
-    write_annotation_log(log_path, project_id, source.stem, merged_new, skipped, data)
+    write_annotation_log(log_path, project_id, source.stem, merged_new, skipped, data,
+                         language if change_id is not None else None)
 
     graph_nodes = load_graph(project_id).get("nodes", [])
     annotation_id = add_node(
@@ -415,10 +477,13 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
         f"Agent annotation: {source.stem}",
         domain="product",
     )
-    for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
-        add_edge(project_id, raw_node["id"], annotation_id, "annotated_by")
-    for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
-        add_edge(project_id, annotation_id, gap_node["id"], "raises")
+    if change_id is not None:
+        add_edge(project_id, change_id, annotation_id, "annotated_by")  # the change's id is its node
+    else:
+        for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
+            add_edge(project_id, raw_node["id"], annotation_id, "annotated_by")
+        for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
+            add_edge(project_id, annotation_id, gap_node["id"], "raises")
 
     broker = ContextBroker(project_id)
     broker.index_artifact(
@@ -432,16 +497,17 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
 
     counts = count_gaps(merged)
     counts["agent_origin"] = sum(1 for gap in merged if gap.get("origin") == "agent")
-    updates: dict[str, object] = {
-        "gap_counts": counts,
-        "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
-        "last_annotation_id": annotation_id,
-    }
-    if counts.get("blocking_open", 0):
-        updates["health"] = "DIRTY"
-    update_state(project_id, **updates)
+    if change_id is None:
+        updates: dict[str, object] = {
+            "gap_counts": counts,
+            "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
+            "last_annotation_id": annotation_id,
+        }
+        if counts.get("blocking_open", 0):
+            updates["health"] = "DIRTY"
+        update_state(project_id, **updates)
 
-    return {
+    result: dict[str, object] = {
         "project_id": project_id,
         "annotation_id": annotation_id,
         "path": str(gaps_path.as_posix()),
@@ -450,6 +516,9 @@ def apply_annotation(project_id: str, source: Path) -> dict[str, object]:
         "skipped_duplicates": skipped,
         "gap_counts": counts,
     }
+    if change_id is not None:
+        result["change_id"] = change_id
+    return result
 
 
 # --- IMP-023: advanced elicitation (/challenge) -------------------------------
@@ -598,13 +667,11 @@ def apply_challenge(project_id: str, source: Path, change_id: str | None = None)
         paths = change_channel_paths(base, change_id)
         raw_text = change_grounding_text(project_id, change_id)
     else:
+        from ..changes import refuse_change_only_channel
+
+        refuse_change_only_channel(project_id, "challenge")
         gaps_path = base / "01_discovery" / "gaps.md"
         if not gaps_path.exists():
-            from ..changes import is_change_only
-
-            if is_change_only(project_id):
-                raise GateRefusal("This workspace only has changes: run /challenge with --change CHG-NNN.",
-                                  next_step=f"/challenge {project_id} --source FILE --change CHG-NNN")
             raise GateRefusal("Cannot challenge before /ingest creates 01_discovery/gaps.md.")
         raw_text = raw_input_text(base)
         if not raw_text.strip():
@@ -837,6 +904,28 @@ def validate_scrutiny_gaps(
     return gaps
 
 
+_SCRUTINY_REPORT_ES = (
+    ("# Scrutiny Report - ", "# Informe de Scrutiny - "),
+    ("Source: `", "Fuente: `"),
+    ("`. Origin: `scrutiny`. ", "`. Origen: `scrutiny`. "),
+    ("Lens filter: all declared lenses.", "Filtro de lente: todas las lentes declaradas."),
+    ("Lens filter: `", "Filtro de lente: `"),
+    ("The agent scrutinized raw requirement evidence plus local domain context through\n"
+     "the Ignite lens model. Every finding below was validated by the runtime\n"
+     "(declared lens, severity range, valid finding type, and a verbatim local\n"
+     "citation) before merging as a gap. The agent proposes; the BA remains in control.",
+     "El agente escrutó la evidencia del pedido a través del modelo de lentes de Ignite.\n"
+     "El runtime validó cada hallazgo (lente declarada, rango de severidad, tipo de hallazgo válido\n"
+     "y una cita local textual) antes de incorporarlo como gap. El agente propone; el BA conserva el control."),
+    ("## Scrutiny Findings By Lens", "## Hallazgos del Scrutiny por lente"),
+    ("### Lens: `", "### Lente: `"),
+    ("| Gap ID | Severity | Finding Type | Question | Evidence Cited |", "| Gap | Severidad | Tipo de hallazgo | Pregunta | Evidencia citada |"),
+    ("_No new scrutiny gaps merged (all duplicates)._", "_Ningún gap nuevo del scrutiny (todos duplicados)._"),
+    ("Skipped (already present in gaps.md)", "Omitidos (ya están en gaps.md)"),
+    ("None.", "Ninguno."),
+)
+
+
 def render_scrutiny_report(
     project_id: str,
     label: str,
@@ -844,6 +933,7 @@ def render_scrutiny_report(
     skipped: list[str],
     data: dict,
     lens_filter: str | None = None,
+    language: str | None = None,
 ) -> str:
     finding_types = _finding_type_by_gap(data)
     by_lens: dict[str, list[dict[str, str]]] = {}
@@ -859,7 +949,7 @@ def render_scrutiny_report(
     lens_section = "\n\n".join(lens_blocks) or "_No new scrutiny gaps merged (all duplicates)._"
     skipped_block = ", ".join(f"`{gap_id}`" for gap_id in skipped) or "None."
     lens_note = f"Lens filter: `{lens_filter}`." if lens_filter else "Lens filter: all declared lenses."
-    return f"""# Scrutiny Report - {project_id}
+    report = f"""# Scrutiny Report - {project_id}
 
 Source: `{label}`. Origin: `scrutiny`. {lens_note}
 
@@ -874,6 +964,7 @@ citation) before merging as a gap. The agent proposes; the BA remains in control
 
 Skipped (already present in gaps.md): {skipped_block}
 """
+    return _speak(report, _SCRUTINY_REPORT_ES) if language == "es" else report  # IMP-418: a change's report speaks its language
 
 
 def known_requirement_unit_ids(base: Path) -> set[str]:
@@ -938,25 +1029,44 @@ def apply_scrutiny(
     source: Path,
     lens: str | None = None,
     mode: str | None = "scrutiny",
+    change_id: str | None = None,
 ) -> dict[str, object]:
     """Validate and merge systematic multi-lens scrutiny findings (IMP-066).
 
     With ``mode="implementability-probe"`` (IMP-119) the same machinery runs the
     pre-flight implementability probe: per-RU cited gaps, probe finding types,
-    and ``origin: implementability-probe``.
+    and ``origin: implementability-probe``. With ``change_id`` (IMP-418) the run scrutinizes that
+    change's request, brief and gaps (the probe is per project unit and refuses); everything stays under
+    ``01_discovery/<CHG>/`` and the project's files, state and knowledge ledger are not touched.
     """
     spec = _scrutiny_mode(mode)
     is_probe = spec["origin"] == "implementability-probe"
     base = workspace_path(project_id)
     if not base.exists():
         raise GateRefusal(f"Workspace not found: {project_id}")
-    gaps_path = base / "01_discovery" / "gaps.md"
-    if not gaps_path.exists():
-        raise GateRefusal("Cannot scrutinize before /ingest creates 01_discovery/gaps.md.")
+    language = "en"
+    if change_id is not None:
+        from .change_scope import change_channel_gate, change_channel_paths, change_grounding_text
 
-    grounding_text = scrutiny_grounding_text(base)
-    if not grounding_text.strip():
-        raise GateRefusal("No raw or domain context evidence found under 00_raw/ to ground scrutiny against.")
+        if is_probe:
+            raise InputError(
+                f"--mode implementability-probe no va con --change: el sondeo es por unidad RU del proyecto; "
+                f"en el cambio usá /scrutinize {project_id} --source ARCHIVO --change {change_id}",
+                next_step=f"/scrutinize {project_id} --source ARCHIVO --change {change_id}")
+        _change, gaps_path, language = change_channel_gate(project_id, change_id, "scrutinize")
+        paths = change_channel_paths(base, change_id)
+        grounding_text = change_grounding_text(project_id, change_id)
+    else:
+        from ..changes import refuse_change_only_channel
+
+        refuse_change_only_channel(project_id, "scrutinize")
+        gaps_path = base / "01_discovery" / "gaps.md"
+        if not gaps_path.exists():
+            raise GateRefusal("Cannot scrutinize before /ingest creates 01_discovery/gaps.md.")
+
+        grounding_text = scrutiny_grounding_text(base)
+        if not grounding_text.strip():
+            raise GateRefusal("No raw or domain context evidence found under 00_raw/ to ground scrutiny against.")
 
     lens_filter = lens.strip().lower() if lens else None
     data = load_agent_annotation(source)
@@ -964,29 +1074,44 @@ def apply_scrutiny(
     scrutiny_gaps = validate_scrutiny_gaps(data, grounding_text, lens_filter, mode=mode, known_units=known_units)
     # IMP-347: validated as written; stored and rendered redacted and neutralized
     data, scrutiny_gaps = _clean_agent_payload(base, data, scrutiny_gaps)
-    _record_sweep(base, str(spec["origin"]), data, scrutiny_gaps)
+    if change_id is not None:
+        from ..changes import merge_change_gaps
+        from ..extraction.inventory import pedido_rows
 
-    existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
-    real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
-    req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
+        _record_sweep(base, str(spec["origin"]), data, scrutiny_gaps, paths["sweep_log"])
+        sunk = merge_change_gaps(project_id, change_id, scrutiny_gaps,
+                                 [str(row["id"]) for row in pedido_rows(project_id, change_id)])
+        added = set(sunk["opened"])
+        merged_new: list[dict[str, str]] = [gap for gap in sunk["gaps"] if gap["id"] in added]
+        skipped: list[str] = sunk["skipped"]
+        merged = sunk["gaps"]
+        store_dir = paths["scrutiny"]
+        report_path = paths["scrutiny_report"]
+    else:
+        _record_sweep(base, str(spec["origin"]), data, scrutiny_gaps)
 
-    topic_merge = merge_gaps_by_topic(real_existing, scrutiny_gaps)  # IMP-257: id, then topic
-    merged_new: list[dict[str, str]] = topic_merge["added"]
-    skipped: list[str] = topic_merge["skipped"]
-    merged = topic_merge["gaps"]
-    language = _annotation_project_language(project_id, base)
-    write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
+        existing = parse_gap_rows(gaps_path.read_text(encoding="utf-8"))
+        real_existing = [gap for gap in existing if gap.get("id") != "NONE"]
+        req_id = real_existing[0].get("parent", "REQ-001").strip("`") if real_existing else "REQ-001"
 
-    store_dir = base / "01_discovery" / str(spec["store_dir"])
+        topic_merge = merge_gaps_by_topic(real_existing, scrutiny_gaps)  # IMP-257: id, then topic
+        merged_new = topic_merge["added"]
+        skipped = topic_merge["skipped"]
+        merged = topic_merge["gaps"]
+        language = _annotation_project_language(project_id, base)
+        write_text(gaps_path, render_gaps(project_id, merged, req_id, language))
+        store_dir = base / "01_discovery" / str(spec["store_dir"])
+        report_path = base / "01_discovery" / str(spec["report_name"])
+
     store_dir.mkdir(parents=True, exist_ok=True)
     stored = _unique_path(store_dir / f"{source.stem}.json")
     archive_payload(base, source, stored)
 
-    report_path = base / "01_discovery" / str(spec["report_name"])
     if is_probe:
         report_text = render_probe_report(project_id, source.stem, merged_new, skipped, data)
     else:
-        report_text = render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter)
+        report_text = render_scrutiny_report(project_id, source.stem, merged_new, skipped, data, lens_filter,
+                                             language if change_id is not None else None)
     write_text(report_path, report_text)
 
     graph_nodes = load_graph(project_id).get("nodes", [])
@@ -999,10 +1124,13 @@ def apply_scrutiny(
         f"{spec['node_label']}: {source.stem}",
         domain="product",
     )
-    for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
-        add_edge(project_id, raw_node["id"], report_id, str(spec["raw_relation"]))
-    for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
-        add_edge(project_id, report_id, gap_node["id"], "raises")
+    if change_id is not None:
+        add_edge(project_id, change_id, report_id, str(spec["raw_relation"]))  # the change's id is its node
+    else:
+        for raw_node in [node for node in graph_nodes if node.get("type") == "raw_input"]:
+            add_edge(project_id, raw_node["id"], report_id, str(spec["raw_relation"]))
+        for gap_node in [node for node in graph_nodes if node.get("type") == "gap_report"]:
+            add_edge(project_id, report_id, gap_node["id"], "raises")
 
     broker = ContextBroker(project_id)
     broker.index_artifact(
@@ -1012,32 +1140,36 @@ def apply_scrutiny(
         report_path.read_text(encoding="utf-8"),
         trace_ids=[report_id],
     )
-    ledger = refresh_knowledge_ledger(project_id, broker)
+    ledger = refresh_knowledge_ledger(project_id, broker) if change_id is None else None  # the ledger is the project's
     mark_source_processed(project_id, source, f"{spec['origin']}_applied", report_id)
 
     counts = count_gaps(merged)
     origin = str(spec["origin"])
     counts[str(spec["origin_count_key"])] = sum(1 for gap in merged if gap.get("origin") == origin)
-    updates: dict[str, object] = {
-        "gap_counts": counts,
-        "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
-        str(spec["state_key"]): report_id,
-        "knowledge_ledger_summary": ledger["payload"]["summary"],
-    }
-    if counts.get("blocking_open", 0):
-        updates["health"] = "DIRTY"
-    update_state(project_id, **updates)
+    if ledger is not None:
+        updates: dict[str, object] = {
+            "gap_counts": counts,
+            "readiness_stage": readiness_stage_after_gap_change(project_id, counts),
+            str(spec["state_key"]): report_id,
+            "knowledge_ledger_summary": ledger["payload"]["summary"],
+        }
+        if counts.get("blocking_open", 0):
+            updates["health"] = "DIRTY"
+        update_state(project_id, **updates)
 
     result: dict[str, object] = {
         "project_id": project_id,
         "mode": origin,
         "path": str(gaps_path.as_posix()),
         "report": str(report_path.as_posix()),
-        "knowledge_state": str(ledger["md_path"].as_posix()),
         "merged": [gap["id"] for gap in merged_new],
         "skipped_duplicates": skipped,
         "gap_counts": counts,
     }
+    if ledger is not None:
+        result["knowledge_state"] = str(ledger["md_path"].as_posix())
+    else:
+        result["change_id"] = change_id
     if is_probe:
         result["probe_id"] = report_id
         result["implementability_probe_report"] = str(report_path.as_posix())

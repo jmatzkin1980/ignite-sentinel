@@ -79,6 +79,15 @@ Example probe finding:
 }
 ```
 
+## Change (`--change CHG-NNN`)
+
+When the BA is working on one change (a request that modifies a system that already exists), scrutinize that change instead of the project. In chat: "scrutinize the change CHG-001 by lens". Behind it, run `python -m sentinel /scrutinize PROJECT_ID --source PATH --change CHG-NNN` (with `--lens` to filter).
+
+- The evidence you may quote is the change's own text: its request (whatever format), the answers already given, its brief when it exists, and the current baseline, new-design and harvest readings. The project's domain context is not part of it.
+- Findings open in the change (`01_discovery/CHG-NNN/gaps.md`) and the report is `01_discovery/CHG-NNN/scrutiny_report.md`. The project's knowledge ledger, readiness and health are not touched.
+- `--mode implementability-probe` (per project unit) and `--mode anchors` (the project's brief anchors) refuse with `--change`.
+- A workspace that only has changes refuses the form without `--change` and names the one to use.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

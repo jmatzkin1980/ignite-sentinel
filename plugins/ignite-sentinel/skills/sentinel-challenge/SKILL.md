@@ -77,6 +77,14 @@ Technique prompts calibrate their wording to the declared profile of whoever wil
 - `technique` (optional): any registry id — `pre-mortem | role-play | assumption-inversion | jtbd-forces | red-blue-team | first-principles | stakeholder-round-robin` — shown per gap in the challenge report.
 - `premortem` / `assumptions_inverted` (optional): narrative captured in `challenge_report.md` for the BA.
 
+## Change (`--change CHG-NNN`)
+
+When the BA is working on one change (a request that modifies a system that already exists), stress-test that change instead of the project. In chat: "challenge the change CHG-001: what is nobody asking?". Behind it, run `sh "${CLAUDE_PLUGIN_ROOT}/python.sh" "${CLAUDE_PLUGIN_ROOT}/launcher.py" /challenge PROJECT_ID --source PATH --change CHG-NNN`.
+
+- Run the same techniques per lens. The evidence you may quote is the change's own text: its request (whatever format), the answers already given, its brief when it exists, and the current baseline, new-design and harvest readings. The project's raw input and domain context are not part of it.
+- Questions open in the change (`01_discovery/CHG-NNN/gaps.md`) and the report is `01_discovery/CHG-NNN/challenge_report.md`, in the language the change was opened in. A question the change already decided is not asked again.
+- A workspace that only has changes refuses the form without `--change` and names the one to use.
+
 ## Sweep protocol (IMP-271)
 
 Follow the sweep protocol (the package's `templates/agent_sweep_protocol.md`; the rules that matter are below). The runtime rejects the whole payload when:

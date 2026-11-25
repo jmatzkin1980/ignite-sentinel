@@ -62,6 +62,11 @@ def _project_source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--source", required=True)
 
 
+def _project_source_change(parser: argparse.ArgumentParser) -> None:
+    _project_source(parser)
+    parser.add_argument("--change", metavar="CHG-NNN", help="IMP-418: review this change's request, brief and gaps instead of the project's")
+
+
 def _assume(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("project_id")
     parser.add_argument("--source", help="the assumptions JSON (project: required; change: or --id with --validate|--invalidate)")
@@ -162,6 +167,7 @@ def _scrutinize(p: argparse.ArgumentParser) -> None:
     p.add_argument("--source", required=True)
     p.add_argument("--lens")
     p.add_argument("--mode", default="scrutiny", choices=["scrutiny", "implementability-probe", "anchors"])
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-418: review this change's request, brief and gaps instead of the project's")
 
 
 def _split(p: argparse.ArgumentParser) -> None:  # IMP-263/265/266 (H17a): release series
@@ -392,9 +398,9 @@ REGISTRY: tuple[Command, ...] = (
     Command("retrieve", READ_ONLY, _retrieve, skill="sentinel-sync"),
     Command("sync", MUTATING, _sync, skill="sentinel-sync", skill_variants=(("--change", "sentinel-sync §Change sync"),)),
     Command("resolve-gaps", MUTATING, _resolve_gaps, skill="sentinel-gap-response"),
-    Command("annotate", MUTATING, _project_source, skill="sentinel-annotate"),
-    Command("challenge", MUTATING, _project_source, skill="sentinel-challenge"),
-    Command("scrutinize", MUTATING, _scrutinize, skill="sentinel-scrutiny"),
+    Command("annotate", MUTATING, _project_source_change, skill="sentinel-annotate", skill_variants=(("--change", "sentinel-annotate §Change"),)),
+    Command("challenge", MUTATING, _project_source_change, skill="sentinel-challenge", skill_variants=(("--change", "sentinel-challenge §Change"),)),
+    Command("scrutinize", MUTATING, _scrutinize, skill="sentinel-scrutiny", skill_variants=(("--change", "sentinel-scrutiny §Change"),)),
     Command("harvest", MUTATING, _harvest, skill="sentinel-brownfield-harvest"),  # IMP-262
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     Command("split", MUTATING, _split,

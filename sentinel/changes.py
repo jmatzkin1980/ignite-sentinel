@@ -95,6 +95,17 @@ def refuse_change_only_specs(project_id: str, command: str = "specs") -> None:
         )
 
 
+def refuse_change_only_channel(project_id: str, command: str) -> None:
+    """IMP-418: /annotate, /challenge and /scrutinize without --change in a workspace that only holds changes."""
+    if not is_change_only(project_id):
+        return
+    first = sorted(list_changes(project_id))[0]
+    raise GateRefusal(
+        f"{project_id} sólo tiene cambios: /{command} sin --change no tiene gaps del proyecto para revisar",
+        next_step=f"/{command} {project_id} --source ARCHIVO --change {first}",
+    )
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:

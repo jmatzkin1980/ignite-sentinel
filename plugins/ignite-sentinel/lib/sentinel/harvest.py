@@ -225,21 +225,11 @@ def apply_harvest(project_id: str, source: Path, change_id: str | None = None) -
     gaps_path = base / "01_discovery" / "gaps.md"
     opened: list[str] = []
     if change is not None:
-        from .changes import change_gaps_path, list_changes
+        from .changes import list_changes, merge_change_gaps
 
-        changes = {key: dict(value) for key, value in list_changes(project_id).items()}
         if gaps:
-            change_path = change_gaps_path(base, str(change_id))
-            existing = [g for g in parse_gap_rows(change_path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if change_path.exists() else []
-            merged = merge_gaps_by_topic(existing, gaps)
-            opened = [g["id"] for g in merged["added"]]
-            from .prior_decisions import apply_prior_decisions, candidate_from_gap
-
-            apply_prior_decisions(project_id, str(change_id), merged["added"],  # IMP-410
-                                  {g["id"]: candidate_from_gap(g, [str(source_id)]) for g in merged["added"]})
-            write_text(change_path, render_gaps(project_id, merged["gaps"], str(change_id), language,
-                                                change_path.with_name("gap_elicitation.json")))
-            changes[str(change_id)]["gap_counts"] = count_gaps(merged["gaps"])
+            opened = merge_change_gaps(project_id, str(change_id), gaps, [str(source_id)])["opened"]
+        changes = {key: dict(value) for key, value in list_changes(project_id).items()}
         # IMP-404: the change's harvest is its baseline cross, even when it opens no question.
         harvests = [str(i) for i in changes[str(change_id)].get("harvests") or []]
         if str(source_id) not in harvests:

@@ -294,21 +294,27 @@ def _run_project_command(args) -> int:
         elif args.command == "annotate":
             from .discovery import apply_annotation
 
-            result = apply_annotation(args.project_id, Path(args.source))
+            result = apply_annotation(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "challenge":
             from .discovery import apply_challenge
 
-            result = apply_challenge(args.project_id, Path(args.source))
+            result = apply_challenge(args.project_id, Path(args.source), change_id=args.change)
             print_json(result)
         elif args.command == "scrutinize" and args.mode == "anchors":
+            if args.change:  # IMP-418: the anchors are the project's
+                from .errors import InputError
+
+                raise InputError(
+                    f"--mode anchors revisa las anclas del proyecto; en el cambio usá /scrutinize {args.project_id} --source ARCHIVO --change {args.change}",
+                    next_step=f"/scrutinize {args.project_id} --source ARCHIVO --change {args.change}")
             from .anchor_review import apply_anchor_review  # IMP-258b
 
             print_json(apply_anchor_review(args.project_id, Path(args.source)))
         elif args.command == "scrutinize":
             from .discovery import apply_scrutiny
 
-            result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode)
+            result = apply_scrutiny(args.project_id, Path(args.source), args.lens, mode=args.mode, change_id=args.change)
             print_json(result)
         elif args.command == "harvest":
             from .harvest import apply_harvest
