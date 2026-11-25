@@ -39,3 +39,4 @@ test_h27_touched_set  # 47 s
 test_h27_cross_delta  # 22 s
 test_h27_version_confirm  # 17 s
 test_h27_change_sync  # 20 s
+test_h27_change_challenge  # 24 s

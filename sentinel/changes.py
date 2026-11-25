@@ -110,6 +110,31 @@ def get_change(project_id: str, change_id: str) -> dict:
     return changes[change_id]
 
 
+def merge_change_gaps(project_id: str, change_id: str, gaps: list[dict], evidence_ids: list[str]) -> dict:
+    """The change's gap sink (IMP-418): fold by topic, settle against earlier decisions, render, count.
+
+    Shared by /harvest and the change's adversarial channels. Writes the change's `gaps.md` and its
+    `gap_counts`; never the project's gaps, readiness stage or health.
+    """
+    from .gaps import merge_gaps_by_topic
+    from .prior_decisions import apply_prior_decisions, candidate_from_gap
+
+    change = get_change(project_id, change_id)
+    language = change_language(project_id, change)
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    existing = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"] if path.exists() else []
+    merged = merge_gaps_by_topic(existing, gaps)
+    apply_prior_decisions(project_id, change_id, merged["added"],  # IMP-410
+                          {g["id"]: candidate_from_gap(g, [str(i) for i in evidence_ids]) for g in merged["added"]})
+    write_text(path, render_gaps(project_id, merged["gaps"], change_id, language, path.with_name("gap_elicitation.json")))
+    counts = count_gaps(merged["gaps"])
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["gap_counts"] = counts
+    update_state(project_id, changes=changes)
+    return {"opened": [g["id"] for g in merged["added"]], "skipped": list(merged["skipped"]),
+            "gaps": merged["gaps"], "counts": counts}
+
+
 def _scope_gap() -> dict[str, str]:
     check = next(c for c in load_lens_checks() if c["id"] == "GAP-SCOPE")
     return {"id": check["id"], "lens": check["lens"], "severity": check["severity"], "description": check["description"]}
