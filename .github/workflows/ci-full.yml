@@ -25,14 +25,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # tier: the Windows + LanceDB job runs the fast tier (every module outside
-          # tests/slow_modules.txt). The slow modules still run on Windows in the base job
-          # and with LanceDB in the Ubuntu "lancedb + mcp 2" job, so no pair goes uncovered.
-          - { os: ubuntu-latest,  python: "3.10", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full" }
-          - { os: ubuntu-latest,  python: "3.13", label: "lancedb + mcp 2",   extras: "memory", mcp: "mcp>=2,<3",     wheel: "1", tier: "full" }
-          - { os: ubuntu-latest,  python: "3.13", label: "mcp 1",             extras: "",       mcp: "mcp>=1.2,<2",   wheel: "",  tier: "full" }
-          - { os: windows-latest, python: "3.13", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full" }
-          - { os: windows-latest, python: "3.10", label: "lancedb",           extras: "memory", mcp: "",              wheel: "",  tier: "fast" }
+          # tier / memory: the Windows + LanceDB job runs the fast tier on the JSON index
+          # (SENTINEL_MEMORY_BACKEND=json: LanceDB tables are slow to create on Windows); the
+          # modules that test LanceDB itself ignore the switch, and the two of them in the
+          # slow list run in an extra step. The whole suite still runs with
+          # LanceDB on Ubuntu ("lancedb + mcp 2") and on Windows without it ("base").
+          - { os: ubuntu-latest,  python: "3.10", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full", memory: "" }
+          - { os: ubuntu-latest,  python: "3.13", label: "lancedb + mcp 2",   extras: "memory", mcp: "mcp>=2,<3",     wheel: "1", tier: "full", memory: "" }
+          - { os: ubuntu-latest,  python: "3.13", label: "mcp 1",             extras: "",       mcp: "mcp>=1.2,<2",   wheel: "",  tier: "full", memory: "" }
+          - { os: windows-latest, python: "3.13", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full", memory: "" }
+          - { os: windows-latest, python: "3.10", label: "lancedb",           extras: "memory", mcp: "",              wheel: "",  tier: "fast", memory: "json" }
     env:
       SENTINEL_EVAL_REPORTS: "0"
       PYTHONUTF8: "1"
@@ -57,7 +59,12 @@ jobs:
         shell: bash
         env:
           SENTINEL_SLOW: ${{ matrix.wheel }}
+          SENTINEL_MEMORY_BACKEND: ${{ matrix.memory }}
         run: python tools/run_tests.py --tier ${{ matrix.tier }}
+      - name: LanceDB modules outside the fast tier (real backend)
+        if: matrix.memory == 'json'
+        shell: bash
+        run: python -m unittest tests.test_evals_retrieval tests.test_core_flow
       - name: Doctor
         run: python -m sentinel doctor
       - name: Discovery evals

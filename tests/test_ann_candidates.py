@@ -96,5 +96,21 @@ class CandidateGenerationTests(unittest.TestCase):
         self.assertEqual(pack["candidate_source"], "json-fullscan")
 
 
+
+# These modules test the LanceDB backend itself: they ignore SENTINEL_MEMORY_BACKEND=json,
+# which CI uses to keep the rest of the suite on the JSON index.
+_MEMORY_BACKEND_ENV = None
+
+
+def setUpModule() -> None:
+    global _MEMORY_BACKEND_ENV
+    _MEMORY_BACKEND_ENV = os.environ.pop("SENTINEL_MEMORY_BACKEND", None)
+
+
+def tearDownModule() -> None:
+    if _MEMORY_BACKEND_ENV is not None:
+        os.environ["SENTINEL_MEMORY_BACKEND"] = _MEMORY_BACKEND_ENV
+
+
 if __name__ == "__main__":
     unittest.main()

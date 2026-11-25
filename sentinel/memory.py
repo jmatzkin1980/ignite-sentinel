@@ -468,6 +468,11 @@ class ContextBroker:
                 pass  # a lancedb without checkout_latest: keep the open handle
 
     def _connect_lancedb(self) -> None:
+        # SENTINEL_MEMORY_BACKEND=json keeps the JSON index even when LanceDB is installed
+        # (CI runs most modules this way on Windows, where LanceDB tables are slow to create).
+        if os.environ.get("SENTINEL_MEMORY_BACKEND", "").strip().lower() == "json":
+            self.lancedb_degraded_reason = "disabled by SENTINEL_MEMORY_BACKEND=json"
+            return
         try:
             import lancedb  # type: ignore
 
