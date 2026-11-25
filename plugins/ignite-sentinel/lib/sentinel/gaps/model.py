@@ -213,6 +213,10 @@ def same_topic(first: dict[str, Any], second: dict[str, Any]) -> bool:
     return len(a & b) / len(a | b) >= TOPIC_OVERLAP
 
 
+# the questions of a cross-read are exact: one claim, one question, never the twin of a channel's question (IMP-420)
+EXACT_GAP_PREFIXES = ("GAP-DIS-", "GAP-SRD-", "GAP-SED-", "GAP-CON-")
+
+
 def merge_gaps_by_topic(existing: list[dict[str, str]], new: list[dict[str, str]]) -> dict[str, Any]:
     """IMP-257: the common rule for opening gaps. A new id joins; a known id is
     skipped; a new id on the topic of an open gap extends that row instead."""
@@ -225,7 +229,8 @@ def merge_gaps_by_topic(existing: list[dict[str, str]], new: list[dict[str, str]
         if gap["id"] in known:
             skipped.append(gap["id"])
             continue
-        twin = next((row for row in rows if str(row.get("status", "OPEN")).upper() != "CLOSED" and same_topic(row, gap)), None)
+        twin = next((row for row in rows if str(row.get("status", "OPEN")).upper() != "CLOSED"
+                     and not str(row.get("id", "")).startswith(EXACT_GAP_PREFIXES) and same_topic(row, gap)), None)
         if twin is not None:
             mention = gap.get("evidence_mention") or gap["id"]
             current = twin.get("evidence_mention") or ""

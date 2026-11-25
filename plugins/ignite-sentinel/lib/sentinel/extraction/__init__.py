@@ -54,6 +54,11 @@ def run_extract(
     from .proposals import record_proposals
     from .verify import record_verification, start_verification
 
+    if change_id is None:  # the same guard as the CLI: no ids, change-only options, a workspace of changes only
+        from ..changes import refuse_project_extraction
+
+        refuse_project_extraction(project_id, "extract", {
+            "--consolidate": consolidate, "--confirm-replacement": confirm_replacement, "--keep-text": keep_text})
     scope = resolve_scope(project_id, change_id)  # an unknown change is a GateRefusal; None is the project (IMP-420)
     lang = "es" if scope.language == "es" else "en"
     es = lang == "es"

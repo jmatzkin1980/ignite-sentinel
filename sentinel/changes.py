@@ -126,7 +126,7 @@ def refuse_project_extraction(project_id: str, command: str, change_only: dict[s
     """IMP-420: `/extract` and `/cross` without `--change` work on the project's request, or refuse before writing.
 
     `change_only` maps each option that belongs to a change (flag -> value); a set one is refused. A workspace that only
-    holds changes names its first change; a request without rules, criteria, stories or decisions with an id has nothing
+    holds changes names its first change; a request that writes no element id (or a project past its brief) has nothing
     to extract element by element.
     """
     from .core.text import project_language
@@ -227,21 +227,29 @@ def _project_entry(project_id: str) -> dict:
             "gap_counts": read_state(project_id).get("gap_counts", {})}
 
 
+_WRITTEN_ID = re.compile(r"^[A-Z]{1,3}-\d")  # RN-01, BR-1, R-1, CA-2, AC-2, HU-3, PD-4; never "Regla 3" or CRITERIA-1
+
+
 def project_extraction_offered(project_id: str) -> bool:
     """Element-by-element extraction on the project is opt-in by evidence (IMP-420).
 
-    Offered when the project already has an inventory or a cross-read, or when its request carries elements with an
-    id (rule, criterion, story, decision; sections alone do not count), whether or not a brief was compiled.
+    Offered when the project already has an inventory or a cross-read; otherwise only for a brief v2 project that has
+    no specs yet and whose request writes element ids (RN-, CA-, HU-, PD- style). Synthetic section elements
+    (CRITERIA-1, DECISIONS-1) and loose mentions ("Regla 3") do not count; a project at specs or later keeps its step.
     """
+    from .brief_schema import brief_settings
     from .crosses import CROSS_KINDS, cross_path
     from .extraction.inventory import inventory_path, parse_request_elements, row_text
 
     base = workspace_path(project_id)
     if inventory_path(base, None).exists() or any(cross_path(base, None, kind).exists() for kind in CROSS_KINDS):
         return True
+    if int(brief_settings(project_id).get("brief_version", 1) or 1) != 2 or (base / "03_specs" / "specs.md").exists():
+        return False
     for row in project_request_rows(project_id):
         text = row_text(base, row)
-        if text is not None and any(e["kind"] != "section" for e in parse_request_elements(text, str(row["id"]), "")):
+        if text is not None and any(e["kind"] != "section" and _WRITTEN_ID.match(str(e["id"]))
+                                    for e in parse_request_elements(text, str(row["id"]), "")):
             return True
     return False
 

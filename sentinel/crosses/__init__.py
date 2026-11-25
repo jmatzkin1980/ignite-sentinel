@@ -63,6 +63,10 @@ def run_cross(
     from .state import KIND_LABELS, cross_status, write_cross_report
     from .surfaces import accept_new_surface, decline_new_surface, new_surface_candidates
 
+    if change_id is None:  # the same guard as the CLI: no ids, change-only options, a workspace of changes only
+        from ..changes import refuse_project_extraction
+
+        refuse_project_extraction(project_id, "cross", {"--accept-new": accept_new, "--decline-new": decline_new})
     scope = resolve_scope(project_id, change_id)  # an unknown change is a GateRefusal; None is the project (IMP-420)
     lang = "es" if scope.language == "es" else "en"
     es = lang == "es"
