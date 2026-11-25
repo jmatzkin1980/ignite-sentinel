@@ -75,6 +75,22 @@ def _check_final_change(project_id: str, change_id: str) -> None:
     from .readiness_verdict import build_change_verdict
 
     es = _language(project_id, change_id) == "es"
+    from .consolidation_control import consolidation_control
+
+    pending = consolidation_control(project_id, change_id)["pending"]  # IMP-414: every element resolved first
+    if pending:
+        shown = ", ".join(pending[:10]) + (f" (+{len(pending) - 10})" if len(pending) > 10 else "")
+        command = f"/extract {project_id} --change {change_id} --consolidate PATH"
+        sheet = f"01_discovery/{change_id}/consolidation_control.md"
+        if es:
+            message = (f"/export --final rechazado: {len(pending)} elemento(s) de {change_id} sin consolidar ({shown}). "
+                       f"Proponé el texto con {command} (planilla: {sheet}), confirmá cada uno con --confirm-replacement ID "
+                       "o marcá --keep-text ID --gap GAP --reason TEXTO.")
+        else:
+            message = (f"/export --final refused: {len(pending)} element(s) of {change_id} not consolidated ({shown}). "
+                       f"Propose the text with {command} (worksheet: {sheet}), confirm each one with --confirm-replacement ID "
+                       "or mark --keep-text ID --gap GAP --reason TEXT.")
+        raise DeliverableNotReady(message, command)
     found = build_change_verdict(project_id, change_id)
     if found["verdict"] == "NOT_READY":
         held = [d for d in deferred_gaps(project_id, change_id) if d["impact"] == "construccion"]
@@ -113,6 +129,8 @@ def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str
     from .compilers.change_deliverable import brief_sha, build_seal, seal_sha
     from .core.time import utc_now
 
+    from .consolidation_control import consolidation_sha
+
     seal = build_seal(project_id, change_id, True, _language(project_id, change_id))
     recorded = {
         "path": workspace_relative(project_id, Path(path)),
@@ -120,6 +138,7 @@ def _record_final_export(project_id: str, change_id: str, path: str) -> dict[str
         "brief_sha": brief_sha(workspace_path(project_id), change_id),
         "verdict": seal["verdict"],
         "seal_sha": seal_sha(project_id, change_id),
+        "consolidation_sha": consolidation_sha(project_id, change_id),
     }
     changes = {key: dict(value) for key, value in list_changes(project_id).items()}
     changes[change_id]["final_export"] = recorded

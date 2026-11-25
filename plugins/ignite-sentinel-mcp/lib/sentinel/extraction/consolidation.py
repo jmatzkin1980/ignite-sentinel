@@ -69,6 +69,14 @@ _MESSAGES = {
         "{id}: confirmá primero su extracción",
         "{id}: confirm its extraction first",
     ),
+    "keep_needs_reason": (
+        "--keep-text necesita --reason con el porqué",
+        "--keep-text needs --reason with the why",
+    ),
+    "keep_already": (
+        "{gap}: la opción {opt} ya conserva el texto del pedido; no hace falta --keep-text",
+        "{gap}: option {opt} already keeps the text of the request; --keep-text is not needed",
+    ),
     "no_pending": (
         "{id} no tiene un reemplazo pendiente de confirmar",
         "{id} has no replacement pending confirmation",
@@ -434,8 +442,10 @@ def record_consolidation(project_id: str, change_id: str, source: Path) -> dict:
         for reason in errors:
             store["rejections"].append({"id": element_id, "reason": reason, "at": now})
     write_json(consolidation_path(base, change_id), store)
+    from ..consolidation_control import write_consolidation_control
     from ..readiness_verdict import change_next_step
 
+    write_consolidation_control(project_id, change_id)
     n, u, r = len(recorded), len(unchanged), len(rejected)
     message = (
         f"{change_id}: {n} reemplazo(s) registrado(s), {u} sin cambios, {r} rechazado(s)" if es
@@ -460,6 +470,7 @@ def confirm_replacement(
     project_id: str, change_id: str, element_id: str, delegated: bool = False, note: str = "",
 ) -> dict:
     """Confirm the replacement of one element; the BA confirming what was delegated ratifies it."""
+    from ..consolidation_control import write_consolidation_control
     from ..readiness_verdict import change_next_step
     from .confirm import _context, _source_lines
     from .inventory import element_text
@@ -474,6 +485,7 @@ def confirm_replacement(
         for key in ("confirmed_by", "delegated_note", "delegated_at"):
             item.pop(key, None)
         write_json(consolidation_path(base, change_id), store)
+        write_consolidation_control(project_id, change_id)
         result.update({"replacement": item, "ratified": [element_id], "next_step": change_next_step(project_id, change_id)})
         return result
     if item is None or element is None or item.get("status") != "proposed":
@@ -500,5 +512,43 @@ def confirm_replacement(
         for key in ("confirmed_by", "delegated_note", "delegated_at"):
             item.pop(key, None)
     write_json(consolidation_path(base, change_id), store)
+    write_consolidation_control(project_id, change_id)
     result.update({"replacement": item, "next_step": change_next_step(project_id, change_id)})
     return result
+
+
+def keep_text(project_id: str, change_id: str, element_id: str, gap_id: str, reason: str) -> dict:
+    """The BA keeps the text of the request for an element although a closed decision touches it (with the why)."""
+    from ..consolidation_control import write_consolidation_control
+    from ..readiness_verdict import change_next_step
+
+    change = get_change(project_id, change_id)
+    language = change_language(project_id, change)
+    why = " ".join(str(reason or "").split())
+    if not why:
+        raise InputError(_text("keep_needs_reason", language))
+    _precondition(project_id, change_id, change, language)
+    base = workspace_path(project_id)
+    elements = {e["id"]: e for e in (load_inventory(base, change_id) or {}).get("elements", [])}
+    element = elements.get(element_id)
+    if element is None:
+        raise InputError(_msg("unknown_element", language, id=element_id, cid=change_id))
+    decision = _closed_by_id(project_id, change_id).get(gap_id)
+    if decision is None:
+        raise InputError(_msg("unknown_decision", language, id=element_id, gap=gap_id, cid=change_id))
+    if not linked(decision, element):
+        raise InputError(_text("not_linked", language, id=element_id, gap=gap_id))
+    if keeps_request(decision, element):
+        raise InputError(_text("keep_already", language, gap=gap_id, opt=str(decision.get("option", "")).upper()))
+    if retires(decision):
+        raise InputError(_text("retires", language, id=element_id, gap=gap_id))
+    store = load_consolidation(base, change_id)
+    entry = store["kept"].setdefault(element_id, {})
+    if not isinstance(entry.get(gap_id), dict) or entry[gap_id].get("reason") != why:
+        entry[gap_id] = {"reason": why, "at": _now()}
+    write_json(consolidation_path(base, change_id), store)
+    write_consolidation_control(project_id, change_id)
+    return {
+        "project_id": project_id, "change_id": change_id, "action": "keep_text", "element": element_id, "gap": gap_id,
+        "next_step": change_next_step(project_id, change_id),
+    }

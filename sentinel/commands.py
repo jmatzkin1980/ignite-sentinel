@@ -306,6 +306,9 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
                    help="IMP-414: record the text of the elements with the decision applied, one block per element")
     p.add_argument("--confirm-replacement", dest="confirm_replacement", metavar="ID",
                    help="IMP-414: confirm the replacement text of one element")
+    p.add_argument("--keep-text", dest="keep_text", metavar="ID",
+                   help="IMP-414: keep the request text of one element although a closed decision touches it (needs --gap and --reason)")
+    p.add_argument("--gap", metavar="GAP", help="IMP-414: with --keep-text, the decision that touches the element")
     p.add_argument("--delegated", action="store_true",
                    help="IMP-412: confirm on behalf of the BA; recorded apart and listed to review")
     p.add_argument("--note", help="IMP-412: with --delegated, what the BA delegated")

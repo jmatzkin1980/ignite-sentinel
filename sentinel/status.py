@@ -112,6 +112,9 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         element_id for element_id, item in load_proposals(workspace_path(project_id), change_id)["items"].items()
         if item.get("status") == "confirmed" and item.get("a_confirmar")
     ]
+    from .consolidation_control import consolidation_control
+
+    control = consolidation_control(project_id, change_id)  # IMP-414: only a change with an inventory has the key
     return {
         "project_id": project_id,
         "change_id": change_id,
@@ -124,6 +127,8 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         **({"assumptions": assumptions} if assumptions is not None else {}),
         **({"delegated": delegated} if delegated["total"] else {}),
         **({"a_confirmar": to_confirm} if to_confirm else {}),
+        **({"consolidation": {**control["counts"], "unconfirmed": control["unconfirmed"]}}
+           if control["state"] != "missing" else {}),
         "verdict": build_change_verdict(project_id, change_id),
         "final_export": change.get("final_export"),
         "final_export_current": _final_export_current(workspace_path(project_id), change_id, change),

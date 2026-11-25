@@ -492,15 +492,20 @@ def _run_project_command(args) -> int:
             from .extraction import run_extract
 
             forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item,
-                                       args.verify, args.verify_result, args.consolidate, args.confirm_replacement)]
+                                       args.verify, args.verify_result, args.consolidate, args.confirm_replacement,
+                                       args.keep_text)]
             if sum(forms) > 1:
                 raise ValueError(
                     "/extract takes one of --proposals, --confirm, --confirm-item, --reject-item, --verify, "
-                    "--verify-result, --consolidate or --confirm-replacement")
+                    "--verify-result, --consolidate, --confirm-replacement or --keep-text")
             if args.sample is not None and not args.verify:
                 raise ValueError("/extract --sample goes with --verify")
-            if args.reason and not (args.reject_item or args.confirm_item):
-                raise ValueError("/extract --reason goes with --reject-item or --confirm-item")
+            if args.reason and not (args.reject_item or args.confirm_item or args.keep_text):
+                raise ValueError("/extract --reason goes with --reject-item, --confirm-item or --keep-text")
+            if args.gap and not args.keep_text:
+                raise ValueError("/extract --gap goes with --keep-text")
+            if args.keep_text and not args.gap:
+                raise ValueError("/extract --keep-text needs --gap")
             if args.reject_item and not args.reason:
                 raise ValueError("/extract --reject-item needs --reason")
             if args.delegated and not (args.confirm or args.confirm_item or args.confirm_replacement):
@@ -513,6 +518,7 @@ def _run_project_command(args) -> int:
                 verify=args.verify, sample=args.sample, verify_result=args.verify_result,
                 delegated=args.delegated, note=args.note or "",
                 consolidate=args.consolidate, confirm_replacement=args.confirm_replacement,
+                keep_text=args.keep_text, gap=args.gap,
             ))
         elif args.command == "cross":
             from .crosses import run_cross

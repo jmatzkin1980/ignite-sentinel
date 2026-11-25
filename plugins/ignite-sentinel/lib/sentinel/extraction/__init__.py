@@ -27,6 +27,8 @@ def run_extract(
     note: str = "",
     consolidate: str | None = None,
     confirm_replacement: str | None = None,
+    keep_text: str | None = None,
+    gap: str | None = None,
 ) -> dict:
     """The /extract command: inventory, proposals, confirmation or rejection of one change."""
     from ..changes import change_language, get_change
@@ -34,6 +36,7 @@ def run_extract(
     from .confirm import confirm_item as _confirm_item
     from .confirm import confirm_proposals, reject_item as _reject_item
     from .consolidation import confirm_replacement as _confirm_replacement
+    from .consolidation import keep_text as _keep_text
     from .consolidation import record_consolidation
     from .coverage import KIND_LABELS, extraction_coverage
     from .inventory import build_inventory
@@ -54,6 +57,8 @@ def run_extract(
         result = record_consolidation(project_id, change_id, Path(consolidate))
     elif confirm_replacement:
         result = _confirm_replacement(project_id, change_id, confirm_replacement, delegated=delegated, note=note or "")
+    elif keep_text:
+        result = _keep_text(project_id, change_id, keep_text, gap or "", reason or "")
     elif reject_item:
         result = _reject_item(project_id, change_id, reject_item, reason or "")
     elif verify:
@@ -137,6 +142,11 @@ def run_extract(
         message = (
             f"{change_id}: reemplazo de {confirm_replacement} confirmado{tail}" if es
             else f"{change_id}: replacement of {confirm_replacement} confirmed{tail}"
+        )
+    elif action == "keep_text":
+        message = (
+            f"{change_id}: {keep_text} conserva el texto del pedido ({result['gap']})" if es
+            else f"{change_id}: {keep_text} keeps the text of the request ({result['gap']})"
         )
     elif action == "reject":
         message = f"{change_id}: {reject_item} volvió a pendiente" if es else f"{change_id}: {reject_item} back to pending"
