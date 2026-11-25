@@ -374,3 +374,17 @@ class SyncCase(SnapshotWorkspaceCase):
         path = Path.cwd() / name
         path.write_text(text.replace(old, new), encoding="utf-8")
         return path
+
+
+class ProjectExtractionCase(SnapshotWorkspaceCase):
+    """IMP-420 (H27 inc 6b): a project whose request carries element ids (RN-, CA-, HU-, PD-), loaded without a change."""
+
+    PID = "PEX"
+    FIXTURES = Path(__file__).resolve().parent / "fixtures" / "project_extraction"
+    SOURCE = "brief_alta_proveedores.md"
+
+    @classmethod
+    def build_workspace(cls) -> None:
+        shutil.copy(cls.FIXTURES / cls.SOURCE, Path.cwd() / cls.SOURCE)
+        run_ok(["init", cls.PID])
+        run_ok(["ingest", cls.PID, "--source", cls.SOURCE])

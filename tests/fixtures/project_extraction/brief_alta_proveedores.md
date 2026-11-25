@@ -37,7 +37,7 @@ Cada transición queda en el historial con usuario, fecha y hora, y el historial
 Las transiciones posibles entre estados son las de la tabla siguiente.
 Una transición que no figura en la tabla se rechaza con el mensaje "Transición no permitida".
 Los nombres de estado se muestran tal cual en la bandeja y en el historial.
-La tabla rige también para las altas creadas antes que sigan abiertas y quedan en estado Observada.
+La tabla rige también para las altas creadas antes que sigan abiertas, y cada una de esas altas conserva su número de trámite original, su historial completo de transiciones con usuario, fecha y hora, sus adjuntos de constancia de inscripción y sus datos bancarios validados, sin que el analista tenga que volver a cargar nada de lo que ya figura en el sistema ni adjuntar otra vez ningún documento ya aceptado por el área de Compras en una revisión anterior de la misma alta ni la jefa de Compras tenga que volver a revisarla desde el principio, salvo que el monto anual estimado, el CUIT o la cuenta bancaria hayan cambiado desde la última revisión, caso en el que se aplica el umbral vigente al momento del reenvío y, si la jefa ya la observó una vez y el plazo de corrección sigue corriendo, el alta queda en estado Observada
 
 | Estado de origen | Acción | Estado de destino | Quién |
 | --- | --- | --- | --- |
