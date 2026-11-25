@@ -26,6 +26,8 @@ _EARS_FULL = re.compile(r"\bREQ-EARS-\d+\b")
 _ESCAPED_PIPE = "\\|"
 _CELL_SPLIT = re.compile(r"(?<!\\)\|")
 _SOURCE = re.compile(r"`([^`]+)`")
+RETIRED_EARS = Path("extraction") / "retired_ears.md"  # IMP-420: ids the project's extractor retired; never reused
+PROJECT_TABLE_HEADER = ["| ID | Pattern | Statement | Source |", "| --- | --- | --- | --- |"]
 
 
 def parse_delta(value: str) -> str | None:
@@ -142,7 +144,8 @@ def change_requirements_path(base: Path, change_id: str | None) -> Path:
 def next_ears_index(base: Path) -> int:
     """The next REQ-EARS number: one past the highest in the project file and every change file."""
     requirements = base / "02_requirements"
-    files = [requirements / "requirements.md", *sorted(requirements.glob("CHG-*/requirements.md"))]
+    files = [requirements / "requirements.md", requirements / RETIRED_EARS,
+             *sorted(requirements.glob("CHG-*/requirements.md"))]
     highest = 0
     for path in files:
         if path.is_file():
@@ -158,7 +161,31 @@ def _cell(text: str) -> str:
 A_CONFIRMAR_TAIL = " / `a_confirmar`"  # IMP-412: ends the Source cell of the rows of an element the request left to confirm
 
 
-def load_change_ears(project_id: str, change_id: str) -> list[dict]:
+def _project_ears(project_id: str) -> list[dict]:
+    """IMP-420: the rows of the project's 4-column table (backticks kept, so `EXT:` is found), everything ADDED."""
+    path = change_requirements_path(workspace_path(project_id), None)
+    if not path.is_file():
+        return []
+    rows: list[dict] = []
+    in_table = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            in_table = line.strip() == "## Normalized Requirements (EARS)"
+        cells = _row_cells(line) if in_table and line.startswith("| REQ-EARS-") else []
+        if len(cells) < 4:
+            continue
+        rows.append({
+            **({"a_confirmar": True} if cells[3].endswith(A_CONFIRMAR_TAIL) else {}),
+            "id": cells[0], "pattern": cells[1], "delta": "ADDED",
+            "statement": cells[2].replace(_ESCAPED_PIPE, "|"), "source": cells[3],
+            "affects": [], "surfaces": [],
+        })
+    return rows
+
+
+def load_change_ears(project_id: str, change_id: str | None) -> list[dict]:
+    if change_id is None:
+        return _project_ears(project_id)
     path = change_requirements_path(workspace_path(project_id), change_id)
     if not path.is_file():
         return []
@@ -344,3 +371,90 @@ def materialize_change_ears(project_id: str, change_id: str, closed: list[dict],
                             language: str = "es", record_id: str | None = None) -> list[str]:
     """The ids of the rows a (re)closing added; see `reconcile_change_ears` for the full result."""
     return reconcile_change_ears(project_id, change_id, closed, responses, language, record_id)["added"]
+
+
+_EXT_CELL = re.compile(r"`EXT:([^`]+)`")
+_PROJECT_HEADING = "## Normalized Requirements (EARS)"
+_PROJECT_INTRO = (
+    "Testable statements normalized from confirmed functional answers (IMP-026) and from the request elements "
+    "the extraction confirmed (IMP-420). Specs and backlog cite these by `REQ-EARS-*`."
+)
+
+
+def reconcile_project_extraction_ears(project_id: str, element_id: str, statements: list[dict], cite: str,
+                                      a_confirmar: bool = False) -> dict[str, list[str]]:
+    """IMP-420: the rows of one extracted element of the project request, in the 4-column table of requirements.md.
+
+    A row whose (element, statement) is still produced stays in place (keeping its id); a statement no longer
+    produced leaves the table and is noted in `extraction/retired_ears.md`, so its id is never reused; a new one
+    takes the next global id (`next_ears_index`). An empty list retires every row of the element."""
+    base = workspace_path(project_id)
+    path = change_requirements_path(base, None)
+    result: dict[str, list[str]] = {"added": [], "kept": [], "retired": []}
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    lines = text.split("\n") if text else []
+    source_cell = f"`EXT:{element_id}` / `{cite}`" + (A_CONFIRMAR_TAIL if a_confirmar else "")
+    produced: dict[str, dict] = {}
+    for entry in statements:
+        produced.setdefault(_cell(entry["text"]), entry)
+    matched: set[str] = set()
+    retired: list[str] = []
+    in_table = False
+    kept_lines: list[str] = []
+    for line in lines:
+        if line.startswith("## "):
+            in_table = line.strip() == _PROJECT_HEADING
+        cells = _row_cells(line) if in_table and line.startswith("| REQ-EARS-") else []
+        found = _EXT_CELL.match(cells[3]) if len(cells) >= 4 else None
+        if not found or found.group(1) != element_id:
+            kept_lines.append(line)
+            continue
+        key = _cell(cells[2].replace(_ESCAPED_PIPE, "|"))
+        if key in produced and key not in matched:
+            matched.add(key)
+            result["kept"].append(cells[0])
+            want_tail, has_tail = source_cell.endswith(A_CONFIRMAR_TAIL), cells[3].endswith(A_CONFIRMAR_TAIL)
+            if want_tail != has_tail:  # the mark follows the request, both ways
+                cells[3] = cells[3] + A_CONFIRMAR_TAIL if want_tail else cells[3][: -len(A_CONFIRMAR_TAIL)]
+                line = "| " + " | ".join(cells[:4]) + " |"
+            kept_lines.append(line)
+        else:
+            retired.append(line)
+            result["retired"].append(cells[0])
+    next_index = next_ears_index(base)
+    new_rows: list[str] = []
+    for key, entry in produced.items():
+        if key in matched:
+            continue
+        req_id = f"REQ-EARS-{next_index:03d}"
+        next_index += 1
+        new_rows.append(f"| {req_id} | {entry['pattern']} | {key} | {source_cell} |")
+        add_node(project_id, "REQ", "ears_requirement", path, f"{req_id} ({entry['pattern']}) from EXT:{element_id}",
+                 status="confirmed", domain="product")
+        result["added"].append(req_id)
+    if not (new_rows or retired):
+        return result
+    lines = kept_lines
+    if new_rows:
+        heading = next((n for n, line in enumerate(lines) if line.strip() == _PROJECT_HEADING), None)
+        if heading is None:
+            while lines and not lines[-1].strip():
+                lines.pop()
+            lines += ["", _PROJECT_HEADING, "", _PROJECT_INTRO, "", *PROJECT_TABLE_HEADER, *new_rows, ""]
+        else:
+            end = next((n for n in range(heading + 1, len(lines)) if lines[n].startswith("## ")), len(lines))
+            last = max((n for n in range(heading + 1, end) if lines[n].startswith("|")), default=None)
+            if last is None:
+                lines[heading + 1:heading + 1] = ["", _PROJECT_INTRO, "", *PROJECT_TABLE_HEADER, *new_rows]
+            else:
+                lines[last + 1:last + 1] = new_rows
+    write_text(path, "\n".join(lines))
+    if retired:
+        old_path = base / "02_requirements" / RETIRED_EARS
+        old = old_path.read_text(encoding="utf-8").rstrip("\n").split("\n") if old_path.is_file() else [
+            "# Retired EARS rows of the project (IMP-420)", "",
+            "Rows the extraction replaced or retired; their ids are never reused.", "", *PROJECT_TABLE_HEADER,
+        ]
+        old_path.parent.mkdir(parents=True, exist_ok=True)
+        write_text(old_path, "\n".join([*old, *retired, ""]))
+    return result
