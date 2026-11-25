@@ -31,6 +31,9 @@ TEXT = {
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s): las historias saldrían de unidades desactualizadas",
         "stale_specs": "La especificación de {cid} no está al día con sus filas REQ-EARS (cambiaron desde /specs --change)",
         "old_specs": "La especificación de {cid} fue escrita por una versión anterior: volvé a correr /specs --change",
+        "gate_blocked": "El gate DoR previo al handoff (backlog_gate.strict) bloquea el backlog de {cid}: {stories}. No se escribió nada; completá lo que falta de esas historias o desactivá el modo estricto y volvé a correr /backlog --change",
+        "plan_title": "Plan de cortes de {cid}",
+        "plan_intro": "Este plan sale de las historias de {cid} en `04_backlog/US-NNN.md`, de su épica `{epic}` y de `08_context_packs/implementation_readiness.json`. Es un contrato de entrega determinista para los agentes de planificación: los habilitadores de superficies nuevas van primero. Ignite no crea ni ejecuta tareas posteriores aquí.",
         "no_seeds": "--with-task-seeds no aplica a /backlog --change: las historias del cambio no llevan semillas de tareas",
         "epic_outcome": "Entregar el cambio {cid} sobre lo existente en cortes verticales por funcionalidad (modelo de slicing de Ignite), con el comportamiento preservado como criterios pass-to-pass.",
         "stories": "## Historias",
@@ -49,6 +52,9 @@ TEXT = {
         "blocking": "{cid} has {n} blocking gap(s) open: the stories would come from stale units",
         "stale_specs": "The specification of {cid} is not current with its REQ-EARS rows (they changed since /specs --change)",
         "old_specs": "The specification of {cid} was written by an older version: rerun /specs --change",
+        "gate_blocked": "The pre-handoff DoR gate (backlog_gate.strict) blocks the backlog of {cid}: {stories}. Nothing was written; complete what these stories are missing or turn strict mode off and rerun /backlog --change",
+        "plan_title": "Slice plan of {cid}",
+        "plan_intro": "This plan comes from the stories of {cid} in `04_backlog/US-NNN.md`, from its epic `{epic}` and from `08_context_packs/implementation_readiness.json`. It is a deterministic handoff contract for planning agents: the enablers of new surfaces go first. Ignite does not create or execute downstream tasks here.",
         "no_seeds": "--with-task-seeds does not apply to /backlog --change: the change's stories carry no task seeds",
         "epic_outcome": "Deliver the change {cid} on the existing system in vertical slices by functionality (Ignite slicing model), with the preserved behavior as pass-to-pass criteria.",
         "stories": "## Stories",
@@ -226,6 +232,75 @@ def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[d
 
 _NOT_IMPLEMENTED = ("Draft", "Ready", "Blocked")
 _IN_PROGRESS = ("In Progress", "In Review")
+_LOCKED = ("In Progress", "In Review", "Done", "Blocked")  # IMP-416: a regroup never deletes a story at or beyond these
+
+
+def _locked_pieces(project_id: str, base: Path, change_id: str, previous_ids: list[str], units: list[dict[str, Any]],
+                   funs: list[dict[str, Any]], unit_of: dict[str, str], size: int, model: dict[str, Any]) -> list[dict[str, Any]]:
+    """IMP-416: stories of this change already past backlog/ready keep their id and the units they still have;
+    only the remaining units regroup. Returns one slice per such story (its key is `cid|locked|id`)."""
+    from ..backlog.status import StoryStatusError, lifecycle_for_story
+    from .change_slices import plan_change_slices
+
+    present = {unit["id"] for unit in units}
+    pieces: list[dict[str, Any]] = []
+    taken: set[str] = set()
+    for story_id in previous_ids:
+        try:
+            if lifecycle_for_story(project_id, story_id)["status"] not in _LOCKED:
+                continue
+        except StoryStatusError:
+            continue
+        front = parse_frontmatter((base / "04_backlog" / f"{story_id}.md").read_text(encoding="utf-8"))
+        grouped = front.get("source_units")
+        single = front.get("source_unit")
+        old = [str(u) for u in grouped] if isinstance(grouped, list) and grouped else (
+            [single.strip()] if isinstance(single, str) and single.strip() else [])
+        members = [u for u in old if u in present and u not in taken]
+        if not members:
+            continue  # its units are gone: it leaves, as it always did
+        planned = plan_change_slices(change_id, [unit for unit in units if unit["id"] in members], funs, unit_of,
+                                 max(size, len(members)), model)  # the story keeps its units together, whatever the size now
+        if not planned:
+            continue
+        piece = dict(planned[0])
+        piece["key"] = f"{change_id}|locked|{story_id}"
+        piece["locked_id"] = story_id
+        taken.update(piece["units"])
+        pieces.append(piece)
+    return pieces
+
+
+def _droppable_units(project_id: str, base: Path, change_id: str, units: list[dict[str, Any]], rows: list[dict[str, Any]],
+                     skip: set[str], text: dict[str, Any]) -> tuple[set[str], list[str], list[str], list[str]]:
+    """IMP-416: a REMOVED unit none of whose rows affects an implemented or in-progress story, and that affects at least
+    one not-implemented one, has nothing left to build: it gets no story. Decided per unit, never for the whole slice
+    (a REMOVED unit with no `Afecta` keeps its story: removing that behavior is work)."""
+    from ..backlog.status import lifecycle_for_story
+
+    rows_by_id = {str(row["id"]): row for row in rows}
+    on_disk = {path.stem for path in (base / "04_backlog").glob("US-*.md")}
+    dropped: set[str] = set()
+    warnings: list[str] = []
+    to_stale: list[str] = []
+    all_stale: list[str] = []
+    for unit in units:
+        if unit["id"] in skip or str(unit.get("delta", "")) != "REMOVED":
+            continue
+        unit_rows = [rows_by_id[e] for e in unit["ears"] if e in rows_by_id]
+        affected = list(dict.fromkeys(sid for row in unit_rows for sid in row.get("affects") or [] if sid in on_disk))
+        if not affected:
+            continue
+        statuses = {sid: lifecycle_for_story(project_id, sid)["status"] for sid in affected}
+        if any(status == "Done" or status in _IN_PROGRESS for status in statuses.values()):
+            continue
+        dropped.add(unit["id"])
+        to_stale += [sid for sid, status in statuses.items() if status in _NOT_IMPLEMENTED]
+        all_stale += [sid for sid, status in statuses.items() if status in _NOT_IMPLEMENTED or status == "Stale"]
+        for row in unit_rows:
+            warnings += [text["missing_affected"].format(sid=sid, cid=change_id, row=row["id"])
+                         for sid in row.get("affects") or [] if sid not in on_disk]
+    return dropped, warnings, list(dict.fromkeys(to_stale)), list(dict.fromkeys(all_stale))
 
 
 def _classify_affected(project_id: str, base: Path, change_id: str, stories: list[dict[str, Any]],
@@ -234,7 +309,7 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     """What each MODIFIED/REMOVED row does to the existing stories it affects.
 
     Not implemented ones go Stale; implemented (Done) and in-progress ones make the row's story a change request.
-    A REMOVED row that touches only not-implemented stories produces no story. Mutates `stories` (type, modifica, drops).
+    (The REMOVED units that produce no story were already taken out, per unit: `_droppable_units`.) Mutates `stories`.
     """
     from ..backlog.status import lifecycle_for_story
 
@@ -245,9 +320,6 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
     all_stale: list[str] = []
     modified_by: dict[str, list[str]] = {}
     warnings: list[str] = []
-    kept: list[dict[str, Any]] = []
-    dropped: list[str] = []
-    dropped_units: list[str] = []
     for story in stories:
         # IMP-416: a story is its units' rows; the slice has one delta, so `delta` is the story's.
         story_rows = [rows_by_id[e] for uid in _story_units(story) for e in ears_of_unit.get(uid, [])]
@@ -269,14 +341,8 @@ def _classify_affected(project_id: str, base: Path, change_id: str, stories: lis
                 warnings.append(text["in_progress"].format(sid=sid, status=statuses[sid], new=story["id"], cid=change_id))
         if modifies:
             story["type"], story["modifica"] = "change_request", modifies
-        elif delta == "REMOVED" and affected:
-            dropped.append(story["id"])
-            dropped_units.extend(_story_units(story))
-            continue
-        kept.append(story)
-    stories[:] = kept
-    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by, "warnings": warnings, "dropped": dropped,
-            "dropped_units": dropped_units}
+    return {"to_stale": list(dict.fromkeys(to_stale)), "all_stale": list(dict.fromkeys(all_stale)), "modified_by": modified_by,
+            "warnings": warnings}
 
 
 def _write_modificada_por(base: Path, own: set[str], change_id: str, modified_by: dict[str, list[str]]) -> None:
@@ -366,7 +432,7 @@ def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
 
 def _compile_change_backlog(project_id: str, change_id: str, story_format: str | None = None) -> dict[str, Any]:
     from ..backlog.gates import evaluate_story_gates, update_story_gate_state
-    from ..backlog.hooks import assert_backlog_privacy_clean
+    from ..backlog.hooks import assert_backlog_privacy_clean, pre_handoff_gate
     from ..backlog.rollup import backlog_status
     from ..backlog.status import audit_acceptance_criteria_freezes, lifecycle_for_story
     from ..generation import build_backlog_generation_context, implementation_readiness_for_story
@@ -394,13 +460,32 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     # IMP-416: functionalities -> slices -> one story per slice; the id key is the slice's, so a rerun keeps ids.
     unit_of = {str(e): unit["id"] for unit in units for e in unit["ears"]}
     slicing_model = load_slicing_model()
-    slices = plan_change_slices(change_id, units, change_functionalities(project_id, change_id, rows), unit_of,
-                                story_size(slicing_model), slicing_model)
+    size = story_size(slicing_model)
+    funs = change_functionalities(project_id, change_id, rows)
+    previous_ids = set(_change_story_ids(base, change_id))
+    # A story already past backlog/ready keeps its id and the units it still has; only the rest regroup.
+    locked = _locked_pieces(project_id, base, change_id, sorted(previous_ids), units, funs, unit_of, size, slicing_model)
+    locked_units = {uid for piece in locked for uid in piece["units"]}
+    slices = plan_change_slices(change_id, [unit for unit in units if unit["id"] not in locked_units], funs, unit_of, size,
+                                slicing_model)
     ids = id_registry.assign_ids(project_id, "US", [item["key"] for item in slices])
+    locked_ids = {piece["locked_id"] for piece in locked}
+    clashes = [item for item in slices if ids[item["key"]] in locked_ids]
+    for item in clashes:  # the key of a regrouped slice may be the one the locked story was issued under
+        item["key"] += "|regrouped"
+    if clashes:
+        ids.update(id_registry.assign_ids(project_id, "US", [item["key"] for item in clashes]))
+    ids.update({piece["key"]: piece["locked_id"] for piece in locked})
+    slices = [*locked, *slices]
+    # A REMOVED unit that only retires not-implemented stories gets none: decided per unit, then each slice is trimmed.
+    skipped, drop_warnings, drop_to_stale, drop_all_stale = _droppable_units(project_id, base, change_id, units, rows, locked_units, text)
+    for item in slices:
+        item["units"] = [uid for uid in item["units"] if uid not in skipped]
+        item["surfaces"] = list(dict.fromkeys(name for unit in units if unit["id"] in item["units"] for name in unit.get("surfaces") or []))
+    slices = [item for item in slices if item["units"]]
 
     # A rerun must not retrieve what the previous run derived (the change's epic, stories and readiness pack):
     # drop those rows from memory so the same inputs give the same stories; they are indexed again at the end.
-    previous_ids = set(_change_story_ids(base, change_id))
     pack_path = base / "08_context_packs" / "implementation_readiness.json"
     epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
     shared_broker(project_id).forget_sources({
@@ -415,8 +500,9 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
                                       {unit["id"]: unit for unit in units}, ids, preserved)
     slice_of = {ids[item["key"]]: item for item in slices}
     affected = _classify_affected(project_id, base, change_id, stories, units, rows, text)
-    for story_id in affected["dropped"]:
-        backlog_context.get("per_story", {}).pop(story_id, None)
+    affected["warnings"] = [*drop_warnings, *affected["warnings"]]
+    affected["to_stale"] = list(dict.fromkeys([*affected["to_stale"], *drop_to_stale]))
+    affected["all_stale"] = list(dict.fromkeys([*affected["all_stale"], *drop_all_stale]))
     # IMP-416: a new surface the crosses accepted is built before the stories that use it (an enabler per surface).
     new_surfaces = [item for item in change.get("border") or [] if item.get("origin") == "cross" and item.get("zone") == "nuevo"]
     enablers = build_cross_cutting_enabler_specs(project_id, stories, backlog_context, language, True,
@@ -430,17 +516,27 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         story["context_pack"] = pack_rel
         current = lifecycle_for_story(project_id, story["id"]) if story["id"] in lifecycle else {"status": "Draft", "owner": ""}
         story["status"], story["owner"] = current["status"], current["owner"]
-    audit_acceptance_criteria_freezes(project_id, stories)
 
     readiness_items: list[dict[str, Any]] = []
+    gate_results: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for story in stories:
         item = implementation_readiness_for_story(story)
         gate_result = evaluate_story_gates(project_id, story, item)
         item["dor"], item["dod"] = gate_result["dor"], gate_result["dod"]
         item["backlog_gate"] = {"threshold": gate_result["threshold"], "strict": gate_result["strict"]}
         story["dor"], story["dod"] = gate_result["dor"], gate_result["dod"]
-        update_story_gate_state(project_id, str(story["id"]), gate_result)
+        gate_results.append((story, gate_result))
         readiness_items.append(item)
+
+    # The strict backlog gate is judged before anything is written: a refusal leaves the workspace as it was.
+    handoff = pre_handoff_gate(project_id, {"stories": readiness_items})
+    if handoff["strict"] and handoff["warnings"]:
+        listed = "; ".join(f"{w['story_id']} ({', '.join(w['missing'])})" for w in handoff["warnings"])
+        raise GateRefusal(text["gate_blocked"].format(cid=change_id, stories=listed),
+                          next_step=f"/next {project_id} --change {change_id}")
+    audit_acceptance_criteria_freezes(project_id, stories)
+    for story, gate_result in gate_results:
+        update_story_gate_state(project_id, str(story["id"]), gate_result)
 
     # Files: this change's stories (and only them) are replaced; the ones that no longer come out are removed.
     current_ids = {story["id"] for story in stories}
@@ -502,7 +598,8 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     generate_slice_plan(
         project_id, stories, {**pack, "stories": [i for i in all_items if str(i.get("story_id", "")) in current_ids]},
         md_rel=plan_md, json_rel=f"08_context_packs/{change_id}/slice_plan.json",
-        memory_id=f"{change_id}-SLICE-PLAN", enabler_group=epic_id)
+        memory_id=f"{change_id}-SLICE-PLAN", enabler_group=epic_id,
+        title=text["plan_title"].format(cid=change_id), intro=text["plan_intro"].format(cid=change_id, epic=epic_id))
 
     # Lifecycle: new stories start Draft, existing entries stay, removed stories leave.
     for story in stories:
@@ -532,7 +629,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     stale = affected["all_stale"]
     changes[change_id]["backlog"] = {
         "stories": story_ids, "change_requests": change_requests, "stale": stale, "generated_at": utc_now(),
-        "dropped_units": affected["dropped_units"],  # IMP-396: units deliberately left without a story
+        "dropped_units": sorted(skipped),  # IMP-396: units deliberately left without a story
     }
     update_state(project_id, changes=changes)
 

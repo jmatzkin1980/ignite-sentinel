@@ -252,6 +252,13 @@ def check_consolidation(body: str) -> None:
             assert stale == [], f"{element_id}: not in the element nor in the answer: {stale}"
 
 
+def _template_copy(lang: str) -> dict:
+    import json
+
+    template = json.loads((Path(__file__).resolve().parent.parent / "sentinel" / "templates" / "change_brief.json").read_text(encoding="utf-8"))
+    return template["copy"][lang] if "copy" in template else template[lang]
+
+
 def check_change_functionality(body: str, lang: str) -> None:
     """IMP-416: the functionality section of the example has the eight blocks of the writer, in order, and its table header."""
     assert re.search(r"(?m)^## FUN-\d+ ", body), "no `## FUN-` section"
@@ -263,6 +270,18 @@ def check_change_functionality(body: str, lang: str) -> None:
     parts = re.split(r"(?m)^### .+$", section)[1:]
     for title, content in zip(titles, parts):
         assert content.strip(), f"{title}: empty block (it says `_{NO_DATA[lang]}_` when nothing is registered)"
+    block = dict(zip(titles, parts))
+    # the shape of the lines is the renderer's (M-1 of the final review): To-be, Interfaces, decisions header, order
+    to_be = [line for line in block[BLOCKS[lang][2]].splitlines() if line.strip()]
+    assert all(re.match(r"- SPEC-U-\d+ REQ-EARS-\d+ \[(ADDED|MODIFIED|REMOVED)\] \S", line) for line in to_be), f"To-be lines: {to_be}"
+    interfaces = [line for line in block[BLOCKS[lang][3]].splitlines() if line.strip()]
+    assert all(re.match(r"- [a-z ]+ — .+ — [a-z ]+", line) for line in interfaces), f"Interfaces lines: {interfaces}"
+    decisions = [line for line in block[BLOCKS[lang][5]].splitlines() if line.strip()]
+    template = _template_copy(lang)
+    assert decisions[0] == template["decisions_header"], f"decisions header {decisions[0]!r}"
+    assert decisions[1] == "|---|---|---|---|---|", f"decisions separator {decisions[1]!r}"
+    order = [line for line in block[BLOCKS[lang][7]].splitlines() if line.strip()]
+    assert not any(line.startswith(("- Va primero", "- Goes first")) for line in order), "the first-surface line is not a bullet"
     copy = COPY[lang]
     trace = re.search(rf"(?m)^{re.escape(copy['trace'])}\s*$", body)
     if trace:

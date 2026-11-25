@@ -58,7 +58,8 @@ class Consolidated(ConsolidationCase):
     def test_objective_quotes_consolidated_text(self):
         objective = block(self.fun(), BLOCKS["es"][0])
         self.assertIn("mayor a 1.000.000 requiere aprobación de la jefa de Compras", objective)
-        self.assertIn(":L31)", objective)
+        self.assertRegex(objective, r":L\d+")
+        self.assertIn(self.dis, objective)  # IMP-416 I-5: the quote names the GAP decision its text comes from
         self.assertNotIn("5.000.000", objective)
 
     def test_decisions_block_names_gap(self):
@@ -143,6 +144,9 @@ class Plain(SnapshotWorkspaceCase):
         self.assertIn(f"_{NO_DATA['en']}_", text)
         self.assertIn("| Unit | REQ-EARS | Element | Citation | Surface | GAP |", text)
         self.assertNotIn("sin dato registrado", text)
+        # IMP-416 M-2: the types and zones of the header and of the interface lines follow the change language
+        self.assertRegex(text, r"(?m)^## FUN-01 — .+ \(data item, adjacent\)$")
+        self.assertRegex(text, r"(?m)^- data item — .+ — existing")
 
 
 if __name__ == "__main__":

@@ -750,8 +750,8 @@ def implementation_readiness_for_story(story: dict[str, Any]) -> dict[str, Any]:
         "context_pack": story.get("context_pack", "08_context_packs/backlog_generation.json"),
         "context_pack_section": story.get("context_pack_section", ""),
     }
-    if story.get("source_units"):
-        item["source_units"] = list(story["source_units"])  # IMP-416: a grouped change story carries several units
+    if isinstance(story.get("source_units"), list):
+        item["source_units"] = list(story["source_units"])  # IMP-416: a change story (an enabler carries none) is judged by its units
     if story.get("task_seed_contract"):
         item["task_seed_contract"] = story["task_seed_contract"]
     return item

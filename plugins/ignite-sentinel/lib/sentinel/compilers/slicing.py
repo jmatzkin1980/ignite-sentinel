@@ -699,8 +699,8 @@ def build_new_surface_enabler_specs(
             "type": "cross_cutting_enabler",
             "title": title,
             "label": "Enabler",
-            "fr": enabled[0].get("fr", ""),
-            "jtbd": enabled[0].get("jtbd", ""),
+            "fr": ", ".join(dict.fromkeys(str(s.get("fr", "")) for s in enabled if s.get("fr"))) or "—",  # the functionalities it enables
+            "jtbd": "—",  # an enabler implements no REQ-EARS of its own: it borrows none from the stories it enables
             "slicing": "Cross-Cutting Enabler / New Surface",
             "slicing_rationale": texts["rationale"].format(**values, enables=", ".join(s["id"] for s in enabled)),
             "description": texts["description"].format(**values),

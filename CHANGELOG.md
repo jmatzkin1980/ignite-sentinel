@@ -17,6 +17,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ### Fixed
 
 - `/backlog --change` at scale (T2-38: one retrieval per story, not per unit); the specs of the change with origin and line citation (T2-34, T2-35), grouped (T2-36) and in the language of the change (T2-37); the command `specs.md` no longer says that `prd.md` is not written.
+- `/backlog --change` after the final review of IMP-416: an enabler of a new surface is judged INVEST Small by its own rule, not by the units of the stories it enables; a regroup (0.31 upgrade, or a slice crossing the size limit) never deletes a change story that is `In Progress`, `In Review`, `Blocked` or `Done` (it keeps its id and units, only the rest regroup); with `backlog_gate.strict` the command refuses before writing anything; a REMOVED unit with no `Afecta` keeps its story (only the units that retire not-implemented stories are dropped, per unit); the Objetivo of the change specs cites the lines and GAP decisions of the consolidated text it quotes; the English change document and the slice plan of a change use the change language, a new surface has no as-is facts of other screens, and an enabler no longer borrows the requirements of the first story it enables.
 
 ## [0.31.0] — 2026-11-25
 

@@ -18,6 +18,8 @@ def generate_slice_plan(
     json_rel: str = "08_context_packs/slice_plan.json",
     memory_id: str = "SLICE-PLAN",
     enabler_group: str = "EPIC-002",
+    title: str | None = None,
+    intro: str | None = None,
 ) -> dict[str, Any]:
     """Write the deterministic backlog handoff plan for downstream agents.
 
@@ -51,7 +53,7 @@ def generate_slice_plan(
     }
     md_path = base / md_rel
     json_path = base / json_rel
-    write_text(md_path, render_slice_plan(project_id, plan, json_rel))
+    write_text(md_path, render_slice_plan(project_id, plan, json_rel, title=title, intro=intro))
     write_json(json_path, plan)
     shared_broker(project_id).index_artifact(
         memory_id,
@@ -269,12 +271,19 @@ def gate_status(gate: object) -> str:
     return "[PENDING DOR]"
 
 
-def render_slice_plan(project_id: str, plan: dict[str, Any], json_rel: str = "08_context_packs/slice_plan.json") -> str:
+def render_slice_plan(project_id: str, plan: dict[str, Any], json_rel: str = "08_context_packs/slice_plan.json",
+                      title: str | None = None, intro: str | None = None) -> str:
     phases = plan["phases"]
     checkpoints = plan["checkpoints"]
-    return f"""# Slice Plan - {project_id}
+    title = title if title is not None else f"Slice Plan - {project_id}"  # IMP-416: a change words its own title and intro
+    intro = intro if intro is not None else (
+        "This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-cutting-enablers.md` when present, "
+        "and `08_context_packs/implementation_readiness.json`. It is a deterministic handoff contract for planning agents. "
+        "Ignite does not create or execute downstream tasks here."
+    )
+    return f"""# {title}
 
-This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-cutting-enablers.md` when present, and `08_context_packs/implementation_readiness.json`. It is a deterministic handoff contract for planning agents. Ignite does not create or execute downstream tasks here.
+{intro}
 
 ## Summary
 

@@ -25,7 +25,12 @@ def _item_key(item: dict) -> str:
 
 
 def functionality_key(row: dict, border: list[dict], template: dict) -> tuple[str, dict | None]:
-    """(stable key, border item) of a row: its first valid surface; without one, its v2 place."""
+    """(stable key, border item) of a row: its first valid surface; without one, its v2 place.
+
+    A row with no valid surface has no surface type, so its lens is always `business` and its place `2.2`: every
+    surface-less row of the change shares the one `lugar:2.2` functionality (it is split afterwards by delta, SPIDR axis
+    and the size of the slicing model). Grouping them by the place of their request element is not done on purpose:
+    it would change the grouping, ids and sha of every existing change."""
     valid, _unknown = parse_surfaces(";".join(row.get("surfaces") or []), border)
     for name in valid[:1]:
         item = _surface_item(border, name)

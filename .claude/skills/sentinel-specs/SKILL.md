@@ -63,7 +63,7 @@ One functionality section of `03_specs/CHG-nnn/specs.md`, with its eight blocks 
 
 ### Objetivo
 
-> «Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras.» (pedido.md:L31)
+> «Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras.» (pedido.md:L31; GAP-DIS-3F9A1C07)
 
 ### As-is (lo que existe hoy)
 
@@ -71,21 +71,21 @@ _sin dato registrado_
 
 ### To-be (cómo debe quedar)
 
-- RN-02 (MODIFIED): Cuando un alta de proveedor tiene un monto anual estimado mayor a 1.000.000, el sistema debe pedir la aprobación de la jefa de Compras.
+- SPEC-U-001 REQ-EARS-002 [MODIFIED] Cuando un alta de proveedor tiene un monto anual estimado mayor a 1.000.000, el sistema debe pedir la aprobación de la jefa de Compras.
 
 ### Interfaces que toca
 
-- Pantalla «Aprobación por monto» (a construir)
+- pantalla — Aprobación por monto — a construir
 
 ### No regresión
 
-- `REQ-EARS-001` pass-to-pass: el alta de proveedores con monto menor al umbral sigue sin pedir aprobación.
+- REQ-EARS-001 Cuando un alta de proveedor tiene un monto menor al umbral, el sistema debe registrarla sin pedir aprobación. — pass-to-pass
 
 ### Decisiones que la afectan
 
-| GAP | Pregunta | Respuesta |
-| --- | --- | --- |
-| GAP-DIS-3F9A1C07 | ¿Rige 5.000.000 o 1.000.000? | Rige el diseño: el umbral de aprobación es 1.000.000. |
+| GAP | Sección | Qué se decidió | Opción | Decidido por |
+|---|---|---|---|---|
+| GAP-DIS-3F9A1C07 | 1.5 | El umbral de aprobación es 1.000.000. | — | Jefa de Compras |
 
 ### Supuestos y pendientes
 
@@ -93,13 +93,13 @@ _sin dato registrado_
 
 ### Orden y dependencias
 
-- Va primero: es superficie nueva.
+Va primero: es superficie nueva.
 
 ## Trazabilidad
 
 | Unidad | REQ-EARS | Elemento | Cita | Superficie | GAP |
 | --- | --- | --- | --- | --- | --- |
-| SPEC-U-001 | `REQ-EARS-002` | RN-02 | pedido.md:L31 | Aprobación por monto | GAP-DIS-3F9A1C07 |
+| SPEC-U-001 | REQ-EARS-002 | RN-02 | pedido.md:L31 | Aprobación por monto | GAP-DIS-3F9A1C07 |
 ```
 
 The same in English:
@@ -109,7 +109,7 @@ The same in English:
 
 ### Objective
 
-> «A vendor registration with an estimated annual amount above 1,000,000 requires approval from the head of Procurement.» (request.md:L31)
+> «A vendor registration with an estimated annual amount above 1,000,000 requires approval from the head of Procurement.» (request.md:L31; GAP-DIS-3F9A1C07)
 
 ### As-is (what exists today)
 
@@ -117,21 +117,21 @@ _no data recorded_
 
 ### To-be (target behavior)
 
-- RN-02 (MODIFIED): When a vendor registration has an estimated annual amount above 1,000,000, the system shall ask for the approval of the head of Procurement.
+- SPEC-U-001 REQ-EARS-002 [MODIFIED] When a vendor registration has an estimated annual amount above 1,000,000, the system shall ask for the approval of the head of Procurement.
 
 ### Interfaces touched
 
-- Screen «Amount approval» (to build)
+- screen — Amount approval — to build
 
 ### No regression
 
-- `REQ-EARS-001` pass-to-pass: registering a vendor below the threshold still asks for no approval.
+- REQ-EARS-001 When a vendor registration is below the threshold, the system shall register it without asking for approval. — pass-to-pass
 
 ### Decisions affecting it
 
-| GAP | Question | Answer |
-| --- | --- | --- |
-| GAP-DIS-3F9A1C07 | Does 5,000,000 or 1,000,000 apply? | The design applies: the approval threshold is 1,000,000. |
+| GAP | Section | What was decided | Option | Decided by |
+|---|---|---|---|---|
+| GAP-DIS-3F9A1C07 | 1.5 | The approval threshold is 1,000,000. | — | Head of Procurement |
 
 ### Assumptions and open items
 
@@ -139,11 +139,11 @@ _no data recorded_
 
 ### Order and dependencies
 
-- Goes first: it is a new surface.
+Goes first: it is a new surface.
 
 ## Traceability
 
 | Unit | REQ-EARS | Element | Citation | Surface | GAP |
 | --- | --- | --- | --- | --- | --- |
-| SPEC-U-001 | `REQ-EARS-002` | RN-02 | request.md:L31 | Amount approval | GAP-DIS-3F9A1C07 |
+| SPEC-U-001 | REQ-EARS-002 | RN-02 | request.md:L31 | Amount approval | GAP-DIS-3F9A1C07 |
 ```

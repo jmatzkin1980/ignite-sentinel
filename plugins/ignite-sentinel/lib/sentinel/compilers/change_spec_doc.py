@@ -60,6 +60,20 @@ COPY = {
 }
 
 
+ZONES_EN = {"nuevo": "new", "adyacente": "adjacent", "preservado": "preserved"}
+
+
+def _kind(language: str, kind: Any) -> str:
+    """The surface type as the change language names it (the enablers use the same table)."""
+    from .slicing import ENABLER_SURFACE_TEXT
+
+    return str(ENABLER_SURFACE_TEXT[language]["types"].get(str(kind), kind))
+
+
+def _zone(language: str, zone: Any) -> str:
+    return ZONES_EN.get(str(zone), str(zone)) if language == "en" else str(zone)
+
+
 def _cell(text: Any) -> str:
     return " ".join(str(text).split()).replace("|", "\\|")
 
@@ -146,8 +160,13 @@ def change_spec_context(project_id: str, change_id: str, units: list[dict], funs
         element = elements.get(element_id)
         if element is None:
             return None
-        text = replaced[element_id].get("text") if element_id in replaced else _element_text_cached(base, element, cache)
-        return _quote(str(text or ""), _cite(element), element_id)
+        if element_id in replaced:
+            # IMP-416: the replacement quotes its own lines and the GAP decisions it comes from, not the superseded element's span
+            found = replaced[element_id]
+            own = _cite({"path": element["path"], "spans": found.get("lines") or element.get("spans") or []})
+            gaps = [str(g) for g in found.get("decisions") or []]
+            return _quote(str(found.get("text") or ""), "; ".join([own, *gaps]) if own else "; ".join(gaps), element_id)
+        return _quote(str(_element_text_cached(base, element, cache) or ""), _cite(element), element_id)
 
     out_funs: list[dict] = []
     trace_rows: list[list[str]] = []
@@ -173,7 +192,7 @@ def change_spec_context(project_id: str, change_id: str, units: list[dict], funs
             folded = _fold_name(fun["name"])
             found = [e for e in facts if e.get("block") in wanted]
             named = [e for e in found if folded and folded in _fold_name(str(e.get("text", "")))]
-            chosen = named or found
+            chosen = named if (named or fun["zone"] == "nuevo") else found  # a surface that does not exist yet has no as-is of its own
             blocks["as_is"] = [f"- {e['text']} ({e['ref']})" for e in chosen[:AS_IS_LIMIT]]
             if len(chosen) > AS_IS_LIMIT:
                 blocks["as_is"].append(f"(+{len(chosen) - AS_IS_LIMIT})")
@@ -191,7 +210,7 @@ def change_spec_context(project_id: str, change_id: str, units: list[dict], funs
             if item is None:
                 continue
             state = copy["build"] if item.get("zone") == "nuevo" else copy["existing"]
-            line = f"- {item.get('type', '')} — {name} — {state}"
+            line = f"- {_kind(language, item.get('type', ''))} — {name} — {state}"
             blocks["interfaces"].append(f"{line} ({item['cite']})" if item.get("cite") else line)
 
         for other_id in fun["preserved"]:
@@ -201,7 +220,7 @@ def change_spec_context(project_id: str, change_id: str, units: list[dict], funs
         for name in fun["surfaces"]:
             item = border.get(name)
             if item is not None and item.get("zone") == "preservado":
-                blocks["no_regression"].append(f"- {item.get('type', '')} — {name} — {copy['kept']}")
+                blocks["no_regression"].append(f"- {_kind(language, item.get('type', ''))} — {name} — {copy['kept']}")
 
         mine = [row for row in log_rows if any(row.startswith(f"| {gap} |") for gap in wanted_gaps)]
         blocks["decisions"] = [*log_head, *mine] if mine else []
@@ -256,7 +275,8 @@ def render_change_spec_doc(context: dict, change_id: str) -> str:
     lines = [copy["title"].format(cid=change_id), ""]
     for fun in context["funs"]:
         if fun["name"]:
-            lines.append(copy["fun"].format(fun=fun["id"], name=fun["name"], type=fun["type"], zone=fun["zone"]))
+            lines.append(copy["fun"].format(fun=fun["id"], name=fun["name"], type=_kind(language, fun["type"]),
+                                      zone=_zone(language, fun["zone"])))
         else:
             lines.append(copy["no_surface"].format(fun=fun["id"], place=fun["place"]))
         lines.append("")
