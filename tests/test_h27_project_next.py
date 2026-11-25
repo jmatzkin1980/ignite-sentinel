@@ -50,12 +50,10 @@ def block_for(element: dict, base: Path) -> str:
 
 class ProjectNext(ProjectExtractionCase):
     def close_blocking(self) -> None:
-        """Confirm the brief settings and answer the three blocking gaps; the brief that /resolve-gaps compiles is taken
-        out (the offer is for a project that has not compiled its brief yet)."""
+        """Confirm the brief settings and answer the three blocking gaps (/resolve-gaps then compiles the brief)."""
         run_ok(["brief", PID, "--profile", "UI", "--genesis", "greenfield"])
         Path("blocking.md").write_text(BLOCKING, encoding="utf-8")
         run_ok(["resolve-gaps", PID, "--source", "blocking.md"])
-        (workspace_path(PID) / "02_requirements" / "project-brief.md").unlink(missing_ok=True)
         forget_read_snapshots()
 
     def record_crosses(self) -> None:
@@ -72,7 +70,6 @@ class ProjectNext(ProjectExtractionCase):
                       "- Evidence or reference: Synthetic", "- Decision status: confirmed", ""]
         Path("cross-answers.md").write_text("\n".join(lines), encoding="utf-8")
         run_ok(["resolve-gaps", PID, "--source", "cross-answers.md"])
-        (workspace_path(PID) / "02_requirements" / "project-brief.md").unlink(missing_ok=True)
         forget_read_snapshots()
 
     def propose(self, first: str) -> None:
@@ -119,8 +116,8 @@ class ProjectNext(ProjectExtractionCase):
         self.assertEqual((found["key"], found["command"]), ("extract_confirm", f"/extract {PID} --confirm all"))
         confirm_proposals(PID, None, "all")
         forget_read_snapshots()
-        # nothing of the extraction is left to offer: the step is the one the project had before
-        self.assertEqual(step()["key"], "resolve_gaps")
+        # nothing of the extraction is left to offer; the brief /resolve-gaps compiled before it reads as stale
+        self.assertEqual(step()["key"], "brief")
 
     def test_flagged_confirm_names_item(self):
         self.close_blocking()
@@ -141,16 +138,15 @@ class ProjectNext(ProjectExtractionCase):
         self.assertEqual(found["key"], "crosses")
         self.assertEqual(found["command"], f"/harvest {PID} --source PATH")
 
-    def test_post_brief_workspace_not_offered(self):
-        run_ok(["brief", PID, "--profile", "UI", "--genesis", "greenfield"])
-        Path("blocking.md").write_text(BLOCKING, encoding="utf-8")
-        run_ok(["resolve-gaps", PID, "--source", "blocking.md"])
-        forget_read_snapshots()
+    def test_compiled_brief_still_offered(self):
+        """/resolve-gaps compiles the brief when the blocking gaps close; the offer must not depend on it being absent."""
+        self.close_blocking()
         base = workspace_path(PID)
         self.assertTrue((base / "02_requirements" / "project-brief.md").is_file())
-        self.assertNotIn(step()["key"], NEW_KEYS)
-        self.assertFalse((base / "02_requirements" / "extraction").exists())
-        self.assertFalse((base / "01_discovery" / "crosses").exists())
+        self.assertEqual(step()["key"], "crosses")
+        self.record_crosses()
+        self.assertTrue((base / "02_requirements" / "project-brief.md").is_file())
+        self.assertEqual(step()["key"], "extract_inventory")
 
     def test_brief_stale_after_extraction(self):
         self.extract_everything()

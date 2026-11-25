@@ -86,10 +86,9 @@ class ProjectInventory(ProjectExtractionCase):
 
 class Offered(ProjectExtractionCase):
     def test_offered_only_with_ids_or_records(self):
-        self.assertTrue(project_extraction_offered(PID, False))
-        self.assertFalse(project_extraction_offered(PID, True))
+        self.assertTrue(project_extraction_offered(PID))
         build_inventory(PID, None)
-        self.assertTrue(project_extraction_offered(PID, True))
+        self.assertTrue(project_extraction_offered(PID))
 
     def test_not_offered_without_ids(self):
         from test_golden_artifacts import RAW_ES
@@ -98,8 +97,7 @@ class Offered(ProjectExtractionCase):
         Path("golden.md").write_text(RAW_ES, encoding="utf-8")
         run_ok(["init", other])
         run_ok(["ingest", other, "--source", "golden.md"])
-        self.assertFalse(project_extraction_offered(other, False))
-        self.assertFalse(project_extraction_offered(other, True))
+        self.assertFalse(project_extraction_offered(other))
 
 
 if __name__ == "__main__":

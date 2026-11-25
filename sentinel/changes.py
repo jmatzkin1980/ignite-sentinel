@@ -193,11 +193,11 @@ def _project_entry(project_id: str) -> dict:
             "gap_counts": read_state(project_id).get("gap_counts", {})}
 
 
-def project_extraction_offered(project_id: str, has_brief: bool) -> bool:
+def project_extraction_offered(project_id: str) -> bool:
     """Element-by-element extraction on the project is opt-in by evidence (IMP-420).
 
-    Offered when the project already has an inventory or a cross-read, or, before a brief exists, when its
-    request carries elements with an id (rule, criterion, story, decision; sections alone do not count).
+    Offered when the project already has an inventory or a cross-read, or when its request carries elements with an
+    id (rule, criterion, story, decision; sections alone do not count), whether or not a brief was compiled.
     """
     from .crosses import CROSS_KINDS, cross_path
     from .extraction.inventory import inventory_path, parse_request_elements, row_text
@@ -205,8 +205,6 @@ def project_extraction_offered(project_id: str, has_brief: bool) -> bool:
     base = workspace_path(project_id)
     if inventory_path(base, None).exists() or any(cross_path(base, None, kind).exists() for kind in CROSS_KINDS):
         return True
-    if has_brief:
-        return False
     for row in project_request_rows(project_id):
         text = row_text(base, row)
         if text is not None and any(e["kind"] != "section" for e in parse_request_elements(text, str(row["id"]), "")):
