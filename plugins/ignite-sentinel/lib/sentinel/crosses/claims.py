@@ -217,8 +217,13 @@ def locate_quote(text: str, suffix: str, quote: str) -> dict | None:
     return {"line": line, "start": start}
 
 
-def cross_sources(project_id: str, change_id: str) -> dict[str, dict[str, dict]]:
+def cross_sources(project_id: str, change_id: str | None) -> dict[str, dict[str, dict]]:
     pedido = {str(row["id"]): row for row in pedido_rows(project_id, change_id)}
+    if change_id is None:  # H27 inc 6b: the design of the project is what no change holds
+        from ..changes import _project_rows
+
+        diseno = {str(row["id"]): row for row in _project_rows(project_id) if row_role(row) == "diseno_nuevo"}
+        return {"pedido": pedido, "diseno": diseno}
     diseno = {
         str(row["id"]): row
         for row in load_source_manifest(project_id).get("registry", [])

@@ -69,6 +69,8 @@ def _coherence_claims(project_id: str, change_id: str) -> list[tuple[str, dict]]
     from .core.io import read_json
     from .workspace import workspace_path
 
+    if change_id is None:  # the lens view is the change's: the project has none (IMP-420)
+        return []
     record = read_json(coherence_dir(workspace_path(project_id), change_id) / "coherence.json", None)
     if not isinstance(record, dict) or record.get("status") != "done":
         return []

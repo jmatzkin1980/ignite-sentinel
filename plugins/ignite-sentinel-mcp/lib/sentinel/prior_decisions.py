@@ -329,8 +329,8 @@ def find_prior_decision(project_id: str, change_id: str, candidate: dict, _index
                 return PriorDecision(decision["id"], "linked", "element", decision["answer"], carried(decision))
     sources = set(candidate.get("sources") or []) or {str(c["source_id"]) for c in candidate.get("citations", []) if c.get("source_id")}
     query = " ".join(_flat(c.get("quote")) for c in candidate.get("citations", []) if c.get("quote")) or _flat(candidate.get("text"))
-    if not decisions or not sources or not query:
-        return None
+    if change_id is None or not decisions or not sources or not query:
+        return None  # the project's decisions are not indexed in memory: only the direct links apply
     from .memory import ContextBroker
 
     rows = ContextBroker(project_id).retrieve(query, "decision", limit=5, artifact_type="change_decision",

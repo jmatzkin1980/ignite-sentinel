@@ -28,6 +28,12 @@ You ask "what is next?" and `/next P` gives one step. The table lists every step
 | `ingest` | `/ingest P --source PATH` | sentinel-discovery | the first request file (`--source`) | `00_raw/`, `01_discovery/gaps.md`, `01_discovery/gap_questions.md` |
 | `brief_settings` | `/brief P --profile {profiles} --genesis {genesis}` | sentinel-project-brief | the raw input, `state.json` | the brief profile and genesis in `state.json` |
 | `resolve_blocking` | `/resolve-gaps P --source PATH` | sentinel-gap-response | the response file (`--source`), `01_discovery/gaps.md` | `01_discovery/gaps.md`, `01_discovery/decision_log.md` |
+| `crosses` | `/cross P --kind KIND --claims PATH` | sentinel-discovery §Cross-reads of a change | the cross-read file with verbatim quotes, the request and the prototype | `01_discovery/crosses/`, the gaps the cross-reads open in `01_discovery/gaps.md`; with a baseline loaded and no harvest it asks `/harvest P --source PATH` first |
+| `extract_inventory` | `/extract P` | sentinel-discovery §Extraction of a change | the request (`pedido` rows with an element id) | the inventory in `02_requirements/extraction/` |
+| `extract_proposals` | `/extract P --proposals PATH` | sentinel-discovery §Extraction of a change | the proposals file (`--proposals PATH`) | the proposals in `02_requirements/extraction/` |
+| `extract_confirm` | `/extract P --confirm all` | sentinel-discovery §Extraction of a change | the proposals of the extraction | the confirmed EARS rows in `02_requirements/requirements.md`; a flagged proposal is confirmed one by one with `--confirm-item` |
+| `extract_orphans` | `/extract P --reject-item {first_orphan} --reason "..."` | sentinel-discovery §Extraction of a change | the EARS rows that cite an element no longer in the request | the rejected element with its reason; its rows leave the table |
+| `extract_verify` | `/extract P --verify` | sentinel-discovery §Extraction of a change | a sample of confirmed elements, the request | the verification sample; an open one is recorded with `--verify-result PATH` |
 | `fix_brief` | `/brief P` | sentinel-project-brief | the findings `/brief` reported, `01_discovery/gaps.md` | `02_requirements/project-brief.md` on the next `/brief` |
 | `specs` | `/specs P` | sentinel-specs | `02_requirements/project-brief.md` | `03_specs/`, the PRD |
 | `fix_specs` | `/specs P` | sentinel-specs | the specs readiness report, `01_discovery/gaps.md` | `03_specs/` on the next `/specs` |
