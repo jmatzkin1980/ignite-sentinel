@@ -1,6 +1,6 @@
 ---
 description: Record the cited cross-reads of a change request against the new design and against itself, waive a cross-read, and decide the new surfaces the baseline cross-read did not find.
-argument-hint: PROJECT_ID --change CHG-NNN [--kind diseno|contradicciones|linea_de_base (--claims PATH | --skip --reason TEXT) | --accept-new ID --type TYPE --name NAME | --decline-new ID --reason TEXT]
+argument-hint: PROJECT_ID --change CHG-NNN [--kind diseno|contradicciones|linea_de_base (--claims PATH [--delta] | --skip --reason TEXT) | --accept-new ID --type TYPE --name NAME | --decline-new ID --reason TEXT]
 ---
 
 # Ignite Cross
@@ -12,6 +12,7 @@ Cross-read a change request with the new design and with itself, waive a cross-r
 ```text
 /cross PROJECT_ID --change CHG-NNN
 /cross PROJECT_ID --change CHG-NNN --kind diseno|contradicciones --claims PATH
+/cross PROJECT_ID --change CHG-NNN --kind diseno|contradicciones --claims PATH --delta
 /cross PROJECT_ID --change CHG-NNN --kind diseno|contradicciones|linea_de_base --skip --reason TEXT
 /cross PROJECT_ID --change CHG-NNN --accept-new ID --type TYPE --name NAME
 /cross PROJECT_ID --change CHG-NNN --decline-new ID --reason TEXT
@@ -22,6 +23,7 @@ Run from the repository root:
 ```powershell
 python -m sentinel /cross PROJECT_ID --change CHG-NNN
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --kind diseno --claims PATH
+python -m sentinel /cross PROJECT_ID --change CHG-NNN --kind diseno --claims PATH --delta
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --kind contradicciones --skip --reason TEXT
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --accept-new ID --type TYPE --name NAME
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --decline-new ID --reason TEXT
@@ -52,5 +54,7 @@ Tags (Spanish or English change):
 | SIN HALLAZGOS | NOTHING FOUND | none (alone in the file) | none; the cross-read is done with nothing found |
 
 Transcribe, never draft: nothing enters without a verbatim quote, and the BA never waives a cross-read through you. A cross-read the BA read and found nothing in is recorded with one claim `- [SIN HALLAZGOS] what was read` (`NOTHING FOUND`), with no quotes. `--skip` waives the cross-read of `--kind` and needs `--reason` with the why; it is also accepted on a stale cross-read. `--accept-new ID --type TYPE --name NAME` takes a `NO ENCONTRADO` candidate of the change's harvest (a `NEW-…` id), or the `GAP-SED-…` question of a `SOLO EN DISEÑO` claim, into the border as a new surface (`nuevo`; the `GAP-SED-…` one is closed with it); `--decline-new ID --reason TEXT` rules it out. `--claims`, `--skip`, `--accept-new` and `--decline-new` are alternatives; `--kind` goes with `--claims` or `--skip`; `--reason` goes with `--skip` or `--decline-new`; `--type` and `--name` go only with `--accept-new`. The cross-read with the baseline is not recorded here: use `/harvest PROJECT_ID --source PATH --change CHG-NNN`.
+
+`--delta` (IMP-418) goes with `--claims` when a new version of the request or the design arrived (`/sync --change`, or `/sources --superseded-by` on a row of the change): the file holds only the claims the sync marked to read again (see `01_discovery/CHG-NNN/sync_report.md`) and the new ones. The claims that stayed literal keep their questions and answers; the touched ones are replaced and the questions of a replaced claim that does not come back are retired. It needs a cross-read already recorded; `/next --change` asks for it with the exact command. Without `--delta` the file replaces the whole cross-read, as always.
 
 Every result carries `crosses` (the state of the three), `new_surface_candidates`, `next_step` and a one-line `message`. Report the message, which cross-reads are still missing and which blocking questions the cross-read opened.

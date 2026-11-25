@@ -33,6 +33,8 @@ python -m sentinel /sources PROJECT_ID --change CHG-NNN --keep-single --reason T
 
 Each source content gets one `F-NN` row in `00_raw/source_manifest.json`, and the counter never restarts. `/ingest`, `/sync` and `/resolve-gaps` open the row when they start and close it when the cross finishes. The same content under a second path is the same row. A known path with new content opens a new row marked as a candidate new version: the registry never decides that the newest version governs. `07_changes/source_log.md` is the generated human render; never edit it by hand.
 
+Confirming a version of a change source (`--superseded-by`, or `--current` on a candidate) also runs the touched set of that change (IMP-418): the claims of the cross-reads whose quote stays literal are carried with their questions and answers, what to read again is marked, `01_discovery/CHG-NNN/sync_report.md` is written and the result lists it under `sync` with the commands (`/cross ... --delta`). `/next --change` names a version nobody confirmed once.
+
 Validity is `current`, `superseded` (corrected by another row), `retired` (a dead source, with its replacement) or `expired` (by a cut-off date, optionally for one topic).
 
 `--keep-single --reason` records the BA's decision that a change with escalation warnings stays one change: the covered warnings become one decided notice, and a new trigger still warns. Never decide it for the BA.

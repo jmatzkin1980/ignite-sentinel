@@ -1435,6 +1435,38 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    The first line only builds the view and reports the checks. A file with `{"crosses": []}` records a reading that found nothing; one rejected cross rejects the whole file.
    </details>
 
+   **A new source arrives halfway.** The client sends version 2 of the request (or a new prototype, or the baseline you were missing) after some cross-reads are recorded.
+
+   **Tell the assistant:** "The client sent a new version of the request for CHG-001; it replaces the first one." The assistant loads it with the role it plays and asks you which version governs before it confirms: the newest never wins on its own. Then: "Cross only what the new request touched."
+
+   **You'll see:** A report, `01_discovery/CHG-001/sync_report.md`, with the claims Sentinel carried (their quote is still literal in the new version, so their questions and answers stay as they were), the claims and elements to read again, and the exact command to record them. `/next --change CHG-001` asks for `crosses` with `--delta`; a design version always asks for it. If you did not confirm which version governs, `/next --change` names it once, with the command.
+
+   **What it means:** Nothing is crossed again from scratch. The delta replaces only the touched claims; a question you already answered stays answered unless its claim changed. A baseline loaded after the harvest asks for the harvest again.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /sync COMPRAS_ALTAS --change CHG-001 --source v2/pedido.md --role pedido --supersedes F-02
+   /cross COMPRAS_ALTAS --change CHG-001 --kind diseno --claims cruce_delta.md --delta
+   /sources COMPRAS_ALTAS --id F-02 --superseded-by F-07
+   ```
+
+   `/sync --change` without `--source` scans the role folders of the change. Confirming with `/sources --superseded-by` runs the same report.
+   </details>
+
+   **Challenge the change.** Before the lenses close, you can ask what nobody is asking. Tell the assistant: "Challenge the change CHG-001: what is nobody asking?" (or "scrutinize it by lens", "read it for meaning"). The assistant writes its findings quoting only the change's own text (the request, your answers, the brief, the baseline and the design) and Sentinel checks each quote. The questions open in the change (`01_discovery/CHG-001/gaps.md`), the report is `challenge_report.md` (or `scrutiny_report.md`, `agent_annotation_log.md`) next to it, and a blocking question makes `/next --change` ask for the lenses again. The project's own gaps do not move.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /challenge COMPRAS_ALTAS --source findings.json --change CHG-001
+   /scrutinize COMPRAS_ALTAS --source scrutiny.json --change CHG-001
+   /annotate COMPRAS_ALTAS --source analysis.json --change CHG-001
+   ```
+
+   The implementability probe and the anchors review do not go with `--change`.
+   </details>
+
 5. Extract the request element by element.
 
    **Tell the assistant:** "Go through everything the request of CHG-001 says and propose what each element becomes."

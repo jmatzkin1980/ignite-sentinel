@@ -411,6 +411,8 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 /sync ACME_PORTAL --source notes/meeting.md --digest
 /sync ACME_PORTAL --digest
 /sync ACME_PORTAL --source notes/board-note.md --analysis change-analysis.json
+/sync COMPRAS_ALTAS --change CHG-001 --source v2/pedido.md --role pedido --supersedes F-02
+/sync COMPRAS_ALTAS --change CHG-001
 ```
 
 **Options.**
@@ -419,11 +421,16 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 |---|---|---|---|
 | `PROJECT_ID` | id | required | The workspace. |
 | `--source` | a file path | none | The change to bring in. Without it, `/sync` scans the input and context folders for new or modified files (by content hash, recorded in `00_raw/source_manifest.json`). |
-| `--note` | text | empty | Why the change exists; kept in the change record. |
+| `--note` | text | empty | Why the change exists; kept in the change record (with `--change`, in the header of `sync_report.md`). |
+| `--change` | `CHG-NNN` | none | IMP-418: sync one open change instead of the project (see below). The project form is unchanged. |
+| `--role` | `pedido`, `linea_de_base`, `plan_previo`, `diseno_nuevo` | none | Required with `--change --source`: what the new document is. |
+| `--supersedes` | `F-NN` | none | With `--change --source`: the BA confirms the file is a new version of that row. |
 | `--digest` | flag | off | Also write a structured digest of an unstructured interaction (transcript, mail, chat): candidate answers, decision candidates, new gaps. It proposes, never applies. Works with or without `--source`. |
 | `--analysis` | a JSON file | none | Needs `--source`. An agent's cited reading of the note: change candidates (`reopen_gap`, `invalidate_assumption`, `contradiction`), each with a verbatim quote from the note and one from the target. Each valid candidate opens one blocking `GAP-CHG-<hash>`. Shape: skill `sentinel-sync`, `references/change-analysis.md`. |
 
 **Prose is stored, not interpreted.** `/sync` interprets `### GAP-*` answer blocks and short `Subject: value` statements. Any other line is stored and indexed but changes nothing: `prose_review` in the result (and the impact report) counts those lines and lists each decision line ("The board decided: ...", "El directorio decidió: ...") next to the closed gaps and live assumptions it shares words with. That list is a hint: it never claims a contradiction and never opens, closes or reopens anything. To act on it, pass `--analysis`.
+
+**A new source in a change.** In chat: "the client sent a new version of the request for CHG-001". `/sync PROJECT_ID --change CHG-NNN --source PATH --role ROLE` loads the file with the role it plays (as `/sources --load` does) and decides whether it is a new version: the same path as a loaded row, or the same role and file name as a current one, makes it a candidate. `--supersedes F-NN` is the BA's confirmation (the old row becomes `superseded`); without it the row stays a candidate and the next step is `/sources PROJECT_ID --id F-OLD --superseded-by F-NEW` (or `--id F-NEW --current`). Once confirmed, Sentinel computes what the new source touched: the claims of the cross-reads whose quote is still literal are carried with their questions and answers, and the touched claims and the new or changed elements are marked to read again. The result lists `loaded` (with `version_of`, `confirmed`, `reused`), `sync` (with `report_path` and the commands) and `next_step`. Without `--source` it scans the role folders of the change (`00_raw/06_baseline`, `07_prior_plan`, `08_new_design`, `09_request`). The same content as a loaded row is "nothing new" and runs nothing; a source that is a version of nothing runs the touched set at once.
 
 **Reads.** The `--source` file or the scanned folders; the source registry; with `--analysis`, the analysis file, `gaps.md`, `assumptions.md` and the confirmed answers.
 
@@ -434,6 +441,7 @@ python -m sentinel /ingest ACME_PORTAL --source input/request.docx
 - The workspace does not exist → exit 4.
 - `--source` is a folder → exit 3 (`--source must be a file`). `/sync` reads one file per run; to pick up a folder of new files, put them in the input folders and run `/sync` without `--source`.
 - `--analysis` without `--source` → exit 3.
+- With `--change`: `--source` without `--role`, `--role` or `--supersedes` without `--change` or without `--source`, `--analysis` or `--digest` → exit 3; an id that is an event of the project `/sync` (`07_changes/`) and not an open change is refused with the list of changes.
 - `--analysis` with a quote not found verbatim in the note or the target, a target that does not exist or is in the wrong state (a gap that is not `CLOSED`/`PARTIALLY_CLOSED`, an assumption that is not `ASSUMED`/`VALIDATED`, an unregistered source), or a note that declares itself not validated → exit 3 listing every reason. The analysis is checked before the note is stored, so nothing is written.
 
 **New gaps come from the change.** A gap that quotes a mention (`GAP-AUTH-MODEL` for "auth", `GAP-CTP-BATCH` for "batch process", a weak-word gap) opens only when the synced file itself says it; the workspace text (gaps, brief, specs) is read only to tell whether something is still missing everywhere.
@@ -561,6 +569,7 @@ Both count in the per-channel disposition metrics (channel `agent`).
 ```text
 /annotate ACME_PORTAL --source analysis.json
 python -m sentinel /annotate ACME_PORTAL --source analysis.json
+/annotate COMPRAS_ALTAS --source analysis.json --change CHG-001
 ```
 
 **Options.**
@@ -578,6 +587,8 @@ python -m sentinel /annotate ACME_PORTAL --source analysis.json
 
 - Before `/ingest`, or no raw input → exit 4.
 - The payload is refused (bad id, undeclared lens, severity outside `critical`, `high`, `medium`, `low`, missing question, quote not verbatim, or a sweep-protocol violation) → exit 3, nothing stored.
+
+**With `--change CHG-NNN` (IMP-418).** In chat: "read the change CHG-001 for meaning". The quotable text is the change's own: its request, the answers already given, its brief when it exists, and the current baseline, new-design and harvest readings (not the project's raw input). The gaps open in `01_discovery/CHG-NNN/gaps.md`, the log is `01_discovery/CHG-NNN/agent_annotation_log.md` and the project's `gaps.md`, ledger and counts do not move. A workspace that only has changes refuses the form without `--change` and names it.
 
 **You get.** The accepted gaps and the counts.
 
@@ -598,6 +609,7 @@ python -m sentinel /annotate ACME_PORTAL --source analysis.json
 ```text
 /challenge ACME_PORTAL --source findings.json
 python -m sentinel /challenge ACME_PORTAL --source findings.json
+/challenge COMPRAS_ALTAS --source findings.json --change CHG-001
 ```
 
 **Options.**
@@ -611,7 +623,9 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 
 **Writes.** `01_discovery/gaps.md`, `01_discovery/challenge_report.md`, a copy under `01_discovery/challenges/`, a graph node and `gap_counts.challenge_origin`.
 
-**Refuses when.** Before `/ingest`, or no raw input → exit 4. Payload refused → exit 3.
+**With `--change CHG-NNN` (IMP-418).** In chat: "challenge the change CHG-001: what is nobody asking?". Same techniques, same quote check, over the change's own text (request, answers, brief, baseline and design readings). The questions open in `01_discovery/CHG-NNN/gaps.md` (a question the change already decided is not asked again), the report is `01_discovery/CHG-NNN/challenge_report.md` in the language of the change, and nothing of the project moves. A blocking question makes `/next --change` ask for the lenses again.
+
+**Refuses when.** Before `/ingest`, or no raw input → exit 4. Payload refused → exit 3. A workspace that only has changes, without `--change` → exit 4, naming the flag.
 
 **You get.** The findings by lens and technique.
 
@@ -638,6 +652,7 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 /scrutinize ACME_PORTAL --source scrutiny.json --lens technical
 /scrutinize ACME_PORTAL --mode implementability-probe --source probe.json
 /scrutinize ACME_PORTAL --mode anchors --source review.json
+/scrutinize COMPRAS_ALTAS --source scrutiny.json --change CHG-001
 ```
 
 **Options.**
@@ -657,7 +672,9 @@ python -m sentinel /challenge ACME_PORTAL --source findings.json
 - `implementability-probe`: `01_discovery/implementability_probe_report.md` and a copy under `01_discovery/implementability_probe/`; gaps with `origin: implementability-probe`.
 - `anchors`: `GAP-ANC-*` gaps and a line in `01_discovery/anchor_review_log.md`. The brief is never edited.
 
-**Refuses when.** Before `/ingest`, or no evidence under `00_raw/` → exit 4. `anchors` without a brief v2 → exit 4. Payload refused → exit 3.
+**With `--change CHG-NNN` (IMP-418).** In chat: "scrutinize the change CHG-001 by lens". Only the `scrutiny` mode, over the change's own text (request, answers, brief, baseline and design readings; the project's domain context is not part of it). Findings open in `01_discovery/CHG-NNN/gaps.md` and the report is `01_discovery/CHG-NNN/scrutiny_report.md`; the knowledge ledger, readiness and health of the project are not touched. `--mode implementability-probe` and `--mode anchors` are per project and refuse with `--change`.
+
+**Refuses when.** Before `/ingest`, or no evidence under `00_raw/` → exit 4. `anchors` without a brief v2 → exit 4. Payload refused → exit 3. `--change` with the probe or anchors mode → exit 3. A workspace that only has changes, without `--change` → exit 4, naming the flag.
 
 **You get.** The accepted findings and gaps.
 
@@ -850,6 +867,8 @@ When the answers change what the project knows (a knowledge unit moves) or chang
 | `--no-baseline` | flag | off | The change has no baseline to load (a system with nothing built). Needs `--change` and `--reason`; takes no other option. |
 
 Pass one validity change at a time. The newest source never wins by default: an unsettled precedence answers `unresolved`.
+
+**Confirming a version in a change (IMP-418).** In chat: "the new request replaces the old one". `--superseded-by` (or `--current` on a candidate) on a row of a change also runs the touched set of that change: the claims of the cross-reads whose quote stays literal are carried with their questions and answers, what to read again is marked and `01_discovery/CHG-NNN/sync_report.md` is written. The result adds `sync` (`change_id`, `report_path`, `commands`). `/next --change` and `/status --change` name a version nobody confirmed once, with the command; it is a warning, not a blocker.
 
 **Roles in a change.** Only a current source registered as `linea_de_base` can close a question `by_baseline`; a hand copy in `00_raw/`, the harvest, a `plan_previo`, a `diseno_nuevo` or a replaced source is rejected, and the message says which and how to register it. Loading a document with a different role than the one it already has is refused: correct the role with `--id F-NN --role ROLE` (the request citations of every change are checked again right away). Reloading a document whose row is retired, superseded or expired registers it but the message says it is not current and names its replacement. A change created with 0.23.0 whose baseline was copied into `00_raw/` by hand and never registered now shows the `baseline` step: register that file in place with `--load <that path> --role linea_de_base --change CHG-NNN`, or waive it with `--no-baseline --reason`. If the request cites a document by name or sha and another version of it is loaded (or the sha, raw or line-ending-aware, does not match; the same name in another format or spacing with the same version marks counts as the same document), a blocking `GAP-VER-xxxxxx` opens in the change, one per citation. A cited document that was never loaded is only a warning in `/status --change`. `/status --change` lists the `sources` by role and `/next --change` has a `baseline` step between the scope and the lenses.
 
@@ -1340,6 +1359,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 ```text
 /cross COMPRAS_ALTAS --change CHG-001
 /cross COMPRAS_ALTAS --change CHG-001 --kind diseno --claims cruce_diseno.md
+/cross COMPRAS_ALTAS --change CHG-001 --kind diseno --claims cruce_delta.md --delta
 /cross COMPRAS_ALTAS --change CHG-001 --kind contradicciones --skip --reason "the request has no contradictions to cross"
 /cross COMPRAS_ALTAS --change CHG-001 --accept-new NEW-1A2B3C --type pantalla --name "Historial de aprobaciones"
 /cross COMPRAS_ALTAS --change CHG-001 --decline-new NEW-4D5E6F --reason "the harvest lists it by mistake"
@@ -1353,6 +1373,7 @@ python -m sentinel /compose ACME_PORTAL --source composition.json
 | `--change` | `CHG-NNN` | required | The change whose request is cross-read. An unknown change is refused. |
 | `--kind` | `diseno`, `contradicciones`, `linea_de_base` | none | Which cross-read. Goes with `--claims` or `--skip`. `linea_de_base` can only be waived: recording it is `/harvest --change`. |
 | `--claims` | path | none | Record the cross-read written in this file. |
+| `--delta` | flag | off | IMP-418: with `--claims`, record only what a new source of the change touched (see below). Needs a cross-read already recorded. |
 | `--skip` | flag | off | Waive the cross-read of `--kind`. Needs `--reason`. Also accepted on a stale cross-read; refused on a current one that is done. |
 | `--reason` | text | none | Why the cross-read is waived or the candidate declined. Only with `--skip` or `--decline-new`. |
 | `--accept-new` | candidate id | none | Take a candidate surface of the harvest (a `NEW-…` id, from a `NO ENCONTRADO` of the change), or the `GAP-SED-…` question of a `SOLO EN DISEÑO` claim (which it also closes), into the border as a new surface. Needs `--type` and `--name`. |
@@ -1392,6 +1413,8 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 | `DIVERGENCIA` | `DIVERGENCE` | one request, one design | question | blocking |
 | `CONTRADICCIÓN` | `CONTRADICTION` | two request | question | blocking |
 | `SIN HALLAZGOS` | `NOTHING FOUND` | none, alone in the file | none; the cross-read is done | none |
+
+**After a new version (`--delta`).** In chat: "cross only what the new request touched". When `/sync --change`, or confirming a version with `/sources`, left `pending_delta` in a cross-read, `/next --change` asks for the same command with `--delta`. The file holds the claims `sync_report.md` marked (and the ones of new elements or of a new design); the claims that stayed literal are not sent: they keep their questions and answers. The sent claims replace the touched ones, are added when new (a claim already there adds nothing) and everything is renumbered; the questions of a replaced claim that does not come back are retired. A `[SIN HALLAZGOS]` adds nothing unless no claim is left. `--delta` over a kind with no recorded cross-read → exit 3 (record it whole, without `--delta`). Without `--delta` the file replaces the whole cross-read, as before.
 
 **The baseline cross-read is `/harvest --change`.** The request against the existing system is the harvest of the change; `/cross` does not record it (`--kind linea_de_base --claims` is refused and points to `/harvest`). It can be waived with `--skip --reason`.
 

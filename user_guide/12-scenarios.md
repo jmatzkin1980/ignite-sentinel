@@ -2442,6 +2442,25 @@ From there the steps follow the extraction: `extract_proposals` (fill the worksh
 ```
 </details>
 
+### Variant: the request changes while the change is open
+
+Say the head of Purchasing sends a second version of the request after the cross-reads: the approval threshold went from 5.000.000 to 3.000.000.
+
+**Tell the assistant:** "The client sent version 2 of the request for CHG-001, and it replaces the first one. Cross only what changed."
+
+**You'll see:** The assistant loads it as the request and, because you said it replaces the first, confirms the version. Sentinel writes `01_discovery/CHG-001/sync_report.md`: the claims whose quote is still in the new text are carried with their questions and answers; the one about the threshold, whose quote no longer exists, is marked to read again. `/next --change CHG-001` asks for `crosses` with `--delta`. The assistant writes a file with only the new claim (the divergence with the prototype now reads 3.000.000), records it, and the step moves on; the other claims and answers did not move.
+
+**What it means:** A new version does not make you cross everything again, and nothing was decided for you: had you not said which version governs, the file would have stayed a candidate and `/next --change` would have named it once with the command to confirm it. For a last review, "Challenge the change CHG-001: what is nobody asking?" opens its questions in the change and leaves `challenge_report.md` beside the gaps.
+
+<details><summary>In a terminal</summary>
+
+```text
+/sync COMPRAS_ALTAS --change CHG-001 --source v2/pedido.md --role pedido --supersedes F-02
+/cross COMPRAS_ALTAS --change CHG-001 --kind diseno --claims cruce_delta.md --delta
+/challenge COMPRAS_ALTAS --source findings.json --change CHG-001
+```
+</details>
+
 ### What you have now
 
 A change, `CHG-001`, with its own questions, a confirmed border (and a warning if it looks too big), a review round scoped to what the change touches, the questions the existing documentation answers already closed with its own quotes, and a brief of the change that cites every line and marks what is still open, its requirements with the Delta you declared, and the specification of what it adds by functionality, with the preserved behavior listed apart, and an epic with its stories cut by functionality (the units of one functionality travel together), each with the preserved behavior as a pass-to-pass criterion, and its own slice plan, a `VALID` verdict from `/validate --change` and `done` as the next step (`done` means the registered pieces are up to date, every element of the request is extracted and every preserved surface has its UNCHANGED row). Every requirement, unit and story names the border surfaces it touches. The project's own epic and stories are exactly as they were.
@@ -2452,7 +2471,7 @@ A change, `CHG-001`, with its own questions, a confirmed border (and a warning i
 
 <details><summary>In a terminal</summary>
 
-Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/sources`, `/extract`, `/cross`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view` and `/export`. The id (`CHG-001`) comes from the `/ingest` output.
+Use `--change` only on `/ingest`, `/gaps`, `/resolve-gaps`, `/harvest`, `/sources`, `/extract`, `/cross`, `/brief`, `/specs`, `/backlog`, `/validate`, `/next`, `/status`, `/view`, `/export`, `/sync`, `/challenge`, `/scrutinize` and `/annotate`. The id (`CHG-001`) comes from the `/ingest` output.
 </details>
 
 ---

@@ -41,3 +41,4 @@ test_h27_version_confirm  # 17 s
 test_h27_change_sync  # 20 s
 test_h27_change_challenge  # 24 s
 test_h27_change_review  # 20 s
+test_h27_change_sync_walk
