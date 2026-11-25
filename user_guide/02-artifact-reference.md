@@ -263,6 +263,7 @@ Created when a prototype is among your sources. See the [prototype workflow](03-
 | `units/SPEC-U-NNN.md` | One bounded execution unit per confirmed requirement statement, with frontmatter and source anchors. | Backlog generation, coding agents | Never edit | `/specs` |
 | `compositions/` | Audit trail of agent-written PRD paragraphs: the submitted JSON, `accepted_blocks.json`, `composition_report.md`, `regeneration_report.md`. | BA | Never edit | `/compose`, `/specs` |
 | `self_review/` | The skeptical review of the PRD and specs: the submitted JSON, `self_review_report.md` (accepted gaps and decisions) and `decision_register.md` (the `DEC-*` decisions it recorded). | BA, tech lead | Never edit | `/self-review` (default mode) |
+| `CHG-nnn/specs.md` | The specification of a change by functionality: one `FUN-nn` section per surface with eight blocks of registered data (`sin dato registrado` when there is none), the traceability table and the preserved behavior. | Coding agents, tech lead | Never edit (hook) | `/specs --change CHG-nnn` |
 | `<rN>/` | The same files derived for one release. | | Never edit | `/specs --release rN` |
 
 Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Composition" with `Origin: agent`; they are re-applied when `/specs` regenerates, or dropped with a reason if their citation disappeared.
@@ -280,6 +281,7 @@ Agent paragraphs accepted through `/compose` appear in the PRD under "Agent Comp
 | `acceptance_criteria_deltas.md` | Differences between the criteria frozen at `Ready` and the regenerated ones. | BA | Never edit | `/backlog` |
 | `acceptance_evidence/` | Evidence files attached to support a `Done` transition. | QA | Never edit | `/story-status --evidence` |
 | `refinements/` | Audit trail of agent backlog refinements: submitted JSON, `accepted_refinements.json`, `refinement_report.md`. | BA | Never edit | `/refine-backlog` |
+| `CHG-nnn/SLICE-PLAN.md` | Implementation order of one change: enablers of new surfaces first, then the waves of its stories. The project's `SLICE-PLAN.md` is not touched. | Delivery, planning agents | Never edit (hook) | `/backlog --change CHG-nnn` |
 | `<rN>/` | The same files derived for one release. | | Never edit | `/backlog --release rN` |
 
 Valid story statuses are `Draft`, `Ready`, `In Progress`, `In Review`, `Done`, `Blocked` and `Stale`. Only `/story-status` changes them.

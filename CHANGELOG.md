@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **The change specification by functionality and the change backlog by slices (IMP-416, H27 inc 5b).** `03_specs/CHG-nnn/specs.md` has one `FUN-nn` section per functionality with eight blocks of registered data only (`sin dato registrado` when there is none) and a traceability table Unidad / REQ-EARS / Elemento / Cita / Superficie / GAP; the units of the change cite `ruta:Lnn-Lmm` and their headings follow the language of the change. `story_size.max_units` (5) in the slicing model; enablers for the new surfaces of the change; `04_backlog/CHG-nnn/SLICE-PLAN.md`; `source_units` in the stories of the change. The skills `sentinel-specs` (with the validated `change-functionality` example) and `sentinel-backlog`, and the guide, describe it.
+
+### Changed
+
+- `/backlog --change` builds vertical slices by functionality and delta, starts SPIDR above 5 units and no longer generates one story per unit; INVEST Small measures a story of the change by its units; a specs report of 0.31 is read as `old` and `/next --change` asks to regenerate specs and backlog.
+
+### Fixed
+
+- `/backlog --change` at scale (T2-38: one retrieval per story, not per unit); the specs of the change with origin and line citation (T2-34, T2-35), grouped (T2-36) and in the language of the change (T2-37); the command `specs.md` no longer says that `prd.md` is not written.
+
 ## [0.31.0] — 2026-11-25
 
 ### Added

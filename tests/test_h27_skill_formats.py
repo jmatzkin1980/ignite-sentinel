@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import IDS_SCOPE_ANSWER  # noqa: E402
 
 from sentinel.change_requirements import parse_delta, parse_surfaces
+from sentinel.compilers.change_spec_doc import BLOCKS, COPY, NO_DATA
 from sentinel.changes import parse_border
 from sentinel.assumptions import validate_assumptions
 from sentinel.change_assumptions import SUPUESTO_STATUSES
@@ -45,6 +46,7 @@ EXAMPLE_OWNERS = {
     "change-assumptions": "sentinel-assume",
     "gap-assumption": "sentinel-gap-response",
     "consolidation": "sentinel-project-brief",
+    "change-functionality": "sentinel-specs",
 }
 
 FENCE = re.compile(
@@ -250,6 +252,24 @@ def check_consolidation(body: str) -> None:
             assert stale == [], f"{element_id}: not in the element nor in the answer: {stale}"
 
 
+def check_change_functionality(body: str, lang: str) -> None:
+    """IMP-416: the functionality section of the example has the eight blocks of the writer, in order, and its table header."""
+    assert re.search(r"(?m)^## FUN-\d+ ", body), "no `## FUN-` section"
+    start = body.index("## FUN-")
+    end = body.find("\n## ", start + 1)
+    section = body[start:end if end >= 0 else len(body)]
+    titles = re.findall(r"(?m)^### (.+?)\s*$", section)
+    assert titles == BLOCKS[lang], f"blocks {titles}, the writer's are {BLOCKS[lang]}"
+    parts = re.split(r"(?m)^### .+$", section)[1:]
+    for title, content in zip(titles, parts):
+        assert content.strip(), f"{title}: empty block (it says `_{NO_DATA[lang]}_` when nothing is registered)"
+    copy = COPY[lang]
+    trace = re.search(rf"(?m)^{re.escape(copy['trace'])}\s*$", body)
+    if trace:
+        header = "| " + " | ".join(copy["trace_header"]) + " |"
+        assert header in body[trace.end():], f"traceability header is not {header!r}"
+
+
 class SkillFormatTests(unittest.TestCase):
     def test_every_kind_has_an_example_in_its_owner(self):
         for kind, skill in EXAMPLE_OWNERS.items():
@@ -334,6 +354,23 @@ class SkillFormatTests(unittest.TestCase):
         self.assertEqual({"es", "en"}, {lang for lang, _ in found})
         for _, body in found:
             check_gap_assumption(body)
+
+    def test_change_functionality_examples_parse(self):
+        found = examples_of("change-functionality")
+        self.assertEqual({"es", "en"}, {lang for lang, _ in found})
+        for lang, body in found:
+            with self.subTest(lang=lang):
+                check_change_functionality(body, lang)
+
+    def test_a_stale_change_functionality_example_fails(self):
+        lang, body = next((lang, body) for lang, body in examples_of("change-functionality") if lang == "es")
+        stale = body.replace("### No regresión", "### Regresión", 1)
+        self.assertNotEqual(stale, body)
+        with self.assertRaises(AssertionError):
+            check_change_functionality(stale, lang)
+        gone = re.sub(r"(?s)### No regresión.*?(?=### Decisiones)", "", body, count=1)
+        with self.assertRaises(AssertionError):
+            check_change_functionality(gone, lang)
 
     def test_a_stale_gap_assumption_example_fails(self):
         _, body = examples_of("gap-assumption")[0]
