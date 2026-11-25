@@ -1,6 +1,9 @@
 {
   "model": "backlog_slicing",
   "version": 1,
+  "story_size": {
+    "max_units": 5
+  },
   "strategy_rows": [
     {
       "heuristic": "Product Backlog transparency",

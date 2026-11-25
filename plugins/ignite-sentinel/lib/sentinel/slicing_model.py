@@ -104,10 +104,16 @@ def normalize_slicing_model(data: dict[str, Any]) -> dict[str, Any]:
     if "Workflow Step / Happy Path" not in {item["slicing"] for item in normalized_patterns}:
         raise ValueError("Slicing model must include Workflow Step / Happy Path fallback.")
 
+    story_size = data.get("story_size", {})
+    max_units = story_size.get("max_units", 5) if isinstance(story_size, dict) else None
+    if isinstance(max_units, bool) or not isinstance(max_units, int) or max_units < 1:
+        raise ValueError("Slicing model story_size.max_units must be a positive integer.")
+
     return {
         "model": str(data.get("model", "backlog_slicing")),
         "version": int(data.get("version", 1)),
         "strategy_rows": normalized_rows,
         "enabler_boundary": {"paragraphs": paragraphs},
         "patterns": normalized_patterns,
+        "story_size": {"max_units": max_units},
     }

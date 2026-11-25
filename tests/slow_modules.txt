@@ -26,3 +26,4 @@ test_h27_consolidated_walk  # 26 s
 test_h27_conflict_followup  # 25 s
 test_h27_decision_log  # 25 s
 test_h27_inc5a_final_wave  # 24 s
+test_h27_change_functionalities  # 11 s
