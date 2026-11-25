@@ -308,6 +308,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
     replacements: dict[str, dict] = {}
     by_element = {e["id"]: e for e in view.get("elements", [])} if has_inventory else {}
     v2_schema: dict[str, Any] = {}
+    element_places: dict[str, str] = {}  # element id -> where the final body wrote it (the annex names it)
     if consolidated:
         from ..brief_schema import load_brief_schema
         from ..consolidation_control import consolidation_control
@@ -336,6 +337,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
             element=element_id, path=(by_element.get(element_id) or {}).get("path", ""),
             lines=format_ranges(found.get("lines") or []), gaps=gaps))
         body = [f"- [{tags['modificado']}] {head}", "", *(_keep_flat(line) for line in str(found.get("text", "")).split("\n")), ""]
+        element_places[element_id] = str(found.get("location") or default_place)
         if found.get("location"):
             blocks.setdefault(str(found["location"]), []).extend(
                 [change_copy["related"].format(element=element_id, gaps=gaps), "", *body])
@@ -360,6 +362,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
             element=entry.get("element", ""), path=entry.get("path", ""),
             lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
         head = to_confirm(str(entry.get("element") or ""), head)
+        element_places.setdefault(str(entry.get("element") or ""), place)
         blocks.setdefault(place, []).extend(
             [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
 
@@ -385,6 +388,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
             head = change_copy["extracted_content"].format(
                 element=element_id, path=element.get("path", ""), lines=format_ranges(element.get("spans") or []))
             head = to_confirm(element_id, head)
+            element_places[element_id] = place
             blocks.setdefault(place, []).extend(
                 [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in body.split("\n")), ""])
     for row in [] if consolidated else placed_rows:
@@ -466,6 +470,10 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
     mine = {str(i) for i in change.get("sources") or []}
     registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
     settings = brief_settings(project_id)
+    extra_annexes: list[dict[str, Any]] = []
+    if consolidated:  # IMP-414: the decisions annex rides the final export only; the working draft keeps its shape
+        extra_annexes.append({"id": change_copy["decisions_id"], "title": change_copy["decisions_title"],
+                              "lines": decision_log_lines(project_id, change_id, language, element_places, replacements)})
     return BriefInputs(
         project_id=project_id,
         language=language,
@@ -484,7 +492,43 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         place_facts=facts,
         place_blocks=blocks,
         empty_na={"reason": copy["reason"], "condition": copy["condition"]},
+        extra_annexes=extra_annexes,
     )
+
+
+def decision_log_lines(project_id: str, change_id: str, language: str, places: dict[str, str],
+                       replacements: dict[str, dict] | None = None) -> list[str]:
+    """IMP-414: the annex of the final export, one row per closed decision (assumptions stay in section 8).
+
+    `places` maps an element id to the place the final body wrote it; a decision sits where the first element
+    that applied it sits, else where its answer routes (`gap_place`). Reuses closed_decisions,
+    superseded_decisions and delegated_summary; creates nothing of its own."""
+    from ..decision_memory import closed_decisions, superseded_decisions
+    from ..delegation import delegated_summary
+
+    copy = _template()["copy"][_lang(language)]
+    decisions = sorted(closed_decisions(project_id, change_id), key=lambda d: d["id"])
+    replaced = sorted(superseded_decisions(project_id, change_id), key=lambda d: d["id"])
+    if not decisions and not replaced:
+        return [copy["decisions_none"]]
+    delegated = set(delegated_summary(project_id, change_id)["gaps"])
+    applied: dict[str, str] = {}
+    for element_id, found in (replacements or {}).items():
+        for gap in found.get("decisions") or []:
+            if element_id in places:
+                applied.setdefault(str(gap), places[element_id])
+    rows = [copy["decisions_header"], "|---|---|---|---|---|"]
+    for item in decisions:
+        gap = item["id"]
+        place = applied.get(gap) or next((places[e] for e in item["elements"] if e in places), "")
+        place = place or gap_place(gap, item.get("lens", ""))
+        said = _cell(str(item["answer"]).strip().split("\n")[0])
+        said = said if len(said) <= 120 else said[:119].rstrip() + "…"
+        who = copy["decisions_delegated"] if gap in delegated else _cell(item["owner"]) or copy["decisions_default_owner"]
+        rows.append(f"| {gap} | {place} | {said} | {item['option'] or '—'} | {who} |")
+    for item in replaced:
+        rows.append(f"| {item['id']} | {applied.get(item['id']) or gap_place(item['id'], '')} | {_cell(item['note'])} | — | — |")
+    return rows
 
 
 def _is_divergence(gap: dict) -> bool:
