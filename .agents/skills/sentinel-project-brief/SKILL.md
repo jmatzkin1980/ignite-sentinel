@@ -72,6 +72,8 @@ Drive the BA from `brief_compile_report.json`:
 
 `/validate` checks a v2 brief's integrity: every mark points to an open gap (the gap routed to that place, else its section's umbrella `GAP-BRIEF-S<n>`), marks match `fill_sites`, inferences have their ledger rows, and there are no forbidden values (`-`, `—`, bare `N/A`, own `TBD`, `ninguno`) or edit residues. Anchors must hold: every statement outside the exempt list (`templates/anchor_exempt.json`) cites a current, non-echo source, and a line about two gaps needs one anchor per gap. Fix a finding by recompiling, closing the gap or updating the source registry, never by editing the body.
 
+When the project has an extraction (IMP-420: `/extract PROJECT_ID` without `--change` on a request with element ids), the brief v2 transcribes it: the confirmed sections verbatim in their place (block `extracted_content`), the confirmed rows as facts in their lens with no delta tag (on the project everything is new), and the discarded elements under 6.2 as "Fuera del alcance" ("Out of scope"). Transcribe, never redraft: if the extraction changes after the brief was compiled, `/next` says `brief` and the brief is compiled again. Without an inventory the brief is exactly what it was.
+
 ## Per-Section Readiness and the Action per Pending Section
 
 `/brief` returns `brief_section_readiness`: a `coverage_score` plus each of the six lenses (`1` Identidad y Valor … `6` Gobernanza y Restricciones) classified `populated` or `pending`, with its evidence citations. A v2 brief maps onto the same lenses (§5.11 and §6 feed lens 6) and adds `brief_version: 2`. Every pending lens comes with its `feeding_gaps`:

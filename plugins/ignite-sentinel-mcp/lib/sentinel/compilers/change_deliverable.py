@@ -49,14 +49,14 @@ _FIRST_CODE = re.compile(r"`([^`]+)`")
 
 COPY = {
     "es": {
-        "out": "Fuera de este cambio", "no_regression": "no regresión", "rows": "filas",
+        "out": "Fuera de este cambio", "out_project": "Fuera del alcance", "no_regression": "no regresión", "rows": "filas",
         "table": ["Pendiente", "Clase", "Bloquea", "Responsable"], "yes": "sí", "no": "no",
         "blocking": "bloqueante", "construccion": "construccion", "operativo": "operativo",
         "reason": "el cambio no toca este punto", "condition": "el borde del cambio lo suma",
         "draft": "borrador",
     },
     "en": {
-        "out": "Out of this change", "no_regression": "no regression", "rows": "rows",
+        "out": "Out of this change", "out_project": "Out of scope", "no_regression": "no regression", "rows": "rows",
         "table": ["Item", "Class", "Blocks", "Owner"], "yes": "yes", "no": "no",
         "blocking": "blocking", "construccion": "build", "operativo": "operational",
         "reason": "the change does not touch this point", "condition": "the change border adds it",
@@ -279,46 +279,37 @@ def _harvest_facts(harvest: dict, border: list[dict], template: dict, add_fact: 
             add_fact(place, "preservado", f"{entry['text']} ({entry['ref']})", harvest_source)
 
 
-def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
-    from ..changes import deferred_gaps
-    from ..compilers.change_brief import collect_change_brief_inputs
-    from ..sources import load_source_manifest
+def extraction_places(project_id: str, change_id: str | None, view: dict[str, Any], language: str, *,
+                      border: list[dict], tags: bool, consolidation: dict[str, Any] | None = None,
+                      after_rows: Any = None) -> tuple[dict[str, list[dict[str, str]]], dict[str, list[str]]]:
+    """(facts, blocks) of the confirmed extraction: sections verbatim, rows as facts, what the request leaves out.
 
-    inputs = collect_change_brief_inputs(project_id, change_id)
+    The change brief calls it with its border and `tags=True` (each line opens with its delta tag); the project's
+    brief v2 (IMP-420) with `border=[]` and `tags=False` (on the project everything is new, so no tag).
+    `consolidation` (IMP-414: control_rows, replacements, v2_schema and the `element_places` it fills) and
+    `after_rows(add_fact, every_rows)` (the change's border facts, which sit between the rows and the leftovers)
+    are the change's own.
+    """
     template = _template()
-    language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
     lang = _lang(language)
     copy, change_copy = COPY[lang], template["copy"][lang]
-    tags = DELTA_TAGS[lang]
+    delta_tags = DELTA_TAGS[lang]
     base = workspace_path(project_id)
-    change = inputs["change"]
-    border = list(change.get("border") or [])
-    view = inputs.get("extraction") or {}
     has_inventory = view.get("state", "missing") != "missing"
     facts: dict[str, list[dict[str, str]]] = {}
     blocks: dict[str, list[str]] = {}
+    consolidated = consolidation is not None
+    control_rows = (consolidation or {}).get("control_rows", {})
+    replacements = (consolidation or {}).get("replacements", {})
+    v2_schema = (consolidation or {}).get("v2_schema", {})
+    element_places: dict[str, str] = (consolidation or {}).get("element_places", {})
+    by_element = {e["id"]: e for e in view.get("elements", [])} if has_inventory else {}
+
+    def label(tag: str) -> str:
+        return f"[{delta_tags[tag]}] " if tags and tag else ""
 
     def add_fact(place: str, tag: str, text: str, source: str = "", gap: str = "") -> None:
-        label = f"[{tags[tag]}] " if tag else ""
-        facts.setdefault(place, []).append({"text": f"{label}{text}", "source": source, "gap": gap})
-
-    # IMP-414: the final body is the consolidated text; the control table says what is replaced, kept or excluded
-    consolidated = bool(final and has_inventory)
-    control_rows: dict[str, dict] = {}
-    replacements: dict[str, dict] = {}
-    by_element = {e["id"]: e for e in view.get("elements", [])} if has_inventory else {}
-    v2_schema: dict[str, Any] = {}
-    element_places: dict[str, str] = {}  # element id -> where the final body wrote it (the annex names it)
-    if consolidated:
-        from ..brief_schema import load_brief_schema
-        from ..consolidation_control import consolidation_control
-        from ..extraction.consolidation import load_consolidation
-
-        control_rows = {r["element"]: r for r in consolidation_control(project_id, change_id)["rows"]}
-        stored = load_consolidation(base, change_id)["replacements"]
-        replacements = {i: stored[i] for i, r in control_rows.items() if r["status"] == "modificado" and i in stored}
-        if request_follows_v2(list(by_element.values())):
-            v2_schema = load_brief_schema()
+        facts.setdefault(place, []).append({"text": f"{label(tag)}{text}", "source": source, "gap": gap})
 
     def v2_place(element_id: str) -> str:
         return v2_heading_place(str((by_element.get(element_id) or {}).get("section") or ""), v2_schema) if v2_schema else ""
@@ -336,7 +327,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         head = to_confirm(element_id, change_copy["consolidated_content"].format(
             element=element_id, path=(by_element.get(element_id) or {}).get("path", ""),
             lines=format_ranges(found.get("lines") or []), gaps=gaps))
-        body = [f"- [{tags['modificado']}] {head}", "", *(_keep_flat(line) for line in str(found.get("text", "")).split("\n")), ""]
+        body = [f"- {label('modificado')}{head}", "", *(_keep_flat(line) for line in str(found.get("text", "")).split("\n")), ""]
         element_places[element_id] = str(found.get("location") or default_place)
         if found.get("location"):
             blocks.setdefault(str(found["location"]), []).extend(
@@ -364,7 +355,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         head = to_confirm(str(entry.get("element") or ""), head)
         element_places.setdefault(str(entry.get("element") or ""), place)
         blocks.setdefault(place, []).extend(
-            [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
+            [f"- {label(tag)}{head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
 
     # the confirmed requirement rows, by the lens of their first surface
     every_rows, placed_rows = _change_rows(project_id, change_id, view)
@@ -390,7 +381,7 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
             head = to_confirm(element_id, head)
             element_places[element_id] = place
             blocks.setdefault(place, []).extend(
-                [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in body.split("\n")), ""])
+                [f"- {label(tag)}{head}", "", *(_keep_flat(line) for line in body.split("\n")), ""])
     for row in [] if consolidated else placed_rows:
         delta = str(row.get("delta", "")).strip().upper()
         tag = ROW_TAG.get(delta, "nuevo")
@@ -401,8 +392,8 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
             statement += f" — {change_copy['to_confirm']}: {reason}"
         add_fact(place, tag, statement, row["source_id"])
 
-    # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
-    _border_facts(border, [] if consolidated else every_rows, copy, add_fact)
+    if after_rows is not None:
+        after_rows(add_fact, every_rows)
 
     # what the request leaves out
     for element in view.get("elements", []) if has_inventory else []:
@@ -414,8 +405,58 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
                 add_fact("6.2", "", f"{change_copy['not_included']}: {element['id']} — {str(item.get('reason', '')).strip()}",
                          str(element.get("source_id") or ""), gap=str(retiring[0]) if retiring else "")
                 continue
-            add_fact("6.2", "", f"{copy['out']}: {element['id']} — {str(item.get('reason', '')).strip()}",
+            add_fact("6.2", "", f"{copy['out' if change_id else 'out_project']}: {element['id']} — {str(item.get('reason', '')).strip()}",
                      str(element.get("source_id") or ""))
+    return facts, blocks
+
+
+def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
+    from ..changes import deferred_gaps
+    from ..compilers.change_brief import collect_change_brief_inputs
+    from ..sources import load_source_manifest
+
+    inputs = collect_change_brief_inputs(project_id, change_id)
+    template = _template()
+    language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
+    lang = _lang(language)
+    copy, change_copy = COPY[lang], template["copy"][lang]
+    tags = DELTA_TAGS[lang]
+    base = workspace_path(project_id)
+    change = inputs["change"]
+    border = list(change.get("border") or [])
+    view = inputs.get("extraction") or {}
+    has_inventory = view.get("state", "missing") != "missing"
+
+    # IMP-414: the final body is the consolidated text; the control table says what is replaced, kept or excluded
+    consolidated = bool(final and has_inventory)
+    control_rows: dict[str, dict] = {}
+    replacements: dict[str, dict] = {}
+    by_element = {e["id"]: e for e in view.get("elements", [])} if has_inventory else {}
+    v2_schema: dict[str, Any] = {}
+    element_places: dict[str, str] = {}  # element id -> where the final body wrote it (the annex names it)
+    if consolidated:
+        from ..brief_schema import load_brief_schema
+        from ..consolidation_control import consolidation_control
+        from ..extraction.consolidation import load_consolidation
+
+        control_rows = {r["element"]: r for r in consolidation_control(project_id, change_id)["rows"]}
+        stored = load_consolidation(base, change_id)["replacements"]
+        replacements = {i: stored[i] for i, r in control_rows.items() if r["status"] == "modificado" and i in stored}
+        if request_follows_v2(list(by_element.values())):
+            v2_schema = load_brief_schema()
+
+    def border_facts(add_fact: Any, every_rows: list[dict]) -> None:
+        # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
+        _border_facts(border, [] if consolidated else every_rows, copy, add_fact)
+
+    facts, blocks = extraction_places(
+        project_id, change_id, view, language, border=border, tags=True, after_rows=border_facts,
+        consolidation={"control_rows": control_rows, "replacements": replacements, "v2_schema": v2_schema,
+                       "element_places": element_places} if consolidated else None)
+
+    def add_fact(place: str, tag: str, text: str, source: str = "", gap: str = "") -> None:
+        label = f"[{tags[tag]}] " if tag else ""
+        facts.setdefault(place, []).append({"text": f"{label}{text}", "source": source, "gap": gap})
 
     # answers of closed questions, at the place the project routes them to
     for gap in inputs["gaps"]:

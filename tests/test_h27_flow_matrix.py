@@ -73,6 +73,24 @@ class FlowMatrixTest(unittest.TestCase):
                 else:
                     self.assertRegex(equivalent, r"^none — .{20,}")
 
+    def test_project_extraction_rows(self):
+        rows = _keyed("Change path")
+        for key in ("crosses", "extract_inventory", "extract_proposals", "extract_confirm", "extract_orphans",
+                    "extract_verify"):
+            with self.subTest(step=key):
+                self.assertTrue(rows[key][5].startswith(f"`{key}`"), rows[key][5])
+        self.assertTrue(rows["extract_confirm_flagged"][5].startswith("`extract_confirm`"))
+        self.assertTrue(rows["extract_partial"][5].startswith("`extract_proposals`"))
+        self.assertTrue(rows["extract_verify_result"][5].startswith("`extract_verify`"))
+        self.assertTrue(rows["baseline"][5].startswith("`crosses`"))
+
+    def test_no_cell_promises_inc_6(self):
+        for section, rows in _sections().items():
+            for cells in rows:
+                for cell in cells:
+                    with self.subTest(section=section, cell=cell[:40]):
+                        self.assertNotIn("inc 6", cell)
+
     def test_starting_points_a_to_j(self):
         letters = set()
         for cells in _sections()["Starting points"]:

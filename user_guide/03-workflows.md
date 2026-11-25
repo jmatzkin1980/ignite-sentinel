@@ -110,6 +110,23 @@ This page tells you what to do in each situation you meet on a real project, fro
    ```
    </details>
 
+**A long brief with numbered rules (IMP-420).** If the request is a mature brief whose rules, criteria, stories or decisions carry an id (RN-, CA-, HU-, PD-), a mention is not a resolution: after the first questions are answered the assistant offers to go through it element by element, with the same coverage a change gets. Tell the assistant: "The brief has numbered rules and a prototype. Cross it with the prototype and with itself, then go through every rule and propose what each one becomes." It writes the cross-reads with literal quotes, proposes each element with the lines it read, and you confirm; what is flagged is confirmed one by one. The confirmed rows enter the requirements table of the project and the brief transcribes them, it does not rewrite them. A request without ids (a few lines, the usual first request) does not see any of this.
+
+   <details><summary>In a terminal</summary>
+
+   ```text
+   /sources ACME_PORTAL --load input/prototype.html --role diseno_nuevo
+   /cross ACME_PORTAL --kind diseno --claims cruce_diseno.md
+   /cross ACME_PORTAL --kind contradicciones --claims cruce_contradicciones.md
+   /extract ACME_PORTAL
+   /extract ACME_PORTAL --proposals proposals.md
+   /extract ACME_PORTAL --confirm all
+   /brief ACME_PORTAL
+   ```
+
+   `/next ACME_PORTAL` names each step (`crosses`, `extract_inventory`, `extract_proposals`, `extract_confirm`, then `brief` again so the brief transcribes the extraction). Without `--change` the project is the scope; `--accept-new`, `--decline-new` and the consolidation options stay with a change.
+   </details>
+
 **How you know it worked.** The assistant can show you a list of open questions for the project. Asking "what next?" no longer asks you to confirm the brief settings. The project brief exists, with pending marks where an answer is missing.
 
 **If something goes wrong.**

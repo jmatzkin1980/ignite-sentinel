@@ -61,6 +61,13 @@ class ProjectBriefExtraction(ProjectExtractionCase):
         self.assertIn("(REQ-EARS-", line)
         self.assertNotIn("[nuevo]", line)
 
+    def test_discarded_elements_say_out_of_scope_not_out_of_change(self):
+        self.confirm()
+        text, _report = compile_brief()
+        line = next(l for l in text.splitlines() if "RN-05" in l and "la notificación a la gerencia" in l)
+        self.assertIn("Fuera del alcance: RN-05", line)
+        self.assertNotIn("Fuera de este cambio", text)
+
     def test_report_has_fingerprint_only_with_inventory(self):
         _text, report = compile_brief()
         self.assertNotIn("extraction_fingerprint", report)

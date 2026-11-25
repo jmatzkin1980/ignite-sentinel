@@ -49,14 +49,14 @@ _FIRST_CODE = re.compile(r"`([^`]+)`")
 
 COPY = {
     "es": {
-        "out": "Fuera de este cambio", "no_regression": "no regresión", "rows": "filas",
+        "out": "Fuera de este cambio", "out_project": "Fuera del alcance", "no_regression": "no regresión", "rows": "filas",
         "table": ["Pendiente", "Clase", "Bloquea", "Responsable"], "yes": "sí", "no": "no",
         "blocking": "bloqueante", "construccion": "construccion", "operativo": "operativo",
         "reason": "el cambio no toca este punto", "condition": "el borde del cambio lo suma",
         "draft": "borrador",
     },
     "en": {
-        "out": "Out of this change", "no_regression": "no regression", "rows": "rows",
+        "out": "Out of this change", "out_project": "Out of scope", "no_regression": "no regression", "rows": "rows",
         "table": ["Item", "Class", "Blocks", "Owner"], "yes": "yes", "no": "no",
         "blocking": "blocking", "construccion": "build", "operativo": "operational",
         "reason": "the change does not touch this point", "condition": "the change border adds it",
@@ -405,7 +405,7 @@ def extraction_places(project_id: str, change_id: str | None, view: dict[str, An
                 add_fact("6.2", "", f"{change_copy['not_included']}: {element['id']} — {str(item.get('reason', '')).strip()}",
                          str(element.get("source_id") or ""), gap=str(retiring[0]) if retiring else "")
                 continue
-            add_fact("6.2", "", f"{copy['out']}: {element['id']} — {str(item.get('reason', '')).strip()}",
+            add_fact("6.2", "", f"{copy['out' if change_id else 'out_project']}: {element['id']} — {str(item.get('reason', '')).strip()}",
                      str(element.get("source_id") or ""))
     return facts, blocks
 
