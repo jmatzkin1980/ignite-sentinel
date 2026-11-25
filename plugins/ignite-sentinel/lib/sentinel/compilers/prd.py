@@ -28,10 +28,12 @@ def compile_prd_sections(
     context: dict[str, object],
     language: str,
     evidence_text: str = "",
+    *,
+    pending: str = "[PENDING INPUT]",
+    source_path: str = "00_raw/",
 ) -> dict[str, str]:
     """Compile PRD sections from evidence, confirmed gap answers, and EARS rows."""
     english = language == "en"
-    pending = "[PENDING INPUT]"
     raw_text = str(context.get("raw_text") or evidence_text or "")
     evidence_source = raw_text or req_text
     sentences = split_evidence_sentences(evidence_source)
@@ -50,7 +52,7 @@ def compile_prd_sections(
     if not isinstance(ears_rows, list):
         ears_rows = []
 
-    def source_ref(source: str = "00_raw/") -> str:
+    def source_ref(source: str = source_path) -> str:
         label = "source" if english else "fuente"
         return f"_({label}: `{source}`)_"
 
@@ -96,7 +98,7 @@ def compile_prd_sections(
     sections["2"] = "\n".join(scope_lines)
 
     persona_lines = [
-        f"| P-{i + 1:02d} | {row['evidence']} | `REQ-001`, `00_raw/` |"
+        f"| P-{i + 1:02d} | {row['evidence']} | `REQ-001`, `{source_path}` |"
         for i, row in enumerate(personas)
     ]
     if confirmed_for_section("3"):
@@ -108,7 +110,7 @@ def compile_prd_sections(
 
     fr_rows: list[str] = []
     for i, row in enumerate(functionals, start=1):
-        fr_rows.append(f"| FR-{i:02d} | {row['statement']} | Must Have | `REQ-001`, `00_raw/` |")
+        fr_rows.append(f"| FR-{i:02d} | {row['statement']} | Must Have | `REQ-001`, `{source_path}` |")
     for row in ears_rows:
         if isinstance(row, dict):
             req_id = str(row.get("id", "")).strip()
@@ -134,7 +136,7 @@ def compile_prd_sections(
         kpi_rows = []
         for i, metric in enumerate(metrics, start=1):
             kpi_rows.append(
-                f"| KPI-{i:02d} | {metric['evidence']} | {metric['metric']} | Confirmed evidence or gap response | `REQ-001`, `00_raw/` |"
+                f"| KPI-{i:02d} | {metric['evidence']} | {metric['metric']} | Confirmed evidence or gap response | `REQ-001`, `{source_path}` |"
             )
         for line in confirmed_for_section("6", include_gap_id=False):
             kpi_rows.append(f"| KPI-A{len(kpi_rows) + 1:02d} | {line.lstrip('- ')} | Confirmed | Confirmed response | `identity_seeds.md` |")
@@ -185,7 +187,18 @@ def render_prd_glossary(project_id: str, language: str) -> str:
     return "\n".join(rows)
 
 
-def render_prd_full(project_id: str, req_text: str, context: dict[str, object], source_name: str, language: str, evidence_text: str = "") -> str:
+def render_prd_full(
+    project_id: str,
+    req_text: str,
+    context: dict[str, object],
+    source_name: str,
+    language: str,
+    evidence_text: str = "",
+    *,
+    pending: str = "[PENDING INPUT]",
+    assumption_rows: str | None = None,
+    source_path: str = "00_raw/",
+) -> str:
     english = language == "en"
     section_context = render_prd_section_context(context)
     title = "Executive Summary And Problem Statement" if english else "Resumen ejecutivo y planteamiento del problema"
@@ -198,7 +211,7 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     jtbd_title = "Jobs Traceability" if english else "Trazabilidad de trabajos"
     execution = "Execution Plan" if english else "Execution Plan"
     governance = "Governance" if english else "Governance"
-    pending = "[PENDING INPUT]"
+    pending_name = pending.strip("[]")
     evidence_source = evidence_text or req_text
     extracted_personas = extract_personas(evidence_source)
     extracted_frs = extract_functional_signals(evidence_source)
@@ -207,8 +220,8 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
     fr_evidence_title = "Evidence-Backed Functional Statements" if english else "Declaraciones funcionales con evidencia del input"
     ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
     ears_block = render_ears_requirements_table(context)
-    glossary_block = render_prd_glossary(project_id, language)
-    compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text)
+    glossary_block = render_prd_glossary(project_id, language).replace("[PENDING INPUT]", pending)
+    compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text, pending=pending, source_path=source_path)
     non_goals_title = "Non-Goals" if english else "No-Objetivos (Non-Goals)"
     non_goals_context = context.get("non_goals", []) if isinstance(context, dict) else []
     non_goals_block = render_non_goals_block(
@@ -253,8 +266,8 @@ def render_prd_full(project_id: str, req_text: str, context: dict[str, object], 
         )
     from ..assumptions import render_prd_assumption_rows
 
-    governed_assumption_rows = render_prd_assumption_rows(project_id)
-    assumption_rows = governed_assumption_rows or "\n".join(
+    governed_assumption_rows = render_prd_assumption_rows(project_id) if assumption_rows is None else assumption_rows
+    assumption_rows_text = governed_assumption_rows or "\n".join(
         [
             "| ASM-01 | Details absent from confirmed evidence remain pending and must not be silently converted into backlog scope. | Rework and loss of trust. | Sentinel guardrail | Active |",
             "| ASM-02 | Domain context in memory is sufficient to draft PRD sections, with gaps where evidence is missing. | PRD may be too generic. | `08_context_packs/specs_generation.json` | Active |",
@@ -379,7 +392,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 ### 9a. Assumption Register
 
 {assumption_header}
-{assumption_rows}
+{assumption_rows_text}
 
 ### 9b. Risk Register
 
@@ -432,11 +445,11 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 ### Missing Information Notes
 
-- `[PENDING INPUT - Personas]`: resolve `GAP-PRD-PERSONA-DETAIL`.
-- `[PENDING INPUT - FR/AC]`: refine FRs and ACs from confirmed product and quality evidence.
-- `[PENDING INPUT - NFR/KPI]`: confirm measurable targets, owners, method, and timeframe.
-- `[PENDING INPUT - Dependencies/Roadmap]`: confirm owners, MVP, phases, dates, and rollout constraints.
-- `[PENDING INPUT - Glossary/Governance]`: confirm mandatory terms, constraints, audit expectations, and decisions.
+- `[{pending_name} - Personas]`: resolve `GAP-PRD-PERSONA-DETAIL`.
+- `[{pending_name} - FR/AC]`: refine FRs and ACs from confirmed product and quality evidence.
+- `[{pending_name} - NFR/KPI]`: confirm measurable targets, owners, method, and timeframe.
+- `[{pending_name} - Dependencies/Roadmap]`: confirm owners, MVP, phases, dates, and rollout constraints.
+- `[{pending_name} - Glossary/Governance]`: confirm mandatory terms, constraints, audit expectations, and decisions.
 
 ### Context Retrieved From Memory
 

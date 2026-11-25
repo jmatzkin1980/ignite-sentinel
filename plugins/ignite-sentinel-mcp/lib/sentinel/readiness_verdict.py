@@ -693,7 +693,7 @@ CHANGE_COMMANDS = {
 
 
 def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
-    """IMP-396: the first step of the change's sequence that is still pending (none ever suggests the PRD)."""
+    """IMP-396: the first step of the change's sequence that is still pending (`specs` also covers the PRD of the change, written by `/specs --change`)."""
     from .change_validation import validate_change
     from .compilers.change_backlog import read_change_units, specs_currency
 

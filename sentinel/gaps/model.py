@@ -402,6 +402,6 @@ def render_non_goals_block(non_goals: list[dict[str, str]], language: str) -> st
         gap_id = str(item.get("gap_id", "")).strip()
         statement = str(item.get("statement", "")).strip()
         source = str(item.get("source", "")).strip()
-        cite = f"`{gap_id}`" + (f" / `{source}`" if source else "")
-        lines.append(f"- {statement} _({cite})_")
+        cite = (f"`{gap_id}`" + (f" / `{source}`" if source else "")) if gap_id else (f"`{source}`" if source else "")
+        lines.append(f"- {statement} _({cite})_" if cite else f"- {statement}")
     return "\n".join(lines)

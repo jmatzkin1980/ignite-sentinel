@@ -1,7 +1,7 @@
 """IMP-388: the spec units of a change (CHG-nnn), built only from the change's REQ-EARS rows.
 
-Units live in `03_specs/CHG-nnn/units/`, never in the project's `03_specs/units/`, and a change
-never writes `prd.md`. Ids come from the shared SPEC-U registry, keyed by the REQ-EARS id, so a
+Units live in `03_specs/CHG-nnn/units/`, never in the project's `03_specs/units/`. IMP-414: the change's
+PRD (`03_specs/CHG-nnn/prd.md`) is written from the consolidated final export by `change_prd.write_change_prd`. Ids come from the shared SPEC-U registry, keyed by the REQ-EARS id, so a
 rerun keeps them and a new row takes the next number. `UNCHANGED` rows are not units: they are
 listed as preserved behaviour.
 """
@@ -36,6 +36,7 @@ TEXT = {
         "next": "Revisá {path}; después /backlog --change deriva las historias.",
         "no_brief": "{cid} no tiene brief: /specs --change parte de {brief}",
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s)",
+        "prd_skipped": "prd.md pendiente: falta el export final vigente ({command})",
         "no_rows": "{cid} no tiene filas ADDED, MODIFIED ni REMOVED: no hay unidades para especificar",
         "no_rows_next": ("Respondé GAP-ACCEPTANCE en EARS con Delta (ADDED, MODIFIED o REMOVED) y corré "
                          "/resolve-gaps {pid} --change {cid}"),
@@ -52,6 +53,7 @@ TEXT = {
         "next": "Review {path}; then /backlog --change derives the stories.",
         "no_brief": "{cid} has no brief: /specs --change starts from {brief}",
         "blocking": "{cid} has {n} blocking gap(s) open",
+        "prd_skipped": "prd.md pending: the current final export is missing ({command})",
         "no_rows": "{cid} has no ADDED, MODIFIED or REMOVED rows: there are no units to specify",
         "no_rows_next": ("Answer GAP-ACCEPTANCE in EARS with a Delta (ADDED, MODIFIED or REMOVED) and run "
                          "/resolve-gaps {pid} --change {cid}"),
@@ -157,6 +159,13 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     report = {"change_id": change_id, "units": unit_ids, "ears": [row["id"] for row in unit_rows],
               "deltas": {row["id"]: parse_delta(row["delta"]) for row in unit_rows},
               "preserved": preserved, "by_delta": by_delta}
+    from .change_prd import write_change_prd
+
+    prd = write_change_prd(project_id, change_id)
+    if "skipped" in prd:
+        report["prd_skipped"] = prd["skipped"]
+    else:
+        report["prd"] = prd
     write_json(folder / "change_specs_report.json", report)
 
     requirements_path = base / EARS_ANCHOR.format(cid=change_id).split("#")[0]
@@ -174,7 +183,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     changes[change_id]["specs"] = {"units": unit_ids, "generated_at": utc_now()}
     update_state(project_id, changes=changes)
 
-    return {
+    result = {
         "project_id": project_id,
         "change_id": change_id,
         "path": specs_path.relative_to(base).as_posix(),
@@ -183,3 +192,8 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
         "report": report,
         "next_step": text["next"].format(path=specs_path.relative_to(base).as_posix()),
     }
+    if "skipped" in prd:
+        result["prd_skipped"] = text["prd_skipped"].format(command=prd["skipped"])
+    else:
+        result["prd"] = prd["path"]
+    return result
