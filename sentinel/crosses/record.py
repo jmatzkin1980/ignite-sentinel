@@ -322,8 +322,8 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
     dropped = [g for g in (replaced if delta else earlier) if g not in gap_ids]
     carried = [g for g in [*(previous.get("dropped_gaps") or []), *dropped] if g not in gap_ids]
     retired = retire_change_gaps(project_id, change_id, dropped, RETIRE_NOTE["es" if es else "en"])
-    if delta:  # an answered question of a replaced claim stays closed with its answer, but it leaves the record
-        retired = list(dropped)
+    # an answered question of a replaced claim stays closed with its answer: it is replaced, not withdrawn
+    replaced_kept = [g for g in dropped if g not in retired] if delta else []
     counts = _counts(claims)
     path = cross_path(base, change_id, kind)
     record = {
@@ -335,6 +335,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
         "claims_hash": claims_hash(claims, reason=""),
         **({"dropped_gaps": list(dict.fromkeys(carried))} if carried else {}),
         **({"retired_gaps": retired} if retired else {}),
+        **({"replaced_gaps": replaced_kept} if replaced_kept else {}),
     }
     write_json(path, record)
     report = write_cross_report(project_id, change_id)
@@ -343,7 +344,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
         "counts": counts, "gaps": gap_ids, "gaps_opened": opened, "dropped_gaps": dropped,
         "retired_gaps": retired, "reopened_gaps": reopened, "pre_decided": pre_decided, "design_requests": design_requests,
         "path": path.as_posix(), "report_path": report.as_posix(),
-        **({"mode": "delta", "kept": kept} if delta else {}),
+        **({"mode": "delta", "kept": kept, "replaced_gaps": replaced_kept} if delta else {}),
     }
 
 

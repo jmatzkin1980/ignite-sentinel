@@ -61,11 +61,11 @@ def run_cross(
     from .state import KIND_LABELS, cross_status, write_cross_report
     from .surfaces import accept_new_surface, decline_new_surface, new_surface_candidates
 
-    if delta and not claims:
-        raise ValueError("/cross --delta goes with --claims")
     change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
     es = lang == "es"
+    if delta and not claims:
+        raise ValueError("/cross --delta va con --claims" if es else "/cross --delta goes with --claims")
     label = ""
     if kind:
         kind = normalize_kind(kind, lang)

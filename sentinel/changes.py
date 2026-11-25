@@ -95,14 +95,26 @@ def refuse_change_only_specs(project_id: str, command: str = "specs") -> None:
         )
 
 
+def refusal_language(project_id: str, change_id: str | None = None) -> str:
+    """The language of a refusal on a change path: the change in the command, else the first one (English if none)."""
+    changes = list_changes(project_id)
+    change = changes.get(change_id) if change_id else None
+    if change is None and changes:
+        change = changes[sorted(changes)[0]]
+    return change_language(project_id, change) if change else "en"
+
+
 def refuse_change_only_channel(project_id: str, command: str) -> None:
     """IMP-418: /annotate, /challenge and /scrutinize without --change in a workspace that only holds changes."""
     if not is_change_only(project_id):
         return
     first = sorted(list_changes(project_id))[0]
+    es = refusal_language(project_id, first) == "es"
+    file_word = "ARCHIVO" if es else "FILE"
     raise GateRefusal(
-        f"{project_id} sólo tiene cambios: /{command} sin --change no tiene gaps del proyecto para revisar",
-        next_step=f"/{command} {project_id} --source ARCHIVO --change {first}",
+        f"{project_id} sólo tiene cambios: /{command} sin --change no tiene gaps del proyecto para revisar" if es
+        else f"{project_id} only holds changes: /{command} without --change has no project gaps to review",
+        next_step=f"/{command} {project_id} --source {file_word} --change {first}",
     )
 
 

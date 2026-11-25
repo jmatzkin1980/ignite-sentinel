@@ -21,7 +21,10 @@ from .crosses.claims import TAG_NAMES, rebase_claim
 from .crosses.record import claims_hash, load_cross, source_basis
 from .crosses.state import KIND_LABELS, _baseline_state, write_cross_report
 from .errors import InputError
-from .extraction.inventory import _row_path, build_inventory, inventory_path, parse_request_elements, row_text
+from .core.hashing import hash_matches
+from .extraction.inventory import (
+    _resolve, _row_path, build_inventory, inventory_path, parse_request_elements, row_text,
+)
 from .source_registry import row_role
 from .sources import load_source_manifest
 from .workspace import workspace_path
@@ -44,6 +47,7 @@ HEADINGS = {
         "new": "Nuevos", "changed": "Cambiados", "removed": "Quitados",
         "stale": "Propuestas de extracción desactualizadas",
         "file": "ARCHIVO",
+        "lost": "No se pudo leer el texto anterior (el pedido se editó en el lugar): todos sus elementos se tratan como nuevos",
     },
     "en": {
         "title": "# Change sync {cid}",
@@ -59,6 +63,7 @@ HEADINGS = {
         "new": "New", "changed": "Changed", "removed": "Removed",
         "stale": "Stale extraction proposals",
         "file": "FILE",
+        "lost": "The previous text could not be read (the request was edited in place): every element is treated as new",
     },
 }
 
@@ -81,6 +86,28 @@ def _shas(base: Path, row: dict | None) -> dict[str, str]:
     return {str(e["id"]): str(e["sha"]) for e in elements}
 
 
+def _overwritten(base: Path, old: dict | None, new: dict) -> bool:
+    """True when the previous row's file no longer holds the text it was registered with.
+
+    A request edited in place is registered again at the same path, so the old row now reads the new
+    text; a row registered in place (no copy) also keeps the hash of what it was.
+    """
+    if old is None:
+        return False
+    old_file = _resolve(base, _row_path(old))
+    new_file = _resolve(base, _row_path(new))
+    if old_file is None:
+        return False
+    if new_file is not None and old_file.resolve() == new_file.resolve():
+        return True
+    if not old.get("copies") and old.get("hash"):
+        try:
+            return not hash_matches(old.get("hash"), old_file.read_bytes())
+        except OSError:
+            return False
+    return False
+
+
 def _delta(before: dict[str, str], after: dict[str, str]) -> tuple[dict[str, list[str]], list[str], list[str]]:
     """The delta, and the new and removed ids that are only a rename (the same text under another id)."""
     new = [i for i in after if i not in before]
@@ -99,8 +126,10 @@ def element_delta(project_id: str, change_id: str, previous_id: str | None, new_
     It reads the two rows, so it works before the extraction exists. `previous_id=None`: all new.
     """
     base = workspace_path(project_id)
-    before = _shas(base, _row(project_id, previous_id)) if previous_id else {}
-    delta, _, _ = _delta(before, _shas(base, _row(project_id, new_id)))
+    new = _row(project_id, new_id)
+    old = _row(project_id, previous_id) if previous_id else None
+    before = {} if new is None or _overwritten(base, old, new) else _shas(base, old)
+    delta, _, _ = _delta(before, _shas(base, new))
     return delta
 
 
@@ -142,14 +171,18 @@ def apply_touched_set(project_id: str, change_id: str, *, previous_id: str | Non
     current = {str(r.get("id")) for r in load_source_manifest(project_id).get("registry", [])
                if r.get("validity", "current") == "current"}
 
-    extraction: dict[str, Any] = {"new": [], "changed": [], "removed": [], "stale_proposals": [], "inventory": "absent"}
+    extraction: dict[str, Any] = {"new": [], "changed": [], "removed": [], "stale_proposals": [], "inventory": "absent",
+                                  "previous_unreadable": False}
     trigger: list[str] = []
     gone: list[str] = []
     if role == "pedido":
-        before = _shas(base, _row(project_id, previous_id)) if previous_id else {}
+        old_row = _row(project_id, previous_id) if previous_id else None
+        lost = _overwritten(base, old_row, row)  # the old text is gone: nothing to diff against
+        before = {} if lost else _shas(base, old_row)
         after = _shas(base, row)
         found, renamed_new, renamed_removed = _delta(before, after)
         extraction.update(found)
+        extraction["previous_unreadable"] = lost
         trigger = [i for i in [*found["new"], *found["changed"]] if i not in renamed_new]
         gone = [i for i in found["removed"] if i not in renamed_removed]
         if inventory_path(base, change_id).exists():
@@ -249,6 +282,8 @@ def write_sync_report(project_id: str, change_id: str, result: dict[str, Any], l
             reread.append(f"- {labels[kind]}: {delta['design']}")
     extraction = result["extraction"]
     elements = [f"- {words[key]}: {', '.join(extraction[key])}" for key in ("new", "changed", "removed") if extraction[key]]
+    if extraction.get("previous_unreadable"):
+        elements.insert(0, f"- {words['lost']}")
     if extraction.get("stale_proposals"):
         elements.append(f"- {words['stale']}: {', '.join(extraction['stale_proposals'])}")
     commands = [f"- `{c}`" for c in result["commands"]]
@@ -274,6 +309,20 @@ def _versions_of(project_id: str, change_id: str, role: str, stem: str, new_id: 
         if any(Path(str(p)).stem == stem for p in [*row.get("copies", []), *row.get("paths", [])]):
             found = str(row["id"])
     return found
+
+
+def _belongs_elsewhere(project_id: str, change_id: str, key: str) -> bool:
+    """True when the file at `key` is registered to another change and not to this one."""
+    from .changes import list_changes
+
+    changes = list_changes(project_id)
+    mine = {str(i) for i in (changes.get(change_id) or {}).get("sources") or []}
+    others = {str(i) for cid, c in changes.items() if cid != change_id for i in c.get("sources") or []}
+    for row in load_source_manifest(project_id).get("registry", []):
+        paths = {str(p) for p in [*row.get("copies", []), *row.get("paths", [])]}
+        if key in paths and str(row.get("id")) in others and str(row.get("id")) not in mine:
+            return True
+    return False
 
 
 def _refuse_event_id(project_id: str, change_id: str) -> None:
@@ -340,6 +389,8 @@ def sync_change_scope(
         for folder_role, folder in ROLE_FOLDERS.items():
             files = iter_source_files(base / folder)
             for item in discover_source_novelty(project_id, paths=files)["pending"]:
+                if _belongs_elsewhere(project_id, change_id, str(item["key"])):
+                    continue  # the role folders are shared: a file of another change is not this change's news
                 targets.append((Path(item["path"]), folder_role))
 
     loaded: list[dict[str, Any]] = []
@@ -354,16 +405,17 @@ def sync_change_scope(
             if previous:
                 mark_pending_version(manifest, row, previous)
                 save_source_manifest(project_id, manifest)
-        version_of = supersedes or row.get("pending_version_of")
+        nothing_new = supersedes is not None and new_id == supersedes  # the file is the old row's own content
+        version_of = None if nothing_new else (supersedes or row.get("pending_version_of"))
         old_row = _row(project_id, str(supersedes)) if supersedes else None
         confirmed = False
         results: list[dict[str, Any]] = []
         if supersedes:
-            confirmed = True
-            if old_row is not None and old_row.get("validity", "current") == "current":
+            if not nothing_new and old_row is not None and old_row.get("validity", "current") == "current":
                 # the confirmation of the version is the one place that runs the touched set
                 results = list(update_source(project_id, supersedes, superseded_by=new_id,
                                              reason=_squash(note) or "/sync --change").get("sync") or [])
+                confirmed = True
         elif not reused and not version_of:
             results = [apply_touched_set(project_id, change_id, previous_id=None, new_id=new_id, note=note)]
             confirmed = True

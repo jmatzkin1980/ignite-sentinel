@@ -303,11 +303,15 @@ def _run_project_command(args) -> int:
             print_json(result)
         elif args.command == "scrutinize" and args.mode == "anchors":
             if args.change:  # IMP-418: the anchors are the project's
+                from .changes import refusal_language
                 from .errors import InputError
 
+                es = refusal_language(args.project_id, args.change) == "es"
+                file_word = "ARCHIVO" if es else "FILE"
                 raise InputError(
-                    f"--mode anchors revisa las anclas del proyecto; en el cambio usá /scrutinize {args.project_id} --source ARCHIVO --change {args.change}",
-                    next_step=f"/scrutinize {args.project_id} --source ARCHIVO --change {args.change}")
+                    f"--mode anchors revisa las anclas del proyecto; en el cambio usá /scrutinize {args.project_id} --source {file_word} --change {args.change}" if es
+                    else f"--mode anchors reviews the project's anchors; in the change use /scrutinize {args.project_id} --source {file_word} --change {args.change}",
+                    next_step=f"/scrutinize {args.project_id} --source {file_word} --change {args.change}")
             from .anchor_review import apply_anchor_review  # IMP-258b
 
             print_json(apply_anchor_review(args.project_id, Path(args.source)))

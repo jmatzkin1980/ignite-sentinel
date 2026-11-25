@@ -1049,10 +1049,16 @@ def apply_scrutiny(
         from .change_scope import change_channel_gate, change_channel_paths, change_grounding_text
 
         if is_probe:
+            from ..changes import refusal_language
+
+            es = refusal_language(project_id, change_id) == "es"
+            file_word = "ARCHIVO" if es else "FILE"
             raise InputError(
-                f"--mode implementability-probe no va con --change: el sondeo es por unidad RU del proyecto; "
-                f"en el cambio usá /scrutinize {project_id} --source ARCHIVO --change {change_id}",
-                next_step=f"/scrutinize {project_id} --source ARCHIVO --change {change_id}")
+                (f"--mode implementability-probe no va con --change: el sondeo es por unidad RU del proyecto; "
+                 f"en el cambio usá /scrutinize {project_id} --source {file_word} --change {change_id}") if es
+                else (f"--mode implementability-probe does not go with --change: the probe is per RU unit of the project; "
+                      f"in the change use /scrutinize {project_id} --source {file_word} --change {change_id}"),
+                next_step=f"/scrutinize {project_id} --source {file_word} --change {change_id}")
         _change, gaps_path, language = change_channel_gate(project_id, change_id, "scrutinize")
         paths = change_channel_paths(base, change_id)
         grounding_text = change_grounding_text(project_id, change_id)
@@ -1162,13 +1168,12 @@ def apply_scrutiny(
         "mode": origin,
         "path": str(gaps_path.as_posix()),
         "report": str(report_path.as_posix()),
+        **({"knowledge_state": str(ledger["md_path"].as_posix())} if ledger is not None else {}),
         "merged": [gap["id"] for gap in merged_new],
         "skipped_duplicates": skipped,
         "gap_counts": counts,
     }
-    if ledger is not None:
-        result["knowledge_state"] = str(ledger["md_path"].as_posix())
-    else:
+    if ledger is None:
         result["change_id"] = change_id
     if is_probe:
         result["probe_id"] = report_id

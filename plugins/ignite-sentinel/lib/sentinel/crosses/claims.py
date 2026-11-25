@@ -292,7 +292,11 @@ def rebase_claim(project_id: str, change_id: str, claim: dict, current: set[str]
     """
     base = workspace_path(project_id)
     registry = {str(row.get("id")): row for row in load_source_manifest(project_id).get("registry", [])}
-    sources = cross_sources(project_id, change_id)
+    held = {str(i) for i in get_change(project_id, change_id).get("sources") or []}
+    # the design side of the cross-read is every current prototype of the workspace; a quote moves only onto
+    # the rows that belong to this change, never onto another change's source
+    sources = {side: {i: row for i, row in rows.items() if i in held}
+               for side, rows in cross_sources(project_id, change_id).items()}
     texts: dict[str, str | None] = {}
 
     def where(source_id: str, quote: str) -> dict | None:

@@ -210,6 +210,12 @@ def write_cross_report(project_id: str, change_id: str) -> Path:
                         if lang == "es" else
                         "Questions withdrawn because this delivery no longer carries their claim: ")
                 lines += ["", lead + ", ".join(retired)]
+            replaced = list(record.get("replaced_gaps") or [])
+            if replaced:
+                lead = ("Preguntas de afirmaciones reemplazadas (siguen cerradas con su respuesta): "
+                        if lang == "es" else
+                        "Questions of replaced claims (kept closed with their answer): ")
+                lines += ["", lead + ", ".join(replaced)]
         lines.append("")
     from .surfaces import new_surface_candidates
 

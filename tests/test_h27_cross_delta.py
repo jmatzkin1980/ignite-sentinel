@@ -78,7 +78,8 @@ class StepAndMerge(DeltaCase):
         divergence_gap = next(c["gap"] for c in before["claims"] if c["tag"] == "divergencia")
         unbacked_gap = next(c["gap"] for c in before["claims"] if c["tag"] == "sin_respaldo")
         result = record_cross(PID, CID, "diseno", self.delta_file(DIVERGENCE_V2, new), delta=True)
-        self.assertEqual(result["retired_gaps"], [divergence_gap])
+        self.assertEqual(result["retired_gaps"], [])  # answered: replaced, not withdrawn
+        self.assertEqual(result["replaced_gaps"], [divergence_gap])
         record = self.record("diseno")
         self.assertIn(unbacked_gap, record["gaps"])
         self.assertNotIn(divergence_gap, record["gaps"])
@@ -148,7 +149,7 @@ class Surfaces(DeltaCase):
 
         with self.assertRaises(ValueError) as ctx:
             run_cross(PID, CID, delta=True)
-        self.assertIn("--delta goes with --claims", str(ctx.exception))
+        self.assertIn("--delta va con --claims", str(ctx.exception))  # the change is Spanish
         captured: list = []
         with patch.object(sentinel_mcp, "run_cli", lambda arguments: captured.append(arguments) or {"exit_code": 0}):
             _tools()["sentinel_cross"](project_id="P", change="CHG-001", kind="diseno", claims="c.md", delta=True)

@@ -1451,7 +1451,7 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    /sources COMPRAS_ALTAS --id F-02 --superseded-by F-07
    ```
 
-   `/sync --change` without `--source` scans the role folders of the change. Confirming with `/sources --superseded-by` runs the same report.
+   `/sync --change` without `--source` scans the shared role folders (the files not yet registered; it skips those of another change), so confirm with the BA which change they belong to. Confirming with `/sources --superseded-by` runs the same report.
    </details>
 
    **Challenge the change.** Before the lenses close, you can ask what nobody is asking. Tell the assistant: "Challenge the change CHG-001: what is nobody asking?" (or "scrutinize it by lens", "read it for meaning"). The assistant writes its findings quoting only the change's own text (the request, your answers, the brief, the baseline and the design) and Sentinel checks each quote. The questions open in the change (`01_discovery/CHG-001/gaps.md`), the report is `challenge_report.md` (or `scrutiny_report.md`, `agent_annotation_log.md`) next to it, and a blocking question makes `/next --change` ask for the lenses again. The project's own gaps do not move.
