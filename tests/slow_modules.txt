@@ -18,3 +18,11 @@ test_evals_retrieval  # 12 s
 test_artifact_view  # 12 s
 test_adr_grade_decisions  # 10 s
 test_compose  # 10 s
+test_h27_consolidation_control  # 122 s (IMP-414, measured 2026-11-25)
+test_h27_consolidation  # 66 s
+test_h27_change_prd  # 49 s
+test_h27_consolidated_export  # 34 s
+test_h27_consolidated_walk  # 26 s
+test_h27_conflict_followup  # 25 s
+test_h27_decision_log  # 25 s
+test_h27_inc5a_final_wave  # 24 s
