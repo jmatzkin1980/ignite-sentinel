@@ -20,7 +20,7 @@ jobs:
   full:
     name: ${{ matrix.os }} / py${{ matrix.python }} / ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60  # the Windows lancedb job takes ~40 min since 0.31.0
     strategy:
       fail-fast: false
       matrix:
