@@ -874,11 +874,15 @@ CROSS_MISSING = {
     "es": {"linea_de_base": "línea de base", "diseno": "diseño nuevo", "contradicciones": "contradicciones internas del pedido",
            "no_design": " — ya no hay un prototipo vigente: si no aplica, descartalo con /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
            "stale": " — las fuentes citadas cambiaron: {sources}",
-           "new": " — fuentes vigentes que el cruce no leyó: {sources}"},
+           "new": " — fuentes vigentes que el cruce no leyó: {sources}",
+           "delta": " — releer sólo: {what}", "claims": "afirmaciones {items}", "elements": "elementos {items}",
+           "source": "la fuente nueva {items}"},
     "en": {"linea_de_base": "baseline", "diseno": "new design", "contradicciones": "internal contradictions of the request",
            "no_design": " — there is no current prototype any more: if it does not apply, waive it with /cross {pid} --change {cid} --kind diseno --skip --reason \"…\"",
            "stale": " — the cited sources changed: {sources}",
-           "new": " — current sources the cross-read did not read: {sources}"},
+           "new": " — current sources the cross-read did not read: {sources}",
+           "delta": " — re-read only: {what}", "claims": "claims {items}", "elements": "elements {items}",
+           "source": "the new source {items}"},
 }
 
 
@@ -898,7 +902,9 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
     first = ""
     for kind in status["missing"]:
         info = status["kinds"][kind]
-        part = f"{labels[kind]} ({commands[kind]})"
+        delta = info.get("delta") if kind != "linea_de_base" else None
+        command = commands[kind] + (" --delta" if delta else "")
+        part = f"{labels[kind]} ({command})"
         no_design = kind == "diseno" and not status["design_sources"]
         if no_design:
             part += labels["no_design"].format(pid=pid, cid=cid)
@@ -907,10 +913,20 @@ def _cross_step_context(project_id: str, change_id: str, language: str) -> dict[
                 part += labels["stale"].format(sources=", ".join(info["stale_sources"]))
             if info.get("new_sources"):
                 part += labels["new"].format(sources=", ".join(info["new_sources"]))
+        if delta:
+            what = []
+            if delta.get("touched"):
+                what.append(labels["claims"].format(items=", ".join(str(n) for n in delta["touched"])))
+            if delta.get("elements"):
+                what.append(labels["elements"].format(items=", ".join(delta["elements"])))
+            if delta.get("design"):
+                what.append(labels["source"].format(items=delta["design"]))
+            if what:
+                part += labels["delta"].format(what="; ".join(what))
         parts.append(part)
         if not first:
             first = (f"/cross {pid} --change {cid} --kind diseno --skip --reason \"…\"" if no_design
-                     else commands[kind].replace("ARCHIVO", "PATH"))
+                     else command.replace("ARCHIVO", "PATH"))
     return {"missing": "; ".join(parts), "n_missing": str(len(parts)), "cross_command": first}
 
 

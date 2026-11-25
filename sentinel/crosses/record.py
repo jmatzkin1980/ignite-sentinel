@@ -234,7 +234,7 @@ def _counts(claims: list[dict]) -> dict[str, int]:
     return {tag: n for tag, n in found.items() if n}
 
 
-def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) -> dict[str, Any]:
+def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, delta: bool = False) -> dict[str, Any]:
     from ..secrets_scan import sanitize_text
     from ..sources import mark_source_processed, open_source_row, settle_rerun
 
@@ -247,6 +247,13 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
             "El cruce con la línea de base es el harvest" if es else "The cross-read with the baseline is the harvest",
             next_step=f"/harvest {project_id} --source ARCHIVO --change {change_id}" if es
             else f"/harvest {project_id} --source FILE --change {change_id}")
+    base = workspace_path(project_id)
+    if delta:
+        earlier = load_cross(base, change_id, kind) or {}
+        if earlier.get("status") != "done":
+            raise CrossError(
+                f"No hay un cruce {kind} registrado para completar: registrá el cruce completo sin --delta" if es
+                else f"There is no recorded {kind} cross-read to complete: record the full cross-read without --delta")
     claims_path = Path(claims_path)
     if not claims_path.is_file():
         raise CrossError(f"No existe el archivo de cruce: {claims_path}" if es else f"The cross-read file does not exist: {claims_path}")
@@ -262,7 +269,6 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
         head = "Cruce rechazado" if es else "Cross-read rejected"
         raise CrossError(f"{head}:\n- " + "\n- ".join(errors))
 
-    base = workspace_path(project_id)
     previous = load_cross(base, change_id, kind) or {}
     source_id = open_source_row(project_id, claims_path, "crossed")
     submitted = crosses_dir(base, change_id) / "submitted"
@@ -292,6 +298,20 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
             gaps.append(gap)
             if gap["id"] not in gap_ids:
                 gap_ids.append(gap["id"])
+    kept: list[int] = []
+    replaced: list[str] = []
+    if delta:  # H27 inc 6a: the claims the sync marked are replaced; the others stay with their questions and answers
+        touched = {int(n) for n in (previous.get("pending_delta") or {}).get("touched") or []}
+        stay = [c for c in previous.get("claims") or [] if int(c["n"]) not in touched]
+        replaced = [c["gap"] for c in previous.get("claims") or [] if int(c["n"]) in touched and c.get("gap")]
+        kept = [int(c["n"]) for c in stay]
+        known = {(c["tag"], tuple(_squash(x["quote"]) for x in c["citations"])) for c in stay}
+        fresh = [c for c in claims if (c["tag"], tuple(_squash(x["quote"]) for x in c["citations"])) not in known
+                 and (c["tag"] != "sin_hallazgos" or not stay)]
+        if fresh:
+            stay = [c for c in stay if c["tag"] != "sin_hallazgos"]
+        claims = [*stay, *fresh]
+        gap_ids = list(dict.fromkeys(c["gap"] for c in claims if c.get("gap")))
     reopened = reopen_retired_gaps(project_id, change_id, gap_ids)
     opened = add_change_gaps(project_id, change_id, gaps, candidates, refs)
     priors = load_priors(base, change_id)
@@ -299,9 +319,11 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
     design_requests = [g for g in opened if priors.get(g, {}).get("match") == "design_request"]
 
     earlier = [g for g in previous.get("gaps", []) if previous.get("status") == "done"]
-    dropped = [g for g in earlier if g not in gap_ids]
+    dropped = [g for g in (replaced if delta else earlier) if g not in gap_ids]
     carried = [g for g in [*(previous.get("dropped_gaps") or []), *dropped] if g not in gap_ids]
     retired = retire_change_gaps(project_id, change_id, dropped, RETIRE_NOTE["es" if es else "en"])
+    if delta:  # an answered question of a replaced claim stays closed with its answer, but it leaves the record
+        retired = list(dropped)
     counts = _counts(claims)
     path = cross_path(base, change_id, kind)
     record = {
@@ -321,6 +343,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
         "counts": counts, "gaps": gap_ids, "gaps_opened": opened, "dropped_gaps": dropped,
         "retired_gaps": retired, "reopened_gaps": reopened, "pre_decided": pre_decided, "design_requests": design_requests,
         "path": path.as_posix(), "report_path": report.as_posix(),
+        **({"mode": "delta", "kept": kept} if delta else {}),
     }
 
 

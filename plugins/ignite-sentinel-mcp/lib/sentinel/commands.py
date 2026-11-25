@@ -325,6 +325,8 @@ def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-rea
     p.add_argument("--type", dest="surface_type", metavar="TYPE", help="IMP-404: with --accept-new, the surface type")
     p.add_argument("--name", help="IMP-404: with --accept-new, the surface name")
     p.add_argument("--decline-new", dest="decline_new", metavar="ID", help="IMP-404: decline a new-surface candidate (needs --reason)")
+    p.add_argument("--delta", action="store_true",
+                   help="IMP-418: with --claims, replace only the claims a new source touched and keep the rest with their questions")
 
 
 def _brief(p: argparse.ArgumentParser) -> None:  # IMP-252: the BA confirms profile, genesis and validation direction

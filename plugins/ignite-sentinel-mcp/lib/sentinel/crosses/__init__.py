@@ -51,6 +51,7 @@ def run_cross(
     surface_type: str | None = None,
     name: str | None = None,
     decline_new: str | None = None,
+    delta: bool = False,
 ) -> dict:
     """The /cross command: record, waive or report the cross-reads of one change, and decide its new surfaces."""
     from ..changes import change_language, get_change
@@ -60,6 +61,8 @@ def run_cross(
     from .state import KIND_LABELS, cross_status, write_cross_report
     from .surfaces import accept_new_surface, decline_new_surface, new_surface_candidates
 
+    if delta and not claims:
+        raise ValueError("/cross --delta goes with --claims")
     change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
     es = lang == "es"
@@ -68,7 +71,7 @@ def run_cross(
         kind = normalize_kind(kind, lang)
         label = KIND_LABELS[lang][kind]
     if claims:
-        result = record_cross(project_id, change_id, str(kind), Path(claims))
+        result = record_cross(project_id, change_id, str(kind), Path(claims), delta=delta)
     elif skip:
         result = skip_cross(project_id, change_id, str(kind), reason or "")
     elif accept_new:
@@ -85,6 +88,8 @@ def run_cross(
         new = len(result.get("gaps_opened") or [])
         message = (f"{change_id}: cruce {label} registrado ({counts}); {new} pregunta(s) nueva(s)" if es
                    else f"{change_id}: cross-read {label} recorded ({counts}); {new} new question(s)")
+        if result.get("mode") == "delta":
+            message += f"; delta: {len(result.get('kept') or [])} " + ("afirmación(es) conservada(s)" if es else "claim(s) kept")
         retired = result.get("retired_gaps") or []
         if retired:
             message += (f"; {len(retired)} pregunta(s) retirada(s) ({', '.join(retired)})" if es

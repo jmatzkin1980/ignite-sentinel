@@ -538,6 +538,7 @@ def _run_project_command(args) -> int:
             print_json(run_cross(
                 args.project_id, args.change, kind=args.kind, claims=args.claims, skip=args.skip, reason=args.reason,
                 accept_new=args.accept_new, surface_type=args.surface_type, name=args.name, decline_new=args.decline_new,
+                delta=args.delta,
             ))
         elif args.command == "next":
             from .status import project_next
