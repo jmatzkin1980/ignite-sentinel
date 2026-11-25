@@ -9,6 +9,7 @@ from typing import Any
 from ..changes import _squash, change_language, get_change
 from ..core.io import read_json, write_text
 from ..harvest import load_harvest
+from ..source_registry import row_role
 from ..sources import load_source_manifest
 from ..workspace import workspace_path
 from . import CROSS_KINDS, cross_path, crosses_dir
@@ -43,14 +44,32 @@ def _load(base: Path, change_id: str, kind: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def _baseline_state(base: Path, change: dict, record: dict | None) -> dict[str, Any]:
+def _late_baseline(project_id: str, change: dict) -> list[str]:
+    """H27 inc 6a: current baseline sources of the change that came after its last harvest.
+
+    A change without `harvest_basis` (made before 0.33) reads as before: nothing is late.
+    """
+    basis = change.get("harvest_basis")
+    if not isinstance(basis, list):
+        return []
+    seen = {str(i) for i in basis}
+    mine = {str(i) for i in change.get("sources") or []}
+    rows = load_source_manifest(project_id).get("registry", [])
+    return [str(r["id"]) for r in rows if str(r.get("id")) in mine and str(r["id"]) not in seen
+            and r.get("validity", "current") == "current" and row_role(r) == "linea_de_base"]
+
+
+def _baseline_state(project_id: str, base: Path, change: dict, record: dict | None) -> dict[str, Any]:
     harvests = [str(i) for i in change.get("harvests") or []]
     if harvests:
         counts = {kind: 0 for kind in HARVEST_KINDS}
         for entry in load_harvest(base).get("entries", []):
             if isinstance(entry, dict) and str(entry.get("source_id")) in harvests and entry.get("kind") in counts:
                 counts[entry["kind"]] += 1
-        return {"state": "done", "source_ids": harvests, "counts": {k: n for k, n in counts.items() if n}, "reason": None}
+        late = _late_baseline(project_id, change)
+        return {"state": "stale" if late else "done", "source_ids": harvests,
+                "counts": {k: n for k, n in counts.items() if n}, "reason": None,
+                "stale_sources": [], "new_sources": late}
     if record and record.get("status") == "waived":
         return {"state": "waived", "source_ids": [], "counts": {}, "reason": str(record.get("reason") or "")}
     waiver = change.get("baseline_waived")
@@ -68,7 +87,7 @@ def cross_status(project_id: str, change_id: str) -> dict[str, Any]:
         if row.get("validity", "current") == "current"
     }
     kinds: dict[str, dict[str, Any]] = {
-        "linea_de_base": _baseline_state(base, change, _load(base, change_id, "linea_de_base"))
+        "linea_de_base": _baseline_state(project_id, base, change, _load(base, change_id, "linea_de_base"))
     }
     sources = cross_sources(project_id, change_id)
     for kind in ("diseno", "contradicciones"):

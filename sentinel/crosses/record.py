@@ -236,7 +236,7 @@ def _counts(claims: list[dict]) -> dict[str, int]:
 
 def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) -> dict[str, Any]:
     from ..secrets_scan import sanitize_text
-    from ..sources import mark_source_processed, open_source_row
+    from ..sources import mark_source_processed, open_source_row, settle_rerun
 
     change = get_change(project_id, change_id)
     language = change_language(project_id, change)
@@ -263,12 +263,15 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
         raise CrossError(f"{head}:\n- " + "\n- ".join(errors))
 
     base = workspace_path(project_id)
+    previous = load_cross(base, change_id, kind) or {}
     source_id = open_source_row(project_id, claims_path, "crossed")
     submitted = crosses_dir(base, change_id) / "submitted"
     target = unique_path(submitted / f"{_next_number(submitted):03d}-{claims_path.name}")
     write_text(target, sanitize_text(base, claims_path.name, raw).text)
     source_id = mark_source_processed(project_id, claims_path, "crossed", source_id=source_id) or source_id
     mark_source_processed(project_id, target, "raw_copy", source_id=source_id)
+    # H27 inc 6a: a re-run of this kind's cross-read closes its own version chain.
+    settle_rerun(project_id, source_id, "crossed", [str(previous["source_id"])] if previous.get("source_id") else [])
 
     from ..prior_decisions import candidate_from_claim, design_request_ref, load_priors
 
@@ -295,7 +298,6 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path) 
     pre_decided = [g for g in opened if priors.get(g, {}).get("match") == "linked"]
     design_requests = [g for g in opened if priors.get(g, {}).get("match") == "design_request"]
 
-    previous = load_cross(base, change_id, kind) or {}
     earlier = [g for g in previous.get("gaps", []) if previous.get("status") == "done"]
     dropped = [g for g in earlier if g not in gap_ids]
     carried = [g for g in [*(previous.get("dropped_gaps") or []), *dropped] if g not in gap_ids]

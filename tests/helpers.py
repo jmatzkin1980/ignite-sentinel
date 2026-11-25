@@ -264,3 +264,113 @@ def reproposal_block(project_id: str, change_id: str, element_id: str, corrected
             lines += [f"- Enunciado: {text}", f"  - Delta: {statement['delta']}",
                       f"  - Superficie: {'; '.join(statement['surfaces'])}"]
     return "\n".join(lines) + "\n"
+
+
+class SyncCase(SnapshotWorkspaceCase):
+    """H27 inc 6a: a change with its baseline harvested, a design loaded and both cross-reads recorded.
+
+    Copied from the `NextCase` of `test_h26_cross_next.py`. Subclasses set `PID` (one per module).
+    The contradiction question is answered, so the change has no open question left.
+    """
+
+    PID = "SYNC"
+    CID = "CHG-001"
+    FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+    @classmethod
+    def build_workspace(cls) -> None:
+        from sentinel.crosses.record import record_cross
+
+        crosses = cls.FIXTURES / "change_crosses"
+        pid, cid = cls.PID, cls.CID
+        root = Path.cwd()
+        shutil.copy(crosses / "pedido_contradiccion.md", root / "pedido.md")
+        shutil.copy(crosses / "harvest_compras.md", root / "harvest_compras.md")
+        (root / "scope.md").write_text(IDS_SCOPE_ANSWER, encoding="utf-8")
+        run_ok(["init", pid])
+        run_ok(["ingest", pid, "--source", "pedido.md", "--change"])
+        run_ok(["resolve-gaps", pid, "--source", "scope.md", "--change", cid])
+        run_ok(["sources", pid, "--load", str(cls.FIXTURES / "change_baseline" / "sad-compras.md"),
+                "--role", "linea_de_base", "--change", cid])
+        run_ok(["harvest", pid, "--source", "harvest_compras.md", "--change", cid])
+        run_ok(["sources", pid, "--load", str(crosses / "prototipo-aprobaciones.html"),
+                "--role", "diseno_nuevo", "--change", cid])
+        found = cls._ids()
+        record_cross(pid, cid, "diseno", cls._claims("cruce_diseno.md", found))
+        record_cross(pid, cid, "contradicciones", cls._claims("cruce_contradicciones.md", found))
+        # the divergence and the contradiction each open a question: answer both
+        blocks = []
+        for gap in cls._open_gaps():
+            if gap.startswith(("GAP-DIS-", "GAP-CON-")):
+                chosen = "(A) rige el diseño." if gap.startswith("GAP-DIS-") else "(A) rige la primera."
+                blocks += [f"### {gap}", f"- Respuesta: {chosen}", "- Owner / fuente: Jefa de Compras",
+                           "- Estado de decisión: confirmado", ""]
+        answer = root / "answer.md"
+        answer.write_text("\n".join(blocks), encoding="utf-8")
+        run_ok(["resolve-gaps", pid, "--source", str(answer), "--change", cid])
+
+    @classmethod
+    def _ids(cls) -> dict[str, str]:
+        from sentinel.status import change_sources
+
+        found = change_sources(cls.PID, cls.CID)["by_role"]
+        return {"pedido": found["pedido"][0], "diseno": found["diseno_nuevo"][0]}
+
+    @classmethod
+    def _claims(cls, name: str, ids: dict[str, str]) -> Path:
+        text = (cls.FIXTURES / "change_crosses" / name).read_text(encoding="utf-8")
+        text = text.replace("F-PED", ids["pedido"]).replace("F-DIS", ids["diseno"])
+        path = Path.cwd() / f"sub-{name}"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    @classmethod
+    def _gap_rows(cls) -> list[dict]:
+        from sentinel.changes import change_gaps_path
+        from sentinel.gaps import parse_gap_rows
+        from sentinel.workspace import workspace_path
+
+        path = change_gaps_path(workspace_path(cls.PID), cls.CID)
+        return [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"]
+
+    @classmethod
+    def _open_gaps(cls) -> list[str]:
+        return [g["id"] for g in cls._gap_rows() if str(g.get("status", "OPEN")).strip("`").upper() != "CLOSED"]
+
+    def setUp(self) -> None:
+        super().setUp()
+        from sentinel.core.io import forget_read_snapshots
+
+        forget_read_snapshots()
+
+    def step(self) -> dict:
+        from sentinel.core.io import forget_read_snapshots
+        from sentinel.readiness_verdict import change_next_step
+
+        forget_read_snapshots()
+        return change_next_step(self.PID, self.CID)
+
+    def ids(self) -> dict[str, str]:
+        return self._ids()
+
+    def claims(self, name: str, ids: dict[str, str]) -> Path:
+        return self._claims(name, ids)
+
+    def open_gaps(self) -> list[str]:
+        return self._open_gaps()
+
+    def gap_answer(self, gap_id: str) -> str:
+        """The answer stored for a question in the change's gaps.md ('' when it has none)."""
+        for row in self._gap_rows():
+            if row.get("id") == gap_id:
+                return str(row.get("resolution_note") or row.get("answer") or "")
+        return ""
+
+    def write_v2(self, name: str = "pedido.md", old: str = "mayor a 5.000.000", new: str = "mayor a 3.000.000") -> Path:
+        """The request with one replacement, written to `name` in the current folder."""
+        text = (self.FIXTURES / "change_crosses" / "pedido_contradiccion.md").read_text(encoding="utf-8")
+        if old not in text:
+            raise AssertionError(f"{old!r} is not in the request fixture")
+        path = Path.cwd() / name
+        path.write_text(text.replace(old, new), encoding="utf-8")
+        return path

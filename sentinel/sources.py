@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -385,28 +386,48 @@ def mark_source_processed(
     return str(row["id"]) if row else None
 
 
-def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
-    """H27: a new answers file over a previous /resolve-gaps run is a re-run, not a candidate version.
+RERUN_VIAS = ("gap_resolved", "crossed", "harvested")
 
-    Applies only when the row's first event and every event of the row it would replace are
-    `gap_resolved`; returns that row id, or None when the candidate note must stay.
+
+def settle_rerun(project_id: str, source_id: str, via: str,
+                 previous_ids: Collection[str] | None = None) -> str | None:
+    """H27: a new file over a previous run of the same Sentinel command is a re-run, not a candidate version.
+
+    `via` is the command that opened both rows (`gap_resolved`, `crossed` or `harvested`). The
+    candidate note is cleared only when the row it would replace belongs to `previous_ids` (the
+    earlier runs of that same command in that scope); `None` applies no filter. Returns the
+    replaced row id, or None when the candidate note must stay.
     """
+    if via not in RERUN_VIAS:
+        raise ValueError(f"via must be one of {', '.join(RERUN_VIAS)}: {via}")
     manifest = load_source_manifest(project_id)
     row = find_row(manifest, source_id)
     previous_id = row.get("pending_version_of") if row else None
     if not row or not previous_id:
         return None
+    if previous_ids is not None and str(previous_id) not in {str(i) for i in previous_ids}:
+        return None
     previous = find_row(manifest, str(previous_id))
     events = row.get("events") or []
     before = (previous or {}).get("events") or []
-    if previous is None or not events or events[0].get("via") != "gap_resolved":
+    if previous is None or not events or events[0].get("via") != via:
         return None
-    if not before or any(e.get("via") != "gap_resolved" for e in before):
+    if not before:
+        return None
+    if via == "gap_resolved":
+        if any(e.get("via") != via for e in before):
+            return None
+    elif before[0].get("via") != via:
         return None
     row["pending_version_of"] = None
     row["rerun_of"] = str(previous_id)
     save_source_manifest(project_id, manifest)
     return str(previous_id)
+
+
+def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
+    """H27: a new answers file over a previous /resolve-gaps run is a re-run (see `settle_rerun`)."""
+    return settle_rerun(project_id, source_id, "gap_resolved")
 
 
 def discover_source_novelty(project_id: str) -> dict[str, list[dict[str, Any]]]:
