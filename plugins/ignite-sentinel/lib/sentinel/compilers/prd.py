@@ -274,7 +274,7 @@ def render_prd_full(
         )
     else:
         kpi_primary_row = (
-            f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | {gap_ref("GAP-METRIC-SOURCE")} |"
+            f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | {gap_ref('GAP-METRIC-SOURCE')} |"
         )
     from ..assumptions import render_prd_assumption_rows
 
