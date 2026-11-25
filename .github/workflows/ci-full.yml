@@ -20,16 +20,19 @@ jobs:
   full:
     name: ${{ matrix.os }} / py${{ matrix.python }} / ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90  # the Windows lancedb job takes over 60 min since 0.32.0
+    timeout-minutes: 90  # the Windows base job (full tier) takes ~50 min since 0.33.0
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  python: "3.10", label: "base",              extras: "",       mcp: "",              wheel: "" }
-          - { os: ubuntu-latest,  python: "3.13", label: "lancedb + mcp 2",   extras: "memory", mcp: "mcp>=2,<3",     wheel: "1" }
-          - { os: ubuntu-latest,  python: "3.13", label: "mcp 1",             extras: "",       mcp: "mcp>=1.2,<2",   wheel: "" }
-          - { os: windows-latest, python: "3.13", label: "base",              extras: "",       mcp: "",              wheel: "" }
-          - { os: windows-latest, python: "3.10", label: "lancedb",           extras: "memory", mcp: "",              wheel: "" }
+          # tier: the Windows + LanceDB job runs the fast tier (every module outside
+          # tests/slow_modules.txt). The slow modules still run on Windows in the base job
+          # and with LanceDB in the Ubuntu "lancedb + mcp 2" job, so no pair goes uncovered.
+          - { os: ubuntu-latest,  python: "3.10", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full" }
+          - { os: ubuntu-latest,  python: "3.13", label: "lancedb + mcp 2",   extras: "memory", mcp: "mcp>=2,<3",     wheel: "1", tier: "full" }
+          - { os: ubuntu-latest,  python: "3.13", label: "mcp 1",             extras: "",       mcp: "mcp>=1.2,<2",   wheel: "",  tier: "full" }
+          - { os: windows-latest, python: "3.13", label: "base",              extras: "",       mcp: "",              wheel: "",  tier: "full" }
+          - { os: windows-latest, python: "3.10", label: "lancedb",           extras: "memory", mcp: "",              wheel: "",  tier: "fast" }
     env:
       SENTINEL_EVAL_REPORTS: "0"
       PYTHONUTF8: "1"
@@ -50,11 +53,11 @@ jobs:
             python -m pip install "${{ matrix.mcp }}"
           fi
           python -m pip list --format=freeze | grep -iE "^(mcp|lancedb)==" || true
-      - name: Unit suite (full)
+      - name: Unit suite (${{ matrix.tier }})
         shell: bash
         env:
           SENTINEL_SLOW: ${{ matrix.wheel }}
-        run: python tools/run_tests.py --tier full
+        run: python tools/run_tests.py --tier ${{ matrix.tier }}
       - name: Doctor
         run: python -m sentinel doctor
       - name: Discovery evals
