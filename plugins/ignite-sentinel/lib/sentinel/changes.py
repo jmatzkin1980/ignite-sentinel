@@ -122,6 +122,40 @@ def refuse_change_only_channel(project_id: str, command: str) -> None:
     )
 
 
+def refuse_project_extraction(project_id: str, command: str, change_only: dict[str, object]) -> None:
+    """IMP-420: `/extract` and `/cross` without `--change` work on the project's request, or refuse before writing.
+
+    `change_only` maps each option that belongs to a change (flag -> value); a set one is refused. A workspace that only
+    holds changes names its first change; a request without rules, criteria, stories or decisions with an id has nothing
+    to extract element by element.
+    """
+    from .core.text import project_language
+
+    given = [flag for flag, value in change_only.items() if value]
+    if given:
+        es = project_language(project_id) == "es"
+        flag = given[0]
+        raise InputError(
+            f"{flag} es sólo del cambio: va con --change CHG-NNN" if es
+            else f"{flag} belongs to a change: it goes with --change CHG-NNN",
+            next_step=f"/{command} {project_id} {flag} ... --change CHG-NNN")
+    if is_change_only(project_id):
+        first = sorted(list_changes(project_id))[0]
+        es = refusal_language(project_id, first) == "es"
+        raise GateRefusal(
+            f"{project_id} sólo tiene cambios: /{command} sin --change no tiene pedido del proyecto" if es
+            else f"{project_id} only holds changes: /{command} without --change has no project request",
+            next_step=f"/{command} {project_id} --change {first}")
+    if not project_extraction_offered(project_id):
+        es = project_language(project_id) == "es"
+        raise GateRefusal(
+            f"El pedido de {project_id} no tiene reglas, criterios, historias ni decisiones con id (RN-, CA-, HU-, PD-): "
+            f"la extracción elemento por elemento no aplica; seguí con /next {project_id}" if es
+            else f"The request of {project_id} has no rules, criteria, stories or decisions with an id (RN-, CA-, HU-, PD-): "
+            f"element-by-element extraction does not apply; continue with /next {project_id}",
+            next_step=f"/next {project_id}")
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:
@@ -193,11 +227,11 @@ def _project_entry(project_id: str) -> dict:
             "gap_counts": read_state(project_id).get("gap_counts", {})}
 
 
-def project_extraction_offered(project_id: str, has_brief: bool) -> bool:
+def project_extraction_offered(project_id: str) -> bool:
     """Element-by-element extraction on the project is opt-in by evidence (IMP-420).
 
-    Offered when the project already has an inventory or a cross-read, or, before a brief exists, when its
-    request carries elements with an id (rule, criterion, story, decision; sections alone do not count).
+    Offered when the project already has an inventory or a cross-read, or when its request carries elements with an
+    id (rule, criterion, story, decision; sections alone do not count), whether or not a brief was compiled.
     """
     from .crosses import CROSS_KINDS, cross_path
     from .extraction.inventory import inventory_path, parse_request_elements, row_text
@@ -205,8 +239,6 @@ def project_extraction_offered(project_id: str, has_brief: bool) -> bool:
     base = workspace_path(project_id)
     if inventory_path(base, None).exists() or any(cross_path(base, None, kind).exists() for kind in CROSS_KINDS):
         return True
-    if has_brief:
-        return False
     for row in project_request_rows(project_id):
         text = row_text(base, row)
         if text is not None and any(e["kind"] != "section" for e in parse_request_elements(text, str(row["id"]), "")):

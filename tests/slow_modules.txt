@@ -48,3 +48,4 @@ test_h27_project_extract  # 10 s
 test_h27_project_confirm  # 10 s
 test_h27_project_cross  # 10 s
 test_h27_project_next  # 34 s
+test_h27_project_commands  # 15 s

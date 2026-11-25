@@ -304,7 +304,7 @@ def _next(p: argparse.ArgumentParser) -> None:
 
 def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a change request with coverage
     p.add_argument("project_id")
-    p.add_argument("--change", metavar="CHG-NNN", required=True, help="IMP-402: the change whose request is extracted")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-402: the change whose request is extracted; IMP-420: omit it for the project's request")
     p.add_argument("--proposals", metavar="PATH", help="IMP-402: record the cited proposals in this file")
     p.add_argument("--confirm", metavar="SECTION|all", help="IMP-402: confirm the proposals of a section (or all); flagged ones are held")
     p.add_argument("--confirm-item", dest="confirm_item", metavar="ID", help="IMP-402: confirm one proposal, flagged or not")
@@ -327,7 +327,7 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
 
 def _cross(p: argparse.ArgumentParser) -> None:  # IMP-404: registered cross-reads of a change request
     p.add_argument("project_id")
-    p.add_argument("--change", metavar="CHG-NNN", required=True, help="IMP-404: the change whose request is cross-read")
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-404: the change whose request is cross-read; IMP-420: omit it for the project's request")
     p.add_argument("--kind", metavar="TYPE", help="IMP-404: diseno, contradicciones or linea_de_base (with --claims or --skip)")
     p.add_argument("--claims", metavar="PATH", help="IMP-404: record the cited cross-read in this file")
     p.add_argument("--skip", action="store_true", help="IMP-404: waive the cross-read of --kind (needs --reason)")

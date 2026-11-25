@@ -62,9 +62,8 @@ class ExtractCli(ProposalsCase):
 
 
 class ExtractArguments(unittest.TestCase):
-    def test_cli_requires_change(self):
-        with self.assertRaises(SystemExit):
-            run_cli(["extract", "P"])
+    def test_cli_change_is_optional(self):  # IMP-420: parsed without --change; the project path decides what it means
+        self.assertNotEqual(run_cli(["extract", "P"])[0], 0)  # no workspace P: a refusal, not a parse error (SystemExit)
 
     def test_mcp_extract_passes_arguments(self):
         captured: list[list[str]] = []

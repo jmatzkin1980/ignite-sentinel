@@ -510,6 +510,12 @@ def _run_project_command(args) -> int:
         elif args.command == "extract":
             from .extraction import run_extract
 
+            if not args.change:  # IMP-420: the project's request
+                from .changes import refuse_project_extraction
+
+                refuse_project_extraction(args.project_id, "extract", {
+                    "--consolidate": args.consolidate, "--confirm-replacement": args.confirm_replacement,
+                    "--keep-text": args.keep_text})
             forms = [bool(x) for x in (args.proposals, args.confirm, args.confirm_item, args.reject_item,
                                        args.verify, args.verify_result, args.consolidate, args.confirm_replacement,
                                        args.keep_text)]
@@ -542,6 +548,11 @@ def _run_project_command(args) -> int:
         elif args.command == "cross":
             from .crosses import run_cross
 
+            if not args.change:  # IMP-420: the project's request
+                from .changes import refuse_project_extraction
+
+                refuse_project_extraction(args.project_id, "cross", {
+                    "--accept-new": args.accept_new, "--decline-new": args.decline_new})
             if sum(bool(x) for x in (args.claims, args.skip, args.accept_new, args.decline_new)) > 1:
                 raise ValueError("/cross takes one of --claims, --skip, --accept-new or --decline-new")
             if (args.claims or args.skip) and not args.kind:

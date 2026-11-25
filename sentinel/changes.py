@@ -122,6 +122,40 @@ def refuse_change_only_channel(project_id: str, command: str) -> None:
     )
 
 
+def refuse_project_extraction(project_id: str, command: str, change_only: dict[str, object]) -> None:
+    """IMP-420: `/extract` and `/cross` without `--change` work on the project's request, or refuse before writing.
+
+    `change_only` maps each option that belongs to a change (flag -> value); a set one is refused. A workspace that only
+    holds changes names its first change; a request without rules, criteria, stories or decisions with an id has nothing
+    to extract element by element.
+    """
+    from .core.text import project_language
+
+    given = [flag for flag, value in change_only.items() if value]
+    if given:
+        es = project_language(project_id) == "es"
+        flag = given[0]
+        raise InputError(
+            f"{flag} es sólo del cambio: va con --change CHG-NNN" if es
+            else f"{flag} belongs to a change: it goes with --change CHG-NNN",
+            next_step=f"/{command} {project_id} {flag} ... --change CHG-NNN")
+    if is_change_only(project_id):
+        first = sorted(list_changes(project_id))[0]
+        es = refusal_language(project_id, first) == "es"
+        raise GateRefusal(
+            f"{project_id} sólo tiene cambios: /{command} sin --change no tiene pedido del proyecto" if es
+            else f"{project_id} only holds changes: /{command} without --change has no project request",
+            next_step=f"/{command} {project_id} --change {first}")
+    if not project_extraction_offered(project_id):
+        es = project_language(project_id) == "es"
+        raise GateRefusal(
+            f"El pedido de {project_id} no tiene reglas, criterios, historias ni decisiones con id (RN-, CA-, HU-, PD-): "
+            f"la extracción elemento por elemento no aplica; seguí con /next {project_id}" if es
+            else f"The request of {project_id} has no rules, criteria, stories or decisions with an id (RN-, CA-, HU-, PD-): "
+            f"element-by-element extraction does not apply; continue with /next {project_id}",
+            next_step=f"/next {project_id}")
+
+
 def get_change(project_id: str, change_id: str) -> dict:
     changes = list_changes(project_id)
     if change_id not in changes:

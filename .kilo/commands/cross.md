@@ -5,9 +5,10 @@ agent: sentinel-discovery
 
 # Ignite Cross
 
-Cross-read a change request with the new design and with itself, waive a cross-read, and decide the new surfaces the baseline cross-read did not find. Parse `PROJECT_ID` and `--change CHG-NNN` (required) from:
+Cross-read a change request with the new design and with itself, waive a cross-read, and decide the new surfaces the baseline cross-read did not find. Parse `PROJECT_ID` and `--change CHG-NNN` (optional: without it the command works on the request of the project, IMP-420) from:
 
 ```text
+/cross PROJECT_ID
 /cross PROJECT_ID --change CHG-NNN
 /cross PROJECT_ID --change CHG-NNN --kind diseno|contradicciones --claims PATH
 /cross PROJECT_ID --change CHG-NNN --kind diseno|contradicciones --claims PATH --delta
@@ -19,6 +20,7 @@ Cross-read a change request with the new design and with itself, waive a cross-r
 Run from the repository root:
 
 ```powershell
+python -m sentinel /cross PROJECT_ID
 python -m sentinel /cross PROJECT_ID --change CHG-NNN
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --kind diseno --claims PATH
 python -m sentinel /cross PROJECT_ID --change CHG-NNN --kind diseno --claims PATH --delta
@@ -56,3 +58,5 @@ Transcribe, never draft: nothing enters without a verbatim quote, and the BA nev
 `--delta` (IMP-418) goes with `--claims` when a new version of the request or the design arrived (`/sync --change`, or `/sources --superseded-by` on a row of the change): the file holds only the claims the sync marked to read again (see `01_discovery/CHG-NNN/sync_report.md`) and the new ones. The claims that stayed literal keep their questions and answers; the touched ones are replaced and the questions of a replaced claim that does not come back are retired. It needs a cross-read already recorded; `/next --change` asks for it with the exact command. Without `--delta` the file replaces the whole cross-read, as always.
 
 Every result carries `crosses` (the state of the three), `new_surface_candidates`, `next_step` and a one-line `message`. Report the message, which cross-reads are still missing and which blocking questions the cross-read opened.
+
+On the project (IMP-420): without `--change` the cross-reads `contradicciones` and `diseno` (and `linea_de_base` after `/harvest PROJECT_ID --source PATH`) run on the request of the project, with the files in `01_discovery/crosses/`, the blocking questions in the project's `gaps.md`, and the result carrying `"scope": "project"` and `next`, the step of `/next PROJECT_ID`. It is refused, writing nothing, when the request has no ids, when the workspace only holds changes, and for `--accept-new` and `--decline-new`, which belong to a change.

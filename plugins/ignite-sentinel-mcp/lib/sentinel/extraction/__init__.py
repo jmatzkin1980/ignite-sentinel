@@ -14,9 +14,18 @@ def extraction_dir(base: Path, change_id: str | None) -> Path:
     return base / "02_requirements" / change_id / "extraction"
 
 
+def project_next_step(project_id: str, result: dict) -> dict:
+    """IMP-420: a result on the project's request carries `scope`, `next` and `next_step` (the step of `/next P`)."""
+    from ..status import project_next
+
+    step = project_next(project_id)
+    result["change_id"], result["scope"], result["next"] = None, "project", step
+    return step
+
+
 def run_extract(
     project_id: str,
-    change_id: str,
+    change_id: str | None,
     proposals: str | None = None,
     confirm: str | None = None,
     confirm_item: str | None = None,
@@ -33,7 +42,7 @@ def run_extract(
     gap: str | None = None,
 ) -> dict:
     """The /extract command: inventory, proposals, confirmation or rejection of one change."""
-    from ..changes import change_language, resolve_scope
+    from ..changes import resolve_scope
     from ..readiness_verdict import change_next_step
     from .confirm import confirm_item as _confirm_item
     from .confirm import confirm_proposals, reject_item as _reject_item
@@ -45,9 +54,11 @@ def run_extract(
     from .proposals import record_proposals
     from .verify import record_verification, start_verification
 
-    change = resolve_scope(project_id, change_id).entry  # an unknown change is a GateRefusal
-    lang = "es" if change_language(project_id, change) == "es" else "en"
+    scope = resolve_scope(project_id, change_id)  # an unknown change is a GateRefusal; None is the project (IMP-420)
+    lang = "es" if scope.language == "es" else "en"
     es = lang == "es"
+    who = change_id or project_id
+    where = f" --change {change_id}" if change_id else ""
     if proposals:
         result = record_proposals(project_id, change_id, Path(proposals))
     elif confirm:
@@ -82,8 +93,8 @@ def run_extract(
         )
         sheet = result["worksheet_path"]
         message = (
-            f"{change_id}: {result['total']} elementos inventariados ({by_kind}). Planilla: `{sheet}`" if es
-            else f"{change_id}: {result['total']} elements inventoried ({by_kind}). Worksheet: `{sheet}`"
+            f"{who}: {result['total']} elementos inventariados ({by_kind}). Planilla: `{sheet}`" if es
+            else f"{who}: {result['total']} elements inventoried ({by_kind}). Worksheet: `{sheet}`"
         )
         split = result.get("split") or {}
         if split:
@@ -102,16 +113,16 @@ def run_extract(
         n, r, f = len(result["recorded"]), len(result["rejected"]), len(result["flagged"])
         u, s = len(result.get("unchanged", [])), len(result.get("skipped", []))
         message = (
-            f"{change_id}: {n} propuesta(s) registrada(s), {r} rechazada(s), {f} marcada(s), "
+            f"{who}: {n} propuesta(s) registrada(s), {r} rechazada(s), {f} marcada(s), "
             f"{u} sin cambios (siguen confirmadas), {s} sin tratamiento" if es
-            else f"{change_id}: {n} proposal(s) recorded, {r} rejected, {f} flagged, "
+            else f"{who}: {n} proposal(s) recorded, {r} rejected, {f} flagged, "
             f"{u} unchanged (still confirmed), {s} without treatment"
         )
     elif action == "confirm":
         n, h, i = len(result["confirmed"]), len(result["held"]), len(result.get("invalid", {}))
         message = (
-            f"{change_id}: {n} confirmada(s), {h} retenida(s) por marca, {i} ya no válida(s); cobertura {coverage['text']}" if es
-            else f"{change_id}: {n} confirmed, {h} held by flag, {i} no longer valid; coverage {coverage['text']}"
+            f"{who}: {n} confirmada(s), {h} retenida(s) por marca, {i} ya no válida(s); cobertura {coverage['text']}" if es
+            else f"{who}: {n} confirmed, {h} held by flag, {i} no longer valid; coverage {coverage['text']}"
         )
         d = len(result.get("delegated", []))
         if d:  # IMP-412
@@ -119,17 +130,17 @@ def run_extract(
     elif action == "verify":
         k, path = len(result["sample"]), result["request_path"]
         message = (
-            f"{change_id}: muestra de verificación {result['run']} con {k} elemento(s): `{path}`. Releé cada uno contra el pedido "
-            f"y respondé con /extract {project_id} --change {change_id} --verify-result ARCHIVO" if es
-            else f"{change_id}: verification sample {result['run']} with {k} element(s): `{path}`. Read each one against the request "
-            f"and answer with /extract {project_id} --change {change_id} --verify-result FILE"
+            f"{who}: muestra de verificación {result['run']} con {k} elemento(s): `{path}`. Releé cada uno contra el pedido "
+            f"y respondé con /extract {project_id}{where} --verify-result ARCHIVO" if es
+            else f"{who}: verification sample {result['run']} with {k} element(s): `{path}`. Read each one against the request "
+            f"and answer with /extract {project_id}{where} --verify-result FILE"
         )
     elif action == "verify_result":
         a, b = len(result["same"]), len(result["differs"])
         ids = ", ".join(result["reopened"]) or "—"
         message = (
-            f"{change_id}: verificación {result['run']}: {a} igual(es), {b} difiere(n); reabiertos: {ids}" if es
-            else f"{change_id}: verification {result['run']}: {a} same, {b} differ; reopened: {ids}"
+            f"{who}: verificación {result['run']}: {a} igual(es), {b} difiere(n); reabiertos: {ids}" if es
+            else f"{who}: verification {result['run']}: {a} same, {b} differ; reopened: {ids}"
         )
         if result.get("not_reopened"):
             skipped = ", ".join(result["not_reopened"])
@@ -142,19 +153,19 @@ def run_extract(
         word = "ratificado" if es else "ratified"
         tail = f" {flag}" if result.get("delegated") else (f" {word}" if result.get("ratified") else "")
         message = (
-            f"{change_id}: reemplazo de {confirm_replacement} confirmado{tail}" if es
-            else f"{change_id}: replacement of {confirm_replacement} confirmed{tail}"
+            f"{who}: reemplazo de {confirm_replacement} confirmado{tail}" if es
+            else f"{who}: replacement of {confirm_replacement} confirmed{tail}"
         )
     elif action == "keep_text":
         message = (
-            f"{change_id}: {keep_text} conserva el texto del pedido ({result['gap']})" if es
-            else f"{change_id}: {keep_text} keeps the text of the request ({result['gap']})"
+            f"{who}: {keep_text} conserva el texto del pedido ({result['gap']})" if es
+            else f"{who}: {keep_text} keeps the text of the request ({result['gap']})"
         )
     elif action == "reject":
-        message = f"{change_id}: {reject_item} volvió a pendiente" if es else f"{change_id}: {reject_item} back to pending"
+        message = f"{who}: {reject_item} volvió a pendiente" if es else f"{who}: {reject_item} back to pending"
     else:
-        message = f"{change_id}: {action}"
+        message = f"{who}: {action}"
     result["coverage"] = coverage
-    result["next_step"] = change_next_step(project_id, change_id)
+    result["next_step"] = change_next_step(project_id, change_id) if change_id else project_next_step(project_id, result)
     result["message"] = message
     return result

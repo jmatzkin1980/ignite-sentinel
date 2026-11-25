@@ -426,11 +426,11 @@ def _project_scope_key(project_id: str, has_brief: bool) -> str | None:
     """IMP-420: the project's cross-reads and extraction, in the order of `_change_step_key`; None when none is offered.
 
     Offered only with evidence (`project_extraction_offered`): a project whose request has no element with an id, or
-    that went past its brief without an inventory or a cross-read, sees none of it.
+    sees none of it (a compiled brief does not close the offer: /resolve-gaps compiles it as soon as blocking gaps close).
     """
     from .changes import project_extraction_offered
 
-    if not project_extraction_offered(project_id, has_brief):
+    if not project_extraction_offered(project_id):
         return None
     from .crosses.state import cross_status
 
