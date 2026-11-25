@@ -116,6 +116,11 @@ def _check_final_change(project_id: str, change_id: str) -> None:
         raise DeliverableNotReady(message, command)
     text, report = render_change_deliverable_parts(project_id, change_id, True)
     marks = count_pending_marks(text, report)
+    if not marks.blocking:
+        # IMP-414: the final body leaves the EARS rows out, so a confirmed statement that says «a definir»
+        # would vanish from the sealed text; the working text still carries it and must not be sealed either.
+        working, working_report = render_change_deliverable_parts(project_id, change_id, False)
+        marks = count_pending_marks(working, working_report)
     if marks.blocking:
         raise DeliverableNotReady(
             f"/export --final refused: {marks.blocking} pending marks remain in the brief that would be exported "
