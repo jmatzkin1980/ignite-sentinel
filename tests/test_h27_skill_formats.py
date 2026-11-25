@@ -23,8 +23,10 @@ from sentinel.cross_review import rules as cross_rules
 from sentinel.crosses.claims import CITATION_RULES, parse_claims
 from sentinel.crosses.record import _gap_texts
 from sentinel.ears import classify_ears
+from sentinel.extraction.consolidation import unanchored_sentences
+from sentinel.extraction.inventory import element_lines, parse_request_elements
 from sentinel.extraction.lines import parse_line_ranges
-from sentinel.extraction.proposals import READINGS, SECTION_ALIASES, SECTION_KEYS, TREATMENTS, parse_proposals
+from sentinel.extraction.proposals import READINGS, SECTION_ALIASES, SECTION_KEYS, TREATMENTS, TYPES, parse_proposals
 from sentinel.extraction.verify import parse_verify_results
 from sentinel.gap_resolution import _gap_block, apply_gap_responses, ears_statements, option_choice
 from sentinel.gaps import gap_option_labels, parse_gap_responses
@@ -42,6 +44,7 @@ EXAMPLE_OWNERS = {
     "coherence-crosses": "sentinel-self-review",
     "change-assumptions": "sentinel-assume",
     "gap-assumption": "sentinel-gap-response",
+    "consolidation": "sentinel-project-brief",
 }
 
 FENCE = re.compile(
@@ -221,6 +224,32 @@ def check_gap_assumption(body: str) -> None:
             assert _flat(quote) in request, f"{gap_id}: quote not in the request: {quote!r}"
 
 
+CONSOLIDATION_ANSWER = "Rige el diseño: el umbral de aprobación es 1.000.000."
+
+
+def check_consolidation(body: str) -> None:
+    """IMP-414: the example of `/extract --consolidate` is what the runtime parser reads and its anchoring accepts."""
+    blocks, warnings = parse_proposals(body)
+    assert blocks and warnings == [], warnings
+    request = REQUEST.read_text(encoding="utf-8")
+    found = {e["id"]: e for e in parse_request_elements(request, "F-01", "pedido.md")}
+    lines = request.splitlines()
+    for element_id, block in blocks.items():
+        assert block["decisions"], f"{element_id}: no Decisión"
+        for cited in block["decisions"]:
+            assert cited.startswith("GAP-"), f"{element_id}: Decisión {cited!r} is not a GAP id"
+        assert parse_line_ranges(block["lines"]) is not None, f"{element_id}: lines {block['lines']!r}"
+        text = "\n".join(block["summary_lines"]).strip()
+        assert text, f"{element_id}: no Texto"
+        assert block["type"] == "" or block["type"].lower() in TYPES, f"{element_id}: Tipo {block['type']!r}"
+        if TYPES.get(block["type"].lower(), "aplica") == "aplica":
+            assert element_id in found, f"{element_id} is not an element of the sample request"
+            first, last = element_lines(found[element_id])
+            element_text = "\n".join(lines[first - 1:last]) + "\n" + element_id
+            stale = unanchored_sentences(text, element_text, [CONSOLIDATION_ANSWER])
+            assert stale == [], f"{element_id}: not in the element nor in the answer: {stale}"
+
+
 class SkillFormatTests(unittest.TestCase):
     def test_every_kind_has_an_example_in_its_owner(self):
         for kind, skill in EXAMPLE_OWNERS.items():
@@ -312,6 +341,20 @@ class SkillFormatTests(unittest.TestCase):
         self.assertNotEqual(stale, body)
         with self.assertRaises(AssertionError):
             check_gap_assumption(stale)
+
+    def test_consolidation_examples_parse(self):
+        found = examples_of("consolidation")
+        self.assertEqual({"es", "en"}, {lang for lang, _ in found})
+        for _, body in found:
+            check_consolidation(body)
+
+    def test_a_stale_consolidation_example_fails(self):
+        _, body = examples_of("consolidation")[0]
+        check_consolidation(body)
+        stale = re.sub(r"(?m)^(- (?:Texto|Text):.*?) [|]$", lambda m: m.group(1) + " Además se avisa por SMS al proveedor. |", body, count=1)
+        self.assertNotEqual(stale, body)
+        with self.assertRaises(AssertionError):
+            check_consolidation(stale)
 
     def test_proposals_example_has_extension(self):
         found = examples_of("extraction-proposals")

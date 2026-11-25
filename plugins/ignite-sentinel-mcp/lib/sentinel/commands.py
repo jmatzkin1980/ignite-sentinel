@@ -407,7 +407,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}, skill="sentinel-discovery"),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
     Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync", skill_variants=(("--keep-single", "sentinel-discovery §Delegate, extensions, speculative marks and conflicts"),)),
-    Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change"),  # IMP-402
+    Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change", skill_variants=(("--consolidate", "sentinel-project-brief §Consolidating the change brief"), ("--confirm-replacement", "sentinel-project-brief §Consolidating the change brief"), ("--keep-text", "sentinel-project-brief §Consolidating the change brief"))),  # IMP-402, IMP-414
     Command("cross", MUTATING, _cross, skill="sentinel-discovery §Cross-reads of a change"),  # IMP-404
     Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"), ("--artifact borde", "sentinel-views §Review views of a change"), ("--artifact decisiones", "sentinel-views §Review views of a change"))),
     Command("backlog", MUTATING, _backlog, release=True, skill="sentinel-backlog"),

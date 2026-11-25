@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **The consolidated final brief and the change PRD (IMP-414, H27 inc 5a).** `/extract --change --consolidate PATH`, `--confirm-replacement ID` (with `--delegated`) and `--keep-text ID --gap GAP --reason`; the internal table `01_discovery/CHG-nnn/consolidation_control.md|json`; the step `consolidate` in `/next --change` and `consolidation` in `/status --change`; the annex `A.decisions` "Registro de decisiones"; and `03_specs/CHG-nnn/prd.md` in `/specs --change`.
+
+### Changed
+
+- `/export --change --final` delivers the consolidated text (decisions applied with the GAP reference, the literal text of the requirements without EARS rows, what was discarded only in 6.2 "No entra", the v2 structure of the request respected) and is refused while an element is not consolidated; the working export does not change.
+
+### Fixed
+
+- Answering a `GAP-CHQ` the other way round leaves a single winner; a `GAP-CHQ` whose pair no longer clashes is retired, also after validating an assumption or accepting an earlier decision (M2 of inc 4); the final brief no longer mixes the original request with the decisions (T2-30 to T2-33, T2-39).
+
 ## [0.30.0] — 2026-11-24
 
 ### Added
