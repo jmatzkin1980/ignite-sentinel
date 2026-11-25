@@ -747,10 +747,25 @@ def acceptance_criteria_for_spec_unit_story(
         for criterion in criteria:
             criterion["then"] = criterion["then"].replace(", REQ-001, PRD-001, SPEC-001", f", {unit['change']}")
     # IMP-393: each UNCHANGED row of the change is behavior this story must not break (pass-to-pass).
+    criteria.extend(
+        preserved_criteria(base, len(criteria) + 1, str(unit.get("change", "")), unit.get("preserved", []) or [], language)
+    )
+    return criteria
+
+
+def preserved_criteria(
+    base: str,
+    start: int,
+    change: str,
+    preserved: list[dict[str, Any]],
+    language: str = "en",
+) -> list[dict[str, str]]:
+    """IMP-393: one pass-to-pass criterion per UNCHANGED row, numbered from ``start``."""
     given, when, then = PRESERVED_AC_TEXT.get(language, PRESERVED_AC_TEXT["en"])
-    for offset, row in enumerate(unit.get("preserved", []) or [], start=len(criteria) + 1):
+    criteria: list[dict[str, str]] = []
+    for offset, row in enumerate(preserved, start=start):
         statement_text = " ".join(str(row.get("statement", "")).split()).rstrip(".").replace("|", "\\|")
-        row_values = {"change": unit.get("change", ""), "statement": statement_text, "ears": row.get("id", "")}
+        row_values = {"change": change, "statement": statement_text, "ears": row.get("id", "")}
         criteria.append(
             {
                 "id": f"{base}-{offset:02d}",
@@ -762,6 +777,122 @@ def acceptance_criteria_for_spec_unit_story(
             }
         )
     return criteria
+
+
+def acceptance_criteria_for_slice_story(
+    story_id: str,
+    units: list[dict[str, Any]],
+    change: str,
+    preserved: list[dict[str, Any]],
+    language: str = "en",
+) -> list[dict[str, str]]:
+    """IMP-416: a happy path per unit, then validation, failure, regression and evidence once, then the preserved rows."""
+    base = story_id.replace("US-", "AC-")
+    texts = SPEC_UNIT_AC_TEXT.get(language, SPEC_UNIT_AC_TEXT["en"])
+    fallback = STORY_TEXT.get(language, STORY_TEXT["en"])["behavior_fallback"]
+    unit_ids = ", ".join(str(unit.get("id", "SPEC-U-PENDING")) for unit in units)
+    ears_ids = ", ".join(
+        str(item) for unit in units for item in unit.get("ears", []) if str(item).strip()
+    ) or "[PENDING INPUT]"
+    rows: list[tuple[str, str, tuple[str, str, str], dict[str, str]]] = []
+    name, classification = _SPEC_UNIT_AC_META[0]
+    for unit in units:
+        unit_id = str(unit.get("id", "SPEC-U-PENDING"))
+        statement = str(unit.get("statement", "")).strip()
+        unit_ears = ", ".join(str(item) for item in unit.get("ears", []) if str(item).strip()) or "[PENDING INPUT]"
+        behavior = strip_ears_lead(statement) if statement else fallback.format(unit=unit_id)
+        rows.append((name, classification, texts[0], {"unit": unit_id, "behavior": behavior, "ears": unit_ears}))
+    shared = {"unit": unit_ids, "behavior": "", "ears": ears_ids}
+    for (name, classification), text in zip(_SPEC_UNIT_AC_META[1:], texts[1:]):
+        rows.append((name, classification, text, shared))
+    criteria = [
+        {
+            "id": f"{base}-{index:02d}",
+            "name": name,
+            "classification": classification,
+            "given": given.format(**values),
+            "when": when.format(**values),
+            "then": then.format(**values).replace(", REQ-001, PRD-001, SPEC-001", f", {change}"),
+        }
+        for index, (name, classification, (given, when, then), values) in enumerate(rows, start=1)
+    ]
+    criteria.extend(preserved_criteria(base, len(criteria) + 1, change, preserved, language))
+    return criteria
+
+
+def build_slice_story_specs(
+    project_id: str,
+    backlog_context: dict[str, Any],
+    language: str,
+    slices: list[dict[str, Any]],
+    units_by_id: dict[str, dict[str, Any]],
+    ids: dict[str, str],
+    preserved: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """IMP-416: one value story per slice (functionality x delta); the project path keeps build_backlog_story_specs."""
+    language = language if language in STORY_TEXT else "en"
+    text = STORY_TEXT[language]
+    rationale_text = {
+        "es": "{fun}: {n} unidad(es) de {name}; {rationale}",
+        "en": "{fun}: {n} unit(s) of {name}; {rationale}",
+    }[language]
+    backlog_context["domain_context_coverage"] = build_domain_context_coverage(backlog_context)
+    specs: list[dict[str, Any]] = []
+    for item in slices:
+        story_id = ids[item["key"]]
+        units = [units_by_id[uid] for uid in item["units"]]
+        first = units[0]
+        change = str(first.get("change", ""))
+        composite = {
+            "id": str(first.get("id", "SPEC-U-PENDING")),
+            "title": str(first.get("title", "")),
+            "statement": " ".join(str(unit.get("statement", "")).strip() for unit in units).strip(),
+            "ears": [str(e) for unit in units for e in unit.get("ears", [])],
+            "surfaces": list(item.get("surfaces") or []),
+        }
+        story_context = build_story_backlog_context(project_id, story_id, composite, backlog_context)
+        domain_coverage = build_domain_context_coverage(story_context)
+        backlog_context.setdefault("per_story", {})[story_id] = story_context
+        trace: list[str] = []
+        for unit in units:
+            for entry in trace_ids_for_spec_unit(unit):
+                if entry not in trace:
+                    trace.append(entry)
+        extra = len(units) - 1
+        statement = strip_ears_lead(str(first.get("statement", ""))).rstrip(".")
+        title = f"{item['name']}: {table_cell(statement, 80)}" + (f" (+{extra})" if extra else "")
+        story = {
+            "id": story_id,
+            "type": "value_story",
+            "title": title,
+            "label": "Spec Unit",
+            "fr": item["functionality"],
+            "jtbd": ", ".join(dict.fromkeys(e for unit in units for e in map(str, unit.get("ears", [])))) or "[PENDING INPUT]",
+            "slicing": item["slicing"],
+            "slicing_rationale": rationale_text.format(
+                fun=item["functionality"], n=len(units), name=item["name"], rationale=item["rationale"]
+            ),
+            "description": text["description"].format(unit=", ".join(item["units"])),
+            "goal": goal_for_spec_unit(first, language),
+            "benefit": text["benefit"],
+            "domain": domain_for_spec_unit(first),
+            "trace": sorted(trace),
+            "context": context_row_for_spec_unit(first),
+            "domain_coverage": domain_coverage,
+            "context_pack": "08_context_packs/backlog_generation.json",
+            "context_pack_section": f"per_story.{story_id}",
+            "dependencies": [],
+            "enables": [],
+            "acceptance": acceptance_criteria_for_slice_story(story_id, units, change, preserved, language),
+            "source_unit": item["units"][0],
+            "source_units": list(item["units"]),
+            "change": change,
+            "delta": item["delta"],
+            "surfaces": list(item.get("surfaces") or []),
+        }
+        story["execution_contract"] = build_agent_execution_contract(story, story_context, domain_coverage)
+        specs.append(story)
+    return specs
 
 
 def acceptance_criteria_for_pending_story(story_id: str, language: str = "en") -> list[dict[str, str]]:
