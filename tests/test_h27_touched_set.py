@@ -33,8 +33,10 @@ class TouchedCase(SyncCase):
             source = self.write_v2("v2/pedido.md")
         old = self.ids()["pedido"]
         new = json.loads(run_ok(["sources", PID, "--load", str(source), "--role", "pedido", "--change", CID]))["source_id"]
-        run_ok(["sources", PID, "--id", old, "--superseded-by", new, "--reason", "version nueva"])
+        confirmed = json.loads(run_ok(["sources", PID, "--id", old, "--superseded-by", new, "--reason", "version nueva"]))
         forget_read_snapshots()
+        # the confirmation already applied the touched set: that is the one and only application
+        self.confirmed = confirmed["sync"][0]
         return new
 
     def apply(self, old: str | None, new: str, **kwargs) -> dict:
@@ -55,7 +57,7 @@ class ChangedQuote(TouchedCase):
     def test_changed_quote_is_touched_not_carried(self):
         old = self.ids()["pedido"]
         new = self.load_v2()
-        result = self.apply(old, new)
+        result = self.confirmed
         self.assertEqual(result["crosses"]["diseno"]["touched"], [5])
         self.assertEqual(result["crosses"]["diseno"]["carried"], [1, 2, 3])
         claims = {c["n"]: c for c in self.record("diseno")["claims"]}
@@ -68,7 +70,7 @@ class ChangedQuote(TouchedCase):
         before = next(g for g in self._gap_rows() if g["id"] == gap)
         self.assertEqual(str(before.get("closure_reason")).strip("`"), "answered")
         new = self.load_v2()
-        result = self.apply(old, new)
+        result = self.confirmed
         self.assertEqual(result["crosses"]["contradicciones"]["carried"], [1])
         claim = self.record("contradicciones")["claims"][0]
         self.assertEqual({c["source_id"] for c in claim["citations"]}, {new})
@@ -136,7 +138,7 @@ class HeaderOnly(TouchedCase):
     def test_header_only_version_carries_everything(self):
         old = self.ids()["pedido"]
         new = self.load_v2(FIXTURES / "change_crosses" / "pedido_v2.md")
-        result = self.apply(old, new)
+        result = self.confirmed
         for kind in ("diseno", "contradicciones"):
             self.assertEqual(result["crosses"][kind]["touched"], [])
             self.assertFalse(result["crosses"][kind]["delta"])
