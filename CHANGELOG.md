@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-11-25
+
 ### Added
 
 - **The consolidated final brief and the change PRD (IMP-414, H27 inc 5a).** `/extract --change --consolidate PATH`, `--confirm-replacement ID` (with `--delegated`) and `--keep-text ID --gap GAP --reason`; the internal table `01_discovery/CHG-nnn/consolidation_control.md|json`; the step `consolidate` in `/next --change` and `consolidation` in `/status --change`; the annex `A.decisions` "Registro de decisiones"; and `03_specs/CHG-nnn/prd.md` in `/specs --change`.
