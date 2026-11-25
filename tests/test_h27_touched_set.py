@@ -169,6 +169,24 @@ class NewDesign(TouchedCase):
         self.assertEqual(cross_status(PID, CID)["kinds"]["diseno"]["state"], "stale")
         self.assertEqual(cross_status(PID, CID)["kinds"]["contradicciones"]["state"], "done")
 
+    def test_design_version_always_asks_for_the_delta(self):
+        old = self.ids()["diseno"]
+        second = Path.cwd() / "prototipo-v2.html"
+        html = (FIXTURES / "change_crosses" / "prototipo-aprobaciones.html").read_text(encoding="utf-8")
+        second.write_text(html.replace("</body>", "<p>Pantalla nueva de reportes de altas</p>\n</body>"), encoding="utf-8")
+        new = json.loads(run_ok(["sources", PID, "--load", str(second), "--role", "diseno_nuevo", "--change", CID]))["source_id"]
+        run_ok(["sources", PID, "--id", old, "--superseded-by", new, "--reason", "version nueva"])
+        forget_read_snapshots()
+        delta = self.record("diseno")["pending_delta"]
+        self.assertEqual(delta["design"], new)
+        self.assertEqual(delta["touched"], [])
+        status = cross_status(PID, CID)["kinds"]["diseno"]
+        self.assertEqual(status["state"], "stale")
+        result = self.apply(old, new)
+        self.assertTrue(result["crosses"]["diseno"]["delta"])
+        self.assertEqual(result["crosses"]["diseno"]["touched"], [])
+        self.assertEqual(self.record("diseno")["pending_delta"]["design"], new)
+
     def test_plan_previo_touches_nothing(self):
         plan = Path.cwd() / "plan.md"
         plan.write_text("# Plan previo\n\nEl plan de la etapa anterior no cambia el alcance de este alta.\n", encoding="utf-8")

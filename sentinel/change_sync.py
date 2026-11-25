@@ -175,7 +175,9 @@ def apply_touched_set(project_id: str, change_id: str, *, previous_id: str | Non
             wanted = bool(touched or trigger)
         else:
             known = [str(i) for i in (record.get("basis") or {}).get("diseno") or []]
-            wanted = bool(touched or (previous_id is None and new_id not in known))
+            # a new version of the design may add screens the old claims never covered, and the design has no
+            # element diff to prove otherwise: it is always read again, whatever rebased
+            wanted = bool(touched or previous_id is not None or new_id not in known)
         if wanted or old:
             before_old = old or {}
             pending = {

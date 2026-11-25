@@ -134,11 +134,13 @@ class Crosses(NextCase):
         forget_read_snapshots()
         info = cross_status(PID, CID)["kinds"]["diseno"]
         self.assertEqual(info["state"], "stale")
-        self.assertEqual(info["stale_sources"], [ids["diseno"]])
+        # the claims were rebased onto the new version: what is stale is the pending delta, not a cited source
+        self.assertEqual(info["stale_sources"], [])
+        self.assertEqual(info["delta"]["design"], loaded["source_id"])
         step = self.step()
         self.assertEqual(step["key"], "crosses")
-        self.assertIn(f"las fuentes citadas cambiaron: {ids['diseno']}", step["text"])
-        self.assertIn(f"fuentes vigentes que el cruce no leyó: {loaded['source_id']}", step["text"])
+        self.assertIn("--kind diseno --claims ARCHIVO --delta", step["text"])
+        self.assertIn(f"la fuente nueva {loaded['source_id']}", step["text"])
 
     def test_waived_baseline_needs_no_harvest(self):
         shutil.copy(CROSSES / "pedido_contradiccion.md", Path.cwd() / "otro.md")
