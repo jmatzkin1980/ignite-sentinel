@@ -6,22 +6,31 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
-## [0.32.0] — 2026-11-25
-
 ### Added
 
 - **A new source in the middle of a change: `/sync --change`, re-cross of what it touched and adversarial review of the change (IMP-418, H27 inc 6a).** `/sync PROJECT_ID --change CHG-nnn --source PATH --role ROLE [--supersedes F-NN]` loads the new document of a change by role, detects whether it is a new version (same path, or same role and file name) and confirms it only with the BA's `--supersedes`; without `--source` it scans the shared role folders for files not yet registered (it skips those of another change). `01_discovery/CHG-nnn/sync_report.md` says what was carried and what to read again, with the commands. `/cross --delta` records only the touched claims; the others keep their questions and answers. `--change` on `/challenge`, `/scrutinize` and `/annotate` reviews the request, the brief and the gaps of the change, opens its questions in `01_discovery/CHG-nnn/gaps.md` and writes `challenge_report.md`, `scrutiny_report.md` and `agent_annotation_log.md` under `01_discovery/CHG-nnn/` (the probe and anchors modes refuse with `--change`).
-- **The change specification by functionality and the change backlog by slices (IMP-416, H27 inc 5b).** `03_specs/CHG-nnn/specs.md` has one `FUN-nn` section per functionality with eight blocks of registered data only (`sin dato registrado` when there is none) and a traceability table Unidad / REQ-EARS / Elemento / Cita / Superficie / GAP; the units of the change cite `ruta:Lnn-Lmm` and their headings follow the language of the change. `story_size.max_units` (5) in the slicing model; enablers for the new surfaces of the change; `04_backlog/CHG-nnn/SLICE-PLAN.md`; `source_units` in the stories of the change. The skills `sentinel-specs` (with the validated `change-functionality` example) and `sentinel-backlog`, and the guide, describe it.
 
 ### Changed
 
 - Confirming a version with `/sources --superseded-by` (or `--current`) on a row of a change re-crosses only what it touched: the claims whose quote stays literal are carried with their gap and their answer. `/next --change`, the verdict and `/status --change` show a new version nobody confirmed once (a warning, never a blocker). A baseline loaded after the harvest asks for `/harvest --change` again. In a workspace that only has changes, `/challenge`, `/scrutinize` and `/annotate` without `--change` refuse naming `--change`.
-- `/backlog --change` builds vertical slices by functionality and delta, starts SPIDR above 5 units and no longer generates one story per unit; INVEST Small measures a story of the change by its units; a specs report of 0.31 is read as `old` and `/next --change` asks to regenerate specs and backlog.
 
 ### Fixed
 
 - Final review of IMP-418: a request edited in place and confirmed as a new version re-crosses its new elements (the previous text is gone, so every element counts as new); the refusals of `/scrutinize --change` (probe, anchors), `/cross --delta` and the project form in a change-only workspace follow the language of the change; `/sync --change --supersedes` with the content already loaded says nothing new; a design claim is no longer carried onto another change's prototype; the cross report lists the answered questions of replaced claims as replaced, not withdrawn; `/status --change` no longer repeats the unconfirmed-version note in its `warnings`.
 - T2-22 and casuistry G of the forensic report: the cross-read and harvest files sent again are no longer left as "candidate new version, not confirmed", and a new version of the request no longer forces crossing everything again.
+
+## [0.32.0] — 2026-11-25
+
+### Added
+
+- **The change specification by functionality and the change backlog by slices (IMP-416, H27 inc 5b).** `03_specs/CHG-nnn/specs.md` has one `FUN-nn` section per functionality with eight blocks of registered data only (`sin dato registrado` when there is none) and a traceability table Unidad / REQ-EARS / Elemento / Cita / Superficie / GAP; the units of the change cite `ruta:Lnn-Lmm` and their headings follow the language of the change. `story_size.max_units` (5) in the slicing model; enablers for the new surfaces of the change; `04_backlog/CHG-nnn/SLICE-PLAN.md`; `source_units` in the stories of the change. The skills `sentinel-specs` (with the validated `change-functionality` example) and `sentinel-backlog`, and the guide, describe it.
+
+### Changed
+
+- `/backlog --change` builds vertical slices by functionality and delta, starts SPIDR above 5 units and no longer generates one story per unit; INVEST Small measures a story of the change by its units; a specs report of 0.31 is read as `old` and `/next --change` asks to regenerate specs and backlog.
+
+### Fixed
+
 - `/backlog --change` at scale (T2-38: one retrieval per story, not per unit); the specs of the change with origin and line citation (T2-34, T2-35), grouped (T2-36) and in the language of the change (T2-37); the command `specs.md` no longer says that `prd.md` is not written.
 - `/backlog --change` after the final review of IMP-416: an enabler of a new surface is judged INVEST Small by its own rule, not by the units of the stories it enables; a regroup (0.31 upgrade, or a slice crossing the size limit) never deletes a change story that is `In Progress`, `In Review`, `Blocked` or `Done` (it keeps its id and units, only the rest regroup); with `backlog_gate.strict` the command refuses before writing anything; a REMOVED unit with no `Afecta` keeps its story (only the units that retire not-implemented stories are dropped, per unit); the Objetivo of the change specs cites the lines and GAP decisions of the consolidated text it quotes; the English change document and the slice plan of a change use the change language, a new surface has no as-is facts of other screens, and an enabler no longer borrows the requirements of the first story it enables.
 
