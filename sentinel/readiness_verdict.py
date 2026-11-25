@@ -861,7 +861,12 @@ def _backlog_behind(base: Path, change_id: str, units: list[dict[str, Any]], dro
             if isinstance(grouped, list) and grouped:
                 sources.update(str(unit).strip() for unit in grouped)
             else:
-                sources.add(str(front.get("source_unit", "")).strip())
+                single = front.get("source_unit", "")
+                if isinstance(single, str):  # an enabler's empty `source_unit:` parses as []
+                    sources.add(single.strip())
+    sources.discard("")  # IMP-416: an enabler has no unit
+    if not (base / "04_backlog" / change_id / "SLICE-PLAN.md").is_file():
+        return True  # IMP-416: the change's own slice plan is part of its backlog
     return sources != {unit["id"] for unit in units} - set(dropped_units)
 
 

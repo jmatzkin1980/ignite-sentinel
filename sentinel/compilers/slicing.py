@@ -574,8 +574,15 @@ def build_cross_cutting_enabler_specs(
     backlog_context: dict[str, Any],
     language: str | None = None,
     stable_ids: bool = False,
+    *,
+    surfaces: list[dict[str, Any]] | None = None,
+    trace_ids: list[str] | None = None,
+    preserved: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     language = language if language in STORY_TEXT else story_language(project_id)
+    if surfaces is not None:  # IMP-416: the new surfaces a change accepted, not the project's evidence
+        return build_new_surface_enabler_specs(
+            project_id, value_stories, backlog_context, language, surfaces, trace_ids or [], preserved or [])
     # IMP-393: a change request is a value story too (it delivers a change to something already built).
     enabled_value_stories = [story for story in value_stories if story.get("type") in ("value_story", "change_request")]
     if not enabled_value_stories:
@@ -626,6 +633,89 @@ def build_cross_cutting_enabler_specs(
             "dependencies": [],
             "enables": [story["id"] for story in enabled_value_stories],
             "acceptance": acceptance_criteria_for_enabler(story_id, candidate, language),
+        }
+        story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
+        specs.append(story)
+    return specs
+
+
+ENABLER_SURFACE_TEXT = {
+    "es": {
+        "title": "Construir {type} «{name}» para las historias que la usan",
+        "description": "La superficie «{name}» es nueva en el borde de {change}: las historias que la usan no pueden entregarse hasta que exista.",
+        "goal": "tener disponible {type} «{name}» con el comportamiento que el cambio le pide",
+        "benefit": "las historias que usan «{name}» se pueden implementar y probar",
+        "summary": "La superficie «{name}» entró al borde de {change} por el cruce con las fuentes citadas.",
+        "types": {},
+    },
+    "en": {
+        "title": "Build {type} «{name}» for the stories that use it",
+        "description": "The surface «{name}» is new in the border of {change}: the stories that use it cannot be delivered until it exists.",
+        "goal": "have the {type} «{name}» available with the behavior the change asks of it",
+        "benefit": "the stories that use «{name}» can be implemented and tested",
+        "summary": "The surface «{name}» joined the border of {change} through the cross-read of the cited sources.",
+        "types": {"pantalla": "screen", "proceso": "process", "endpoint": "endpoint", "dato": "data item",
+                  "rol": "role", "integracion": "integration", "regla": "rule"},
+    },
+}
+
+
+def build_new_surface_enabler_specs(
+    project_id: str,
+    value_stories: list[dict[str, Any]],
+    backlog_context: dict[str, Any],
+    language: str,
+    surfaces: list[dict[str, Any]],
+    trace_ids: list[str],
+    preserved: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """IMP-416: one enabler per new surface (origin `cross`, zone `nuevo`) that at least one value story uses."""
+    from .. import id_registry
+    from ..change_requirements import _fold_name
+    from ..story_ids import enabler_key
+
+    texts = ENABLER_SURFACE_TEXT["es" if language == "es" else "en"]
+    change = trace_ids[0] if trace_ids else ""
+    specs: list[dict[str, Any]] = []
+    for surface in surfaces:
+        name, kind = str(surface.get("name", "")), str(surface.get("type", ""))
+        enabled = [s for s in value_stories if s.get("type") in ("value_story", "change_request")
+                   and any(_fold_name(x) == _fold_name(name) for x in s.get("surfaces") or [])]
+        if not enabled:
+            continue
+        shown = texts["types"].get(kind, kind)
+        values = {"type": shown, "name": name, "change": change}
+        title = texts["title"].format(**values)
+        key = enabler_key(f"{change} {kind}:{name}")
+        story_id = id_registry.assign_ids(project_id, "US", [key])[key]
+        domain_coverage = enabled[0].get("domain_coverage", [])
+        units = list(dict.fromkeys(u for s in enabled for u in s.get("source_units") or []))
+        acceptance = acceptance_criteria_for_enabler(story_id, {}, language)
+        acceptance += preserved_criteria(story_id.replace("US-", "AC-"), len(acceptance) + 1, change, preserved, language)
+        story = {
+            "id": story_id,
+            "type": "cross_cutting_enabler",
+            "title": title,
+            "label": "Enabler",
+            "fr": enabled[0].get("fr", ""),
+            "jtbd": enabled[0].get("jtbd", ""),
+            "slicing": "Cross-Cutting Enabler / New Surface",
+            "description": texts["description"].format(**values),
+            "goal": texts["goal"].format(**values),
+            "benefit": texts["benefit"].format(**values),
+            "domain": "technical",
+            "trace": [change, *units],
+            "context": {"need": "cross_cutting_enabler", "artifact_id": change, "artifact_type": "change_border",
+                        "summary": texts["summary"].format(**values)},
+            "domain_coverage": domain_coverage,
+            "dependencies": [],
+            "enables": [s["id"] for s in enabled],
+            "acceptance": acceptance,
+            "source_unit": "",
+            "source_units": [],
+            "change": change,
+            "delta": "ADDED",
+            "surfaces": [name],
         }
         story["execution_contract"] = build_agent_execution_contract(story, backlog_context, domain_coverage)
         specs.append(story)

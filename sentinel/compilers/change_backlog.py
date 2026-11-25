@@ -35,6 +35,7 @@ TEXT = {
         "epic_outcome": "Entregar el cambio {cid} sobre lo existente en cortes verticales por funcionalidad (modelo de slicing de Ignite), con el comportamiento preservado como criterios pass-to-pass.",
         "stories": "## Historias",
         "header": ["Historia", "Delta", "Funcionalidad", "Unidades", "Título"],
+        "slice_plan": "Plan de cortes",
         "preserved": "## Comportamiento preservado",
         "no_preserved": "_Sin filas UNCHANGED._",
         "next": "Revisá el tablero {board} y las historias de {cid} en {epic}.",
@@ -52,6 +53,7 @@ TEXT = {
         "epic_outcome": "Deliver the change {cid} on the existing system in vertical slices by functionality (Ignite slicing model), with the preserved behavior as pass-to-pass criteria.",
         "stories": "## Stories",
         "header": ["Story", "Delta", "Functionality", "Units", "Title"],
+        "slice_plan": "Slice plan",
         "preserved": "## Preserved behavior",
         "no_preserved": "_No UNCHANGED rows._",
         "next": "Review the board {board} and the stories of {cid} in {epic}.",
@@ -157,6 +159,8 @@ context_pack: {context_pack}
 {text['preserved']}
 
 {preserved_lines}
+
+{text['slice_plan']}: `04_backlog/{change_id}/SLICE-PLAN.md`
 """
 
 
@@ -350,6 +354,11 @@ def _reindex_change_artifacts(project_id: str, change_id: str) -> None:
         broker.index_artifact(story_id, "user_story", path, text,
                               domain=str(items.get(story_id, {}).get("domain", "functional")),
                               trace_ids=[epic_id, story_id, *trace])
+    for plan_path in (base / "04_backlog" / change_id / "SLICE-PLAN.md", base / "08_context_packs" / change_id / "slice_plan.json"):
+        if plan_path.is_file():  # IMP-416: the change's slice plan, dropped while building and indexed again like the rest
+            suffix = "-JSON" if plan_path.suffix == ".json" else ""
+            broker.index_artifact(f"{change_id}-SLICE-PLAN{suffix}", "slice_plan", plan_path, plan_path.read_text(encoding="utf-8"),
+                                  domain="delivery", trace_ids=[change_id, *story_ids])
     if pack_path.is_file():
         broker.index_artifact("IMPL-READINESS", "implementation_readiness", pack_path, pack_path.read_text(encoding="utf-8"),
                               domain="delivery", trace_ids=list(items) or ["IMPL-READINESS"])
@@ -367,7 +376,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     from .backlog import normalize_story_format
     from .change_functionalities import change_functionalities, story_size
     from .change_slices import plan_change_slices
-    from .slicing import build_slice_story_specs
+    from .slicing import build_cross_cutting_enabler_specs, build_slice_story_specs
 
     change, text, units = _gate(project_id, change_id)
     story_format = normalize_story_format(story_format or load_config(project_id).get("story_format"))
@@ -396,7 +405,9 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     epic_path = base / "04_backlog" / f"{epic_id_for(change_id)}.md"
     shared_broker(project_id).forget_sources({
         memory_key(project_id, path)
-        for path in (epic_path, pack_path, *(base / "04_backlog" / f"{sid}.md" for sid in previous_ids))
+        for path in (epic_path, pack_path, base / "04_backlog" / change_id / "SLICE-PLAN.md",
+                     base / "08_context_packs" / change_id / "slice_plan.json",
+                     *(base / "04_backlog" / f"{sid}.md" for sid in previous_ids))
     })
     specs_text = (base / _specs_path(change_id)).read_text(encoding="utf-8")
     backlog_context = build_backlog_generation_context(project_id, specs_text, "")
@@ -406,6 +417,11 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     affected = _classify_affected(project_id, base, change_id, stories, units, rows, text)
     for story_id in affected["dropped"]:
         backlog_context.get("per_story", {}).pop(story_id, None)
+    # IMP-416: a new surface the crosses accepted is built before the stories that use it (an enabler per surface).
+    new_surfaces = [item for item in change.get("border") or [] if item.get("origin") == "cross" and item.get("zone") == "nuevo"]
+    enablers = build_cross_cutting_enabler_specs(project_id, stories, backlog_context, language, True,
+                                                 surfaces=new_surfaces, trace_ids=[change_id], preserved=preserved)
+    stories.extend(enablers)
     pack_rel = f"08_context_packs/{change_id}/backlog_generation.json"
     epic_id = epic_id_for(change_id)
     lifecycle = read_state(project_id).get("story_lifecycle", {})
@@ -479,6 +495,15 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     pack.update({"verdict": verdict, "summary": summary, "stories": all_items})
     write_json(pack_path, pack)
 
+    # IMP-416: the change's own slice plan (waves, enablers first), from the pack filtered to its stories; the project's plan stays.
+    from ..slice_plan import generate_slice_plan
+
+    plan_md = f"04_backlog/{change_id}/SLICE-PLAN.md"
+    generate_slice_plan(
+        project_id, stories, {**pack, "stories": [i for i in all_items if str(i.get("story_id", "")) in current_ids]},
+        md_rel=plan_md, json_rel=f"08_context_packs/{change_id}/slice_plan.json",
+        memory_id=f"{change_id}-SLICE-PLAN", enabler_group=epic_id)
+
     # Lifecycle: new stories start Draft, existing entries stay, removed stories leave.
     for story in stories:
         lifecycle.setdefault(story["id"], {"status": "Draft", "owner": ""})
@@ -517,13 +542,13 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
     epic_rel = epic_path.relative_to(base).as_posix()
     slices_out = {
         sid: {"functionality": slice_of[sid]["functionality"], "units": list(slice_of[sid]["units"]), "axis": slice_of[sid]["axis"]}
-        for sid in story_ids
+        for sid in story_ids if sid in slice_of
     }
     report = {
         "change_id": change_id, "epic": epic_id, "stories": story_ids, "removed": removed,
         "pass_to_pass": [row["id"] for row in preserved],
         "change_requests": change_requests, "stale": stale_now, "warnings": affected["warnings"],
-        "slices": slices_out,
+        "slices": slices_out, "slice_plan": plan_md,
     }
     write_json(base / "08_context_packs" / change_id / "backlog_report.json", report)
     return {
@@ -536,6 +561,7 @@ def _compile_change_backlog(project_id: str, change_id: str, story_format: str |
         "stale": stale_now,
         "warnings": affected["warnings"],
         "slices": slices_out,
+        "slice_plan": plan_md,
         "report": report,
         "backlog_board": board["path"],
         "next_step": text["next"].format(board="04_backlog/BACKLOG.md", cid=change_id, epic=epic_rel),
