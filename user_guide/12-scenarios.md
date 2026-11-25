@@ -2170,9 +2170,9 @@ The normal submit has to keep working as today. The existing system is already i
 
     **Tell the assistant:** "Generate the specs of CHG-001 for COMPRAS_PORTAL."
 
-    **You'll see:** Three units, `SPEC-U-001` to `SPEC-U-003`, one per `ADDED` requirement, in `03_specs/CHG-001/specs.md`. The requirement marked `UNCHANGED` is not a unit: it is listed apart, under preserved behavior, as what must keep working. There is no PRD.
+    **You'll see:** Three units, `SPEC-U-001` to `SPEC-U-003`, one per `ADDED` requirement, in `03_specs/CHG-001/specs.md`. The requirement marked `UNCHANGED` is not a unit: it is listed apart, under preserved behavior, as what must keep working. The PRD of the change, `03_specs/CHG-001/prd.md`, is written next to them when the final brief is current (see "When a decision changes a rule of the request" below); otherwise the result says it is pending.
 
-    **What it means:** A change gets the units of what it adds, modifies or removes, and a list of what it must not break. It does not get a PRD, which describes a whole product. Sentinel refuses if the brief of the change is missing, if a blocking question is open, or if the change has no `ADDED`, `MODIFIED` or `REMOVED` requirement. The unit numbers are reserved per project, so a later change never reuses one.
+    **What it means:** A change gets the units of what it adds, modifies or removes, and a list of what it must not break. Its PRD is built from the consolidated final text, not from the project's. Sentinel refuses if the brief of the change is missing, if a blocking question is open, or if the change has no `ADDED`, `MODIFIED` or `REMOVED` requirement. The unit numbers are reserved per project, so a later change never reuses one.
 
     <details><summary>In a terminal</summary>
 
@@ -2188,7 +2188,7 @@ The normal submit has to keep working as today. The existing system is already i
     next_step: Review 03_specs/CHG-001/specs.md; then /backlog --change derives the stories.
     ```
 
-    The units are in `03_specs/CHG-001/units/` and the report in `change_specs_report.json` next to `specs.md`. Without `--change`, `/specs` keeps writing the PRD and specs of the project.
+    The units are in `03_specs/CHG-001/units/` and the report in `change_specs_report.json` next to `specs.md`. Without `--change`, `/specs` keeps writing the PRD and specs of the project; with `--change` the PRD of the change goes to `03_specs/CHG-001/prd.md`.
     </details>
 
 11. **Derive the stories of the change.** With the specs written and the units current, the change can become backlog.
@@ -2420,6 +2420,24 @@ From there the steps follow the extraction: `extract_proposals` (fill the worksh
 /export COMPRAS_ALTAS --artifact borde --change CHG-001
 /export COMPRAS_ALTAS --artifact decisiones --change CHG-001
 /assume COMPRAS_ALTAS --change CHG-001 --id ASM-SRD-1A2B3C4D --invalidate --reason "Design does not accept it"
+```
+</details>
+
+**When a decision changes a rule of the request.** Suppose the design cross-read left a divergence (the request says an approval above 5.000.000, the prototype says 1.000.000) and you answered it: "the design governs: the approval threshold is 1.000.000." The rule `RN-02` of the request still says 5.000.000, so Sentinel will not export a final brief that holds both. `/next --change` says `consolidate`.
+
+**Tell the assistant:** "Apply the decisions to the brief text." Then "Confirm the replacement of RN-02." Then "Give me the final consolidated brief" and "Generate the change PRD."
+
+**You'll see:** `RN-02` rewritten as "Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras" (every word from the rule and from your answer), `/status --change` with one element modified, the final brief with that text and a reference to the decision, the rule about exterior suppliers only under 6.2 "No entra", the annex `A.decisions`, and `03_specs/CHG-001/prd.md`.
+
+**What it means:** The final brief reads as one text. Had you answered that the request governs, nothing would be needed: the element stays as written and is already included. "Keep the request text" is only for a decision that does change the content and whose text you still want to keep, for example "the decision only affects the prototype", with your reason. Nothing is rewritten for you without your confirmation, one element at a time.
+
+<details><summary>In a terminal</summary>
+
+```text
+/extract COMPRAS_ALTAS --change CHG-001 --consolidate consolidation.md
+/extract COMPRAS_ALTAS --change CHG-001 --confirm-replacement RN-02
+/export COMPRAS_ALTAS --artifact brief --change CHG-001 --final
+/specs COMPRAS_ALTAS --change CHG-001
 ```
 </details>
 

@@ -60,6 +60,8 @@ _LABELS = {
     "marca": "flag", "flag": "flag",
     "tipo": "type", "type": "type",
     "decision": "decisions", "decisión": "decisions", "decisiones": "decisions", "decisions": "decisions",
+    "reemplaza": "replaces", "replaces": "replaces",  # IMP-414: the consolidation block names the element it rewrites
+    "ubicación": "location", "ubicacion": "location", "location": "location",
 }
 READINGS = {
     "completa": "completa", "complete": "completa", "full": "completa",
@@ -88,6 +90,7 @@ def _new_block() -> dict[str, Any]:
     return {
         "treatment": "", "quote": "", "statements": [], "section": "", "summary": "",
         "lines": "", "reading": "", "reason": "", "type": "", "flag": "", "flag_note": "", "decisions": [], "errors": [],
+        "replaces": "", "location": "", "summary_lines": [],
     }
 
 
@@ -129,6 +132,8 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
                     current["quote"] = _unquote(raw_quote)
                 else:
                     current[last_key] = f"{current[last_key]} {stripped}".strip()
+                    if last_key == "summary":
+                        current["summary_lines"].append(line.strip())  # IMP-414: the text keeps its own lines
                 continue
             last_key = None
             continue
@@ -152,6 +157,8 @@ def parse_proposals(text: str) -> tuple[dict[str, dict], list[str]]:
             current["decisions"] = [d for d in re.split(r"[,;\s]+", value) if d]
         else:
             current[key] = value
+            if key == "summary":
+                current["summary_lines"] = [value.strip()]
     return blocks, warnings
 
 

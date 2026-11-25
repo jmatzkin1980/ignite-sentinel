@@ -23,6 +23,7 @@ from ..change_assumptions import open_change_assumptions
 from ..change_requirements import load_change_ears, parse_surfaces
 from ..core.time import utc_now
 from ..extraction.lines import format_ranges
+from ..extraction.proposals import _element_text_cached
 from ..resources import read_package_json
 from ..workspace import workspace_path
 from .brief_v2 import BriefInputs, render_brief_v2
@@ -182,6 +183,35 @@ def _cell(text: Any) -> str:
     return " ".join(str(text or "").split()).replace("|", "\\|")
 
 
+def v2_heading_place(heading: str, schema: dict[str, Any]) -> str:
+    """The place of the brief v2 a request heading names (`2.2 ...` by id, or by its es/en title); `""` when it names none."""
+    from ..extraction.inventory import _fold, _heading_keyword
+
+    text = str(heading or "").strip()
+    places = {str(sub["id"]): sub for section in schema.get("sections", []) if int(section.get("id", 0)) > 0
+              for sub in section.get("subsections", [])}
+    found = re.match(r"^(\d+\.\d+)(?=[.):\s]|$)", text)
+    if found and found.group(1) in places:
+        return found.group(1)
+    key = _heading_keyword(text)
+    if not key:
+        return ""
+    for place, sub in places.items():
+        titles = sub.get("title") or {}
+        if key in {_fold(str(titles.get(code, ""))) for code in ("es", "en")}:
+            return place
+    return ""
+
+
+def request_follows_v2(elements: list[dict]) -> bool:
+    """The request is written on the v2 template when its headings name at least 3 distinct places of it."""
+    from ..brief_schema import load_brief_schema
+
+    schema = load_brief_schema()
+    found = {v2_heading_place(str(e.get("section") or e.get("heading") or ""), schema) for e in elements}
+    return len(found - {""}) >= 3
+
+
 def gap_place(gap_id: str, lens: str) -> str:
     """The v2 place where the answer of a closed question of the change lands."""
     if gap_id in CHANGE_ROUTE_OVERRIDES:
@@ -272,9 +302,55 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         label = f"[{tags[tag]}] " if tag else ""
         facts.setdefault(place, []).append({"text": f"{label}{text}", "source": source, "gap": gap})
 
+    # IMP-414: the final body is the consolidated text; the control table says what is replaced, kept or excluded
+    consolidated = bool(final and has_inventory)
+    control_rows: dict[str, dict] = {}
+    replacements: dict[str, dict] = {}
+    by_element = {e["id"]: e for e in view.get("elements", [])} if has_inventory else {}
+    v2_schema: dict[str, Any] = {}
+    element_places: dict[str, str] = {}  # element id -> where the final body wrote it (the annex names it)
+    if consolidated:
+        from ..brief_schema import load_brief_schema
+        from ..consolidation_control import consolidation_control
+        from ..extraction.consolidation import load_consolidation
+
+        control_rows = {r["element"]: r for r in consolidation_control(project_id, change_id)["rows"]}
+        stored = load_consolidation(base, change_id)["replacements"]
+        replacements = {i: stored[i] for i, r in control_rows.items() if r["status"] == "modificado" and i in stored}
+        if request_follows_v2(list(by_element.values())):
+            v2_schema = load_brief_schema()
+
+    def v2_place(element_id: str) -> str:
+        return v2_heading_place(str((by_element.get(element_id) or {}).get("section") or ""), v2_schema) if v2_schema else ""
+
+    def to_confirm(element_id: str, head: str) -> str:
+        held = (view.get("items") or {}).get(element_id) or {}
+        if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
+            head += f" — {change_copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
+        return head
+
+    def replace_element(element_id: str, default_place: str) -> None:
+        """The confirmed replacement of an element, with its reference, at its place (or under its related subsection)."""
+        found = replacements[element_id]
+        gaps = ", ".join(found.get("decisions") or [])
+        head = to_confirm(element_id, change_copy["consolidated_content"].format(
+            element=element_id, path=(by_element.get(element_id) or {}).get("path", ""),
+            lines=format_ranges(found.get("lines") or []), gaps=gaps))
+        body = [f"- [{tags['modificado']}] {head}", "", *(_keep_flat(line) for line in str(found.get("text", "")).split("\n")), ""]
+        element_places[element_id] = str(found.get("location") or default_place)
+        if found.get("location"):
+            blocks.setdefault(str(found["location"]), []).extend(
+                [change_copy["related"].format(element=element_id, gaps=gaps), "", *body])
+        else:
+            blocks.setdefault(default_place, []).extend(body)
+
     # the confirmed sections, as the request wrote them (the verbatim content, never a summary)
     for entry in view.get("sections", []) if has_inventory else []:
         place = SECTION_PLACES.get(str(entry.get("section") or ""), SECTION_PLACES["reglas"])
+        place = v2_place(str(entry.get("element") or "")) or place
+        if entry.get("element") in replacements:
+            replace_element(entry["element"], place)
+            continue
         tag = "preservado" if entry.get("section") == "preservado" else "nuevo"
         content = entry.get("content")
         if content is None:  # an entry stored before the content was kept: its quote is all there is
@@ -285,15 +361,37 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         head = change_copy["extracted_content"].format(
             element=entry.get("element", ""), path=entry.get("path", ""),
             lines=format_ranges(entry.get("lines") or []) or entry.get("line", ""))
-        held = (view.get("items") or {}).get(entry.get("element")) or {}
-        if held.get("a_confirmar"):  # IMP-412 (M5): the BA's reason travels with a section left to confirm
-            head += f" — {change_copy['to_confirm']}: {str(held.get('a_confirmar_reason', '')).strip()}"
+        head = to_confirm(str(entry.get("element") or ""), head)
+        element_places.setdefault(str(entry.get("element") or ""), place)
         blocks.setdefault(place, []).extend(
             [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in str(content).split("\n")), ""])
 
     # the confirmed requirement rows, by the lens of their first surface
     every_rows, placed_rows = _change_rows(project_id, change_id, view)
-    for row in placed_rows:
+    if consolidated:  # the final body transcribes the element, not the EARS rows derived from it
+        cache: dict[str, list[str] | None] = {}
+        by_owner: dict[str, list[dict]] = {}
+        for row in placed_rows:
+            by_owner.setdefault(row["element"], []).append(row)
+        for element_id, rows in by_owner.items():
+            deltas = [str(r.get("delta", "")).strip().upper() for r in rows]
+            unchanged = all(d == "UNCHANGED" for d in deltas)
+            tag = "preservado" if unchanged else "modificado" if any(d in ("MODIFIED", "REMOVED") for d in deltas) else "nuevo"
+            place = v2_place(element_id) or ("6.2" if unchanged else ROW_PLACES[row_lens(rows[0], border, template)])
+            if element_id in replacements:
+                replace_element(element_id, place)
+                continue
+            element = by_element[element_id]
+            body = _element_text_cached(base, element, cache)
+            if body is None:
+                body = "\n".join(f"{r['statement']} ({r['id']})" for r in rows)
+            head = change_copy["extracted_content"].format(
+                element=element_id, path=element.get("path", ""), lines=format_ranges(element.get("spans") or []))
+            head = to_confirm(element_id, head)
+            element_places[element_id] = place
+            blocks.setdefault(place, []).extend(
+                [f"- [{tags[tag]}] {head}", "", *(_keep_flat(line) for line in body.split("\n")), ""])
+    for row in [] if consolidated else placed_rows:
         delta = str(row.get("delta", "")).strip().upper()
         tag = ROW_TAG.get(delta, "nuevo")
         place = "6.2" if delta == "UNCHANGED" else ROW_PLACES[row_lens(row, border, template)]
@@ -304,13 +402,18 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         add_fact(place, tag, statement, row["source_id"])
 
     # the border: surfaces to build or touch (6.1, so each is a build item with its rows) and to preserve (6.2)
-    _border_facts(border, every_rows, copy, add_fact)
+    _border_facts(border, [] if consolidated else every_rows, copy, add_fact)
 
     # what the request leaves out
     for element in view.get("elements", []) if has_inventory else []:
         item = (view.get("items") or {}).get(element["id"])
         if (isinstance(item, dict) and item.get("status") == "confirmed" and item.get("element_sha") == element.get("sha")
                 and item.get("treatment") == "descarte"):
+            if consolidated:
+                retiring = (control_rows.get(element["id"]) or {}).get("gaps") or []
+                add_fact("6.2", "", f"{change_copy['not_included']}: {element['id']} — {str(item.get('reason', '')).strip()}",
+                         str(element.get("source_id") or ""), gap=str(retiring[0]) if retiring else "")
+                continue
             add_fact("6.2", "", f"{copy['out']}: {element['id']} — {str(item.get('reason', '')).strip()}",
                      str(element.get("source_id") or ""))
 
@@ -321,6 +424,8 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         gap_id = str(gap["id"]).strip("`")
         if gap.get("closure_reason") == "assumed":
             continue  # IMP-412: an assumption is no fact: its statement is in section 8, to validate
+        if consolidated and (gap_id.startswith(DECISION_PREFIXES) or gap.get("closure_reason") == "superseded"):
+            continue  # IMP-414: applied in the elements; the annex lists it
         if gap.get("closure_reason") == "superseded":
             add_fact("6.2", "", f"{'Decisión reemplazada' if lang == 'es' else 'Replaced decision'}: {gap_id} — "
                      f"{str(gap.get('resolution_note', '')).strip()}", gap=gap_id)
@@ -365,6 +470,10 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
     mine = {str(i) for i in change.get("sources") or []}
     registry = [row for row in manifest.get("registry", []) if isinstance(row, dict) and str(row.get("id")) in mine]
     settings = brief_settings(project_id)
+    extra_annexes: list[dict[str, Any]] = []
+    if consolidated:  # IMP-414: the decisions annex rides the final export only; the working draft keeps its shape
+        extra_annexes.append({"id": change_copy["decisions_id"], "title": change_copy["decisions_title"],
+                              "lines": decision_log_lines(project_id, change_id, language, element_places, replacements)})
     return BriefInputs(
         project_id=project_id,
         language=language,
@@ -383,7 +492,43 @@ def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefIn
         place_facts=facts,
         place_blocks=blocks,
         empty_na={"reason": copy["reason"], "condition": copy["condition"]},
+        extra_annexes=extra_annexes,
     )
+
+
+def decision_log_lines(project_id: str, change_id: str, language: str, places: dict[str, str],
+                       replacements: dict[str, dict] | None = None) -> list[str]:
+    """IMP-414: the annex of the final export, one row per closed decision (assumptions stay in section 8).
+
+    `places` maps an element id to the place the final body wrote it; a decision sits where the first element
+    that applied it sits, else where its answer routes (`gap_place`). Reuses closed_decisions,
+    superseded_decisions and delegated_summary; creates nothing of its own."""
+    from ..decision_memory import closed_decisions, superseded_decisions
+    from ..delegation import delegated_summary
+
+    copy = _template()["copy"][_lang(language)]
+    decisions = sorted(closed_decisions(project_id, change_id), key=lambda d: d["id"])
+    replaced = sorted(superseded_decisions(project_id, change_id), key=lambda d: d["id"])
+    if not decisions and not replaced:
+        return [copy["decisions_none"]]
+    delegated = set(delegated_summary(project_id, change_id)["gaps"])
+    applied: dict[str, str] = {}
+    for element_id, found in (replacements or {}).items():
+        for gap in found.get("decisions") or []:
+            if element_id in places:
+                applied.setdefault(str(gap), places[element_id])
+    rows = [copy["decisions_header"], "|---|---|---|---|---|"]
+    for item in decisions:
+        gap = item["id"]
+        place = applied.get(gap) or next((places[e] for e in item["elements"] if e in places), "")
+        place = place or gap_place(gap, item.get("lens", ""))
+        said = _cell(str(item["answer"]).strip().split("\n")[0])
+        said = said if len(said) <= 120 else said[:119].rstrip() + "…"
+        who = copy["decisions_delegated"] if gap in delegated else _cell(item["owner"]) or copy["decisions_default_owner"]
+        rows.append(f"| {gap} | {place} | {said} | {item['option'] or '—'} | {who} |")
+    for item in replaced:
+        rows.append(f"| {item['id']} | {applied.get(item['id']) or gap_place(item['id'], '')} | {_cell(item['note'])} | — | — |")
+    return rows
 
 
 def _is_divergence(gap: dict) -> bool:

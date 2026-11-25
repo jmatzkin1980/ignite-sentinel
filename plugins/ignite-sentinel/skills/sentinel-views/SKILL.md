@@ -81,6 +81,10 @@ Recommend where to start and why; do not run a mutating command just because the
 
 `/view PROJECT_ID --artifact brief --change CHG-001` (or `--artifact gaps`) writes `08_context_packs/views/CHG-001-brief.html` from the change's own files; any other artifact is refused with `--change`. A workspace that only has changes refuses `/view` without it. Compile the change's brief first (`/brief --change`). To send it outside, use `/export --artifact brief --change CHG-001` (`--artifact gaps --format interview` for the questions); a draft carries a banner and `--final` refuses while blocking marks remain.
 
+## The consolidated final against the working export (IMP-414)
+
+`/export --artifact brief --change CHG-001` (and `/view`) without `--final` is the **working** brief: the request, the EARS rows and the closed decisions, as before. With `--final` the brief is the **consolidated** one: the decisions applied with their GAP reference, the requirements as the literal text of the request (no `REQ-EARS-` rows), what was discarded only under 6.2 "No entra", and the annex `A.decisions` ("Registro de decisiones"). `--final` is refused while an element is pending to consolidate (`/extract --consolidate`, `--confirm-replacement` or `--keep-text`, see sentinel-project-brief); name the elements the message lists. Do not hand the working export to someone as the final one.
+
 ## Review views of a change (IMP-412)
 
 To review a change with the client, Design or Technology, there are two artifacts that exist only with `--change CHG-NNN` (without it the command exits 3):

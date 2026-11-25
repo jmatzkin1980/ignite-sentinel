@@ -173,7 +173,7 @@ class Keys(unittest.TestCase):
         self.assertEqual(set(CHANGE_COMMANDS), {
             "scope", "baseline", "lenses", "crosses", "cross_new_surfaces", "coherence", "coherence_view", "extract_inventory", "extract_unreadable", "extract_proposals", "extract_confirm",
             "extract_confirm_flagged", "extract_partial", "extract_orphans", "preserved", "preserved_answer", "preserved_source",
-            "brief", "requirements", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
+            "brief", "requirements", "consolidate", "consolidate_confirm", "export_final", "export_not_ready", "extract_verify", "extract_verify_result", "specs", "backlog", "validate", "done"})
         for language in ("es", "en"):
             self.assertNotIn("pending_extraction", CHANGE_TEXT[language])
 

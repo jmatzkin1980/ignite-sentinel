@@ -76,6 +76,10 @@ Review feedback that changes scope or answers a gap must enter through `/resolve
 
 Both are read-only views of the change's files: nothing in them closes a question or confirms anything.
 
+### The consolidated final and its annex
+
+`/export PROJECT_ID --artifact brief --change CHG-001` is the working brief (the request, the EARS rows and the closed decisions). With `--final` the brief is the consolidated one, and in chat you ask "Give me the final consolidated brief": the decisions applied with their `GAP` reference, the requirements as the literal text of the request without EARS rows, what was left out only under 6.2 "No entra", and the annex `A.decisions` ("Registro de decisiones"), which lists each decision with who decided and where it landed in the text. It is refused while an element is pending to consolidate; the internal table `01_discovery/CHG-001/consolidation_control.md` is not part of the deliverable.
+
 ## Readiness
 
 ```bash

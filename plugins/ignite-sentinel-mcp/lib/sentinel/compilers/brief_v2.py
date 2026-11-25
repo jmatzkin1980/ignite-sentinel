@@ -206,6 +206,8 @@ class BriefInputs:
     place_facts: dict[str, list[dict[str, str]]] = field(default_factory=dict)  # place -> {"text", "source", "gap"}
     place_blocks: dict[str, list[str]] = field(default_factory=dict)  # place -> lines as written (count as content)
     empty_na: dict[str, str] = field(default_factory=dict)  # {"reason", "condition"}: an empty place is N/A, not pending
+    # IMP-414: annexes after A.provenance, each {"id", "title", "lines"}; the template keeps its two fixed annexes
+    extra_annexes: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -716,6 +718,8 @@ def render_brief_v2(inputs: BriefInputs) -> tuple[str, dict[str, Any]]:
         provenance += ["", copy["inferred_title"], "", copy["inferred_header"], "|---|---|---|"]
         provenance += [f"| {r['place']} | `{r['assumption']}` | `{r['gap']}` |" for r in w.inferred_rows]
     _fill(annex_lines, "A.provenance", provenance, annex=True)
+    for extra in inputs.extra_annexes:
+        annex_lines += [f"## {extra['id']} {extra['title']}", "", *extra["lines"], ""]
 
     # §6.3 cascade against the previous v2 brief
     marker = w.schema["artifact_marker"]

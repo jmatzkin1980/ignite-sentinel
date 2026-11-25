@@ -1472,6 +1472,35 @@ If the same refusal returns: `/status ACME_PORTAL --full` and read the gap count
    ```
    </details>
 
+**Consolidating the brief before the final export.** When a closed decision changes a rule of the request (the design governs and the threshold is 1.000.000, not 5.000.000), the final brief must read as one text, not as the old rule next to the decision. Sentinel marks each element a decision touches as pending to consolidate, and `/next --change` says so (`consolidate`).
+
+**Tell the assistant:** "Apply the decisions to the brief text for CHG-001" (it writes the new text of each element, using only words of the request and of your answer, and shows it to you). Then confirm each one: "Confirm the replacement of RN-02." If you answered that the request governs, nothing else is needed: the element stays as written. Only when a decision does change the content and you still want the request text: "Keep the request text for RN-04, the decision only affects the prototype." Finally: "Give me the final consolidated brief of CHG-001."
+
+**You'll see:** For each element, its new text next to the decision it comes from; `/status --change` counts how many are included, modified, excluded or pending. The final brief carries the decisions applied with their `GAP` reference, the requirements as the literal text of the request (no EARS rows), what was left out only under 6.2 "No entra", and the annex `A.decisions` with the record of decisions. The working export (the draft) does not change.
+
+**What it means:** A closed decision linked to an element that does not choose an option keeping the request text leaves the element pending to consolidate; the final export is refused until you confirm a replacement or keep the text, one element at a time, with your reason. The assistant never invents a sentence: a number, amount or date that is not in the request or in your answer, or a lost "no", is refused, and so is a "no" the request and your answer do not have, unless it declares an extension, which you confirm on its own. The consolidation table (`01_discovery/CHG-001/consolidation_control.md`) is internal; it is not part of what you send.
+
+<details><summary>In a terminal</summary>
+
+```text
+/extract ACME_PORTAL --change CHG-001 --consolidate consolidation.md
+/extract ACME_PORTAL --change CHG-001 --confirm-replacement RN-02
+/extract ACME_PORTAL --change CHG-001 --keep-text RN-04 --gap GAP-DIS-3F9A1C07 --reason "the decision only affects the prototype"
+/export ACME_PORTAL --artifact brief --change CHG-001 --final
+```
+
+The file has one block per element: `### RN-02`, `Decisión: GAP-…`, `Líneas: 31` and `Texto: …` (see the example in the skill `sentinel-project-brief`).
+</details>
+
+**The PRD of the change.** With the final brief current, "Generate the change PRD for CHG-001" runs `/specs --change CHG-001`, which writes `03_specs/CHG-001/prd.md` in the format of the project PRD, built from the consolidated final text, next to the specs. If the final brief is missing or stale it says the PRD is pending and tells you to export first. When the final brief changes, the PRD and the specs are out of date and `/next --change` asks for them again.
+
+<details><summary>In a terminal</summary>
+
+```text
+/specs ACME_PORTAL --change CHG-001
+```
+</details>
+
 **Moving on without an answer, delegating and reviewing.** Along the way you can decide things the questions do not force you to decide with the client.
 
 **Tell the assistant:** "Record this as an assumption to validate with Design", "Confirm the extraction on my behalf", "Give me something to review the border with the client" and "We keep it as one change". Say who validates, and give the reason in your own words.

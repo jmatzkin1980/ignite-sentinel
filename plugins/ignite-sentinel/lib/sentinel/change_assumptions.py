@@ -285,9 +285,15 @@ def set_change_assumption_status(project_id: str, change_id: str, assumption_id:
     counts = dict(list_changes(project_id)[change_id].get("gap_counts") or {})
     message = (f"{change_id}: {asm} {'validado' if action == 'validate' else 'invalidado'}"
                if es else f"{change_id}: {asm} {'validated' if action == 'validate' else 'invalidated'}")
+    from . import decision_conflicts
+
+    conflicts = decision_conflicts.refresh_decision_conflicts(project_id, change_id)  # IMP-414: a validated answer is a decision to compare
+    counts = dict(list_changes(project_id)[change_id].get("gap_counts") or {})
     return {"project_id": project_id, "change_id": change_id, "action": action, "assumption_id": asm,
             "gap": gap_id, "gap_status": _status(now) if now else "", "gap_counts": counts,
-            "next_step": change_next_step(project_id, change_id), "message": message}
+            "next_step": change_next_step(project_id, change_id), "message": message,
+            **({"decision_conflicts": conflicts["opened"]} if conflicts["opened"] else {}),
+            **({"conflicts_retired": conflicts["retired"]} if conflicts["retired"] else {})}
 
 
 _HEADING = re.compile(r"^###\s+GAP-[A-Z0-9-]+", re.M)

@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import IDS_SCOPE_ANSWER, reproposal_block, run_cli, run_ok  # noqa: E402
 
+from sentinel.consolidation_control import consolidation_control  # noqa: E402
 from sentinel.changes import deferred_gaps  # noqa: E402
 from sentinel.cli import main  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
@@ -191,6 +192,12 @@ class LongRequestWalk(unittest.TestCase):
         brief = next(base.rglob("project-brief.md")).read_text(encoding="utf-8")
         for line in table:
             self.assertIn(line, brief_section(brief, 4), line)
+        # IMP-414: the answer of the design question has no option, so it changes the element it touches: the BA keeps the text
+        self.assertEqual(next_step()["key"], "consolidate")
+        for row in consolidation_control(PID, CID)["rows"]:
+            if row["status"] == "pendiente":
+                for gap in row["gaps"]:
+                    extract("--keep-text", row["element"], "--gap", gap, "--reason", "el texto del pedido queda")
         self.assertEqual(next_step()["key"], "export_final")
 
         # 10. the final export: ten v2 headings, sealed, the table as is and the new surface marked

@@ -302,6 +302,13 @@ def _extract(p: argparse.ArgumentParser) -> None:  # IMP-402: extraction of a ch
     p.add_argument("--verify", action="store_true", help="IMP-406: draw a sample of the confirmed elements to re-read against the request")
     p.add_argument("--sample", type=int, metavar="N", help="IMP-406: with --verify, how many elements (default 10)")
     p.add_argument("--verify-result", dest="verify_result", metavar="PATH", help="IMP-406: record the results of the open verification")
+    p.add_argument("--consolidate", metavar="PATH",
+                   help="IMP-414: record the text of the elements with the decision applied, one block per element")
+    p.add_argument("--confirm-replacement", dest="confirm_replacement", metavar="ID",
+                   help="IMP-414: confirm the replacement text of one element")
+    p.add_argument("--keep-text", dest="keep_text", metavar="ID",
+                   help="IMP-414: keep the request text of one element although a closed decision touches it (needs --gap and --reason)")
+    p.add_argument("--gap", metavar="GAP", help="IMP-414: with --keep-text, the decision that touches the element")
     p.add_argument("--delegated", action="store_true",
                    help="IMP-412: confirm on behalf of the BA; recorded apart and listed to review")
     p.add_argument("--note", help="IMP-412: with --delegated, what the BA delegated")
@@ -400,7 +407,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("stakeholders", MUTATING, _stakeholders, mcp_params={"id": ("stakeholder_id",)}, skill="sentinel-discovery"),
     # IMP-250a: /sources rewrites the F-NN registry and its source_log render.
     Command("sources", MUTATING, _sources, mcp_params={"id": ("source_id",)}, skill="sentinel-sync", skill_variants=(("--keep-single", "sentinel-discovery §Delegate, extensions, speculative marks and conflicts"),)),
-    Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change"),  # IMP-402
+    Command("extract", MUTATING, _extract, skill="sentinel-discovery §Extraction of a change", skill_variants=(("--consolidate", "sentinel-project-brief §Consolidating the change brief"), ("--confirm-replacement", "sentinel-project-brief §Consolidating the change brief"), ("--keep-text", "sentinel-project-brief §Consolidating the change brief"))),  # IMP-402, IMP-414
     Command("cross", MUTATING, _cross, skill="sentinel-discovery §Cross-reads of a change"),  # IMP-404
     Command("export", MUTATING, _export, skill="sentinel-discovery", skill_variants=(("--artifact brief", "sentinel-project-brief"), ("--artifact prd", "sentinel-specs"), ("--artifact borde", "sentinel-views §Review views of a change"), ("--artifact decisiones", "sentinel-views §Review views of a change"))),
     Command("backlog", MUTATING, _backlog, release=True, skill="sentinel-backlog"),

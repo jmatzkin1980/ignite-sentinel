@@ -1,6 +1,6 @@
 ---
 name: sentinel-project-brief
-description: "Use when generating or refreshing the Ignite Sentinel project brief once discovery gaps and seeds are stable: check /status and /maturity, confirm the brief settings (profile, genesis, validation direction, brief version), run /brief, read the per-section readiness, the brief v2 compile report and the gates (brief coverage, unit implementability, specification self-correction), and route each pending place to the right gap or context request. Trigger on 'generate the brief', a brief refresh after new answers, or handoff-readiness questions. Not for the PRD or the specification layer (use sentinel-specs)."
+description: "Use when generating or refreshing the Ignite Sentinel project brief once discovery gaps and seeds are stable: check /status and /maturity, confirm the brief settings (profile, genesis, validation direction, brief version), run /brief, read the per-section readiness, the brief v2 compile report and the gates (brief coverage, unit implementability, specification self-correction), and route each pending place to the right gap or context request. Also when consolidating the change brief before the final export (apply the closed decisions to the request text, or keep the text). Trigger on 'generate the brief', a brief refresh after new answers, consolidating the change brief, or handoff-readiness questions. Not for the PRD or the specification layer (use sentinel-specs)."
 ---
 
 # Sentinel Project Brief
@@ -123,3 +123,38 @@ Use it when the request is a change on a system that already exists (`/ingest --
 - A workspace that only has changes refuses a plain `/brief` and names the change to use; a project with its own requirement still compiles its brief without the flag.
 - A change's specs come from `/specs --change CHG-nnn` (never from the brief); it still has no backlog. Say so; do not improvise one.
 - To review or send it: `/view PROJECT_ID --artifact brief --change CHG-001` and `/export PROJECT_ID --artifact brief --change CHG-001`. The export is a draft while pending marks remain; `--final` refuses while blocking ones do. The brief is recompiled from the answers, never hand-edited.
+
+## Consolidating the change brief (IMP-414)
+
+The final export of a change (`/export --artifact brief --change CHG-001 --final`) delivers one text, not the request next to its decisions. Before it, every element of the request that a closed decision touches has to say how it reads now. Without it the final export is refused and `/next --change` says `consolidate` (or `consolidate_confirm` when a replacement waits for the BA).
+
+**Which elements.** A closed decision (a divergence with the design, a design-only surface, an answer that took a side) linked to an element, by the element or by a line it quotes, whose chosen option does not keep the request text. The element stays pending to consolidate until the BA does one of two things:
+
+1. **Write the text with the decision applied** and confirm it. Transcribe, do not draft: each sentence comes word for word from the element or from the answer of the decision. A number, amount, date, percentage or id that is in neither, or a `no`/`sin`/`nunca` of the element that disappears or that neither the element nor the answer has, is refused unless the block says `Tipo: extension` (an extension is flagged and confirmed one by one). Write the block in a file and run `/extract PROJECT_ID --change CHG-001 --consolidate PATH`; the worksheet is `01_discovery/CHG-001/consolidation_control.md` (internal, never part of the deliverable). Each block carries:
+   - `### ELEMENT` (for example `RN-02`) and `Decisión: GAP-…` (the closed decision that motivates it; one that is not linked, or whose option keeps the request text, is refused);
+   - `Líneas:` the lines of the element in the request, `Texto:` how the element reads now (continuation lines indented), optionally `Tipo: extension` and `Ubicación: 3.6` (a place of the brief v2; `Reemplaza:` may repeat the element);
+   - the extraction of the element has to be confirmed first.
+   Then the BA confirms **one by one**: `/extract PROJECT_ID --change CHG-001 --confirm-replacement ELEMENT`. With `--delegated --note "the BA's words"` the agent confirms for them only when they said so; it is listed to review and confirming again without `--delegated` ratifies it. Never confirm a replacement the BA has not read.
+2. **Keep the request text** for that element: `/extract PROJECT_ID --change CHG-001 --keep-text ELEMENT --gap GAP-… --reason "the BA's words"`. Only for a decision that does change the content and whose request text the BA still keeps (a "the request governs" option needs nothing: the element is already included). Refused when the option already keeps the text or when the decision takes the element out of the change (propose it as a discard in the extraction). The reason is the BA's, never yours.
+
+**What the final export then holds.** Decisions applied with the GAP reference, the requirements as the literal text of the request (the EARS rows stay internal to the working export and the specs), what was discarded only under 6.2 "No entra", the structure of a v2 request respected, and the annex `A.decisions` ("Registro de decisiones") listing each decision with who decided and where it landed. The working export (without `--final`) does not change. `/status --change` shows `consolidation` (included, modified, excluded, pending, unconfirmed). If the change moves afterwards, the final export is out of date and `/next --change` asks for it again.
+
+## Formato
+
+The example of the consolidation file (`/extract --consolidate`): it is parsed by the real parser and its anchoring in the test suite. The Compras domain here is made up; the decision answered "Rige el diseño: el umbral de aprobación es 1.000.000." on a request whose rule said 5.000.000.
+
+```sentinel-example kind=consolidation lang=es
+### RN-02
+- Decisión: GAP-DIS-3F9A1C07
+- Líneas: 31
+- Texto: | RN-02 | Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras. |
+```
+
+The same in English (`Decision`, `Lines`, `Text`; the labels in Spanish are accepted too):
+
+```sentinel-example kind=consolidation lang=en
+### RN-02
+- Decision: GAP-DIS-3F9A1C07
+- Lines: 31
+- Text: | RN-02 | Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras. |
+```

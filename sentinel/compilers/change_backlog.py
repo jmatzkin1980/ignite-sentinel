@@ -162,7 +162,20 @@ def specs_currency(project_id: str, change_id: str) -> str:
         str(row["id"]): parse_delta(row["delta"])
         for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
     }
-    return "current" if specs_ears == current_ears else "stale"
+    if specs_ears != current_ears:
+        return "stale"
+    return "stale" if _prd_behind(project_id, change_id, report) else "current"
+
+
+def _prd_behind(project_id: str, change_id: str, report: dict) -> bool:
+    """IMP-414: the change PRD came from a final export that is not the current one (a report of 0.30 has no PRD fields)."""
+    from .change_prd import _final_file, final_source_sha
+
+    if isinstance(report.get("prd"), dict):
+        return str(report["prd"].get("source_sha", "")) != final_source_sha(project_id, change_id)
+    if report.get("prd_skipped"):
+        return _final_file(project_id, change_id) is not None  # the final export exists now: the PRD can be written
+    return False
 
 
 def _gate(project_id: str, change_id: str) -> tuple[dict, dict[str, Any], list[dict[str, Any]]]:

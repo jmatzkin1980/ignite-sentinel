@@ -560,6 +560,9 @@ def compile_change_brief(project_id: str, change_id: str) -> dict[str, Any]:
     pending_total = count_pending_marks(text).total
     write_text(path, text)
     write_json(folder / REPORT_NAME, report)
+    from ..consolidation_control import write_consolidation_control
+
+    write_consolidation_control(project_id, change_id)  # IMP-414: the internal worksheet follows the brief
     return {
         "project_id": project_id,
         "change_id": change_id,

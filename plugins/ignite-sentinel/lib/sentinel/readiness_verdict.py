@@ -535,6 +535,10 @@ CHANGE_TEXT = {
                              "contradice. Cada pendiente abierto que no frena se responde (/resolve-gaps) o se clasifica con "
                              "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (los "
                              "operativos no frenan). Sin --final, /export deja un borrador."),
+        "consolidate": ("Consolidar el brief",
+                        "{n} elemento(s) de {cid} sin consolidar: la planilla está en 01_discovery/{cid}/consolidation_control.md"),
+        "consolidate_confirm": ("Confirmar los reemplazos",
+                                "{n} reemplazo(s) de {cid} esperan confirmación, uno por uno"),
         "export_final": ("Exportar el brief final",
                          "El brief de {cid} está compilado y cierra Discovery: exportalo como entregable con "
                          "/export {pid} --artifact brief --change {cid} --final. Sale en formato project brief v2 con su sello "
@@ -640,6 +644,10 @@ CHANGE_TEXT = {
                              "contradicts it. Answer each open non-blocking item (/resolve-gaps) or class it with "
                              "/gaps {pid} --change {cid} --id GAP --impact construccion|operativo --reason \"…\" (operational "
                              "ones do not block). Without --final, /export leaves a draft."),
+        "consolidate": ("Consolidate the brief",
+                        "{n} element(s) of {cid} not consolidated: the worksheet is 01_discovery/{cid}/consolidation_control.md"),
+        "consolidate_confirm": ("Confirm the replacements",
+                                "{n} replacement(s) of {cid} wait for confirmation, one by one"),
         "export_final": ("Export the final brief",
                          "The brief of {cid} is compiled and closes Discovery: export it as a deliverable with "
                          "/export {pid} --artifact brief --change {cid} --final. It comes out in project brief v2 format with its seal "
@@ -671,6 +679,8 @@ CHANGE_COMMANDS = {
     "preserved_source": "/sources {pid} --load PATH --role pedido --change {cid}",
     "brief": "/brief {pid} --change {cid}",
     "requirements": "/resolve-gaps {pid} --source PATH --change {cid}",
+    "consolidate": "/extract {pid} --change {cid} --consolidate PATH",
+    "consolidate_confirm": "/extract {pid} --change {cid} --confirm-replacement {first_replacement}",
     "export_final": "/export {pid} --artifact brief --change {cid} --final",
     "export_not_ready": "/gaps {pid} --change {cid} --id {first_deferred} --impact construccion|operativo --reason \"...\"",
     "extract_verify": "/extract {pid} --change {cid} --verify",
@@ -683,7 +693,7 @@ CHANGE_COMMANDS = {
 
 
 def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) -> str:
-    """IMP-396: the first step of the change's sequence that is still pending (none ever suggests the PRD)."""
+    """IMP-396: the first step of the change's sequence that is still pending (`specs` also covers the PRD of the change, written by `/specs --change`)."""
     from .change_validation import validate_change
     from .compilers.change_backlog import read_change_units, specs_currency
 
@@ -728,6 +738,13 @@ def _change_step_key(project_id: str, change_id: str, change: dict[str, Any]) ->
         return "brief"
     if not _has_unit_rows(project_id, change_id):
         return "requirements"
+    from .consolidation_control import consolidation_control
+
+    control = consolidation_control(project_id, change_id)  # IMP-414: every element resolved before the final export
+    if control["unconfirmed"]:
+        return "consolidate_confirm"
+    if control["pending"]:
+        return "consolidate"
     if not _final_export_current(base, change_id, change):
         return "export_final"
     if (not change.get("specs") or not (base / "03_specs" / change_id / "specs.md").is_file()
@@ -765,6 +782,11 @@ def _final_export_current(base: Path, change_id: str, change: dict[str, Any]) ->
         return False
     if str(recorded["brief_sha"]) != brief_sha(base, change_id):
         return False
+    if recorded.get("consolidation_sha"):  # IMP-414: a final export of 0.30 has none and stays as it was
+        from .consolidation_control import consolidation_sha
+
+        if str(recorded["consolidation_sha"]) != consolidation_sha(base.name, change_id):
+            return False
     # the seal says more than the brief: its verdict, coverage and deferred classes (the project id is the folder name)
     return str(recorded.get("seal_sha", "")) == seal_sha(base.name, change_id)
 
@@ -930,6 +952,13 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
         "orphans": "; ".join(f"{o['id']} ({', '.join(o['rows'])})" for o in orphans),
         "first_orphan": orphans[0]["id"] if orphans else "ID",
     }
+    ctx["first_replacement"] = "ID"
+    if key in ("consolidate", "consolidate_confirm"):
+        from .consolidation_control import consolidation_control
+
+        control = consolidation_control(project_id, change_id)
+        ctx["n"] = len(control["unconfirmed" if key == "consolidate_confirm" else "pending"])
+        ctx["first_replacement"] = (control["unconfirmed"] or ["ID"])[0]
     ctx["verdict"] = ctx["deferred"] = ctx["blockers"] = ctx["confirmed"] = ctx["sample"] = ""
     ctx["first_deferred"] = "GAP-ID"
     if key == "export_final":
