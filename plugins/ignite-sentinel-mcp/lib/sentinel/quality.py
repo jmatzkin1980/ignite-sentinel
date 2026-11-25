@@ -11,6 +11,7 @@ from .core.graph import add_edge, add_node, nodes_by_type
 from .decisions import register_gate_override
 from .memory import ContextBroker
 from .workspace import read_json, state_path, update_state, workspace_path
+from .compilers.change_functionalities import story_size
 from .core.io import write_text
 
 REQUIRED_AC_CLASSES = {"fail-to-pass", "pass-to-pass", "evidence"}
@@ -212,6 +213,7 @@ def evaluate_story_quality(
     readiness_item: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     readiness = readiness_item or {}
+    grouped_units = readiness.get("source_units")  # IMP-416: only a change story carries its grouped units
     story_id = str(story.get("id", readiness.get("story_id", "")))
     story_type = str(readiness.get("type", "") or type_from_story_text(story_text))
     slicing = str(readiness.get("slicing", "") or slicing_from_story_text(story_text)).strip()
@@ -290,6 +292,11 @@ def evaluate_story_quality(
         dependencies=dependencies,
         enables=enables,
         source_unit=source_unit,
+        **(
+            {"source_units": [str(item) for item in grouped_units], "max_units": story_size()}
+            if isinstance(grouped_units, list)
+            else {}
+        ),
     )
     signal_count = sum(1 for item in signals.values() if item.get("passed"))
     return {
@@ -315,6 +322,8 @@ def invest_audit(
     dependencies: list[str],
     enables: list[str],
     source_unit: str,
+    source_units: list[str] | None = None,
+    max_units: int | None = None,
 ) -> dict[str, dict[str, Any]]:
     story_type = str(readiness_item.get("type") or story.get("type") or "").strip()
     is_enabler = story_type == "cross_cutting_enabler"
@@ -372,18 +381,8 @@ def invest_audit(
             acceptance_classes=sorted(ac_classes),
             readiness_score=readiness_score,
         ),
-        "S": invest_signal(
-            "Small",
-            ((not is_enabler and bool(source_unit)) or (is_enabler and bool(enables)))
-            and len(explicit_dependencies) <= 1
-            and len(upstream_trace) <= 2,
-            "The slice stays bounded to one upstream unit with limited prerequisite coupling."
-            if (((not is_enabler and bool(source_unit)) or (is_enabler and bool(enables))) and len(explicit_dependencies) <= 1 and len(upstream_trace) <= 2)
-            else "The slice looks broad because upstream scope or prerequisite coupling is not tightly bounded.",
-            source_unit=source_unit,
-            trace=upstream_trace,
-            dependencies=explicit_dependencies,
-            enables=enables,
+        "S": small_signal(
+            is_enabler, enables, source_unit, source_units, max_units, explicit_dependencies, upstream_trace
         ),
         "T": invest_signal(
             "Testable",
@@ -396,6 +395,52 @@ def invest_audit(
         ),
     }
     return signals
+
+
+def small_signal(
+    is_enabler: bool,
+    enables: list[str],
+    source_unit: str,
+    source_units: list[str] | None,
+    max_units: int | None,
+    explicit_dependencies: list[str],
+    upstream_trace: list[str],
+) -> dict[str, Any]:
+    if source_units is not None:
+        limit = max_units if max_units is not None else story_size()
+        count = len(source_units)
+        bounded = (is_enabler and bool(enables)) or 1 <= count <= limit
+        passed = bounded and len(explicit_dependencies) <= 1
+        finding = (
+            f"The slice stays bounded to {count} unit(s) of one functionality, within the slicing model size ({limit})."
+            if passed
+            else f"The slice has {count} units, above the slicing model size ({limit})."
+        )
+        return invest_signal(
+            "Small",
+            passed,
+            finding,
+            source_unit=source_unit,
+            source_units=source_units,
+            dependencies=explicit_dependencies,
+            enables=enables,
+        )
+    passed = (
+        ((not is_enabler and bool(source_unit)) or (is_enabler and bool(enables)))
+        and len(explicit_dependencies) <= 1
+        and len(upstream_trace) <= 2
+    )
+    return invest_signal(
+        "Small",
+        passed,
+        "The slice stays bounded to one upstream unit with limited prerequisite coupling."
+        if passed
+        else "The slice looks broad because upstream scope or prerequisite coupling is not tightly bounded.",
+        source_unit=source_unit,
+        trace=upstream_trace,
+        dependencies=explicit_dependencies,
+        enables=enables,
+    )
 
 
 def invest_signal(label: str, passed: bool, finding: str, **evidence: Any) -> dict[str, Any]:

@@ -79,8 +79,13 @@ class ChangeEnablersPlan(SnapshotWorkspaceCase):
         meta = parse_frontmatter(text)
         self.assertIn("Construir pantalla «Bandeja de aprobación» para las historias que la usan", text)
         self.assertEqual(meta["surfaces"], [NEW])
+        rationale = next(l for l in text.splitlines() if l.startswith("- Slicing rationale:"))
+        self.assertNotIn("[PENDING INPUT]", rationale)
+        self.assertIn("Cross-Cutting Enabler".lower(), rationale.lower().replace("habilitador transversal", "cross-cutting enabler"))
+        self.assertIn(NEW, rationale)
         value = next(s for s in res["stories"] if s != enablers[0] and front(s).get("surfaces") == [NEW])
         self.assertIn(value, text)  # enables
+        self.assertIn(value, rationale)
         self.assertIn("REQ-EARS-004", text)  # the UNCHANGED row, preserved
         self.assertEqual(text.count("| pass-to-pass |"), 2)  # the enabler's own plus the preserved row
         checks = {c["id"]: c["status"] for c in validate_change(PID, self.cid)["checks"]}

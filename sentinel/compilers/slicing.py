@@ -646,6 +646,7 @@ ENABLER_SURFACE_TEXT = {
         "goal": "tener disponible {type} «{name}» con el comportamiento que el cambio le pide",
         "benefit": "las historias que usan «{name}» se pueden implementar y probar",
         "summary": "La superficie «{name}» entró al borde de {change} por el cruce con las fuentes citadas.",
+        "rationale": "Habilitador transversal por superficie nueva: {type} «{name}» es nueva en el borde de {change} y habilita las historias {enables}.",
         "types": {},
     },
     "en": {
@@ -654,6 +655,7 @@ ENABLER_SURFACE_TEXT = {
         "goal": "have the {type} «{name}» available with the behavior the change asks of it",
         "benefit": "the stories that use «{name}» can be implemented and tested",
         "summary": "The surface «{name}» joined the border of {change} through the cross-read of the cited sources.",
+        "rationale": "Cross-cutting enabler for a new surface: the {type} «{name}» is new in the border of {change} and enables the stories {enables}.",
         "types": {"pantalla": "screen", "proceso": "process", "endpoint": "endpoint", "dato": "data item",
                   "rol": "role", "integracion": "integration", "regla": "rule"},
     },
@@ -700,6 +702,7 @@ def build_new_surface_enabler_specs(
             "fr": enabled[0].get("fr", ""),
             "jtbd": enabled[0].get("jtbd", ""),
             "slicing": "Cross-Cutting Enabler / New Surface",
+            "slicing_rationale": texts["rationale"].format(**values, enables=", ".join(s["id"] for s in enabled)),
             "description": texts["description"].format(**values),
             "goal": texts["goal"].format(**values),
             "benefit": texts["benefit"].format(**values),
