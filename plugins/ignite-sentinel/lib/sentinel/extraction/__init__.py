@@ -7,8 +7,10 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def extraction_dir(base: Path, change_id: str) -> Path:
-    """The folder that holds a change's inventory, proposals, review and submitted sheets."""
+def extraction_dir(base: Path, change_id: str | None) -> Path:
+    """The folder that holds a change's inventory, proposals, review and submitted sheets (the project's with None)."""
+    if change_id is None:
+        return base / "02_requirements" / "extraction"
     return base / "02_requirements" / change_id / "extraction"
 
 
@@ -31,7 +33,7 @@ def run_extract(
     gap: str | None = None,
 ) -> dict:
     """The /extract command: inventory, proposals, confirmation or rejection of one change."""
-    from ..changes import change_language, get_change
+    from ..changes import change_language, resolve_scope
     from ..readiness_verdict import change_next_step
     from .confirm import confirm_item as _confirm_item
     from .confirm import confirm_proposals, reject_item as _reject_item
@@ -43,7 +45,7 @@ def run_extract(
     from .proposals import record_proposals
     from .verify import record_verification, start_verification
 
-    change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
+    change = resolve_scope(project_id, change_id).entry  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
     es = lang == "es"
     if proposals:

@@ -15,7 +15,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..changes import change_language, get_change
+from ..changes import change_language, project_request_rows, resolve_scope
 from ..core.io import read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..source_formats import read_source
@@ -604,8 +604,10 @@ def parse_request_elements(text: str, source_id: str, path: str) -> list[dict]:
 # --- inventory of a change ------------------------------------------------------------
 
 
-def pedido_rows(project_id: str, change_id: str) -> list[dict]:
-    change = get_change(project_id, change_id)
+def pedido_rows(project_id: str, change_id: str | None) -> list[dict]:
+    if change_id is None:  # H27 inc 6b: the project's request, outside every change
+        return project_request_rows(project_id)
+    change = resolve_scope(project_id, change_id).entry
     registry = {row.get("id"): row for row in load_source_manifest(project_id).get("registry", [])}
     rows: list[dict] = []
     for source_id in change.get("sources", []) or []:
@@ -755,7 +757,7 @@ def _worksheet(project_id: str, change_id: str, elements: list[dict], language: 
 
 
 def build_inventory(project_id: str, change_id: str) -> dict:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     base = workspace_path(project_id)
     rows = pedido_rows(project_id, change_id)
     previous = load_inventory(base, change_id)

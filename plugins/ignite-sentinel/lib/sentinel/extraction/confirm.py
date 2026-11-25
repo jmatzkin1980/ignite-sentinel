@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_requirements import load_change_ears, reconcile_extraction_ears
-from ..changes import change_language, get_change
+from ..changes import change_language, resolve_scope
 from ..core.io import write_json
 from ..core.paths import workspace_path
 from ..errors import GateRefusal, InputError
@@ -34,7 +34,7 @@ def sections_path(base: Path, change_id: str) -> Path:
 def _context(
     project_id: str, change_id: str, allow_stale: bool = False,
 ) -> tuple[Path, dict, dict[str, dict], dict, str]:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     state = inventory_state(project_id, change_id)
     if state == "missing" or (state == "stale" and not allow_stale):

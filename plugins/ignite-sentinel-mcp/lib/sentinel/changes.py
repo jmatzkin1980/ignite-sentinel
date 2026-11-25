@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 from .core.graph import add_node
@@ -27,7 +28,10 @@ from .workspace import ensure_workspace, load_config, read_state, update_state, 
 SCOPE_ROUND_IDS: tuple[str, ...] = ("GAP-OBJECTIVE", "GAP-USERS", "GAP-SCOPE", "GAP-PRODUCT-ASIS-TOBE")
 
 
-def change_gaps_path(base: Path, change_id: str) -> Path:
+def change_gaps_path(base: Path, change_id: str | None) -> Path:
+    """The gaps file of a change; with no change, the project's own (H27 inc 6b)."""
+    if change_id is None:
+        return base / "01_discovery" / "gaps.md"
     return base / "01_discovery" / change_id / "gaps.md"
 
 
@@ -131,6 +135,71 @@ def get_change(project_id: str, change_id: str) -> dict:
             ),
         )
     return changes[change_id]
+
+
+@dataclass(frozen=True)
+class Scope:
+    """H27 inc 6b: what extraction and cross-reads read, a change or the project.
+
+    `entry` has the shape of a change entry (sources, border, round, harvests, baseline_waived,
+    new_surfaces, gap_counts); for the project it is built from the registry (see `resolve_scope`).
+    """
+
+    project_id: str
+    change_id: str | None
+    entry: dict
+    language: str
+
+    @property
+    def is_project(self) -> bool:
+        return self.change_id is None
+
+
+def _project_rows(project_id: str) -> list[dict]:
+    """Current rows of the registry that belong to no change (harvested rows apart)."""
+    from .source_registry import is_harvested
+    from .sources import load_source_manifest
+
+    held = {str(i) for entry in list_changes(project_id).values() for i in entry.get("sources") or []}
+    return [row for row in load_source_manifest(project_id).get("registry", [])
+            if str(row.get("id")) not in held and row.get("validity", "current") == "current" and not is_harvested(row)]
+
+
+def project_request_rows(project_id: str) -> list[dict]:
+    """The current `pedido` rows outside every change."""
+    from .source_registry import row_role
+
+    return [row for row in _project_rows(project_id) if row_role(row) == "pedido"]
+
+
+def _project_entry(project_id: str) -> dict:
+    from .core.text import project_language
+    from .harvest import load_harvest
+    from .source_registry import row_role
+
+    rows = _project_rows(project_id)
+    sources = [str(r["id"]) for r in rows if row_role(r) in ("pedido", "diseno_nuevo", "linea_de_base")]
+    in_changes = {str(i) for entry in list_changes(project_id).values() for i in entry.get("harvests") or []}
+    harvest = load_harvest(workspace_path(project_id))
+    ids = [str(i) for i in harvest.get("source_ids") or ([harvest["source_id"]] if harvest.get("source_id") else [])]
+    harvests = [i for i in ids if i not in in_changes]
+    has_baseline = any(row_role(r) == "linea_de_base" for r in rows)
+    language = project_language(project_id)
+    waived = None
+    if not harvests and not has_baseline:
+        waived = {"reason": "proyecto sin línea de base cargada" if language == "es" else "project without a loaded baseline"}
+    return {"sources": sources, "border": [], "round": "project", "language": language, "harvests": harvests,
+            "baseline_waived": waived, "new_surfaces": {},
+            "gap_counts": read_state(project_id).get("gap_counts", {})}
+
+
+def resolve_scope(project_id: str, change_id: str | None) -> Scope:
+    """The entry of a change (an unknown id refuses like `get_change`), or the project's with `None`."""
+    if change_id is not None:
+        entry = get_change(project_id, change_id)
+        return Scope(project_id, change_id, entry, change_language(project_id, entry))
+    entry = _project_entry(project_id)
+    return Scope(project_id, None, entry, str(entry["language"]))
 
 
 def merge_change_gaps(project_id: str, change_id: str, gaps: list[dict], evidence_ids: list[str]) -> dict:

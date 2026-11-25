@@ -133,7 +133,9 @@ def propose_delta(statement: str) -> str:
     return "UNCHANGED" if _UNCHANGED_HINT.search(statement) else "ADDED"
 
 
-def change_requirements_path(base: Path, change_id: str) -> Path:
+def change_requirements_path(base: Path, change_id: str | None) -> Path:
+    if change_id is None:
+        return base / "02_requirements" / "requirements.md"
     return base / "02_requirements" / change_id / "requirements.md"
 
 

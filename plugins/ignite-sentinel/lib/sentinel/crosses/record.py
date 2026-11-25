@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ..changes import _squash, change_gaps_path, change_language, get_change, list_changes
+from ..changes import _squash, change_gaps_path, change_language, resolve_scope, list_changes
 from ..core.io import read_json, write_json, write_text
 from ..core.text import unique_path
 from ..core.time import utc_now
@@ -130,7 +130,7 @@ def add_change_gaps(project_id: str, change_id: str, gaps: list[dict], candidate
         from ..prior_decisions import apply_prior_decisions
 
         apply_prior_decisions(project_id, change_id, added, candidates or {}, refs)
-        language = change_language(project_id, get_change(project_id, change_id))
+        language = resolve_scope(project_id, change_id).language
         rows = [*existing, *added]
         write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
         updated = {k: dict(v) for k, v in list_changes(project_id).items()}
@@ -173,7 +173,7 @@ RETIRE_NOTE = {"es": "afirmación retirada al re-registrar el cruce", "en": "cla
 
 
 def _save_change_gaps(project_id: str, change_id: str, path: Path, rows: list[dict]) -> None:
-    language = change_language(project_id, get_change(project_id, change_id))
+    language = resolve_scope(project_id, change_id).language
     write_text(path, render_gaps(project_id, rows, change_id, language, path.with_name("gap_elicitation.json")))
     updated = {k: dict(v) for k, v in list_changes(project_id).items()}
     updated[change_id]["gap_counts"] = count_gaps(rows)
@@ -238,7 +238,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
     from ..secrets_scan import sanitize_text
     from ..sources import mark_source_processed, open_source_row, settle_rerun
 
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     kind = normalize_kind(kind, language)
@@ -349,7 +349,7 @@ def record_cross(project_id: str, change_id: str, kind: str, claims_path: Path, 
 
 
 def skip_cross(project_id: str, change_id: str, kind: str, reason: str) -> dict[str, Any]:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     kind = normalize_kind(kind, language)

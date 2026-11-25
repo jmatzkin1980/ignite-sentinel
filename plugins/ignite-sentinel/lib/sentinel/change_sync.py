@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .changes import _squash, change_language, get_change
+from .changes import _squash, change_language, resolve_scope
 from .core.io import write_json, write_text
 from .core.time import utc_now
 from .crosses import cross_path
@@ -159,7 +159,7 @@ def _touch_kind(project_id: str, change_id: str, kind: str, record: dict, curren
 
 def apply_touched_set(project_id: str, change_id: str, *, previous_id: str | None, new_id: str, note: str = "") -> dict[str, Any]:
     """Carry the claims a new source leaves verbatim, mark what it touches and write the sync report."""
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     file_word = HEADINGS["es" if es else "en"]["file"]
@@ -298,7 +298,7 @@ def write_sync_report(project_id: str, change_id: str, result: dict[str, Any], l
 
 def _versions_of(project_id: str, change_id: str, role: str, stem: str, new_id: str) -> str | None:
     """The current row of the change with this role whose copy has the same file stem, if any."""
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     held = {str(i) for i in change.get("sources") or []}
     found = None
     for row in load_source_manifest(project_id).get("registry", []):
@@ -348,7 +348,7 @@ def _refuse_event_id(project_id: str, change_id: str) -> None:
                 else f"{change_id} is a project /sync event (07_changes), not an open change",
                 next_step=next_step,
             )
-    get_change(project_id, change_id)  # raises the usual refusal
+    resolve_scope(project_id, change_id).entry  # raises the usual refusal
 
 
 def sync_change_scope(
@@ -366,7 +366,7 @@ def sync_change_scope(
     from .sources import discover_source_novelty, iter_source_files, load_source, save_source_manifest, update_source
 
     _refuse_event_id(project_id, change_id)
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     es = change_language(project_id, change) == "es"
     if source is not None and not role:
         raise InputError(
@@ -420,7 +420,7 @@ def sync_change_scope(
             results = [apply_touched_set(project_id, change_id, previous_id=None, new_id=new_id, note=note)]
             confirmed = True
         if note.strip():
-            language = change_language(project_id, get_change(project_id, change_id))
+            language = resolve_scope(project_id, change_id).language
             for item in results:
                 if item.get("change_id") == change_id:
                     item["note"] = note

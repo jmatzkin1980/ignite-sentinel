@@ -31,12 +31,14 @@ def normalize_kind(value: str, language: str) -> str:
     return kind
 
 
-def crosses_dir(base: Path, change_id: str) -> Path:
-    """The folder that holds a change's registered cross-reads."""
+def crosses_dir(base: Path, change_id: str | None) -> Path:
+    """The folder that holds a change's registered cross-reads (the project's with None)."""
+    if change_id is None:
+        return base / "01_discovery" / "crosses"
     return base / "01_discovery" / change_id / "crosses"
 
 
-def cross_path(base: Path, change_id: str, kind: str) -> Path:
+def cross_path(base: Path, change_id: str | None, kind: str) -> Path:
     return crosses_dir(base, change_id) / f"{kind}.json"
 
 
@@ -54,14 +56,14 @@ def run_cross(
     delta: bool = False,
 ) -> dict:
     """The /cross command: record, waive or report the cross-reads of one change, and decide its new surfaces."""
-    from ..changes import change_language, get_change
+    from ..changes import change_language, resolve_scope
     from ..readiness_verdict import change_next_step
     from .claims import TAG_NAMES
     from .record import record_cross, skip_cross
     from .state import KIND_LABELS, cross_status, write_cross_report
     from .surfaces import accept_new_surface, decline_new_surface, new_surface_candidates
 
-    change = get_change(project_id, change_id)  # an unknown change is a GateRefusal
+    change = resolve_scope(project_id, change_id).entry  # an unknown change is a GateRefusal
     lang = "es" if change_language(project_id, change) == "es" else "en"
     es = lang == "es"
     if delta and not claims:

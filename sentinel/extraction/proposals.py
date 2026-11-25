@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from ..change_requirements import load_change_ears, parse_affects, parse_delta, parse_surfaces
-from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, get_change
+from ..changes import MIN_BASELINE_QUOTE, _squash, change_language, resolve_scope
 from ..core.io import copy_file, read_json, write_json, write_text
 from ..core.paths import workspace_path
 from ..core.text import unique_path
@@ -485,7 +485,7 @@ def _element_text_cached(base: Path, element: dict, cache: dict[str, list[str] |
 
 
 def record_proposals(project_id: str, change_id: str, source: Path) -> dict:
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     language = change_language(project_id, change)
     es = language == "es"
     if change.get("round") == "scope":
@@ -654,7 +654,7 @@ def extraction_orphans(project_id: str, change_id: str, elements: list[dict]) ->
 
 def write_review(project_id: str, change_id: str) -> Path:
     base = workspace_path(project_id)
-    change = get_change(project_id, change_id)
+    change = resolve_scope(project_id, change_id).entry
     es = change_language(project_id, change) == "es"
     inventory = load_inventory(base, change_id) or {}
     items = load_proposals(base, change_id)["items"]
