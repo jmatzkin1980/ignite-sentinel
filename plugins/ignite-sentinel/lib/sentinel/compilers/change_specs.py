@@ -17,6 +17,8 @@ from ..core.io import remove, write_json, write_text
 from ..core.time import utc_now
 from ..errors import GateRefusal
 from ..workspace import read_state, update_state, workspace_path
+from ..extraction.coverage import extraction_view
+from .change_deliverable import _EXT_SOURCE
 from .specs import ensure_spec_unit_ids_seeded, render_spec_unit
 
 UNIT_DELTAS = ("ADDED", "MODIFIED", "REMOVED")
@@ -59,6 +61,19 @@ TEXT = {
                          "/resolve-gaps {pid} --change {cid}"),
     },
 }
+
+
+def unit_sources(row: dict, elements_by_id: dict[str, dict], change_id: str) -> list[str]:
+    """Sources of a unit: a row from a request element cites its lines (`path:Lnn-Lmm`); a GAP answer keeps the brief."""
+    found = _EXT_SOURCE.match(str(row.get("source", "")))
+    element = elements_by_id.get(found.group(1)) if found else None
+    anchors: list[str] = []
+    for span in (element or {}).get("spans") or []:
+        a, b = int(span[0]), int(span[-1])
+        anchors.append(f"{element['path']}:L{a}" if a == b else f"{element['path']}:L{a}-L{b}")
+    if not anchors:
+        return [EARS_ANCHOR.format(cid=change_id), BRIEF_PATH.format(cid=change_id)]
+    return [EARS_ANCHOR.format(cid=change_id), *anchors]
 
 
 def _cell(text: str) -> str:
@@ -112,7 +127,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     folder = base / "03_specs" / change_id
     units_dir = folder / "units"
     units_dir.mkdir(parents=True, exist_ok=True)
-    sources = [EARS_ANCHOR.format(cid=change_id), BRIEF_PATH.format(cid=change_id)]
+    elements_by_id = {e["id"]: e for e in extraction_view(project_id, change_id)["elements"]}
     units: list[dict[str, Any]] = []
     for row in unit_rows:
         unit_id = ids[row["id"]]
@@ -125,13 +140,13 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
             "surfaces": list(row.get("surfaces") or []),
             "trace_ids": [change_id, row["id"]],
             "ears": [row["id"]],
-            "sources": sources,
+            "sources": unit_sources(row, elements_by_id, change_id),
             "pattern": row["pattern"],
             "statement": row["statement"],
             "source": row["source"],
             "path": units_dir / f"{unit_id}.md",
         }
-        write_text(unit["path"], render_spec_unit(project_id, unit))
+        write_text(unit["path"], render_spec_unit(project_id, unit, language))
         units.append(unit)
     active = {unit["path"] for unit in units}
     for stale in units_dir.glob("SPEC-U-*.md"):

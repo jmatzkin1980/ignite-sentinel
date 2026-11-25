@@ -73,6 +73,7 @@ def _change_stories(project_id: str, change_id: str) -> list[dict]:
 
 
 _EXT_SOURCE = re.compile(r"`EXT:([^`]+)`")
+_LINE_ANCHOR = re.compile(r":L\d+")
 
 
 def _source_gap(row: dict) -> str:
@@ -119,7 +120,7 @@ def validate_change(project_id: str, change_id: str) -> dict:
         unit_rows = {r["id"] for r in rows if r.get("delta") in UNIT_DELTAS}
         found = []
         for unit in units:
-            if brief not in unit["sources"]:
+            if brief not in unit["sources"] and not any(_LINE_ANCHOR.search(src) for src in unit["sources"]):
                 found.append(text["unit_no_brief"].format(unit=unit["id"], brief=brief))
             for ears in unit["ears"]:
                 if ears not in unit_rows:
