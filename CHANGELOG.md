@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-11-25
+
 ### Added
 
 - **The change specification by functionality and the change backlog by slices (IMP-416, H27 inc 5b).** `03_specs/CHG-nnn/specs.md` has one `FUN-nn` section per functionality with eight blocks of registered data only (`sin dato registrado` when there is none) and a traceability table Unidad / REQ-EARS / Elemento / Cita / Superficie / GAP; the units of the change cite `ruta:Lnn-Lmm` and their headings follow the language of the change. `story_size.max_units` (5) in the slicing model; enablers for the new surfaces of the change; `04_backlog/CHG-nnn/SLICE-PLAN.md`; `source_units` in the stories of the change. The skills `sentinel-specs` (with the validated `change-functionality` example) and `sentinel-backlog`, and the guide, describe it.
