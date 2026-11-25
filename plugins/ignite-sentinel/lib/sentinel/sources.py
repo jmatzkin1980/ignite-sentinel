@@ -430,17 +430,18 @@ def settle_answer_rerun(project_id: str, source_id: str) -> str | None:
     return settle_rerun(project_id, source_id, "gap_resolved")
 
 
-def discover_source_novelty(project_id: str) -> dict[str, list[dict[str, Any]]]:
+def discover_source_novelty(project_id: str, paths: list[Path] | None = None) -> dict[str, list[dict[str, Any]]]:
     """Pending sources, plus unseen paths whose content is already a registered row.
 
     Novelty is decided by content hash or by a missing row, never by date (IMP-250a).
+    H27: `paths` limits the scan to those files (the role folders of a change); None scans as always.
     """
     manifest = load_source_manifest(project_id)
     known = manifest.get("sources", {})
     pending: list[dict[str, Any]] = []
     duplicates: list[dict[str, Any]] = []
     first_new: dict[str, str] = {}  # hash -> key of the first unseen path with it in this scan
-    for path in scan_candidate_sources(project_id):
+    for path in (scan_candidate_sources(project_id) if paths is None else paths):
         key = source_key(path)
         data = path.read_bytes()
         current_hash = content_sha256(data)
@@ -508,6 +509,7 @@ def update_source(
         raise SourceRegistryError("--cell and --mark go together: --cell DOCUMENT/SECTION --mark updated|reviewed|pending.")
     if cell is not None:
         find_row_or_raise(manifest, source_id)
+    was_candidate = bool((find_row(manifest, source_id) or {}).get("pending_version_of"))
     row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
     if authority:
         set_authority(row, authority)
@@ -519,6 +521,9 @@ def update_source(
         mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
     extra: dict[str, Any] = {}
+    synced = _touched_set_after_confirm(project_id, source_id, changes, was_candidate)
+    if synced:
+        extra["sync"] = synced
     if role:
         from .source_versions import check_versions_for
 
@@ -537,6 +542,28 @@ def update_source(
         "summary": registry_summary(manifest),
         "source_log": source_log_path(project_id).as_posix(),
     }
+
+
+def _touched_set_after_confirm(project_id: str, source_id: str, changes: dict[str, Any], was_candidate: bool) -> list[dict[str, Any]]:
+    """H27 inc 6a: confirming a version runs the touched set of every change that holds the old or the new row."""
+    newer = changes.get("superseded_by")
+    if newer:
+        previous_id, new_id = source_id, str(newer)
+    elif changes.get("current") and was_candidate:
+        previous_id, new_id = None, source_id
+    else:
+        return []
+    from .change_sync import apply_touched_set
+    from .changes import list_changes
+
+    done: list[dict[str, Any]] = []
+    for change_id, change in list_changes(project_id).items():
+        held = {str(i) for i in change.get("sources") or []}
+        if not ({new_id} | ({previous_id} if previous_id else set())) & held:
+            continue
+        result = apply_touched_set(project_id, change_id, previous_id=previous_id, new_id=new_id)
+        done.append(result)
+    return done
 
 
 def source_registry_summary(project_id: str) -> dict[str, Any]:

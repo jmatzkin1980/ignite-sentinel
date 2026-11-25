@@ -529,8 +529,14 @@ def build_server():
 
     @tool(name="sentinel_sync", description=TOOL_DESCRIPTIONS["sync"])
     def sentinel_sync(project_id: str, source: str = "", note: str = "", digest: bool = False,
-                      analysis: str = "") -> dict:
+                      analysis: str = "", change: str = "", role: str = "", supersedes: str = "") -> dict:
         arguments = ["sync", project_id]
+        if change:
+            arguments += ["--change", change]
+        if role:
+            arguments += ["--role", role]
+        if supersedes:
+            arguments += ["--supersedes", supersedes]
         if source:
             arguments += ["--source", source]
         if analysis:

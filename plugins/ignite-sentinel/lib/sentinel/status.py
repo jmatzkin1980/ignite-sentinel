@@ -145,6 +145,7 @@ def change_status(project_id: str, change_id: str) -> dict[str, object]:
         "warnings": [
             *escalation_warnings(project_id, change_id),
             *_source_warnings(project_id, change_id, sources),
+            *_version_warnings(project_id, change_id, change),
             *_extraction_warnings(project_id, change_id, change, extraction, preserved),
             *_cross_warnings(project_id, change_id, change, crosses, candidates),
         ],
@@ -171,6 +172,16 @@ def _cross_warnings(project_id: str, change_id: str, change: dict, crosses: dict
             f"{change_id}: {len(pending)} candidata(s) a superficie nueva sin decidir: {ids}" if lang == "es"
             else f"{change_id}: {len(pending)} new-surface candidate(s) undecided: {ids}")})
     return warnings
+
+
+def _version_warnings(project_id: str, change_id: str, change: dict) -> list[dict[str, object]]:
+    """H27 inc 6a: the new versions nobody confirmed, same `trigger` + `message` shape."""
+    from .changes import change_language
+    from .readiness_verdict import change_versions, version_sentence
+
+    es = change_language(project_id, change) == "es"
+    return [{"trigger": "unconfirmed_version", "message": f"{change_id}: {version_sentence(project_id, v, es)}"}
+            for v in change_versions(project_id, change_id)]
 
 
 def _extraction_warnings(

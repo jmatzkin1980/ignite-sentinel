@@ -257,3 +257,124 @@ def write_sync_report(project_id: str, change_id: str, result: dict[str, Any], l
     path = base / "01_discovery" / change_id / "sync_report.md"
     write_text(path, "\n".join(lines).rstrip() + "\n")
     return path
+
+
+def _versions_of(project_id: str, change_id: str, role: str, stem: str, new_id: str) -> str | None:
+    """The current row of the change with this role whose copy has the same file stem, if any."""
+    change = get_change(project_id, change_id)
+    held = {str(i) for i in change.get("sources") or []}
+    found = None
+    for row in load_source_manifest(project_id).get("registry", []):
+        if str(row.get("id")) not in held or str(row.get("id")) == new_id:
+            continue
+        if row.get("validity", "current") != "current" or row_role(row) != role:
+            continue
+        if any(Path(str(p)).stem == stem for p in [*row.get("copies", []), *row.get("paths", [])]):
+            found = str(row["id"])
+    return found
+
+
+def _refuse_event_id(project_id: str, change_id: str) -> None:
+    """A CHG id that is a project /sync event in 07_changes is not an open change (decision 14)."""
+    from .changes import list_changes
+    from .core.graph import load_graph
+
+    changes = list_changes(project_id)
+    if change_id in changes:
+        return
+    for node in load_graph(project_id).get("nodes", []):
+        if node.get("id") == change_id and "07_changes" in Path(str(node.get("path") or "")).parts:
+            first = next(iter(changes.values()), None)
+            es = (change_language(project_id, first) if first else "es") == "es"
+            known = ", ".join(sorted(changes))
+            if known:
+                next_step = f"Cambios conocidos: {known}." if es else f"Known changes: {known}."
+            else:
+                next_step = (f"Abrí uno con /ingest {project_id} --source NOTA --change." if es
+                             else f"Open one with /ingest {project_id} --source NOTE --change.")
+            raise InputError(
+                f"{change_id} es un evento de /sync del proyecto (07_changes), no un cambio abierto" if es
+                else f"{change_id} is a project /sync event (07_changes), not an open change",
+                next_step=next_step,
+            )
+    get_change(project_id, change_id)  # raises the usual refusal
+
+
+def sync_change_scope(
+    project_id: str,
+    change_id: str,
+    source: Path | None = None,
+    role: str | None = None,
+    supersedes: str | None = None,
+    note: str = "",
+) -> dict[str, Any]:
+    """`/sync --change`: load the new source of a change by role, confirm its version and re-cross what it touched."""
+    from .core.io import forget_read_snapshots
+    from .readiness_verdict import change_next_step
+    from .source_registry import ROLE_FOLDERS, mark_pending_version
+    from .sources import discover_source_novelty, iter_source_files, load_source, save_source_manifest, update_source
+
+    _refuse_event_id(project_id, change_id)
+    change = get_change(project_id, change_id)
+    es = change_language(project_id, change) == "es"
+    if source is not None and not role:
+        raise InputError(
+            "/sync --change con --source necesita --role pedido|linea_de_base|plan_previo|diseno_nuevo" if es
+            else "/sync --change with --source needs --role pedido|linea_de_base|plan_previo|diseno_nuevo")
+    if source is None and (role or supersedes):
+        raise InputError("--role y --supersedes van con --source" if es else "--role and --supersedes go with --source")
+    if supersedes:
+        old = _row(project_id, supersedes)
+        if old is None or supersedes not in {str(i) for i in change.get("sources") or []} or row_role(old) != role:
+            raise InputError(
+                f"{supersedes} no es una fuente de rol {role} de {change_id}" if es
+                else f"{supersedes} is not a source with role {role} in {change_id}")
+
+    base = workspace_path(project_id)
+    targets: list[tuple[Path, str]] = []
+    if source is not None:
+        targets.append((source, str(role)))
+    else:
+        for folder_role, folder in ROLE_FOLDERS.items():
+            files = iter_source_files(base / folder)
+            for item in discover_source_novelty(project_id, paths=files)["pending"]:
+                targets.append((Path(item["path"]), folder_role))
+
+    loaded: list[dict[str, Any]] = []
+    synced: list[dict[str, Any]] = []
+    for path, path_role in targets:
+        result = load_source(project_id, path, path_role, change_id)
+        new_id, reused = str(result["source_id"]), bool(result["reused"])
+        manifest = load_source_manifest(project_id)
+        row = next(r for r in manifest["registry"] if str(r["id"]) == new_id)
+        if not reused and not row.get("pending_version_of"):
+            previous = _versions_of(project_id, change_id, path_role, path.stem, new_id)
+            if previous:
+                mark_pending_version(manifest, row, previous)
+                save_source_manifest(project_id, manifest)
+        version_of = supersedes or row.get("pending_version_of")
+        old_row = _row(project_id, str(supersedes)) if supersedes else None
+        confirmed = False
+        results: list[dict[str, Any]] = []
+        if supersedes:
+            confirmed = True
+            if old_row is not None and old_row.get("validity", "current") == "current":
+                # the confirmation of the version is the one place that runs the touched set
+                results = list(update_source(project_id, supersedes, superseded_by=new_id,
+                                             reason=_squash(note) or "/sync --change").get("sync") or [])
+        elif not reused and not version_of:
+            results = [apply_touched_set(project_id, change_id, previous_id=None, new_id=new_id, note=note)]
+            confirmed = True
+        if note.strip():
+            language = change_language(project_id, get_change(project_id, change_id))
+            for item in results:
+                if item.get("change_id") == change_id:
+                    item["note"] = note
+                    write_sync_report(project_id, change_id, item, language)
+        synced.extend(results)
+        loaded.append({"source_id": new_id, "role": path_role, "path": result["path"], "reused": reused,
+                       "version_of": str(version_of) if version_of else None, "confirmed": confirmed})
+
+    forget_read_snapshots()
+    return {"project_id": project_id, "change_id": change_id, "loaded": loaded, "sync": synced,
+            "next_step": change_next_step(project_id, change_id)}

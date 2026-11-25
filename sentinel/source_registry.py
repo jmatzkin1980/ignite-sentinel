@@ -530,3 +530,10 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
 
 def write_source_log(project_id: str, manifest: dict[str, Any], path: Path, language: str = "en") -> None:
     write_text(path, render_source_log(project_id, manifest, language))
+
+
+def mark_pending_version(manifest: dict[str, Any], row: dict[str, Any], previous_id: str) -> None:
+    """H27 inc 6a: `row` may be a new version of `previous_id`; a candidate already marked keeps its mark."""
+    if row.get("pending_version_of") or str(row.get("id")) == str(previous_id):
+        return
+    row["pending_version_of"] = str(previous_id)

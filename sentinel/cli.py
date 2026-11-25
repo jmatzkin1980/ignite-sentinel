@@ -213,7 +213,16 @@ def _run_project_command(args) -> int:
         elif args.command == "sync":
             from .sync import sync_change, sync_change_with_analysis, sync_pending_sources
 
-            if args.analysis:
+            if args.change:
+                if args.analysis or args.digest:
+                    raise ValueError("/sync --change takes --source, --role, --supersedes and --note")
+                from .change_sync import sync_change_scope
+
+                result = sync_change_scope(args.project_id, args.change, Path(args.source) if args.source else None,
+                                           args.role, args.supersedes, args.note)
+            elif args.role or args.supersedes:
+                raise ValueError("/sync --role and --supersedes go with --change CHG-NNN")
+            elif args.analysis:
                 if not args.source:
                     from .errors import InputError
 

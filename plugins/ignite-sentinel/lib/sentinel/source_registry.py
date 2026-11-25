@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Collection
 
 from .core.io import write_text
 from .core.time import utc_now
@@ -380,6 +380,16 @@ def registry_summary(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def change_unconfirmed_versions(manifest: dict[str, Any], source_ids: Collection[str]) -> list[dict[str, str]]:
+    """H27 inc 6a: the unconfirmed versions (same summary as the project's) where the new row or the old one is the change's."""
+    wanted = {str(i) for i in source_ids}
+    return [
+        {"id": str(item["id"]), "version_of": str(item["version_of"])}
+        for item in registry_summary(manifest)["unconfirmed_versions"]
+        if item["id"] in wanted or item["version_of"] in wanted
+    ]
+
+
 def registry_warnings(summary: dict[str, Any]) -> list[str]:
     warnings: list[str] = []
     if summary["open"]:
@@ -520,3 +530,10 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
 
 def write_source_log(project_id: str, manifest: dict[str, Any], path: Path, language: str = "en") -> None:
     write_text(path, render_source_log(project_id, manifest, language))
+
+
+def mark_pending_version(manifest: dict[str, Any], row: dict[str, Any], previous_id: str) -> None:
+    """H27 inc 6a: `row` may be a new version of `previous_id`; a candidate already marked keeps its mark."""
+    if row.get("pending_version_of") or str(row.get("id")) == str(previous_id):
+        return
+    row["pending_version_of"] = str(previous_id)

@@ -150,6 +150,11 @@ def _sync(p: argparse.ArgumentParser) -> None:
     p.add_argument("--digest", action="store_true")
     p.add_argument("--analysis", help="IMP-337: an agent's cited change analysis of the --source note (JSON); "
                                       "each valid candidate opens a blocking GAP-CHG")
+    # H27 inc 6a: /sync --change CHG-nnn loads the change's new source by role (--source goes with --role)
+    p.add_argument("--change", help="H27: sync this change: load --source PATH --role ROLE (or scan the role folders), "
+                                    "confirm the version and re-cross what it touched")
+    p.add_argument("--role", help="H27: with --change and --source: pedido|linea_de_base|plan_previo|diseno_nuevo")
+    p.add_argument("--supersedes", help="H27: with --change and --source: the F-NN row this source replaces")
 
 
 def _scrutinize(p: argparse.ArgumentParser) -> None:
@@ -385,7 +390,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("init", EXEMPT, _init, exempt_reason="creates the workspace (state.json) that the protocol log needs", skill="sentinel-discovery"),
     Command("ingest", MUTATING, _ingest, skill="sentinel-discovery"),
     Command("retrieve", READ_ONLY, _retrieve, skill="sentinel-sync"),
-    Command("sync", MUTATING, _sync, skill="sentinel-sync"),
+    Command("sync", MUTATING, _sync, skill="sentinel-sync", skill_variants=(("--change", "sentinel-sync §Change sync"),)),
     Command("resolve-gaps", MUTATING, _resolve_gaps, skill="sentinel-gap-response"),
     Command("annotate", MUTATING, _project_source, skill="sentinel-annotate"),
     Command("challenge", MUTATING, _project_source, skill="sentinel-challenge"),
