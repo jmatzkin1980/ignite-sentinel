@@ -2429,7 +2429,7 @@ From there the steps follow the extraction: `extract_proposals` (fill the worksh
 
 **You'll see:** `RN-02` rewritten as "Un alta con monto anual estimado mayor a 1.000.000 requiere aprobación de la jefa de Compras" (every word from the rule and from your answer), `/status --change` with one element modified, the final brief with that text and a reference to the decision, the rule about exterior suppliers only under 6.2 "No entra", the annex `A.decisions`, and `03_specs/CHG-001/prd.md`.
 
-**What it means:** The final brief reads as one text. Had you answered that the request governs, the element would stay as written only after "Keep the request text for RN-02, the request governs", with your reason. Nothing is rewritten for you without your confirmation, one element at a time.
+**What it means:** The final brief reads as one text. Had you answered that the request governs, nothing would be needed: the element stays as written and is already included. "Keep the request text" is only for a decision that does change the content and whose text you still want to keep, for example "the decision only affects the prototype", with your reason. Nothing is rewritten for you without your confirmation, one element at a time.
 
 <details><summary>In a terminal</summary>
 

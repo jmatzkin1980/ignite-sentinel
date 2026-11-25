@@ -31,6 +31,7 @@ def compile_prd_sections(
     *,
     pending: str = "[PENDING INPUT]",
     source_path: str = "00_raw/",
+    named_gaps: bool = True,
 ) -> dict[str, str]:
     """Compile PRD sections from evidence, confirmed gap answers, and EARS rows."""
     english = language == "en"
@@ -60,6 +61,8 @@ def compile_prd_sections(
         return f'"{sentence}" {source_ref()}'
 
     def pending_line(gap_id: str) -> str:
+        if not named_gaps:  # the change path: the project's gap ids may not exist in the change
+            return f"- `{pending}`"
         action = "resolve" if english else "resolver"
         return f"- `{pending}` - {action} `{gap_id}` before treating this section as evidence-backed."
 
@@ -200,6 +203,12 @@ def render_prd_full(
     source_path: str = "00_raw/",
 ) -> str:
     english = language == "en"
+    # the change path (IMP-414) passes its own assumption rows: it never shows the project's placeholders or gap ids
+    change = assumption_rows is not None
+
+    def gap_ref(gap_id: str) -> str:
+        return f"`{pending}`" if change else f"`{gap_id}`"
+
     section_context = render_prd_section_context(context)
     title = "Executive Summary And Problem Statement" if english else "Resumen ejecutivo y planteamiento del problema"
     scope = "Project Scope" if english else "Alcance del proyecto"
@@ -221,7 +230,8 @@ def render_prd_full(
     ears_title = "Confirmed EARS Requirements" if english else "Requerimientos EARS confirmados"
     ears_block = render_ears_requirements_table(context)
     glossary_block = render_prd_glossary(project_id, language).replace("[PENDING INPUT]", pending)
-    compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text, pending=pending, source_path=source_path)
+    compiled = compile_prd_sections(project_id, req_text, context, language, evidence_text, pending=pending, source_path=source_path,
+                                    named_gaps=not change)
     non_goals_title = "Non-Goals" if english else "No-Objetivos (Non-Goals)"
     non_goals_context = context.get("non_goals", []) if isinstance(context, dict) else []
     non_goals_block = render_non_goals_block(
@@ -239,7 +249,8 @@ def render_prd_full(
     else:
         personas_evidence_block = (
             f"### {personas_evidence_title}\n\n"
-            f"`{pending}` - no persona evidence was extracted from the source input; see `GAP-USERS` and `GAP-PRD-PERSONA-DETAIL`.\n"
+            f"`{pending}` - no persona evidence was extracted from the source input"
+            + ("." if change else "; see `GAP-USERS` and `GAP-PRD-PERSONA-DETAIL`.") + "\n"
         )
     if extracted_frs:
         fr_rows = "\n".join(
@@ -253,20 +264,23 @@ def render_prd_full(
     else:
         fr_evidence_block = (
             f"### {fr_evidence_title}\n\n"
-            f"`{pending}` - no requirement-like statements were extracted from the source input; see `GAP-PRD-FR-AC`.\n"
+            f"`{pending}` - no requirement-like statements were extracted from the source input"
+            + ("." if change else "; see `GAP-PRD-FR-AC`.") + "\n"
         )
     if extracted_metrics:
         metric = extracted_metrics[0]
         kpi_primary_row = (
-            f'| KPI-01 | "{metric["evidence"]}" | {metric["metric"]} (confirm baseline) | `{pending}` | `{pending}` | `REQ-001`, `GAP-METRIC-SOURCE` |'
+            f'| KPI-01 | "{metric["evidence"]}" | {metric["metric"]} (confirm baseline) | `{pending}` | `{pending}` | `REQ-001`{"" if change else ", `GAP-METRIC-SOURCE`"} |'
         )
     else:
         kpi_primary_row = (
-            f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | `GAP-METRIC-SOURCE` |"
+            f"| KPI-01 | Primary business or operational outcome. | `{pending}` unless confirmed. | `{pending}` | `{pending}` | {gap_ref("GAP-METRIC-SOURCE")} |"
         )
     from ..assumptions import render_prd_assumption_rows
 
     governed_assumption_rows = render_prd_assumption_rows(project_id) if assumption_rows is None else assumption_rows
+    if change and not governed_assumption_rows:
+        governed_assumption_rows = f"| `{pending}` | `{pending}` | `{pending}` | `{pending}` | `{pending}` | `{pending}` | `{pending}` |"
     assumption_rows_text = governed_assumption_rows or "\n".join(
         [
             "| ASM-01 | Details absent from confirmed evidence remain pending and must not be silently converted into backlog scope. | Rework and loss of trust. | Sentinel guardrail | Active |",
@@ -278,6 +292,23 @@ def render_prd_full(
         if governed_assumption_rows else
         "| ID | Assumption | Impact if Wrong | Source Basis | Status |\n| --- | --- | --- | --- | --- |"
     )
+    if change:
+        trace_rows = f"| -- | `{pending}` | -- | -- | |"
+        trace_gaps = f"- `{pending}`"
+        glossary_note = f"`{pending}`: confirm whether a social/reputational job exists."
+        persona_note = ""
+    else:
+        trace_rows = """| FR-01 | Primary end-to-end capability | JTBD-01 | OK | |
+| FR-02 | Preserve unchanged behavior | JTBD-02 | OK | |
+| FR-03 | Data/integration signals | JTBD-02 | OK | |
+| FR-04 | User-facing states/copy | JTBD-01 | OK | |
+| FR-05 | Traceability to AC/tests | JTBD-03 | OK | |
+| -- | Social job | JTBD-S01 | PENDING | No explicit source unless confirmed. |"""
+        trace_gaps = """- `GAP-PRD-FR-AC`: functional requirements and ACs may need refinement from domain context.
+- `GAP-PRD-NFR-KPI`: NFR/KPI targets, measurement owner, and timeframe should be confirmed before release commitment.
+- `GAP-PRD-DEPENDENCIES-ROADMAP`: owners, dependencies, MVP, and roadmap may need delivery confirmation."""
+        glossary_note = f"`{pending} - GAP-PRD-GLOSSARY-GOVERNANCE`: confirm whether a social/reputational job exists."
+        persona_note = ": resolve `GAP-PRD-PERSONA-DETAIL`."
     return f"""# PRD - {project_id}
 
 # {project_id} - Strategic Foundation
@@ -357,24 +388,17 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 **JTBD-E01:** When users rely on the new capability, they need confidence that the state/result is explainable and backed by confirmed evidence.
 
-`{pending} - GAP-PRD-GLOSSARY-GOVERNANCE`: confirm whether a social/reputational job exists.
+{glossary_note}
 
 ### 7d. Bidirectional Traceability Table (Audit)
 
 | Req ID | Req Description | JTBD ID | Status | Notes |
 | --- | --- | --- | --- | --- |
-| FR-01 | Primary end-to-end capability | JTBD-01 | OK | |
-| FR-02 | Preserve unchanged behavior | JTBD-02 | OK | |
-| FR-03 | Data/integration signals | JTBD-02 | OK | |
-| FR-04 | User-facing states/copy | JTBD-01 | OK | |
-| FR-05 | Traceability to AC/tests | JTBD-03 | OK | |
-| -- | Social job | JTBD-S01 | PENDING | No explicit source unless confirmed. |
+{trace_rows}
 
 ## Traceability Gaps
 
-- `GAP-PRD-FR-AC`: functional requirements and ACs may need refinement from domain context.
-- `GAP-PRD-NFR-KPI`: NFR/KPI targets, measurement owner, and timeframe should be confirmed before release commitment.
-- `GAP-PRD-DEPENDENCIES-ROADMAP`: owners, dependencies, MVP, and roadmap may need delivery confirmation.
+{trace_gaps}
 
 # {project_id} - {execution}
 
@@ -382,10 +406,10 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 | Dep ID | Dependency | Type | Description | Owner | Impact if Unavailable | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| DEP-01 | Primary product/domain owner | Business | Confirms scope, value, and acceptance. | `{pending}` | PRD cannot be accepted. | `GAP-PRD-DEPENDENCIES-ROADMAP` |
-| DEP-02 | Technology owner / source system | Technical | Confirms integrations, data ownership, contracts, and constraints. | `{pending}` | Implementation may block or invent architecture. | `GAP-TECH-DATA-SOURCE` |
-| DEP-03 | Design/content owner | Design | Confirms journeys, states, copy, and prototype needs. | `{pending}` | UI/backlog may miss user states. | `GAP-DESIGN-FLOW` |
-| DEP-04 | Quality owner | Quality | Confirms test strategy, evidence, and regression scope. | `{pending}` | Stories may not be testable. | `GAP-QUALITY-HANDOFF` |
+| DEP-01 | Primary product/domain owner | Business | Confirms scope, value, and acceptance. | `{pending}` | PRD cannot be accepted. | {gap_ref("GAP-PRD-DEPENDENCIES-ROADMAP")} |
+| DEP-02 | Technology owner / source system | Technical | Confirms integrations, data ownership, contracts, and constraints. | `{pending}` | Implementation may block or invent architecture. | {gap_ref("GAP-TECH-DATA-SOURCE")} |
+| DEP-03 | Design/content owner | Design | Confirms journeys, states, copy, and prototype needs. | `{pending}` | UI/backlog may miss user states. | {gap_ref("GAP-DESIGN-FLOW")} |
+| DEP-04 | Quality owner | Quality | Confirms test strategy, evidence, and regression scope. | `{pending}` | Stories may not be testable. | {gap_ref("GAP-QUALITY-HANDOFF")} |
 
 ## 9. Risks And Assumptions
 
@@ -398,7 +422,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 | ID | Risk | Likelihood | Impact | Mitigation | Source |
 | --- | --- | --- | --- | --- | --- |
-| RSK-01 | PRD section appears complete but is based on weak evidence. | Medium | High | Cite sources and keep `{pending}` markers. | `GAP-PRD-*` |
+| RSK-01 | PRD section appears complete but is based on weak evidence. | Medium | High | Cite sources and keep `{pending}` markers. | {gap_ref("GAP-PRD-*")} |
 | RSK-02 | Backlog agents load too much context or miss key domain signals. | Medium | Medium | Use `specs.md` retrieval plan and context pack. | `SPEC-001` |
 | RSK-03 | Sensitive data leaks into generated artifacts. | Low | High | Keep local-only privacy rules and sanitize shareable outputs. | Privacy guardrail |
 
@@ -433,7 +457,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 | Technology | Own architecture, integration, contracts, source-of-truth, and NFR feasibility. | `CTX-TECH` |
 | Design | Own journeys, states, copy, accessibility, and prototype evidence. | `CTX-DESIGN` |
 | Quality | Own acceptance strategy, tests, regression, evidence, and readiness audit. | `CTX-QUALITY` |
-| Delivery | Own dependencies, owners, timeline, rollout, and release constraints. | `GAP-DELIVERY-READINESS` |
+| Delivery | Own dependencies, owners, timeline, rollout, and release constraints. | {gap_ref("GAP-DELIVERY-READINESS")} |
 
 ## 13. Glossary
 
@@ -445,7 +469,7 @@ Acceptance criteria are compiled from confirmed EARS rows, confirmed gap answers
 
 ### Missing Information Notes
 
-- `[{pending_name} - Personas]`: resolve `GAP-PRD-PERSONA-DETAIL`.
+- `[{pending_name} - Personas]`{persona_note or '.'}
 - `[{pending_name} - FR/AC]`: refine FRs and ACs from confirmed product and quality evidence.
 - `[{pending_name} - NFR/KPI]`: confirm measurable targets, owners, method, and timeframe.
 - `[{pending_name} - Dependencies/Roadmap]`: confirm owners, MVP, phases, dates, and rollout constraints.

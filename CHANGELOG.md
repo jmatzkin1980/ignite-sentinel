@@ -17,6 +17,7 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 ### Fixed
 
 - Answering a `GAP-CHQ` the other way round leaves a single winner; a `GAP-CHQ` whose pair no longer clashes is retired, also after validating an assumption or accepting an earlier decision (M2 of inc 4); the final brief no longer mixes the original request with the decisions (T2-30 to T2-33, T2-39).
+- Consolidation (IMP-414 final review): a replacement sentence that is a cut of the element or of an answer no longer skips the number and negation guards; an added `no` is refused too; the element id is not a source of numbers; a replacement whose decision was re-answered goes back to pending (and the final export is refused until it is confirmed again); a retired `GAP-CHQ` reopens when the same pair clashes again; the change PRD shows `sin dato registrado` instead of the project placeholders (ASM-01/02, static traceability rows, gap ids not in the change); running the same consolidation file twice leaves `consolidation.json` untouched; the guide no longer teaches `--keep-text` for an option that already keeps the request.
 
 ## [0.30.0] — 2026-11-24
 

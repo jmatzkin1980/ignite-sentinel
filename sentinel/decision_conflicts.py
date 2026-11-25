@@ -189,14 +189,17 @@ def _language(project_id: str, change_id: str) -> str:
 
 def detect_decision_conflicts(project_id: str, change_id: str) -> list[str]:
     """Open the question of every pair of closed decisions that clash; ids already registered stay as they are."""
-    from .crosses.record import add_change_gaps
+    from .crosses.record import add_change_gaps, reopen_retired_gaps
     from .decision_memory import closed_decisions
 
     pairs = conflicting_pairs(closed_decisions(project_id, change_id))
     if not pairs:
         return []
     language = _language(project_id, change_id)
-    return add_change_gaps(project_id, change_id, [conflict_gap(change_id, a, b, link, language) for a, b, link in pairs])
+    opened = add_change_gaps(project_id, change_id, [conflict_gap(change_id, a, b, link, language) for a, b, link in pairs])
+    # the same pair clashing again: its retired question comes back (the id is deterministic, so nothing else would open it)
+    back = reopen_retired_gaps(project_id, change_id, [conflict_gap_id(a["id"], b["id"]) for a, b, _link in pairs])
+    return [*opened, *back]
 
 
 def open_conflict(project_id: str, change_id: str, a_id: str, b_id: str, link: str) -> str:

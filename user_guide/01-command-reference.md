@@ -1433,7 +1433,7 @@ A request quote must be in a source with the role `pedido`, a design quote in on
 /extract COMPRAS_ALTAS --change CHG-001 --confirm all --delegated --note "the BA delegated the confirmation of the extraction"
 /extract COMPRAS_ALTAS --change CHG-001 --consolidate consolidation.md
 /extract COMPRAS_ALTAS --change CHG-001 --confirm-replacement RN-02
-/extract COMPRAS_ALTAS --change CHG-001 --keep-text RN-04 --gap GAP-DIS-3F9A1C07 --reason "the request text stands"
+/extract COMPRAS_ALTAS --change CHG-001 --keep-text RN-04 --gap GAP-DIS-3F9A1C07 --reason "the decision only affects the prototype"
 ```
 
 **Options.**
@@ -1501,7 +1501,7 @@ Every element gets a `Tratamiento`, a `Líneas` and a `Cita` copied word for wor
 
 **You get.** `action` (`inventory`, `proposals`, `confirm` or `reject`), `coverage` (`total`, `covered`, `pending`, `proposed`, `flagged`, `by_kind`, `text`), `next_step` and a one-line `message`. The inventory also gives `split` (the sections divided into parts) and `reading_plan`. The proposals phase also lists `recorded`, `rejected` (with the reason of each) and `flagged`; the confirmation phase lists `confirmed`, `held`, `invalid` and the EARS rows added, updated or superseded. `--verify` lists the sampled ids and `--verify-result` the `reopened` ones.
 
-**Consolidating (IMP-414).** A closed decision linked to an element (by the element or by a line it quotes) that does not choose an option keeping the request text leaves the element **pending to consolidate**. Resolve it one of two ways: write the text with the decision applied (`--consolidate`, then `--confirm-replacement ID` one by one) or keep the request text (`--keep-text ID --gap GAP --reason TEXT`). A number, amount, date, percentage or id that is neither in the element nor in the answer, or a lost `no`/`sin`/`nunca`, is refused unless the block says `Tipo: extension`. `--keep-text` is refused when the option already keeps the text or takes the element out of the change (propose a discard). The internal table `01_discovery/CHG-nnn/consolidation_control.md|json` lists every element as included, modified, excluded or pending; `/status --change` shows `consolidation` and `/next --change` says `consolidate` or `consolidate_confirm`. `/export --final` is refused while an element is pending.
+**Consolidating (IMP-414).** A closed decision linked to an element (by the element or by a line it quotes) that does not choose an option keeping the request text leaves the element **pending to consolidate**. Resolve it one of two ways: write the text with the decision applied (`--consolidate`, then `--confirm-replacement ID` one by one) or keep the request text (`--keep-text ID --gap GAP --reason TEXT`). A number, amount, date, percentage or id that is neither in the element nor in the answer, or a lost or added `no`/`sin`/`nunca`, is refused unless the block says `Tipo: extension`. `--keep-text` is for a decision that changes the content and whose request text the BA keeps anyway; it is refused when the option already keeps the text or takes the element out of the change (propose a discard). The internal table `01_discovery/CHG-nnn/consolidation_control.md|json` lists every element as included, modified, excluded or pending; `/status --change` shows `consolidation` and `/next --change` says `consolidate` or `consolidate_confirm`. `/export --final` is refused while an element is pending.
 
 **Reads.** The loaded request (role `pedido`), the border and gaps of the change.
 

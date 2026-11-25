@@ -206,12 +206,15 @@ def reopen_retired_gaps(project_id: str, change_id: str, gap_ids: list[str]) -> 
     wanted = set(gap_ids)
     notes = set(RETIRE_NOTE.values())
     back = [g for g in rows if g.get("id") in wanted and str(g.get("status", "")).strip("`").upper() == "CLOSED"
-            and str(g.get("resolution_note", "")).strip() in notes]
+            and (str(g.get("resolution_note", "")).strip() in notes
+                 or str(g.get("closure_reason") or "").strip("`").strip().lower() == "retired")]
     if not back:
         return []
     for gap in back:
         gap["status"] = "OPEN"
         gap["resolution_note"] = ""
+        if "closure_reason" in gap:
+            gap["closure_reason"] = ""
     _save_change_gaps(project_id, change_id, path, rows)
     return [g["id"] for g in back]
 

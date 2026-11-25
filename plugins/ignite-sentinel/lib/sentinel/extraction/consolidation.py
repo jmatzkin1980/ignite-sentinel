@@ -144,6 +144,20 @@ def keeps_request(decision: dict, element: dict) -> bool:
     return option in KEEPS_REQUEST.get(family, set())
 
 
+def decision_sha(decision: dict) -> str:
+    """16 hex of what a decision says (answer and option): a replacement is anchored to exactly this."""
+    text = f"{str(decision.get('option') or '').strip().upper()}|{_squash(str(decision.get('answer') or ''))}"
+    return sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def decisions_moved(item: dict, decisions: dict[str, dict]) -> list[str]:
+    """The decisions a stored replacement cites whose answer changed, or that are not closed (and governing) any more."""
+    shas = item.get("decision_shas")
+    if not isinstance(shas, dict):
+        return []
+    return [g for g, recorded in shas.items() if g not in decisions or decision_sha(decisions[g]) != recorded]
+
+
 def retires(decision: dict) -> bool:
     option = str(decision.get("option") or "").strip().upper()
     return option in RETIRES.get(str(decision.get("id", "")).rpartition("-")[0], set())
@@ -171,7 +185,8 @@ def _clean(sentence: str) -> str:
 
 
 def _has_token(token: str, haystack: str) -> bool:
-    return re.search(rf"(?<!\w)(?<!\d[.,]){re.escape(token)}(?!\w)(?![.,]\d)", haystack) is not None
+    percent = "" if token.endswith("%") else "(?!%)"
+    return re.search(rf"(?<!\w)(?<!\d[.,]){re.escape(token)}(?!\w)(?![.,]\d){percent}", haystack) is not None
 
 
 def _tokens(sentence: str) -> list[str]:
@@ -185,30 +200,39 @@ def _numbers_unknown(sentence: str, haystack: str) -> list[str]:
     return [t for t in _tokens(sentence) if not _has_token(t, haystack)]
 
 
-def _negation_lost(sentence: str, element_text: str, answer_words: set[str]) -> bool:
-    """Guard (b): the element sentence this one rewrites says no/sin/nunca…, and the new one no longer does."""
+def _negation_changed(sentence: str, element_text: str, answers: list[str]) -> bool:
+    """Guard (b): the sentence this one rewrites says no/sin/nunca… and the new one no longer does (the answer may say it
+    for the element, never for itself), or the new one says one that neither that sentence nor an answer has."""
     mine = set(_words(sentence))
     if not mine:
         return False
-    best: tuple[float, set[str]] = (0.0, set())
-    for piece in _pieces(element_text):
-        theirs = set(_words(piece))
-        overlap = len(mine & theirs) / len(mine)
-        if overlap > best[0]:
-            best = (overlap, theirs)
-    if best[0] < 0.5:
-        return False
-    return bool((best[1] & NEGATIONS) - mine - answer_words)
+    answer_words: set[str] = set()
+    for answer in answers:
+        answer_words.update(_words(answer))
+    best: tuple[float, set[str], bool] = (0.0, set(), True)
+    for from_element, texts in ((True, [element_text]), (False, answers)):
+        for text in texts:
+            for piece in _pieces(text):
+                theirs = set(_words(piece))
+                overlap = len(mine & theirs) / len(mine)
+                if overlap > best[0]:
+                    best = (overlap, theirs, from_element)
+    overlap, theirs, from_element = best
+    if overlap < 0.5:  # a sentence that joins several: the whole element is the reference, and nothing is "lost"
+        return bool((mine & NEGATIONS) - set(_words(element_text)) - answer_words)
+    if (theirs & NEGATIONS) - mine - (answer_words if from_element else set()):
+        return True
+    return bool((mine & NEGATIONS) - theirs - answer_words)
 
 
 def anchored(sentence: str, element_text: str, answers: list[str]) -> bool:
-    """The sentence is in the element or the answers, literally or word by word, without inventing a number or losing a no."""
+    """The sentence is in the element or the answers word by word, without inventing a number, losing a no or adding one.
+
+    A literal hit is no shortcut: a sentence that is a prefix or an infix of a longer source can cut a number or start after a `no`."""
     flat = _squash(_clean(sentence))
     if not flat:
         return True
     sources = [_squash(element_text or ""), *(_squash(a) for a in answers)]
-    if any(flat in source for source in sources):
-        return True
     allowed: set[str] = set()
     for source in sources:
         allowed.update(_words(source))
@@ -216,10 +240,7 @@ def anchored(sentence: str, element_text: str, answers: list[str]) -> bool:
         return False
     if _numbers_unknown(flat, " ".join(sources)):
         return False
-    answer_words: set[str] = set()
-    for answer in answers:
-        answer_words.update(_words(answer))
-    return not _negation_lost(flat, element_text or "", answer_words)
+    return not _negation_changed(flat, element_text or "", answers)
 
 
 def unanchored_sentences(text: str, element_text: str, answers: list[str]) -> list[str]:
@@ -293,8 +314,9 @@ def validate_replacement(
         fail(_text("no_text", language, **values))
     elif kind_type == "aplica":
         answers = [str(d.get("answer", "")) for d in known_all]
-        # the element's own id may be written in its replacement (`| RN-02 | … |`)
-        for sentence in unanchored_sentences(text, element_text + "\n" + element_id, answers):
+        # the element's own id may head its replacement (`| RN-02 | … |`): it is a label, never a source of numbers
+        body = re.sub(rf"(?m)^(\s*\|?\s*){re.escape(element_id)}\s*\|", r"\1", text)
+        for sentence in unanchored_sentences(body, element_text, answers):
             fail(_text("unanchored", language, sentence=sentence, gaps=", ".join(cited), **values))
 
     location = str(raw.get("location", "")).strip()
@@ -327,11 +349,12 @@ def validate_replacement(
         "type": kind_type,
         "location": location,
         "flags": flags,
+        "decision_shas": {g: decision_sha(decisions[g]) for g in cited},
     }, []
 
 
 def _same(stored: dict, item: dict) -> bool:
-    return all(stored.get(k) == item.get(k) for k in ("element_sha", "decisions", "lines", "text", "type", "location"))
+    return all(stored.get(k) == item.get(k) for k in ("element_sha", "decisions", "lines", "text", "type", "location", "decision_shas"))
 
 
 def _raw_of(item: dict) -> dict:
@@ -429,7 +452,7 @@ def record_consolidation(project_id: str, change_id: str, source: Path) -> dict:
             rejected[element_id] = errors
             continue
         previous = store["replacements"].get(element_id) or {}
-        if previous.get("status") == "confirmed" and _same(previous, item):
+        if previous.get("status") in ("confirmed", "proposed") and _same(previous, item):
             unchanged.append(element_id)
             continue
         entry = dict(item)
@@ -438,9 +461,11 @@ def record_consolidation(project_id: str, change_id: str, source: Path) -> dict:
         recorded.append(element_id)
         if item["flags"]:
             flagged.append(element_id)
+    known = {(r.get("id"), r.get("reason")) for r in store["rejections"] if isinstance(r, dict)}
     for element_id, errors in rejected.items():
         for reason in errors:
-            store["rejections"].append({"id": element_id, "reason": reason, "at": now})
+            if (element_id, reason) not in known:  # the same file again says nothing new
+                store["rejections"].append({"id": element_id, "reason": reason, "at": now})
     write_json(consolidation_path(base, change_id), store)
     from ..consolidation_control import write_consolidation_control
     from ..readiness_verdict import change_next_step
@@ -480,7 +505,8 @@ def confirm_replacement(
     item = store["replacements"].get(element_id)
     element = elements.get(element_id)
     result: dict[str, Any] = {"project_id": project_id, "change_id": change_id, "action": "confirm_replacement"}
-    if (not delegated and item is not None and element is not None
+    moved = decisions_moved(item, _closed_by_id(project_id, change_id)) if item is not None else []
+    if (not delegated and item is not None and element is not None and not moved
             and item.get("status") == "confirmed" and item.get("confirmed_by") == "delegated"):
         for key in ("confirmed_by", "delegated_note", "delegated_at"):
             item.pop(key, None)
@@ -488,7 +514,8 @@ def confirm_replacement(
         write_consolidation_control(project_id, change_id)
         result.update({"replacement": item, "ratified": [element_id], "next_step": change_next_step(project_id, change_id)})
         return result
-    if item is None or element is None or item.get("status") != "proposed":
+    reconfirm = item is not None and item.get("status") == "confirmed" and bool(moved)
+    if item is None or element is None or (item.get("status") != "proposed" and not reconfirm):
         raise InputError(_text("no_pending", language, id=element_id))
     problems: list[str] = []
     if item.get("element_sha") != element.get("sha"):
@@ -504,6 +531,7 @@ def confirm_replacement(
         raise InputError("; ".join(problems))
     item["status"] = "confirmed"
     item["confirmed_at"] = _now()
+    item["decision_shas"] = {g: decision_sha(d) for g, d in _closed_by_id(project_id, change_id).items() if g in item["decisions"]}
     if delegated:
         item["confirmed_by"], item["delegated_note"], item["delegated_at"] = (
             "delegated", str(note or "").strip(), item["confirmed_at"])

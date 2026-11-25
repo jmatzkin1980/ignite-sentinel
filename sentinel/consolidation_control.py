@@ -15,7 +15,9 @@ from typing import Any
 from .changes import change_language, get_change
 from .core.io import write_json, write_text
 from .core.paths import workspace_path
-from .extraction.consolidation import KEEPS_REQUEST, RETIRES, keeps_request, linked, load_consolidation, retires
+from .extraction.consolidation import (
+    KEEPS_REQUEST, RETIRES, decisions_moved, keeps_request, linked, load_consolidation, retires,
+)
 from .extraction.inventory import element_lines
 from .extraction.lines import format_ranges
 
@@ -31,6 +33,7 @@ _TEXT = {
     "unconfirmed": ("sin confirmar en la extracción", "not confirmed in the extraction"),
     "retired": ("{gap} lo saca del cambio: proponelo como descarte", "{gap} takes it out of the change: propose it as a discard"),
     "proposed": ("reemplazo sin confirmar", "replacement not confirmed"),
+    "moved": ("la decisión {gaps} cambió: reconfirmá el reemplazo", "the decision {gaps} changed: confirm the replacement again"),
     "missing": ("falta reemplazo o --keep-text para {gaps}", "a replacement or --keep-text is missing for {gaps}"),
     "kept": ("se conserva el texto del pedido: {reason}", "the request text stays: {reason}"),
     "head": ("# Control de consolidación — {cid}", "# Consolidation control — {cid}"),
@@ -103,6 +106,12 @@ def _build(project_id: str, change_id: str) -> tuple[dict, dict[str, dict]]:
             row["replacement"] = str(replacement.get("id") or f"REP-{element_id}")
             unconfirmed.append(element_id)
             continue
+        moved = decisions_moved(replacement, {str(d["id"]): d for d in decisions}) if current else []
+        if current and replacement.get("status") == "confirmed" and moved:
+            row["reason"] = _t("moved", language, gaps=", ".join(moved))
+            row["replacement"] = str(replacement.get("id") or f"REP-{element_id}")
+            unconfirmed.append(element_id)
+            continue
         covered = set(replacement.get("decisions") or []) if current and replacement.get("status") == "confirmed" else set()
         kept = {g: v for g, v in (store["kept"].get(element_id) or {}).items() if isinstance(v, dict)}
         missing = [g for g in changing if g not in covered and g not in kept]
@@ -112,7 +121,8 @@ def _build(project_id: str, change_id: str) -> tuple[dict, dict[str, dict]]:
             continue
         if covered & set(changing):
             row.update(status="modificado", replacement=str(replacement.get("id") or f"REP-{element_id}"))
-            shas[element_id] = _sha_text(replacement.get("text", ""))
+            shas[element_id] = _sha_text(
+                f"{replacement.get('text', '')}|{json.dumps(replacement.get('decision_shas') or {}, sort_keys=True)}")
         else:
             row["status"] = "incluido"
             if changing:
