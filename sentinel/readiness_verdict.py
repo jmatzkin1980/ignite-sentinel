@@ -39,6 +39,28 @@ def decide_verdict(blockers: list, warnings: list, partial: list | None = None) 
     return "READY"
 
 
+def change_versions(project_id: str, change_id: str) -> list[dict[str, str]]:
+    """H27 inc 6a: the new versions of the change's sources nobody confirmed, each with the command that confirms it."""
+    from .changes import get_change
+    from .source_registry import change_unconfirmed_versions
+    from .sources import load_source_manifest
+
+    change = get_change(project_id, change_id)
+    found = change_unconfirmed_versions(load_source_manifest(project_id), change.get("sources") or [])
+    return [{**item, "command": f"/sources {project_id} --id {item['version_of']} --superseded-by {item['id']}"}
+            for item in found]
+
+
+def version_sentence(project_id: str, item: dict[str, str], es: bool) -> str:
+    """H27 inc 6a: the one sentence that names an unconfirmed version (`/next`, the verdict and `/status` share it)."""
+    new, old = item["id"], item["version_of"]
+    if es:
+        return (f"Hay una versión nueva sin confirmar: {new} de {old}. Confirmá cuál rige: {item['command']} "
+                f"(o /sources {project_id} --id {new} --current si conviven).")
+    return (f"There is an unconfirmed new version: {new} of {old}. Confirm which one governs: {item['command']} "
+            f"(or /sources {project_id} --id {new} --current if both stay).")
+
+
 def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
     """IMP-406: the readiness verdict of one change, decided by the project's rule over the change's own gates."""
     from .change_escalation import escalation_warnings
@@ -106,6 +128,7 @@ def build_change_verdict(project_id: str, change_id: str) -> dict[str, Any]:
         warnings.append(f"{len(assumed)} supuesto(s) a validar: {ids}" if es
                         else f"{len(assumed)} assumption(s) to validate: {ids}")
     warnings.extend(str(w["message"]) for w in escalation_warnings(project_id, change_id) if not w.get("decided"))
+    warnings.extend(version_sentence(project_id, v, es) for v in change_versions(project_id, change_id))
     need = verification_needed(project_id, change_id, int(extraction.get("total", 0) or 0))
     if need["needed"]:
         warnings.append(verification_gap_text(need, es))
@@ -1040,9 +1063,14 @@ def change_next_step(project_id: str, change_id: str) -> dict[str, Any]:
     text = text.format(**ctx)
     if text_key == "extract_proposals":
         text += _batch_sentence(project_id, change_id, language)
+    versions = change_versions(project_id, change_id)
+    for item in versions:
+        text += " " + version_sentence(project_id, item, language == "es")
     command = CHANGE_COMMANDS[command_key].format(**ctx)
     step = {"change_id": change_id, "key": key, "title": title, "text": text,
             "command": command, "skill": skill_for_command(command)}
+    if versions:
+        step["versions"] = versions
     from .prior_decisions import pre_decided_gaps  # IMP-410
 
     pre_decided = pre_decided_gaps(project_id, change_id)

@@ -37,3 +37,4 @@ test_h27_change_final_fixes  # 130 s
 test_h27_version_chain  # 13 s
 test_h27_touched_set  # 47 s
 test_h27_cross_delta  # 22 s
+test_h27_version_confirm  # 17 s

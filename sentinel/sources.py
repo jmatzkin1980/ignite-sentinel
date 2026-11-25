@@ -508,6 +508,7 @@ def update_source(
         raise SourceRegistryError("--cell and --mark go together: --cell DOCUMENT/SECTION --mark updated|reviewed|pending.")
     if cell is not None:
         find_row_or_raise(manifest, source_id)
+    was_candidate = bool((find_row(manifest, source_id) or {}).get("pending_version_of"))
     row = update_row(manifest, source_id, **{**changes, "reason": None if cell else changes.get("reason")})
     if authority:
         set_authority(row, authority)
@@ -519,6 +520,9 @@ def update_source(
         mark_cell(row, cell, str(mark), changes.get("reason"))
     save_source_manifest(project_id, manifest)
     extra: dict[str, Any] = {}
+    synced = _touched_set_after_confirm(project_id, source_id, changes, was_candidate)
+    if synced:
+        extra["sync"] = synced
     if role:
         from .source_versions import check_versions_for
 
@@ -537,6 +541,28 @@ def update_source(
         "summary": registry_summary(manifest),
         "source_log": source_log_path(project_id).as_posix(),
     }
+
+
+def _touched_set_after_confirm(project_id: str, source_id: str, changes: dict[str, Any], was_candidate: bool) -> list[dict[str, Any]]:
+    """H27 inc 6a: confirming a version runs the touched set of every change that holds the old or the new row."""
+    newer = changes.get("superseded_by")
+    if newer:
+        previous_id, new_id = source_id, str(newer)
+    elif changes.get("current") and was_candidate:
+        previous_id, new_id = None, source_id
+    else:
+        return []
+    from .change_sync import apply_touched_set
+    from .changes import list_changes
+
+    done: list[dict[str, Any]] = []
+    for change_id, change in list_changes(project_id).items():
+        held = {str(i) for i in change.get("sources") or []}
+        if not ({new_id} | ({previous_id} if previous_id else set())) & held:
+            continue
+        result = apply_touched_set(project_id, change_id, previous_id=previous_id, new_id=new_id)
+        done.append({"change_id": change_id, "report_path": result["report_path"], "commands": result["commands"]})
+    return done
 
 
 def source_registry_summary(project_id: str) -> dict[str, Any]:
