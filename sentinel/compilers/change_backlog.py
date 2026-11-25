@@ -155,16 +155,25 @@ def specs_currency(project_id: str, change_id: str) -> str:
     """"current" when the specs report matches the current rows, "old" when it has no deltas, else "stale"."""
     report = read_json(workspace_path(project_id) / "03_specs" / change_id / "change_specs_report.json", {})
     deltas = report.get("deltas") if isinstance(report, dict) else None
-    if not isinstance(deltas, dict):
-        return "old"
+    if not isinstance(deltas, dict) or not isinstance(report.get("functionalities"), dict):
+        return "old"  # IMP-416: a report of 0.31 has no functionalities and was written by an earlier version
     specs_ears = {str(key): str(value) for key, value in deltas.items()}
     current_ears = {
         str(row["id"]): parse_delta(row["delta"])
         for row in load_change_ears(project_id, change_id) if parse_delta(row["delta"]) in UNIT_DELTAS
     }
-    if specs_ears != current_ears:
+    if specs_ears != current_ears or _functionalities_behind(project_id, change_id, report):
         return "stale"
     return "stale" if _prd_behind(project_id, change_id, report) else "current"
+
+
+def _functionalities_behind(project_id: str, change_id: str, report: dict) -> bool:
+    """IMP-416: the grouping of the rows by surface is not the one the specs document was written with."""
+    from .change_functionalities import change_functionalities, functionalities_sha
+
+    unit_of = dict(zip((str(e) for e in report.get("ears") or []), (str(u) for u in report.get("units") or [])))
+    funs = change_functionalities(project_id, change_id)
+    return functionalities_sha(funs, unit_of) != str(report.get("functionalities_sha", ""))
 
 
 def _prd_behind(project_id: str, change_id: str, report: dict) -> bool:
