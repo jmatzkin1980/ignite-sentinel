@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.33.0] — 2026-11-25
+
 ### Added
 
 - **A new source in the middle of a change: `/sync --change`, re-cross of what it touched and adversarial review of the change (IMP-418, H27 inc 6a).** `/sync PROJECT_ID --change CHG-nnn --source PATH --role ROLE [--supersedes F-NN]` loads the new document of a change by role, detects whether it is a new version (same path, or same role and file name) and confirms it only with the BA's `--supersedes`; without `--source` it scans the shared role folders for files not yet registered (it skips those of another change). `01_discovery/CHG-nnn/sync_report.md` says what was carried and what to read again, with the commands. `/cross --delta` records only the touched claims; the others keep their questions and answers. `--change` on `/challenge`, `/scrutinize` and `/annotate` reviews the request, the brief and the gaps of the change, opens its questions in `01_discovery/CHG-nnn/gaps.md` and writes `challenge_report.md`, `scrutiny_report.md` and `agent_annotation_log.md` under `01_discovery/CHG-nnn/` (the probe and anchors modes refuse with `--change`).
