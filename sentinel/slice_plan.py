@@ -13,12 +13,21 @@ def generate_slice_plan(
     project_id: str,
     stories: list[dict[str, Any]],
     readiness_pack: dict[str, Any],
+    *,
+    md_rel: str = "04_backlog/SLICE-PLAN.md",
+    json_rel: str = "08_context_packs/slice_plan.json",
+    memory_id: str = "SLICE-PLAN",
+    enabler_group: str = "EPIC-002",
+    title: str | None = None,
+    intro: str | None = None,
 ) -> dict[str, Any]:
-    """Write the deterministic backlog handoff plan for downstream agents."""
+    """Write the deterministic backlog handoff plan for downstream agents.
+
+    IMP-416: a change passes its own paths, memory id and enabler group, so the project's plan is never touched."""
     base = workspace_path(project_id)
     story_rows = build_story_rows(stories, readiness_pack)
-    phases = build_phases(story_rows)
-    handoff_packs = build_handoff_packs(story_rows)
+    phases = build_phases(story_rows, enabler_group)
+    handoff_packs = build_handoff_packs(story_rows, enabler_group)
     pre_handoff = enforce_pre_handoff_gate(project_id, readiness_pack)
     plan = {
         "project_id": project_id,
@@ -40,27 +49,27 @@ def generate_slice_plan(
         "phases": phases,
         "handoff_packs": handoff_packs,
         "pre_handoff_gate": pre_handoff,
-        "checkpoints": build_checkpoints(phases),
+        "checkpoints": build_checkpoints(phases, enabler_group),
     }
-    md_path = base / "04_backlog" / "SLICE-PLAN.md"
-    json_path = base / "08_context_packs" / "slice_plan.json"
-    write_text(md_path, render_slice_plan(project_id, plan))
+    md_path = base / md_rel
+    json_path = base / json_rel
+    write_text(md_path, render_slice_plan(project_id, plan, json_rel, title=title, intro=intro))
     write_json(json_path, plan)
     shared_broker(project_id).index_artifact(
-        "SLICE-PLAN",
+        memory_id,
         "slice_plan",
         md_path,
         md_path.read_text(encoding="utf-8"),
         domain="delivery",
-        trace_ids=[item["story_id"] for item in story_rows] or ["SLICE-PLAN"],
+        trace_ids=[item["story_id"] for item in story_rows] or [memory_id],
     )
     shared_broker(project_id).index_artifact(
-        "SLICE-PLAN-JSON",
+        f"{memory_id}-JSON",
         "slice_plan",
         json_path,
         json_path.read_text(encoding="utf-8"),
         domain="delivery",
-        trace_ids=[item["story_id"] for item in story_rows] or ["SLICE-PLAN"],
+        trace_ids=[item["story_id"] for item in story_rows] or [memory_id],
     )
     return {
         "path": str(md_path.as_posix()),
@@ -108,7 +117,7 @@ def build_story_rows(stories: list[dict[str, Any]], readiness_pack: dict[str, An
     return rows
 
 
-def build_phases(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def build_phases(rows: list[dict[str, Any]], enabler_group: str = "EPIC-002") -> dict[str, Any]:
     by_id = {item["story_id"]: item for item in rows}
     enablers = [item for item in rows if item["type"] == "cross_cutting_enabler"]
     value_items = [item for item in rows if item["type"] != "cross_cutting_enabler"]
@@ -119,7 +128,7 @@ def build_phases(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "phase": "enablers",
             "wave": 0,
             "order": order,
-            "parallel_group": "EPIC-002",
+            "parallel_group": enabler_group,
             "prerequisites": sorted(prerequisites.get(item["story_id"], set())),
         }
     done = {item["story_id"] for item in enablers}
@@ -188,8 +197,8 @@ def story_plan_row(item: dict[str, Any], position: dict[str, Any]) -> dict[str, 
     }
 
 
-def build_handoff_packs(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    phases = build_phases(rows)
+def build_handoff_packs(rows: list[dict[str, Any]], enabler_group: str = "EPIC-002") -> dict[str, Any]:
+    phases = build_phases(rows, enabler_group)
     positions = phases["positions"]
     packs: dict[str, Any] = {}
     for item in rows:
@@ -216,7 +225,7 @@ def build_handoff_packs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return packs
 
 
-def build_checkpoints(phases: dict[str, Any]) -> list[dict[str, Any]]:
+def build_checkpoints(phases: dict[str, Any], enabler_group: str = "EPIC-002") -> list[dict[str, Any]]:
     checkpoints: list[dict[str, Any]] = []
     enablers = phases.get("enabler_phase", [])
     if enablers:
@@ -224,7 +233,7 @@ def build_checkpoints(phases: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "id": "CHK-ENABLERS",
                 "after": "enablers",
-                "objective": "Confirm concrete EPIC-002 enablers are accepted or explicitly stubbed before dependent value stories start.",
+                "objective": f"Confirm concrete {enabler_group} enablers are accepted or explicitly stubbed before dependent value stories start.",
                 "stories": [item["story_id"] for item in enablers],
             }
         )
@@ -262,12 +271,19 @@ def gate_status(gate: object) -> str:
     return "[PENDING DOR]"
 
 
-def render_slice_plan(project_id: str, plan: dict[str, Any]) -> str:
+def render_slice_plan(project_id: str, plan: dict[str, Any], json_rel: str = "08_context_packs/slice_plan.json",
+                      title: str | None = None, intro: str | None = None) -> str:
     phases = plan["phases"]
     checkpoints = plan["checkpoints"]
-    return f"""# Slice Plan - {project_id}
+    title = title if title is not None else f"Slice Plan - {project_id}"  # IMP-416: a change words its own title and intro
+    intro = intro if intro is not None else (
+        "This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-cutting-enablers.md` when present, "
+        "and `08_context_packs/implementation_readiness.json`. It is a deterministic handoff contract for planning agents. "
+        "Ignite does not create or execute downstream tasks here."
+    )
+    return f"""# {title}
 
-This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-cutting-enablers.md` when present, and `08_context_packs/implementation_readiness.json`. It is a deterministic handoff contract for planning agents. Ignite does not create or execute downstream tasks here.
+{intro}
 
 ## Summary
 
@@ -293,7 +309,7 @@ This plan is generated from `04_backlog/US-NNN.md`, `04_backlog/EPIC-002-cross-c
 
 ## Per-Story Handoff Packs
 
-Machine-readable handoff packs live in `08_context_packs/slice_plan.json#handoff_packs`. Each pack carries position, DoR/DoD state, dependencies, execution contract, retrieval plan, anchors, validation contract and trace IDs.
+Machine-readable handoff packs live in `{json_rel}#handoff_packs`. Each pack carries position, DoR/DoD state, dependencies, execution contract, retrieval plan, anchors, validation contract and trace IDs.
 """
 
 

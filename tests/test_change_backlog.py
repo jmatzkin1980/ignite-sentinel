@@ -58,28 +58,33 @@ class ChangeBacklog(SnapshotWorkspaceCase):
 
     def test_builds_stories_under_change_epic(self):
         res = self.run_backlog()
-        self.assertEqual(res["stories"], ["US-001", "US-002", "US-003"])
+        self.assertEqual(res["stories"], ["US-001", "US-002"])  # IMP-416: one story per functionality x delta
         self.assertEqual(res["epic"], "EPIC-CHG-001")
         self.assertEqual((res["change_requests"], res["stale"], res["warnings"]), ([], [], []))
         epic = (backlog_dir("BORR") / "EPIC-CHG-001.md").read_text(encoding="utf-8")
         self.assertIn("guardar borrador", epic.lower())
         self.assertFalse((backlog_dir("BORR") / "EPIC-001.md").exists())
-        for index, story_id in enumerate(res["stories"], start=1):
+        covered: list[str] = []
+        for story_id in res["stories"]:
             text = story("BORR", story_id)
             front = parse_frontmatter(text)
             self.assertEqual(front["parent_epic"], "EPIC-CHG-001")
             self.assertEqual(front["change"], self.cid)
-            self.assertEqual(front["source_unit"], f"SPEC-U-{index:03d}")
+            self.assertEqual(front["source_unit"], front["source_units"][0])
+            covered += front["source_units"]
             self.assertIn(front["delta"], ("ADDED", "MODIFIED"))
-            unit_front = parse_frontmatter((units_dir("BORR") / f"SPEC-U-{index:03d}.md").read_text(encoding="utf-8"))
-            self.assertEqual(front["delta"], unit_front["delta"])
+            for unit_id in front["source_units"]:
+                unit_front = parse_frontmatter((units_dir("BORR") / f"{unit_id}.md").read_text(encoding="utf-8"))
+                self.assertEqual(front["delta"], unit_front["delta"])
             self.assertEqual(front["type"], "value_story")
-            self.assertEqual(front["trace"][0:2], [self.cid, f"SPEC-U-{index:03d}"])
+            self.assertEqual(front["trace"][0], self.cid)
+            self.assertEqual(front["trace"], sorted(front["trace"]))
+            self.assertTrue(set(front["source_units"]) <= set(front["trace"]))
             self.assertNotIn(", ".join(PROJECT_TRACE), text)
             self.assertNotIn("`REQ-001`, `PRD-001`", text)
-            self.assertEqual(front["trace"][:2], [self.cid, f"SPEC-U-{index:03d}"])
-            self.assertEqual(len(front["trace"]), 3)
-            self.assertRegex(front["trace"][2], r"^REQ-EARS-\d{3}$")
+            self.assertEqual(len(front["trace"]), 1 + 2 * len(front["source_units"]))
+            self.assertTrue(any(t.startswith("REQ-EARS-") for t in front["trace"]))
+        self.assertEqual(sorted(covered), sorted(p.stem for p in units_dir("BORR").glob("SPEC-U-*.md")))
         graph = load_graph("BORR")
         nodes = {n["id"]: n for n in graph["nodes"]}
         self.assertEqual(nodes["EPIC-CHG-001"]["type"], "epic")
@@ -102,30 +107,33 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         self.assertIn("BACKLOG.md", res["next_step"])
         board = (backlog_dir("BORR") / "BACKLOG.md").read_text(encoding="utf-8")
         self.assertIn("EPIC-CHG-001", board)
-        self.assertIn("US-003", board)
+        self.assertIn("US-002", board)
 
     def test_unchanged_rows_become_pass_to_pass(self):
         res = self.run_backlog()
         self.assertEqual(len(res["report"]["pass_to_pass"]), 1)
         for index, story_id in enumerate(res["stories"], start=1):
             text = story("BORR", story_id)
-            row = next(line for line in text.splitlines() if line.startswith(f"| AC-{index:03d}-06 |"))
+            n = len(parse_frontmatter(text)["source_units"])  # IMP-416: a happy path per unit, 3 shared, evidence, then preserved
+            evidence, preserved_ac = f"AC-{index:03d}-{n + 4:02d}", f"AC-{index:03d}-{n + 5:02d}"
+            row = next(line for line in text.splitlines() if line.startswith(f"| {preserved_ac} |"))
             self.assertIn("pass-to-pass", row)
             self.assertIn("el comportamiento preservado sigue igual", row)
             self.assertIn("continuar validando los datos", row)
             self.assertIn(res["report"]["pass_to_pass"][0], row)
-            self.assertIn(f"AC-{index:03d}-05 | evidence", text)
+            self.assertIn(f"{evidence} | evidence", text)
             pass_to_pass = next(line for line in text.splitlines() if line.startswith("| Pass-to-Pass |"))
-            self.assertIn(f"AC-{index:03d}-04", pass_to_pass)
-            self.assertIn(f"AC-{index:03d}-06", pass_to_pass)
+            self.assertIn(f"AC-{index:03d}-{n + 3:02d}", pass_to_pass)
+            self.assertIn(preserved_ac, pass_to_pass)
             item = next(i for i in readiness("BORR")["stories"] if i["story_id"] == story_id)
-            self.assertIn(f"AC-{index:03d}-06", item["validation"]["pass_to_pass"])
+            self.assertIn(preserved_ac, item["validation"]["pass_to_pass"])
 
     def test_readiness_and_lifecycle_start_draft(self):
         res = self.run_backlog()
         items = {i["story_id"]: i for i in readiness("BORR")["stories"]}
         self.assertEqual(sorted(items), res["stories"])
-        self.assertEqual(items["US-001"]["source_unit"], "SPEC-U-001")
+        self.assertEqual(items["US-001"]["source_units"][0], items["US-001"]["source_unit"])
+        self.assertEqual(sorted(u for i in items.values() for u in i["source_units"]), ["SPEC-U-001", "SPEC-U-002", "SPEC-U-003"])
         lifecycle = state("BORR")["story_lifecycle"]
         for story_id in res["stories"]:
             self.assertEqual(lifecycle[story_id]["status"], "Draft")
@@ -135,14 +143,14 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         run_ok(["story-status", "BORR", "--story", "US-001", "--set", "Ready", "--owner", "ana"])
         self.assertEqual(state("BORR")["story_lifecycle"]["US-001"]["status"], "Ready")
         again = self.run_backlog()
-        self.assertEqual(again["stories"], ["US-001", "US-002", "US-003"])
+        self.assertEqual(again["stories"], ["US-001", "US-002"])
         self.assertEqual(state("BORR")["story_lifecycle"]["US-001"]["status"], "Ready")
         self.assertEqual(state("BORR")["story_lifecycle"]["US-001"]["owner"], "ana")
         self.assertIn("status: Ready", story("BORR", "US-001"))
 
     def test_rerun_with_same_inputs_is_identical(self):
         self.run_backlog()
-        files = ["EPIC-CHG-001.md", "US-001.md", "US-002.md", "US-003.md"]
+        files = ["EPIC-CHG-001.md", "US-001.md", "US-002.md"]
         before = {n: (backlog_dir("BORR") / n).read_text(encoding="utf-8") for n in files}
         context = (workspace_path("BORR") / "08_context_packs" / self.cid / "backlog_generation.json").read_text(encoding="utf-8")
         self.run_backlog()
@@ -154,21 +162,21 @@ class ChangeBacklog(SnapshotWorkspaceCase):
 
     def test_rerun_removes_superseded_story_keeps_ids(self):
         self.run_backlog()
-        kept = story("BORR", "US-003")
-        (units_dir("BORR") / "SPEC-U-002.md").unlink()
+        kept = story("BORR", "US-001")
+        (units_dir("BORR") / "SPEC-U-001.md").unlink()  # the MODIFIED unit: its story (US-002) has no unit left
         second = self.run_backlog()
-        self.assertEqual(second["stories"], ["US-001", "US-003"])
+        self.assertEqual(second["stories"], ["US-001"])
         self.assertEqual(second["report"]["removed"], ["US-002"])
         self.assertFalse((backlog_dir("BORR") / "US-002.md").exists())
-        self.assertEqual(story("BORR", "US-003").count("US-003"), kept.count("US-003"))
-        self.assertEqual([i["story_id"] for i in readiness("BORR")["stories"]], ["US-001", "US-003"])
+        self.assertEqual(story("BORR", "US-001").count("US-001"), kept.count("US-001"))
+        self.assertEqual([i["story_id"] for i in readiness("BORR")["stories"]], ["US-001"])
         self.assertNotIn("US-002", state("BORR")["story_lifecycle"])
         self.assertNotIn("US-002", {n["id"] for n in load_graph("BORR")["nodes"]})
         # the unit comes back with its own id: the story gets its old number back, never another one
         answer("BORR", self.cid, "b.md", EXTRA)
         run_ok(["specs", "BORR", "--change", self.cid])
         third = self.run_backlog()
-        self.assertEqual(third["stories"], ["US-001", "US-002", "US-003", "US-004"])
+        self.assertEqual(third["stories"], ["US-001", "US-002"])  # the ADDED story takes the extra unit, the MODIFIED one is back
 
     def test_refuses_without_change_specs(self):
         (workspace_path("BORR") / "03_specs" / self.cid / "specs.md").unlink()
@@ -193,7 +201,7 @@ class ChangeBacklog(SnapshotWorkspaceCase):
                 compile_change_backlog("BORR", self.cid)
         self.assertEqual(str(caught.exception), "privacy")
         indexed = {a["artifact_id"] for a in ContextBroker("BORR").data.get("artifacts", [])}
-        self.assertTrue({"EPIC-CHG-001", "US-001", "US-002", "US-003", "IMPL-READINESS"} <= indexed)
+        self.assertTrue({"EPIC-CHG-001", "US-001", "US-002", "IMPL-READINESS"} <= indexed)
         for story_id in ("US-001", "EPIC-CHG-001", "IMPL-READINESS"):
             rows = ContextBroker("BORR").retrieve(story_id, "test", limit=20)
             self.assertIn(story_id, {r["artifact_id"] for r in rows})
@@ -220,7 +228,7 @@ class ChangeBacklog(SnapshotWorkspaceCase):
             self.assertEqual(caught.exception.next_step, f"/specs BORR --change {self.cid}")
         self.assertFalse((backlog_dir("BORR") / "EPIC-CHG-001.md").exists())
         run_ok(["specs", "BORR", "--change", self.cid])
-        self.assertEqual(len(self.run_backlog()["stories"]), 4)
+        self.assertEqual(len(self.run_backlog()["stories"]), 2)  # IMP-416: the extra ADDED row joins its group
 
     def test_english_change_gets_english_text(self):
         changes = state("BORR")["changes"]
@@ -231,7 +239,8 @@ class ChangeBacklog(SnapshotWorkspaceCase):
         epic = (backlog_dir("BORR") / "EPIC-CHG-001.md").read_text(encoding="utf-8")
         self.assertIn("Deliver the change CHG-001", epic)
         self.assertIn("## Preserved behavior", epic)
-        row = next(line for line in story("BORR", "US-001").splitlines() if line.startswith("| AC-001-06 |"))
+        n = len(parse_frontmatter(story("BORR", "US-001"))["source_units"])
+        row = next(line for line in story("BORR", "US-001").splitlines() if line.startswith(f"| AC-001-{n + 5:02d} |"))
         self.assertIn("the preserved behavior stays the same", row)
         self.assertNotIn("sigue igual", row)
 
@@ -283,11 +292,11 @@ class ChangeBacklogWithProject(SnapshotWorkspaceCase):
         before = self.snapshot()
         self.assertEqual(sorted(before), ["EPIC-001.md", "US-001.md", "US-002.md"])
         res = json.loads(run_ok(["backlog", "MIX", "--change", self.cid]))
-        self.assertEqual(res["stories"], ["US-003", "US-004", "US-005"])
+        self.assertEqual(res["stories"], ["US-003", "US-004"])
         self.assertEqual({k: v for k, v in self.snapshot().items() if k in before}, before)
         self.assertNotIn("change:", before["US-001.md"])
         items = {i["story_id"] for i in readiness("MIX")["stories"]}
-        self.assertTrue({"US-001", "US-002", "US-003", "US-004", "US-005"} <= items)
+        self.assertTrue({"US-001", "US-002", "US-003", "US-004"} <= items)
         epics = {n["id"] for n in load_graph("MIX")["nodes"] if n["type"] == "epic"}
         self.assertIn("EPIC-001", epics)
         self.assertIn(f"EPIC-{self.cid}", epics)
@@ -296,7 +305,7 @@ class ChangeBacklogWithProject(SnapshotWorkspaceCase):
     def test_project_backlog_after_change_keeps_change_stories(self):
         run_ok(["backlog", "MIX", "--change", self.cid])
         change_files = {n: (backlog_dir("MIX") / n).read_text(encoding="utf-8")
-                        for n in ("US-003.md", "US-004.md", "US-005.md", f"EPIC-{self.cid}.md")}
+                        for n in ("US-003.md", "US-004.md", f"EPIC-{self.cid}.md")}
         run_ok(["backlog", "MIX"])
         for name, text in change_files.items():
             self.assertEqual((backlog_dir("MIX") / name).read_text(encoding="utf-8"), text)

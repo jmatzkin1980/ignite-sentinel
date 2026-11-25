@@ -74,12 +74,12 @@ def spec_unit_statement(text: str) -> str:
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if line.startswith("## "):
-            in_requirement = line == "## Normalized Requirement"
+            in_requirement = line in {"## Normalized Requirement", "## Requisito normalizado"}
             continue
         if not in_requirement or not line.startswith("|"):
             continue
         cells = parse_table_rows(line)[0]
-        if len(cells) < 2 or cells[0] in {"EARS ID", "---"}:
+        if len(cells) < 2 or cells[0] in {"EARS ID", "ID EARS", "---"}:
             continue
         return cells[1]
     return ""
@@ -87,7 +87,7 @@ def spec_unit_statement(text: str) -> str:
 
 def spec_unit_pattern(text: str) -> str:
     for line in text.splitlines():
-        if line.startswith("- Pattern:"):
+        if line.startswith(("- Pattern:", "- Patrón:")):
             return line.split(":", 1)[1].strip().strip("`")
     return ""
 
@@ -343,11 +343,36 @@ def build_spec_units(context: dict[str, object], source_name: str, ids: dict[str
     return units
 
 
-def render_spec_unit(project_id: str, unit: dict[str, object]) -> str:
+UNIT_LABELS = {
+    "en": {
+        "evidence": "Evidence Basis", "source": "Source", "anchor": "Anchor", "pointer": "Pointer",
+        "no_source": "No source anchor was available.", "requirement": "Normalized Requirement",
+        "ears_id": "EARS ID", "statement": "Statement", "no_ears": "No confirmed EARS row was available.",
+        "execution": "Execution Pointer", "project": "Project", "pattern": "Pattern", "answer": "Source answer",
+        "bounded": ("Use this unit as the bounded execution context for backlog slicing. Retrieve domain context only for "
+                    "the surfaces, risks, and validation evidence needed by this statement."),
+        "missing": ("Missing implementation detail remains a `GAP-*` or `[PENDING DOMAIN CONTEXT]`; do not infer "
+                    "contracts, screens, data ownership, or rollout from this unit alone."),
+    },
+    "es": {
+        "evidence": "Base de evidencia", "source": "Fuente", "anchor": "Ancla", "pointer": "Puntero",
+        "no_source": "No había ancla de fuente.", "requirement": "Requisito normalizado",
+        "ears_id": "ID EARS", "statement": "Enunciado", "no_ears": "No había fila EARS confirmada.",
+        "execution": "Puntero de ejecución", "project": "Proyecto", "pattern": "Patrón", "answer": "Respuesta de origen",
+        "bounded": ("Usá esta unidad como el contexto de ejecución acotado para cortar el backlog. Recuperá contexto de "
+                    "dominio sólo para las superficies, riesgos y evidencia de validación que pide este enunciado."),
+        "missing": ("El detalle de implementación que falte sigue siendo un `GAP-*` o `[PENDING DOMAIN CONTEXT]`; no "
+                    "infieras contratos, pantallas, dueños de datos ni despliegue sólo desde esta unidad."),
+    },
+}
+
+
+def render_spec_unit(project_id: str, unit: dict[str, object], language: str = "en") -> str:
+    lab = UNIT_LABELS.get(language, UNIT_LABELS["en"])
     trace_ids = [str(item) for item in unit.get("trace_ids", []) if str(item).strip()]
     ears_ids = [str(item) for item in unit.get("ears", []) if str(item).strip()]
     sources = [str(item) for item in unit.get("sources", []) if str(item).strip()]
-    source_rows = "\n".join(f"| `{source}` | Pointer |" for source in sources)
+    source_rows = "\n".join(f"| `{source}` | {lab['pointer']} |" for source in sources)
     ears_rows = "\n".join(f"| `{ears_id}` | {table_cell(str(unit.get('statement', '')), 280)} |" for ears_id in ears_ids)
     change_lines = ""
     if unit.get("change"):
@@ -368,25 +393,25 @@ sources:
 
 # {unit['title']}
 
-## Evidence Basis
+## {lab['evidence']}
 
-| Source | Anchor |
+| {lab['source']} | {lab['anchor']} |
 | --- | --- |
-{source_rows or "| `[PENDING INPUT]` | No source anchor was available. |"}
+{source_rows or "| `[PENDING INPUT]` | " + lab['no_source'] + " |"}
 
-## Normalized Requirement
+## {lab['requirement']}
 
-| EARS ID | Statement |
+| {lab['ears_id']} | {lab['statement']} |
 | --- | --- |
-{ears_rows or "| `[PENDING INPUT]` | No confirmed EARS row was available. |"}
+{ears_rows or "| `[PENDING INPUT]` | " + lab['no_ears'] + " |"}
 
-## Execution Pointer
+## {lab['execution']}
 
-- Project: `{project_id}`
-- Pattern: `{unit.get('pattern', 'unknown')}`
-- Source answer: {unit.get('source', '`02_requirements/requirements.md`')}
-- Use this unit as the bounded execution context for backlog slicing. Retrieve domain context only for the surfaces, risks, and validation evidence needed by this statement.
-- Missing implementation detail remains a `GAP-*` or `[PENDING DOMAIN CONTEXT]`; do not infer contracts, screens, data ownership, or rollout from this unit alone.
+- {lab['project']}: `{project_id}`
+- {lab['pattern']}: `{unit.get('pattern', 'unknown')}`
+- {lab['answer']}: {unit.get('source', '`02_requirements/requirements.md`')}
+- {lab['bounded']}
+- {lab['missing']}
 """
 
 

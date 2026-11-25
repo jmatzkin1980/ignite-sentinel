@@ -35,9 +35,9 @@ SCOPE_TOTAL, LENS_TOTAL, BLOCKING = 4, 20, 3
 # answers_ears.md: 2 event + 1 unwanted ADDED statements become units; 1 UNCHANGED statement is preserved, plus the
 # extraction's UNCHANGED row for the preserved surface (IMP-402).
 SPEC_UNITS, SPEC_PRESERVED, SPEC_BY_DELTA = 3, 2, {"ADDED": 3}
-# /backlog --change: one story per unit under the change's epic; the UNCHANGED rows are each story's pass-to-pass criteria
-# (AC-NNN-06 the answer's row, AC-NNN-07 the extraction's).
-BACKLOG_STORIES, BACKLOG_EPIC, BACKLOG_PASS_TO_PASS = ["US-001", "US-002", "US-003"], "EPIC-CHG-001", ["REQ-EARS-001", "REQ-EARS-005"]
+# /backlog --change: one story per functionality and delta (IMP-416) under the change's epic, with the three units spread
+# over two of them; the UNCHANGED rows are each story's pass-to-pass criteria (the answer's row, then the extraction's).
+BACKLOG_STORIES, BACKLOG_EPIC, BACKLOG_PASS_TO_PASS = ["US-001", "US-002"], "EPIC-CHG-001", ["REQ-EARS-001", "REQ-EARS-005"]
 # Seven lens gaps have a citable phrase in the synthetic baseline.
 BASELINE_CLOSED = {
     "GAP-DELIVERY-READINESS",
@@ -119,7 +119,7 @@ class ChangeFlow(SnapshotWorkspaceCase):
         specs_md = (workspace_path("BORR") / "03_specs" / cid / "specs.md").read_text(encoding="utf-8")
         self.assertIn("continuar validando todos los campos obligatorios", specs_md.split("Comportamiento preservado", 1)[1])
         self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
-        # /backlog --change: three stories under EPIC-CHG-001; no project stories, so no change requests and nothing Stale.
+        # /backlog --change: two stories (the units grouped by functionality) under EPIC-CHG-001; no project stories, so no change requests and nothing Stale.
         backlog_out = json.loads(run_ok(["backlog", "BORR", "--change", cid]))
         self.assertEqual(backlog_out["stories"], BACKLOG_STORIES)
         self.assertEqual(backlog_out["epic"], BACKLOG_EPIC)
@@ -128,13 +128,18 @@ class ChangeFlow(SnapshotWorkspaceCase):
         self.assertEqual(backlog_out["report"]["pass_to_pass"], BACKLOG_PASS_TO_PASS)
         backlog_dir = workspace_path("BORR") / "04_backlog"
         self.assertTrue((backlog_dir / f"{BACKLOG_EPIC}.md").exists())
-        for story_id, unit in zip(BACKLOG_STORIES, specs_out["units"]):
+        covered = []
+        for story_id in BACKLOG_STORIES:
             story_text = (backlog_dir / f"{story_id}.md").read_text(encoding="utf-8")
-            self.assertEqual(parse_frontmatter(story_text)["source_unit"], unit)
-            pass_to_pass = dict(re.findall(r"^\| AC-\d+-(0[67]) \| pass-to-pass \|(.*)$", story_text, flags=re.M))
-            self.assertEqual(sorted(pass_to_pass), ["06", "07"])
-            self.assertIn("REQ-EARS-001", pass_to_pass["06"])  # the answer's UNCHANGED row
-            self.assertIn("REQ-EARS-005", pass_to_pass["07"])  # the extraction's UNCHANGED row
+            front = parse_frontmatter(story_text)
+            covered += front["source_units"]
+            self.assertEqual(front["source_unit"], front["source_units"][0])
+            rows = re.findall(r"^\| AC-\d+-\d+ \| pass-to-pass \|(.*)$", story_text, flags=re.M)
+            preserved = [row for row in rows if "REQ-EARS-" in row]  # the generic Regression criterion names none
+            self.assertEqual(len(preserved), 2)
+            self.assertIn("REQ-EARS-001", preserved[0])  # the answer's UNCHANGED row
+            self.assertIn("REQ-EARS-005", preserved[1])  # the extraction's UNCHANGED row
+        self.assertEqual(sorted(covered), specs_out["units"])
         self.assertFalse((workspace_path("BORR") / "03_specs" / "prd.md").exists())
         # IMP-396: the finished change validates, has no pending step and raises no escalation warning.
         validate_out = json.loads(run_ok(["validate", "BORR", "--change", cid]))

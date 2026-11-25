@@ -148,6 +148,15 @@ class ChangeNextSequence(SnapshotWorkspaceCase):
         export_final_brief("BORR", CID)
         self.assertEqual(step()["key"], "specs")
 
+    def test_specs_report_without_functionalities_goes_back_to_specs(self):
+        """IMP-416: a report of 0.31 (no functionalities) is old: /next asks for /specs again."""
+        self.test_each_row_of_the_table_in_order()
+        path = workspace_path("BORR") / "03_specs" / CID / "change_specs_report.json"
+        report = json.loads(path.read_text(encoding="utf-8"))
+        del report["functionalities"]
+        path.write_text(json.dumps(report), encoding="utf-8")
+        self.assertEqual(step()["key"], "specs")
+
     def test_backlog_behind_the_specs(self):
         self.test_each_row_of_the_table_in_order()
         answer("BORR", CID, "b.md", EXTRA)

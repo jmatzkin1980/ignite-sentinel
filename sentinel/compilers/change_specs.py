@@ -17,6 +17,8 @@ from ..core.io import remove, write_json, write_text
 from ..core.time import utc_now
 from ..errors import GateRefusal
 from ..workspace import read_state, update_state, workspace_path
+from ..extraction.coverage import extraction_view
+from .change_deliverable import _EXT_SOURCE
 from .specs import ensure_spec_unit_ids_seeded, render_spec_unit
 
 UNIT_DELTAS = ("ADDED", "MODIFIED", "REMOVED")
@@ -25,14 +27,6 @@ BRIEF_PATH = "02_requirements/{cid}/project-brief.md"
 
 TEXT = {
     "es": {
-        "title": "# Especificación del cambio {cid}",
-        "units": "## Unidades",
-        "preserved": "## Comportamiento preservado",
-        "no_units": "_Sin unidades._",
-        "no_preserved": "_Sin filas UNCHANGED._",
-        "header": ["Unidad", "Delta", "REQ-EARS", "Enunciado"],
-        "preserved_header": ["REQ-EARS", "Enunciado"],
-        "note": "Las historias del cambio salen de estas unidades con /backlog --change.",
         "next": "Revisá {path}; después /backlog --change deriva las historias.",
         "no_brief": "{cid} no tiene brief: /specs --change parte de {brief}",
         "blocking": "{cid} tiene {n} gap(s) bloqueante(s) abierto(s)",
@@ -42,14 +36,6 @@ TEXT = {
                          "/resolve-gaps {pid} --change {cid}"),
     },
     "en": {
-        "title": "# Change specification {cid}",
-        "units": "## Units",
-        "preserved": "## Preserved behavior",
-        "no_units": "_No units._",
-        "no_preserved": "_No UNCHANGED rows._",
-        "header": ["Unit", "Delta", "REQ-EARS", "Statement"],
-        "preserved_header": ["REQ-EARS", "Statement"],
-        "note": "The stories of the change come from these units with /backlog --change.",
         "next": "Review {path}; then /backlog --change derives the stories.",
         "no_brief": "{cid} has no brief: /specs --change starts from {brief}",
         "blocking": "{cid} has {n} blocking gap(s) open",
@@ -61,14 +47,17 @@ TEXT = {
 }
 
 
-def _cell(text: str) -> str:
-    return " ".join(str(text).split()).replace("|", "\\|")
-
-
-def _table(header: list[str], rows: list[list[str]]) -> str:
-    lines = ["| " + " | ".join(header) + " |", "| " + " | ".join("---" for _ in header) + " |"]
-    lines += ["| " + " | ".join(row) + " |" for row in rows]
-    return "\n".join(lines)
+def unit_sources(row: dict, elements_by_id: dict[str, dict], change_id: str) -> list[str]:
+    """Sources of a unit: a row from a request element cites its lines (`path:Lnn-Lmm`); a GAP answer keeps the brief."""
+    found = _EXT_SOURCE.match(str(row.get("source", "")))
+    element = elements_by_id.get(found.group(1)) if found else None
+    anchors: list[str] = []
+    for span in (element or {}).get("spans") or []:
+        a, b = int(span[0]), int(span[-1])
+        anchors.append(f"{element['path']}:L{a}" if a == b else f"{element['path']}:L{a}-L{b}")
+    if not anchors:
+        return [EARS_ANCHOR.format(cid=change_id), BRIEF_PATH.format(cid=change_id)]
+    return [EARS_ANCHOR.format(cid=change_id), *anchors]
 
 
 def _gate(project_id: str, change_id: str) -> tuple[dict, list[dict]]:
@@ -112,7 +101,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     folder = base / "03_specs" / change_id
     units_dir = folder / "units"
     units_dir.mkdir(parents=True, exist_ok=True)
-    sources = [EARS_ANCHOR.format(cid=change_id), BRIEF_PATH.format(cid=change_id)]
+    elements_by_id = {e["id"]: e for e in extraction_view(project_id, change_id)["elements"]}
     units: list[dict[str, Any]] = []
     for row in unit_rows:
         unit_id = ids[row["id"]]
@@ -125,31 +114,25 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
             "surfaces": list(row.get("surfaces") or []),
             "trace_ids": [change_id, row["id"]],
             "ears": [row["id"]],
-            "sources": sources,
+            "sources": unit_sources(row, elements_by_id, change_id),
             "pattern": row["pattern"],
             "statement": row["statement"],
             "source": row["source"],
             "path": units_dir / f"{unit_id}.md",
         }
-        write_text(unit["path"], render_spec_unit(project_id, unit))
+        write_text(unit["path"], render_spec_unit(project_id, unit, language))
         units.append(unit)
     active = {unit["path"] for unit in units}
     for stale in units_dir.glob("SPEC-U-*.md"):
         if stale not in active:
             remove(stale)
 
-    unit_table = _table(
-        text["header"],
-        [[f"`{u['id']}`", u["delta"], f"`{u['ears'][0]}`", _cell(u["statement"])] for u in units],
-    ) if units else text["no_units"]
-    preserved_table = _table(
-        text["preserved_header"], [[f"`{r['id']}`", _cell(r["statement"])] for r in preserved_rows]
-    ) if preserved_rows else text["no_preserved"]
+    from .change_functionalities import change_functionalities, functionalities_sha
+    from .change_spec_doc import change_spec_context, render_change_spec_doc
+
+    funs = change_functionalities(project_id, change_id, rows)
     specs_path = folder / "specs.md"
-    write_text(specs_path, "\n".join([
-        text["title"].format(cid=change_id), "", text["units"], "", unit_table, "",
-        text["preserved"], "", preserved_table, "", text["note"], "",
-    ]))
+    write_text(specs_path, render_change_spec_doc(change_spec_context(project_id, change_id, units, funs), change_id))
 
     by_delta: dict[str, int] = {}
     for unit in units:
@@ -159,6 +142,10 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
     report = {"change_id": change_id, "units": unit_ids, "ears": [row["id"] for row in unit_rows],
               "deltas": {row["id"]: parse_delta(row["delta"]) for row in unit_rows},
               "preserved": preserved, "by_delta": by_delta}
+    unit_of = {row["id"]: ids[row["id"]] for row in unit_rows}
+    report["functionalities"] = {
+        fun["id"]: {"key": fun["key"], "units": [unit_of[r] for r in fun["rows"] if r in unit_of]} for fun in funs}
+    report["functionalities_sha"] = functionalities_sha(funs, unit_of)
     from .change_prd import write_change_prd
 
     prd = write_change_prd(project_id, change_id)
@@ -188,6 +175,7 @@ def compile_change_specs(project_id: str, change_id: str) -> dict[str, Any]:
         "change_id": change_id,
         "path": specs_path.relative_to(base).as_posix(),
         "units": unit_ids,
+        "functionalities": [fun["id"] for fun in funs],
         "preserved": preserved,
         "report": report,
         "next_step": text["next"].format(path=specs_path.relative_to(base).as_posix()),
