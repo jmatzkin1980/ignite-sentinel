@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.34.0] — 2026-11-25
+
 ### Added
 
 - **Cross-reads and element-by-element extraction on the project request (IMP-420, H27 inc 6b).** `/extract PROJECT_ID` and `/cross PROJECT_ID` work without `--change` on the request of the project when it writes rules, criteria, stories or decisions with an id (RN-, CA-, HU-, PD-; a section titled Acceptance criteria or a loose "Regla 3" does not count), the project has no specs yet and its brief is v2 (a project already at specs, backlog or quality, or on the brief v1, keeps its step unless an inventory or a cross-read exists): casuistry B of the forensic report, a mature brief for a new project. The files are `02_requirements/extraction/` and `01_discovery/crosses/`; every statement is ADDED, with no `Superficie` check and no `Afecta`. `/next PROJECT_ID` gains six steps after `resolve_blocking`, offered with or without a compiled brief and only when the request has ids or an inventory or a cross-read exists: `crosses`, `extract_inventory`, `extract_proposals`, `extract_confirm`, `extract_orphans` and `extract_verify`. A request without ids sees no new step, file or brief change.
