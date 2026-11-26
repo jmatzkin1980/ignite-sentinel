@@ -6,22 +6,31 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/split PROJECT_ID --change CHG-NNN --assess|--propose|--confirm` and `/view|/export --change --artifact release-guide` (IMP-427, H27 inc 7c).** A change too big for one release is split inside the change: the assessment, the proposal and the confirmation read the brief of the change (no project brief needed) and write under it (`01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/`, `02_requirements/CHG-nnn/rN/project-brief.md`), with the series guide in the change's language and `GAP-SPLIT-CLIENT` in the change's gaps. `--close`, `--move` and `--release` with `--change` are refused until the sub-releases of a change are derived. `/split` of the project does not change.
+
+### Changed
+
+- The escalation notice of a change offers `/split P --change CHG --propose`, or keeping it as one change, instead of moving to the project path.
+
+### Fixed
+
+- T2-D2 (first part): a change that is too big can be split into releases without a project brief.
+
 ## [0.36.0] — 2026-11-26
 
 ### Added
 
 - **`/setup --semantic-memory`, `--offline-from DIR` and `--status` (IMP-425, H27 inc 7b).** Turns on semantic memory in one step: installs the pinned model `minishlab/potion-multilingual-128M` (revision pinned in `templates/semantic_models.json`), verifying every file's sha256 and size before activation, https only, hosts `huggingface.co` and `.hf.co` subdomains. `--offline-from` installs from a local folder with the same checks; `--status` verifies without network. It runs only when asked, by the person or by their agent at their request in chat; it is never automatic and not an MCP tool. The guide, admin guide, `sentinel-health` and `sentinel-command-router` say so, in the same words: Sentinel never downloads, except `/setup --semantic-memory`.
 
-- **`/split PROJECT_ID --change CHG-NNN --assess|--propose|--confirm` and `/view|/export --change --artifact release-guide` (IMP-427, H27 inc 7c).** A change too big for one release is split inside the change: the assessment, the proposal and the confirmation read the brief of the change (no project brief needed) and write under it (`01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/`, `02_requirements/CHG-nnn/rN/project-brief.md`), with the series guide in the change's language and `GAP-SPLIT-CLIENT` in the change's gaps. `--close`, `--move` and `--release` with `--change` are refused until the sub-releases of a change are derived. `/split` of the project does not change.
 ### Changed
 
-- The escalation notice of a change offers `/split P --change CHG --propose`, or keeping it as one change, instead of moving to the project path.
 - `/doctor` and its recommendation name `/setup --semantic-memory`; `network_import_violations` allows only `setup_download.py`. The verified model path is used after the environment variables: both `SENTINEL_MODEL2VEC_MODEL` and `SENTINEL_SENTENCE_TRANSFORMERS_MODEL` override it, and `semantic.json` counts only when it names the manifest's pinned model and revision (otherwise it is ignored and `/doctor` warns).
 
 ### Fixed
 
 - `/setup --semantic-memory` final review (IMP-425): works from the `.pyz` (the downloader is extracted to a private temporary folder), reindexes each workspace under its IMP-299 lock (a busy one is skipped with a warning naming `sentinel /reindex ID --full`), activates atomically (the previous install is set aside and restored on any failure; staging is always cleaned), stops downloading past the manifest size, validates manifest names, checks `--offline-from` size first and hashes in a stream, exits 1 on `--status` mismatch and names the pip command for the install kind.
-- T2-D2 (first part): a change that is too big can be split into releases without a project brief.
 - T2-D4 and T2-18: a missing semantic model no longer leaves the user without a way to install it.
 
 ## [0.35.0] — 2026-11-26
