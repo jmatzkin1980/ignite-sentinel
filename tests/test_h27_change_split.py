@@ -254,7 +254,7 @@ class ChangeRefusalsTest(ChangeSplitCase):
         self.assertEqual(self.partition_sha(), before)
         code, out = self.cli(["next", PID, "--change", CID, "--release", "r1"])
         self.assertNotEqual(code, 0)
-        self.assertIn("no se combina con --release", out)
+        self.assertIn("--release con --change existe para /specs y /backlog", out)
 
     def test_view_change_release_guide(self) -> None:
         self.propose()
