@@ -291,6 +291,27 @@ def merge_change_gaps(project_id: str, change_id: str, gaps: list[dict], evidenc
             "gaps": merged["gaps"], "counts": counts}
 
 
+def reopen_change_gap(project_id: str, change_id: str, gap_id: str) -> bool:
+    """Reopen a CLOSED gap of the change (status OPEN, empty resolution note) through the change's own sink.
+
+    True when it was closed and is open now; a missing or already open gap is left alone."""
+    change = get_change(project_id, change_id)
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    if not path.exists():
+        return False
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"]
+    current = next((r for r in rows if str(r.get("id", "")).strip("`") == gap_id), None)
+    if current is None or str(current.get("status", "")).upper() != "CLOSED":
+        return False
+    current.update(status="OPEN", resolution_note="")
+    write_text(path, render_gaps(project_id, rows, change_id, change_language(project_id, change),
+                                 path.with_name("gap_elicitation.json")))
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["gap_counts"] = count_gaps(rows)
+    update_state(project_id, changes=changes)
+    return True
+
+
 def _scope_gap() -> dict[str, str]:
     check = next(c for c in load_lens_checks() if c["id"] == "GAP-SCOPE")
     return {"id": check["id"], "lens": check["lens"], "severity": check["severity"], "description": check["description"]}

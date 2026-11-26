@@ -297,9 +297,7 @@ def _inputs(project_id: str, change_id: str | None = None) -> tuple[Any, dict[st
         brief_path = base / "02_requirements" / "project-brief.md"
         raise GateRefusal(f"/split --assess needs a compiled brief v2: {brief_path.as_posix()} does not exist; run /brief {project_id} --profile ... --genesis ... first")
     if change_id:  # IMP-427: the change's own compile report; no project report or settings (defaults without them)
-        from .compilers.change_deliverable import render_change_deliverable_parts
-
-        report = render_change_deliverable_parts(project_id, change_id, final=False)[1] or {}
+        report = scope.compile_report or {}  # paired with the text the scope pinned (a sealed export without one: none)
         settings = {}
     else:
         report = read_json(base / "02_requirements" / "brief_compile_report.json", {}) or {}
@@ -328,13 +326,20 @@ def run_assess(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     }
 
 
+def _assessment_dir(project_id: str, change_id: str | None) -> Path:
+    base = workspace_path(project_id)
+    return base / "01_discovery" / change_id if change_id else base / "01_discovery"
+
+
 def refresh_if_stale(project_id: str, change_id: str | None = None) -> dict[str, Any] | None:
     """Assess again when an earlier assessment exists and the brief changed since [A45]."""
     from .series_scope import series_scope
 
+    stored_path = _assessment_dir(project_id, change_id) / ASSESSMENT_JSON
+    if not stored_path.is_file():
+        return None  # no assessment: nothing to refresh, and no brief is read
     scope = series_scope(project_id, change_id)
-    stored_path = scope.assessment_dir / ASSESSMENT_JSON
-    if not stored_path.is_file() or not scope.brief_text:
+    if not scope.brief_text:
         return None
     stored = read_json(stored_path, {}) or {}
     if stored.get("brief_sha256") == scope.brief_sha256:

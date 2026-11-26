@@ -31,7 +31,7 @@ WORK_DIR = ".series_work"
 
 COPY = {
     "en": {
-        "title": "Series guide — {project}", "intro": "Read-only guide of the confirmed release series. It recompiles with the series.",
+        "title": "Series guide — {project}", "title_change": "Series guide — {project} · {change}", "intro": "Read-only guide of the confirmed release series. It recompiles with the series.",
         "waves": "Waves", "wave": "Wave {n}", "releases": "Releases",
         "header": "| Release | Type | Wave | Goal | Depends on | Status |",
         "closed": "closed {date} (evidence `{evidence}`)", "waiting": "NOT READY by inheritance: depends hard on {deps}, not closed",
@@ -45,7 +45,7 @@ COPY = {
         "nothing": "nothing",
     },
     "es": {
-        "title": "Guía de la serie — {project}", "intro": "Guía de solo lectura de la serie confirmada. Se recompila con la serie.",
+        "title": "Guía de la serie — {project}", "title_change": "Guía de la serie — {project} · {change}", "intro": "Guía de solo lectura de la serie confirmada. Se recompila con la serie.",
         "waves": "Olas", "wave": "Ola {n}", "releases": "Releases",
         "header": "| Release | Tipo | Ola | Objetivo | Depende de | Estado |",
         "closed": "cerrado {date} (evidencia `{evidence}`)", "waiting": "NOT READY por herencia: depende en duro de {deps}, sin cerrar",
@@ -169,7 +169,8 @@ def render_release_guide(project_id: str, partition: dict[str, Any], payload: di
                          change_id: str | None = None) -> str:
     copy = COPY.get(language, COPY["en"])
     releases = sorted(_dicts(payload.get("releases")), key=lambda r: release_order(_s(r.get("id"))))
-    out = [f"# {copy['title'].format(project=project_id)}", "", copy["intro"], "", f"## {copy['waves']}", ""]
+    title = copy['title_change'].format(project=project_id, change=change_id) if change_id else copy['title'].format(project=project_id)
+    out = [f"# {title}", "", copy["intro"], "", f"## {copy['waves']}", ""]
     for wave, ids in (partition.get("waves") or {}).items():
         out.append(f"- {copy['wave'].format(n=wave)}: {', '.join(ids)}")
     out += ["", f"## {copy['releases']}", "", copy["header"], "|---|---|---|---|---|---|"]

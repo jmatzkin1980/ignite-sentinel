@@ -9,6 +9,7 @@ compiles now (`render_change_deliverable(final=False)`).
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +30,7 @@ class SeriesScope:
     assessment_dir: Path
     gaps_path: Path
     language: str
+    compile_report: dict | None = None  # the compile report paired with the text (a change only); None: read the project's
 
     def release_brief(self, rid: str) -> Path:
         return self.series_dir.parent / rid / "project-brief.md"
@@ -57,33 +59,53 @@ def _project_scope(project_id: str, base: Path) -> SeriesScope:
     )
 
 
-def _change_brief(project_id: str, change_id: str, base: Path, entry: dict) -> tuple[str, str, str]:
-    """(text, sha256, label): the sealed final export while it is current, else today's draft of the change."""
-    from .compilers.change_deliverable import render_change_deliverable
+_SEAL_LINE = re.compile(
+    r"^> \*\*(Estado|Cobertura|Pendientes diferidos|Supuestos|Confirmado por delegación|Status|Coverage|Deferred items|"
+    r"Assumptions|Confirmed on behalf of the BA):\*\*")
+def normalized_change_text(text: str) -> str:
+    """The change text without the seal block, which carries the date: UTC midnight is not a change of the brief.
+
+    The series' own gaps (GAP-SPLIT-*) never reach the draft the scope pins (`skip_gaps`)."""
+    kept = [line for line in text.splitlines() if not _SEAL_LINE.match(line)]
+    return "\n".join(kept)
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(normalized_change_text(text).encode("utf-8")).hexdigest()
+
+
+def _change_brief(project_id: str, change_id: str, base: Path, entry: dict) -> tuple[str, str, str, dict]:
+    """(text, sha256, label, compile report): the sealed final export while it is current, else today's draft."""
+    from .compilers.change_deliverable import render_change_deliverable_parts
+    from .pending_marks import compile_report_for
     from .readiness_verdict import _final_export_current
 
     recorded = entry.get("final_export")
     if isinstance(recorded, dict) and recorded.get("path") and _final_export_current(base, change_id, entry):
         path = base / str(recorded["path"])
         if path.is_file():
-            return path.read_text(encoding="utf-8"), hashlib.sha256(path.read_bytes()).hexdigest(), str(recorded["path"])
-    text = render_change_deliverable(project_id, change_id, final=False)
-    return text, hashlib.sha256(text.encode("utf-8")).hexdigest(), f"02_requirements/{change_id}/project-brief.md"
+            text = path.read_text(encoding="utf-8")
+            return text, _digest(text), str(recorded["path"]), compile_report_for(path) or {}
+    text, report = render_change_deliverable_parts(project_id, change_id, final=False, skip_gaps=("GAP-SPLIT-",))
+    return text, _digest(text), f"02_requirements/{change_id}/project-brief.md", report or {}
 
 
 def series_scope(project_id: str, change_id: str | None = None) -> SeriesScope:
-    """The scope of the series of the project, or of one change (an unknown change refuses like `get_change`)."""
+    """The scope of the series of the project, or of one change (an unknown change refuses like `get_change`).
+
+    The hash of a change is that of its normalized text (`normalized_change_text`); the project's is `brief_hash`."""
     from .changes import change_gaps_path, resolve_scope
 
     base = workspace_path(project_id)
-    scope = resolve_scope(project_id, change_id)  # refuses an unknown change
     if change_id is None:
         return _project_scope(project_id, base)
-    text, sha, label = _change_brief(project_id, change_id, base, scope.entry)
+    scope = resolve_scope(project_id, change_id)  # refuses an unknown change
+    text, sha, label, report = _change_brief(project_id, change_id, base, scope.entry)
     return SeriesScope(
         project_id=project_id, change_id=change_id, base=base, brief_text=text, brief_sha256=sha, brief_label=label,
         series_dir=series_dir(base, change_id),
         assessment_dir=base / "01_discovery" / change_id,
         gaps_path=change_gaps_path(base, change_id),
         language=scope.language,
+        compile_report=report,
     )

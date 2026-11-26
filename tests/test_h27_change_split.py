@@ -105,7 +105,7 @@ class ChangeConfirmTest(ChangeSplitCase):
 
         self.confirm()
         guide = (self.base() / "02_requirements" / CID / "series" / "release-guide.md").read_text(encoding="utf-8")
-        self.assertTrue(guide.startswith("# Guía de la serie — CSPL"))
+        self.assertTrue(guide.startswith("# Guía de la serie — CSPL · CHG-001"))
         self.assertIn("r1 Alta de proveedor", guide)
         self.assertIn("r2 Aprobación de jefatura", guide)
         self.assertIn("abierto; las sub-releases de un cambio todavía no se derivan", guide)
@@ -124,6 +124,83 @@ class ChangeConfirmTest(ChangeSplitCase):
         text = change_gaps_path(self.base(), CID).read_text(encoding="utf-8")
         self.assertIn("GAP-SPLIT-CLIENT", text)
         self.assertFalse((self.base() / "01_discovery" / "gaps.md").exists())
+
+    def _maps(self) -> tuple[dict, dict]:
+        series = self.base() / "02_requirements" / CID / "series"
+        return (json.loads((series / "series_map.json").read_text(encoding="utf-8")),
+                json.loads((series / "partition.json").read_text(encoding="utf-8")))
+
+    def test_confirm_pins_the_brief_despite_the_client_gap(self) -> None:
+        """I1: the series' own gap is not a change of the brief."""
+        self.confirm()
+        series_map, partition = self._maps()
+        self.assertEqual(series_map["brief_sha256"], partition["brief_sha256"])
+        self.assertEqual(series_scope(PID, CID).brief_sha256, partition["brief_sha256"])
+        index = (self.base() / "02_requirements" / CID / "series" / "index.md").read_text(encoding="utf-8")
+        self.assertNotIn("El brief cambió desde la confirmación", index)
+
+    def test_confirm_twice_with_same_proposal(self) -> None:
+        self.confirm()
+        out = run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        self.assertIn("confirmed", out)
+
+    def test_next_utc_day_is_not_stale(self) -> None:
+        """I2: the seal date is not content of the change."""
+        self.propose()
+        with patch("sentinel.compilers.change_deliverable.utc_now", return_value="2099-01-01T00:00:00Z"):
+            self.assertEqual(series_scope(PID, CID).brief_sha256, self._stored_sha())
+            run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+            series_map, partition = self._maps()
+            self.assertEqual(series_map["brief_sha256"], partition["brief_sha256"])
+
+    def _stored_sha(self) -> str:
+        stored = json.loads((self.base() / "02_requirements" / CID / "series" / "proposal.json").read_text(encoding="utf-8"))
+        return stored["brief_sha256"]
+
+    def test_content_change_makes_series_stale(self) -> None:
+        from sentinel.core.io import forget_read_snapshots
+
+        self.confirm()
+        answer = Path.cwd() / "otra.md"
+        answer.write_text("### GAP-QUALITY\n- Respuesta: El alta responde en menos de dos segundos con 500 altas por hora.\n"
+                          "- Owner / fuente: Jefa de Compras\n- Estado de decisión: confirmado\n", encoding="utf-8")
+        run_ok(["resolve-gaps", PID, "--source", str(answer), "--change", CID])
+        forget_read_snapshots()
+        series_map, _ = self._maps()
+        self.assertNotEqual(series_scope(PID, CID).brief_sha256, series_map["brief_sha256"])
+
+    def test_reconfirm_reopens_closed_client_gap(self) -> None:
+        from sentinel.changes import change_gaps_path
+        from sentinel.core.io import forget_read_snapshots, write_text
+        from sentinel.gaps import parse_gap_rows, render_gaps
+
+        self.confirm()
+        path = change_gaps_path(self.base(), CID)
+        rows = [r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if r.get("id") != "NONE"]
+        for row in rows:
+            if row["id"].strip("`") == "GAP-SPLIT-CLIENT":
+                row.update(status="CLOSED", resolution_note="Cliente conforme")
+        write_text(path, render_gaps(PID, rows, CID, "es", path.with_name("gap_elicitation.json")))
+        forget_read_snapshots()
+        run_ok(["split", PID, "--confirm", "--ba", "Ana", "--tech", "Equipo", "--change", CID])
+        after = {r["id"].strip("`"): r for r in parse_gap_rows(path.read_text(encoding="utf-8"))}
+        self.assertEqual(after["GAP-SPLIT-CLIENT"]["status"].upper(), "OPEN")
+
+    def test_normalized_text_drops_the_seal_block(self) -> None:
+        from sentinel.series_scope import normalized_change_text
+
+        text = ("> **Estado:** borrador · **Fecha:** 2026-01-01 · **Veredicto:** x\n> **Status:** draft · **Date:** 2026-01-01\n"
+                "| `GAP-A`: q | a |\nbody")
+        self.assertEqual(normalized_change_text(text), "| `GAP-A`: q | a |\nbody")
+
+    def test_refresh_reads_no_brief_without_assessment_or_series(self) -> None:
+        """M2: nothing stored, nothing to refresh, and no brief is read or hashed."""
+        from sentinel.release_series import refresh_series_if_stale
+        from sentinel.split import refresh_if_stale
+
+        with patch("sentinel.series_scope._project_scope", side_effect=AssertionError("brief read")):
+            self.assertIsNone(refresh_if_stale(PID))
+            self.assertIsNone(refresh_series_if_stale(PID))
 
     def test_reconsolidated_change_refuses_confirm(self) -> None:
         from sentinel.core.io import forget_read_snapshots

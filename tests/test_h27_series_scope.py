@@ -19,11 +19,11 @@ from helpers import SyncCase  # noqa: E402
 from test_series_e2e import CHAIN, P, _cli  # noqa: E402
 
 from sentinel.changes import change_gaps_path, get_change, list_changes  # noqa: E402
-from sentinel.compilers.change_deliverable import render_change_deliverable  # noqa: E402
+from sentinel.compilers.change_deliverable import render_change_deliverable_parts  # noqa: E402
 from sentinel.core.io import forget_read_snapshots  # noqa: E402
 from sentinel.errors import GateRefusal  # noqa: E402
 from sentinel.memory import ContextBroker  # noqa: E402
-from sentinel.series_scope import SeriesScope, series_scope  # noqa: E402
+from sentinel.series_scope import SeriesScope, normalized_change_text, series_scope  # noqa: E402
 from sentinel.split import brief_hash  # noqa: E402
 from sentinel.workspace import update_state, workspace_path  # noqa: E402
 
@@ -116,8 +116,9 @@ class ChangeScopeTest(SyncCase):
         self.assertEqual(scope.assessment_dir, base / "01_discovery" / "CHG-001")
         self.assertEqual(scope.release_brief("r2"), base / "02_requirements" / "CHG-001" / "r2" / "project-brief.md")
         self.assertEqual(scope.gaps_path, change_gaps_path(base, "CHG-001"))
-        self.assertEqual(scope.brief_text, render_change_deliverable(self.PID, "CHG-001", final=False))
-        self.assertEqual(scope.brief_sha256, hashlib.sha256(scope.brief_text.encode("utf-8")).hexdigest())
+        self.assertEqual(scope.brief_text, render_change_deliverable_parts(self.PID, "CHG-001", False, ("GAP-SPLIT-",))[0])
+        self.assertEqual(scope.brief_sha256, hashlib.sha256(normalized_change_text(scope.brief_text).encode("utf-8")).hexdigest())
+        self.assertIsInstance(scope.compile_report, dict)
         self.assertEqual(scope.language, "es")
         with self.assertRaises(GateRefusal) as caught:
             series_scope(self.PID, "CHG-999")
@@ -138,7 +139,8 @@ class ChangeScopeTest(SyncCase):
         with patch("sentinel.readiness_verdict._final_export_current", return_value=True):
             scope = series_scope(self.PID, "CHG-001")
         self.assertEqual(scope.brief_text, "# Brief sellado de prueba\n")
-        self.assertEqual(scope.brief_sha256, hashlib.sha256(sealed.read_bytes()).hexdigest())
+        self.assertEqual(scope.brief_sha256, hashlib.sha256(normalized_change_text("# Brief sellado de prueba\n").encode("utf-8")).hexdigest())
+        self.assertEqual(scope.compile_report, {})  # the sealed export has no compile report next to it: none, not the draft's
         self.assertEqual(scope.brief_label, "08_context_packs/sealed-brief.md")
 
 

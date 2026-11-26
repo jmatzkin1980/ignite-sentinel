@@ -421,7 +421,7 @@ def _open_client_gap(project_id: str, ba: str, tech: str, language: str, change_
     if change_id is None:
         open_split_gap(project_id, row, language)
         return
-    from .changes import change_gaps_path, merge_change_gaps
+    from .changes import change_gaps_path, merge_change_gaps, reopen_change_gap
     from .workspace import workspace_path
 
     path = change_gaps_path(workspace_path(project_id), change_id)
@@ -429,6 +429,9 @@ def _open_client_gap(project_id: str, ba: str, tech: str, language: str, change_
                    None) if path.is_file() else None
     if current is not None and _s(current.get("status")).upper() != "CLOSED":
         return  # opened once
+    if current is not None:
+        reopen_change_gap(project_id, change_id, CLIENT_GAP_ID)  # a new confirmation needs the client again
+        return
     merge_change_gaps(project_id, change_id, [row], [])
 
 

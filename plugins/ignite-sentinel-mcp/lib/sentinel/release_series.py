@@ -463,12 +463,15 @@ def series_validation_findings(base: Path, change_id: str | None = None) -> list
 def refresh_series_if_stale(project_id: str, change_id: str | None = None) -> dict[str, Any] | None:
     """Recompile an existing series when the brief changed. No confirmed partition, nothing happens."""
     from .core.io import read_json, write_text
-    from .series_scope import series_scope
+    from .series_scope import series_dir, series_scope
+    from .workspace import workspace_path
 
-    scope = series_scope(project_id, change_id)
-    series = scope.series_dir
+    series = series_dir(workspace_path(project_id), change_id)
     partition = read_json(series / PARTITION_FILE, None)
-    if not isinstance(partition, dict) or partition.get("status") != "confirmed" or not scope.brief_text:
+    if not isinstance(partition, dict) or partition.get("status") != "confirmed":
+        return None  # no confirmed series: nothing to refresh, and no brief is read
+    scope = series_scope(project_id, change_id)
+    if not scope.brief_text:
         return None
     current = read_json(series / MAP_FILE, None)
     if isinstance(current, dict) and current.get("brief_sha256") == scope.brief_sha256:
