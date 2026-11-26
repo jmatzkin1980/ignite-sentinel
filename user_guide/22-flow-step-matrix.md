@@ -78,7 +78,7 @@ For a change to something built, `/next P --change CHG-001` gives the first step
 | `extract_verify_result` | `/extract P --change CHG-001 --verify-result PATH` | sentinel-discovery §Extraction of a change | the verification result file | the reopened or verified rows | `extract_verify` |
 | `specs` | `/specs P --change CHG-001` | sentinel-specs | the EARS rows of the change | `03_specs/CHG-nnn/` | `specs` — the specs compiler |
 | `backlog` | `/backlog P --change CHG-001` | sentinel-backlog | `03_specs/CHG-nnn/` | `04_backlog/` stories of the change | `backlog` — the backlog compiler |
-| `validate` | `/validate P --change CHG-001` | sentinel-health | the change and its derived files | nothing: it reports the findings | `handoff` — validate and hand off |
+| `validate` | `/validate P --change CHG-001` | sentinel-health | the change and its derived files | nothing: it reports the findings and the escalation warnings; a change that is too big is split with `/split P --change CHG-001 --propose`, or kept as one | `handoff` — validate and hand off |
 | `done` | — | — | the whole change | nothing | `handoff` — validate and hand off |
 
 ## Next

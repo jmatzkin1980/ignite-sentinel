@@ -41,7 +41,7 @@ from typing import Any
 
 from .gaps import count_gaps, parse_gap_rows, readiness_stage_after_gap_change, render_gaps
 from .split_proposal import (
-    PROPOSAL_DIR, PROPOSAL_FILE, SplitProposalError, _Checker, _norm, release_order,
+    PROPOSAL_FILE, SplitProposalError, _Checker, _norm, release_order,
     validate_proposal,
 )
 
@@ -382,11 +382,14 @@ def validate_partition(brief_text: str, payload: dict[str, Any], open_gaps: set[
 
 
 def open_split_gap(project_id: str, row: dict[str, str], language: str) -> None:
-    """Open a gap of the series in gaps.md once; reopen it if it was closed. A workspace without gaps.md is left alone."""
-    from .core.io import write_text
-    from .workspace import update_state, workspace_path
+    """Open a gap of the series in gaps.md once; reopen it if it was closed. A workspace without gaps.md is left alone.
 
-    path = workspace_path(project_id) / "01_discovery" / "gaps.md"
+    The project's gaps only: the gap of a change's series goes through `merge_change_gaps` (IMP-427 task 3)."""
+    from .core.io import write_text
+    from .series_scope import series_scope
+    from .workspace import update_state
+
+    path = series_scope(project_id).gaps_path
     if not path.exists():
         return
     rows = [r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if r.get("id") != "NONE"]
@@ -403,44 +406,59 @@ def open_split_gap(project_id: str, row: dict[str, str], language: str) -> None:
     update_state(project_id, gap_counts=counts, readiness_stage=readiness_stage_after_gap_change(project_id, counts))
 
 
-def _open_client_gap(project_id: str, ba: str, tech: str, language: str) -> None:
-    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed."""
-    open_split_gap(project_id, {
+def _open_client_gap(project_id: str, ba: str, tech: str, language: str, change_id: str | None = None) -> None:
+    """The client's confirmation of the series is a gap [A46]; opened once, reopened if it was closed.
+
+    A change's gap goes through its own sink (`merge_change_gaps`), never into the project's gaps."""
+    partition = f"02_requirements/{change_id}/series/partition.json" if change_id else "02_requirements/series/partition.json"
+    row = {
         # medium: visible, never blocking; the BA and the technical team already confirmed (IMP-267b)
         "id": CLIENT_GAP_ID, "lens": "business", "severity": "medium", "status": "OPEN",
         "description": f"The client has not confirmed the release series (confirmed by the BA {ba} and the technical team {tech}).",
-        "question": "Does the client confirm the release series in 02_requirements/series/partition.json?",
-        "evidence_mention": "02_requirements/series/partition.json", "origin": "split", "resolution_note": "",
-    }, language)
+        "question": f"Does the client confirm the release series in {partition}?",
+        "evidence_mention": partition, "origin": "split", "resolution_note": "",
+    }
+    if change_id is None:
+        open_split_gap(project_id, row, language)
+        return
+    from .changes import change_gaps_path, merge_change_gaps, reopen_change_gap
+    from .workspace import workspace_path
+
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    current = next((r for r in parse_gap_rows(path.read_text(encoding="utf-8")) if _s(r.get("id")).strip("`") == CLIENT_GAP_ID),
+                   None) if path.is_file() else None
+    if current is not None and _s(current.get("status")).upper() != "CLOSED":
+        return  # opened once
+    if current is not None:
+        reopen_change_gap(project_id, change_id, CLIENT_GAP_ID)  # a new confirmation needs the client again
+        return
+    merge_change_gaps(project_id, change_id, [row], [])
 
 
-def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
+def confirm_partition(project_id: str, ba: str, tech: str, change_id: str | None = None) -> dict[str, Any]:
     """Confirm the stored proposal: the validation must be green; the BA and the technical team sign."""
     from .core.io import read_json, write_text
-    from .core.paths import workspace_path
-    from .core.text import project_language
-    from .split import brief_hash
+    from .series_scope import series_scope
 
     if not _s(ba) or not _s(tech):
         raise ReleaseSplitError("/split --confirm records who confirms: --ba NAME and --tech NAME (the technical team) are both required")
-    base = workspace_path(project_id)
-    series = base.joinpath(*PROPOSAL_DIR)
+    scope = series_scope(project_id, change_id)
+    series = scope.series_dir
     stored = read_json(series / PROPOSAL_FILE, None)
     if not isinstance(stored, dict) or not isinstance(stored.get("proposal"), dict):
         raise ReleaseSplitError("/split --confirm needs a stored proposal; run /split --propose first", gate=True)
-    brief_path = base / "02_requirements" / "project-brief.md"
-    if not brief_path.is_file():
+    if not scope.brief_text:
         raise ReleaseSplitError("/split --confirm needs the compiled brief v2", gate=True)
-    if brief_hash(brief_path) != stored.get("brief_sha256"):
+    if scope.brief_sha256 != stored.get("brief_sha256"):
         raise ReleaseSplitError("the brief changed since the proposal was stored; run /split --propose again", gate=True)
-    gaps_path = base / "01_discovery" / "gaps.md"
+    gaps_path = scope.gaps_path
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {_s(g.get("id")).strip("`") for g in rows if _s(g.get("status")).upper() != "CLOSED"}
     previous = read_json(series / PARTITION_FILE, None)
     previous = previous if isinstance(previous, dict) else {}
     frozen = previous.get("contracts_frozen") or {}
     payload = stored["proposal"]
-    result = validate_partition(brief_path.read_text(encoding="utf-8"), payload, open_gaps, frozen)
+    result = validate_partition(scope.brief_text, payload, open_gaps, frozen)
     if result["findings"]:
         reasons = "; ".join(f"[{f['code']}] {f['where']}: {f['reason']}" for f in result["findings"])
         raise ReleaseSplitError(f"the partition is not green ({len(result['findings'])} finding(s)); nothing was confirmed: {reasons}")
@@ -465,10 +483,10 @@ def confirm_partition(project_id: str, ba: str, tech: str) -> dict[str, Any]:
         partition["closed"] = closed
     target = series / PARTITION_FILE
     write_text(target, json.dumps(partition, ensure_ascii=False, indent=2) + "\n")
-    _open_client_gap(project_id, _s(ba), _s(tech), project_language(project_id))
+    _open_client_gap(project_id, _s(ba), _s(tech), scope.language, change_id)
     from .release_series import compile_series  # IMP-267a: the confirmed partition compiles the series
 
-    series = compile_series(project_id)
+    series = compile_series(project_id, change_id)
     return {"status": "confirmed", "path": target.as_posix(), "confirmed_by": partition["confirmed_by"],
             "client_confirmation_gap": CLIENT_GAP_ID, "releases": releases, "waves": result["waves"],
             "coverage": result["coverage"], "signals": result["signals"], "contract_deltas": len(result["deltas"]),

@@ -410,12 +410,14 @@ def extraction_places(project_id: str, change_id: str | None, view: dict[str, An
     return facts, blocks
 
 
-def change_brief_inputs(project_id: str, change_id: str, final: bool) -> BriefInputs:
+def change_brief_inputs(project_id: str, change_id: str, final: bool, skip_gaps: tuple[str, ...] = ()) -> BriefInputs:
     from ..changes import deferred_gaps
     from ..compilers.change_brief import collect_change_brief_inputs
     from ..sources import load_source_manifest
 
     inputs = collect_change_brief_inputs(project_id, change_id)
+    if skip_gaps:  # IMP-427: the series' own gaps (GAP-SPLIT-*) are not content of the change the series is cut from
+        inputs = {**inputs, "gaps": [g for g in inputs["gaps"] if not str(g.get("id", "")).strip("`").startswith(skip_gaps)]}
     template = _template()
     language = inputs["language"] if inputs.get("language") in ("es", "en") else "es"
     lang = _lang(language)
@@ -578,9 +580,10 @@ def _is_divergence(gap: dict) -> bool:
             and str(gap.get("origin", "harvest")).strip("`").lower() == "harvest")
 
 
-def render_change_deliverable_parts(project_id: str, change_id: str, final: bool) -> tuple[str, dict[str, Any]]:
+def render_change_deliverable_parts(project_id: str, change_id: str, final: bool,
+                                    skip_gaps: tuple[str, ...] = ()) -> tuple[str, dict[str, Any]]:
     """The deliverable text and the compile report of the project's compiler (`fill_sites` count its pending marks)."""
-    text, report = render_brief_v2(change_brief_inputs(project_id, change_id, final))[:2]
+    text, report = render_brief_v2(change_brief_inputs(project_id, change_id, final, skip_gaps))[:2]
     return text, report
 
 

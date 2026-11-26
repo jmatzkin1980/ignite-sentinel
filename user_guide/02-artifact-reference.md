@@ -244,6 +244,8 @@ Created when you split a large brief into releases with `/split`. See the [relea
 | `series/index.md` | Index of the series. | Never edit | `/split` |
 | `series/scope_changes.md` (and `.json`) | Dated record of units moved between releases. | Never edit | `/split --move` |
 | `series/release-guide.md` | Status of each release, its waves and what it waits for. View it with `/view --artifact release-guide`. | Never edit | `/split` |
+| `CHG-nnn/series/` | The same files (`proposal.json`, `partition.json`, `index.md`, `release-guide.md`) for the series of one change, written by `/split --change`; the guide is in the change's language and shows with `/view --artifact release-guide --change CHG-nnn`. | Never edit | `/split --propose`, `--confirm` with `--change` |
+| `CHG-nnn/<rN>/project-brief.md` | The brief of one release of a change. | Never edit | `/split --confirm --change` |
 | `<rN>/project-brief.md` | The brief of one release. Not covered by the editor hook, but never edit it. | Never edit | `/split --confirm`; recompiled when the project brief changes |
 
 Commands that accept `--release rN` write their outputs into `<rN>/` sub-folders next to the project-wide ones: `03_specs/<rN>/`, `04_backlog/<rN>/`, `05_quality/<rN>/`, `06_traceability/<rN>/` and `08_context_packs/<rN>/`. Each release keeps its own lifecycle; the project `state.json` is not touched by a release run. Without `--release` nothing changes.

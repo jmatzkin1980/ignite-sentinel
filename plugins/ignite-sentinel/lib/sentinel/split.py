@@ -286,30 +286,34 @@ def render_assessment(project_id: str, data: dict[str, Any], language: str) -> s
     return "\n".join(lines)
 
 
-def _inputs(project_id: str) -> tuple[Path, str, dict[str, Any], dict[str, Any], list[dict[str, Any]], str]:
+def _inputs(project_id: str, change_id: str | None = None) -> tuple[Any, dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    from .series_scope import series_scope
 
-    base = workspace_path(project_id)
-    brief_path = base / "02_requirements" / "project-brief.md"
-    if not brief_path.is_file():
+    scope = series_scope(project_id, change_id)
+    base = scope.base
+    if not scope.brief_text:
         from .errors import GateRefusal  # IMP-312: a prerequisite, not invalid input
 
+        brief_path = base / "02_requirements" / "project-brief.md"
         raise GateRefusal(f"/split --assess needs a compiled brief v2: {brief_path.as_posix()} does not exist; run /brief {project_id} --profile ... --genesis ... first")
-    report_path = base / "02_requirements" / "brief_compile_report.json"
-    report = read_json(report_path, {}) or {}
-    state = read_state(project_id, {}) or {}
-    settings = state.get("brief_settings") or {}
-    gaps_path = base / "01_discovery" / "gaps.md"
+    if change_id:  # IMP-427: the change's own compile report; no project report or settings (defaults without them)
+        report = scope.compile_report or {}  # paired with the text the scope pinned (a sealed export without one: none)
+        settings = {}
+    else:
+        report = read_json(base / "02_requirements" / "brief_compile_report.json", {}) or {}
+        settings = (read_state(project_id, {}) or {}).get("brief_settings") or {}
+    gaps_path = scope.gaps_path
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
-    language = state.get("project_language") if state.get("project_language") in {"es", "en"} else "en"
-    return brief_path, brief_path.read_text(encoding="utf-8"), report, settings, gaps, language
+    return scope, report, settings, gaps
 
 
-def run_assess(project_id: str) -> dict[str, Any]:
+def run_assess(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     """Assess the workspace brief, write the Markdown and JSON, return a summary."""
-    brief_path, text, report, settings, gaps, language = _inputs(project_id)
-    data = assess_brief(text, report, settings, gaps)
-    data = {"project_id": project_id, "brief_sha256": brief_hash(brief_path), **data}
-    discovery = workspace_path(project_id) / "01_discovery"
+    scope, report, settings, gaps = _inputs(project_id, change_id)
+    data = assess_brief(scope.brief_text, report, settings, gaps)
+    data = {"project_id": project_id, "brief_sha256": scope.brief_sha256, **data}
+    language = scope.language
+    discovery = scope.assessment_dir
     write_text(discovery / ASSESSMENT_JSON, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     write_text(discovery / ASSESSMENT_MD, render_assessment(project_id, data, language))
     return {
@@ -322,17 +326,25 @@ def run_assess(project_id: str) -> dict[str, Any]:
     }
 
 
-def refresh_if_stale(project_id: str) -> dict[str, Any] | None:
-    """Assess again when an earlier assessment exists and the brief changed since [A45]."""
+def _assessment_dir(project_id: str, change_id: str | None) -> Path:
     base = workspace_path(project_id)
-    stored_path = base / "01_discovery" / ASSESSMENT_JSON
-    brief_path = base / "02_requirements" / "project-brief.md"
-    if not stored_path.is_file() or not brief_path.is_file():
+    return base / "01_discovery" / change_id if change_id else base / "01_discovery"
+
+
+def refresh_if_stale(project_id: str, change_id: str | None = None) -> dict[str, Any] | None:
+    """Assess again when an earlier assessment exists and the brief changed since [A45]."""
+    from .series_scope import series_scope
+
+    stored_path = _assessment_dir(project_id, change_id) / ASSESSMENT_JSON
+    if not stored_path.is_file():
+        return None  # no assessment: nothing to refresh, and no brief is read
+    scope = series_scope(project_id, change_id)
+    if not scope.brief_text:
         return None
     stored = read_json(stored_path, {}) or {}
-    if stored.get("brief_sha256") == brief_hash(brief_path):
+    if stored.get("brief_sha256") == scope.brief_sha256:
         return None
     try:
-        return run_assess(project_id)
+        return run_assess(project_id, change_id)
     except ValueError:
         return None

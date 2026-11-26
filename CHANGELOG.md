@@ -6,6 +6,18 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+### Added
+
+- **`/split PROJECT_ID --change CHG-NNN --assess|--propose|--confirm` and `/view|/export --change --artifact release-guide` (IMP-427, H27 inc 7c).** A change too big for one release is split inside the change: the assessment, the proposal and the confirmation read the brief of the change (no project brief needed) and write under it (`01_discovery/CHG-nnn/split_assessment.*`, `02_requirements/CHG-nnn/series/`, `02_requirements/CHG-nnn/rN/project-brief.md`), with the series guide in the change's language and `GAP-SPLIT-CLIENT` in the change's gaps. `--close`, `--move` and `--release` with `--change` are refused until the sub-releases of a change are derived. `/split` of the project does not change.
+
+### Changed
+
+- The escalation notice of a change offers `/split P --change CHG --propose`, or keeping it as one change, instead of moving to the project path.
+
+### Fixed
+
+- T2-D2 (first part): a change that is too big can be split into releases without a project brief.
+
 ## [0.36.0] — 2026-11-26
 
 ### Added

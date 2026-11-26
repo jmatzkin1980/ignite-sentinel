@@ -69,6 +69,8 @@ Review feedback that changes scope or answers a gap must enter through `/resolve
 
 ## Review views of a change
 
+`/view PROJECT_ID --artifact release-guide --change CHG-001` shows the series guide of a change that was split with `/split --change --confirm` (`CHG-001-release-guide.html`, from `02_requirements/CHG-001/series/release-guide.md`); it needs no project brief, and `/export --artifact release-guide --change CHG-001` gives the Markdown. In chat: "Show me the release guide of the change."
+
 `/view PROJECT_ID --artifact borde --change CHG-001` and `--artifact decisiones` write `08_context_packs/views/CHG-001-borde.html` and `CHG-001-decisiones.html`; without `--change` they are refused. The Markdown versions are `/export --artifact borde|decisiones --change CHG-001`, and take no `--format`. In chat: "Give me something to review the border with the client."
 
 - **`borde`** lists each surface of the confirmed border (what it is, where it comes from, open doubts), so someone who did not write it can confirm it.

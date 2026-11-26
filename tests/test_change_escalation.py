@@ -18,8 +18,8 @@ from test_change_flow import SCOPE_ANSWER  # noqa: E402
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 HEADER = ("| ID | Pattern | Delta | Statement | Source | Afecta | Superficie |\n"
           "| --- | --- | --- | --- | --- | --- | --- |\n")
-SUGGEST_ES = "El BA decide: partir el cambio o pasar al camino de proyecto"
-SUGGEST_EN = "The BA decides: split the change or move to the project path"
+SUGGEST_ES = "El BA decide: partir el cambio en releases con /split BORR --change CHG-001 --propose, o seguir como un cambio"
+SUGGEST_EN = "The BA decides: split the change into releases with /split BORR --change CHG-001 --propose, or keep it as one change"
 
 
 def item(zone: str, kind: str, name: str) -> dict:

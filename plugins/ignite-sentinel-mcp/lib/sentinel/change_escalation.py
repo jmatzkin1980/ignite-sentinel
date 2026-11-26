@@ -9,14 +9,14 @@ TEXT = {
         "several_processes": "El borde del cambio toca {surfaces}: {count} procesos o integraciones nuevas o adyacentes para un pedido de {elements} elementos (umbral {threshold}).",
         "new_actors": "El borde del cambio incorpora roles nuevos: {surfaces}.",
         "third_party_contract": "Las filas {rows} modifican o quitan {surfaces}, un contrato que usan terceros.",
-        "suggest": "El BA decide: partir el cambio o pasar al camino de proyecto",
+        "suggest": "El BA decide: partir el cambio en releases con /split {project} --change {change} --propose, o seguir como un cambio",
         "kept_single": "decidido: sigue como un cambio ({reason})",
     },
     "en": {
         "several_processes": "The change border touches {surfaces}: {count} processes or new or adjacent integrations for a request of {elements} elements (threshold {threshold}).",
         "new_actors": "The change border adds new roles: {surfaces}.",
         "third_party_contract": "Rows {rows} modify or remove {surfaces}, a contract third parties rely on.",
-        "suggest": "The BA decides: split the change or move to the project path",
+        "suggest": "The BA decides: split the change into releases with /split {project} --change {change} --propose, or keep it as one change",
         "kept_single": "decided: it stays one change ({reason})",
     },
 }
@@ -118,5 +118,5 @@ def _raw_warnings(project_id: str, change_id: str) -> list[dict]:
         message = text[trigger].format(surfaces=", ".join(names), rows=", ".join(ids), **extra)
         out.append({"trigger": trigger, "surfaces": names, "rows": ids,
                     **({"count": extra["count"], "threshold": extra["threshold"]} if extra else {}),
-                    "message": f"{message} {text['suggest']}"})
+                    "message": f"{message} {text['suggest'].format(project=project_id, change=change_id)}"})
     return out

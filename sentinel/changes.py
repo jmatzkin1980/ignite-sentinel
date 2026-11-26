@@ -40,12 +40,12 @@ def list_changes(project_id: str) -> dict[str, dict]:
 
 
 CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones", "diagrams", "prototype", "prototype-manual",
-                                        "prototype-trace")  # IMP-386: what /view and /export take with --change
+                                        "prototype-trace", "release-guide")  # IMP-386: what /view and /export take with --change
 CHANGE_ONLY_REFUSED: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # the 0.34 set: a project /view of the rest is not refused
 REVIEW_DELIVERABLES: tuple[str, ...] = ("borde", "decisiones")  # IMP-412: review views of a change (only md; only with --change)
 CHANGE_FORMATS: dict[str, tuple[str, ...]] = {"gaps": ("md", "interview", "faq"), "brief": ("md", "interview"),
                                               "borde": ("md",), "decisiones": ("md",), "diagrams": ("md",), "prototype": ("md",),
-                                              "prototype-manual": ("md",), "prototype-trace": ("md",)}
+                                              "prototype-manual": ("md",), "prototype-trace": ("md",), "release-guide": ("md",)}
 
 
 def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str, fmt: str | None = None) -> None:
@@ -289,6 +289,27 @@ def merge_change_gaps(project_id: str, change_id: str, gaps: list[dict], evidenc
     update_state(project_id, changes=changes)
     return {"opened": [g["id"] for g in merged["added"]], "skipped": list(merged["skipped"]),
             "gaps": merged["gaps"], "counts": counts}
+
+
+def reopen_change_gap(project_id: str, change_id: str, gap_id: str) -> bool:
+    """Reopen a CLOSED gap of the change (status OPEN, empty resolution note) through the change's own sink.
+
+    True when it was closed and is open now; a missing or already open gap is left alone."""
+    change = get_change(project_id, change_id)
+    path = change_gaps_path(workspace_path(project_id), change_id)
+    if not path.exists():
+        return False
+    rows = [g for g in parse_gap_rows(path.read_text(encoding="utf-8")) if g.get("id") != "NONE"]
+    current = next((r for r in rows if str(r.get("id", "")).strip("`") == gap_id), None)
+    if current is None or str(current.get("status", "")).upper() != "CLOSED":
+        return False
+    current.update(status="OPEN", resolution_note="")
+    write_text(path, render_gaps(project_id, rows, change_id, change_language(project_id, change),
+                                 path.with_name("gap_elicitation.json")))
+    changes = {key: dict(value) for key, value in list_changes(project_id).items()}
+    changes[change_id]["gap_counts"] = count_gaps(rows)
+    update_state(project_id, changes=changes)
+    return True
 
 
 def _scope_gap() -> dict[str, str]:

@@ -2283,10 +2283,10 @@ key: lenses
 title: Close the change's blocking questions
 text: CHG-001 has 3 blocking gap(s) open: answer them in 01_discovery/CHG-001/gaps.md and run /resolve-gaps.
 command: /resolve-gaps COMPRAS_PORTAL --source PATH --change CHG-001
-warnings: new_actors: The change border adds new roles: Draft approver. The BA decides: split the change or move to the project path
+warnings: new_actors: The change border adds new roles: Draft approver. The BA decides: split the change into releases with /split COMPRAS_PORTAL --change CHG-001 --propose, or keep it as one change
 ```
 
-The warning does not stop any command. Splitting the change (one for the base flow, another for the approval) or moving to the project path (scenario 1) is your call; the warning stays visible while the border says it.
+The warning does not stop any command. Splitting the change into releases (one for the base flow, another for the approval; ask "split this change into releases" and the agent runs `/split COMPRAS_PORTAL --assess --change CHG-001`, then `--propose` and `--confirm`) or keeping it as one change (`--keep-single`) is your call; the warning stays visible while the border says it.
 </details>
 
 ### Variant: the project already has stories
