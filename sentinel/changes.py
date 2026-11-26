@@ -39,10 +39,12 @@ def list_changes(project_id: str) -> dict[str, dict]:
     return read_state(project_id).get("changes", {})
 
 
-CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones")  # IMP-386: what /view and /export take with --change
+CHANGE_DELIVERABLES: tuple[str, ...] = ("brief", "gaps", "borde", "decisiones", "diagrams", "prototype", "prototype-manual",
+                                        "prototype-trace")  # IMP-386: what /view and /export take with --change
 REVIEW_DELIVERABLES: tuple[str, ...] = ("borde", "decisiones")  # IMP-412: review views of a change (only md; only with --change)
 CHANGE_FORMATS: dict[str, tuple[str, ...]] = {"gaps": ("md", "interview", "faq"), "brief": ("md", "interview"),
-                                              "borde": ("md",), "decisiones": ("md",)}
+                                              "borde": ("md",), "decisiones": ("md",), "diagrams": ("md",), "prototype": ("md",),
+                                              "prototype-manual": ("md",), "prototype-trace": ("md",)}
 
 
 def check_change_deliverable(project_id: str, command: str, artifact: str, change_id: str, fmt: str | None = None) -> None:

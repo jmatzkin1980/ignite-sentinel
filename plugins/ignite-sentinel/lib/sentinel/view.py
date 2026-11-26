@@ -789,7 +789,7 @@ def generate_artifact_view(project_id: str, artifact: str, open_browser: bool = 
     if artifact == "diagrams":  # IMP-273: to-be diagrams from the v2 brief; its own model
         from .diagrams import generate_diagrams_view
 
-        return generate_diagrams_view(project_id, open_browser=open_browser, theme=theme)
+        return generate_diagrams_view(project_id, open_browser=open_browser, theme=theme, change_id=change_id)
     loaded, theme_arg, theme_warning = resolve_view_theme(project_id, theme)
     if theme_warning:
         print(f"sentinel warning: {theme_warning}", file=sys.stderr)
