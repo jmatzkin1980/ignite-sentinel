@@ -205,6 +205,8 @@ def _prototype(p: argparse.ArgumentParser) -> None:  # IMP-274/275/276 (H17b): H
     mode.add_argument("--manual", action="store_true",
                       help="IMP-276: validate and merge the user manual (--source MANUAL.json, sentinel-prototype-manual skill)")
     p.add_argument("--source", help="--inventory: only this source (F-NN); --trace/--manual: the JSON")
+    p.add_argument("--change", metavar="CHG-NNN",
+                   help="H27 inc 7a: the prototype of this change (its diseno_nuevo rows) instead of the project's")
 
 
 def _self_review(p: argparse.ArgumentParser) -> None:

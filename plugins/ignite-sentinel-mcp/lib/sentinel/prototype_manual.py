@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .prototype import INVENTORY_DIR, PrototypeError, load_inventory
+from .prototype import PrototypeError, load_inventory, prototype_dir, scope_title
 
 MANUAL_DIR = "manual"
 MANUAL_MD = "manual.md"
@@ -121,18 +121,18 @@ def render_manual(project_id: str, inventory: dict[str, Any], manuals: dict[str,
     return "\n".join(out).rstrip() + "\n"
 
 
-def apply_manual(project_id: str, source: Path) -> dict[str, Any]:
+def apply_manual(project_id: str, source: Path, change_id: str | None = None) -> dict[str, Any]:
     """Validate a manual submission, merge it by screen and render the printable manual."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
 
-    inventory = load_inventory(project_id)
+    inventory = load_inventory(project_id, change_id)
     payload = read_json(Path(source), None)
     result = validate_manual(inventory, payload)
     if result["findings"]:
         reasons = "; ".join(f"[{f['code']}] {f['where']}: {f['reason']}" for f in result["findings"])
         raise PrototypeError(f"the manual was refused ({len(result['findings'])} finding(s)); nothing was stored: {reasons}")
-    base = workspace_path(project_id).joinpath(*INVENTORY_DIR)
+    base = prototype_dir(workspace_path(project_id), change_id)
     folder = base / MANUAL_DIR
     proto_id = _s(payload["prototype"])
     current = read_json(folder / f"{proto_id}.json", None)
@@ -142,7 +142,7 @@ def apply_manual(project_id: str, source: Path) -> dict[str, Any]:
     stored = {"prototype": proto_id, "screens": [merged[sid] for sid in order if sid in merged]}
     write_text(folder / f"{proto_id}.json", json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
     manuals = {p.stem: read_json(p, {}) for p in sorted(folder.glob("*.json"))}
-    write_text(base / MANUAL_MD, render_manual(project_id, inventory, manuals))
+    write_text(base / MANUAL_MD, render_manual(scope_title(project_id, change_id), inventory, manuals))
     written = len(stored["screens"])
     return {"status": "written", "prototype": proto_id, "screens_with_manual": written,
             "screens_without_manual": len(order) - written, "view": (base / MANUAL_MD).as_posix()}

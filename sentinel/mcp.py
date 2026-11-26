@@ -633,10 +633,11 @@ def build_server():
         return run_cli(["harvest", project_id, "--source", source, *(["--change", change] if change else [])])
 
     @tool(name="sentinel_prototype", description=TOOL_DESCRIPTIONS["prototype"])
-    def sentinel_prototype(project_id: str, mode: str = "inventory", source: str = "") -> dict:
+    def sentinel_prototype(project_id: str, mode: str = "inventory", source: str = "", change: str = "") -> dict:
         if mode not in PROTOTYPE_MODES:
             raise ValueError(f"mode must be one of {', '.join(PROTOTYPE_MODES)}")
-        return run_cli(["prototype", project_id, f"--{mode}", *(["--source", source] if source else [])])
+        return run_cli(["prototype", project_id, f"--{mode}", *(["--source", source] if source else []),
+                        *(["--change", change] if change else [])])
 
     @tool(name="sentinel_split", description=TOOL_DESCRIPTIONS["split"])
     def sentinel_split(project_id: str, mode: str = "assess", source: str = "", ba: str = "", tech: str = "",

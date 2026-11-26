@@ -30,7 +30,7 @@ from typing import Any
 
 from .gaps import parse_gap_rows
 from .core.markdown import table_cell
-from .prototype import INVENTORY_DIR, PrototypeError, load_inventory
+from .prototype import PrototypeError, load_inventory, prototype_dir, scope_title
 
 TRACE_DIR = "trace"
 TRACE_MD = "trace.md"
@@ -190,29 +190,37 @@ def _render_trace_md(project_id: str, traces: list[dict[str, Any]], inventory: d
     return "\n".join(out).rstrip() + "\n"
 
 
-def apply_trace(project_id: str, source: Path) -> dict[str, Any]:
+def apply_trace(project_id: str, source: Path, change_id: str | None = None) -> dict[str, Any]:
     """Validate one screen trace and store it; every finding is reported and nothing is stored on a finding."""
     from .core.io import read_json, write_text
     from .core.paths import workspace_path
 
     base = workspace_path(project_id)
-    inventory = load_inventory(project_id)
+    inventory = load_inventory(project_id, change_id)
     payload = read_json(Path(source), None)
-    brief = base / "02_requirements" / "project-brief.md"
-    if not brief.is_file():
-        raise PrototypeError("/prototype --trace needs the compiled brief v2 to check the anchors", gate=True)
-    gaps_path = base / "01_discovery" / "gaps.md"
+    if change_id is None:
+        brief = base / "02_requirements" / "project-brief.md"
+        if not brief.is_file():
+            raise PrototypeError("/prototype --trace needs the compiled brief v2 to check the anchors", gate=True)
+        anchors = brief.read_text(encoding="utf-8")
+    else:  # the anchors are the change's working deliverable, never the project brief (decision 7)
+        from .compilers.change_deliverable import render_change_deliverable
+
+        anchors = render_change_deliverable(project_id, change_id, final=False)
+    from .changes import change_gaps_path
+
+    gaps_path = change_gaps_path(base, change_id)
     rows = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     open_gaps = {_s(g.get("id")).strip("`") for g in rows if _s(g.get("status")).upper() != "CLOSED"}
-    result = validate_trace(inventory, brief.read_text(encoding="utf-8"), payload, open_gaps)
+    result = validate_trace(inventory, anchors, payload, open_gaps)
     if result["findings"]:
         reasons = "; ".join(f"[{f['code']}] {f['where']}: {f['reason']}" for f in result["findings"])
         raise PrototypeError(f"the trace was refused ({len(result['findings'])} finding(s)); nothing was stored: {reasons}")
     summary = result["summary"]
-    folder = base.joinpath(*INVENTORY_DIR, TRACE_DIR)
+    folder = prototype_dir(base, change_id) / TRACE_DIR
     target = folder / f"{summary['prototype']}-{summary['screen']}.json"
     write_text(target, json.dumps({"summary": summary, "payload": payload}, ensure_ascii=False, indent=2) + "\n")
     traces = [read_json(p, {}) for p in sorted(folder.glob("*.json"))]
-    view = base.joinpath(*INVENTORY_DIR, TRACE_MD)
-    write_text(view, _render_trace_md(project_id, [t for t in traces if t.get("summary")], inventory))
+    view = prototype_dir(base, change_id) / TRACE_MD
+    write_text(view, _render_trace_md(scope_title(project_id, change_id), [t for t in traces if t.get("summary")], inventory))
     return {"status": "traced", "path": target.as_posix(), "view": view.as_posix(), **summary}

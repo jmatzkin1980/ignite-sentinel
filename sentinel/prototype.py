@@ -189,14 +189,29 @@ def extract_inventory(html_text: str) -> dict[str, Any]:
     return {"screens": screens, "js_literals": literals}
 
 
-def _html_sources(project_id: str, only: str = "") -> list[dict[str, Any]]:
+def prototype_dir(base: Path, change_id: str | None) -> Path:
+    """Where the inventory, manual and traces live: the project's folder, or the change's own (H27 inc 7a)."""
+    if change_id is None:
+        return base.joinpath(*INVENTORY_DIR)
+    return base / "02_requirements" / change_id / "prototype"
+
+
+def _html_sources(project_id: str, only: str = "", change_id: str | None = None) -> list[dict[str, Any]]:
     from .core.io import read_json
     from .core.paths import workspace_path
+    from .source_registry import row_role
 
+    held: set[str] | None = None
+    if change_id is not None:  # the change's own design rows, never the project's or another change's
+        from .changes import resolve_scope
+
+        held = {str(i) for i in resolve_scope(project_id, change_id).entry.get("sources") or []}
     manifest = read_json(workspace_path(project_id) / "00_raw" / "source_manifest.json", {}) or {}
     rows = []
     for row in manifest.get("registry", []) if isinstance(manifest, dict) else []:
         if not isinstance(row, dict) or (only and row.get("id") != only):
+            continue
+        if held is not None and (str(row.get("id")) not in held or row_role(row) != "diseno_nuevo"):
             continue
         copies = [c for c in row.get("copies") or [] if str(c).lower().endswith(HTML_SUFFIXES)]
         if copies and (only or str(row.get("validity", "current")) == "current"):
@@ -227,12 +242,17 @@ def render_inventory_md(project_id: str, prototypes: list[dict[str, Any]]) -> st
     return "\n".join(out).rstrip() + "\n"
 
 
-def build_inventory(project_id: str, source: str = "") -> dict[str, Any]:
-    """Inventory every current HTML prototype of the workspace (or only `source`, an F-NN)."""
+def build_inventory(project_id: str, source: str = "", change_id: str | None = None) -> dict[str, Any]:
+    """Inventory every current HTML prototype of the workspace (or only `source`, an F-NN).
+
+    With `change_id`: only the design rows (`diseno_nuevo`) among the change's sources."""
     from .core.io import write_text
     from .core.paths import repo_root, workspace_path
 
-    sources = _html_sources(project_id, source)
+    sources = _html_sources(project_id, source, change_id)
+    if not sources and change_id is not None:
+        raise PrototypeError(f"no HTML prototype among the sources of {change_id}; load it with "
+                             f"/sources {project_id} --load prototype.html --role diseno_nuevo --change {change_id}", gate=True)
     if not sources:
         raise PrototypeError(f"no HTML prototype {'for ' + source + ' ' if source else ''}among the ingested sources; "
                              f"add it first (/sync {project_id} --source prototype.html; "
@@ -247,21 +267,31 @@ def build_inventory(project_id: str, source: str = "") -> dict[str, Any]:
         inventory = extract_inventory(path.read_text(encoding="utf-8", errors="replace"))
         relative = path.resolve().relative_to(base.resolve()).as_posix() if path.resolve().is_relative_to(base.resolve()) else row["copy"]
         prototypes.append({"source": row["id"], "path": relative, **inventory})
-    target = base.joinpath(*INVENTORY_DIR)
+    target = prototype_dir(base, change_id)
     payload = {"project_id": project_id, "prototypes": prototypes}
+    if change_id is not None:
+        payload = {"project_id": project_id, "change_id": change_id, "prototypes": prototypes}
     write_text(target / INVENTORY_JSON, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
-    write_text(target / INVENTORY_MD, render_inventory_md(project_id, prototypes))
+    write_text(target / INVENTORY_MD, render_inventory_md(scope_title(project_id, change_id), prototypes))
     return {"status": "inventoried", "path": (target / INVENTORY_JSON).as_posix(), "view": (target / INVENTORY_MD).as_posix(),
             "prototypes": [{"source": p["source"], "screens": len(p["screens"]),
                             "elements": sum(len(s["elements"]) for s in p["screens"]), "js_literals": len(p["js_literals"])}
                            for p in prototypes]}
 
 
-def load_inventory(project_id: str) -> dict[str, Any]:
+def scope_title(project_id: str, change_id: str | None) -> str:
+    """What the title of a prototype view names: the project, or `PROJECT CHG-NNN`."""
+    return project_id if change_id is None else f"{project_id} {change_id}"
+
+
+def load_inventory(project_id: str, change_id: str | None = None) -> dict[str, Any]:
     from .core.io import read_json
     from .core.paths import workspace_path
 
-    data = read_json(workspace_path(project_id).joinpath(*INVENTORY_DIR, INVENTORY_JSON), None)
+    data = read_json(prototype_dir(workspace_path(project_id), change_id) / INVENTORY_JSON, None)
     if not isinstance(data, dict):
+        if change_id is not None:
+            raise PrototypeError(f"there is no prototype inventory of {change_id} yet; "
+                                 f"run /prototype {project_id} --inventory --change {change_id}", gate=True)
         raise PrototypeError("there is no prototype inventory yet; run /prototype PROJECT_ID --inventory", gate=True)
     return data

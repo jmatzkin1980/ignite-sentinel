@@ -340,19 +340,19 @@ def _run_project_command(args) -> int:
                 raise ValueError("/prototype --manual needs --source MANUAL.json (written with the sentinel-prototype-manual skill)")
             from .prototype_manual import apply_manual
 
-            result = apply_manual(args.project_id, Path(args.source))
+            result = apply_manual(args.project_id, Path(args.source), args.change)
             print_json(result)
         elif args.command == "prototype" and args.trace:
             if not args.source:
                 raise ValueError("/prototype --trace needs --source TRACE.json (written with the sentinel-prototype-trace skill)")
             from .prototype_trace import apply_trace
 
-            result = apply_trace(args.project_id, Path(args.source))
+            result = apply_trace(args.project_id, Path(args.source), args.change)
             print_json(result)
         elif args.command == "prototype":
             from .prototype import build_inventory
 
-            result = build_inventory(args.project_id, args.source or "")
+            result = build_inventory(args.project_id, args.source or "", args.change)
             print_json(result)
         elif args.command == "split" and args.close:
             from .release_guide import close_release
