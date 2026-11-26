@@ -125,6 +125,17 @@ def set_role(row: dict[str, Any], role: str, language: str = "en") -> None:
     row["role"] = role
 
 
+RELIABILITY_VALUES = ("documental", "codigo", "mixta")
+
+
+def set_reliability(row: dict[str, Any], reliability: str) -> None:
+    """H27 inc 7a: how far a baseline source was checked against the code. `codigo` is the default: no key."""
+    if reliability == "codigo":
+        row.pop("reliability", None)
+    else:
+        row["reliability"] = reliability
+
+
 def set_derived(row: dict[str, Any], origin_id: str) -> None:
     """H27 inc 7a: `row` is a readable copy derived from the source `origin_id` (a prototype with no visible text)."""
     row["derived_from"] = origin_id

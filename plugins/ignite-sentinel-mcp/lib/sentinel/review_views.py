@@ -176,8 +176,18 @@ def _decided_surfaces(project_id: str, change_id: str, change: dict, t: dict) ->
             out.append(f"- {decision.get('name', key)} ({decision.get('type', '')}) — {t['accepted']} ({key})")
         elif decision.get("decision") == "declined":
             text = _candidate_text(project_id, change_id, str(key)) or str(key)
+            if _candidate_partial(project_id, change_id, str(key)):  # H27 inc 7a: the absence was asked, not asserted
+                from .crosses.state import PARTIAL_NOT_FOUND
+
+                text += f" [{PARTIAL_NOT_FOUND['es' if change_language(project_id, change) == 'es' else 'en']}]"
             out.append(f"- {text} — {t['declined']} ({key}): {_squash(decision.get('reason'))}")
     return out
+
+
+def _candidate_partial(project_id: str, change_id: str, key: str) -> bool:
+    from .crosses.surfaces import new_surface_candidates
+
+    return any(item["id"] == key and item["partial"] for item in new_surface_candidates(project_id, change_id))
 
 
 def _candidate_text(project_id: str, change_id: str, key: str) -> str:

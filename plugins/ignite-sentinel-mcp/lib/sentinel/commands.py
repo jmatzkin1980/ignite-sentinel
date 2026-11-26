@@ -271,6 +271,9 @@ def _sources(p: argparse.ArgumentParser) -> None:  # IMP-250a: F-NN source regis
     p.add_argument("--change", metavar="CHG-NNN", help="IMP-400: with --load, the change this source belongs to")
     p.add_argument("--derived-from", dest="derived_from", metavar="F-NN",
                    help="H27 inc 7a: with --load --role diseno_nuevo, the original prototype this readable copy derives from")
+    p.add_argument("--reliability", metavar="documental|codigo|mixta",
+                   help="H27 inc 7a: with --load --role linea_de_base, how the baseline was read; documental and mixta are partial: "
+                        "a NOT FOUND against them asks to confirm")
     p.add_argument("--no-baseline", action="store_true", dest="no_baseline",
                    help="IMP-400: with --change and --reason, the change has no baseline to load")
     p.add_argument("--keep-single", action="store_true", dest="keep_single",

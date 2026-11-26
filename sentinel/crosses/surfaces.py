@@ -11,7 +11,7 @@ from ..errors import GateRefusal, InputError
 from ..harvest import load_harvest
 from ..lens_registry import SURFACE_TYPES
 from ..workspace import update_state, workspace_path
-from .state import _load, write_cross_report
+from .state import _load, is_partial_baseline, write_cross_report
 
 NAME_MAX = 80
 
@@ -25,18 +25,29 @@ def new_surface_candidates(project_id: str, change_id: str) -> list[dict]:
     change = get_change(project_id, change_id)
     harvests = [str(i) for i in change.get("harvests") or []]
     decided = change.get("new_surfaces") or {}
+    partial = is_partial_baseline(project_id, change_id)
     out: list[dict] = []
+    first: dict[str, dict] = {}  # the same absence read in two harvests is one question (H27 inc 7a)
     for entry in load_harvest(workspace_path(project_id)).get("entries", []):
         if not isinstance(entry, dict) or entry.get("kind") != "not_found" or str(entry.get("source_id")) not in harvests:
             continue
         cid = candidate_id(entry)
+        key = _fold_name(entry["text"])
+        if key in first:
+            kept = first[key]
+            again = decided.get(cid) if isinstance(decided.get(cid), dict) else {}
+            if kept["decision"] is None and again:  # a decision taken on the later copy still counts
+                kept.update(decision=again.get("decision"), type=again.get("type"), name=again.get("name"),
+                            reason=again.get("reason"))
+            continue
         saved = decided.get(cid) if isinstance(decided.get(cid), dict) else {}
         out.append({
             "id": cid, "text": entry["text"], "ref": entry["ref"], "source_id": str(entry["source_id"]),
             "line": entry.get("line"), "block": entry.get("block", ""),
             "decision": saved.get("decision"), "type": saved.get("type"), "name": saved.get("name"),
-            "reason": saved.get("reason"),
+            "reason": saved.get("reason"), "partial": partial,
         })
+        first[key] = out[-1]
     out.sort(key=lambda c: (c["block"], int(c["line"] or 0)))
     return out
 

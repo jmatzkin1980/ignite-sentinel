@@ -13,7 +13,9 @@ from .source_registry import (
     close_row,
     SourceRegistryError,
     ensure_registry,
+    RELIABILITY_VALUES,
     set_derived,
+    set_reliability,
     set_role,
     find_row,
     row_role,
@@ -230,6 +232,8 @@ def load_source(
         get_change(project_id, change_id)
     if derived_from:
         _check_derived_origin(project_id, change_id, role, derived_from, language)
+    if reliability:
+        _check_reliability(role, reliability, language)
     if not source.is_file():
         raise InputError(_text(language, f"--load debe ser un archivo: {source}", f"--load must be a file: {source}"))
 
@@ -307,6 +311,8 @@ def load_source(
     set_role(row, role, language)
     if derived_from:
         set_derived(row, derived_from)
+    if reliability:  # H27 inc 7a: declared on load, or on a reload of the same file (the row is `reused`)
+        set_reliability(row, reliability)
     if row_authority(row) == "unclassified":
         by_role = default_authority(source_kind(f"{ROLE_FOLDERS[role]}/x"), "")
         if by_role != "unclassified":
@@ -338,7 +344,21 @@ def load_source(
     }
     if derived_from:
         result["derived_from"] = derived_from
+    if reliability:
+        result["reliability"] = reliability
     return result
+
+
+def _check_reliability(role: str, reliability: str, language: str) -> None:
+    """`--reliability documental|codigo|mixta` goes with `--role linea_de_base`; nothing is written."""
+    from .errors import InputError
+
+    if reliability not in RELIABILITY_VALUES:
+        raise InputError(_text(language, "--reliability es documental, codigo o mixta",
+                               "--reliability is documental, codigo or mixta"))
+    if role != "linea_de_base":
+        raise InputError(_text(language, "--reliability va con --role linea_de_base",
+                               "--reliability goes with --role linea_de_base"))
 
 
 def _check_derived_origin(project_id: str, change_id: str | None, role: str, origin_id: str, language: str) -> None:

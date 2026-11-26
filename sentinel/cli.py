@@ -618,6 +618,8 @@ def _run_project_command(args) -> int:
             role_option = args.role  # IMP-400: --id F-NN --role ROLE
             if args.derived_from and not args.load:
                 raise ValueError("/sources --derived-from goes with --load PATH --role diseno_nuevo")
+            if args.reliability and not args.load:
+                raise ValueError("/sources --reliability goes with --load PATH --role linea_de_base")
             if args.no_baseline:
                 # IMP-400: --change CHG --no-baseline --reason TEXT waives the change's baseline step.
                 if not args.change:
@@ -643,13 +645,13 @@ def _run_project_command(args) -> int:
             elif args.load or args.change:
                 # IMP-400: --load PATH --role ROLE [--change CHG] registers a source with its role.
                 if args.precedence or args.between or args.report or args.source_id or any(value for value in changes.values()):
-                    raise ValueError("/sources --load takes only --role, --change and --derived-from")
+                    raise ValueError("/sources --load takes only --role, --change, --derived-from and --reliability")
                 if not args.load:
                     raise ValueError("/sources --change goes with --load PATH --role ROLE")
                 if not args.role:
                     raise ValueError("/sources --load needs --role pedido|linea_de_base|plan_previo|diseno_nuevo")
                 result = load_source(args.project_id, Path(args.load), args.role, args.change,
-                                     derived_from=args.derived_from or None)
+                                     derived_from=args.derived_from or None, reliability=args.reliability or None)
                 result = {**result, "message": load_message(args.project_id, result)}
             elif args.precedence or args.between:
                 if not (args.precedence and args.between):
