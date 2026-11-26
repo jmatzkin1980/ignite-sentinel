@@ -60,7 +60,7 @@ jobs:
         env:
           SENTINEL_SLOW: ${{ matrix.wheel }}
           SENTINEL_MEMORY_BACKEND: ${{ matrix.memory }}
-        run: python tools/run_tests.py --tier ${{ matrix.tier }}
+        run: python tools/run_tests.py --tier ${{ matrix.tier }} --jobs auto --slowest 10
       - name: LanceDB modules outside the fast tier (real backend)
         if: matrix.memory == 'json'
         shell: bash
