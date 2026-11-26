@@ -345,12 +345,12 @@ def _run_project_command(args) -> int:
                 raise ValueError("/split --propose needs --source PROPOSAL.json (written with the sentinel-release-split skill)")
             from .split_proposal import apply_proposal
 
-            result = apply_proposal(args.project_id, Path(args.source))
+            result = apply_proposal(args.project_id, Path(args.source), args.change)
             print_json(result)
         elif args.command == "split" and args.confirm:
             from .release_split import confirm_partition
 
-            print_json(confirm_partition(args.project_id, args.ba or "", args.tech or ""))
+            print_json(confirm_partition(args.project_id, args.ba or "", args.tech or "", args.change))
         elif args.command == "prototype" and args.manual:
             if not args.source:
                 raise ValueError("/prototype --manual needs --source MANUAL.json (written with the sentinel-prototype-manual skill)")
@@ -384,7 +384,7 @@ def _run_project_command(args) -> int:
         elif args.command == "split":
             from .split import run_assess
 
-            result = run_assess(args.project_id)
+            result = run_assess(args.project_id, args.change)
             print_json(result)
         elif args.command == "self-review" and args.change and not args.crosses:
             from .errors import InputError

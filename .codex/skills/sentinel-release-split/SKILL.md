@@ -106,3 +106,12 @@ Three types carry their own block, and the release brief copies it into §0.1:
 - A spike without its 1–3 questions or time-box (`spike_contract`).
 - The same table, event or role created by two releases (`duplicate_owner`).
 - A spec per release that repeats the domain and glossary: release briefs refer to the base, they never copy it.
+
+## Release split of a change
+
+Use this when a change is too big for one release (the escalation notice offers it). `/split PROJECT_ID --change CHG-nnn` works on the change, never on the project.
+
+1. **Assess:** `/split PROJECT_ID --assess --change CHG-nnn` reads the change's brief (its sealed final export while current, else the draft it compiles now) and writes `01_discovery/CHG-nnn/split_assessment.md` and `.json`. No project brief is needed.
+2. **Propose:** write the proposal exactly as above, but every anchor quotes the **change's** brief verbatim, never the project's brief or another change's. Submit with `/split PROJECT_ID --propose --source proposal.json --change CHG-nnn`; it is stored in `02_requirements/CHG-nnn/series/proposal.json`. A quote that is not in the change's text is refused and named.
+3. **Confirm:** with the BA and the technical team, `/split PROJECT_ID --confirm --ba NAME --tech TEAM --change CHG-nnn` compiles `02_requirements/CHG-nnn/series/` (partition, index, series guide in the change's language) and one `02_requirements/CHG-nnn/r<N>/project-brief.md` per release. The client's confirmation opens `GAP-SPLIT-CLIENT` in the change's gaps. It refuses when the change was consolidated again since the proposal: propose again.
+4. **Not yet for a change:** `--close`, `--move` and `--release rN`; the sub-releases of a change are not derived yet. To adjust the cut, propose and confirm again.

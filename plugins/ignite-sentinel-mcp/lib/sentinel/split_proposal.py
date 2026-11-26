@@ -138,7 +138,9 @@ def validate_proposal(brief_text: str, payload: dict[str, Any], open_gaps: set[s
         c.add("core_without_source", "core", "the core needs an anchor {place, quote} verbatim in the brief")
     for index, variation in enumerate(_list(payload, "variations"), start=1):
         if not isinstance(variation, dict) or not c.anchored(variation.get("anchor")):
-            c.add("variation_without_source", f"variations[{index}]", "a variation needs an anchor verbatim in the brief")
+            quote = str((variation.get("anchor") or {}).get("quote", "")) if isinstance(variation, dict) and isinstance(variation.get("anchor"), dict) else ""
+            c.add("variation_without_source", f"variations[{index}]",
+                  "a variation needs an anchor verbatim in the brief" + (f': "{quote}" is not in it' if quote else ""))
 
     written: set[str] = set()
     for index, criterion in enumerate(_list(payload, "criteria"), start=1):

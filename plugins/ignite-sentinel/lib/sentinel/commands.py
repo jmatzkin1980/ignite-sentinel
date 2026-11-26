@@ -202,6 +202,8 @@ def _split(p: argparse.ArgumentParser) -> None:  # IMP-263/265/266 (H17a): relea
     p.add_argument("--reason", help="--move: why the unit moves")
     p.add_argument("--finding", default="", help="--move: the finding that motivated it (F-NN, GAP-..., DEC-...)")
     p.add_argument("--criterion", default="", help="--move: the written cut criterion that decides a round trip")
+    p.add_argument("--change", metavar="CHG-NNN",
+                   help="H27 inc 7c: split this change into releases (--assess, --propose, --confirm) instead of the project's brief")
 
 
 def _prototype(p: argparse.ArgumentParser) -> None:  # IMP-274/275/276 (H17b): HTML prototypes
@@ -423,7 +425,8 @@ REGISTRY: tuple[Command, ...] = (
     Command("harvest", MUTATING, _harvest, skill="sentinel-brownfield-harvest"),  # IMP-262
     # IMP-263: /split --assess writes 01_discovery/split_assessment.md and its JSON.
     Command("split", MUTATING, _split,
-            mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}, skill="sentinel-release-split"),
+            mcp_params={"mode": ("assess", "propose", "confirm", "move", "close"), "release": ("close",)}, skill="sentinel-release-split",
+            skill_variants=(("--change", "sentinel-release-split §Release split of a change"),)),
     # IMP-274: /prototype --inventory writes 02_requirements/prototype/inventory.json and .md.
     Command("prototype", MUTATING, _prototype, mcp_params={"mode": ("inventory", "trace", "manual")}, skill="sentinel-prototype-trace", skill_variants=(("--manual", "sentinel-prototype-manual"),)),
     Command("self-review", MUTATING, _self_review, skill="sentinel-self-review", skill_variants=(("--change", "sentinel-self-review §Change coherence"),)),

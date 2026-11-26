@@ -1,0 +1,82 @@
+"""IMP-427 (H27 inc 7c) tasks 2 and 3: `/split P --change CHG` assesses, proposes and confirms the series of a change.
+
+The files live under the change, no project brief is needed and nothing of the project or of another change moves.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import SyncCase, run_ok  # noqa: E402
+
+from sentinel.series_scope import series_scope  # noqa: E402
+from sentinel.split_proposal import SplitProposalError, apply_proposal  # noqa: E402
+from sentinel.workspace import workspace_path  # noqa: E402
+
+PID = "CSPL"
+CID = "CHG-001"
+INC7 = Path(__file__).resolve().parent / "fixtures" / "change_inc7"
+
+
+class ChangeSplitCase(SyncCase):
+    PID = PID
+
+    def base(self) -> Path:
+        return workspace_path(PID)
+
+    def propose(self, name: str = "propuesta_serie_cambio.json") -> str:
+        return run_ok(["split", PID, "--propose", "--source", str(INC7 / name), "--change", CID])
+
+
+class ChangeProposeTest(ChangeSplitCase):
+    def test_change_assess_writes_under_change(self) -> None:
+        run_ok(["split", PID, "--assess", "--change", CID])
+        base = self.base()
+        self.assertTrue((base / "01_discovery" / CID / "split_assessment.md").is_file())
+        self.assertFalse((base / "01_discovery" / "split_assessment.md").exists())
+        data = json.loads((base / "01_discovery" / CID / "split_assessment.json").read_text(encoding="utf-8"))
+        self.assertEqual(data["brief_sha256"], series_scope(PID, CID).brief_sha256)
+
+    def test_change_proposal_needs_no_project_brief(self) -> None:
+        base = self.base()
+        self.assertFalse((base / "02_requirements" / "project-brief.md").exists())
+        self.assertFalse((base / "02_requirements" / "brief_compile_report.json").exists())
+        out = json.loads(self.propose())
+        self.assertEqual(out["status"], "proposal")
+        stored = json.loads((base / "02_requirements" / CID / "series" / "proposal.json").read_text(encoding="utf-8"))
+        self.assertEqual(stored["brief_sha256"], series_scope(PID, CID).brief_sha256)
+
+    def test_change_never_reads_project_report_or_settings(self) -> None:
+        with patch("sentinel.split.read_state", side_effect=AssertionError("project state read")), \
+                patch("sentinel.split.read_json", side_effect=AssertionError("project report read")):
+            from sentinel.split import _inputs
+            scope, report, settings, _gaps = _inputs(PID, CID)
+        self.assertIsInstance(report, dict)
+        self.assertEqual(settings, {})
+        self.assertEqual(scope.change_id, CID)
+
+    def test_invented_citation_refused(self) -> None:
+        with self.assertRaises(SplitProposalError) as caught:
+            apply_proposal(PID, INC7 / "propuesta_cita_inventada.json", CID)
+        self.assertIn("Pagos a proveedores en el exterior", str(caught.exception))
+        self.assertFalse((self.base() / "02_requirements" / CID / "series" / "proposal.json").exists())
+
+    def test_change_series_isolated(self) -> None:
+        run_ok(["ingest", PID, "--source", str(self.FIXTURES / "change_request.md"), "--change"])
+        self.propose()
+        base = self.base()
+        self.assertFalse((base / "02_requirements" / "series").exists())
+        self.assertFalse((base / "02_requirements" / "CHG-002" / "series").exists())
+
+    def test_mcp_split_passes_change(self) -> None:
+        import sentinel.mcp as mcp
+        from test_mcp_parity import _tools
+
+        tools = _tools()
+        calls: list[list[str]] = []
+        with patch.object(mcp, "run_cli", side_effect=lambda argv: calls.append(list(argv)) or {}):
+            tools["sentinel_split"](PID, mode="assess", change=CID)
+        self.assertEqual(calls[0], ["split", PID, "--assess", "--change", CID])

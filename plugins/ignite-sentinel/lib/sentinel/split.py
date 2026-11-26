@@ -296,10 +296,14 @@ def _inputs(project_id: str, change_id: str | None = None) -> tuple[Any, dict[st
 
         brief_path = base / "02_requirements" / "project-brief.md"
         raise GateRefusal(f"/split --assess needs a compiled brief v2: {brief_path.as_posix()} does not exist; run /brief {project_id} --profile ... --genesis ... first")
-    report_path = base / "02_requirements" / "brief_compile_report.json"
-    report = read_json(report_path, {}) or {}
-    state = read_state(project_id, {}) or {}
-    settings = state.get("brief_settings") or {}
+    if change_id:  # IMP-427: the change's own compile report; no project report or settings (defaults without them)
+        from .compilers.change_deliverable import render_change_deliverable_parts
+
+        report = render_change_deliverable_parts(project_id, change_id, final=False)[1] or {}
+        settings = {}
+    else:
+        report = read_json(base / "02_requirements" / "brief_compile_report.json", {}) or {}
+        settings = (read_state(project_id, {}) or {}).get("brief_settings") or {}
     gaps_path = scope.gaps_path
     gaps = parse_gap_rows(gaps_path.read_text(encoding="utf-8")) if gaps_path.is_file() else []
     return scope, report, settings, gaps
