@@ -6,21 +6,30 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
-## [0.38.0] — 2026-11-26
-
 ### Added
 
 - **`/quality PROJECT_ID --change CHG-NNN` and the `quality` step of `/next --change` (IMP-431, H27 inc 8a).** The stories of a change have their own quality audit: test cases and the readiness audit in `05_quality/CHG-nnn/` (in the change's language, over every derived release of a series), a verdict kept in the change's record (never the project's phase or health), current until a story of the change is edited. `/next --change` asks for it between the backlog and the validation, and asks again after an edit; `/status --change` shows the verdict.
-- **`/specs|/backlog PROJECT_ID --change CHG-NNN --release rN` and `/split --change --close|--move` (IMP-429, H27 inc 7d).** The confirmed series of a change is derived release by release: `rN` gets the `SPEC-U` units it owns (same ids) in `03_specs/CHG-nnn/rN/` and its stories in `04_backlog/CHG-nnn/rN/` (canonical `US-nnn.md`; `EPIC-CHG-nnn` lists every derived release). A unit owned by two releases or by none stops the derivation before anything is written. `--close rN` needs the stories Done and turns what `rN` delivered into preserved behavior ("entregado en rN") of the later releases; `--move` moves a unit inside the series, never touching a closed release, and the derivations it makes old are asked for again. `/validate --change` reports a stale series and a unit with two owners or none, and a confirmed series follows the text of its change (`refresh_series_if_stale`).
 
 ### Changed
 
 - `/quality` of the project audits only the stories no change wrote; in a workspace that only holds changes it refuses and names `/quality P --change CHG-001`.
-- `/next --change` walks the series: `specs`, `backlog` and `done` name the release (`--release rN`, then `--close rN`), one open release after another, and never ask twice for what is done.
 
 ### Fixed
 
 - `/maturity` in a workspace that only holds changes refuses without writing a BLOCKED report or marking the project DIRTY (IMP-431).
+
+## [0.38.0] — 2026-11-26
+
+### Added
+
+- **`/specs|/backlog PROJECT_ID --change CHG-NNN --release rN` and `/split --change --close|--move` (IMP-429, H27 inc 7d).** The confirmed series of a change is derived release by release: `rN` gets the `SPEC-U` units it owns (same ids) in `03_specs/CHG-nnn/rN/` and its stories in `04_backlog/CHG-nnn/rN/` (canonical `US-nnn.md`; `EPIC-CHG-nnn` lists every derived release). A unit owned by two releases or by none stops the derivation before anything is written. `--close rN` needs the stories Done and turns what `rN` delivered into preserved behavior ("entregado en rN") of the later releases; `--move` moves a unit inside the series, never touching a closed release, and the derivations it makes old are asked for again. `/validate --change` reports a stale series and a unit with two owners or none, and a confirmed series follows the text of its change (`refresh_series_if_stale`).
+
+### Changed
+
+- `/next --change` walks the series: `specs`, `backlog` and `done` name the release (`--release rN`, then `--close rN`), one open release after another, and never ask twice for what is done.
+
+### Fixed
+
 - T2-D2 (second part): what a release of a change delivered is preserved behavior of the next ones, not new units built again.
 
 ## [0.37.0] — 2026-11-26
