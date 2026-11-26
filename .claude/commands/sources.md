@@ -31,11 +31,14 @@ python -m sentinel /sources PROJECT_ID --id F-NN --cell DOCUMENT/SECTION --mark 
 python -m sentinel /sources PROJECT_ID --precedence SCOPE --between F-NN,F-MM
 python -m sentinel /sources PROJECT_ID --report
 python -m sentinel /sources PROJECT_ID --change CHG-NNN --keep-single --reason TEXT
+python -m sentinel /sources PROJECT_ID --load PATH --role diseno_nuevo --change CHG-NNN --derived-from F-NN
 ```
 
 Each source content gets one `F-NN` row in `00_raw/source_manifest.json`, and the counter never restarts. `/ingest`, `/sync` and `/resolve-gaps` open the row when they start and close it when the cross finishes. The same content under a second path is the same row. A known path with new content opens a new row marked as a candidate new version: the registry never decides that the newest version governs. `07_changes/source_log.md` is the generated human render; never edit it by hand.
 
 Confirming a version of a change source (`--superseded-by`, or `--current` on a candidate) also runs the touched set of that change (IMP-418): the claims of the cross-reads whose quote stays literal are carried with their questions and answers, what to read again is marked, `01_discovery/CHG-NNN/sync_report.md` is written and the result lists it under `sync` with the commands (`/cross ... --delta`). `/next --change` names a version nobody confirmed once.
+
+`--derived-from F-NN` (only with `--load ... --role diseno_nuevo`) records that the loaded file is a readable copy derived from the original prototype `F-NN` (for example a transcript of a prototype whose screens are built by script): citations are checked literally against the copy and every place that shows the citation also shows its origin. The origin must be a current `diseno_nuevo` source of the same change (or project); the derived row is never a candidate version of its origin.
 
 Validity is `current`, `superseded` (corrected by another row), `retired` (a dead source, with its replacement) or `expired` (by a cut-off date, optionally for one topic).
 

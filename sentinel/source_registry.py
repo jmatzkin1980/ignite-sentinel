@@ -125,6 +125,11 @@ def set_role(row: dict[str, Any], role: str, language: str = "en") -> None:
     row["role"] = role
 
 
+def set_derived(row: dict[str, Any], origin_id: str) -> None:
+    """H27 inc 7a: `row` is a readable copy derived from the source `origin_id` (a prototype with no visible text)."""
+    row["derived_from"] = origin_id
+
+
 def source_kind(key: str) -> str:
     for part in reversed(Path(key).parts[:-1]):
         if part in KIND_BY_FOLDER:
@@ -442,6 +447,7 @@ _COPY = {
         "copies": "copies: {n}",
         "authority": "authority: {authority}",
         "role": "role: {role}",
+        "derived": "derived from {id}",
         "cells": "impact cells pending: {n}",
         "missing": "original no longer present",
         "unknown": "unknown",
@@ -466,6 +472,7 @@ _COPY = {
         "copies": "copias: {n}",
         "authority": "autoridad: {authority}",
         "role": "rol: {role}",
+        "derived": "derivado de {id}",
         "cells": "celdas de impacto pendientes: {n}",
         "missing": "el original ya no está",
         "unknown": "sin dato",
@@ -504,6 +511,8 @@ def render_source_log(project_id: str, manifest: dict[str, Any], language: str =
             notes.append(copy["copies"].format(n=len(row["copies"])))
         if role_is_declared(row):
             notes.append(copy["role"].format(role=row["role"]))
+        if row.get("derived_from"):
+            notes.append(copy["derived"].format(id=row["derived_from"]))
         if row.get("authority"):
             notes.append(copy["authority"].format(authority=row["authority"]))
         pending = sum(1 for cell in row.get("impact") or [] if cell.get("state") == "pending")

@@ -473,6 +473,7 @@ def build_server():
         change: str = "",
         no_baseline: bool = False,
         keep_single: bool = False,
+        derived_from: str = "",
     ) -> dict:
         # IMP-333: every option is forwarded; the CLI refuses the combinations it does not take
         # (a change without id, report or precedence with anything else).
@@ -480,7 +481,7 @@ def build_server():
             "sources", source_id=id, from_who=from_who, superseded_by=superseded_by, retire=retire,
             replacement=replacement, expire=expire, topic=topic, current=current, close=close, reason=reason,
             authority=authority, cell=cell, mark=mark, precedence=precedence, between=between, report=report, load=load, role=role,
-            change=change, no_baseline=no_baseline, keep_single=keep_single)])
+            change=change, no_baseline=no_baseline, keep_single=keep_single, derived_from=derived_from)])
 
     @tool(name="sentinel_extract", description=TOOL_DESCRIPTIONS["extract"])
     def sentinel_extract(
