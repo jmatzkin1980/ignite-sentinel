@@ -5,6 +5,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import (  # noqa: E402
@@ -21,6 +22,7 @@ import test_change_next as tcn  # noqa: E402
 from test_change_next import load_baseline  # noqa: E402
 from test_change_affected_stories import ANSWERS as REMOVED_ANSWERS  # noqa: E402
 from test_change_specs import PROJECT_EARS, PROJECT_RAW, answer, open_change  # noqa: E402
+from test_h27_change_release import CID, PID, ReleaseFlowCase, cli  # noqa: E402
 from test_h27_series_scope import ROOT, normalized_sha256  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "change_inc8"
@@ -225,6 +227,52 @@ class ChangeQualityOnly(SnapshotWorkspaceCase):
             generate_quality("BORR", change_id="CHG-001")
         self.assertEqual(str(caught.exception), "CHG-001 no tiene historias para auditar")
         self.assertEqual(caught.exception.next_step, "/backlog BORR --change CHG-001")
+
+    def test_cli_quality_change_on_dirty_change_only_workspace(self):
+        """The project of a change-only workspace is DIRTY: `--change` answers to its own gate."""
+        found = json.loads(run_ok(["quality", "BORR", "--change", "CHG-001"]))
+        self.assertEqual(found["change_id"], "CHG-001")
+
+    def test_project_quality_refused_on_change_only(self):
+        code, out = cli(["quality", "BORR"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("/quality BORR --change CHG-001", out)
+
+    def test_quality_change_with_release_refused(self):
+        code, out = cli(["quality", "BORR", "--change", "CHG-001", "--release", "r1"])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("para el resto corré /quality BORR --change CHG-001", out)
+        self.assertFalse((workspace_path("BORR") / "05_quality" / "CHG-001").exists())
+
+
+class SeriesQuality(ReleaseFlowCase):
+    """BINDING ruling: a change with a confirmed series has `backlog_releases`, not `backlog`; its stories are audited."""
+
+    def quality(self) -> dict:
+        forget_read_snapshots()
+        return json.loads(run_ok(["quality", PID, "--change", CID]))
+
+    def test_series_change_is_audited(self):
+        self.derive("r1", "r2")
+        self.assertFalse(get_change(PID, CID).get("backlog"))
+        found = self.quality()
+        self.assertEqual(found["change_id"], CID)
+        base = self.base()
+        own = _change_story_ids(base, CID)
+        self.assertEqual(sorted(self.stories("r1") + self.stories("r2")), sorted(own))
+        record = get_change(PID, CID)["quality"]
+        self.assertEqual(sorted(record["stories"]), sorted(own))
+        self.assertEqual(record["backlog_digest"], change_backlog_digest(PID, CID))
+
+    def test_series_change_without_derivation_refuses(self):
+        code, out = cli(["quality", PID, "--change", CID])
+        self.assertNotEqual(code, 0, out)
+        self.assertIn(f"/backlog {PID} --change {CID}", out)
+
+    def step(self) -> dict:
+        forget_read_snapshots()
+        with patch("sentinel.readiness_verdict._change_prep_key", return_value=""):
+            return json.loads(run_ok(["next", PID, "--change", CID]))
 
 
 if __name__ == "__main__":

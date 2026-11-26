@@ -94,7 +94,7 @@ def check_source_exists(args) -> None:
 
 
 def run_command(args, argv: list[str]) -> int:
-    if args.command in {"validate", "next", "status"} and getattr(args, "release", None) and getattr(args, "change", None):
+    if args.command in {"validate", "next", "status", "quality"} and getattr(args, "release", None) and getattr(args, "change", None):
         from .changes import change_language, get_change
         from .errors import InputError
 
@@ -737,7 +737,8 @@ def _run_project_command(args) -> int:
         elif args.command == "quality":
             from .quality import generate_quality
 
-            result = generate_quality(args.project_id, override_source=Path(args.override) if args.override else None)
+            result = generate_quality(args.project_id, override_source=Path(args.override) if args.override else None,
+                                      change_id=args.change)
             print_json(result)
         elif args.command == "health":
             from .health import run_health

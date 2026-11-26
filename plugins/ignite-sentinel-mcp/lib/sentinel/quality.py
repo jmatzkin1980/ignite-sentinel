@@ -88,8 +88,14 @@ def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str,
     text = CHANGE_QUALITY_TEXT[language]
     base = workspace_path(project_id)
     backlog = change.get("backlog")
-    if not backlog or _backlog_behind(
-            base, change_id, read_change_units(project_id, change_id), list(backlog.get("dropped_units") or [])):
+    derived = [record for record in (change.get("backlog_releases") or {}).values()
+               if isinstance(record, dict) and record.get("stories")]
+    if backlog:
+        behind = _backlog_behind(
+            base, change_id, read_change_units(project_id, change_id), list(backlog.get("dropped_units") or []))
+    else:  # a confirmed series (7d) keeps one record per derived release: audit the stories of all of them
+        behind = not derived
+    if behind:
         raise GateRefusal(text["behind"].format(cid=change_id), next_step=f"/backlog {project_id} --change {change_id}")
     own = set(_change_story_ids(base, change_id))
     scoped = sorted((story for story in stories if story["id"] in own), key=lambda story: story["id"])

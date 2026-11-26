@@ -104,6 +104,11 @@ def _project_override(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--override")
 
 
+def _quality(p: argparse.ArgumentParser) -> None:
+    _project_override(p)
+    p.add_argument("--change", metavar="CHG-NNN", help="IMP-431: audit only this change's stories into 05_quality/CHG-NNN/")
+
+
 def _doctor(p: argparse.ArgumentParser) -> None:
     p.add_argument("--root", default=".")
 
@@ -450,7 +455,7 @@ REGISTRY: tuple[Command, ...] = (
     Command("maturity", MUTATING, _project, skill="sentinel-maturity"),
     Command("specs", MUTATING, _specs, release=True, skill="sentinel-specs"),
     Command("backlog-status", MUTATING, _project_override, skill="sentinel-backlog"),
-    Command("quality", MUTATING, _project_override, release=True, skill="sentinel-quality"),
+    Command("quality", MUTATING, _quality, release=True, skill="sentinel-quality", skill_variants=(("--change", "sentinel-quality §Change"),)),
     Command("health", READ_ONLY, _project, skill="sentinel-health"),
     # IMP-306: /trace rewrites the traceability matrix and graph.
     Command("trace", MUTATING, _trace, release=True, skill="sentinel-health"),

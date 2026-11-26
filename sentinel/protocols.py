@@ -202,7 +202,7 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
     health = str(state.get("health", "UNKNOWN")).upper()
     phase = str(state.get("phase", "unknown"))
 
-    if command in {"specs", "backlog", "validate"} and not change:
+    if command in {"specs", "backlog", "validate", "quality"} and not change:
         from .changes import refuse_change_only_specs
 
         refuse_change_only_specs(project_id, command)  # IMP-388: before the phase gate, which a change-only workspace trips
@@ -211,7 +211,7 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
         raise GateRefusal("Cannot generate downstream artifacts before /ingest creates discovery artifacts.")
 
     # IMP-393: `/backlog --change` answers to the change's own gate (blocking gaps, specs current); a change-only workspace is DIRTY at project level
-    if command in {"backlog", "quality", "refine-backlog"} and not (command == "backlog" and change) and (health == "DIRTY" or downstream_refresh_pending(project_id)):
+    if command in {"backlog", "quality", "refine-backlog"} and not (command in {"backlog", "quality", "refine-backlog"} and change) and (health == "DIRTY" or downstream_refresh_pending(project_id)):
         # IMP-369: the gate also reads the staleness markers themselves. /resolve-gaps
         # sets health on its own criteria (CLEAN once no blocking gap is open), so after
         # it recompiled the brief /backlog used to run on specs older than the brief.
@@ -222,7 +222,7 @@ def preflight_command(command: str, project_id: str | None, change: str | None =
 
         assert_backlog_privacy_clean(project_id)
 
-    if command == "quality":
+    if command == "quality" and not change:  # a change's own scope refuses with the command that fixes it
         from .core.graph import load_graph
 
         if not any(node.get("type") == "user_story" for node in load_graph(project_id).get("nodes", [])):
