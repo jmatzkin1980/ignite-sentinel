@@ -6,6 +6,8 @@ All notable changes to Ignite Sentinel vNext are documented here. The format is 
 
 ## [Unreleased]
 
+## [0.36.0] — 2026-11-26
+
 ### Added
 
 - **`/setup --semantic-memory`, `--offline-from DIR` and `--status` (IMP-425, H27 inc 7b).** Turns on semantic memory in one step: installs the pinned model `minishlab/potion-multilingual-128M` (revision pinned in `templates/semantic_models.json`), verifying every file's sha256 and size before activation, https only, hosts `huggingface.co` and `.hf.co` subdomains. `--offline-from` installs from a local folder with the same checks; `--status` verifies without network. It runs only when asked, by the person or by their agent at their request in chat; it is never automatic and not an MCP tool. The guide, admin guide, `sentinel-health` and `sentinel-command-router` say so, in the same words: Sentinel never downloads, except `/setup --semantic-memory`.
