@@ -7,7 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import SnapshotWorkspaceCase, run_ok  # noqa: E402
-from sentinel.quality import invest_audit  # noqa: E402
+from sentinel.core.io import forget_read_snapshots  # noqa: E402
+from sentinel.quality import generate_quality, invest_audit  # noqa: E402
 from test_change_backlog import state  # noqa: E402
 from test_change_specs import ALL_ANSWERS, answer, open_change  # noqa: E402
 
@@ -61,7 +62,8 @@ class ChangeQuality(SnapshotWorkspaceCase):
 
     def test_change_quality_passes_small(self):
         run_ok(["backlog", "BORR", "--change", self.cid])
-        run_ok(["quality", "BORR"])
+        forget_read_snapshots()
+        generate_quality("BORR", change_id=self.cid)  # IMP-431: the project audit no longer takes the stories of a change
         quality = state("BORR")["story_quality"]
         added = [q for q in quality.values() if "unit(s) of one functionality" in q["invest_audit"]["S"]["finding"]]
         self.assertTrue(added)

@@ -7,6 +7,7 @@ criterion of every story, so the validation contract lists the behavior the chan
 """
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -125,6 +126,15 @@ def _change_story_ids(base: Path, change_id: str) -> list[str]:
         if str(front.get("change", "")).strip() == change_id:
             found.append(path.stem)
     return found
+
+
+def change_backlog_digest(project_id: str, change_id: str) -> str:
+    """IMP-431: sha256 of the change's story files (id + bytes, in id order): editing a story changes it, regenerating nothing does not."""
+    base = workspace_path(project_id)
+    digest = hashlib.sha256()
+    for story_id in sorted(_change_story_ids(base, change_id)):
+        digest.update(story_id.encode("utf-8") + b"\n" + (base / "04_backlog" / f"{story_id}.md").read_bytes())
+    return digest.hexdigest()
 
 
 def _story_units(story: dict[str, Any]) -> list[str]:

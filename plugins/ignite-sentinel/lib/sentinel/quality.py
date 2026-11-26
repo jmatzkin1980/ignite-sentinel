@@ -65,9 +65,59 @@ UPSTREAM_TRACE_PREFIXES = ("SPEC-", "REQ-", "FR-", "JTBD-", "RULE-", "KPI-")
 STORY_REFERENCE_PREFIXES = ("US-",)
 
 
-def generate_quality(project_id: str, override_source: Path | None = None) -> dict[str, object]:
+CHANGE_QUALITY_TEXT = {
+    "es": {
+        "behind": "El backlog de {cid} falta o está atrasado",
+        "empty": "{cid} no tiene historias para auditar",
+    },
+    "en": {
+        "behind": "The backlog of {cid} is missing or behind",
+        "empty": "{cid} has no stories to audit",
+    },
+}
+
+
+def _change_story_scope(project_id: str, change_id: str, stories: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str]:
+    """IMP-431: the change's stories (gate: its backlog is there and current, and has stories) and the language of its artifacts."""
+    from .changes import change_language, get_change
+    from .compilers.change_backlog import _change_story_ids, read_change_units
+    from .readiness_verdict import _backlog_behind
+
+    change = get_change(project_id, change_id)
+    language = "en" if change_language(project_id, change) == "en" else "es"
+    text = CHANGE_QUALITY_TEXT[language]
+    base = workspace_path(project_id)
+    backlog = change.get("backlog")
+    if not backlog or _backlog_behind(
+            base, change_id, read_change_units(project_id, change_id), list(backlog.get("dropped_units") or [])):
+        raise GateRefusal(text["behind"].format(cid=change_id), next_step=f"/backlog {project_id} --change {change_id}")
+    own = set(_change_story_ids(base, change_id))
+    scoped = sorted((story for story in stories if story["id"] in own), key=lambda story: story["id"])
+    if not scoped:
+        raise GateRefusal(text["empty"].format(cid=change_id), next_step=f"/backlog {project_id} --change {change_id}")
+    return scoped, language
+
+
+def _project_stories(project_id: str, stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """IMP-431: the project's own stories: the ones a change wrote (frontmatter `change:`) are audited by `/quality --change`."""
+    from .changes import list_changes
+    from .compilers.change_backlog import _change_story_ids
+
+    base = workspace_path(project_id)
+    theirs = {sid for change_id in list_changes(project_id) for sid in _change_story_ids(base, change_id)}
+    return [story for story in stories if story["id"] not in theirs]
+
+
+def generate_quality(project_id: str, override_source: Path | None = None, change_id: str | None = None) -> dict[str, object]:
     base = workspace_path(project_id)
     stories = nodes_by_type(project_id, "user_story")
+    language: str | None = None
+    if change_id:
+        stories, language = _change_story_scope(project_id, change_id, stories)
+        out_dir = base / "05_quality" / change_id
+    else:
+        stories = _project_stories(project_id, stories)
+        out_dir = base / "05_quality"
     if not stories:
         raise GateRefusal("Cannot generate quality artifacts without user stories.")
 
@@ -82,8 +132,8 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         readiness_item = readiness_by_story.get(story["id"], {})
         quality_results[story["id"]] = evaluate_story_quality(story, story_text, criterion_details, readiness_item)
 
-        tc_path = base / "05_quality" / f"TC-{index:03d}.md"
-        write_text(tc_path, render_test_case(project_id, story["id"], criteria))
+        tc_path = out_dir / f"TC-{index:03d}.md"
+        write_text(tc_path, render_test_case(project_id, story["id"], criteria, language))
         tc_id = add_node(project_id, "TC", "test_case", tc_path, f"Test coverage for {story['id']}", domain="quality")
         add_edge(project_id, story["id"], tc_id, "covered_by")
         ContextBroker(project_id).index_artifact(
@@ -96,7 +146,11 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         )
         created.append(tc_id)
 
-    update_state(project_id, story_quality=quality_results)
+    if change_id:  # the project's own entries stay
+        previous = read_json(state_path(project_id), {}).get("story_quality", {})
+        update_state(project_id, story_quality={**(previous if isinstance(previous, dict) else {}), **quality_results})
+    else:
+        update_state(project_id, story_quality=quality_results)
     state = read_json(state_path(project_id), {})
     lifecycle = state.get("story_lifecycle", {}) if isinstance(state.get("story_lifecycle", {}), dict) else {}
     for story in stories:
@@ -109,8 +163,8 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         gate_story = story_for_gate(story, story_text, readiness_item)
         update_story_gate_state(project_id, story["id"], evaluate_story_gates(project_id, gate_story, readiness_item))
 
-    audit_path = base / "05_quality" / "backlog_readiness_audit.md"
-    write_text(audit_path, render_backlog_audit(project_id, stories, quality_results))
+    audit_path = out_dir / "backlog_readiness_audit.md"
+    write_text(audit_path, render_backlog_audit(project_id, stories, quality_results, language, change_id))
     audit_id = add_node(project_id, "QA", "backlog_readiness_audit", audit_path, "Backlog readiness audit", domain="quality")
     for story in stories:
         add_edge(project_id, story["id"], audit_id, "audited_by")
@@ -131,6 +185,8 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
         "verdict": verdict,
         "story_quality": quality_results,
     }
+    if change_id:
+        result["change_id"] = change_id
     if override_source:
         result["override"] = register_gate_override(
             project_id,
@@ -139,8 +195,33 @@ def generate_quality(project_id: str, override_source: Path | None = None) -> di
             verdict=verdict,
             findings=quality_override_findings(quality_results),
         )
-    update_state(project_id, phase="quality_completed")
+    if change_id:
+        _record_change_quality(project_id, change_id, stories, quality_results, created, audit_path, verdict)
+    else:
+        update_state(project_id, phase="quality_completed")
     return result
+
+
+def _record_change_quality(project_id: str, change_id: str, stories: list[dict[str, Any]], quality_results: dict[str, dict[str, Any]],
+                           test_cases: list[str], audit_path: Path, verdict: str) -> None:
+    """IMP-431: the verdict of the change lives in the change (never `phase` or `health`); the digest says which backlog it audited."""
+    from .compilers.change_backlog import change_backlog_digest
+    from .core.time import utc_now
+
+    counts = {"PASS": 0, "PARTIAL": 0, "FAIL": 0}
+    for item in quality_results.values():
+        counts[{"PASS": "PASS", "FAIL": "FAIL"}.get(str(item.get("status", "")), "PARTIAL")] += 1
+    changes = read_json(state_path(project_id), {}).get("changes", {})
+    changes[change_id]["quality"] = {
+        "verdict": verdict,
+        "counts": counts,
+        "stories": [story["id"] for story in stories],
+        "test_cases": test_cases,
+        "audit": audit_path.relative_to(workspace_path(project_id)).as_posix(),
+        "backlog_digest": change_backlog_digest(project_id, change_id),
+        "audited_at": utc_now(),
+    }
+    update_state(project_id, changes=changes)
 
 
 def resolve_story_path(path_value: str) -> Path:
@@ -476,7 +557,41 @@ def quality_check(key: str, passed: bool, warning: str, **extra: Any) -> dict[st
     return item
 
 
-def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str:
+TEST_CASE_ES = {
+    "title": "Casos de prueba", "project": "Proyecto", "source": "Historia de origen", "status": "Estado", "draft": "borrador",
+    "matrix": "Matriz de cobertura", "step": "Paso de prueba", "criterion": "Criterio de aceptación",
+    "row": "Paso de prueba", "notes": "Notas de automatización",
+    "bullets": [
+        "Preparar datos de entrada válidos para el camino feliz.",
+        "Preparar datos de entrada faltantes e inválidos para los caminos de validación.",
+        "Separar las verificaciones fail-to-pass, las de regresión pass-to-pass y las de evidencia cuando hay clasificaciones.",
+        "Verificar que los IDs de trazabilidad sigan visibles en la cadena de artefactos.",
+    ],
+}
+
+
+def render_test_case(project_id: str, story_id: str, criteria: list[str], language: str | None = None) -> str:
+    """`language` None (the project) or "en": the bytes of 0.38.0; "es" (a change written in Spanish): headings and fixed copy in Spanish."""
+    if language == "es":
+        t = TEST_CASE_ES
+        rows = "\n".join(f"| {t['row']} {criterion.split(':', 1)[0]} | {criterion} |" for criterion in criteria)
+        bullets = "\n".join(f"- {line}" for line in t["bullets"])
+        return f"""# {t['title']} - {story_id}
+
+- {t['project']}: `{project_id}`
+- {t['source']}: `{story_id}`
+- {t['status']}: `{t['draft']}`
+
+## {t['matrix']}
+
+| {t['step']} | {t['criterion']} |
+| --- | --- |
+{rows}
+
+## {t['notes']}
+
+{bullets}
+"""
     rows = "\n".join(f"| TC step {criterion.split(':', 1)[0]} | {criterion} |" for criterion in criteria)
     return f"""# Test Case Set - {story_id}
 
@@ -499,13 +614,67 @@ def render_test_case(project_id: str, story_id: str, criteria: list[str]) -> str
 """
 
 
-def render_backlog_audit(project_id: str, stories: list[dict[str, str]], quality_results: dict[str, dict[str, Any]]) -> str:
+AUDIT_ES = {
+    "title": "Auditoría de preparación del backlog",
+    "intro": "Esta auditoría revisa si los ítems del backlog están listos para la ejecución posterior, con la trazabilidad y el contexto de dominio de Sentinel vNext.",
+    "verdict": "Veredicto",
+    "census": "Censo de historias",
+    "census_header": "| ID de historia | Título | Puntaje INVEST/SPIDR | Estado | Notas de revisión |",
+    "no_warnings": "Sin advertencias INVEST/SPIDR.",
+    "checks": "Verificaciones de calidad de las historias",
+    "checklist": "Lista de auditoría",
+    "check_items": [
+        "Cada historia se evalúa contra el modelo de cortes INVEST/SPIDR/Lawrence gobernado.",
+        "Cada historia se revisa por comportamiento de punta a punta o por un límite concreto de habilitador.",
+        "La cobertura de criterios de aceptación revisa las expectativas fail-to-pass, pass-to-pass y de evidencia.",
+        "La trazabilidad conecta historia -> SPEC-U/REQ o evidencia concreta del habilitador -> AC -> TC.",
+        "La auditoría INVEST paralela muestra las señales estructurales Independent, Negotiable, Valuable, Estimable, Small y Testable sin cambiar el veredicto actual.",
+        "Los hallazgos no bloquean por defecto y alimentan las advertencias de DoR en `state.json#story_gates`.",
+    ],
+}
+
+
+def render_backlog_audit(
+    project_id: str,
+    stories: list[dict[str, str]],
+    quality_results: dict[str, dict[str, Any]],
+    language: str | None = None,
+    change_id: str | None = None,
+) -> str:
+    """`language` None (the project): the bytes of 0.38.0; with a change the title carries `{pid} / {cid}`, in Spanish when the change is."""
     verdict = quality_audit_verdict(quality_results)
-    rows = "\n".join(render_audit_row(story, quality_results.get(story["id"], {})) for story in stories)
+    es = language == "es"
+    rows = "\n".join(render_audit_row(story, quality_results.get(story["id"], {}), es) for story in stories)
     detail_sections = "\n\n".join(
-        render_story_quality_detail(story["id"], quality_results.get(story["id"], {})) for story in stories
+        render_story_quality_detail(story["id"], quality_results.get(story["id"], {}), es) for story in stories
     )
-    return f"""# Backlog Readiness Audit - {project_id}
+    scope = f"{project_id} / {change_id}" if change_id else project_id
+    if es:
+        t = AUDIT_ES
+        checklist = "\n".join(f"- [x] {line}" for line in t["check_items"])
+        return f"""# {t['title']} - {scope}
+
+{t['intro']}
+
+## {t['verdict']}
+
+`{verdict}`
+
+## {t['census']}
+
+{t['census_header']}
+| --- | --- | ---: | --- | --- |
+{rows}
+
+## {t['checks']}
+
+{detail_sections}
+
+## {t['checklist']}
+
+{checklist}
+"""
+    return f"""# Backlog Readiness Audit - {scope}
 
 This audit checks whether backlog items are ready for downstream execution using Sentinel vNext traceability and domain context.
 
@@ -557,15 +726,16 @@ def quality_override_findings(quality_results: dict[str, dict[str, Any]]) -> lis
     return findings
 
 
-def render_audit_row(story: dict[str, str], result: dict[str, Any]) -> str:
-    notes = "; ".join(result.get("warnings", [])) if result.get("warnings") else "No INVEST/SPIDR warnings."
+def render_audit_row(story: dict[str, str], result: dict[str, Any], es: bool = False) -> str:
+    none = AUDIT_ES["no_warnings"] if es else "No INVEST/SPIDR warnings."
+    notes = "; ".join(result.get("warnings", [])) if result.get("warnings") else none
     return (
         f"| `{story['id']}` | {story.get('title', 'User story')} | "
         f"{float(result.get('score', 0.0)):.2f} | {result.get('status', 'UNKNOWN')} | {notes} |"
     )
 
 
-def render_story_quality_detail(story_id: str, result: dict[str, Any]) -> str:
+def render_story_quality_detail(story_id: str, result: dict[str, Any], es: bool = False) -> str:
     checks = result.get("checks", []) if isinstance(result, dict) else []
     rows = "\n".join(
         f"| {item.get('key', '')} | {'PASS' if item.get('passed') else 'WARN'} | {item.get('warning') or 'OK'} |"
@@ -575,6 +745,21 @@ def render_story_quality_detail(story_id: str, result: dict[str, Any]) -> str:
     audit = result.get("invest_audit", {}) if isinstance(result, dict) else {}
     summary = result.get("invest_audit_summary", {}) if isinstance(result, dict) else {}
     invest_rows = render_invest_audit_rows(audit)
+    if es:
+        return f"""### {story_id}
+
+| Verificación | Estado | Hallazgo |
+| --- | --- | --- |
+{rows or '| story_quality | WARN | No hubo una evaluación de calidad disponible. |'}
+
+#### Auditoría INVEST paralela
+
+Señales estructurales aprobadas: `{int(summary.get('passed', 0))}/{int(summary.get('total', len(INVEST_SIGNAL_ORDER)))}`.
+
+| Letra | Señal | Estado | Hallazgo | Evidencia |
+| --- | --- | --- | --- | --- |
+{invest_rows}
+"""
     return f"""### {story_id}
 
 | Check | Status | Finding |
