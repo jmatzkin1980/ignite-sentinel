@@ -159,7 +159,8 @@ def mark_stories_stale(project_id: str, story_ids: list[str], reason: str, chang
 
 def story_spec_units(item: dict[str, Any]) -> set[str]:
     units: set[str] = set()
-    for value in (item.get("source_unit"), *item.get("trace", [])):
+    grouped = item.get("source_units", [])  # IMP-433: a grouped story of a change lists every unit it covers
+    for value in (item.get("source_unit"), *item.get("trace", []), *(grouped if isinstance(grouped, list) else [])):
         if isinstance(value, str) and SPEC_UNIT_RE.fullmatch(value):
             units.add(value)
     return units

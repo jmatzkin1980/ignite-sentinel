@@ -66,3 +66,4 @@ test_h27_change_quality  # 73 s
 test_h27_inc8a_walk  # 18 s
 test_h27_change_refine  # 55 s
 test_h27_change_compose  # 56 s
+test_h27_change_feedback  # 48 s
